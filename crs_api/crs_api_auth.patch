@@ -1,0 +1,83 @@
+--- server.py.orig	2025-01-13 18:41:54
++++ server.py	2025-01-13 18:41:52
+@@ -1,8 +1,11 @@
+ from __future__ import annotations
+ 
++import secrets
++from typing import Annotated, Optional
+ from uuid import UUID
+ 
+-from fastapi import FastAPI
++from fastapi import Depends, FastAPI, status, HTTPException
++from fastapi.security import HTTPBasic, HTTPBasicCredentials
+ 
+ from crs_api.models.types import Status, Task, VulnBroadcast
+ 
+@@ -13,7 +16,40 @@
+     servers=[{'url': '/'}],
+ )
+ 
++# The exposed endpoints must be authenticated using HTTP Basic.
++# Credentials will be composed of an API key and token which will be used as the username
++# and password in HTTP Basic Auth.
++# API keys will be UUIds, tokens will be random alphanumeric strings of at least 32 chars.
++# Tokens should be stored using Argon2ID.
++security = HTTPBasic()
+ 
++def check_auth(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
++    """
++    Reference: https://fastapi.tiangolo.com/advanced/security/http-basic-auth/
++    """
++    current_username_bytes = credentials.username.encode("utf8")
++    correct_username_bytes = b"api_key_id"  # FIXME: Change username as desired
++    is_correct_username = secrets.compare_digest(
++        current_username_bytes, correct_username_bytes
++    )
++
++    current_password_bytes = credentials.password.encode("utf8")
++    correct_password_bytes = (
++        b"api_key_token"  # FIXME: Change password as desired and use hash
++    )
++    is_correct_password = secrets.compare_digest(
++        current_password_bytes, correct_password_bytes
++    )
++
++    if not (is_correct_username and is_correct_password):
++        raise HTTPException(
++            status_code=status.HTTP_401_UNAUTHORIZED,
++            detail="Incorrect username or password",
++            headers={"WWW-Authenticate": "Basic"},
++        )
++    return credentials.username
++
++
+ @app.get('/status/', response_model=Status, tags=['status'])
+ def get_status_() -> Status:
+     """
+@@ -23,7 +59,7 @@
+ 
+ 
+ @app.post('/v1/sarif/', response_model=str, tags=['sarif'])
+-def post_v1_sarif_(body: VulnBroadcast) -> str:
++def post_v1_sarif_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], body: VulnBroadcast) -> str:
+     """
+     Submit Sarif Broadcast
+     """
+@@ -33,7 +69,7 @@
+ @app.post(
+     '/v1/task/', response_model=None, responses={'202': {'model': str}}, tags=['task']
+ )
+-def post_v1_task_(body: Task) -> Optional[str]:
++def post_v1_task_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], body: Task) -> Optional[str]:
+     """
+     Submit Task
+     """
+@@ -41,7 +77,7 @@
+ 
+ 
+ @app.delete('/v1/task/{task_id}/', response_model=str, tags=['task'])
+-def delete_v1_task_task_id_(task_id: UUID) -> str:
++def delete_v1_task_task_id_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], task_id: UUID) -> str:
+     """
+     Cancel Task
+     """

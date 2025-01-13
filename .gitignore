@@ -1,0 +1,37 @@
+example-crs-architecture/
+
+## Localized environment variables
+**/.env
+**/env
+
+## Generated Kubernetes Resources
+.k8s
+
+## Python
+__pycache__/
+
+# Devenv
+# This is another solution for managing dev environments
+# And these entries are ment to prevent accidentally
+# committing stuff that others may not be utilizing.
+.devenv*
+devenv.local.nix
+devenv.lock
+
+# direnv
+.direnv
+
+env/
+pip-wheel-metadata/
+*.egg-info/
+__pycache__/
+.coverage*
+.idea
+html/
+dist/
+.pdm-*
+pdm.lock
+.langchain.db
+
+*.bak
+*.orig
