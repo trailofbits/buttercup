@@ -20,6 +20,7 @@ dependencies = [
     "pydantic >= 2",
     "typing-extensions >= 4.7.1",
 ]
+requires-python = ">=3.12"
 
 [project.optional-dependencies]
 tests = [
