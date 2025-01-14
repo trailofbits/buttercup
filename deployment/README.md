@@ -155,3 +155,44 @@ export KUBECONFIG=$(pwd)/kube.config
 ```shell
 kubectl get namespaces
 ```
+
+## Access kubernetes cluster nodes / services
+```shell
+kubectl port-forward service/orchestrator -n crs 18000:8000
+```
+
+Then access `127.0.0.1:18000`.
+
+
+## Troubleshooting
+
+### Error acquiring the state lock
+```
+Error: Error acquiring the state lock
+│
+│ Error message: state blob is already locked
+│ Lock Info:
+│   ID:        7a304f3a-6b83-34a1-6773-b70ec456e6cc
+│   Path:      tfstate/terraform.tfstate
+│   Operation: OperationTypeApply
+│   Who:       ret2libc@macbookpro.lan
+│   Version:   1.10.4
+│   Created:   2025-01-14 12:56:49.352199 +0000 UTC
+│   Info:
+│
+│
+│ Terraform acquires a state lock to protect the state from being written
+│ by multiple users at the same time. Please resolve the issue above and try
+│ again. For most commands, you can disable locking with the "-lock=false"
+│ flag, but this is not recommended.
+╵
+```
+
+First, ensure that someone else is not really running some `terraform` command
+concurrently. If that's not the case, the state file might have not been
+unlocked (e.g. you CTRL-C terraform at some point and it did not unlocked the
+file before exiting), you can try adding the `-lock=false` as specified, or, if
+that does not work, go to the [Azure portal](https://portal.azure.com), open the
+`tfstate-rg` Resource Group, `tfstateserviceact`, then in Data Storage >
+Containers select `tfstate`. Select the `terraform.tfstate` blob and click
+`Break lease.
