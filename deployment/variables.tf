@@ -1,3 +1,16 @@
+variable "github_username" {
+  type        = string
+  description = "The username for the GitHub account."
+  default     = "USERNAME"
+  sensitive   = true
+}
+
+variable "github_pat" {
+  type        = string
+  description = "The personal access token (PAT) for the GitHub account."
+  sensitive   = true
+}
+
 variable "resource_group_location" {
   type        = string
   default     = "eastus"

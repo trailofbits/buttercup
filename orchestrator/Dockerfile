@@ -24,7 +24,7 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY crs_api ./crs_api
+COPY orchestrator ./orchestrator
 
-ENTRYPOINT ["uvicorn", "crs_api.server:app", "--host", "0.0.0.0"]
+ENTRYPOINT ["uvicorn", "orchestrator.task_server.server:app", "--host", "0.0.0.0"]
 EXPOSE 8000

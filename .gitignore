@@ -3,6 +3,7 @@ example-crs-architecture/
 ## Localized environment variables
 **/.env
 **/env
+**/venv
 
 ## Generated Kubernetes Resources
 .k8s

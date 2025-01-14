@@ -170,3 +170,72 @@ resource "kubernetes_namespace" "crs-ns" {
     name = "crs"
   }
 }
+
+resource "kubernetes_secret" "ghcr_auth" {
+  metadata {
+    name      = "ghcr-auth"
+    namespace = kubernetes_namespace.crs-ns.metadata.0.name
+  }
+  type = "kubernetes.io/dockerconfigjson"
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      "auths" = {
+        "https://ghcr.io" = {
+          "auth" : base64encode("${var.github_username}:${var.github_pat}")
+        }
+      }
+    })
+  }
+}
+
+resource "kubernetes_deployment" "orchestrator" {
+  metadata {
+    name      = "orchestrator"
+    namespace = kubernetes_namespace.crs-ns.metadata.0.name
+  }
+  spec {
+    replicas = 2
+    selector {
+      match_labels = {
+        app = "orchestrator"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "orchestrator"
+        }
+      }
+      spec {
+        image_pull_secrets {
+          name = kubernetes_secret.ghcr_auth.metadata[0].name
+        }
+        container {
+          image = "ghcr.io/trailofbits/afc-crs-trail-of-bits/orchestrator:latest"
+          name  = "orchestrator-container"
+          port {
+            container_port = 8000
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "orchestrator" {
+  metadata {
+    name      = "orchestrator"
+    namespace = kubernetes_namespace.crs-ns.metadata.0.name
+  }
+  spec {
+    selector = {
+      app = kubernetes_deployment.orchestrator.spec.0.template.0.metadata.0.labels.app
+    }
+    type = "NodePort"
+    port {
+      node_port   = 30201
+      port        = 8000
+      target_port = 8000
+    }
+  }
+}

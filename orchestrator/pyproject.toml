@@ -3,14 +3,14 @@ line-length = 80
 target-version = ['py312']
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.setuptools.packages]
 find = {}
 
 [project]
-name = "crs_api"
+name = "orchestrator"
 version = "0.1.0"
 dependencies = [
     "uvicorn",

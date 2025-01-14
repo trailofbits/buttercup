@@ -1,3 +1,3 @@
-update-crs-api:
-	@echo "Updating crs-api..."
-	@./scripts/update_crs_api.sh $(shell pwd)/crs_api
+update-apis:
+	@echo "Updating Competition/CRS APIs..."
+	@./scripts/update_apis.sh $(shell pwd)/orchestrator
