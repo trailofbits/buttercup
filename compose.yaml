@@ -1,0 +1,11 @@
+services:
+  orchestrator:
+    build:
+      context: ./orchestrator
+      target: development
+    volumes:
+      - ./orchestrator:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
