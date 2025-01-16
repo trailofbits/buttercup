@@ -1,9 +1,9 @@
-from fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguration
+from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguration
 from redis import Redis
 import argparse
 import tempfile
-from common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, SerializationDeserializationQueue, BUILDER_BOT_GROUP_NAME, RQItem
-from common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
+from buttercup.common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, SerializationDeserializationQueue, BUILDER_BOT_GROUP_NAME, RQItem
+from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import shutil
 import time
 import logging
