@@ -1,4 +1,10 @@
 services:
+  build-bot:
+    image: fuzzer-runnner-image
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    
   orchestrator:
     build:
       context: ./orchestrator
