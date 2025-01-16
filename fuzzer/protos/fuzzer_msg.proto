@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package fuzzermsgs;
+
+message BuildRequest {
+    string package_name = 1;
+    string engine = 2;
+    string sanitizer = 3;
+    string ossfuzz = 4;
+}
+
+message BuildOutput {
+    string package_name = 1;
+    string engine = 2;
+    string sanitizer = 3;
+    string output_ossfuzz_path = 4;
+}
+
+message WeightedTarget {
+    float weight = 1;
+    BuildOutput target = 2; 
+    string harness_path = 3;
+}

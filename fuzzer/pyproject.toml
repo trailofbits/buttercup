@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "fuzzing-infra"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+clusterfuzz = "2.6.0"
+redis = "^5.2.1"
+protobuf = "^3.20"
+common = {path = "../common/", develop=true}
+
+#[tool.poetry-grpc-plugin]
+#proto_path = "protos"               # Defaults to module name
+#python_out = "./fuzzing_infra/datastructures"                    # Defaults to . 
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
