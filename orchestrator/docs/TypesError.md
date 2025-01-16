@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from orchestrator.competition_api_client.models.types_error import TypesError
+from buttercup.orchestrator.competition_api_client.models.types_error import TypesError
 
 # TODO update the JSON string below
 json = "{}"

@@ -1,46 +1,39 @@
-ARG PYTHON_BASE=3.12-slim
+ARG PYTHON_BASE=3.12-slim-bookworm
 
-FROM python:${PYTHON_BASE} as builder
+FROM python:${PYTHON_BASE} AS builder
 
-RUN apt-get update
-RUN pip install -U poetry==2.0.1
+COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=0 \
-    POETRY_VIRTUALENVS_CREATE=1 \
-    POETRY_VIRTUALENVS_PATH=/opt/venv \
-    POETRY_VIRTUALENVS_OPTIONS_ALWAYS_COPY=true \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
-
-WORKDIR /app
-COPY pyproject.toml poetry.lock /app/
-RUN touch README.md
-
-RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
-RUN poetry env info --path > /venv-path
-
-
-FROM python:${PYTHON_BASE} as runtime-base
-
-COPY --from=builder /venv-path /venv-path
-COPY --from=builder /opt/venv /opt/venv
-
-RUN echo '#!/bin/bash' > /env-setup.sh && \
-    echo 'export PATH="/opt/venv/$(basename $(cat /venv-path))/bin:$PATH"' >> /env-setup.sh && \
-    chmod +x /env-setup.sh
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PYTHON=python3.12
 
 WORKDIR /app
 
-FROM runtime-base as development
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-editable
+
+ADD . /app
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-editable
+
+FROM python:${PYTHON_BASE} AS runtime-base
+
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+WORKDIR /app
+
+FROM runtime-base AS development
 # Don't copy source code in dev - will be mounted as volume
-SHELL ["/bin/bash", "-c"]
-CMD ["/bin/bash", "-c", ". /env-setup.sh && exec uvicorn orchestrator.task_server.server:app --host 0.0.0.0 --reload --reload-dir /app"]
+CMD ["/app/.venv/bin/uvicorn", "buttercup.orchestrator.task_server.server:app", "--host", "0.0.0.0"]
 
 EXPOSE 8000
 
-FROM runtime-base as production
+FROM runtime-base AS production
 SHELL ["/bin/bash", "-c"]
-COPY orchestrator ./orchestrator
-CMD ["/bin/bash", "-c", ". /env-setup.sh && exec uvicorn orchestrator.task_server.server:app --host 0.0.0.0"]
+CMD ["/app/.venv/bin/uvicorn", "buttercup.orchestrator.task_server.server:app", "--host", "0.0.0.0"]
 
 EXPOSE 8000

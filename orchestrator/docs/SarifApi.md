@@ -20,9 +20,9 @@ submit a sarif assessment
 
 ```python
 import competition_api_client
-from orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
-from orchestrator.competition_api_client.models.types_sarif_assessment_submission import TypesSarifAssessmentSubmission
-from orchestrator.competition_api_client.rest import ApiException
+from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
+from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_submission import TypesSarifAssessmentSubmission
+from buttercup.orchestrator.competition_api_client.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost

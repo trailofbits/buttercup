@@ -21,8 +21,8 @@ yield the status of patch testing
 
 ```python
 import competition_api_client
-from orchestrator.competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
-from orchestrator.competition_api_client.rest import ApiException
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
+from buttercup.orchestrator.competition_api_client.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
@@ -106,9 +106,9 @@ submit a patch for testing
 
 ```python
 import competition_api_client
-from orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
-from orchestrator.competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
-from orchestrator.competition_api_client.rest import ApiException
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
+from buttercup.orchestrator.competition_api_client.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost

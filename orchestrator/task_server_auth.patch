@@ -12,7 +12,7 @@
 +from fastapi import Depends, FastAPI, status, HTTPException
 +from fastapi.security import HTTPBasic, HTTPBasicCredentials
  
- from orchestrator.task_server.models.types import Status, Task, VulnBroadcast
+ from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
  
 @@ -17,7 +20,40 @@
      servers=[{'url': '/'}],

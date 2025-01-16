@@ -18,12 +18,12 @@ from typing_extensions import Annotated
 
 from pydantic import Field, StrictStr
 from typing_extensions import Annotated
-from orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
-from orchestrator.competition_api_client.models.types_sarif_assessment_submission import TypesSarifAssessmentSubmission
+from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
+from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_submission import TypesSarifAssessmentSubmission
 
-from orchestrator.competition_api_client.api_client import ApiClient, RequestSerialized
-from orchestrator.competition_api_client.api_response import ApiResponse
-from orchestrator.competition_api_client.rest import RESTResponseType
+from buttercup.orchestrator.competition_api_client.api_client import ApiClient, RequestSerialized
+from buttercup.orchestrator.competition_api_client.api_response import ApiResponse
+from buttercup.orchestrator.competition_api_client.rest import RESTResponseType
 
 
 class SarifApi:

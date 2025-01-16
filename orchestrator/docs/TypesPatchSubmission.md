@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
 
 # TODO update the JSON string below
 json = "{}"

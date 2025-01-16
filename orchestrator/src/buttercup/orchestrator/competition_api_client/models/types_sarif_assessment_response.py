@@ -17,19 +17,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List
-from orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
-class TypesVulnSubmissionResponse(BaseModel):
+class TypesSarifAssessmentResponse(BaseModel):
     """
-    TypesVulnSubmissionResponse
+    TypesSarifAssessmentResponse
     """ # noqa: E501
     status: TypesSubmissionStatus
-    vuln_id: StrictStr
-    __properties: ClassVar[List[str]] = ["status", "vuln_id"]
+    __properties: ClassVar[List[str]] = ["status"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -49,7 +48,7 @@ class TypesVulnSubmissionResponse(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of TypesVulnSubmissionResponse from a JSON string"""
+        """Create an instance of TypesSarifAssessmentResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,7 +73,7 @@ class TypesVulnSubmissionResponse(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of TypesVulnSubmissionResponse from a dict"""
+        """Create an instance of TypesSarifAssessmentResponse from a dict"""
         if obj is None:
             return None
 
@@ -82,8 +81,7 @@ class TypesVulnSubmissionResponse(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "status": obj.get("status"),
-            "vuln_id": obj.get("vuln_id")
+            "status": obj.get("status")
         })
         return _obj
 
