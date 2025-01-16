@@ -2,7 +2,7 @@ import argparse
 import subprocess
 import os
 from dataclasses import dataclass
-from common.queues import BuildConfiguration
+from buttercup.common.queues import BuildConfiguration
 # General idea for fuzzer arch:
 # build out a build and a run entrypoint, fuzzer is checkpointed as a configuration after a build
 # build is in shared mount for all fuzzer pods.
