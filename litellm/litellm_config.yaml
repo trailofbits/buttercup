@@ -1,0 +1,29 @@
+model_list:
+  - model_name: azure-gpt-4o
+    litellm_params:
+      model: azure/gpt-4o-2024-08-06 # Name defined in Azure Deployment
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      tpm: 1000000 # TPM of deployment is 10M
+      rpm: 6000 # RPM of deployment is 60K
+
+  - model_name: azure-gpt-4o-mini
+    litellm_params:
+      model: azure/gpt-4o-mini-2024-07-18 # Name defined in Azure Deployment
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      tpm: 2000000 # TPM of deployment is 20M
+      rpm: 20000 # RPM of deployment is 200K
+
+  - model_name: openai-gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: openai-gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+general_settings:
+  master_key: sk-1234
