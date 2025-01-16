@@ -1,0 +1,1 @@
+CORPUS_DIR_NAME = "buttercup_corpus"
