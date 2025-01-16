@@ -16,3 +16,10 @@ dependencies = [
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/buttercup"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

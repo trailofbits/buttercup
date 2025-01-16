@@ -1,7 +1,7 @@
 import argparse
 from redis import Redis
-from common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILDER_BOT_GROUP_NAME
-from common.datastructures.fuzzer_msg_pb2 import BuildRequest
+from buttercup.common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILDER_BOT_GROUP_NAME
+from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest
 
 
 def main():
