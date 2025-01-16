@@ -1,5 +1,5 @@
 version = 1
-requires-python = ">=3.9, <=3.10"
+requires-python = ">=3.9, <3.11"
 
 [[package]]
 name = "async-timeout"

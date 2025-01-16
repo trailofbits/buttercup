@@ -6,8 +6,8 @@ import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.queues import TARGET_LIST_NAME, NormalQueue, SerializationDeserializationQueue
 from buttercup.common.constants import CORPUS_DIR_NAME
-from common import constants
-from common import utils
+from buttercup.common import constants
+from buttercup.common import utils
 from redis import Redis
 import random
 import tempfile
