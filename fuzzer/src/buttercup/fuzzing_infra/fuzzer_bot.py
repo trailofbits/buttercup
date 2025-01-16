@@ -1,11 +1,11 @@
 import argparse
 import distutils.dir_util
-from fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
+from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
 import os 
-from common.datastructures.fuzzer_msg_pb2 import WeightedTarget
-from common.queues import TARGET_LIST_NAME, NormalQueue, SerializationDeserializationQueue
-from common.constants import CORPUS_DIR_NAME
+from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
+from buttercup.common.queues import TARGET_LIST_NAME, NormalQueue, SerializationDeserializationQueue
+from buttercup.common.constants import CORPUS_DIR_NAME
 from common import constants
 from common import utils
 from redis import Redis

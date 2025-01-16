@@ -1,6 +1,6 @@
 from clusterfuzz.fuzz import get_fuzz_targets, get_engine
 from clusterfuzz.fuzz.engine import Engine, FuzzResult, FuzzOptions
-from common.queues import FuzzConfiguration
+from buttercup.common.queues import FuzzConfiguration
 import typing
 import os
 from dataclasses import dataclass

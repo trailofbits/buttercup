@@ -1,7 +1,7 @@
-from common.queues import Queue, SerializationDeserializationQueue, ReliableQueue, NormalQueue, BUILD_OUTPUT_NAME, TARGET_LIST_NAME, ORCHESTRATOR_GROUP_NAME, RQItem
+from buttercup.common.queues import Queue, SerializationDeserializationQueue, ReliableQueue, NormalQueue, BUILD_OUTPUT_NAME, TARGET_LIST_NAME, ORCHESTRATOR_GROUP_NAME, RQItem
 import argparse
 from redis import Redis
-from common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
+from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
 import time
 from clusterfuzz.fuzz import get_fuzz_targets
 import os 
