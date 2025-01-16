@@ -21,19 +21,11 @@ ADD . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
-FROM python:${PYTHON_BASE} AS runtime-base
+
+FROM python:${PYTHON_BASE} AS runtime
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 WORKDIR /app
-
-FROM runtime-base AS development
-# Don't copy source code in dev - will be mounted as volume
-CMD ["/app/.venv/bin/uvicorn", "buttercup.orchestrator.task_server.server:app", "--host", "0.0.0.0"]
-
-EXPOSE 8000
-
-FROM runtime-base AS production
-SHELL ["/bin/bash", "-c"]
 CMD ["/app/.venv/bin/uvicorn", "buttercup.orchestrator.task_server.server:app", "--host", "0.0.0.0"]
 
 EXPOSE 8000
