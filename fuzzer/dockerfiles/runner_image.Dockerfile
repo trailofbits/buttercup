@@ -31,4 +31,4 @@ FROM gcr.io/oss-fuzz-base/base-runner AS runtime
 
 COPY --from=builder --chown=app:app /fuzzer/.venv /fuzzer/.venv
 
-CMD ["/fuzzer/.venv/bin/python", "-m", "buttercup.fuzzing_infra.fuzzer_bot"]
+ENTRYPOINT ["/fuzzer/.venv/bin/python", "-m", "buttercup.fuzzing_infra.fuzzer_bot"]
