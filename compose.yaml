@@ -1,10 +1,21 @@
 services:
+  redis:
+    image: redis:7.4.2
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server /mount/redis.conf
+    volumes: 
+      - cache:/data
+      - ./redis:/mount
   build-bot:
     image: fuzzer-runnner-image
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    
+    depends_on:
+      redis:
+        condition: service_healthy
   orchestrator:
     build:
       context: ./orchestrator
@@ -43,3 +54,7 @@ services:
 configs:
   litellm_config:
     file: ./litellm/litellm_config.yaml
+
+volumes:
+  cache:
+    driver: local
