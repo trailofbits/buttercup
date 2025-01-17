@@ -18,8 +18,20 @@ Details about implementation and design decisions can be found [here](https://do
   source env/bin/activate
   ```
 
+## Usage
+
 - Run contextualizer
 
   ```bash
   contextualizer --help
+  ```
+
+## Development
+
+- Run tests
+
+  ```bash
+  make reformat
+  make lint
+  make test
   ```
