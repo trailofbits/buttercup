@@ -17,19 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List
-from orchestrator.competition_api_client.models.types_assessment import TypesAssessment
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
-class TypesSarifAssessmentSubmission(BaseModel):
+class TypesVulnSubmissionResponse(BaseModel):
     """
-    TypesSarifAssessmentSubmission
+    TypesVulnSubmissionResponse
     """ # noqa: E501
-    assessment: TypesAssessment
-    description: StrictStr = Field(description="Plain text reasoning for the assesment")
-    __properties: ClassVar[List[str]] = ["assessment", "description"]
+    status: TypesSubmissionStatus
+    vuln_id: StrictStr
+    __properties: ClassVar[List[str]] = ["status", "vuln_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -49,7 +49,7 @@ class TypesSarifAssessmentSubmission(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of TypesSarifAssessmentSubmission from a JSON string"""
+        """Create an instance of TypesVulnSubmissionResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,7 +74,7 @@ class TypesSarifAssessmentSubmission(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of TypesSarifAssessmentSubmission from a dict"""
+        """Create an instance of TypesVulnSubmissionResponse from a dict"""
         if obj is None:
             return None
 
@@ -82,8 +82,8 @@ class TypesSarifAssessmentSubmission(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "assessment": obj.get("assessment"),
-            "description": obj.get("description")
+            "status": obj.get("status"),
+            "vuln_id": obj.get("vuln_id")
         })
         return _obj
 

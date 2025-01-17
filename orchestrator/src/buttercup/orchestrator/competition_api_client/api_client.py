@@ -26,11 +26,11 @@ from urllib.parse import quote
 from typing import Tuple, Optional, List, Dict, Union
 from pydantic import SecretStr
 
-from orchestrator.competition_api_client.configuration import Configuration
-from orchestrator.competition_api_client.api_response import ApiResponse, T as ApiResponseT
-import orchestrator.competition_api_client.models
-from orchestrator.competition_api_client import rest
-from orchestrator.competition_api_client.exceptions import (
+from buttercup.orchestrator.competition_api_client.configuration import Configuration
+from buttercup.orchestrator.competition_api_client.api_response import ApiResponse, T as ApiResponseT
+import buttercup.orchestrator.competition_api_client.models
+from buttercup.orchestrator.competition_api_client import rest
+from buttercup.orchestrator.competition_api_client.exceptions import (
     ApiValueError,
     ApiException,
     BadRequestException,

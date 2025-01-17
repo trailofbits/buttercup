@@ -10,7 +10,7 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
+from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
 
 # TODO update the JSON string below
 json = "{}"

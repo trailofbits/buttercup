@@ -3,6 +3,7 @@
 **/.env*/
 **/.venv/
 **/.env/
+**/*.bak
 
 **/pip-wheel-metadata/
 **/*.egg-info/
