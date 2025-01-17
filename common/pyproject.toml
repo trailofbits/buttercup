@@ -1,0 +1,19 @@
+[project]
+name = "common"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Trail of Bits",email = "opensource@trailofbits"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "protobuf (>=3.20, <=3.20.3)",
+    "redis (>=5.2.1,<6.0.0)"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/buttercup"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
