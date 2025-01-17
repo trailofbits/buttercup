@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package orchestrator;
+
+message Task {
+    enum TaskType {
+        TASK_TYPE_FULL = 0;
+        TASK_TYPE_DELTA = 1;
+    }
+
+    enum TaskStatus {
+        TASK_STATUS_PENDING = 0;
+        TASK_STATUS_RUNNING = 1;
+        TASK_STATUS_SUCCEEDED = 2;
+        TASK_STATUS_FAILED = 3;
+        TASK_STATUS_CANCELLED = 4;
+    }
+
+    string message_id = 1;
+    int64 message_time = 2;
+    string task_id = 3;
+    TaskType task_type = 4;
+    repeated SourceDetail sources = 5;
+    int64 deadline = 6;
+    TaskStatus task_status = 7;
+}
+
+message SourceDetail {
+    enum SourceType {
+        SOURCE_TYPE_REPO = 0;
+        SOURCE_TYPE_FUZZ_TOOLING = 1;
+        SOURCE_TYPE_DIFF = 2;
+    }
+
+    string sha256 = 1;
+    SourceType source_type = 2;
+    string url = 3;
+}
+
+message TaskDownload {
+    string task_id = 1;
+}
