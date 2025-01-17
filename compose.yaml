@@ -8,11 +8,19 @@ services:
     volumes: 
       - cache:/data
       - ./redis:/mount
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
   build-bot:
     image: fuzzer-runnner-image
+    command: -m buttercup.fuzzing_infra.builder_bot --wdir /crs_scratch --redis_url redis://redis:6379
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    volumes:
+      - ./crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
