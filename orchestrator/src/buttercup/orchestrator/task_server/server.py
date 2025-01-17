@@ -5,19 +5,29 @@
 from __future__ import annotations
 
 import secrets
+import uvicorn
 from typing import Annotated, Optional
+from redis import Redis
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
+from buttercup.orchestrator.task_server.backend import new_task, get_status, submit_sarif, delete_task
+from buttercup.orchestrator.logger import setup_logging
+from buttercup.orchestrator.dependencies import get_redis, get_task_queue, get_task_registry
+from buttercup.common.queues import ReliableQueue
+from buttercup.orchestrator.data import TaskRegistry
+
+logger = setup_logging(__name__)
 
 app = FastAPI(
-    title='Example CRS API',
+    title="Buttercup CRS API",
     contact={},
-    version='0.1',
-    servers=[{'url': '/'}],
+    version="0.1",
+    servers=[{"url": "/"}],
+    log_config=None,
 )
 
 # The exposed endpoints must be authenticated using HTTP Basic.
@@ -27,23 +37,18 @@ app = FastAPI(
 # Tokens should be stored using Argon2ID.
 security = HTTPBasic()
 
+
 def check_auth(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     """
     Reference: https://fastapi.tiangolo.com/advanced/security/http-basic-auth/
     """
     current_username_bytes = credentials.username.encode("utf8")
     correct_username_bytes = b"api_key_id"  # FIXME: Change username as desired
-    is_correct_username = secrets.compare_digest(
-        current_username_bytes, correct_username_bytes
-    )
+    is_correct_username = secrets.compare_digest(current_username_bytes, correct_username_bytes)
 
     current_password_bytes = credentials.password.encode("utf8")
-    correct_password_bytes = (
-        b"api_key_token"  # FIXME: Change password as desired and use hash
-    )
-    is_correct_password = secrets.compare_digest(
-        current_password_bytes, correct_password_bytes
-    )
+    correct_password_bytes = b"api_key_token"  # FIXME: Change password as desired and use hash
+    is_correct_password = secrets.compare_digest(current_password_bytes, correct_password_bytes)
 
     if not (is_correct_username and is_correct_password):
         raise HTTPException(
@@ -54,38 +59,63 @@ def check_auth(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     return credentials.username
 
 
-@app.get('/status/', response_model=Status, tags=['status'])
-def get_status_() -> Status:
+@app.get("/status/", response_model=Status, tags=["status"])
+def get_status_(task_registry: Annotated[TaskRegistry, Depends(get_task_registry)]) -> Status:
     """
     CRS Status
     """
-    pass
+    return get_status(task_registry)
 
 
-@app.post('/v1/sarif/', response_model=str, tags=['sarif'])
-def post_v1_sarif_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], body: VulnBroadcast) -> str:
+@app.post("/v1/sarif/", response_model=str, tags=["sarif"])
+def post_v1_sarif_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    body: VulnBroadcast,
+    redis: Annotated[Redis, Depends(get_redis)],
+) -> str:
     """
     Submit Sarif Broadcast
     """
-    pass
+    return submit_sarif(body, redis)
 
 
 @app.post(
-    '/v1/task/',
+    "/v1/task/",
     response_model=None,
-    responses={'202': {'model': str}},
-    tags=['task'],
+    responses={"202": {"model": str}},
+    tags=["task"],
 )
-def post_v1_task_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], body: Task) -> Optional[str]:
+def post_v1_task_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    body: Task,
+    tasks_queue: Annotated[ReliableQueue, Depends(get_task_queue)],
+    task_registry: Annotated[TaskRegistry, Depends(get_task_registry)],
+) -> Optional[str]:
     """
     Submit Task
     """
-    pass
+    task_id = new_task(body, tasks_queue, task_registry)
+    return task_id
 
 
-@app.delete('/v1/task/{task_id}/', response_model=str, tags=['task'])
-def delete_v1_task_task_id_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], task_id: UUID) -> str:
+@app.delete("/v1/task/{task_id}/", response_model=str, tags=["task"])
+def delete_v1_task_task_id_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    task_id: UUID,
+    task_registry: Annotated[TaskRegistry, Depends(get_task_registry)],
+) -> str:
     """
     Cancel Task
     """
-    pass
+    return delete_task(task_id, task_registry)
+
+def main():
+    uvicorn.run(
+        "buttercup.orchestrator.task_server.server:app",
+        reload=True,  # Enable hot reloading for development
+        log_config=None,  # Disable uvicorn's default logging
+    )
+
+
+if __name__ == "__main__":
+    main()
