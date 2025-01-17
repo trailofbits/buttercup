@@ -1,6 +1,13 @@
-FROM gcr.io/oss-fuzz-base/base-runner AS builder
 
-RUN apt-get update && apt-get install -y python3.9 
+
+ARG BASE_IMAGE=gcr.io/oss-fuzz-base/base-runner
+
+FROM $BASE_IMAGE AS runner-base
+RUN apt-get update
+# TODO(Ian): maybe we should have a different base image for the builder
+RUN curl -fsSL https://get.docker.com | sh
+
+FROM $BASE_IMAGE AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
@@ -27,7 +34,7 @@ ADD ./fuzzer /fuzzer
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
-FROM gcr.io/oss-fuzz-base/base-runner AS runtime
+FROM runner-base AS runtime
 
 COPY --from=builder --chown=app:app /fuzzer/.venv /fuzzer/.venv
 

@@ -42,3 +42,5 @@ pdm.lock
 
 # generated protobuf
 common/common/datastructures/fuzzer_msg*
+
+crs_scratch/*

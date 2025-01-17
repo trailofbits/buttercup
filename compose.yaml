@@ -1,4 +1,21 @@
 services:
+  # ugh the only solution i can come up with is a dind instance paired with every single build-bot we will need like k8s groups or something
+  dind:
+    expose:
+      - "2375"
+    profiles:
+      - development
+      - competition
+    image: docker:24-dind
+    command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false", "--storage-driver=overlay2"]
+    restart: always
+    privileged: true  # This must run with privlege to support nested virtualization within the public Linux CP for `virtme-ng`
+    environment:
+      - DOCKER_TLS_CERTDIR  # intentionally blank to optimize runtime
+    volumes:
+      - type: bind
+        source: ./crs_scratch
+        target: /crs_scratch
   redis:
     image: redis:7.4.2
     restart: always
@@ -13,9 +30,13 @@ services:
       interval: 1s
       timeout: 3s
       retries: 5
-  build-bot:
+  
+  stimulate-fuzzer-test:
     image: fuzzer-runnner-image
-    command: -m buttercup.fuzzing_infra.builder_bot --wdir /crs_scratch --redis_url redis://redis:6379
+    command: -m buttercup.fuzzing_infra.stimulate_build_bot --ossfuzz /crs_scratch/ossfuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379
+    restart: no
+    profiles:
+      - development
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
@@ -24,6 +45,35 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+  orchestrator-sim:
+    image: fuzzer-runnner-image
+    command: -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
+    profiles:
+      - development
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    volumes:
+      - ./crs_scratch:/crs_scratch
+    depends_on:
+      redis:
+        condition: service_healthy
+  build-bot:
+    image: fuzzer-runnner-image
+    command: -m buttercup.fuzzing_infra.builder_bot --wdir /crs_scratch --redis_url redis://redis:6379
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    volumes:
+      - ./crs_scratch:/crs_scratch
+    environment:
+      # These values will be modified automatically at competition time
+      - DOCKER_HOST=tcp://dind:2375
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
   fuzzer-bot:
     image: fuzzer-runnner-image
     command: -m buttercup.fuzzing_infra.fuzzer_bot --wdir /crs_scratch --redis_url redis://redis:6379 --timeout 900

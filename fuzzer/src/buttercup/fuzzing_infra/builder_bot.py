@@ -38,7 +38,11 @@ def main():
             
             target = ossfuzz_dir
             if not args.allow_caching:
-                target = os.path.join(args.wdir.name, f"ossfuzz-snapshot-{dirid}")
+                wdirstr = args.wdir
+                if not isinstance(wdirstr, str):
+                    wdirstr = args.wdir.name
+
+                target = os.path.join(wdirstr, f"ossfuzz-snapshot-{dirid}")
                 shutil.copytree(ossfuzz_dir, target)
             
             build_tool = OSSFuzzTool(Conf(target, args.python))
