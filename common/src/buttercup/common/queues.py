@@ -5,11 +5,17 @@ from google.protobuf.message import Message
 import logging
 import uuid
 from redis.exceptions import ResponseError
+
 BUILD_QUEUE_NAME = "fuzzer_build_queue"
 BUILDER_BOT_GROUP_NAME = "build_bot_consumers"
 ORCHESTRATOR_GROUP_NAME = "orchestrator_group"
 BUILD_OUTPUT_NAME = "fuzzer_build_output_queue"
 TARGET_LIST_NAME = "fuzzer_target_list"
+
+TASKS_QUEUE_NAME = "orchestrator_tasks_queue"
+TASKS_GROUP_NAME = "orchestrator_tasks_group"
+TASKS_REGISTRY_HASH_NAME = "orchestrator_tasks_registry"
+
 logger = logging.getLogger(__name__)
 
 class Queue(ABC):
@@ -104,6 +110,9 @@ class ReliableQueue:
 
         self.reader_name = f"rqueue_{str(uuid.uuid4())}"
         self.msg_builder = msg_builder
+
+    def size(self):
+        return self.redis.xlen(self.qname)
 
     def push(self, item):
         bts = item.SerializeToString()
