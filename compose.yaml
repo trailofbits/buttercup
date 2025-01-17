@@ -24,6 +24,14 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+  fuzzer-bot:
+    image: fuzzer-runnner-image
+    command: -m buttercup.fuzzing_infra.fuzzer_bot --wdir /crs_scratch --redis_url redis://redis:6379 --timeout 900
+    volumes:
+      - ./crs_scratch:/crs_scratch
+    depends_on:
+      redis:
+        condition: service_healthy
   orchestrator:
     build:
       context: ./orchestrator
