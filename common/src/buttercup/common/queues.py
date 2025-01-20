@@ -233,8 +233,8 @@ class QueueFactory:
         Create a reliable queue with predefined configuration, allowing for overrides
 
         Args:
-            queue_name: The name of the queue to create
             redis: Redis connection
+            message_type: The type of message to create a queue for
             **kwargs: Additional arguments to override default configuration
         """
         if message_type not in self.queue_configs:
