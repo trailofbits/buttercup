@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from redis import Redis
+from redis import Redis, RedisError
 from google.protobuf.message import Message
 import logging
+from typing import Type
 import uuid
-from redis.exceptions import ResponseError
 
 BUILD_QUEUE_NAME = "fuzzer_build_queue"
 BUILDER_BOT_GROUP_NAME = "build_bot_consumers"
@@ -18,20 +20,19 @@ TASKS_REGISTRY_HASH_NAME = "orchestrator_tasks_registry"
 
 logger = logging.getLogger(__name__)
 
+
 class Queue(ABC):
     def __init__(self):
         pass
 
     @abstractmethod
-    def pop(self):
-        ...
+    def pop(self): ...
 
-    def push(self, _):
-        ...
+    def push(self, _): ...
 
     @abstractmethod
-    def __iter__(self):
-        ...
+    def __iter__(self): ...
+
 
 class SerializationDeserializationQueue(Queue):
     def __init__(self, subq: Queue, msg_builder):
@@ -42,7 +43,7 @@ class SerializationDeserializationQueue(Queue):
     def push(self, it: Message):
         if not it.IsInitialized():
             logger.error("Uninitialized field in protobuf object")
-        
+
         bts = it.SerializeToString()
         self.subq.push(bts)
 
@@ -55,14 +56,15 @@ class SerializationDeserializationQueue(Queue):
         msg.ParseFromString(maybe_bts)
         print("parsing message")
         return msg
-    
+
     def __iter__(self):
-        for it in  iter(self.subq):
-           msg = self.msg_builder()
-           msg.ParseFromString(it)
-           print(msg, type(msg))
-           yield msg
-    
+        for it in iter(self.subq):
+            msg = self.msg_builder()
+            msg.ParseFromString(it)
+            print(msg, type(msg))
+            yield msg
+
+
 class QueueIterMixin:
     def __init__(self, qname: str, redis: Redis):
         self.qname = qname
@@ -71,6 +73,7 @@ class QueueIterMixin:
     def __iter__(self):
         return iter(self.redis.lrange(self.qname, 0, -1))
 
+
 class NormalQueue(QueueIterMixin, Queue):
     def __init__(self, qname: str, redis: Redis):
         super().__init__(qname, redis)
@@ -78,70 +81,120 @@ class NormalQueue(QueueIterMixin, Queue):
         self.redis = redis
 
     def push(self, it):
-        self.redis.lpush(self.qname,it)
+        self.redis.lpush(self.qname, it)
 
     def pop(self):
         return self.redis.rpop(self.qname)
-    
+
     def __iter__(self):
         return super().__iter__()
- 
-
-INAME = b"item"
 
 
+@dataclass
 class RQItem:
-    def __init__(self, item_id, deserialized):
-        self.item_id = item_id
-        self.deserialized = deserialized
+    """
+    A single item in a reliable queue.
+    """
 
+    item_id: str
+    deserialized: Message
+    consumer_name: str
+
+
+@dataclass
+class PendingItem:
+    """
+    A single item in a pending queue.
+    """
+
+    item_id: str
+    consumer_name: str
+    idle_time: int
+    delivery_count: int
+
+
+@dataclass
 class ReliableQueue:
-    def __init__(self, qname: str, gname:str, redis: Redis, task_timeout: int, msg_builder):
-        super().__init__()
-        self.qname = qname
-        self.redis = redis
-        self.gname = gname
-        self.task_timeout = task_timeout
-        # TODO(Ian): Idempotent afaik
+    """
+    A queue that is reliable and can be used to process tasks in a distributed environment.
+    """
+
+    queue_name: str
+    group_name: str
+    redis: Redis
+    task_timeout: int
+    msg_builder: Type[Message]
+    reader_name: str | None = None
+    last_stream_id: str | None = "0-0"
+    block_time: int = 200
+
+    INAME = b"item"
+
+    def __post_init__(self) -> None:
+        if self.reader_name is None:
+            self.reader_name = f"rqueue_{str(uuid.uuid4())}"
+
+        # Create consumer group if it doesn't exist
         try:
-            self.redis.xgroup_create(qname,gname,mkstream=True)
-        except ResponseError:
+            self.redis.xgroup_create(self.queue_name, self.group_name, mkstream=True)
+        except RedisError:
+            # Group may already exist
             pass
 
-        self.reader_name = f"rqueue_{str(uuid.uuid4())}"
-        self.msg_builder = msg_builder
+    def size(self) -> int:
+        return self.redis.xlen(self.queue_name)
 
-    def size(self):
-        return self.redis.xlen(self.qname)
-
-    def push(self, item):
+    def push(self, item: Message) -> None:
         bts = item.SerializeToString()
-        self.redis.xadd(self.qname, {INAME : bts})
+        self.redis.xadd(self.queue_name, {self.INAME: bts})
 
-    def pop(self):
-        elem = self.redis.xreadgroup(self.gname, self.reader_name, {self.qname: ">"}, block=200, count=1)
-        
-        if len(elem) <= 0:
-            # the first element is the stream id scanned, the second is the results, the third is stale elemes 
-            elem = self.redis.xautoclaim(self.qname, self.gname, self.reader_name, self.task_timeout, count=1)[1]
+    def pop(self) -> RQItem | None:
+        streams_items = self.redis.xreadgroup(
+            self.group_name,
+            self.reader_name,
+            {self.queue_name: self.last_stream_id},
+            block=self.block_time,
+            count=1,
+        )
+        # Redis xreadgroup returns a list of [stream_name, [(message_id, {field: value})]]
+        if streams_items is None or len(streams_items) == 0:
+            # No message found in the pending/regular queue for this reader.
+            # Try to autoclaim a message
+            res = self.redis.xautoclaim(
+                self.queue_name,
+                self.group_name,
+                self.reader_name,
+                min_idle_time=self.task_timeout,
+                count=1,
+            )
+            if res is None or len(res[1]) == 0:
+                return None
+
+            stream_item = res[1]
         else:
-            # this is gnarly. Basics here xreadgroup supports reading multiple streams at once so gives output
-            #[[b'fuzzer_build_queue', [(b'1736893605878-0', {b'item': b'\n\x05nginx\x12\tlibfuzzer\x1a\x07address"\x18/home/iansmith/oss-fuzz/'})]]]
-            # we want the first stream, second elem 
-            elem = elem[0][1]
-        if len(elem) <= 0:
-            return None
-        print(elem)
-        print(elem[0][1])
+            stream_item = streams_items[0][1]
+
+        if len(stream_item) == 0:
+            # No message found in the pending queue for this reader
+            # Go to the new messages
+            self.last_stream_id = ">"
+            return self.pop()
+
+        # Extract message ID and data
+        message_id = stream_item[0][0]
+        message_data = stream_item[0][1]
+
+        # Create and parse protobuf message
         msg = self.msg_builder()
-        # aand again we index here to get the first elem for the stream
-        felem = elem[0]
-        identifier, it_dict = felem
-        msg.ParseFromString(it_dict[INAME])
-        return RQItem(identifier, msg)
-    
-    def ack_item(self, rq_item: RQItem):
-        self.redis.xack(self.qname, self.gname, rq_item.item_id)
+        msg.ParseFromString(message_data[self.INAME])
+
+        return RQItem(
+            item_id=message_id, deserialized=msg, consumer_name=self.reader_name
+        )
+
+    def ack_item(self, rq_item: RQItem) -> None:
+        self.redis.xack(self.queue_name, self.group_name, rq_item.item_id)
+
 
 @dataclass
 class FuzzConfiguration:
@@ -150,10 +203,9 @@ class FuzzConfiguration:
     engine: str
     sanitizer: str
 
+
 @dataclass
 class BuildConfiguration:
     project_id: str
     engine: str
     sanitizer: str
-
-
