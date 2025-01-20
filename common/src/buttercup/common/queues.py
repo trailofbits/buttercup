@@ -4,23 +4,23 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from redis import Redis, RedisError
 from google.protobuf.message import Message
+from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import logging
-from typing import Type
+from typing import Type, Generic, TypeVar
 import uuid
 from enum import Enum
+from typing import Any
 
 
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     TARGET_LIST = "fuzzer_target_list"
-    TASKS = "orchestrator_tasks_queue"
 
 
 class GroupNames(str, Enum):
     BUILDER_BOT = "build_bot_consumers"
     ORCHESTRATOR = "orchestrator_group"
-    TASKS = "orchestrator_tasks_group"
 
 
 logger = logging.getLogger(__name__)
@@ -95,31 +95,24 @@ class NormalQueue(QueueIterMixin, Queue):
         return super().__iter__()
 
 
+# Type variable for protobuf Message subclasses
+# Used for type-safe serialization/deserialization of queue items
+MsgType = TypeVar("MsgType", bound=Message)
+
+
 @dataclass
-class RQItem:
+class RQItem(Generic[MsgType]):
     """
     A single item in a reliable queue.
     """
 
     item_id: str
-    deserialized: Message
+    deserialized: MsgType
     consumer_name: str
 
 
 @dataclass
-class PendingItem:
-    """
-    A single item in a pending queue.
-    """
-
-    item_id: str
-    consumer_name: str
-    idle_time: int
-    delivery_count: int
-
-
-@dataclass
-class ReliableQueue:
+class ReliableQueue(Generic[MsgType]):
     """
     A queue that is reliable and can be used to process tasks in a distributed environment.
     """
@@ -127,8 +120,8 @@ class ReliableQueue:
     queue_name: str
     group_name: str
     redis: Redis
-    task_timeout: int
-    msg_builder: Type[Message]
+    msg_builder: Type[MsgType]
+    task_timeout_ms: int = 180000
     reader_name: str | None = None
     last_stream_id: str | None = "0-0"
     block_time: int = 200
@@ -149,11 +142,11 @@ class ReliableQueue:
     def size(self) -> int:
         return self.redis.xlen(self.queue_name)
 
-    def push(self, item: Message) -> None:
+    def push(self, item: MsgType) -> None:
         bts = item.SerializeToString()
         self.redis.xadd(self.queue_name, {self.INAME: bts})
 
-    def pop(self) -> RQItem | None:
+    def pop(self) -> RQItem[MsgType] | None:
         streams_items = self.redis.xreadgroup(
             self.group_name,
             self.reader_name,
@@ -169,7 +162,7 @@ class ReliableQueue:
                 self.queue_name,
                 self.group_name,
                 self.reader_name,
-                min_idle_time=self.task_timeout,
+                min_idle_time=self.task_timeout_ms,
                 count=1,
             )
             if res is None or len(res[1]) == 0:
@@ -193,17 +186,74 @@ class ReliableQueue:
         msg = self.msg_builder()
         msg.ParseFromString(message_data[self.INAME])
 
-        return RQItem(
+        return RQItem[MsgType](
             item_id=message_id, deserialized=msg, consumer_name=self.reader_name
         )
 
-    def ack_item(self, rq_item: RQItem) -> None:
+    def ack_item(self, rq_item: RQItem[MsgType]) -> None:
         self.redis.xack(self.queue_name, self.group_name, rq_item.item_id)
 
     def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:
         self.redis.xclaim(
             self.queue_name, self.group_name, self.reader_name, min_idle_time, [item_id]
         )
+
+
+@dataclass
+class QueueConfig:
+    """Configuration for a reliable queue"""
+
+    queue_name: str
+    group_name: str
+    message_type: MsgType
+
+
+class QueueFactory:
+    """Factory for creating common reliable queues"""
+
+    def __init__(self):
+        # Map each queue name to its configuration
+        self.queue_configs: dict[Type[MsgType], QueueConfig] = {
+            BuildRequest: QueueConfig(
+                queue_name=QueueNames.BUILD,
+                group_name=GroupNames.BUILDER_BOT,
+                message_type=BuildRequest,
+            ),
+            BuildOutput: QueueConfig(
+                queue_name=QueueNames.BUILD_OUTPUT,
+                group_name=GroupNames.ORCHESTRATOR,
+                message_type=BuildOutput,
+            ),
+        }
+
+    def create_queue(
+        self, redis: Redis, message_type: Type[MsgType], **kwargs: Any
+    ) -> ReliableQueue[MsgType]:
+        """
+        Create a reliable queue with predefined configuration, allowing for overrides
+
+        Args:
+            queue_name: The name of the queue to create
+            redis: Redis connection
+            **kwargs: Additional arguments to override default configuration
+        """
+        if message_type not in self.queue_configs:
+            raise ValueError(f"No configuration found for queue: {message_type}")
+
+        config = self.queue_configs[message_type]
+
+        # Start with default configuration
+        queue_args = {
+            "queue_name": config.queue_name,
+            "group_name": config.group_name,
+            "redis": redis,
+            "msg_builder": message_type,
+        }
+
+        # Override with any provided kwargs
+        queue_args.update(kwargs)
+
+        return ReliableQueue[MsgType](**queue_args)
 
 
 @dataclass

@@ -2,7 +2,7 @@ from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguratio
 from redis import Redis
 import argparse
 import tempfile
-from buttercup.common.queues import QueueNames, GroupNames, ReliableQueue, RQItem
+from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import shutil
 import time
@@ -21,12 +21,12 @@ def main():
     prsr.add_argument("--allow-caching", action="store_true", default=False)
     args = prsr.parse_args()
 
-
-    
     redis = Redis.from_url(args.redis_url) 
 
-    queue = ReliableQueue(QueueNames.BUILD, GroupNames.BUILDER_BOT, redis, 108000, BuildRequest)
-    output_q = ReliableQueue(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR, redis, 108000, BuildOutput)
+    queue_factory = QueueFactory()
+    queue = queue_factory.create_queue(redis, BuildRequest)
+    output_q = queue_factory.create_queue(redis, BuildOutput)
+
     seconds = float(args.timer) // 1000.0
     while True:
         rqit: RQItem = queue.pop()

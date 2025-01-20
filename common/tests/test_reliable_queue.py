@@ -2,7 +2,14 @@ import pytest
 import time
 from redis import Redis
 from google.protobuf.struct_pb2 import Struct
-from buttercup.common.queues import ReliableQueue, RQItem
+from buttercup.common.queues import (
+    ReliableQueue,
+    RQItem,
+    QueueFactory,
+    QueueNames,
+    GroupNames,
+)
+from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 
 
 @pytest.fixture
@@ -13,11 +20,11 @@ def redis_client():
 @pytest.fixture
 def reliable_queue(redis_client):
     # Create a new queue for testing
-    queue = ReliableQueue(
+    queue = ReliableQueue[Struct](
         queue_name="test_queue",
         group_name="test_group",
         redis=redis_client,
-        task_timeout=1000,
+        task_timeout_ms=1000,
         msg_builder=Struct,
         reader_name="test_reader",
     )
@@ -88,11 +95,11 @@ def test_pending_items(reliable_queue, redis_client):
     reliable_queue.redis.close()
 
     # recreate the queue with the same name, to simulate a crash
-    queue = ReliableQueue(
+    queue = ReliableQueue[Struct](
         queue_name="test_queue",
         group_name="test_group",
         redis=redis_client,
-        task_timeout=1000,
+        task_timeout_ms=1000,
         msg_builder=Struct,
         reader_name="test_reader",
     )
@@ -103,11 +110,11 @@ def test_pending_items(reliable_queue, redis_client):
     reliable_queue.ack_item(item)
 
     # recreate again to check if the item is still pending
-    queue = ReliableQueue(
+    queue = ReliableQueue[Struct](
         queue_name="test_queue",
         group_name="test_group",
         redis=redis_client,
-        task_timeout=1000,
+        task_timeout_ms=1000,
         msg_builder=Struct,
         reader_name="test_reader",
     )
@@ -132,11 +139,11 @@ def test_autoclaim(reliable_queue, redis_client):
     time.sleep(2)
 
     # Simulate another reader
-    queue = ReliableQueue(
+    queue = ReliableQueue[Struct](
         queue_name="test_queue",
         group_name="test_group",
         redis=redis_client,
-        task_timeout=1,
+        task_timeout_ms=1,
         msg_builder=Struct,
         reader_name="test_reader2",
     )
@@ -151,3 +158,40 @@ def test_autoclaim(reliable_queue, redis_client):
     # Pop the message
     item = queue.pop()
     assert item is None
+
+
+def test_queue_factory(redis_client):
+    factory = QueueFactory()
+
+    queue = factory.create_queue(redis_client, BuildOutput)
+    assert isinstance(queue, ReliableQueue)
+    assert queue.queue_name == QueueNames.BUILD_OUTPUT
+    assert queue.group_name == GroupNames.ORCHESTRATOR
+    assert queue.redis == redis_client
+    assert queue.task_timeout_ms == 180000
+    assert queue.msg_builder == BuildOutput
+
+    queue = factory.create_queue(redis_client, BuildRequest)
+    assert isinstance(queue, ReliableQueue)
+    assert queue.queue_name == QueueNames.BUILD
+    assert queue.group_name == GroupNames.BUILDER_BOT
+    assert queue.redis == redis_client
+    assert queue.task_timeout_ms == 180000
+    assert queue.msg_builder == BuildRequest
+
+    queue.push(
+        BuildRequest(
+            package_name="test_package",
+            engine="test_engine",
+            sanitizer="test_sanitizer",
+            ossfuzz="test_ossfuzz",
+        )
+    )
+
+    item = queue.pop()
+    assert item is not None
+    assert item.deserialized.package_name == "test_package"
+    assert item.deserialized.engine == "test_engine"
+    assert item.deserialized.sanitizer == "test_sanitizer"
+    assert item.deserialized.ossfuzz == "test_ossfuzz"
+    queue.ack_item(item)
