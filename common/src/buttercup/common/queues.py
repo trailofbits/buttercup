@@ -96,7 +96,7 @@ class NormalQueue(QueueIterMixin, Queue):
 
 
 # Type variable for protobuf Message subclasses
-# Used for type-safe serialization/deserialization of queue items
+# Used for type-hinting of reliable queue items
 MsgType = TypeVar("MsgType", bound=Message)
 
 
