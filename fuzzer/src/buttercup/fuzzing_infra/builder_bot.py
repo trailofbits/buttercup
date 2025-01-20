@@ -2,7 +2,7 @@ from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguratio
 from redis import Redis
 import argparse
 import tempfile
-from buttercup.common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, SerializationDeserializationQueue, BUILDER_BOT_GROUP_NAME, RQItem
+from buttercup.common.queues import QueueNames, GroupNames, ReliableQueue, RQItem
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import shutil
 import time
@@ -25,8 +25,8 @@ def main():
     
     redis = Redis.from_url(args.redis_url) 
 
-    queue = ReliableQueue(BUILD_QUEUE_NAME,BUILDER_BOT_GROUP_NAME,redis, 108000, BuildRequest)
-    output_q = ReliableQueue(BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, redis, 108000, BuildOutput)
+    queue = ReliableQueue(QueueNames.BUILD, GroupNames.BUILDER_BOT, redis, 108000, BuildRequest)
+    output_q = ReliableQueue(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR, redis, 108000, BuildOutput)
     seconds = float(args.timer) // 1000.0
     while True:
         rqit: RQItem = queue.pop()

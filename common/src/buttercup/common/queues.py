@@ -7,16 +7,21 @@ from google.protobuf.message import Message
 import logging
 from typing import Type
 import uuid
+from enum import Enum
 
-BUILD_QUEUE_NAME = "fuzzer_build_queue"
-BUILDER_BOT_GROUP_NAME = "build_bot_consumers"
-ORCHESTRATOR_GROUP_NAME = "orchestrator_group"
-BUILD_OUTPUT_NAME = "fuzzer_build_output_queue"
-TARGET_LIST_NAME = "fuzzer_target_list"
 
-TASKS_QUEUE_NAME = "orchestrator_tasks_queue"
-TASKS_GROUP_NAME = "orchestrator_tasks_group"
-TASKS_REGISTRY_HASH_NAME = "orchestrator_tasks_registry"
+class QueueNames(str, Enum):
+    BUILD = "fuzzer_build_queue"
+    BUILD_OUTPUT = "fuzzer_build_output_queue"
+    TARGET_LIST = "fuzzer_target_list"
+    TASKS = "orchestrator_tasks_queue"
+
+
+class GroupNames(str, Enum):
+    BUILDER_BOT = "build_bot_consumers"
+    ORCHESTRATOR = "orchestrator_group"
+    TASKS = "orchestrator_tasks_group"
+
 
 logger = logging.getLogger(__name__)
 

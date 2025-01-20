@@ -1,4 +1,4 @@
-from buttercup.common.queues import Queue, SerializationDeserializationQueue, ReliableQueue, NormalQueue, BUILD_OUTPUT_NAME, TARGET_LIST_NAME, ORCHESTRATOR_GROUP_NAME, RQItem
+from buttercup.common.queues import Queue, SerializationDeserializationQueue, ReliableQueue, NormalQueue, RQItem, QueueNames, GroupNames
 import argparse
 from redis import Redis
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
@@ -33,8 +33,9 @@ def main():
     args = prsr.parse_args()
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer//1000
-    builder_output = ReliableQueue(BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, conn, 108000, BuildOutput)
-    target_list = SerializationDeserializationQueue(NormalQueue(TARGET_LIST_NAME, conn), WeightedTarget)
+    builder_output = ReliableQueue(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR, conn, 108000, BuildOutput)
+    target_list = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
     loop(builder_output, target_list, seconds)
+
 if __name__ == "__main__":
     main()
