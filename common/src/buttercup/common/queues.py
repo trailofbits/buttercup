@@ -195,6 +195,11 @@ class ReliableQueue:
     def ack_item(self, rq_item: RQItem) -> None:
         self.redis.xack(self.queue_name, self.group_name, rq_item.item_id)
 
+    def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:
+        self.redis.xclaim(
+            self.queue_name, self.group_name, self.reader_name, min_idle_time, [item_id]
+        )
+
 
 @dataclass
 class FuzzConfiguration:
