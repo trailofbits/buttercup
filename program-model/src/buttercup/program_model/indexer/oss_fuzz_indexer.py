@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from buttercup.common import oss_fuzz_tool
 from buttercup.common.oss_fuzz_tool import OSSFuzzTool
-
+import os
 @dataclass
 class IndexTarget:
     oss_fuzz_dir: str
@@ -17,7 +17,7 @@ class Conf:
     python: str
     allow_pull: bool
     base_image_url: str
-
+    wdir: str
 
 class Indexer:
     def __init__(self, conf: Conf):
@@ -44,10 +44,14 @@ class Indexer:
         if emitted_image is None:
             return None
         
-        command = ["docker", "run", emitted_image, "compile"]
+        indexuid = str(uuid.uuid4())
+        output_dir = f"{self.conf.wdir}/output_{indexuid}"
+        os.makedirs(output_dir, exist_ok=True)
+        # TODO(Ian): we need to figure out how to make ccwrapper.sh not break LD detection
+        command = ["docker", "run", "-v", f"{output_dir}:/kythe_out", "-e", "LD=ld", "-e", f"KYTHE_OUTPUT_DIRECTORY=/kythe_out", emitted_image, "compile"]
         # TODO(Ian): we probably shouldnt keep around indexing images for disk space reasons
         subprocess.run(command, check=True)
-
+        return output_dir
 def main():
     prsr = argparse.ArgumentParser("oss fuzz builder")
     prsr.add_argument("--scriptdir",required=True)
@@ -57,11 +61,13 @@ def main():
     prsr.add_argument("--base_image_url",required=True)
     prsr.add_argument("--oss_fuzz_dir",required=True)
     prsr.add_argument("--package_name",required=True)
+    prsr.add_argument("--wdir",required=True)
     args = prsr.parse_args()
 
-    conf = Conf(args.scriptdir, args.url, args.python, args.allow_pull, args.base_image_url)
+    conf = Conf(args.scriptdir, args.url, args.python, args.allow_pull, args.base_image_url, args.wdir)
     indexer = Indexer(conf)
-    indexer.build_image(IndexTarget(args.oss_fuzz_dir, args.package_name))
+    output_dir = indexer.index_target(IndexTarget(args.oss_fuzz_dir, args.package_name))
+    print(output_dir)
 
 if __name__ == "__main__":
     main()
