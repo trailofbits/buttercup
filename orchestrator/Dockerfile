@@ -12,20 +12,22 @@ ENV UV_LINK_MODE=copy \
 WORKDIR /app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --no-editable
+    --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
+    --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
+    --mount=type=bind,source=orchestrator/uv.lock,target=orchestrator/uv.lock \
+    --mount=type=bind,source=orchestrator/pyproject.toml,target=orchestrator/pyproject.toml \
+    cd orchestrator && uv sync --frozen --no-install-project --no-editable
 
-ADD . /app
+ADD common /app/common
+ADD orchestrator /app/orchestrator
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-editable
+    cd orchestrator && uv sync --frozen --no-editable
 
 
 FROM python:${PYTHON_BASE} AS runtime
 
-COPY --from=builder --chown=app:app /app/.venv /app/.venv
-WORKDIR /app
-CMD ["/app/.venv/bin/uvicorn", "buttercup.orchestrator.task_server.server:app", "--host", "0.0.0.0"]
+COPY --from=builder --chown=app:app /app/orchestrator/.venv /app/orchestrator/.venv
+WORKDIR /app/orchestrator
+ENV PATH=/app/orchestrator/.venv/bin:$PATH
 
-EXPOSE 8000
