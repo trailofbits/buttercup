@@ -1,13 +1,13 @@
 import logging
+import os
+import tempfile
 from typing import Optional
-from buttercup.orchestrator.dependencies import get_settings
 
 _is_initialized = False
 
 
-def setup_logging(logger_name: Optional[str] = None) -> logging.Logger:
+def setup_logging(logger_name: Optional[str] = None, log_level: str = "info") -> logging.Logger:
     global _is_initialized
-    settings = get_settings()
 
     if not _is_initialized:
         # Clear any existing handlers to avoid duplicates
@@ -18,9 +18,12 @@ def setup_logging(logger_name: Optional[str] = None) -> logging.Logger:
 
         # Configure root logger
         logging.basicConfig(
-            level=settings.log_level,
+            level=log_level.upper(),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            handlers=[logging.StreamHandler(), logging.FileHandler("app.log")],
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler(os.path.join(tempfile.gettempdir(), f"{logger_name or __name__}.log")),
+            ],
         )
 
         _is_initialized = True

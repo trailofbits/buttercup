@@ -12,14 +12,15 @@ dependencies = [
     "pydantic-settings>=2.7.1",
     "python-dateutil>=2.9.0.post0",
     "requests>=2.32.3",
+    "requests-file>=2.1.0",
     "typing-extensions>=4.12.2",
     "urllib3>=2.3.0",
     "uvicorn>=0.34.0",
 ]
 
 [project.scripts]
-buttercup-task-server = "buttercup.orchestrator.task_server.server:main"
-buttercup-downloader = "buttercup.orchestrator.downloader:main"
+buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
+buttercup-downloader = "buttercup.orchestrator.downloader.__cli__:main"
 
 
 [project.optional-dependencies]
@@ -32,6 +33,7 @@ tests = [
     "pytest-xdist>=3.6.1",
     "ruff>=0.9.2",
     "types-python-dateutil>=2.9.0.20241206",
+    "fastapi[standard]>=0.115.6",
 ]
 
 [build-system]

@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.models.types_error import TypesError
+from buttercup.orchestrator.competition_api_client.models.types_error import TypesError
 
 class TestTypesError(unittest.TestCase):
     """TypesError unit test stubs"""

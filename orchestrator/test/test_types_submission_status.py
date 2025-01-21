@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 
 class TestTypesSubmissionStatus(unittest.TestCase):
     """TypesSubmissionStatus unit test stubs"""

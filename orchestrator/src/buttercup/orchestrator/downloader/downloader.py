@@ -1,28 +1,51 @@
 import logging
-import os
 import requests
 import tarfile
+from dataclasses import dataclass, field
 from pathlib import Path
 import time
 from typing import Optional
 import hashlib
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-from buttercup.orchestrator.dependencies import get_task_queue, get_task_registry
-from buttercup.common.queues import RQItem
+from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue
 from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class Downloader:
-    def __init__(self, download_dir: str, sleep_time: float = 1.0):
-        self.download_dir = Path(download_dir)
-        self.sleep_time = sleep_time
-        self.task_queue = get_task_queue()
-        self.task_registry = get_task_registry()
+    download_dir: Path
+    sleep_time: float = 0.1
+    redis: Redis | None = None
+    task_queue: ReliableQueue | None = field(init=False, default=None)
+    session: requests.Session = field(init=False, default=None)
+
+    def __post_init__(self):
+        if self.redis is not None:
+            queue_factory = QueueFactory(self.redis)
+            self.task_queue = queue_factory.create_download_tasks_queue()
 
         # Create download directory if it doesn't exist
         self.download_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize session with retry strategy and connection pooling
+        self.session = requests.Session()
+        retry_strategy = Retry(
+            total=3,  # number of retries
+            backoff_factor=1,  # wait 1, 2, 4 seconds between retries
+            status_forcelist=[500, 502, 503, 504],  # HTTP status codes to retry on
+        )
+        adapter = HTTPAdapter(
+            pool_connections=100,  # number of connections to keep in pool
+            pool_maxsize=100,  # maximum number of connections in pool
+            max_retries=retry_strategy,
+        )
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     def get_source_type_dir(self, task_id: str, source_type: SourceDetail.SourceType) -> Path:
         """Creates and returns the directory path for a specific source type within a task"""
@@ -34,7 +57,8 @@ class Downloader:
     def download_source(self, task_id: str, source: SourceDetail) -> Optional[Path]:
         """Downloads a source file and verifies its SHA256"""
         try:
-            response = requests.get(source.url, stream=True)
+            # Use session instead of requests directly
+            response = self.session.get(source.url, stream=True)
             response.raise_for_status()
 
             # Create directory structure and filename
@@ -123,8 +147,11 @@ class Downloader:
 
         return success
 
-    def run(self):
+    def serve(self):
         """Main loop to process tasks from queue"""
+        if self.task_queue is None:
+            raise ValueError("Task queue is not initialized")
+
         logger.info("Starting downloader service")
 
         while True:
@@ -132,39 +159,23 @@ class Downloader:
 
             if rq_item is not None:
                 task_download: TaskDownload = rq_item.deserialized
-                task = self.task_registry.get_task(task_download.task_id)
-                if task is None:
-                    logger.warning(f"Task {task_download.task_id} not found in registry, skipping")
-                    continue
-
-                if task.task_status == Task.TaskStatus.TASK_STATUS_SUCCEEDED:
-                    logger.info(f"Task {task_download.task_id} already succeeded, skipping")
-                    self.task_queue.ack_item(rq_item)
-                    continue
-
-                task.task_status = Task.TaskStatus.TASK_STATUS_RUNNING
-                self.task_registry.update_task(task_download.task_id, task)
-                success = self.process_task(task)
+                success = self.process_task(task_download.task)
 
                 if success:
-                    task.task_status = Task.TaskStatus.TASK_STATUS_SUCCEEDED
-                    self.task_registry.update_task(task_download.task_id, task)
                     self.task_queue.ack_item(rq_item)
-                    logger.info(f"Successfully processed task {task.task_id}")
+                    logger.info(f"Successfully processed task {task_download.task.task_id}")
                 else:
-                    logger.error(f"Failed to process task {task.task_id}")
+                    logger.error(f"Failed to process task {task_download.task.task_id}")
 
             time.sleep(self.sleep_time)
 
+    def cleanup(self):
+        """Cleanup resources used by the downloader"""
+        if self.session:
+            self.session.close()
 
-def main():
-    logging.basicConfig(level=logging.INFO)
-    download_dir = os.environ.get("DOWNLOAD_DIR", "/tmp/task_downloads")
-    sleep_time = float(os.environ.get("SLEEP_TIME", "1.0"))
+    def __enter__(self):
+        return self
 
-    downloader = Downloader(download_dir, sleep_time)
-    downloader.run()
-
-
-if __name__ == "__main__":
-    main()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()

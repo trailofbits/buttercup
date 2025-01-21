@@ -22,36 +22,29 @@ class SourceDetail(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
 
 class Task(_message.Message):
-    __slots__ = ["deadline", "message_id", "message_time", "sources", "task_id", "task_status", "task_type"]
-    class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-        __slots__ = []
+    __slots__ = ["cancelled", "deadline", "message_id", "message_time", "sources", "task_id", "task_type"]
     class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
+    CANCELLED_FIELD_NUMBER: _ClassVar[int]
     DEADLINE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_TIME_FIELD_NUMBER: _ClassVar[int]
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    TASK_STATUS_CANCELLED: Task.TaskStatus
-    TASK_STATUS_FAILED: Task.TaskStatus
-    TASK_STATUS_FIELD_NUMBER: _ClassVar[int]
-    TASK_STATUS_PENDING: Task.TaskStatus
-    TASK_STATUS_RUNNING: Task.TaskStatus
-    TASK_STATUS_SUCCEEDED: Task.TaskStatus
     TASK_TYPE_DELTA: Task.TaskType
     TASK_TYPE_FIELD_NUMBER: _ClassVar[int]
     TASK_TYPE_FULL: Task.TaskType
+    cancelled: bool
     deadline: int
     message_id: str
     message_time: int
     sources: _containers.RepeatedCompositeFieldContainer[SourceDetail]
     task_id: str
-    task_status: Task.TaskStatus
     task_type: Task.TaskType
-    def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., task_status: _Optional[_Union[Task.TaskStatus, str]] = ...) -> None: ...
+    def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., cancelled: bool = ...) -> None: ...
 
 class TaskDownload(_message.Message):
-    __slots__ = ["task_id"]
-    TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    task_id: str
-    def __init__(self, task_id: _Optional[str] = ...) -> None: ...
+    __slots__ = ["task"]
+    TASK_FIELD_NUMBER: _ClassVar[int]
+    task: Task
+    def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...

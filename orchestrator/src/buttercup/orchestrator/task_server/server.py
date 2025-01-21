@@ -5,22 +5,20 @@
 from __future__ import annotations
 
 import secrets
-import uvicorn
 from typing import Annotated, Optional
-from redis import Redis
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
-from buttercup.orchestrator.task_server.backend import new_task, get_status, submit_sarif, delete_task
+from buttercup.orchestrator.task_server.backend import new_task
 from buttercup.orchestrator.logger import setup_logging
-from buttercup.orchestrator.dependencies import get_redis, get_task_queue, get_task_registry
+from buttercup.orchestrator.task_server.dependencies import get_task_queue, get_settings
 from buttercup.common.queues import ReliableQueue
-from buttercup.orchestrator.data import TaskRegistry
 
-logger = setup_logging(__name__)
+settings = get_settings()
+logger = setup_logging(__name__, settings.log_level)
 
 app = FastAPI(
     title="Buttercup CRS API",
@@ -60,23 +58,22 @@ def check_auth(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
 
 
 @app.get("/status/", response_model=Status, tags=["status"])
-def get_status_(task_registry: Annotated[TaskRegistry, Depends(get_task_registry)]) -> Status:
+def get_status_() -> Status:
     """
     CRS Status
     """
-    return get_status(task_registry)
+    pass
 
 
 @app.post("/v1/sarif/", response_model=str, tags=["sarif"])
 def post_v1_sarif_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     body: VulnBroadcast,
-    redis: Annotated[Redis, Depends(get_redis)],
 ) -> str:
     """
     Submit Sarif Broadcast
     """
-    return submit_sarif(body, redis)
+    pass
 
 
 @app.post(
@@ -89,12 +86,11 @@ def post_v1_task_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     body: Task,
     tasks_queue: Annotated[ReliableQueue, Depends(get_task_queue)],
-    task_registry: Annotated[TaskRegistry, Depends(get_task_registry)],
 ) -> Optional[str]:
     """
     Submit Task
     """
-    task_id = new_task(body, tasks_queue, task_registry)
+    task_id = new_task(body, tasks_queue)
     return task_id
 
 
@@ -102,20 +98,8 @@ def post_v1_task_(
 def delete_v1_task_task_id_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     task_id: UUID,
-    task_registry: Annotated[TaskRegistry, Depends(get_task_registry)],
 ) -> str:
     """
     Cancel Task
     """
-    return delete_task(task_id, task_registry)
-
-def main():
-    uvicorn.run(
-        "buttercup.orchestrator.task_server.server:app",
-        reload=True,  # Enable hot reloading for development
-        log_config=None,  # Disable uvicorn's default logging
-    )
-
-
-if __name__ == "__main__":
-    main()
+    pass
