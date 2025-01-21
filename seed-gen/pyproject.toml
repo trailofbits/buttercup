@@ -1,16 +1,23 @@
 [project]
 name = "seed-gen"
-dynamic = ["version"]
+version = "0.1.0"
 description = "LLM seed generation and vulnerability discovery"
 readme = "README.md"
 authors = [
     { name = "Trail of Bits", email = "opensource@trailofbits.com" },
 ]
 dependencies = []
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
-[tool.setuptools.dynamic]
-version = { attr = "seed_gen.__version__" }
+[tool.uv.sources]
+common = { path = "../common", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/buttercup"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project.optional-dependencies]
 doc = []
@@ -28,7 +35,7 @@ lint = [
 dev = ["seed-gen[doc,test,lint]", "twine", "build"]
 
 [project.scripts]
-"seed-gen" = "seed_gen._cli:main"
+"seed-gen" = "buttercup.seed_gen._cli:main"
 
 [tool.coverage.run]
 # don't attempt code coverage for the CLI entrypoints
@@ -58,7 +65,7 @@ line-length = 100
 include = ["src/**/*.py", "test/**/*.py"]
 
 [tool.ruff.lint]
-select = ["ALL"]
+select = ["E", "F", "I", "W", "UP"]
 # D203 and D213 are incompatible with D211 and D212 respectively.
 # COM812 and ISC001 can cause conflicts when using ruff as a formatter.
 # See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
