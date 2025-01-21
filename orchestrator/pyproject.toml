@@ -51,6 +51,12 @@ common = { path = "../common", editable = true }
 line-length = 120
 exclude = [
     "src/buttercup/orchestrator/competition_api_client",
-    "test",
+    "test/test_types_*.py",
+    "test/test_vulnerability_api.py",
+    "test/test_patch_api.py",
+    "test/test_sarif_api.py",
     "src/buttercup/orchestrator/task_server/models/",
 ]
+
+[dependency-groups]
+tests = ["responses>=0.25.6"]
