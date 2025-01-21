@@ -13,5 +13,5 @@ KYTHE_OUTPUT_DIRECTORY=$KYTHE_OUTPUT_DIRECTORY $KYTHE_RELEASE_DIR/extractors/cxx
 $ORIG_CC  "$@"
 wait "$pid"
 
-for X in *.kzip; do [[ -e $X ]] && mv "$X" $KYTHE_OUTPUT_DIRECTORY_ORIG/; done
+for X in $KYTHE_OUTPUT_DIRECTORY/*.kzip; do [[ -e $X ]] && mv "$X" $KYTHE_OUTPUT_DIRECTORY_ORIG/; done
 rm -r $KYTHE_OUTPUT_DIRECTORY
