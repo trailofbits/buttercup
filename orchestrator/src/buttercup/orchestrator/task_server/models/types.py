@@ -11,9 +11,9 @@ from pydantic import BaseModel, Field
 
 
 class SourceType(Enum):
-    SourceTypeRepo = "repo"
-    SourceTypeFuzzTooling = "fuzz-tooling"
-    SourceTypeDiff = "diff"
+    SourceTypeRepo = 'repo'
+    SourceTypeFuzzTooling = 'fuzz-tooling'
+    SourceTypeDiff = 'diff'
 
 
 class StatusTasksState(BaseModel):
@@ -25,8 +25,8 @@ class StatusTasksState(BaseModel):
 
 
 class TaskType(Enum):
-    TaskTypeFull = "full"
-    TaskTypeDelta = "delta"
+    TaskTypeFull = 'full'
+    TaskTypeDelta = 'delta'
 
 
 class VulnDetail(BaseModel):
@@ -64,13 +64,13 @@ class VulnBroadcast(BaseModel):
 class Status(BaseModel):
     details: Optional[Dict[str, Dict[str, Any]]] = Field(
         None,
-        description="Keep in mind this endpoint is unauthenticated. Do not place sensitive details in this object. This is optional arbitrary content. This may be logged in error cases, but is mainly for interactive troubleshooting.",
+        description='Keep in mind this endpoint is unauthenticated. Do not place sensitive details in this object. This is optional arbitrary content. This may be logged in error cases, but is mainly for interactive troubleshooting.',
     )
     ready: bool
     state: StatusState
     version: str = Field(
         ...,
-        description="Version string for verification and reproducibility. Git commit, SemVer, etc...",
+        description='Version string for verification and reproducibility. Git commit, SemVer, etc...',
     )
 
 

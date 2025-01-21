@@ -48,4 +48,8 @@ common = { path = "../common", editable = true }
 
 [tool.ruff]
 line-length = 120
-exclude = ["src/buttercup/orchestrator/competition_api_client", "test"]
+exclude = [
+    "src/buttercup/orchestrator/competition_api_client",
+    "test",
+    "src/buttercup/orchestrator/task_server/models/",
+]
