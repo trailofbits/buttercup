@@ -12,6 +12,10 @@ class DownloaderServeCommand(BaseModel):
     sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
 
+    class Config:
+        nested_model_default_partial_update = True
+        env_nested_delimiter = "__"
+
 
 class TaskType(str, Enum):
     FULL = "full"
@@ -41,6 +45,10 @@ class DownloaderProcessCommand(BaseModel):
     message_id: str = Field(description="Message ID", default_factory=lambda: str(uuid.uuid4()))
     message_time: int = Field(description="Message time", default_factory=lambda: int(time.time()))
 
+    class Config:
+        nested_model_default_partial_update = True
+        env_nested_delimiter = "__"
+
 
 class DownloaderSettings(BaseSettings):
     download_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for downloaded files")]
@@ -52,3 +60,5 @@ class DownloaderSettings(BaseSettings):
         env_prefix = "BUTTERCUP_DOWNLOADER_"
         env_file = ".env"
         cli_parse_args = True
+        nested_model_default_partial_update = True
+        env_nested_delimiter = "__"
