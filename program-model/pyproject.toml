@@ -1,0 +1,22 @@
+[project]
+name = "program-model"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Trail of Bits",email = "opensource@trailofbits"}
+]
+requires-python = ">=3.9,<3.11"
+dependencies = [
+    "gremlinpython==3.7.3",
+    "common",
+]
+
+[tool.uv.sources]
+common = { path = "../common", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/buttercup"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
