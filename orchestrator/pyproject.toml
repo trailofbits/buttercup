@@ -21,6 +21,7 @@ dependencies = [
 [project.scripts]
 buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
 buttercup-downloader = "buttercup.orchestrator.downloader.__cli__:main"
+buttercup-task-registry = "buttercup.orchestrator.registry:task_registry_cli"
 
 
 [project.optional-dependencies]

@@ -12,6 +12,7 @@ from urllib3.util.retry import Retry
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue
 from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload
 from redis import Redis
+from buttercup.orchestrator.registry import TaskRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +23,14 @@ class Downloader:
     sleep_time: float = 0.1
     redis: Redis | None = None
     task_queue: ReliableQueue | None = field(init=False, default=None)
+    registry: TaskRegistry | None = field(init=False, default=None)
     session: requests.Session = field(init=False, default=None)
 
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             self.task_queue = queue_factory.create_download_tasks_queue()
+            self.registry = TaskRegistry(self.redis)
 
         # Create download directory if it doesn't exist
         self.download_dir.mkdir(parents=True, exist_ok=True)
@@ -162,6 +165,7 @@ class Downloader:
                 success = self.process_task(task_download.task)
 
                 if success:
+                    self.registry[task_download.task.task_id] = task_download.task
                     self.task_queue.ack_item(rq_item)
                     logger.info(f"Successfully processed task {task_download.task.task_id}")
                 else:

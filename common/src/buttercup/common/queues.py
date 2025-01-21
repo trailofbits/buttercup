@@ -25,6 +25,9 @@ class GroupNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
 
 
+class HashNames(str, Enum):
+    TASKS_REGISTRY = "tasks_registry"
+
 BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
