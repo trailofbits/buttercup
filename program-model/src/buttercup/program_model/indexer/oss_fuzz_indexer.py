@@ -36,6 +36,17 @@ class Indexer:
         wdir = f"{self.conf.scriptdir}"
         command = ["docker", "build" , "-t", emitted_image, "--build-arg", f"BASE_IMAGE={base_image_name}", "."]
         subprocess.run(command, check=True, cwd=wdir)
+        # TODO(Ian): do more forgiving error handling
+        return emitted_image
+
+    def index_target(self, idx_target: IndexTarget):
+        emitted_image = self.build_image(idx_target)
+        if emitted_image is None:
+            return None
+        
+        command = ["docker", "run", emitted_image, "compile"]
+        # TODO(Ian): we probably shouldnt keep around indexing images for disk space reasons
+        subprocess.run(command, check=True)
 
 def main():
     prsr = argparse.ArgumentParser("oss fuzz builder")
