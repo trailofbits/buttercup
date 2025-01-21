@@ -46,8 +46,7 @@ class OSSFuzzTool:
 
         args.append(package_conf)
         ret = subprocess.run(args)
-
-        if ret == 0:
+        if ret.returncode == 0:
             return f"{self._conf.base_image_url}/{package_conf}"
         else: 
             return None
