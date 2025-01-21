@@ -2,7 +2,7 @@ from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguratio
 from redis import Redis
 import argparse
 import tempfile
-from buttercup.common.queues import RQItem, QueueFactory
+from buttercup.common.queues import RQItem, QueueFactory, QueueNames
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import shutil
 import time
@@ -24,8 +24,8 @@ def main():
     redis = Redis.from_url(args.redis_url) 
 
     queue_factory = QueueFactory()
-    queue = queue_factory.create_queue(redis, BuildRequest)
-    output_q = queue_factory.create_queue(redis, BuildOutput)
+    queue = queue_factory.create_queue(redis, QueueNames.BUILD)
+    output_q = queue_factory.create_queue(redis, QueueNames.BUILD_OUTPUT)
 
     seconds = float(args.timer) // 1000.0
     while True:

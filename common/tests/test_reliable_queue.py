@@ -163,7 +163,7 @@ def test_autoclaim(reliable_queue, redis_client):
 def test_queue_factory(redis_client):
     factory = QueueFactory()
 
-    queue = factory.create_queue(redis_client, BuildOutput)
+    queue = factory.create_queue(redis_client, QueueNames.BUILD_OUTPUT)
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD_OUTPUT
     assert queue.group_name == GroupNames.ORCHESTRATOR
@@ -171,7 +171,7 @@ def test_queue_factory(redis_client):
     assert queue.task_timeout_ms == 180000
     assert queue.msg_builder == BuildOutput
 
-    queue = factory.create_queue(redis_client, BuildRequest)
+    queue = factory.create_queue(redis_client, QueueNames.BUILD)
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD
     assert queue.group_name == GroupNames.BUILDER_BOT

@@ -33,7 +33,7 @@ def main():
     args = prsr.parse_args()
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer//1000
-    builder_output = QueueFactory().create_queue(conn, BuildOutput)
+    builder_output = QueueFactory().create_queue(conn, QueueNames.BUILD_OUTPUT)
     target_list = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
     loop(builder_output, target_list, seconds)
 

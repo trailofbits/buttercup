@@ -6,7 +6,7 @@ from redis import Redis, RedisError
 from google.protobuf.message import Message
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import logging
-from typing import Type, Generic, TypeVar
+from typing import Type, Generic, TypeVar, overload, Literal
 import uuid
 from enum import Enum
 from typing import Any
@@ -172,7 +172,7 @@ class ReliableQueue(Generic[MsgType]):
         else:
             stream_item = streams_items[0][1]
 
-        if len(stream_item) == 0:
+        if len(stream_item) == 0 and self.last_stream_id != ">":
             # No message found in the pending queue for this reader
             # Go to the new messages
             self.last_stream_id = ">"
@@ -200,60 +200,69 @@ class ReliableQueue(Generic[MsgType]):
 
 
 @dataclass
-class QueueConfig:
+class QueueConfig(Generic[MsgType]):
     """Configuration for a reliable queue"""
 
     queue_name: str
     group_name: str
-    message_type: MsgType
+    message_type: Type[MsgType]
 
 
 class QueueFactory:
     """Factory for creating common reliable queues"""
 
     def __init__(self):
-        # Map each queue name to its configuration
-        self.queue_configs: dict[Type[MsgType], QueueConfig] = {
-            BuildRequest: QueueConfig(
+        self.queue_configs: dict[QueueNames, QueueConfig[MsgType]] = {
+            QueueNames.BUILD: QueueConfig(
                 queue_name=QueueNames.BUILD,
                 group_name=GroupNames.BUILDER_BOT,
                 message_type=BuildRequest,
             ),
-            BuildOutput: QueueConfig(
+            QueueNames.BUILD_OUTPUT: QueueConfig(
                 queue_name=QueueNames.BUILD_OUTPUT,
                 group_name=GroupNames.ORCHESTRATOR,
                 message_type=BuildOutput,
             ),
         }
 
+    @overload
     def create_queue(
-        self, redis: Redis, message_type: Type[MsgType], **kwargs: Any
+        self, redis: Redis, queue_name: Literal[QueueNames.BUILD], **kwargs: Any
+    ) -> ReliableQueue[BuildRequest]: ...
+
+    @overload
+    def create_queue(
+        self, redis: Redis, queue_name: Literal[QueueNames.BUILD_OUTPUT], **kwargs: Any
+    ) -> ReliableQueue[BuildOutput]: ...
+
+    def create_queue(
+        self, redis: Redis, queue_name: QueueNames, **kwargs: Any
     ) -> ReliableQueue[MsgType]:
         """
         Create a reliable queue with predefined configuration, allowing for overrides
 
         Args:
             redis: Redis connection
-            message_type: The type of message to create a queue for
+            queue_name: The name of the queue to create
             **kwargs: Additional arguments to override default configuration
         """
-        if message_type not in self.queue_configs:
-            raise ValueError(f"No configuration found for queue: {message_type}")
+        if queue_name not in self.queue_configs:
+            raise ValueError(f"No configuration found for queue: {queue_name}")
 
-        config = self.queue_configs[message_type]
+        config = self.queue_configs[queue_name]
 
         # Start with default configuration
         queue_args = {
             "queue_name": config.queue_name,
             "group_name": config.group_name,
             "redis": redis,
-            "msg_builder": message_type,
+            "msg_builder": config.message_type,
         }
 
         # Override with any provided kwargs
         queue_args.update(kwargs)
 
-        return ReliableQueue[MsgType](**queue_args)
+        return ReliableQueue(**queue_args)
 
 
 @dataclass
