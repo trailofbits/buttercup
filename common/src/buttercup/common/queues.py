@@ -123,7 +123,7 @@ class ReliableQueue(Generic[MsgType]):
     msg_builder: Type[MsgType]
     task_timeout_ms: int = 180000
     reader_name: str | None = None
-    last_stream_id: str | None = "0-0"
+    last_stream_id: str | None = ">"
     block_time: int = 200
 
     INAME = b"item"
@@ -173,8 +173,10 @@ class ReliableQueue(Generic[MsgType]):
             stream_item = streams_items[0][1]
 
         if len(stream_item) == 0 and self.last_stream_id != ">":
-            # No message found in the pending queue for this reader
-            # Go to the new messages
+            # If the queue was created with a last_stream_id that is not `>`, it
+            # means the pending items for this reader were desired. In case
+            # that's the case and no items were found in the pending queue, look
+            # at new messages
             self.last_stream_id = ">"
             return self.pop()
 

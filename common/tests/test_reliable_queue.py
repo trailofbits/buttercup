@@ -79,49 +79,6 @@ def test_reliable_queue_multiple_messages(reliable_queue):
         reliable_queue.ack_item(result)
 
 
-def test_pending_items(reliable_queue, redis_client):
-    # Create a test message
-    test_msg = Struct()
-    test_msg.update({"test_key": "test_value"})
-    reliable_queue.push(test_msg)
-    assert reliable_queue.size() == 1
-
-    # Get item
-    item = reliable_queue.pop()
-    assert item is not None
-    assert item.deserialized.fields["test_key"].string_value == "test_value"
-
-    # Close the old redis connection
-    reliable_queue.redis.close()
-
-    # recreate the queue with the same name, to simulate a crash
-    queue = ReliableQueue[Struct](
-        queue_name="test_queue",
-        group_name="test_group",
-        redis=redis_client,
-        task_timeout_ms=1000,
-        msg_builder=Struct,
-        reader_name="test_reader",
-    )
-
-    item = queue.pop()
-    assert item is not None
-    assert item.deserialized.fields["test_key"].string_value == "test_value"
-    reliable_queue.ack_item(item)
-
-    # recreate again to check if the item is still pending
-    queue = ReliableQueue[Struct](
-        queue_name="test_queue",
-        group_name="test_group",
-        redis=redis_client,
-        task_timeout_ms=1000,
-        msg_builder=Struct,
-        reader_name="test_reader",
-    )
-    item = queue.pop()
-    assert item is None
-
-
 def test_autoclaim(reliable_queue, redis_client):
     # Push a few messages
     test_msg = Struct()
@@ -158,6 +115,59 @@ def test_autoclaim(reliable_queue, redis_client):
     # Pop the message
     item = queue.pop()
     assert item is None
+
+
+def test_new_tasks_first(reliable_queue, redis_client):
+    # Push a few messages
+    for i in range(3):
+        test_msg = Struct()
+        test_msg.update({"key": f"value_{i}"})
+        reliable_queue.push(test_msg)
+
+    assert reliable_queue.size() == 3
+
+    # Pop a message
+    item = reliable_queue.pop()
+    assert item is not None
+    assert item.deserialized.fields["key"].string_value == "value_0"
+
+    # No ack, so pending
+    # Simulate a restart and a new reader
+    queue = ReliableQueue[Struct](
+        queue_name="test_queue",
+        group_name="test_group",
+        redis=redis_client,
+        task_timeout_ms=1000,
+        msg_builder=Struct,
+        reader_name="test_reader2",
+    )
+    item = queue.pop()
+    assert item is not None
+    assert item.deserialized.fields["key"].string_value != "value_0"
+
+    # Ack the message
+    queue.ack_item(item)
+
+    # Simulaten another restart and a new reader
+    queue = ReliableQueue[Struct](
+        queue_name="test_queue",
+        group_name="test_group",
+        redis=redis_client,
+        task_timeout_ms=1000,
+        msg_builder=Struct,
+        reader_name="test_reader3",
+    )
+    item = queue.pop()
+    assert item is not None
+    assert item.deserialized.fields["key"].string_value not in ["value_0", "value_1"]
+    queue.ack_item(item)
+
+    # Now pop again, we should get the value_0 message, autoclaimed
+    time.sleep(2)
+    item = queue.pop()
+    assert item is not None
+    assert item.deserialized.fields["key"].string_value == "value_0"
+    queue.ack_item(item)
 
 
 def test_queue_factory(redis_client):
