@@ -39,3 +39,5 @@ COPY --from=builder --chown=app:app /app/scripts /app/scripts
 RUN tar -xvf /app/scripts/gzs/kythe-v0.0.67.tar.gz
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 WORKDIR /app
+
+ENTRYPOINT ["/app/.venv/bin/python"]

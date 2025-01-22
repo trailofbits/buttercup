@@ -243,12 +243,14 @@ source = { editable = "." }
 dependencies = [
     { name = "common" },
     { name = "gremlinpython" },
+    { name = "protobuf" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "common", editable = "../common" },
     { name = "gremlinpython", specifier = "==3.7.3" },
+    { name = "protobuf", specifier = ">=3.20,<=3.20.3" },
 ]
 
 [[package]]
