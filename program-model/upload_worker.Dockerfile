@@ -3,7 +3,8 @@ ARG BASE_IMAGE=ubuntu:20.04@sha256:4a45212e9518f35983a976eead0de5eecc555a2f04713
 FROM $BASE_IMAGE AS base
 RUN apt-get update && apt-get install -y software-properties-common
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update && apt-get install -y python3.10
+RUN apt-get update && apt-get install -y python3.10 curl
+RUN curl -fsSL https://get.docker.com | sh
 
 FROM base AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
@@ -35,9 +36,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 FROM base AS runtime
+WORKDIR /app
+
 COPY --from=builder --chown=app:app /app/scripts /app/scripts
 RUN tar -xvf /app/scripts/gzs/kythe-v0.0.67.tar.gz
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
-WORKDIR /app
+
 
 ENTRYPOINT ["/app/.venv/bin/python"]

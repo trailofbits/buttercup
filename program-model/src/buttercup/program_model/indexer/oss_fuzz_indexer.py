@@ -88,7 +88,7 @@ def main():
     prsr.add_argument("--scriptdir",required=True)
     prsr.add_argument("--url",required=True)
     prsr.add_argument("--python",default="python")
-    prsr.add_argument("--allow_pull", default=False)
+    prsr.add_argument("--allow_pull", action="store_true", default=False)
     prsr.add_argument("--base_image_url",required=True)
     prsr.add_argument("--oss_fuzz_dir",required=True)
     prsr.add_argument("--package_name",required=True)
@@ -99,9 +99,12 @@ def main():
     conf = Conf(args.scriptdir, args.url, args.python, args.allow_pull, args.base_image_url, args.wdir)
     indexer = Indexer(conf)
     output_dir = indexer.index_target(IndexTarget(args.oss_fuzz_dir, args.package_name))
+    if output_dir is None:
+        print("Failed to index target")
+        return
     print(output_dir)
     output_id = str(uuid.uuid4())
-    ktool = KytheTool(args.kythe_dir)
+    ktool = KytheTool(KytheConf(args.kythe_dir))
     merged_kzip = os.path.join(args.wdir, f"kythe_output_merge_{output_id}.kzip")
     ktool.merge_kythe_output(output_dir, merged_kzip)
     cxx_bin = os.path.join(args.wdir, f"kythe_output_cxx_{output_id}.bin")

@@ -5,3 +5,19 @@ build-kythe-builder:
 
 build-kythe-tar-gz: build-kythe-builder
     docker run -v {{justfile_directory()}}/program-model/scripts/gzs/:/out {{BUILDER_IMAGE_NAME}}
+
+
+download-kythe:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    if [[ ! -f "program-model/scripts/gzs/kythe-v0.0.67.tar.gz" ]] 
+    then
+        curl -o program-model/scripts/gzs/kythe-v0.0.67.tar.gz https://github.com/trailofbits/aixcc-kythe/releases/download/v0.0.1/kythe-v0.0.67.tar.gz
+    fi
+
+build-indexer-image: download-kythe
+    docker build -t indexer -f ./program-model/upload_worker.Dockerfile  .
+
+
+run-indexer: build-indexer-image
+    docker compose --profile=development up indexer-run
