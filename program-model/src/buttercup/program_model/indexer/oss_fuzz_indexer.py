@@ -72,7 +72,7 @@ class KytheTool:
             if fl.endswith(".kzip"):
                 total.append(os.path.join(input_dir, fl))
 
-        command = [merge_path, "--output", output_kzip] + total
+        command = [merge_path, "merge","--output", output_kzip] + total
         subprocess.run(command, check=True)
         return True
     
