@@ -148,7 +148,7 @@ def test_new_tasks_first(reliable_queue, redis_client):
     # Ack the message
     queue.ack_item(item)
 
-    # Simulaten another restart and a new reader
+    # Simulate another restart and a new reader
     queue = ReliableQueue[Struct](
         queue_name="test_queue",
         group_name="test_group",
