@@ -1,0 +1,42 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup common package
+        run: uv sync --all-extras
+        working-directory: common
+
+      - name: Setup orchestrator package
+        run: uv sync --all-extras
+        working-directory: orchestrator
+
+      - name: Setup fuzzer package
+        run: uv sync --all-extras
+        working-directory: fuzzer
+
+      - name: Run ruff on common
+        run: uv run ruff format --check && uv run ruff check
+        working-directory: common
+
+      - name: Run ruff on orchestrator
+        run: uv run ruff format --check && uv run ruff check
+        working-directory: orchestrator
+
+      - name: Run ruff on fuzzer
+        run: uv run ruff format --check && uv run ruff check
+        working-directory: fuzzer

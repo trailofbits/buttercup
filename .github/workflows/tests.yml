@@ -1,0 +1,58 @@
+name: Unit tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        python:
+          - "3.12"
+
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup common package
+        run: uv sync --all-extras
+        working-directory: common
+
+      - name: Setup orchestrator package
+        run: uv sync --all-extras
+        working-directory: orchestrator
+
+      - name: Setup fuzzer package
+        run: uv sync --all-extras
+        working-directory: fuzzer
+
+      - name: Run tests on common package
+        run: uv run pytest -svv
+        working-directory: common
+
+      - name: Run tests on orchestrator package
+        run: uv run pytest -svv
+        working-directory: orchestrator
+
+      - name: Run tests on fuzzer package
+        run: uv run pytest -svv
+        working-directory: fuzzer
