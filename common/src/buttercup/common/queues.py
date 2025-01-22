@@ -12,6 +12,7 @@ import uuid
 from enum import Enum
 from typing import Any
 
+
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
@@ -27,6 +28,7 @@ class GroupNames(str, Enum):
 
 class HashNames(str, Enum):
     TASKS_REGISTRY = "tasks_registry"
+
 
 BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
@@ -235,7 +237,7 @@ class QueueFactory:
             task_timeout_ms=BUILD_OUTPUT_TASK_TIMEOUT_MS,
             **kwargs,
         )
-    
+
     def create_download_tasks_queue(self, **kwargs: Any) -> ReliableQueue[TaskDownload]:
         return ReliableQueue(
             queue_name=QueueNames.DOWNLOAD_TASKS,

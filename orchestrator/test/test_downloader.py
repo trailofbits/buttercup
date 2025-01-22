@@ -124,9 +124,18 @@ def test_process_task_with_multiple_sources(downloader):
     # Add two sources
     for i in range(2):
         source = task.sources.add()
-        source.url = f"https://example.com/file{i}.txt"
+        source.url = f"https://example.com/file{i}.tar.gz"
         source.source_type = SourceDetail.SourceType.SOURCE_TYPE_REPO
-        content = f"content{i}".encode()
+
+        # Create a tar.gz file in memory
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
+            content = f"content{i}".encode()
+            info = tarfile.TarInfo(name=f"file{i}.txt")
+            info.size = len(content)
+            tar.addfile(info, io.BytesIO(content))
+
+        content = tar_buffer.getvalue()
         source.sha256 = hashlib.sha256(content).hexdigest()
 
         responses.add(responses.GET, source.url, body=content, status=200)

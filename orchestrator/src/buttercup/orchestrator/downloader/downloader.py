@@ -2,16 +2,17 @@ import logging
 import requests
 import tarfile
 from dataclasses import dataclass, field
+import uuid
 import tempfile
 from pathlib import Path
 import time
 from typing import Optional
-import hashlib
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue
 from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload
+from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry
 
@@ -67,28 +68,16 @@ class Downloader:
     def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Optional[Path]:
         """Downloads a source file and verifies its SHA256"""
         try:
-            # Use session instead of requests directly
-            response = self.session.get(source.url, stream=True)
-            response.raise_for_status()
-
             # Create directory structure and filename
             source_dir = self.get_source_type_dir(tmp_task_dir, source.source_type)
-            # Extract base filename before query parameters
-            filename = source.url.split("/")[-1].split("?")[0]
-            filepath = source_dir / filename
+            filepath = source_dir / str(uuid.uuid4())
             logger.info(f"[task {task_id}] Downloading source type {source.source_type} to {filepath}")
 
             # Download and compute hash simultaneously
-            sha256_hash = hashlib.sha256()
-
-            with open(filepath, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        sha256_hash.update(chunk)
-                        f.write(chunk)
+            sha256_hash = response_stream_to_file(self.session, source.url, filepath)
 
             # Verify hash
-            if sha256_hash.hexdigest() != source.sha256:
+            if sha256_hash != source.sha256:
                 logger.error(f"[task {task_id}] SHA256 mismatch for {source.url}")
                 return None
 
@@ -99,55 +88,52 @@ class Downloader:
             logger.error(f"Failed to download {source.url}: {str(e)}")
             return None
 
-    def uncompress_source(self, task_id: str, source_dir: Path) -> bool:
+    def extract_source(self, task_id: str, source_dir: Path) -> bool:
         """Uncompress a source file"""
-        if source_dir.suffix.startswith(".tar") or source_dir.name.endswith(".tar.gz"):
-            try:
-                logger.info(f"[task {task_id}] Extracting {source_dir}")
-                extract_path = source_dir.parent
+        try:
+            logger.info(f"[task {task_id}] Extracting {source_dir}")
+            extract_path = source_dir.parent
 
-                def is_within_directory(directory: Path, target: Path) -> bool:
-                    try:
-                        target.relative_to(directory)
-                        return True
-                    except ValueError:
-                        return False
+            def is_within_directory(directory: Path, target: Path) -> bool:
+                try:
+                    target.relative_to(directory)
+                    return True
+                except ValueError:
+                    return False
 
-                def safe_extract(tar, path: Path) -> None:
+            def safe_extract(tar, path: Path) -> None:
+                for member in tar.getmembers():
+                    member_path = path / member.name
+                    if not is_within_directory(path, member_path):
+                        raise Exception("Attempted path traversal in tar file")
+
+            with tarfile.open(source_dir) as tar:
+                # First verify all paths are safe
+                safe_extract(tar, extract_path)
+
+                # Get the first directory name in the tar
+                first_dir = next((m.name.split("/")[0] for m in tar.getmembers() if "/" in m.name), None)
+
+                if first_dir:
+                    # Extract all members, modifying their paths to skip first directory
                     for member in tar.getmembers():
-                        member_path = path / member.name
-                        if not is_within_directory(path, member_path):
-                            raise Exception("Attempted path traversal in tar file")
+                        if member.name.startswith(first_dir + "/"):
+                            member.name = member.name[len(first_dir) + 1 :]
+                            if member.name:  # Only extract if there's a remaining path
+                                tar.extract(member, path=extract_path)
+                else:
+                    # If no subdirectory found, extract normally but safely
+                    for member in tar.getmembers():
+                        tar.extract(member, path=extract_path)
 
-                with tarfile.open(source_dir) as tar:
-                    # First verify all paths are safe
-                    safe_extract(tar, extract_path)
-
-                    # Get the first directory name in the tar
-                    first_dir = next((m.name.split("/")[0] for m in tar.getmembers() if "/" in m.name), None)
-
-                    if first_dir:
-                        # Extract all members, modifying their paths to skip first directory
-                        for member in tar.getmembers():
-                            if member.name.startswith(first_dir + "/"):
-                                member.name = member.name[len(first_dir) + 1 :]
-                                if member.name:  # Only extract if there's a remaining path
-                                    tar.extract(member, path=extract_path)
-                    else:
-                        # If no subdirectory found, extract normally but safely
-                        for member in tar.getmembers():
-                            tar.extract(member, path=extract_path)
-
-                logger.info(f"[task {task_id}] Successfully extracted {source_dir}")
-                # Remove the tar file after successful extraction
-                source_dir.unlink()
-                logger.info(f"[task {task_id}] Removed tar file {source_dir}")
-                return True
-            except Exception as e:
-                logger.error(f"[task {task_id}] Failed to extract {source_dir}: {str(e)}")
-                return False
-
-        return True
+            logger.info(f"[task {task_id}] Successfully extracted {source_dir}")
+            # Remove the tar file after successful extraction
+            source_dir.unlink()
+            logger.info(f"[task {task_id}] Removed tar file {source_dir}")
+            return True
+        except Exception as e:
+            logger.error(f"[task {task_id}] Failed to extract {source_dir}: {str(e)}")
+            return False
 
     def process_task(self, task: Task) -> bool:
         """Process a single task by downloading all its sources"""
@@ -156,6 +142,7 @@ class Downloader:
         success = True
         with tempfile.TemporaryDirectory(dir=self.download_dir) as tmp_task_dir:
             tmp_task_dir = Path(tmp_task_dir)
+            logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
             for source in task.sources:
                 result = self.download_source(task.task_id, tmp_task_dir, source)
@@ -163,7 +150,7 @@ class Downloader:
                     success = False
                     break
 
-                if not self.uncompress_source(task.task_id, result):
+                if not self.extract_source(task.task_id, result):
                     success = False
                     break
 
