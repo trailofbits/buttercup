@@ -15,6 +15,37 @@ from requests_file import FileAdapter
 import requests
 
 
+def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -> Task:
+    task = Task()
+    task.message_id = command.message_id
+    task.message_time = command.message_time
+    task.task_id = command.task_id
+    task.cancelled = False
+    task.task_type = (
+        Task.TaskType.TASK_TYPE_FULL if command.task_type == TaskType.FULL else Task.TaskType.TASK_TYPE_DELTA
+    )
+    for repo_url in command.repo_url:
+        source_detail = SourceDetail()
+        source_detail.source_type = SourceDetail.SourceType.SOURCE_TYPE_REPO
+        source_detail.url = repo_url
+        source_detail.sha256 = response_stream_to_file(session, repo_url)
+        task.sources.append(source_detail)
+    for fuzz_tooling_url in command.fuzz_tooling_url:
+        source_detail = SourceDetail()
+        source_detail.source_type = SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING
+        source_detail.url = fuzz_tooling_url
+        source_detail.sha256 = response_stream_to_file(session, fuzz_tooling_url)
+        task.sources.append(source_detail)
+    for diff_url in command.diff_url:
+        source_detail = SourceDetail()
+        source_detail.source_type = SourceDetail.SourceType.SOURCE_TYPE_DIFF
+        source_detail.url = diff_url
+        source_detail.sha256 = response_stream_to_file(session, diff_url)
+        task.sources.append(source_detail)
+
+    return task
+
+
 def main():
     settings = DownloaderSettings()
     setup_logging(__name__, settings.log_level)
@@ -24,37 +55,12 @@ def main():
         with Downloader(settings.download_dir, command.sleep_time, redis) as downloader:
             downloader.serve()
     elif isinstance(command, DownloaderProcessCommand):
+        # Allow to use file:// URLs in the downloader
         session = requests.Session()
         session.mount("file://", FileAdapter())
 
-        task = Task()
-        task.message_id = command.message_id
-        task.message_time = command.message_time
-        task.task_id = command.task_id
-        task.task_type = (
-            Task.TaskType.TASK_TYPE_FULL if command.task_type == TaskType.FULL else Task.TaskType.TASK_TYPE_DELTA
-        )
-        for repo_url in command.repo_url:
-            source_detail = SourceDetail()
-            source_detail.source_type = SourceDetail.SourceType.SOURCE_TYPE_REPO
-            source_detail.url = repo_url
-            source_detail.sha256 = response_stream_to_file(session, repo_url)
-            task.sources.append(source_detail)
-        for fuzz_tooling_url in command.fuzz_tooling_url:
-            source_detail = SourceDetail()
-            source_detail.source_type = SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING
-            source_detail.url = fuzz_tooling_url
-            source_detail.sha256 = response_stream_to_file(session, fuzz_tooling_url)
-            task.sources.append(source_detail)
-        for diff_url in command.diff_url:
-            source_detail = SourceDetail()
-            source_detail.source_type = SourceDetail.SourceType.SOURCE_TYPE_DIFF
-            source_detail.url = diff_url
-            source_detail.sha256 = response_stream_to_file(session, diff_url)
-            task.sources.append(source_detail)
-
+        task = prepare_task(command, session)
         with Downloader(settings.download_dir) as downloader:
-            # Allow to use file:// URLs in the downloader
             downloader.session = session
             downloader.process_task(task)
 
