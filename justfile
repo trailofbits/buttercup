@@ -15,9 +15,9 @@ download-kythe:
         curl -o program-model/scripts/gzs/kythe-v0.0.67.tar.gz https://github.com/trailofbits/aixcc-kythe/releases/download/v0.0.1/kythe-v0.0.67.tar.gz
     fi
 
-build-indexer-image: download-kythe
+build-indexer-image: 
     docker build -t indexer -f ./program-model/upload_worker.Dockerfile  .
 
 
-run-indexer: build-indexer-image
-    docker compose --profile=development up indexer-run
+run-indexer: download-kythe
+    docker compose --profile=development up --build indexer-run

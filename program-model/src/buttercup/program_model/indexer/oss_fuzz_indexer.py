@@ -76,7 +76,7 @@ class KytheTool:
         subprocess.run(command, check=True)
         return True
     
-    def cxx_index(self, input_kzip: str, output_kzip: str, output_bin: str):
+    def cxx_index(self, input_kzip: str, output_bin: str):
         indexer_path = os.path.join(self.conf.kythe_dir, "indexers/cxx_indexer")
         command = [indexer_path, "-i", input_kzip, "-o", output_bin]
         subprocess.run(command, check=True)
