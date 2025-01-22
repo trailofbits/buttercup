@@ -60,7 +60,7 @@ uv run buttercup-task-downloader --help
 Small utility just for debugging/development, to inspect the task registry in Redis.
 
 ```shell
-uv run buttercup-registry --help
+uv run buttercup-task-registry --help
 ```
 
 ## Development
