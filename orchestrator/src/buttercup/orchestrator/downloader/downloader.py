@@ -186,7 +186,7 @@ class Downloader:
                 success = self.process_task(task_download.task)
 
                 if success:
-                    self.registry[task_download.task.task_id] = task_download.task
+                    self.registry.set(task_download.task)
                     self.task_queue.ack_item(rq_item.item_id)
                     logger.info(f"Successfully processed task {task_download.task.task_id}")
                 else:

@@ -2,54 +2,39 @@ from buttercup.common.datastructures.orchestrator_pb2 import Task
 from redis import Redis
 from buttercup.common.queues import HashNames
 from dataclasses import dataclass
-from collections import UserDict
+from google.protobuf import text_format
 
 
 @dataclass
-class TaskRegistry(UserDict):
-    """Keep track of all tasks in the system. Acts as a dict-like interface to the Redis hash."""
+class TaskRegistry:
+    """Keep track of all tasks in the system"""
 
     redis: Redis
-
-    def __getitem__(self, task_id: str) -> Task:
-        """Dict-like access: registry[task_id]"""
-        task = self.get(task_id)
-        if task is None:
-            raise KeyError(f"Task {task_id} not found")
-        return task
-
-    def __setitem__(self, task_id: str, task: Task):
-        """Dict-like assignment: registry[task_id] = task"""
-        self.set(task_id, task)
-
-    def __delitem__(self, task_id: str):
-        """Dict-like deletion: del registry[task_id]"""
-        self.delete(task_id)
+    hash_name: str = HashNames.TASKS_REGISTRY
 
     def __len__(self):
         """Number of tasks in the registry"""
-        return self.redis.hlen(HashNames.TASKS_REGISTRY)
+        return self.redis.hlen(self.hash_name)
 
     def __iter__(self):
-        """Iterate over task IDs in the registry"""
-        return iter(self.redis.hkeys(HashNames.TASKS_REGISTRY))
+        """Iterate over all tasks in the registry"""
+        tasks_dict = self.redis.hgetall(self.hash_name)
+        return (Task.FromString(task_bytes) for task_bytes in tasks_dict.values())
 
     def __contains__(self, task_id: str) -> bool:
         """Check if a task ID exists in the registry"""
-        return self.redis.hexists(HashNames.TASKS_REGISTRY, task_id.upper())
+        return self.redis.hexists(self.hash_name, self._prepare_key(task_id))
 
-    def items(self):
-        """Iterate over (task_id, task) pairs in the registry"""
-        for task_id in self:
-            yield task_id, self[task_id]
+    def _prepare_key(self, task_id: str) -> str:
+        return task_id.upper()
 
-    def set(self, task_id: str, task: Task):
+    def set(self, task: Task):
         """Update a task in the registry"""
-        self.redis.hset(HashNames.TASKS_REGISTRY, task_id.upper(), task.SerializeToString())
+        self.redis.hset(self.hash_name, self._prepare_key(task.task_id), task.SerializeToString())
 
     def get(self, task_id: str) -> Task | None:
         """Get a task from the registry"""
-        task_bytes = self.redis.hget(HashNames.TASKS_REGISTRY, task_id.upper())
+        task_bytes = self.redis.hget(self.hash_name, self._prepare_key(task_id))
         if task_bytes is None:
             return None
 
@@ -57,7 +42,7 @@ class TaskRegistry(UserDict):
 
     def delete(self, task_id: str):
         """Delete a task from the registry"""
-        self.redis.hdel(HashNames.TASKS_REGISTRY, task_id.upper())
+        self.redis.hdel(self.hash_name, self._prepare_key(task_id))
 
 
 def task_registry_cli():
@@ -65,7 +50,6 @@ def task_registry_cli():
     from pydantic_settings import BaseSettings
     from typing import Annotated
     from pydantic import Field
-    from google.protobuf import text_format
 
     class TaskRegistrySettings(BaseSettings):
         redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
@@ -80,9 +64,9 @@ def task_registry_cli():
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     registry = TaskRegistry(redis)
     print("Number of tasks in registry:", len(registry))
-    for task_id, task in registry.items():
+    for task in registry:
         print()
         print("-" * 80)
-        print("Task ID:", task_id)
+        print("Task ID:", task.task_id)
         print(text_format.MessageToString(task, print_unknown_fields=True, indent=2))
         print("-" * 80)
