@@ -6,7 +6,7 @@ from redis import Redis, RedisError
 from google.protobuf.message import Message
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import logging
-from typing import Type, Generic, TypeVar, overload, Literal
+from typing import Type, Generic, TypeVar
 import uuid
 from enum import Enum
 from typing import Any
@@ -22,6 +22,9 @@ class GroupNames(str, Enum):
     BUILDER_BOT = "build_bot_consumers"
     ORCHESTRATOR = "orchestrator_group"
 
+
+BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
+BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -202,69 +205,30 @@ class ReliableQueue(Generic[MsgType]):
 
 
 @dataclass
-class QueueConfig(Generic[MsgType]):
-    """Configuration for a reliable queue"""
-
-    queue_name: str
-    group_name: str
-    message_type: Type[MsgType]
-
-
 class QueueFactory:
     """Factory for creating common reliable queues"""
 
-    def __init__(self):
-        self.queue_configs: dict[QueueNames, QueueConfig[MsgType]] = {
-            QueueNames.BUILD: QueueConfig(
-                queue_name=QueueNames.BUILD,
-                group_name=GroupNames.BUILDER_BOT,
-                message_type=BuildRequest,
-            ),
-            QueueNames.BUILD_OUTPUT: QueueConfig(
-                queue_name=QueueNames.BUILD_OUTPUT,
-                group_name=GroupNames.ORCHESTRATOR,
-                message_type=BuildOutput,
-            ),
-        }
+    redis: Redis
 
-    @overload
-    def create_queue(
-        self, redis: Redis, queue_name: Literal[QueueNames.BUILD], **kwargs: Any
-    ) -> ReliableQueue[BuildRequest]: ...
+    def create_build_queue(self, **kwargs: Any) -> ReliableQueue[BuildRequest]:
+        return ReliableQueue(
+            queue_name=QueueNames.BUILD,
+            group_name=GroupNames.BUILDER_BOT,
+            redis=self.redis,
+            msg_builder=BuildRequest,
+            task_timeout_ms=BUILD_TASK_TIMEOUT_MS,
+            **kwargs,
+        )
 
-    @overload
-    def create_queue(
-        self, redis: Redis, queue_name: Literal[QueueNames.BUILD_OUTPUT], **kwargs: Any
-    ) -> ReliableQueue[BuildOutput]: ...
-
-    def create_queue(
-        self, redis: Redis, queue_name: QueueNames, **kwargs: Any
-    ) -> ReliableQueue[MsgType]:
-        """
-        Create a reliable queue with predefined configuration, allowing for overrides
-
-        Args:
-            redis: Redis connection
-            queue_name: The name of the queue to create
-            **kwargs: Additional arguments to override default configuration
-        """
-        if queue_name not in self.queue_configs:
-            raise ValueError(f"No configuration found for queue: {queue_name}")
-
-        config = self.queue_configs[queue_name]
-
-        # Start with default configuration
-        queue_args = {
-            "queue_name": config.queue_name,
-            "group_name": config.group_name,
-            "redis": redis,
-            "msg_builder": config.message_type,
-        }
-
-        # Override with any provided kwargs
-        queue_args.update(kwargs)
-
-        return ReliableQueue(**queue_args)
+    def create_build_output_queue(self, **kwargs: Any) -> ReliableQueue[BuildOutput]:
+        return ReliableQueue(
+            queue_name=QueueNames.BUILD_OUTPUT,
+            group_name=GroupNames.ORCHESTRATOR,
+            redis=self.redis,
+            msg_builder=BuildOutput,
+            task_timeout_ms=BUILD_OUTPUT_TASK_TIMEOUT_MS,
+            **kwargs,
+        )
 
 
 @dataclass

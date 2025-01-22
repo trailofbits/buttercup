@@ -8,11 +8,14 @@ from buttercup.common.queues import (
     QueueFactory,
     QueueNames,
     GroupNames,
+    BUILD_TASK_TIMEOUT_MS,
+    BUILD_OUTPUT_TASK_TIMEOUT_MS,
 )
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 
 GROUP_NAME = "test_group"
 QUEUE_NAME = "test_queue"
+
 
 @pytest.fixture
 def redis_client():
@@ -173,22 +176,22 @@ def test_new_tasks_first(reliable_queue, redis_client):
 
 
 def test_queue_factory(redis_client):
-    factory = QueueFactory()
+    factory = QueueFactory(redis_client)
 
-    queue = factory.create_queue(redis_client, QueueNames.BUILD_OUTPUT)
+    queue = factory.create_build_output_queue()
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD_OUTPUT
     assert queue.group_name == GroupNames.ORCHESTRATOR
     assert queue.redis == redis_client
-    assert queue.task_timeout_ms == 180000
+    assert queue.task_timeout_ms == BUILD_OUTPUT_TASK_TIMEOUT_MS
     assert queue.msg_builder == BuildOutput
 
-    queue = factory.create_queue(redis_client, QueueNames.BUILD)
+    queue = factory.create_build_queue()
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD
     assert queue.group_name == GroupNames.BUILDER_BOT
     assert queue.redis == redis_client
-    assert queue.task_timeout_ms == 180000
+    assert queue.task_timeout_ms == BUILD_TASK_TIMEOUT_MS
     assert queue.msg_builder == BuildRequest
 
     queue.push(
