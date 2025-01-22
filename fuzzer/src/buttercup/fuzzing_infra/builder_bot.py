@@ -50,7 +50,7 @@ def main():
                 logging.error(f"Could not build fuzzer {msg.package_name}")
 
             output_q.push(BuildOutput(package_name=msg.package_name, engine=msg.engine, sanitizer=msg.sanitizer, output_ossfuzz_path=target))
-            queue.ack_item(rqit)
+            queue.ack_item(rqit.item_id)
         time.sleep(seconds)
 
 

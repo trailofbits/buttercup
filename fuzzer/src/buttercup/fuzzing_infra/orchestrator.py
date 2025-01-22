@@ -25,7 +25,7 @@ def loop(output_queue: ReliableQueue, target_list: Queue, sleep_time_seconds: in
                 print(f"Adding target: {tgt}")
                 # TODO(Ian): to make this idempotent this should be hashed rather than a list we can add a target mutliple times.
                 target_list.push(WeightedTarget(weight=1.0, target=deser_output, harness_path=tgt))
-            output_queue.ack_item(output)
+            output_queue.ack_item(output.item_id)
 def main():
     prsr = argparse.ArgumentParser("Fuzzing orchestrator")
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")

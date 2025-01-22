@@ -11,6 +11,8 @@ from buttercup.common.queues import (
 )
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 
+GROUP_NAME = "test_group"
+QUEUE_NAME = "test_queue"
 
 @pytest.fixture
 def redis_client():
@@ -21,8 +23,8 @@ def redis_client():
 def reliable_queue(redis_client):
     # Create a new queue for testing
     queue = ReliableQueue[Struct](
-        queue_name="test_queue",
-        group_name="test_group",
+        queue_name=QUEUE_NAME,
+        group_name=GROUP_NAME,
         redis=redis_client,
         task_timeout_ms=1000,
         msg_builder=Struct,
@@ -51,7 +53,7 @@ def test_reliable_queue_push_pop(reliable_queue):
     assert result.deserialized.fields["test_key"].string_value == "test_value"
 
     # Test acknowledgment
-    reliable_queue.ack_item(result)
+    reliable_queue.ack_item(result.item_id)
 
 
 def test_reliable_queue_empty_pop(reliable_queue):
@@ -76,7 +78,7 @@ def test_reliable_queue_multiple_messages(reliable_queue):
         result = reliable_queue.pop()
         assert isinstance(result, RQItem)
         assert result.deserialized.fields["key"].string_value == f"value_{i}"
-        reliable_queue.ack_item(result)
+        reliable_queue.ack_item(result.item_id)
 
 
 def test_autoclaim(reliable_queue, redis_client):
@@ -97,8 +99,8 @@ def test_autoclaim(reliable_queue, redis_client):
 
     # Simulate another reader
     queue = ReliableQueue[Struct](
-        queue_name="test_queue",
-        group_name="test_group",
+        queue_name=QUEUE_NAME,
+        group_name=GROUP_NAME,
         redis=redis_client,
         task_timeout_ms=1,
         msg_builder=Struct,
@@ -110,7 +112,7 @@ def test_autoclaim(reliable_queue, redis_client):
     assert item.deserialized.fields["test_key"].string_value == "test_value_0"
 
     # Ack the message
-    queue.ack_item(item)
+    queue.ack_item(item.item_id)
 
     # Pop the message
     item = queue.pop()
@@ -134,8 +136,8 @@ def test_new_tasks_first(reliable_queue, redis_client):
     # No ack, so pending
     # Simulate a restart and a new reader
     queue = ReliableQueue[Struct](
-        queue_name="test_queue",
-        group_name="test_group",
+        queue_name=QUEUE_NAME,
+        group_name=GROUP_NAME,
         redis=redis_client,
         task_timeout_ms=1000,
         msg_builder=Struct,
@@ -146,12 +148,12 @@ def test_new_tasks_first(reliable_queue, redis_client):
     assert item.deserialized.fields["key"].string_value != "value_0"
 
     # Ack the message
-    queue.ack_item(item)
+    queue.ack_item(item.item_id)
 
     # Simulate another restart and a new reader
     queue = ReliableQueue[Struct](
-        queue_name="test_queue",
-        group_name="test_group",
+        queue_name=QUEUE_NAME,
+        group_name=GROUP_NAME,
         redis=redis_client,
         task_timeout_ms=1000,
         msg_builder=Struct,
@@ -160,14 +162,14 @@ def test_new_tasks_first(reliable_queue, redis_client):
     item = queue.pop()
     assert item is not None
     assert item.deserialized.fields["key"].string_value not in ["value_0", "value_1"]
-    queue.ack_item(item)
+    queue.ack_item(item.item_id)
 
     # Now pop again, we should get the value_0 message, autoclaimed
     time.sleep(2)
     item = queue.pop()
     assert item is not None
     assert item.deserialized.fields["key"].string_value == "value_0"
-    queue.ack_item(item)
+    queue.ack_item(item.item_id)
 
 
 def test_queue_factory(redis_client):
@@ -204,4 +206,4 @@ def test_queue_factory(redis_client):
     assert item.deserialized.engine == "test_engine"
     assert item.deserialized.sanitizer == "test_sanitizer"
     assert item.deserialized.ossfuzz == "test_ossfuzz"
-    queue.ack_item(item)
+    queue.ack_item(item.item_id)
