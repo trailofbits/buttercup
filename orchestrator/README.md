@@ -53,7 +53,7 @@ uv run buttercup-task-server --help
 Download the sources for a new task.
 
 ```shell
-uv run buttercup-downloader --help
+uv run buttercup-task-downloader --help
 ```
 
 ### Registry (debugging/development)

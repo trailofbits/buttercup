@@ -16,3 +16,4 @@ class TaskServerSettings(BaseSettings):
         env_prefix = "BUTTERCUP_TASK_SERVER_"
         env_file = ".env"
         cli_parse_args = True
+        extra = "allow"

@@ -74,6 +74,7 @@ def task_registry_cli():
             env_prefix = "BUTTERCUP_TASK_REGISTRY_"
             env_file = ".env"
             cli_parse_args = True
+            extra = "allow"
 
     settings = TaskRegistrySettings()
     redis = Redis.from_url(settings.redis_url, decode_responses=False)

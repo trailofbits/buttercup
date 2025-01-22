@@ -62,3 +62,4 @@ class DownloaderSettings(BaseSettings):
         cli_parse_args = True
         nested_model_default_partial_update = True
         env_nested_delimiter = "__"
+        extra = "allow"

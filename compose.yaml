@@ -87,7 +87,7 @@ services:
     build:
       context: .
       dockerfile: ./orchestrator/Dockerfile
-    command: ["buttercup-downloader", "serve"]
+    command: ["buttercup-task-downloader", "serve"]
     environment:
       - BUTTERCUP_DOWNLOADER_SERVE__REDIS_URL=redis://redis:6379
       - BUTTERCUP_DOWNLOADER_LOG_LEVEL=debug
