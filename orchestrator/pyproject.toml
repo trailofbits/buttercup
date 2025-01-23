@@ -39,3 +39,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/buttercup"]
+
+[tool.ruff]
+line-length = 120
+exclude = [
+    "src/buttercup/orchestrator/competition_api_client",
+    "test/test_types_*.py",
+    "test/test_vulnerability_api.py",
+    "test/test_patch_api.py",
+    "test/test_sarif_api.py",
+    "src/buttercup/orchestrator/task_server/models/",
+]
