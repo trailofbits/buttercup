@@ -25,3 +25,9 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 extend-exclude = ["aixcc-kythe"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "ruff>=0.9.2",
+]
