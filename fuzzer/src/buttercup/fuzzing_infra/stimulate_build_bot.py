@@ -15,8 +15,14 @@ def main():
 
     redis = Redis.from_url(args.redis_url)
     queue = QueueFactory(redis).create_build_queue()
-    req = BuildRequest(package_name=args.target_package, engine=args.engine, sanitizer=args.sanitizer, ossfuzz=args.ossfuzz)
+    req = BuildRequest(
+        package_name=args.target_package,
+        engine=args.engine,
+        sanitizer=args.sanitizer,
+        ossfuzz=args.ossfuzz,
+    )
     queue.push(req)
+
 
 if __name__ == "__main__":
     main()
