@@ -26,6 +26,8 @@ cd "$PROJECT_DIR" || exit 1
 git clone git@github.com:aixcc-finals/example-crs-architecture.git || true
 git -C example-crs-architecture pull
 
+cp -rv example-crs-architecture/docs/ "$OUTPUT_DIR/src/buttercup/orchestrator/docs/"
+
 TEMPDIR=$(mktemp -d)
 $PYTHON_CMD -m venv "$TEMPDIR/venv"
 . $TEMPDIR/venv/bin/activate

@@ -1,0 +1,244 @@
+definitions:
+  types.SourceDetail:
+    properties:
+      sha256:
+        type: string
+      type:
+        $ref: "#/definitions/types.SourceType"
+      url:
+        type: string
+    required:
+      - sha256
+      - type
+      - url
+    type: object
+  types.SourceType:
+    enum:
+      - repo
+      - fuzz-tooling
+      - diff
+    type: string
+    x-enum-varnames:
+      - SourceTypeRepo
+      - SourceTypeFuzzTooling
+      - SourceTypeDiff
+  types.Status:
+    properties:
+      details:
+        additionalProperties: {}
+        description:
+          Keep in mind this endpoint is unauthenticated. Do not place sensitive
+          details in this object. This is optional arbitrary content. This may be
+          logged in error cases, but is mainly for interactive troubleshooting.
+        type: object
+      ready:
+        type: boolean
+      state:
+        $ref: "#/definitions/types.StatusState"
+      version:
+        description:
+          Version string for verification and reproducibility. Git commit,
+          SemVer, etc...
+        type: string
+    required:
+      - ready
+      - state
+      - version
+    type: object
+  types.StatusState:
+    properties:
+      tasks:
+        $ref: "#/definitions/types.StatusTasksState"
+    required:
+      - tasks
+    type: object
+  types.StatusTasksState:
+    properties:
+      canceled:
+        type: integer
+      errored:
+        type: integer
+      pending:
+        type: integer
+      running:
+        type: integer
+      succeeded:
+        type: integer
+    required:
+      - canceled
+      - errored
+      - pending
+      - running
+      - succeeded
+    type: object
+  types.Task:
+    properties:
+      message_id:
+        format: uuid
+        type: string
+      message_time:
+        type: integer
+      tasks:
+        items:
+          $ref: "#/definitions/types.TaskDetail"
+        type: array
+    required:
+      - message_id
+      - message_time
+      - tasks
+    type: object
+  types.TaskDetail:
+    properties:
+      deadline:
+        type: integer
+      source:
+        items:
+          $ref: "#/definitions/types.SourceDetail"
+        type: array
+      task_id:
+        format: uuid
+        type: string
+      type:
+        $ref: "#/definitions/types.TaskType"
+    required:
+      - deadline
+      - source
+      - task_id
+      - type
+    type: object
+  types.TaskType:
+    enum:
+      - full
+      - delta
+    type: string
+    x-enum-varnames:
+      - TaskTypeFull
+      - TaskTypeDelta
+  types.VulnBroadcast:
+    properties:
+      message_id:
+        format: uuid
+        type: string
+      message_time:
+        type: integer
+      vulns:
+        items:
+          $ref: "#/definitions/types.VulnDetail"
+        type: array
+    required:
+      - message_id
+      - message_time
+      - vulns
+    type: object
+  types.VulnDetail:
+    properties:
+      sarif:
+        description: SARIF Report compliant with "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+        type: object
+      task_id:
+        format: uuid
+        type: string
+      vuln_id:
+        format: uuid
+        type: string
+    required:
+      - sarif
+      - task_id
+      - vuln_id
+    type: object
+info:
+  contact: {}
+  title: Example CRS API
+  version: "0.1"
+paths:
+  /status/:
+    get:
+      consumes:
+        - application/json
+      description: UNAUTHENTICATED! report the status of the CRS
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Status Obect
+          schema:
+            $ref: "#/definitions/types.Status"
+      summary: CRS Status
+      tags:
+        - status
+  /v1/sarif/:
+    post:
+      consumes:
+        - application/json
+      description: submit a sarif broadcast
+      parameters:
+        - description: Vulnerability Broadcast
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.VulnBroadcast"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Submit Sarif Broadcast
+      tags:
+        - sarif
+  /v1/task/:
+    post:
+      consumes:
+        - application/json
+      description: submit a task for work
+      parameters:
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.Task"
+      produces:
+        - application/json
+      responses:
+        "202":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Submit Task
+      tags:
+        - task
+  /v1/task/{task_id}/:
+    delete:
+      consumes:
+        - application/json
+      description: cancel a task
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Cancel Task
+      tags:
+        - task
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

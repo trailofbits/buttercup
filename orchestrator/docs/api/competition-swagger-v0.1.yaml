@@ -1,0 +1,342 @@
+definitions:
+  types.Assessment:
+    enum:
+      - valid
+      - invalid
+    type: string
+    x-enum-varnames:
+      - AssessmentValid
+      - AssessmentInvalid
+  types.AssessmentStatus:
+    enum:
+      - accepted
+    type: string
+    x-enum-varnames:
+      - AssessmentStatusAccepted
+  types.Error:
+    properties:
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      message:
+        type: string
+    required:
+      - message
+    type: object
+  types.PatchSubmission:
+    properties:
+      description:
+        description: Optional plain text string describing the vulnerability
+        type: string
+      patch:
+        description: 100kb Max Size
+        format: base64
+        type: string
+      vuln_id:
+        format: uuid
+        type: string
+    required:
+      - patch
+      - vuln_id
+    type: object
+  types.PatchSubmissionResponse:
+    properties:
+      patch_id:
+        format: uuid
+        type: string
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+    required:
+      - patch_id
+      - status
+    type: object
+  types.SarifAssessmentResponse:
+    properties:
+      status:
+        $ref: "#/definitions/types.AssessmentStatus"
+    required:
+      - status
+    type: object
+  types.SarifAssessmentSubmission:
+    properties:
+      assessment:
+        $ref: "#/definitions/types.Assessment"
+      description:
+        description: Plain text reasoning for the assesment
+        type: string
+    required:
+      - assessment
+      - description
+    type: object
+  types.SubmissionStatus:
+    enum:
+      - accepted
+      - invalid
+      - passed
+      - failed
+      - deadline_exceeded
+    type: string
+    x-enum-varnames:
+      - SubmissionStatusAccepted
+      - SubmissionStatusInvalid
+      - SubmissionStatusPassed
+      - SubmissionStatusFailed
+      - SubmissionStatusDeadlineExceeded
+  types.VulnSubmission:
+    properties:
+      architecture:
+        type: string
+      data_file:
+        description: 2mb max size
+        format: base64
+        type: string
+      harness_name:
+        type: string
+      sanitizer:
+        type: string
+      sarif:
+        description: SARIF Report compliant with "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
+        type: object
+    required:
+      - architecture
+      - data_file
+      - harness_name
+      - sanitizer
+    type: object
+  types.VulnSubmissionResponse:
+    properties:
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+      vuln_id:
+        format: uuid
+        type: string
+    required:
+      - status
+      - vuln_id
+    type: object
+info:
+  contact: {}
+  title: Example Competition API
+  version: "1.0"
+paths:
+  /v1/task/{task_id}/patch/:
+    post:
+      consumes:
+        - application/json
+      description: submit a patch for testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Payload
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.PatchSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.PatchSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit Patch
+      tags:
+        - patch
+  /v1/task/{task_id}/patch/{patch_id}/:
+    get:
+      consumes:
+        - application/json
+      description: yield the status of patch testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Patch ID
+          format: uuid
+          in: path
+          name: patch_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.PatchSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Patch Status
+      tags:
+        - patch
+  /v1/task/{task_id}/sarif/{sarif_id}/:
+    post:
+      consumes:
+        - application/json
+      description: submit a sarif assessment
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: SARIF ID
+          format: uuid
+          in: path
+          name: sarif_id
+          required: true
+          type: string
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.SarifAssessmentSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.SarifAssessmentResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit Sarif Assessment
+      tags:
+        - sarif
+  /v1/task/{task_id}/vuln/:
+    post:
+      consumes:
+        - application/json
+      description: submit a vulnerability for testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.VulnSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.VulnSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit Vulnerability
+      tags:
+        - vulnerability
+  /v1/task/{task_id}/vuln/{vuln_id}/:
+    get:
+      consumes:
+        - application/json
+      description: yield the status of vuln testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Vuln ID
+          format: uuid
+          in: path
+          name: vuln_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.VulnSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Vulnerability Status
+      tags:
+        - vulnerability
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
