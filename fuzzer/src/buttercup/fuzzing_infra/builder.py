@@ -13,9 +13,6 @@ from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
 # build might be possible with just helper.py but may want to share with clusterfuzz to make engine options line up
 
 
-
-
-    
 def main():
     prsr = argparse.ArgumentParser("Fuzzing Infra")
     prsr.add_argument("target")
