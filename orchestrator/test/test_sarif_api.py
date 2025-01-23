@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.api.sarif_api import SarifApi
+from buttercup.orchestrator.competition_api_client.api.sarif_api import SarifApi
 
 
 class TestSarifApi(unittest.TestCase):

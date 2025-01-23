@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
 
 class TestTypesPatchSubmissionResponse(unittest.TestCase):
     """TypesPatchSubmissionResponse unit test stubs"""

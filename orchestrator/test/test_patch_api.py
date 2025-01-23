@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.api.patch_api import PatchApi
+from buttercup.orchestrator.competition_api_client.api.patch_api import PatchApi
 
 
 class TestPatchApi(unittest.TestCase):

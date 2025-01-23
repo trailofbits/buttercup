@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.models.types_assessment import TypesAssessment
+from buttercup.orchestrator.competition_api_client.models.types_assessment import TypesAssessment
 
 class TestTypesAssessment(unittest.TestCase):
     """TypesAssessment unit test stubs"""

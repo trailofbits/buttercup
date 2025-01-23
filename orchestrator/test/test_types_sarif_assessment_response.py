@@ -14,7 +14,7 @@
 
 import unittest
 
-from competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
+from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_response import TypesSarifAssessmentResponse
 
 class TestTypesSarifAssessmentResponse(unittest.TestCase):
     """TypesSarifAssessmentResponse unit test stubs"""

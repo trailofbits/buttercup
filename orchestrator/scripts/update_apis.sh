@@ -28,14 +28,22 @@ git -C example-crs-architecture pull
 
 TEMPDIR=$(mktemp -d)
 $PYTHON_CMD -m venv "$TEMPDIR/venv"
-. ./$TEMPDIR/venv/bin/activate
+. $TEMPDIR/venv/bin/activate
 
 # Update competition API client
-docker run --rm -v "$(realpath example-crs-architecture/docs/api):/local" -v "$OUTPUT_DIR/src/buttercup/orchestrator:/out" openapitools/openapi-generator-cli generate \
+# Run docker with current user to ensure correct file permissions
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
+docker run --rm --user $USER_ID:$GROUP_ID -v "$(realpath example-crs-architecture/docs/api):/local" -v "$OUTPUT_DIR/src/buttercup/orchestrator:/out" openapitools/openapi-generator-cli generate \
     -i /local/competition-swagger-v0.2.json \
     -g python \
     -o /out \
     --package-name competition_api_client
+
+sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
+sed -i.bak 's/^import competition_api_client/import buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
+sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
+sed -i.bak 's/^import competition_api_client./import buttercup.orchestrator.competition_api_client./' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
 
 mkdir -p "$OUTPUT_DIR/docs"
 mkdir -p "$OUTPUT_DIR/test"
@@ -43,11 +51,6 @@ cp -rv "$OUTPUT_DIR"/src/buttercup/orchestrator/docs/* "$OUTPUT_DIR/docs/"
 cp -rv "$OUTPUT_DIR"/src/buttercup/orchestrator/test/* "$OUTPUT_DIR/test/"
 rm -rf "$OUTPUT_DIR/src/buttercup/orchestrator/docs"
 rm -rf "$OUTPUT_DIR/src/buttercup/orchestrator/test"
-
-sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/^import competition_api_client/import buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/docs -name '*.md')
-sed -i.bak 's/^import competition_api_client./import buttercup.orchestrator.competition_api_client./' $(find $OUTPUT_DIR/docs -name '*.md')
 
 # Update task_server APIs
 pip install git+https://github.com/trail-of-forks/fastapi-code-generator
