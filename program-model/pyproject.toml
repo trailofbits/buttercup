@@ -21,3 +21,7 @@ packages = ["src/buttercup"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+
+[tool.ruff]
+extend-exclude = ["aixcc-kythe"]
