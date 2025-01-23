@@ -20,7 +20,7 @@ services:
     image: redis:7.4.2
     restart: always
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     command: redis-server /mount/redis.conf
     volumes: 
       - cache:/data
