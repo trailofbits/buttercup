@@ -24,7 +24,7 @@ build-backend = "hatchling.build"
 
 
 [tool.ruff]
-extend-exclude = ["aixcc-kythe"]
+extend-exclude = ["aixcc-kythe", "src/buttercup/program_model/data/kythe/proto/"]
 
 [dependency-groups]
 dev = [
