@@ -68,9 +68,7 @@ class Downloader:
     def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Optional[Path]:
         """Downloads a source file and verifies its SHA256"""
         try:
-            # Create directory structure and filename
-            source_dir = self.get_source_type_dir(tmp_task_dir, source.source_type)
-            filepath = source_dir / str(uuid.uuid4())
+            filepath = tmp_task_dir / str(uuid.uuid4())
             logger.info(f"[task {task_id}] Downloading source type {source.source_type} to {filepath}")
 
             # Download and compute hash simultaneously
@@ -83,16 +81,15 @@ class Downloader:
 
             logger.info(f"[task {task_id}] Successfully downloaded source type {source.source_type} to {filepath}")
             return filepath
-
         except Exception as e:
             logger.error(f"Failed to download {source.url}: {str(e)}")
             return None
 
-    def extract_source(self, task_id: str, source_dir: Path) -> bool:
+    def extract_source(self, task_id: str, tmp_task_dir: Path, source_file: Path) -> bool:
         """Uncompress a source file"""
         try:
-            logger.info(f"[task {task_id}] Extracting {source_dir}")
-            extract_path = source_dir.parent
+            logger.info(f"[task {task_id}] Extracting {source_file}")
+            tmp_task_dir.mkdir(parents=True, exist_ok=True)
 
             def is_within_directory(directory: Path, target: Path) -> bool:
                 try:
@@ -107,32 +104,21 @@ class Downloader:
                     if not is_within_directory(path, member_path):
                         raise Exception("Attempted path traversal in tar file")
 
-            with tarfile.open(source_dir) as tar:
+            with tarfile.open(source_file) as tar:
                 # First verify all paths are safe
-                safe_extract(tar, extract_path)
+                safe_extract(tar, tmp_task_dir)
 
-                # Get the first directory name in the tar
-                first_dir = next((m.name.split("/")[0] for m in tar.getmembers() if "/" in m.name), None)
+                # Extract all members directly into tmp_task_dir
+                for member in tar.getmembers():
+                    tar.extract(member, path=tmp_task_dir)
 
-                if first_dir:
-                    # Extract all members, modifying their paths to skip first directory
-                    for member in tar.getmembers():
-                        if member.name.startswith(first_dir + "/"):
-                            member.name = member.name[len(first_dir) + 1 :]
-                            if member.name:  # Only extract if there's a remaining path
-                                tar.extract(member, path=extract_path)
-                else:
-                    # If no subdirectory found, extract normally but safely
-                    for member in tar.getmembers():
-                        tar.extract(member, path=extract_path)
-
-            logger.info(f"[task {task_id}] Successfully extracted {source_dir}")
+            logger.info(f"[task {task_id}] Successfully extracted {source_file}")
             # Remove the tar file after successful extraction
-            source_dir.unlink()
-            logger.info(f"[task {task_id}] Removed tar file {source_dir}")
+            source_file.unlink()
+            logger.info(f"[task {task_id}] Removed tar file {source_file}")
             return True
         except Exception as e:
-            logger.error(f"[task {task_id}] Failed to extract {source_dir}: {str(e)}")
+            logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
             return False
 
     def process_task(self, task: Task) -> bool:
@@ -145,14 +131,17 @@ class Downloader:
             logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
             for source in task.sources:
-                result = self.download_source(task.task_id, tmp_task_dir, source)
-                if result is None:
-                    success = False
-                    break
+                # Create temporary directory for download
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir)
+                    result = self.download_source(task.task_id, temp_path, source)
+                    if result is None:
+                        success = False
+                        break
 
-                if not self.extract_source(task.task_id, result):
-                    success = False
-                    break
+                    if not self.extract_source(task.task_id, tmp_task_dir, result):
+                        success = False
+                        break
 
             if success:
                 # Once everything is downloaded and uncompressed in the
