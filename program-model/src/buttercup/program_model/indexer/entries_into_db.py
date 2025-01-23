@@ -2,17 +2,13 @@ from buttercup.program_model.data.kythe.proto.storage_pb2 import Entry, VName
 from buttercup.program_model.utils.varint import decode_stream
 from typing import Generator
 from io import BytesIO
-from gremlin_python import statics
 from gremlin_python.structure.graph import Graph, GraphTraversalSource
-from gremlin_python.process.graph_traversal import __
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from dataclasses import dataclass
 import urllib
 from gremlin_python.structure.graph import Vertex
-from gremlin_python.process.graph_traversal import Transaction
 import sys
 import argparse
-import base64
 
 
 @dataclass(frozen=True, repr=False)

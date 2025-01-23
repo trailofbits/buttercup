@@ -76,7 +76,7 @@ class Indexer:
             "-e",
             "LD=ld",
             "-e",
-            f"KYTHE_OUTPUT_DIRECTORY=/kythe_out",
+            "KYTHE_OUTPUT_DIRECTORY=/kythe_out",
             emitted_image,
             "compile",
         ]
