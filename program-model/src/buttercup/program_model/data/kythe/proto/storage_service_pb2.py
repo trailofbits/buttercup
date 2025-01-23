@@ -19,8 +19,6 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-
-
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
     b'\n!kythe/proto/storage_service.proto\x12\x0bkythe.proto\x1a\x19kythe/proto/storage.proto2\xbf\x01\n\nGraphStore\x12\x38\n\x04Read\x12\x18.kythe.proto.ReadRequest\x1a\x12.kythe.proto.Entry"\x00\x30\x01\x12\x38\n\x04Scan\x12\x18.kythe.proto.ScanRequest\x1a\x12.kythe.proto.Entry"\x00\x30\x01\x12=\n\x05Write\x12\x19.kythe.proto.WriteRequest\x1a\x17.kythe.proto.WriteReply"\x00\x32\x8e\x01\n\x11ShardedGraphStore\x12=\n\x05\x43ount\x12\x19.kythe.proto.CountRequest\x1a\x17.kythe.proto.CountReply"\x00\x12:\n\x05Shard\x12\x19.kythe.proto.ShardRequest\x1a\x12.kythe.proto.Entry"\x00\x30\x01\x42P\n\x1f\x63om.google.devtools.kythe.protoZ-kythe.io/kythe/proto/storage_service_go_protob\x06proto3'
 )
