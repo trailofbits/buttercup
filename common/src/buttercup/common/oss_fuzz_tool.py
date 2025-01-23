@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from buttercup.common.queues import BuildConfiguration
 import subprocess
-import os 
+import os
 from typing import Optional
+
 
 @dataclass
 class Conf:
@@ -10,6 +11,7 @@ class Conf:
     python_path: str
     allow_pull: bool
     base_image_url: str
+
 
 class OSSFuzzTool:
     def __init__(self, conf: Conf):
@@ -22,7 +24,7 @@ class OSSFuzzTool:
             lst.append(flag)
             lst.append(arg)
 
-    def build_fuzzer_command(self, cmd:str , fuzz_conf: BuildConfiguration):
+    def build_fuzzer_command(self, cmd: str, fuzz_conf: BuildConfiguration):
         args = [self._conf.python_path, self._helper_path, cmd]
 
         OSSFuzzTool.add_optional_arg(args, "--engine", fuzz_conf.engine)
@@ -35,22 +37,20 @@ class OSSFuzzTool:
         ret = subprocess.run(args)
         return ret.returncode == 0
 
-
-    def build_base_image(self, package_conf: str) -> Optional[str]: 
+    def build_base_image(self, package_conf: str) -> Optional[str]:
         args = [self._conf.python_path, self._helper_path, "build_image"]
 
         if self._conf.allow_pull:
             args.append("--pull")
-        else: 
+        else:
             args.append("--no-pull")
 
         args.append(package_conf)
         ret = subprocess.run(args)
         if ret.returncode == 0:
             return f"{self._conf.base_image_url}/{package_conf}"
-        else: 
+        else:
             return None
-        
 
     def build_fuzzer(self, fuzz_conf: BuildConfiguration):
         args = self.build_fuzzer_command("build_fuzzers", fuzz_conf)
