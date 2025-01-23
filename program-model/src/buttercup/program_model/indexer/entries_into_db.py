@@ -91,7 +91,7 @@ def iterate_over_entries(fl: BytesIO) -> Generator[Entry, None, None]:
         yield ent
     except EOFError:
         return None
-    except:
+    except Exception:
         # TODO(Ian) should catch decode errors
         return None
 
