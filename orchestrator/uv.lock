@@ -211,12 +211,8 @@ tests = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
-    { name = "types-python-dateutil" },
-]
-
-[package.dev-dependencies]
-dev = [
     { name = "ruff" },
+    { name = "types-python-dateutil" },
 ]
 
 [package.metadata]
@@ -230,14 +226,12 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'tests'", specifier = ">=6.0.0" },
     { name = "pytest-xdist", marker = "extra == 'tests'", specifier = ">=3.6.1" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },
+    { name = "ruff", marker = "extra == 'tests'", specifier = ">=0.9.2" },
     { name = "types-python-dateutil", marker = "extra == 'tests'", specifier = ">=2.9.0.20241206" },
     { name = "typing-extensions", specifier = ">=4.12.2" },
     { name = "urllib3", specifier = ">=2.3.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.9.2" }]
 
 [[package]]
 name = "packaging"
