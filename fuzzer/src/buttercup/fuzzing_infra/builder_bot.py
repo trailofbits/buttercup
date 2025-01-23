@@ -2,7 +2,7 @@ from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguratio
 from redis import Redis
 import argparse
 import tempfile
-from buttercup.common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, SerializationDeserializationQueue, BUILDER_BOT_GROUP_NAME, RQItem
+from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
 import shutil
 import time
@@ -21,12 +21,12 @@ def main():
     prsr.add_argument("--allow-caching", action="store_true", default=False)
     args = prsr.parse_args()
 
-
-    
     redis = Redis.from_url(args.redis_url) 
 
-    queue = ReliableQueue(BUILD_QUEUE_NAME,BUILDER_BOT_GROUP_NAME,redis, 108000, BuildRequest)
-    output_q = ReliableQueue(BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, redis, 108000, BuildOutput)
+    queue_factory = QueueFactory(redis)
+    queue = queue_factory.create_build_queue()
+    output_q = queue_factory.create_build_output_queue()
+
     seconds = float(args.timer) // 1000.0
     while True:
         rqit: RQItem = queue.pop()
@@ -50,7 +50,7 @@ def main():
                 logging.error(f"Could not build fuzzer {msg.package_name}")
 
             output_q.push(BuildOutput(package_name=msg.package_name, engine=msg.engine, sanitizer=msg.sanitizer, output_ossfuzz_path=target))
-            queue.ack_item(rqit)
+            queue.ack_item(rqit.item_id)
         time.sleep(seconds)
 
 

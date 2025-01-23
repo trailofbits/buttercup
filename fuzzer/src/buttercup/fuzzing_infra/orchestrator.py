@@ -1,4 +1,4 @@
-from buttercup.common.queues import Queue, SerializationDeserializationQueue, ReliableQueue, NormalQueue, BUILD_OUTPUT_NAME, TARGET_LIST_NAME, ORCHESTRATOR_GROUP_NAME, RQItem
+from buttercup.common.queues import Queue, SerializationDeserializationQueue, ReliableQueue, NormalQueue, RQItem, QueueNames, QueueFactory
 import argparse
 from redis import Redis
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
@@ -25,7 +25,7 @@ def loop(output_queue: ReliableQueue, target_list: Queue, sleep_time_seconds: in
                 print(f"Adding target: {tgt}")
                 # TODO(Ian): to make this idempotent this should be hashed rather than a list we can add a target mutliple times.
                 target_list.push(WeightedTarget(weight=1.0, target=deser_output, harness_path=tgt))
-            output_queue.ack_item(output)
+            output_queue.ack_item(output.item_id)
 def main():
     prsr = argparse.ArgumentParser("Fuzzing orchestrator")
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
@@ -33,8 +33,9 @@ def main():
     args = prsr.parse_args()
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer//1000
-    builder_output = ReliableQueue(BUILD_OUTPUT_NAME, ORCHESTRATOR_GROUP_NAME, conn, 108000, BuildOutput)
-    target_list = SerializationDeserializationQueue(NormalQueue(TARGET_LIST_NAME, conn), WeightedTarget)
+    builder_output = QueueFactory(conn).create_build_output_queue()
+    target_list = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
     loop(builder_output, target_list, seconds)
+
 if __name__ == "__main__":
     main()

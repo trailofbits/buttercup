@@ -1,6 +1,6 @@
 import argparse
 from redis import Redis
-from buttercup.common.queues import BUILD_QUEUE_NAME, ReliableQueue, BUILDER_BOT_GROUP_NAME
+from buttercup.common.queues import QueueFactory
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest
 
 
@@ -14,7 +14,7 @@ def main():
     args = prsr.parse_args()
 
     redis = Redis.from_url(args.redis_url)
-    queue = ReliableQueue(BUILD_QUEUE_NAME,BUILDER_BOT_GROUP_NAME,redis, 108000, BuildRequest)
+    queue = QueueFactory(redis).create_build_queue()
     req = BuildRequest(package_name=args.target_package, engine=args.engine, sanitizer=args.sanitizer, ossfuzz=args.ossfuzz)
     queue.push(req)
 

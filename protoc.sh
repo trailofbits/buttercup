@@ -3,5 +3,9 @@
 # supports later versions of grpc
 localpath="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 echo "$localpath"
-echo "$localpath/fuzzer/protos"
-protoc --pyi_out="$localpath/common/src/buttercup/common/datastructures/" --python_out "$localpath/common/src/buttercup/common/datastructures/" -I"$localpath/fuzzer/protos" "$localpath/fuzzer/protos/fuzzer_msg.proto"
+echo "$localpath/common/protos"
+protoc \
+    --pyi_out="$localpath/common/src/buttercup/common/datastructures/" \
+    --python_out "$localpath/common/src/buttercup/common/datastructures/" \
+    -I"$localpath/common/protos" \
+    $localpath/common/protos/*.proto
