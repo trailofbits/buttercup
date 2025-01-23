@@ -1,7 +1,13 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import (
+    ClassVar as _ClassVar,
+    Iterable as _Iterable,
+    Mapping as _Mapping,
+    Optional as _Optional,
+    Union as _Union,
+)
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -17,13 +23,17 @@ class CountRequest(_message.Message):
     SHARDS_FIELD_NUMBER: _ClassVar[int]
     index: int
     shards: int
-    def __init__(self, index: _Optional[int] = ..., shards: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self, index: _Optional[int] = ..., shards: _Optional[int] = ...
+    ) -> None: ...
 
 class Entries(_message.Message):
     __slots__ = ["entries"]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[Entry]
-    def __init__(self, entries: _Optional[_Iterable[_Union[Entry, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self, entries: _Optional[_Iterable[_Union[Entry, _Mapping]]] = ...
+    ) -> None: ...
 
 class Entry(_message.Message):
     __slots__ = ["edge_kind", "fact_name", "fact_value", "source", "target"]
@@ -37,7 +47,14 @@ class Entry(_message.Message):
     fact_value: bytes
     source: VName
     target: VName
-    def __init__(self, source: _Optional[_Union[VName, _Mapping]] = ..., edge_kind: _Optional[str] = ..., target: _Optional[_Union[VName, _Mapping]] = ..., fact_name: _Optional[str] = ..., fact_value: _Optional[bytes] = ...) -> None: ...
+    def __init__(
+        self,
+        source: _Optional[_Union[VName, _Mapping]] = ...,
+        edge_kind: _Optional[str] = ...,
+        target: _Optional[_Union[VName, _Mapping]] = ...,
+        fact_name: _Optional[str] = ...,
+        fact_value: _Optional[bytes] = ...,
+    ) -> None: ...
 
 class ReadRequest(_message.Message):
     __slots__ = ["edge_kind", "source"]
@@ -45,7 +62,11 @@ class ReadRequest(_message.Message):
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     edge_kind: str
     source: VName
-    def __init__(self, source: _Optional[_Union[VName, _Mapping]] = ..., edge_kind: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        source: _Optional[_Union[VName, _Mapping]] = ...,
+        edge_kind: _Optional[str] = ...,
+    ) -> None: ...
 
 class ScanRequest(_message.Message):
     __slots__ = ["edge_kind", "fact_prefix", "target"]
@@ -55,7 +76,12 @@ class ScanRequest(_message.Message):
     edge_kind: str
     fact_prefix: str
     target: VName
-    def __init__(self, target: _Optional[_Union[VName, _Mapping]] = ..., edge_kind: _Optional[str] = ..., fact_prefix: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        target: _Optional[_Union[VName, _Mapping]] = ...,
+        edge_kind: _Optional[str] = ...,
+        fact_prefix: _Optional[str] = ...,
+    ) -> None: ...
 
 class ShardRequest(_message.Message):
     __slots__ = ["index", "shards"]
@@ -63,7 +89,9 @@ class ShardRequest(_message.Message):
     SHARDS_FIELD_NUMBER: _ClassVar[int]
     index: int
     shards: int
-    def __init__(self, index: _Optional[int] = ..., shards: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self, index: _Optional[int] = ..., shards: _Optional[int] = ...
+    ) -> None: ...
 
 class VName(_message.Message):
     __slots__ = ["corpus", "language", "path", "root", "signature"]
@@ -77,7 +105,14 @@ class VName(_message.Message):
     path: str
     root: str
     signature: str
-    def __init__(self, signature: _Optional[str] = ..., corpus: _Optional[str] = ..., root: _Optional[str] = ..., path: _Optional[str] = ..., language: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        signature: _Optional[str] = ...,
+        corpus: _Optional[str] = ...,
+        root: _Optional[str] = ...,
+        path: _Optional[str] = ...,
+        language: _Optional[str] = ...,
+    ) -> None: ...
 
 class VNameMask(_message.Message):
     __slots__ = ["corpus", "language", "path", "root", "signature"]
@@ -91,7 +126,14 @@ class VNameMask(_message.Message):
     path: bool
     root: bool
     signature: bool
-    def __init__(self, signature: bool = ..., corpus: bool = ..., root: bool = ..., path: bool = ..., language: bool = ...) -> None: ...
+    def __init__(
+        self,
+        signature: bool = ...,
+        corpus: bool = ...,
+        root: bool = ...,
+        path: bool = ...,
+        language: bool = ...,
+    ) -> None: ...
 
 class VNameRewriteRule(_message.Message):
     __slots__ = ["pattern", "v_name"]
@@ -99,13 +141,19 @@ class VNameRewriteRule(_message.Message):
     V_NAME_FIELD_NUMBER: _ClassVar[int]
     pattern: str
     v_name: VName
-    def __init__(self, pattern: _Optional[str] = ..., v_name: _Optional[_Union[VName, _Mapping]] = ...) -> None: ...
+    def __init__(
+        self,
+        pattern: _Optional[str] = ...,
+        v_name: _Optional[_Union[VName, _Mapping]] = ...,
+    ) -> None: ...
 
 class VNameRewriteRules(_message.Message):
     __slots__ = ["rule"]
     RULE_FIELD_NUMBER: _ClassVar[int]
     rule: _containers.RepeatedCompositeFieldContainer[VNameRewriteRule]
-    def __init__(self, rule: _Optional[_Iterable[_Union[VNameRewriteRule, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self, rule: _Optional[_Iterable[_Union[VNameRewriteRule, _Mapping]]] = ...
+    ) -> None: ...
 
 class WriteReply(_message.Message):
     __slots__ = []
@@ -123,9 +171,20 @@ class WriteRequest(_message.Message):
         fact_name: str
         fact_value: bytes
         target: VName
-        def __init__(self, edge_kind: _Optional[str] = ..., target: _Optional[_Union[VName, _Mapping]] = ..., fact_name: _Optional[str] = ..., fact_value: _Optional[bytes] = ...) -> None: ...
+        def __init__(
+            self,
+            edge_kind: _Optional[str] = ...,
+            target: _Optional[_Union[VName, _Mapping]] = ...,
+            fact_name: _Optional[str] = ...,
+            fact_value: _Optional[bytes] = ...,
+        ) -> None: ...
+
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     UPDATE_FIELD_NUMBER: _ClassVar[int]
     source: VName
     update: _containers.RepeatedCompositeFieldContainer[WriteRequest.Update]
-    def __init__(self, source: _Optional[_Union[VName, _Mapping]] = ..., update: _Optional[_Iterable[_Union[WriteRequest.Update, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self,
+        source: _Optional[_Union[VName, _Mapping]] = ...,
+        update: _Optional[_Iterable[_Union[WriteRequest.Update, _Mapping]]] = ...,
+    ) -> None: ...
