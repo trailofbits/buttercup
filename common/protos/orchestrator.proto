@@ -33,3 +33,7 @@ message SourceDetail {
 message TaskDownload {
     Task task = 1;
 }
+
+message TaskReady {
+    Task task = 1;
+}

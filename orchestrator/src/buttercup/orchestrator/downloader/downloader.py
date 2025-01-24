@@ -11,7 +11,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue
-from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload
+from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry
@@ -25,6 +25,7 @@ class Downloader:
     sleep_time: float = 0.1
     redis: Redis | None = None
     task_queue: ReliableQueue | None = field(init=False, default=None)
+    ready_queue: ReliableQueue | None = field(init=False, default=None)
     registry: TaskRegistry | None = field(init=False, default=None)
     session: requests.Session = field(init=False, default=None)
 
@@ -33,6 +34,7 @@ class Downloader:
             logger.debug("Using Redis for task queue and registry")
             queue_factory = QueueFactory(self.redis)
             self.task_queue = queue_factory.create_download_tasks_queue()
+            self.ready_queue = queue_factory.create_ready_tasks_queue()
             self.registry = TaskRegistry(self.redis)
 
         # Create download directory if it doesn't exist
@@ -175,6 +177,7 @@ class Downloader:
 
                 if success:
                     self.registry.set(task_download.task)
+                    self.ready_queue.push(TaskReady(task=task_download.task))
                     self.task_queue.ack_item(rq_item.item_id)
                     logger.info(f"Successfully processed task {task_download.task.task_id}")
                 else:

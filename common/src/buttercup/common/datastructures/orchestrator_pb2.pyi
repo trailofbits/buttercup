@@ -50,3 +50,9 @@ class TaskDownload(_message.Message):
     TASK_FIELD_NUMBER: _ClassVar[int]
     task: Task
     def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...
+
+class TaskReady(_message.Message):
+    __slots__ = ["task"]
+    TASK_FIELD_NUMBER: _ClassVar[int]
+    task: Task
+    def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...

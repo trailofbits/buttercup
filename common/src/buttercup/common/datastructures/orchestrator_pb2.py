@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12orchestrator.proto\x12\x0corchestrator\"\xf8\x01\n\x04Task\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cmessage_time\x18\x02 \x01(\x03\x12\x0f\n\x07task_id\x18\x03 \x01(\t\x12.\n\ttask_type\x18\x04 \x01(\x0e\x32\x1b.orchestrator.Task.TaskType\x12+\n\x07sources\x18\x05 \x03(\x0b\x32\x1a.orchestrator.SourceDetail\x12\x10\n\x08\x64\x65\x61\x64line\x18\x06 \x01(\x03\x12\x11\n\tcancelled\x18\x07 \x01(\x08\"3\n\x08TaskType\x12\x12\n\x0eTASK_TYPE_FULL\x10\x00\x12\x13\n\x0fTASK_TYPE_DELTA\x10\x01\"\xdb\x01\n\x0cSourceDetail\x12\x0e\n\x06sha256\x18\x01 \x01(\t\x12:\n\x0bsource_type\x18\x02 \x01(\x0e\x32%.orchestrator.SourceDetail.SourceType\x12\x0b\n\x03url\x18\x03 \x01(\t\x12\x11\n\x04path\x18\x04 \x01(\tH\x00\x88\x01\x01\"V\n\nSourceType\x12\x14\n\x10SOURCE_TYPE_REPO\x10\x00\x12\x1c\n\x18SOURCE_TYPE_FUZZ_TOOLING\x10\x01\x12\x14\n\x10SOURCE_TYPE_DIFF\x10\x02\x42\x07\n\x05_path\"0\n\x0cTaskDownload\x12 \n\x04task\x18\x01 \x01(\x0b\x32\x12.orchestrator.Taskb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12orchestrator.proto\x12\x0corchestrator\"\xf8\x01\n\x04Task\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cmessage_time\x18\x02 \x01(\x03\x12\x0f\n\x07task_id\x18\x03 \x01(\t\x12.\n\ttask_type\x18\x04 \x01(\x0e\x32\x1b.orchestrator.Task.TaskType\x12+\n\x07sources\x18\x05 \x03(\x0b\x32\x1a.orchestrator.SourceDetail\x12\x10\n\x08\x64\x65\x61\x64line\x18\x06 \x01(\x03\x12\x11\n\tcancelled\x18\x07 \x01(\x08\"3\n\x08TaskType\x12\x12\n\x0eTASK_TYPE_FULL\x10\x00\x12\x13\n\x0fTASK_TYPE_DELTA\x10\x01\"\xdb\x01\n\x0cSourceDetail\x12\x0e\n\x06sha256\x18\x01 \x01(\t\x12:\n\x0bsource_type\x18\x02 \x01(\x0e\x32%.orchestrator.SourceDetail.SourceType\x12\x0b\n\x03url\x18\x03 \x01(\t\x12\x11\n\x04path\x18\x04 \x01(\tH\x00\x88\x01\x01\"V\n\nSourceType\x12\x14\n\x10SOURCE_TYPE_REPO\x10\x00\x12\x1c\n\x18SOURCE_TYPE_FUZZ_TOOLING\x10\x01\x12\x14\n\x10SOURCE_TYPE_DIFF\x10\x02\x42\x07\n\x05_path\"0\n\x0cTaskDownload\x12 \n\x04task\x18\x01 \x01(\x0b\x32\x12.orchestrator.Task\"-\n\tTaskReady\x12 \n\x04task\x18\x01 \x01(\x0b\x32\x12.orchestrator.Taskb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'orchestrator_pb2', globals())
@@ -30,4 +30,6 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _SOURCEDETAIL_SOURCETYPE._serialized_end=498
   _TASKDOWNLOAD._serialized_start=509
   _TASKDOWNLOAD._serialized_end=557
+  _TASKREADY._serialized_start=559
+  _TASKREADY._serialized_end=604
 # @@protoc_insertion_point(module_scope)
