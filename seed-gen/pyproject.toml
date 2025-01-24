@@ -10,7 +10,7 @@ dependencies = [
     "redis ~= 5.2.1",
     "common",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
