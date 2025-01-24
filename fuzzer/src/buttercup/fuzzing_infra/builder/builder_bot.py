@@ -1,55 +1,56 @@
-from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguration
+from buttercup.fuzzing_infra.builder.builder import (
+    OSSFuzzTool,
+    Conf,
+    BuildConfiguration,
+)
 from redis import Redis
-import argparse
-import tempfile
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
+from buttercup.common.logger import setup_logging
 import shutil
 import time
-import logging
 import uuid
 import os
-
-logger = logging.getLogger(__name__)
+from buttercup.fuzzing_infra.builder.config import Settings
 
 
 def main():
-    prsr = argparse.ArgumentParser("Builder bot")
-    prsr.add_argument("--wdir", default=tempfile.TemporaryDirectory())
-    prsr.add_argument("--python", default="python")
-    prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
-    prsr.add_argument("--timer", default=1000, type=int)
-    prsr.add_argument("--allow-caching", action="store_true", default=False)
-    args = prsr.parse_args()
+    settings = Settings()
+    logger = setup_logging(__name__, settings.log_level)
 
-    redis = Redis.from_url(args.redis_url)
-
+    logger.info(f"Starting builder bot ({settings.wdir})")
+    redis = Redis.from_url(settings.redis_url)
     queue_factory = QueueFactory(redis)
     queue = queue_factory.create_build_queue()
     output_q = queue_factory.create_build_output_queue()
 
-    seconds = float(args.timer) // 1000.0
+    seconds = float(settings.timer) // 1000.0
+
     while True:
         rqit: RQItem = queue.pop()
         if rqit is not None:
             msg: BuildRequest = rqit.deserialized
+            logger.info(f"Received build request for {msg.package_name}")
             conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer)
             ossfuzz_dir = msg.ossfuzz
             dirid = str(uuid.uuid4())
 
             target = ossfuzz_dir
-            if not args.allow_caching:
-                wdirstr = args.wdir
+            if not settings.allow_caching:
+                wdirstr = settings.wdir
                 if not isinstance(wdirstr, str):
-                    wdirstr = args.wdir.name
+                    wdirstr = settings.wdir.name
 
                 target = os.path.join(wdirstr, f"ossfuzz-snapshot-{dirid}")
+                logger.info(f"Copying {ossfuzz_dir} to {target}")
                 shutil.copytree(ossfuzz_dir, target)
 
-            build_tool = OSSFuzzTool(Conf(target, args.python))
+            logger.info(f"Building oss-fuzz project {msg.package_name}")
+            build_tool = OSSFuzzTool(Conf(target, settings.python))
             if not build_tool.build_fuzzer_with_cache(conf):
-                logging.error(f"Could not build fuzzer {msg.package_name}")
+                logger.error(f"Could not build fuzzer {msg.package_name}")
 
+            logger.info(f"Pushing build output for {msg.package_name}")
             output_q.push(
                 BuildOutput(
                     package_name=msg.package_name,
@@ -58,7 +59,10 @@ def main():
                     output_ossfuzz_path=target,
                 )
             )
+            logger.info(f"Acked build request for {msg.package_name}")
             queue.ack_item(rqit.item_id)
+
+        logger.info(f"Sleeping {seconds} seconds")
         time.sleep(seconds)
 
 
