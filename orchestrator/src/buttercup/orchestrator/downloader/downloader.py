@@ -53,13 +53,6 @@ class Downloader:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-    def get_source_type_dir(self, base_dir: Path, source_type: SourceDetail.SourceType) -> Path:
-        """Creates and returns the directory path for a specific source type within a task"""
-        source_type_name = SourceDetail.SourceType.Name(source_type).lower().replace("source_type_", "")
-        dir_path = base_dir / source_type_name
-        dir_path.mkdir(parents=True, exist_ok=True)
-        return dir_path.absolute()
-
     def get_task_dir(self, task_id: str) -> Path:
         """Creates and returns the directory path for a task"""
         task_dir = self.download_dir / task_id

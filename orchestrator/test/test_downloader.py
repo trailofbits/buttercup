@@ -96,24 +96,13 @@ def test_download_and_extract_tar(downloader, sample_tar_task):
 
     assert success
     # Check if the extracted file exists in the correct location
-    extracted_file = downloader.get_source_type_dir(task_dir, source.source_type) / "test.txt"
+    extracted_file = task_dir / "test_dir/test.txt"
     assert extracted_file.exists()
     assert extracted_file.read_bytes() == b"test file content"
 
     # Verify the tar file was removed after extraction
-    tar_file = downloader.get_source_type_dir(task_dir, source.source_type) / "test.tar.gz"
+    tar_file = task_dir / "test.tar.gz"
     assert not tar_file.exists()
-
-
-def test_get_source_type_dir(downloader, tmp_path):
-    task_id = "test_task"
-    source_type = SourceDetail.SourceType.SOURCE_TYPE_REPO
-
-    dir_path = downloader.get_source_type_dir(downloader.get_task_dir(task_id), source_type)
-
-    assert dir_path.exists()
-    assert dir_path.is_dir()
-    assert str(dir_path).endswith("/repo")
 
 
 @responses.activate
@@ -131,7 +120,7 @@ def test_process_task_with_multiple_sources(downloader):
         tar_buffer = io.BytesIO()
         with tarfile.open(fileobj=tar_buffer, mode="w:gz") as tar:
             content = f"content{i}".encode()
-            info = tarfile.TarInfo(name=f"file{i}.txt")
+            info = tarfile.TarInfo(name=f"dir{i}/file{i}.txt")
             info.size = len(content)
             tar.addfile(info, io.BytesIO(content))
 
@@ -147,6 +136,9 @@ def test_process_task_with_multiple_sources(downloader):
 
     # Verify both files were downloaded
     for i in range(2):
-        file_path = downloader.get_source_type_dir(task_dir, SourceDetail.SourceType.SOURCE_TYPE_REPO) / f"file{i}.txt"
+        file_path = task_dir / f"dir{i}/file{i}.txt"
         assert file_path.exists()
         assert file_path.read_bytes() == f"content{i}".encode()
+
+    assert task.sources[0].path == "dir0/file0.txt"
+    assert task.sources[1].path == "dir1/file1.txt"
