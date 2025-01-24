@@ -7,7 +7,6 @@ from google.protobuf.message import Message
 from buttercup.common.datastructures.fuzzer_msg_pb2 import (
     BuildRequest,
     BuildOutput,
-    WeightedTarget,
 )
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady
 import logging
