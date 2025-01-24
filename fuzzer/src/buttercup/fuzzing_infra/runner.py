@@ -6,6 +6,9 @@ import os
 from dataclasses import dataclass
 import argparse
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,7 +31,9 @@ class Runner:
         repro_dir = os.path.join(build_dir, f"repro{str(distinguisher)}")
         os.makedirs(repro_dir, exist_ok=True)
         os.environ["JOB_NAME"] = job_name
+        logger.debug(f"Calling engine.prepare with {conf.corpus_dir} | {target} | {build_dir}")
         opts: FuzzOptions = engine.prepare(conf.corpus_dir, target, build_dir)
+        logger.debug(f"Calling engine.fuzz with {target} | {repro_dir} | {self.conf.timeout}")
         results: FuzzResult = engine.fuzz(target, opts, repro_dir, self.conf.timeout)
         os.environ["JOB_NAME"] = ""
         print(results.logs)
@@ -45,9 +50,7 @@ def main():
     args = prsr.parse_args()
 
     conf = Conf(args.timeout)
-    fuzzconf = FuzzConfiguration(
-        args.corpusdir, args.target, args.engine, args.sanitizer
-    )
+    fuzzconf = FuzzConfiguration(args.corpusdir, args.target, args.engine, args.sanitizer)
     runner = Runner(conf)
     print(runner.run_fuzzer(fuzzconf))
 

@@ -2,9 +2,7 @@
 name = "fuzzing-infra"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Trail of Bits",email = "opensource@trailofbits"}
-]
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
 requires-python = ">=3.9,<3.11"
 dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
@@ -12,6 +10,10 @@ dependencies = [
     "clusterfuzz==2.6.0",
     "common",
 ]
+
+[project.scripts]
+buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder_bot:main"
+buttercup-fuzzer = "buttercup.fuzzing_infra.fuzzer_bot:main"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
@@ -24,7 +26,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "pytest>=8.3.4",
-    "ruff>=0.9.2",
-]
+dev = ["pytest>=8.3.4", "ruff>=0.9.2"]
+
+[tool.ruff]
+line-length = 120
