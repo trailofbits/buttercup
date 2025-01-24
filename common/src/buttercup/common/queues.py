@@ -22,14 +22,14 @@ class QueueNames(str, Enum):
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     TARGET_LIST = "fuzzer_target_list"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
-    READY_TASKS = "orchestrator_ready_tasks_queue"
+    READY_TASKS = "tasks_ready_queue"
 
 
 class GroupNames(str, Enum):
     BUILDER_BOT = "build_bot_consumers"
     ORCHESTRATOR = "orchestrator_group"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
-    READY_TASKS = "orchestrator_ready_tasks_group"
+    SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
 
 
 class HashNames(str, Enum):
@@ -254,7 +254,7 @@ class QueueFactory:
     def create_ready_tasks_queue(self, **kwargs: Any) -> ReliableQueue[TaskReady]:
         return ReliableQueue(
             queue_name=QueueNames.READY_TASKS,
-            group_name=GroupNames.READY_TASKS,
+            group_name=GroupNames.SCHEDULER_READY_TASKS,
             redis=self.redis,
             msg_builder=TaskReady,
             task_timeout_ms=READY_TASK_TIMEOUT_MS,
