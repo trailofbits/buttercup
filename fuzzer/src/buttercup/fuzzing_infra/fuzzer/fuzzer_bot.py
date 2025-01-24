@@ -1,7 +1,6 @@
 import distutils.dir_util
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
-import os
 from pathlib import Path
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.queues import (
@@ -15,9 +14,9 @@ from redis import Redis
 import random
 import tempfile
 import distutils
-import logging
 from buttercup.fuzzing_infra.fuzzer.config import Settings
 from buttercup.common.logger import setup_logging
+
 
 def main():
     settings = Settings()
