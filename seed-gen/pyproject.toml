@@ -6,7 +6,10 @@ readme = "README.md"
 authors = [
     { name = "Trail of Bits", email = "opensource@trailofbits.com" },
 ]
-dependencies = []
+dependencies = [
+    "redis ~= 5.2.1",
+    "common",
+]
 requires-python = ">=3.10"
 
 [tool.uv.sources]
