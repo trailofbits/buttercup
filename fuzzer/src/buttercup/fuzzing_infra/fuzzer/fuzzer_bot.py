@@ -1,13 +1,12 @@
-import argparse
 import distutils.dir_util
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
 import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.queues import (
-    TARGET_LIST_NAME,
     NormalQueue,
     SerializationDeserializationQueue,
+    QueueNames,
 )
 from buttercup.common.constants import CORPUS_DIR_NAME
 from buttercup.common import utils
@@ -15,30 +14,29 @@ from redis import Redis
 import random
 import tempfile
 import distutils
-
+import logging
+from buttercup.fuzzing_infra.fuzzer.config import Settings
+from buttercup.common.logger import setup_logging
 
 def main():
-    prsr = argparse.ArgumentParser("fuzz bot")
-    prsr.add_argument("--timeout", required=True, type=int)
-    prsr.add_argument("--timer", default=1000, type=int)
-    prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
-    prsr.add_argument("--wdir", required=True)
+    settings = Settings()
+    logger = setup_logging(__name__, settings.log_level)
 
-    args = prsr.parse_args()
+    os.makedirs(settings.wdir, exist_ok=True)
+    logger.info(f"Starting fuzzer (wdir: {settings.wdir})")
 
-    os.makedirs(args.wdir, exist_ok=True)
-
-    runner = Runner(Conf(args.timeout))
-    seconds_sleep = args.timer // 1000
-    conn = Redis.from_url(args.redis_url)
-    q = SerializationDeserializationQueue(NormalQueue(TARGET_LIST_NAME, conn), WeightedTarget)
+    runner = Runner(Conf(settings.timeout))
+    seconds_sleep = settings.timer // 1000
+    conn = Redis.from_url(settings.redis_url)
+    q = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
     while True:
         weighted_items: list[WeightedTarget] = list(iter(q))
+        logger.info(f"Received {len(weighted_items)} weighted targets")
 
         if len(weighted_items) > 0:
             # td = tempfile.mkdtemp()
             # if True:
-            with tempfile.TemporaryDirectory(prefix=args.wdir) as td:
+            with tempfile.TemporaryDirectory(prefix=str(settings.wdir)) as td:
                 print(type(weighted_items[0]))
                 chc = random.choices(
                     [it for it in weighted_items],
@@ -58,8 +56,12 @@ def main():
                     tgtbuild.engine,
                     tgtbuild.sanitizer,
                 )
+                logger.info(f"Running fuzzer for {tgtbuild.engine} {tgtbuild.sanitizer}")
                 runner.run_fuzzer(fuzz_conf)
                 distutils.dir_util.copy_tree(copied_corp_dir, corpdir)
+                logger.info(f"Fuzzer finished for {tgtbuild.engine} {tgtbuild.sanitizer}")
+
+        logger.info(f"Sleeping for {seconds_sleep} seconds")
         time.sleep(seconds_sleep)
 
 

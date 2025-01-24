@@ -55,7 +55,7 @@ services:
         condition: service_healthy
 
   build-bot:
-    command: buttercup-fuzzer-builder
+    command: ["buttercup-fuzzer-builder"]
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
@@ -75,7 +75,11 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: -m buttercup.fuzzing_infra.fuzzer_bot --wdir /crs_scratch --redis_url redis://redis:6379 --timeout 900
+    command: ["buttercup-fuzzer"]
+    environment:
+      - BUTTERCUP_FUZZER_REDIS_URL=redis://redis:6379
+      - BUTTERCUP_FUZZER_WDIR=/crs_scratch
+      - BUTTERCUP_FUZZER_TIMEOUT=900
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:

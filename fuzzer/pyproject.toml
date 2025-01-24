@@ -14,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder.builder_bot:main"
+buttercup-fuzzer = "buttercup.fuzzing_infra.fuzzer.fuzzer_bot:main"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
