@@ -35,9 +35,7 @@ def main():
         logger.info(f"Received {len(weighted_items)} weighted targets")
 
         if len(weighted_items) > 0:
-            # td = tempfile.mkdtemp()
-            # if True:
-            with tempfile.TemporaryDirectory(prefix=str(settings.wdir)) as td:
+            with tempfile.TemporaryDirectory(dir=str(settings.wdir)) as td:
                 td = Path(td)
                 chc = random.choices(
                     [it for it in weighted_items],
@@ -53,6 +51,8 @@ def main():
                 utils.copyanything(str(build_dir), str(td / build_dir.name))
                 copied_build_dir = td / build_dir.name
                 copied_corp_dir = copied_build_dir / CORPUS_DIR_NAME
+                copied_corp_dir.mkdir(parents=True, exist_ok=True)
+
                 tgtbuild = chc.target
                 fuzz_conf = FuzzConfiguration(
                     str(copied_corp_dir),

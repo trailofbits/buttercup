@@ -65,6 +65,8 @@ services:
       - DOCKER_HOST=tcp://dind:2375
       - BUTTERCUP_FUZZER_BUILDER_REDIS_URL=redis://redis:6379
       - BUTTERCUP_FUZZER_BUILDER_WDIR=/crs_scratch
+      - BUTTERCUP_FUZZER_BUILDER_TIMER=5000
+      - BUTTERCUP_FUZZER_BUILDER_LOG_LEVEL=debug
     depends_on:
       redis:
         condition: service_healthy
@@ -80,6 +82,8 @@ services:
       - BUTTERCUP_FUZZER_REDIS_URL=redis://redis:6379
       - BUTTERCUP_FUZZER_WDIR=/crs_scratch
       - BUTTERCUP_FUZZER_TIMEOUT=900
+      - BUTTERCUP_FUZZER_LOG_LEVEL=debug
+      - BUTTERCUP_FUZZER_TIMER=5000
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:
