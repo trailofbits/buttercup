@@ -199,17 +199,13 @@ class ReliableQueue(Generic[MsgType]):
         msg = self.msg_builder()
         msg.ParseFromString(message_data[self.INAME])
 
-        return RQItem[MsgType](
-            item_id=message_id, deserialized=msg, consumer_name=self.reader_name
-        )
+        return RQItem[MsgType](item_id=message_id, deserialized=msg, consumer_name=self.reader_name)
 
     def ack_item(self, item_id: str) -> None:
         self.redis.xack(self.queue_name, self.group_name, item_id)
 
     def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:
-        self.redis.xclaim(
-            self.queue_name, self.group_name, self.reader_name, min_idle_time, [item_id]
-        )
+        self.redis.xclaim(self.queue_name, self.group_name, self.reader_name, min_idle_time, [item_id])
 
 
 @dataclass
