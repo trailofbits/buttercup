@@ -5,7 +5,7 @@ from buttercup.orchestrator.downloader.config import (
     DownloaderProcessCommand,
     TaskType,
 )
-from buttercup.orchestrator.logger import setup_logging
+from buttercup.common.logger import setup_logging
 from pydantic_settings import get_subcommand
 from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail
 from buttercup.orchestrator.utils import response_stream_to_file
