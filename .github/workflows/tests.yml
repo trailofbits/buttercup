@@ -45,6 +45,10 @@ jobs:
         run: uv sync --all-extras
         working-directory: fuzzer
 
+      - name: Setup seed-gen package
+        run: uv sync --all-extras
+        working-directory: seed-gen
+
       - name: Run tests on common package
         run: uv run pytest -svv
         working-directory: common
@@ -56,3 +60,7 @@ jobs:
       - name: Run tests on fuzzer package
         run: uv run pytest -svv
         working-directory: fuzzer
+
+      - name: Run tests on seed-gen package
+        run: uv run pytest -svv
+        working-directory: seed-gen
