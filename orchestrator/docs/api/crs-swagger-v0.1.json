@@ -1,0 +1,290 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Example CRS API",
+    "contact": {},
+    "version": "0.1"
+  },
+  "paths": {
+    "/status/": {
+      "get": {
+        "description": "UNAUTHENTICATED! report the status of the CRS",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["status"],
+        "summary": "CRS Status",
+        "responses": {
+          "200": {
+            "description": "Status Obect",
+            "schema": {
+              "$ref": "#/definitions/types.Status"
+            }
+          }
+        }
+      }
+    },
+    "/v1/sarif/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submit a sarif broadcast",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["sarif"],
+        "summary": "Submit Sarif Broadcast",
+        "parameters": [
+          {
+            "description": "Vulnerability Broadcast",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.VulnBroadcast"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submit a task for work",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["task"],
+        "summary": "Submit Task",
+        "parameters": [
+          {
+            "description": "Submission body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.Task"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/": {
+      "delete": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "cancel a task",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["task"],
+        "summary": "Cancel Task",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "types.SourceDetail": {
+      "type": "object",
+      "required": ["sha256", "type", "url"],
+      "properties": {
+        "sha256": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/types.SourceType"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "types.SourceType": {
+      "type": "string",
+      "enum": ["repo", "fuzz-tooling", "diff"],
+      "x-enum-varnames": [
+        "SourceTypeRepo",
+        "SourceTypeFuzzTooling",
+        "SourceTypeDiff"
+      ]
+    },
+    "types.Status": {
+      "type": "object",
+      "required": ["ready", "state", "version"],
+      "properties": {
+        "details": {
+          "description": "Keep in mind this endpoint is unauthenticated. Do not place sensitive details in this object. This is optional arbitrary content. This may be logged in error cases, but is mainly for interactive troubleshooting.",
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "#/definitions/types.StatusState"
+        },
+        "version": {
+          "description": "Version string for verification and reproducibility. Git commit, SemVer, etc...",
+          "type": "string"
+        }
+      }
+    },
+    "types.StatusState": {
+      "type": "object",
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "$ref": "#/definitions/types.StatusTasksState"
+        }
+      }
+    },
+    "types.StatusTasksState": {
+      "type": "object",
+      "required": ["canceled", "errored", "pending", "running", "succeeded"],
+      "properties": {
+        "canceled": {
+          "type": "integer"
+        },
+        "errored": {
+          "type": "integer"
+        },
+        "pending": {
+          "type": "integer"
+        },
+        "running": {
+          "type": "integer"
+        },
+        "succeeded": {
+          "type": "integer"
+        }
+      }
+    },
+    "types.Task": {
+      "type": "object",
+      "required": ["message_id", "message_time", "tasks"],
+      "properties": {
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "message_time": {
+          "type": "integer"
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/types.TaskDetail"
+          }
+        }
+      }
+    },
+    "types.TaskDetail": {
+      "type": "object",
+      "required": ["deadline", "source", "task_id", "type"],
+      "properties": {
+        "deadline": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/types.SourceDetail"
+          }
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "$ref": "#/definitions/types.TaskType"
+        }
+      }
+    },
+    "types.TaskType": {
+      "type": "string",
+      "enum": ["full", "delta"],
+      "x-enum-varnames": ["TaskTypeFull", "TaskTypeDelta"]
+    },
+    "types.VulnBroadcast": {
+      "type": "object",
+      "required": ["message_id", "message_time", "vulns"],
+      "properties": {
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "message_time": {
+          "type": "integer"
+        },
+        "vulns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/types.VulnDetail"
+          }
+        }
+      }
+    },
+    "types.VulnDetail": {
+      "type": "object",
+      "required": ["sarif", "task_id", "vuln_id"],
+      "properties": {
+        "sarif": {
+          "description": "SARIF Report compliant with \"https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json\"",
+          "type": "object"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "vuln_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BasicAuth": {
+      "type": "basic"
+    }
+  }
+}
