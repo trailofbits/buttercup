@@ -37,5 +37,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM runner-base AS runtime
 
 COPY --from=builder --chown=app:app /fuzzer/.venv /fuzzer/.venv
-
-ENTRYPOINT ["/fuzzer/.venv/bin/python"]
+ENV PATH=/fuzzer/.venv/bin:$PATH

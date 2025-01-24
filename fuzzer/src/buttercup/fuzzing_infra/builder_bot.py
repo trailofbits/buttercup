@@ -4,13 +4,13 @@ import argparse
 import tempfile
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
+from buttercup.common.logger import setup_logging
 import shutil
 import time
-import logging
 import uuid
 import os
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(__name__)
 
 
 def main():
@@ -22,6 +22,7 @@ def main():
     prsr.add_argument("--allow-caching", action="store_true", default=False)
     args = prsr.parse_args()
 
+    logger.info(f"Starting builder bot ({args.wdir})")
     redis = Redis.from_url(args.redis_url)
 
     queue_factory = QueueFactory(redis)
@@ -33,6 +34,7 @@ def main():
         rqit: RQItem = queue.pop()
         if rqit is not None:
             msg: BuildRequest = rqit.deserialized
+            logger.info(f"Received build request for {msg.package_name}")
             conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer)
             ossfuzz_dir = msg.ossfuzz
             dirid = str(uuid.uuid4())
@@ -44,12 +46,15 @@ def main():
                     wdirstr = args.wdir.name
 
                 target = os.path.join(wdirstr, f"ossfuzz-snapshot-{dirid}")
+                logger.info(f"Copying {ossfuzz_dir} to {target}")
                 shutil.copytree(ossfuzz_dir, target)
 
+            logger.info(f"Building oss-fuzz project {msg.package_name}")
             build_tool = OSSFuzzTool(Conf(target, args.python))
             if not build_tool.build_fuzzer_with_cache(conf):
-                logging.error(f"Could not build fuzzer {msg.package_name}")
+                logger.error(f"Could not build fuzzer {msg.package_name}")
 
+            logger.info(f"Pushing build output for {msg.package_name}")
             output_q.push(
                 BuildOutput(
                     package_name=msg.package_name,
@@ -58,7 +63,10 @@ def main():
                     output_ossfuzz_path=target,
                 )
             )
+            logger.info(f"Acked build request for {msg.package_name}")
             queue.ack_item(rqit.item_id)
+
+        logger.info(f"Sleeping {seconds} seconds")
         time.sleep(seconds)
 
 
