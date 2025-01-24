@@ -29,6 +29,10 @@ jobs:
         run: uv sync --all-extras
         working-directory: fuzzer
 
+      - name: Setup seed-gen package
+        run: uv sync --all-extras
+        working-directory: seed-gen
+
       - name: Run ruff on common
         run: uv run ruff format --check && uv run ruff check
         working-directory: common
@@ -44,3 +48,7 @@ jobs:
       - name: Run ruff on program-model
         run: uv run ruff format --check && uv run ruff check
         working-directory: program-model
+
+      - name: Run ruff on seed-gen
+        run: uv run ruff format --check && uv run ruff check
+        working-directory: seed-gen
