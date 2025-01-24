@@ -12,12 +12,20 @@ from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
+from buttercup.orchestrator.task_server.backend import new_task
+from buttercup.orchestrator.logger import setup_logging
+from buttercup.orchestrator.task_server.dependencies import get_task_queue, get_settings
+from buttercup.common.queues import ReliableQueue
+
+settings = get_settings()
+logger = setup_logging(__name__, settings.log_level)
 
 app = FastAPI(
-    title="Example CRS API",
+    title="Buttercup CRS API",
     contact={},
     version="0.1",
     servers=[{"url": "/"}],
+    log_config=None,
 )
 
 # The exposed endpoints must be authenticated using HTTP Basic.
@@ -58,7 +66,10 @@ def get_status_() -> Status:
 
 
 @app.post("/v1/sarif/", response_model=str, tags=["sarif"])
-def post_v1_sarif_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], body: VulnBroadcast) -> str:
+def post_v1_sarif_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    body: VulnBroadcast,
+) -> str:
     """
     Submit Sarif Broadcast
     """
@@ -71,15 +82,23 @@ def post_v1_sarif_(credentials: Annotated[HTTPBasicCredentials, Depends(check_au
     responses={"202": {"model": str}},
     tags=["task"],
 )
-def post_v1_task_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], body: Task) -> Optional[str]:
+def post_v1_task_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    body: Task,
+    tasks_queue: Annotated[ReliableQueue, Depends(get_task_queue)],
+) -> Optional[str]:
     """
     Submit Task
     """
-    pass
+    task_id = new_task(body, tasks_queue)
+    return task_id
 
 
 @app.delete("/v1/task/{task_id}/", response_model=str, tags=["task"])
-def delete_v1_task_task_id_(credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)], task_id: UUID) -> str:
+def delete_v1_task_task_id_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    task_id: UUID,
+) -> str:
     """
     Cancel Task
     """
