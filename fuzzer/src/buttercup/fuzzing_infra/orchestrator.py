@@ -51,7 +51,7 @@ def main():
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer // 1000
     builder_output = QueueFactory(conn).create_build_output_queue()
-    target_list = QueueFactory(conn).create_target_list_queue()
+    target_list = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
     loop(builder_output, target_list, seconds)
 
 

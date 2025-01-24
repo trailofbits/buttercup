@@ -261,15 +261,6 @@ class QueueFactory:
             **kwargs,
         )
 
-    def create_target_list_queue(
-        self, **kwargs: Any
-    ) -> SerializationDeserializationQueue:
-        return SerializationDeserializationQueue(
-            NormalQueue(QueueNames.TARGET_LIST, self.redis),
-            WeightedTarget,
-            **kwargs,
-        )
-
 
 @dataclass
 class FuzzConfiguration:
