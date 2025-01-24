@@ -13,7 +13,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
 from buttercup.orchestrator.task_server.backend import new_task
-from buttercup.orchestrator.logger import setup_logging
+from buttercup.common.logger import setup_logging
 from buttercup.orchestrator.task_server.dependencies import get_task_queue, get_settings
 from buttercup.common.queues import ReliableQueue
 
