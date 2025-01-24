@@ -4,11 +4,7 @@ from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
 import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
-from buttercup.common.queues import (
-    NormalQueue,
-    SerializationDeserializationQueue,
-    QueueNames,
-)
+from buttercup.common.queues import QueueFactory
 from buttercup.common.constants import CORPUS_DIR_NAME
 from buttercup.common import utils
 from redis import Redis
@@ -35,7 +31,7 @@ def main():
     runner = Runner(Conf(args.timeout))
     seconds_sleep = args.timer // 1000
     conn = Redis.from_url(args.redis_url)
-    q = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
+    q = QueueFactory(conn).create_target_list_queue()
     while True:
         weighted_items: list[WeightedTarget] = list(iter(q))
         logger.info(f"Received {len(weighted_items)} weighted targets")

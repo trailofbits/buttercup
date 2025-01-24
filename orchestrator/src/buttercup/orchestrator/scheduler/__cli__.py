@@ -11,7 +11,12 @@ def main():
     command = get_subcommand(settings)
     if isinstance(command, ServeCommand):
         redis = Redis.from_url(command.redis_url, decode_responses=False)
-        scheduler = Scheduler(command.download_dir, command.sleep_time, redis, mock_mode=command.mock_mode)
+        scheduler = Scheduler(
+            settings.download_dir,
+            redis,
+            sleep_time=command.sleep_time,
+            mock_mode=command.mock_mode,
+        )
         scheduler.serve()
     elif isinstance(command, ProcessCommand):
         pass

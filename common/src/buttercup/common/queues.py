@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from redis import Redis, RedisError
 from google.protobuf.message import Message
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
+from buttercup.common.datastructures.fuzzer_msg_pb2 import (
+    BuildRequest,
+    BuildOutput,
+    WeightedTarget,
+)
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady
 import logging
 from typing import Type, Generic, TypeVar
@@ -27,6 +31,7 @@ class GroupNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     READY_TASKS = "orchestrator_ready_tasks_group"
 
+
 class HashNames(str, Enum):
     TASKS_REGISTRY = "tasks_registry"
 
@@ -34,6 +39,7 @@ class HashNames(str, Enum):
 BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
+READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +257,16 @@ class QueueFactory:
             group_name=GroupNames.READY_TASKS,
             redis=self.redis,
             msg_builder=TaskReady,
-            task_timeout_ms=DOWNLOAD_TASK_TIMEOUT_MS,
+            task_timeout_ms=READY_TASK_TIMEOUT_MS,
+            **kwargs,
+        )
+
+    def create_target_list_queue(
+        self, **kwargs: Any
+    ) -> SerializationDeserializationQueue:
+        return SerializationDeserializationQueue(
+            NormalQueue(QueueNames.TARGET_LIST, self.redis),
+            WeightedTarget,
             **kwargs,
         )
 

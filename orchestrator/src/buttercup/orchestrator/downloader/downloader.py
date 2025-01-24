@@ -166,6 +166,9 @@ class Downloader:
         if self.task_queue is None:
             raise ValueError("Task queue is not initialized")
 
+        if self.ready_queue is None:
+            raise ValueError("Ready queue is not initialized")
+
         logger.info("Starting downloader service")
 
         while True:
@@ -183,6 +186,7 @@ class Downloader:
                 else:
                     logger.error(f"Failed to process task {task_download.task.task_id}")
 
+            logger.info(f"Sleeping for {self.sleep_time} seconds")
             time.sleep(self.sleep_time)
 
     def cleanup(self):

@@ -44,3 +44,4 @@ pdm.lock
 common/common/datastructures/fuzzer_msg*
 
 crs_scratch/*
+tasks_storage/
