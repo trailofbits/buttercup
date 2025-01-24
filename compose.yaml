@@ -3,9 +3,6 @@ services:
   dind:
     expose:
       - "2375"
-    profiles:
-      - development
-      - competition
     image: docker:24-dind
     command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false", "--storage-driver=overlay2"]
     restart: always
@@ -16,6 +13,7 @@ services:
       - type: bind
         source: ./crs_scratch
         target: /crs_scratch
+
   redis:
     image: redis:7.4.2
     restart: always
@@ -32,34 +30,29 @@ services:
       retries: 5
   
   stimulate-fuzzer-test:
-    image: fuzzer-runnner-image
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     command: -m buttercup.fuzzing_infra.stimulate_build_bot --ossfuzz /crs_scratch/ossfuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379
     restart: no
-    profiles:
-      - development
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
+
   orchestrator-sim:
-    image: fuzzer-runnner-image
-    command: -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
-    profiles:
-      - development
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    command: -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
+
   build-bot:
-    image: fuzzer-runnner-image
     command: -m buttercup.fuzzing_infra.builder_bot --wdir /crs_scratch --redis_url redis://redis:6379
     build:
       context: ./
@@ -74,8 +67,11 @@ services:
         condition: service_healthy
       dind:
         condition: service_started
+
   fuzzer-bot:
-    image: fuzzer-runnner-image
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     command: -m buttercup.fuzzing_infra.fuzzer_bot --wdir /crs_scratch --redis_url redis://redis:6379 --timeout 900
     volumes:
       - ./crs_scratch:/crs_scratch
