@@ -27,6 +27,7 @@ message SourceDetail {
     string sha256 = 1;
     SourceType source_type = 2;
     string url = 3;
+    optional string path = 4;
 }
 
 message TaskDownload {

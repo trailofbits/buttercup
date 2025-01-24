@@ -85,8 +85,8 @@ class Downloader:
             logger.error(f"Failed to download {source.url}: {str(e)}")
             return None
 
-    def extract_source(self, task_id: str, tmp_task_dir: Path, source_file: Path) -> bool:
-        """Uncompress a source file"""
+    def extract_source(self, task_id: str, tmp_task_dir: Path, source_file: Path) -> Optional[Path]:
+        """Uncompress a source file and returns the name of the main directory it contains"""
         try:
             logger.info(f"[task {task_id}] Extracting {source_file}")
             tmp_task_dir.mkdir(parents=True, exist_ok=True)
@@ -108,6 +108,9 @@ class Downloader:
                 # First verify all paths are safe
                 safe_extract(tar, tmp_task_dir)
 
+                # Get the name of the main directory
+                main_dir = tar.getmembers()[0].name
+
                 # Extract all members directly into tmp_task_dir
                 for member in tar.getmembers():
                     tar.extract(member, path=tmp_task_dir)
@@ -116,10 +119,10 @@ class Downloader:
             # Remove the tar file after successful extraction
             source_file.unlink()
             logger.info(f"[task {task_id}] Removed tar file {source_file}")
-            return True
+            return main_dir
         except Exception as e:
             logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
-            return False
+            return None
 
     def process_task(self, task: Task) -> bool:
         """Process a single task by downloading all its sources"""
@@ -139,9 +142,12 @@ class Downloader:
                         success = False
                         break
 
-                    if not self.extract_source(task.task_id, tmp_task_dir, result):
+                    extracted_dir = self.extract_source(task.task_id, tmp_task_dir, result)
+                    if not extracted_dir:
                         success = False
                         break
+
+                    source.path = extracted_dir
 
             if success:
                 # Once everything is downloaded and uncompressed in the

@@ -7,19 +7,21 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SourceDetail(_message.Message):
-    __slots__ = ["sha256", "source_type", "url"]
+    __slots__ = ["path", "sha256", "source_type", "url"]
     class SourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
+    PATH_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
     SOURCE_TYPE_DIFF: SourceDetail.SourceType
     SOURCE_TYPE_FIELD_NUMBER: _ClassVar[int]
     SOURCE_TYPE_FUZZ_TOOLING: SourceDetail.SourceType
     SOURCE_TYPE_REPO: SourceDetail.SourceType
     URL_FIELD_NUMBER: _ClassVar[int]
+    path: str
     sha256: str
     source_type: SourceDetail.SourceType
     url: str
-    def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
+    def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class Task(_message.Message):
     __slots__ = ["cancelled", "deadline", "message_id", "message_time", "sources", "task_id", "task_type"]
