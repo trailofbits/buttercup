@@ -19,10 +19,12 @@ services:
     restart: always
     ports:
       - '127.0.0.1:6379:6379'
-    command: redis-server /mount/redis.conf
-    volumes: 
-      - cache:/data
-      - ./redis:/mount
+    # NOTE: Do not use the configuration file for now, so every time you restart
+    # the container, it will reset the redis instance
+    # command: redis-server /mount/redis.conf
+    # volumes:
+      # - cache:/data
+      # - ./redis:/mount
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
       interval: 1s
