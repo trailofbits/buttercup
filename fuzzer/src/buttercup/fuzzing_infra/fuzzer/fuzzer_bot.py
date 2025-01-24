@@ -31,9 +31,7 @@ def main():
     runner = Runner(Conf(args.timeout))
     seconds_sleep = args.timer // 1000
     conn = Redis.from_url(args.redis_url)
-    q = SerializationDeserializationQueue(
-        NormalQueue(TARGET_LIST_NAME, conn), WeightedTarget
-    )
+    q = SerializationDeserializationQueue(NormalQueue(TARGET_LIST_NAME, conn), WeightedTarget)
     while True:
         weighted_items: list[WeightedTarget] = list(iter(q))
 
@@ -50,9 +48,7 @@ def main():
                 build_dir = os.path.dirname(chc.harness_path)
                 corpdir = os.path.join(build_dir, CORPUS_DIR_NAME)
                 os.makedirs(corpdir, exist_ok=True)
-                utils.copyanything(
-                    build_dir, os.path.join(td, os.path.basename(build_dir))
-                )
+                utils.copyanything(build_dir, os.path.join(td, os.path.basename(build_dir)))
                 copied_build_dir = os.path.join(td, os.path.basename(build_dir))
                 copied_corp_dir = os.path.join(copied_build_dir, CORPUS_DIR_NAME)
                 tgtbuild = chc.target

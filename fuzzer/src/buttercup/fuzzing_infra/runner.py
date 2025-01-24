@@ -45,9 +45,7 @@ def main():
     args = prsr.parse_args()
 
     conf = Conf(args.timeout)
-    fuzzconf = FuzzConfiguration(
-        args.corpusdir, args.target, args.engine, args.sanitizer
-    )
+    fuzzconf = FuzzConfiguration(args.corpusdir, args.target, args.engine, args.sanitizer)
     runner = Runner(conf)
     print(runner.run_fuzzer(fuzzconf))
 

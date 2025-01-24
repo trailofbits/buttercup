@@ -55,15 +55,16 @@ services:
         condition: service_healthy
 
   build-bot:
-    command: -m buttercup.fuzzing_infra.builder_bot --wdir /crs_scratch --redis_url redis://redis:6379
+    command: buttercup-fuzzer-builder
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ./crs_scratch:/crs_scratch
     environment:
-      # These values will be modified automatically at competition time
       - DOCKER_HOST=tcp://dind:2375
+      - BUTTERCUP_FUZZER_BUILDER_REDIS_URL=redis://redis:6379
+      - BUTTERCUP_FUZZER_BUILDER_WDIR=/crs_scratch
     depends_on:
       redis:
         condition: service_healthy

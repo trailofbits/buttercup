@@ -9,18 +9,11 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    wdir: Annotated[Path, Field(
-        default_factory=tempfile.mkdtemp,
-        description="Working directory"
-    )]
+    wdir: Annotated[Path, Field(default_factory=tempfile.mkdtemp, description="Working directory")]
     python: Annotated[str, Field(default="python")]
-    redis_url: Annotated[
-        str, Field(default="redis://127.0.0.1:6379", description="Redis URL")
-    ]
+    redis_url: Annotated[str, Field(default="redis://127.0.0.1:6379", description="Redis URL")]
     timer: Annotated[int, Field(default=1000, description="Timer in milliseconds")]
-    allow_caching: CliImplicitFlag[bool] = Field(
-        default=False, description="Allow caching", alias="allow-caching"
-    )
+    allow_caching: CliImplicitFlag[bool] = Field(default=False, description="Allow caching", alias="allow-caching")
     log_level: Annotated[str, Field(default="info", description="Log level")]
 
     class Config:
