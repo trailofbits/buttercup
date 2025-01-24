@@ -70,4 +70,5 @@ def command_server(args: argparse.Namespace) -> None:
                 dest_dir = Path(td) / target_dir.name
                 utils.copyanything(target_dir, dest_dir)
                 logger.info("Copied target to %s", dest_dir)
+        logger.info("Sleeping for %s seconds", args.sleep)
         time.sleep(args.sleep)
