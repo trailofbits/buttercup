@@ -38,11 +38,11 @@ def main():
         if rqit is not None:
             msg: BuildRequest = rqit.deserialized
             logger.info(f"Received build request for {msg.package_name}")
-            conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer, msg.source_path)
             ossfuzz_dir = msg.ossfuzz
             dirid = str(uuid.uuid4())
 
             target = ossfuzz_dir
+            source_path_output = msg.source_path
             if not args.allow_caching:
                 wdirstr = args.wdir
                 if not isinstance(wdirstr, str):
@@ -51,7 +51,11 @@ def main():
                 target = os.path.join(wdirstr, f"ossfuzz-snapshot-{dirid}")
                 logger.info(f"Copying {ossfuzz_dir} to {target}")
                 shutil.copytree(ossfuzz_dir, target)
-
+                source_snapshot = os.path.join(wdirstr, f"source-snapshot-{dirid}-{msg.package_name}")
+                shutil.copytree(msg.source_path, source_snapshot)
+                source_path_output = source_snapshot
+            
+            conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer, source_path_output)
             logger.info(f"Building oss-fuzz project {msg.package_name}")
             build_tool = OSSFuzzTool(Conf(target, args.python, args.allow_pull, args.base_image_url))
             if not build_tool.build_fuzzer_with_cache(conf):
@@ -64,6 +68,7 @@ def main():
                     engine=msg.engine,
                     sanitizer=msg.sanitizer,
                     output_ossfuzz_path=target,
+                    source_path=source_path_output,
                 )
             )
             logger.info(f"Acked build request for {msg.package_name}")
