@@ -1,5 +1,4 @@
 import argparse
-import distutils.dir_util
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
 import os
@@ -7,10 +6,8 @@ from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.maps import FuzzerMap
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus
-from redis import Redis
 import random
 import tempfile
-import distutils
 from buttercup.common.logger import setup_logging
 from redis import Redis
 
@@ -48,7 +45,6 @@ def main():
 
                 build_dir = os.path.dirname(chc.harness_path)
                 corp = Corpus(chc.harness_path)
-
 
                 utils.copyanything(build_dir, os.path.join(td, os.path.basename(build_dir)))
                 copied_build_dir = os.path.join(td, os.path.basename(build_dir))
