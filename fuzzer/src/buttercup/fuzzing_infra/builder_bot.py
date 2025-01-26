@@ -54,7 +54,7 @@ def main():
                 source_snapshot = os.path.join(wdirstr, f"source-snapshot-{dirid}-{msg.package_name}")
                 shutil.copytree(msg.source_path, source_snapshot)
                 source_path_output = source_snapshot
-            
+
             conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer, source_path_output)
             logger.info(f"Building oss-fuzz project {msg.package_name}")
             build_tool = OSSFuzzTool(Conf(target, args.python, args.allow_pull, args.base_image_url))
