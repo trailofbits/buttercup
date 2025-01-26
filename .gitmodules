@@ -1,0 +1,3 @@
+[submodule "program-model/aixcc-kythe"]
+	path = program-model/aixcc-kythe
+	url = git@github.com:trailofbits/aixcc-kythe.git

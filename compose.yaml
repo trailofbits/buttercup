@@ -30,6 +30,12 @@ services:
       interval: 1s
       timeout: 3s
       retries: 5
+
+  graphdb:
+    image: janusgraph/janusgraph:1.2.0-20250113-082101.7f6ffcf
+    restart: always
+    ports:
+      - '127.0.0.1:8182:8182'
   
   stimulate-fuzzer-test:
     build:
@@ -54,6 +60,25 @@ services:
       redis:
         condition: service_healthy
 
+  indexer-run:
+    image: program-model-image
+    command: -m buttercup.program_model.indexer.oss_fuzz_indexer --scriptdir /app/scripts --url ws://graphdb:8182/gremlin --allow_pull --oss_fuzz_dir /crs_scratch/ossfuzz --base_image_url gcr.io/oss-fuzz --package_name libpng --wdir /crs_scratch/ --kythe_dir /app/kythe-v0.0.67 --python /app/.venv/bin/python
+    build:
+      context: ./
+      dockerfile: ./program-model/upload_worker.Dockerfile
+    volumes:
+      - ./crs_scratch:/crs_scratch
+    environment:
+      # These values will be modified automatically at competition time
+      - DOCKER_HOST=tcp://dind:2375
+    restart: no
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
+      graphdb:
+        condition: service_started
   build-bot:
     command: ["buttercup-fuzzer-builder", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:

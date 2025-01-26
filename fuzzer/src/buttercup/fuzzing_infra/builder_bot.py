@@ -1,4 +1,5 @@
-from buttercup.fuzzing_infra.builder import OSSFuzzTool, Conf, BuildConfiguration
+from buttercup.common.queues import BuildConfiguration
+from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
 from redis import Redis
 import argparse
 import tempfile
