@@ -21,6 +21,8 @@ def main():
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
     prsr.add_argument("--timer", default=1000, type=int)
     prsr.add_argument("--allow-caching", action="store_true", default=False)
+    prsr.add_argument("--allow-pull", action="store_true", default=False)
+    prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
     args = prsr.parse_args()
 
     logger.info(f"Starting builder bot ({args.wdir})")
@@ -36,7 +38,7 @@ def main():
         if rqit is not None:
             msg: BuildRequest = rqit.deserialized
             logger.info(f"Received build request for {msg.package_name}")
-            conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer)
+            conf = BuildConfiguration(msg.package_name, msg.engine, msg.sanitizer, msg.source_path)
             ossfuzz_dir = msg.ossfuzz
             dirid = str(uuid.uuid4())
 
@@ -51,7 +53,7 @@ def main():
                 shutil.copytree(ossfuzz_dir, target)
 
             logger.info(f"Building oss-fuzz project {msg.package_name}")
-            build_tool = OSSFuzzTool(Conf(target, args.python))
+            build_tool = OSSFuzzTool(Conf(target, args.python, args.allow_pull, args.base_image_url))
             if not build_tool.build_fuzzer_with_cache(conf):
                 logger.error(f"Could not build fuzzer {msg.package_name}")
 
