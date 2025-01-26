@@ -9,6 +9,7 @@ from buttercup.common.queues import (
     SerializationDeserializationQueue,
     QueueNames,
 )
+from buttercup.common.maps import FuzzerMap
 from buttercup.common.constants import CORPUS_DIR_NAME
 from buttercup.common import utils
 from redis import Redis
@@ -34,10 +35,9 @@ def main():
 
     runner = Runner(Conf(args.timeout))
     seconds_sleep = args.timer // 1000
-    conn = Redis.from_url(args.redis_url)
-    q = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
+    q = FuzzerMap(args.redis_url)
     while True:
-        weighted_items: list[WeightedTarget] = list(iter(q))
+        weighted_items: list[WeightedTarget] = q.list_targets()
         logger.info(f"Received {len(weighted_items)} weighted targets")
 
         if len(weighted_items) > 0:
