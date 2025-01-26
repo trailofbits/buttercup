@@ -1,9 +1,6 @@
 from buttercup.common.queues import (
-    SerializationDeserializationQueue,
     ReliableQueue,
-    NormalQueue,
     RQItem,
-    QueueNames,
     QueueFactory,
 )
 from buttercup.common.maps import FuzzerMap

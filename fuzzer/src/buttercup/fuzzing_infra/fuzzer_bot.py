@@ -4,15 +4,9 @@ from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
 import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
-from buttercup.common.queues import (
-    NormalQueue,
-    SerializationDeserializationQueue,
-    QueueNames,
-)
 from buttercup.common.maps import FuzzerMap
 from buttercup.common.constants import CORPUS_DIR_NAME
 from buttercup.common import utils
-from redis import Redis
 import random
 import tempfile
 import distutils
