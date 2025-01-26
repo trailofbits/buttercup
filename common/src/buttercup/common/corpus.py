@@ -1,17 +1,17 @@
 from buttercup.common.constants import CORPUS_DIR_NAME
-import os 
+import os
 import hashlib
 import shutil
 
 
-
 def hash_file(fl):
-    h = hashlib.new('sha256')
+    h = hashlib.new("sha256")
     bts = fl.read(100)
     while bts:
         h.update(bts)
         bts = fl.read(100)
     return h.hexdigest()
+
 
 class Corpus:
     def __init__(self, harness_path: str):
