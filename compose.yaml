@@ -110,7 +110,7 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: ["buttercup-fuzzer", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900"]
+    command: ["buttercup-fuzzer", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "40"]
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:
