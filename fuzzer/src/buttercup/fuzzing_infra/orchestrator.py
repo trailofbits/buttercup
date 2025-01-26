@@ -1,5 +1,4 @@
 from buttercup.common.queues import (
-    Queue,
     SerializationDeserializationQueue,
     ReliableQueue,
     NormalQueue,
@@ -7,6 +6,8 @@ from buttercup.common.queues import (
     QueueNames,
     QueueFactory,
 )
+from buttercup.common.maps import FuzzerMap
+
 import argparse
 from redis import Redis
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
@@ -20,7 +21,7 @@ logger.setLevel(logging.INFO)
 DEFAULT_WEIGHT = 1.0
 
 
-def loop(output_queue: ReliableQueue, target_list: Queue, sleep_time_seconds: int):
+def loop(output_queue: ReliableQueue, target_list: FuzzerMap, sleep_time_seconds: int):
     while True:
         time.sleep(sleep_time_seconds)
         output: RQItem = output_queue.pop()
@@ -38,8 +39,7 @@ def loop(output_queue: ReliableQueue, target_list: Queue, sleep_time_seconds: in
             for tgt in targets:
                 logger.info(f"Adding target: {tgt}")
                 print(f"Adding target: {tgt}")
-                # TODO(Ian): to make this idempotent this should be hashed rather than a list we can add a target mutliple times.
-                target_list.push(WeightedTarget(weight=1.0, target=deser_output, harness_path=tgt))
+                target_list.push_target(WeightedTarget(weight=1.0, target=deser_output, harness_path=tgt))
             output_queue.ack_item(output.item_id)
 
 
@@ -51,7 +51,7 @@ def main():
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer // 1000
     builder_output = QueueFactory(conn).create_build_output_queue()
-    target_list = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
+    target_list = FuzzerMap(args.redis_url)
     loop(builder_output, target_list, seconds)
 
 
