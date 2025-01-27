@@ -131,7 +131,6 @@ class RQItem(Generic[MsgType]):
 
     item_id: str
     deserialized: MsgType
-    consumer_name: str
 
 
 @dataclass
@@ -221,7 +220,7 @@ class ReliableQueue(Generic[MsgType]):
         msg = self.msg_builder()
         msg.ParseFromString(message_data[self.INAME])
 
-        return RQItem[MsgType](item_id=message_id, deserialized=msg, consumer_name=self.reader_name)
+        return RQItem[MsgType](item_id=message_id, deserialized=msg)
 
     @_ensure_group_name
     def ack_item(self, item_id: str) -> None:
