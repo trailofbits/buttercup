@@ -49,6 +49,7 @@ class Scheduler:
                 engine="libfuzzer",
                 sanitizer="address",
                 ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
+                source_path=f"/tasks_storage/{task.task_id}/example-libpng",
             )
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
