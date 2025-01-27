@@ -32,6 +32,7 @@ class GroupNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
     SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
+    SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
 
 
 class HashNames(str, Enum):
@@ -146,7 +147,7 @@ class ReliableQueue(Generic[MsgType]):
     task_timeout_ms: int = 180000
     reader_name: str | None = None
     last_stream_id: str | None = ">"
-    block_time: int = 200
+    block_time: int | None = 200
 
     INAME = b"item"
 
