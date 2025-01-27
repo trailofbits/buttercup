@@ -1,7 +1,6 @@
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 from redis import Redis
 
 from buttercup.common.queues import ReliableQueue, QueueFactory

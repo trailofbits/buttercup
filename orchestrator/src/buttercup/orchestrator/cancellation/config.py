@@ -1,8 +1,6 @@
-BUTTERCUP_TASK_CANCELLATION_REDIS_URL
 from pydantic_settings import BaseSettings
 from typing import Annotated
 from pydantic import Field
-from pydantic_settings import CliImplicitFlag
 
 
 class TaskCancellationSettings(BaseSettings):
