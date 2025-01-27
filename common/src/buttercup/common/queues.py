@@ -16,7 +16,6 @@ from typing import Any
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
-    TARGET_LIST = "fuzzer_target_list"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
 
 
