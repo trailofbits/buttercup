@@ -12,6 +12,7 @@ download-kythe:
     set -euxo pipefail
     if [[ ! -f "program-model/scripts/gzs/kythe-v0.0.67.tar.gz" ]] 
     then
+        mkdir -p program-model/scripts/gzs/
         curl -o program-model/scripts/gzs/kythe-v0.0.67.tar.gz https://github.com/trailofbits/aixcc-kythe/releases/download/v0.0.2/kythe-v0.0.67.tar.gz
     fi
 

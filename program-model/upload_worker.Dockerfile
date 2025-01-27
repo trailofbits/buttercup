@@ -39,7 +39,7 @@ FROM base AS runtime
 WORKDIR /app
 
 COPY --from=builder --chown=app:app /app/scripts /app/scripts
-RUN tar -xvf /app/scripts/gzs/kythe-v0.0.67.tar.gz
+RUN tar -xvzf /app/scripts/gzs/kythe-v0.0.67.tar.gz
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
 
