@@ -50,6 +50,24 @@ class Scheduler:
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
+    def serve_ready_task(self) -> bool:
+        """Handle a ready task"""
+        task_ready_item: RQItem[TaskReady] | None = self.ready_queue.pop()
+
+        if task_ready_item is not None:
+            task_ready: TaskReady = task_ready_item.deserialized
+            try:
+                build_request = self.process_ready_task(task_ready.task)
+                self.build_requests_queue.push(build_request)
+                self.ready_queue.ack_item(task_ready_item.item_id)
+                logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to process task {task_ready.task.task_id}: {e}")
+                return False
+
+        return False
+
     def serve(self):
         """Main loop to process tasks from queue"""
         if self.ready_queue is None:
@@ -61,21 +79,7 @@ class Scheduler:
         logger.info("Starting scheduler service")
 
         while True:
-            task_ready_item: RQItem[TaskReady] | None = self.ready_queue.pop()
-
-            if task_ready_item is not None:
-                task_ready: TaskReady = task_ready_item.deserialized
-                try:
-                    build_request = self.process_ready_task(task_ready.task)
-                except Exception as e:
-                    logger.error(f"Failed to process task {task_ready.task.task_id}: {e}")
-                    continue
-
-                self.build_requests_queue.push(build_request)
-                self.ready_queue.ack_item(task_ready_item.item_id)
-                logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
-                continue
-
+            self.serve_ready_task()
             # TODO: do other scheduler logic here
 
             logger.info(f"Sleeping for {self.sleep_time} seconds")
