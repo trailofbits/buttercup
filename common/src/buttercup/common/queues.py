@@ -8,7 +8,7 @@ from buttercup.common.datastructures.fuzzer_msg_pb2 import (
     BuildRequest,
     BuildOutput,
 )
-from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady
+from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady, TaskDelete
 import logging
 from typing import Type, Generic, TypeVar
 import uuid
@@ -21,6 +21,7 @@ class QueueNames(str, Enum):
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
+    DELETE_TASK = "orchestrator_delete_task_queue"
 
 
 class GroupNames(str, Enum):
@@ -28,6 +29,7 @@ class GroupNames(str, Enum):
     ORCHESTRATOR = "orchestrator_group"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
+    DELETE_TASK = "orchestrator_delete_task_group"
 
 
 class HashNames(str, Enum):
@@ -38,6 +40,7 @@ BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
+DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +259,15 @@ class QueueFactory:
             redis=self.redis,
             msg_builder=TaskReady,
             task_timeout_ms=READY_TASK_TIMEOUT_MS,
+        )
+
+    def create_delete_task_queue(self, **kwargs: Any) -> ReliableQueue[TaskDelete]:
+        return ReliableQueue(
+            queue_name=QueueNames.DELETE_TASK,
+            group_name=GroupNames.DELETE_TASK,
+            redis=self.redis,
+            msg_builder=TaskDelete,
+            task_timeout_ms=DELETE_TASK_TIMEOUT_MS,
             **kwargs,
         )
 

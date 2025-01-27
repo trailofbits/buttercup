@@ -37,3 +37,8 @@ message TaskDownload {
 message TaskReady {
     Task task = 1;
 }
+
+message TaskDelete {
+    string task_id = 1;
+    float received_at = 2;
+}

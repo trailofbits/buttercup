@@ -1,7 +1,8 @@
+import time
 from buttercup.common.datastructures.orchestrator_pb2 import Task
 from redis import Redis
 from buttercup.common.queues import HashNames
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from google.protobuf import text_format
 
 
@@ -9,8 +10,19 @@ from google.protobuf import text_format
 class TaskRegistry:
     """Keep track of all tasks in the system"""
 
+    # How often to refresh the live tasks cache (in seconds)
+    CACHE_REFRESH_INTERVAL = 60
+
     redis: Redis
     hash_name: str = HashNames.TASKS_REGISTRY
+
+    # A cache for task ids that are currently live, this isn't necessarily
+    # coherent across all instatiations of the TaskRegistry. The cache is
+    # a best-effort cache and may not be up-to-date.
+    # We track live task IDs since this is expected to be the most common scenario.
+    # Requests for cancelled tasks may happen but should be infrequent.
+    _live_task_ids: set[str] = field(default_factory=set)
+    _last_cache_refresh: float = field(default_factory=time.time)
 
     def __len__(self):
         """Number of tasks in the registry"""
@@ -31,6 +43,8 @@ class TaskRegistry:
     def set(self, task: Task):
         """Update a task in the registry"""
         self.redis.hset(self.hash_name, self._prepare_key(task.task_id), task.SerializeToString())
+        if not task.cancelled:
+            self._live_task_ids.add(task.task_id)
 
     def get(self, task_id: str) -> Task | None:
         """Get a task from the registry"""
@@ -38,11 +52,34 @@ class TaskRegistry:
         if task_bytes is None:
             return None
 
-        return Task.FromString(task_bytes)
+        task = Task.FromString(task_bytes)
+        if not task.cancelled:
+            self._live_task_ids.add(task_id)
+        else:
+            self._live_task_ids.discard(task_id)
+        return task
 
     def delete(self, task_id: str):
         """Delete a task from the registry"""
         self.redis.hdel(self.hash_name, self._prepare_key(task_id))
+        self._live_task_ids.discard(task_id)
+
+    def mark_cancelled(self, task: Task):
+        """Mark a task as cancelled in the registry"""
+        task.cancelled = True
+        self.set(task)
+
+    def is_cancelled(self, task_id: str) -> bool:
+        """Check if a task is cancelled
+
+        Args:
+            task_id: The task ID string
+
+        Returns:
+            True if the task is cancelled, False otherwise
+        """
+        task = self.get(task_id)
+        return task.cancelled if task else True
 
 
 def task_registry_cli():

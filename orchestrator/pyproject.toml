@@ -23,6 +23,7 @@ buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
 buttercup-task-downloader = "buttercup.orchestrator.downloader.__cli__:main"
 buttercup-task-registry = "buttercup.orchestrator.registry:task_registry_cli"
 buttercup-scheduler = "buttercup.orchestrator.scheduler.__cli__:main"
+buttercup-task-cancellation = "buttercup.orchestrator.cancellation.__cli__:main"
 
 
 [project.optional-dependencies]
