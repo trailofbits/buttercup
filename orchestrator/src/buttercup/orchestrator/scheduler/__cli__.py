@@ -1,6 +1,6 @@
 from buttercup.orchestrator.scheduler.config import Settings, ServeCommand, ProcessCommand
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
-from buttercup.orchestrator.logger import setup_logging
+from buttercup.common.logger import setup_logging
 from pydantic_settings import get_subcommand
 from redis import Redis
 
