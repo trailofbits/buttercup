@@ -1,0 +1,3 @@
+import kuzu
+
+kuzu.Database()

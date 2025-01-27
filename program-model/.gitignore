@@ -1,0 +1,5 @@
+scripts/gzs
+*.pyc
+program_model/data/kythe/proto
+program_model/services/kythe/proto
+kythe_builder/build_out

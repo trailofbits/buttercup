@@ -40,3 +40,7 @@ jobs:
       - name: Run ruff on fuzzer
         run: uv run ruff format --check && uv run ruff check
         working-directory: fuzzer
+
+      - name: Run ruff on program-model
+        run: uv run ruff format --check && uv run ruff check
+        working-directory: program-model
