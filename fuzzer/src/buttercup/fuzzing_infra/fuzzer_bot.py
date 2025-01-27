@@ -11,7 +11,7 @@ import random
 import tempfile
 import distutils
 from buttercup.common.logger import setup_logging
-
+from redis import Redis
 logger = setup_logging(__name__)
 
 
@@ -29,7 +29,7 @@ def main():
 
     runner = Runner(Conf(args.timeout))
     seconds_sleep = args.timer // 1000
-    q = FuzzerMap(args.redis_url)
+    q = FuzzerMap(Redis.from_url(args.redis_url))
     while True:
         weighted_items: list[WeightedTarget] = q.list_targets()
         logger.info(f"Received {len(weighted_items)} weighted targets")

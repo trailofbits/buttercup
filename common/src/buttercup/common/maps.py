@@ -1,6 +1,6 @@
 from typing import Generic, TypeVar, Type, Iterator
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
-import redis
+from redis import Redis
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 
 
@@ -9,9 +9,8 @@ MSG_FIELD_NAME = b"msg"
 
 
 class RedisMap(Generic[MsgType]):
-    def __init__(self, redis_url: str, hash_name: str, msg_builder: Type[MsgType]):
-        self.redis_url = redis_url
-        self.redis = redis.Redis.from_url(redis_url)
+    def __init__(self, redis: Redis, hash_name: str, msg_builder: Type[MsgType]):
+        self.redis = redis
         self.msg_builder = msg_builder
         self.hash_name = hash_name
 
@@ -36,8 +35,8 @@ FUZZER_MAP_NAME = "fuzzer_target_list"
 
 
 class FuzzerMap:
-    def __init__(self, redis_url: str):
-        self.mp: RedisMap[WeightedTarget] = RedisMap(redis_url, FUZZER_MAP_NAME, WeightedTarget)
+    def __init__(self, redis: Redis):
+        self.mp: RedisMap[WeightedTarget] = RedisMap(redis, FUZZER_MAP_NAME, WeightedTarget)
 
     def list_targets(self) -> list[WeightedTarget]:
         return list(iter(self.mp))
