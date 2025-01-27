@@ -4,8 +4,11 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from redis import Redis, RedisError
 from google.protobuf.message import Message
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
-from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload
+from buttercup.common.datastructures.fuzzer_msg_pb2 import (
+    BuildRequest,
+    BuildOutput,
+)
+from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady
 import logging
 from typing import Type, Generic, TypeVar
 import uuid
@@ -17,12 +20,14 @@ class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
+    READY_TASKS = "tasks_ready_queue"
 
 
 class GroupNames(str, Enum):
     BUILDER_BOT = "build_bot_consumers"
     ORCHESTRATOR = "orchestrator_group"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
+    SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
 
 
 class HashNames(str, Enum):
@@ -32,6 +37,7 @@ class HashNames(str, Enum):
 BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
+READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +246,16 @@ class QueueFactory:
             redis=self.redis,
             msg_builder=TaskDownload,
             task_timeout_ms=DOWNLOAD_TASK_TIMEOUT_MS,
+            **kwargs,
+        )
+
+    def create_ready_tasks_queue(self, **kwargs: Any) -> ReliableQueue[TaskReady]:
+        return ReliableQueue(
+            queue_name=QueueNames.READY_TASKS,
+            group_name=GroupNames.SCHEDULER_READY_TASKS,
+            redis=self.redis,
+            msg_builder=TaskReady,
+            task_timeout_ms=READY_TASK_TIMEOUT_MS,
             **kwargs,
         )
 
