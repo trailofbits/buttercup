@@ -3,14 +3,16 @@ from redis import Redis
 from buttercup.common.maps import RedisMap
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 
+
 @pytest.fixture
 def redis_client():
     return Redis(host="localhost", port=6379, db=0)
 
+
 def test_redis_map_set_and_get(redis_client):
     # Create a RedisMap instance
     redis_map = RedisMap(redis_client, "test_hash", WeightedTarget)
-    
+
     # Create a WeightedTarget
     target = WeightedTarget()
     target.target.package_name = "test_package"
@@ -38,10 +40,11 @@ def test_redis_map_set_and_get(redis_client):
     # Clean up
     redis_client.delete("test_hash")
 
+
 def test_redis_map_iteration(redis_client):
     # Create a RedisMap instance
     redis_map = RedisMap(redis_client, "test_hash_iter", WeightedTarget)
-    
+
     # Create a WeightedTarget
     target = WeightedTarget()
     target.target.package_name = "test_package"
@@ -57,10 +60,10 @@ def test_redis_map_iteration(redis_client):
 
     # Iterate over the map and collect results
     targets = list(redis_map)
-    
+
     # Verify we got exactly one target
     assert len(targets) == 1
-    
+
     # Verify the iterated target matches the original
     retrieved_target = targets[0]
     assert retrieved_target.target.package_name == target.target.package_name
@@ -72,4 +75,3 @@ def test_redis_map_iteration(redis_client):
 
     # Clean up
     redis_client.delete("test_hash_iter")
-
