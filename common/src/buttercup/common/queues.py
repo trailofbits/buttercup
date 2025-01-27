@@ -19,7 +19,6 @@ from typing import Any
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
-    TARGET_LIST = "fuzzer_target_list"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
 
@@ -274,3 +273,4 @@ class BuildConfiguration:
     project_id: str
     engine: str
     sanitizer: str
+    source_path: str | None

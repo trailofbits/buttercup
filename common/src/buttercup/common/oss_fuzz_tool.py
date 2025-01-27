@@ -30,6 +30,10 @@ class OSSFuzzTool:
         OSSFuzzTool.add_optional_arg(args, "--engine", fuzz_conf.engine)
         OSSFuzzTool.add_optional_arg(args, "--sanitizer", fuzz_conf.sanitizer)
         args.append(fuzz_conf.project_id)
+
+        if fuzz_conf.source_path is not None:
+            args.append(fuzz_conf.source_path)
+
         return args
 
     def check_fuzzer_runs(self, fuzz_conf: BuildConfiguration):
