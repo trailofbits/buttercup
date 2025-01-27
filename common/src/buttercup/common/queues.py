@@ -258,3 +258,4 @@ class BuildConfiguration:
     project_id: str
     engine: str
     sanitizer: str
+    source_path: str | None

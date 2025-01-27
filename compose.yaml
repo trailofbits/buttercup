@@ -41,19 +41,30 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --ossfuzz /crs_scratch/ossfuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379
+    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --ossfuzz /crs_scratch/ossfuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE}
+    profiles:
+      - fuzzer-test
     restart: no
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
+      build-bot:
+        condition: service_started
+      fuzzer-bot:
+        condition: service_started
+      orchestrator-sim:
+        condition: service_started
+      
 
   orchestrator-sim:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
+    profiles:
+      - fuzzer-test
     volumes:
       - ./crs_scratch:/crs_scratch
     depends_on:

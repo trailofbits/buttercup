@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x66uzzer_msg.proto\x12\nfuzzermsgs\"X\n\x0c\x42uildRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x04 \x01(\t\"c\n\x0b\x42uildOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x1b\n\x13output_ossfuzz_path\x18\x04 \x01(\t\"_\n\x0eWeightedTarget\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\'\n\x06target\x18\x02 \x01(\x0b\x32\x17.fuzzermsgs.BuildOutput\x12\x14\n\x0charness_path\x18\x03 \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x66uzzer_msg.proto\x12\nfuzzermsgs\"m\n\x0c\x42uildRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x04 \x01(\t\x12\x13\n\x0bsource_path\x18\x05 \x01(\t\"x\n\x0b\x42uildOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x1b\n\x13output_ossfuzz_path\x18\x04 \x01(\t\x12\x13\n\x0bsource_path\x18\x05 \x01(\t\"_\n\x0eWeightedTarget\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\'\n\x06target\x18\x02 \x01(\x0b\x32\x17.fuzzermsgs.BuildOutput\x12\x14\n\x0charness_path\x18\x03 \x01(\tb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'fuzzer_msg_pb2', globals())
@@ -21,9 +21,9 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   _BUILDREQUEST._serialized_start=32
-  _BUILDREQUEST._serialized_end=120
-  _BUILDOUTPUT._serialized_start=122
-  _BUILDOUTPUT._serialized_end=221
-  _WEIGHTEDTARGET._serialized_start=223
-  _WEIGHTEDTARGET._serialized_end=318
+  _BUILDREQUEST._serialized_end=141
+  _BUILDOUTPUT._serialized_start=143
+  _BUILDOUTPUT._serialized_end=263
+  _WEIGHTEDTARGET._serialized_start=265
+  _WEIGHTEDTARGET._serialized_end=360
 # @@protoc_insertion_point(module_scope)
