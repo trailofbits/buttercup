@@ -12,6 +12,7 @@ import tempfile
 import distutils
 from buttercup.common.logger import setup_logging
 from redis import Redis
+
 logger = setup_logging(__name__)
 
 
