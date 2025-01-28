@@ -219,6 +219,7 @@ def test_queue_factory(redis_client):
     assert item.deserialized.ossfuzz == "test_ossfuzz"
     queue.ack_item(item.item_id)
 
+
 def test_invalid_group_name():
     factory = QueueFactory(redis_client)
     with pytest.raises(ValueError):
