@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass, field
 from redis import Redis
 
-from buttercup.common.queues import ReliableQueue, QueueFactory
+from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDelete
 from buttercup.orchestrator.registry import TaskRegistry
 from buttercup.orchestrator.task_server.dependencies import get_redis
@@ -21,17 +21,13 @@ class Cancellation:
     3. Maintaining the task registry state
 
     Attributes:
-        DELETE_QUEUE_BLOCK_TIME_MS (int): Block time in milliseconds for checking delete requests.
-            Set to 10 seconds to reduce load on task registry since cancellation is not time-critical.
-        sleep_time (float): Safety delay between processing cycles, defaults to 0.1s
+        sleep_time (float): Safety delay between processing cycles, defaults to 1.0s
         redis (Redis | None): Redis connection, will use default if None
         delete_queue (ReliableQueue | None): Queue for processing deletion requests
         registry (TaskRegistry | None): Registry for tracking task state
     """
 
-    DELETE_QUEUE_BLOCK_TIME_MS = 10 * 1000
-
-    sleep_time: float = 0.1
+    sleep_time: float = 1.0
     redis: Redis | None = None
     delete_queue: ReliableQueue | None = field(init=False, default=None)
     registry: TaskRegistry | None = field(init=False, default=None)
@@ -41,13 +37,12 @@ class Cancellation:
         if self.redis is None:
             self.redis = get_redis()
 
-        # TODO: If we end up integrating this into the main event loop, we should use a non-blocking queue
         self.delete_queue = QueueFactory(self.redis).create_delete_task_queue(
-            block_time=self.DELETE_QUEUE_BLOCK_TIME_MS
+            block_time=None
         )
         self.registry = TaskRegistry(self.redis)
 
-    def process_delete_request(self, delete_request: TaskDelete):
+    def process_delete_request(self, delete_request: TaskDelete) -> bool:
         """Process a task deletion request by marking it as cancelled in the registry.
 
         Args:
@@ -60,6 +55,7 @@ class Cancellation:
         task = self.registry.get(delete_request.task_id)
         if task:
             self.registry.mark_cancelled(task)
+            logger.info(f"Task {delete_request.task_id}, cancel request received at {task.received_at}, marked as cancelled")
             return True
         else:
             logger.info(f"No task found for task_id {delete_request.task_id}")
@@ -78,39 +74,48 @@ class Cancellation:
                 logger.info(f"Task {task.task_id} has timed out, marking as cancelled")
                 self.registry.mark_cancelled(task)
 
-    def process_iteration(self):
+    def process_cancellations(self) -> bool:
         """Process one iteration of the cancellation loop.
 
         Handles:
         1. Processing any deletion requests from the queue
         2. Checking for and handling any timed out tasks
 
-        Note: Consider whether this processing could be integrated into the orchestrator's
-        main event loop rather than running in its own loop. If so, the queue pop() would
-        need to be non-blocking to avoid stalling other operations.
+        Returns:
+            bool: True if any task was cancelled (via delete request or timeout), False otherwise
         """
+        any_cancellation = False
+
         # Process any delete requests
-        delete_request = self.delete_queue.pop()
+        delete_request: RQItem[TaskDelete] | None = self.delete_queue.pop()
         if delete_request:
             was_cancelled = self.process_delete_request(delete_request.deserialized)
             if was_cancelled:
                 self.delete_queue.ack_item(delete_request.item_id)
+                any_cancellation = True
 
         # Check for timed out tasks
-        self.check_timeouts()
+        current_time = time.time()
+        for task in self.registry:
+            if task.deadline < current_time:
+                logger.info(f"Task {task.task_id} has timed out, marking as cancelled")
+                self.registry.mark_cancelled(task)
+                any_cancellation = True
+
+        return any_cancellation
 
     def run(self):
         """Main processing loop that handles deletions and timeouts.
 
-        Continuously runs process_iteration() to:
+        Continuously runs process_cancellations() to:
         1. Check for and process any deletion requests from the queue
         2. Check for and handle any timed out tasks
         3. Sleep briefly to prevent excessive CPU usage
         """
         while True:
-            self.process_iteration()
-            # Safety check to prevent the process from running too fast
-            time.sleep(self.sleep_time)
+            if self.process_cancellations():
+                # Safety check to prevent the process from running too fast
+                time.sleep(self.sleep_time)
 
 
 def main():

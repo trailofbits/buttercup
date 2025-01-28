@@ -177,18 +177,6 @@ services:
       litellm:
         condition: service_started
 
-  task-cancellation:
-    build:
-      context: .
-      dockerfile: ./orchestrator/Dockerfile
-    command: ["buttercup-task-cancellation"]
-    depends_on:
-      redis:
-        condition: service_healthy
-    environment:
-      - BUTTERCUP_TASK_CANCELLATION_REDIS_URL=redis://redis:6379
-      - BUTTERCUP_TASK_CANCELLATION_LOG_LEVEL=debug
-
   litellm:
     image: ghcr.io/berriai/litellm:litellm_stable_release_branch-v1.57.8-stable
     configs:

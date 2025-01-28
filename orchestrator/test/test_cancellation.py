@@ -39,8 +39,10 @@ def cancellation(mock_redis, mock_queue, mock_registry):
 def test_process_delete_request_success(cancellation, mock_registry):
     # Arrange
     task_id = "test_task_123"
-    delete_request = TaskDelete(task_id=task_id)
+    current_time = time.time()
+    delete_request = TaskDelete(task_id=task_id, received_at=current_time)
     mock_task = Mock(spec=Task)
+    mock_task.received_at = current_time
     mock_registry.get.return_value = mock_task
 
     # Act
@@ -55,7 +57,8 @@ def test_process_delete_request_success(cancellation, mock_registry):
 def test_process_delete_request_task_not_found(cancellation, mock_registry):
     # Arrange
     task_id = "nonexistent_task"
-    delete_request = TaskDelete(task_id=task_id)
+    current_time = time.time()
+    delete_request = TaskDelete(task_id=task_id, received_at=current_time)
     mock_registry.get.return_value = None
 
     # Act
@@ -89,19 +92,22 @@ def test_check_timeouts(cancellation, mock_registry):
 def test_process_iteration_with_delete_request(cancellation, mock_queue, mock_registry):
     # Arrange
     task_id = "test_task_456"
-    delete_request = TaskDelete(task_id=task_id)
+    current_time = time.time()
+    delete_request = TaskDelete(task_id=task_id, received_at=current_time)
     mock_queue.pop.return_value = RQItem(
         item_id="queue_item_1",
         deserialized=delete_request,
-        consumer_name="test_consumer",  # Added consumer_name parameter
+        consumer_name="test_consumer_1"
     )
     mock_task = Mock(spec=Task)
+    mock_task.received_at = current_time  # Add received_at for logging
     mock_registry.get.return_value = mock_task
 
     # Act
-    cancellation.process_iteration()
+    result = cancellation.process_cancellations()
 
     # Assert
+    assert result is True
     mock_queue.pop.assert_called_once()
     mock_registry.get.assert_called_once_with(task_id)
     mock_registry.mark_cancelled.assert_called_once_with(mock_task)
@@ -111,11 +117,13 @@ def test_process_iteration_with_delete_request(cancellation, mock_queue, mock_re
 def test_process_iteration_no_delete_request(cancellation, mock_queue, mock_registry):
     # Arrange
     mock_queue.pop.return_value = None
+    mock_registry.__iter__.return_value = iter([])  # No tasks to timeout
 
     # Act
-    cancellation.process_iteration()
+    result = cancellation.process_cancellations()
 
     # Assert
+    assert result is False
     mock_queue.pop.assert_called_once()
     mock_registry.get.assert_not_called()
     mock_registry.mark_cancelled.assert_not_called()
@@ -124,7 +132,7 @@ def test_process_iteration_no_delete_request(cancellation, mock_queue, mock_regi
 
 def test_run_stops_after_one_iteration(cancellation):
     # Arrange
-    with patch.object(cancellation, "process_iteration") as mock_process:
+    with patch.object(cancellation, "process_cancellations") as mock_process:
         with patch("time.sleep", side_effect=KeyboardInterrupt):
             # Act & Assert
             with pytest.raises(KeyboardInterrupt):
