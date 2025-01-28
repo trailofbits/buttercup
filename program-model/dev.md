@@ -62,7 +62,6 @@ mkdir crs_scratch/
 ### Download libpng
 
 ```shell
-git clone git@github.com:pnggroup/libpng.git crs_scratch/libpng
 git clone git@github.com:aixcc-finals/example-libpng.git crs_scratch/libpng
 ```
 

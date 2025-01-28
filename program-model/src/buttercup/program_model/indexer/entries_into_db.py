@@ -4,6 +4,7 @@ from typing import Generator
 from io import BytesIO
 from gremlin_python.structure.graph import Graph, GraphTraversalSource
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
+from gremlin_python.driver.client import Client
 from gremlin_python.driver.serializer import GraphSONSerializersV3d0
 from dataclasses import dataclass
 import urllib
@@ -45,14 +46,13 @@ def is_edge(ent: Entry) -> bool:
 def convert_node(trv: GraphTraversalSource, nd: VName) -> Vertex:
     """Convert a Kythe node to a JanusGraph vertex."""
     uri = str(KytheURI.from_vname(nd))
-    print('URI:', uri)
 
-    # Check if the vertex already exists
+    # Return node if it already exists
     maybe_node = next(trv.V().has('uri', uri), None)
     if maybe_node is not None:
         return maybe_node
 
-    # Add new vertex if it doesn't exist
+    # Create a new node
     return trv.add_v('node').property('uri', uri).next()
 
 
@@ -68,6 +68,19 @@ class JanusStorage:
         self.graph = Graph()
         self.g = self.graph.traversal().with_remote(self.connection)
 
+        # TODO(Evan): We'll only need to do this once.
+        # Add index
+        # From: https://docs.janusgraph.org/schema/index-management/index-performance/
+        client = Client(url, "g")
+        gremlin_script = """
+        mgmt = graph.openManagement()
+        uriKey = mgmt.makePropertyKey('uri').dataType(String.class).make()
+        mgmt.addIndexKey(uriKey)
+        mgmt.commit();
+        """
+        client.submit(gremlin_script)
+        client.close()
+
     def process_stream(self, _project_name: str, fl: BytesIO):
         """Process a stream of Kythe entries and add them to JanusGraph."""
         tx = self.g.tx()
@@ -75,7 +88,8 @@ class JanusStorage:
 
         try:
             for e, entry in enumerate(iterate_over_entries(fl)):
-                print(f"Parsing entry {e}")
+                sys.stdout.write(f"Parsing entry {e}\r")
+                sys.stdout.flush()
 
                 # Convert source node
                 source = convert_node(trv, entry.source)
@@ -85,9 +99,9 @@ class JanusStorage:
                     target = convert_node(trv, entry.target)
 
                     # Add edge between source and target
-                    trv.add_e(entry.edge_kind).from_(source).to(target).iterate()
+                    trv.add_e(entry.edge_kind).from_(source).to(target).property(entry.fact_name, entry.fact_value.decode()).iterate()
                 else:
-                    # Add property to source node
+                    # Update property of node
                     trv.V(source.id).property(entry.fact_name, entry.fact_value.decode()).iterate()
 
             tx.commit()
@@ -97,6 +111,8 @@ class JanusStorage:
             raise e
         finally:
             self.connection.close()
+            sys.stdout.write("\n")
+            sys.stdout.flush()
 
     def clear_graph(self):
         """Remove all vertices and edges from the graph."""
