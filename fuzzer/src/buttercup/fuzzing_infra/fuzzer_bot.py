@@ -13,6 +13,7 @@ from buttercup.common.logger import setup_logging
 from redis import Redis
 from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
 from clusterfuzz.fuzz import engine
+
 logger = setup_logging(__name__)
 
 
@@ -73,7 +74,7 @@ def main():
                         crash_input_path=dst,
                     )
                     output_q.push(crash)
-                
+
                 corp.copy_corpus(copied_corp_dir)
 
                 logger.info(f"Fuzzer finished for {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
