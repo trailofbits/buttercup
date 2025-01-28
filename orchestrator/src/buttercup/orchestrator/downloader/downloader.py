@@ -33,8 +33,8 @@ class Downloader:
         if self.redis is not None:
             logger.debug("Using Redis for task queue and registry")
             queue_factory = QueueFactory(self.redis)
-            self.task_queue = queue_factory.create_queue(QueueNames.DOWNLOAD_TASKS, GroupNames.DOWNLOAD_TASKS)
-            self.ready_queue = queue_factory.create_queue(QueueNames.READY_TASKS)
+            self.task_queue = queue_factory.create(QueueNames.DOWNLOAD_TASKS, GroupNames.DOWNLOAD_TASKS)
+            self.ready_queue = queue_factory.create(QueueNames.READY_TASKS)
             self.registry = TaskRegistry(self.redis)
 
         # Create download directory if it doesn't exist

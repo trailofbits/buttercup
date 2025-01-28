@@ -268,26 +268,26 @@ class QueueFactory:
     )
 
     @overload
-    def create_queue(
+    def create(
         self, queue_name: Literal[QueueNames.BUILD], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[BuildRequest]: ...
 
     @overload
-    def create_queue(
+    def create(
         self, queue_name: Literal[QueueNames.BUILD_OUTPUT], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[BuildOutput]: ...
 
     @overload
-    def create_queue(
+    def create(
         self, queue_name: Literal[QueueNames.DOWNLOAD_TASKS], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[TaskDownload]: ...
 
     @overload
-    def create_queue(
+    def create(
         self, queue_name: Literal[QueueNames.READY_TASKS], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[TaskReady]: ...
 
-    def create_queue(
+    def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
     ) -> ReliableQueue[MsgType]:
         if queue_name not in self._config:

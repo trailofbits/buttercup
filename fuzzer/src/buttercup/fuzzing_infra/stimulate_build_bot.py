@@ -15,7 +15,7 @@ def main():
     args = prsr.parse_args()
 
     redis = Redis.from_url(args.redis_url)
-    queue = QueueFactory(redis).create_queue(QueueNames.BUILD)
+    queue = QueueFactory(redis).create(QueueNames.BUILD)
     req = BuildRequest(
         package_name=args.target_package,
         engine=args.engine,

@@ -29,8 +29,8 @@ def main():
     redis = Redis.from_url(args.redis_url)
 
     queue_factory = QueueFactory(redis)
-    queue = queue_factory.create_queue(QueueNames.BUILD, GroupNames.BUILDER_BOT)
-    output_q = queue_factory.create_queue(QueueNames.BUILD_OUTPUT)
+    queue = queue_factory.create(QueueNames.BUILD, GroupNames.BUILDER_BOT)
+    output_q = queue_factory.create(QueueNames.BUILD_OUTPUT)
 
     seconds = float(args.timer) // 1000.0
     while True:

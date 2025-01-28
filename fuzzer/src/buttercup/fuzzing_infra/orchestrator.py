@@ -49,7 +49,7 @@ def main():
     args = prsr.parse_args()
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer // 1000
-    builder_output = QueueFactory(conn).create_queue(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR)
+    builder_output = QueueFactory(conn).create(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR)
     target_list = FuzzerMap(conn)
     loop(builder_output, target_list, seconds)
 

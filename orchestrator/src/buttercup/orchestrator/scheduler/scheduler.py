@@ -22,8 +22,8 @@ class Scheduler:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            self.ready_queue = queue_factory.create_queue(QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS)
-            self.build_requests_queue = queue_factory.create_queue(QueueNames.BUILD)
+            self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS)
+            self.build_requests_queue = queue_factory.create(QueueNames.BUILD)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""

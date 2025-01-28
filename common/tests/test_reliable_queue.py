@@ -178,7 +178,7 @@ def test_new_tasks_first(reliable_queue, redis_client):
 def test_queue_factory(redis_client):
     factory = QueueFactory(redis_client)
 
-    queue = factory.create_queue(QueueNames.BUILD_OUTPUT)
+    queue = factory.create(QueueNames.BUILD_OUTPUT)
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD_OUTPUT
     assert queue.group_name is None
@@ -186,7 +186,7 @@ def test_queue_factory(redis_client):
     assert queue.task_timeout_ms == BUILD_OUTPUT_TASK_TIMEOUT_MS
     assert queue.msg_builder == BuildOutput
 
-    queue = factory.create_queue(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR)
+    queue = factory.create(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR)
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD_OUTPUT
     assert queue.group_name == GroupNames.ORCHESTRATOR
@@ -194,7 +194,7 @@ def test_queue_factory(redis_client):
     assert queue.task_timeout_ms == BUILD_OUTPUT_TASK_TIMEOUT_MS
     assert queue.msg_builder == BuildOutput
 
-    queue = factory.create_queue(QueueNames.BUILD, GroupNames.BUILDER_BOT)
+    queue = factory.create(QueueNames.BUILD, GroupNames.BUILDER_BOT)
     assert isinstance(queue, ReliableQueue)
     assert queue.queue_name == QueueNames.BUILD
     assert queue.group_name == GroupNames.BUILDER_BOT
