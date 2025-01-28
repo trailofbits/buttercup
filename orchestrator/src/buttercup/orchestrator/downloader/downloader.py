@@ -10,7 +10,7 @@ from typing import Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue
+from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue, QueueNames, GroupNames
 from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
@@ -33,8 +33,8 @@ class Downloader:
         if self.redis is not None:
             logger.debug("Using Redis for task queue and registry")
             queue_factory = QueueFactory(self.redis)
-            self.task_queue = queue_factory.create_download_tasks_queue()
-            self.ready_queue = queue_factory.create_ready_tasks_queue()
+            self.task_queue = queue_factory.create(QueueNames.DOWNLOAD_TASKS, GroupNames.DOWNLOAD_TASKS)
+            self.ready_queue = queue_factory.create(QueueNames.READY_TASKS)
             self.registry = TaskRegistry(self.redis)
 
         # Create download directory if it doesn't exist
