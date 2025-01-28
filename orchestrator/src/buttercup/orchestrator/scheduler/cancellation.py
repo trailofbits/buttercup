@@ -61,18 +61,25 @@ class Cancellation:
             logger.info(f"No task found for task_id {delete_request.task_id}")
             return False
 
-    def check_timeouts(self):
+    def check_timeouts(self) -> bool:
         """Check for timed out tasks and mark them as cancelled in the registry.
 
         Iterates through all tasks in the registry and marks any as cancelled that have passed
         their deadline timestamp.
+
+        Returns:
+            bool: True if any task was cancelled, False otherwise
         """
         current_time = time.time()
+        any_cancelled = False
 
         for task in self.registry:
             if task.deadline < current_time:
                 logger.info(f"Task {task.task_id} has timed out, marking as cancelled")
                 self.registry.mark_cancelled(task)
+                any_cancelled = True
+
+        return any_cancelled
 
     def process_cancellations(self) -> bool:
         """Process one iteration of the cancellation loop.
@@ -95,41 +102,5 @@ class Cancellation:
                 any_cancellation = True
 
         # Check for timed out tasks
-        current_time = time.time()
-        for task in self.registry:
-            if task.deadline < current_time:
-                logger.info(f"Task {task.task_id} has timed out, marking as cancelled")
-                self.registry.mark_cancelled(task)
-                any_cancellation = True
-
+        any_cancellation |= self.check_timeouts()
         return any_cancellation
-
-    def run(self):
-        """Main processing loop that handles deletions and timeouts.
-
-        Continuously runs process_cancellations() to:
-        1. Check for and process any deletion requests from the queue
-        2. Check for and handle any timed out tasks
-        3. Sleep briefly to prevent excessive CPU usage
-        """
-        while True:
-            if self.process_cancellations():
-                # Safety check to prevent the process from running too fast
-                time.sleep(self.sleep_time)
-
-
-def main():
-    """Main entry point for the cancellation service.
-
-    Initializes and runs the Cancellation service which handles task deletions
-    and timeout detection.
-    """
-    logging.basicConfig(level=logging.INFO)
-    logger.info("Starting cancellation service")
-
-    cancellation = Cancellation()
-    cancellation.run()
-
-
-if __name__ == "__main__":
-    main()

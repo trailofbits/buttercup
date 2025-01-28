@@ -5,7 +5,7 @@ from redis import Redis
 
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDelete
 from buttercup.common.queues import ReliableQueue, RQItem
-from buttercup.orchestrator.cancellation.cancellation import Cancellation
+from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.registry import TaskRegistry, Task
 
 
@@ -30,9 +30,9 @@ def mock_registry():
 
 @pytest.fixture
 def cancellation(mock_redis, mock_queue, mock_registry):
-    with patch("buttercup.orchestrator.cancellation.cancellation.QueueFactory") as mock_factory:
+    with patch("buttercup.orchestrator.scheduler.cancellation.QueueFactory") as mock_factory:
         mock_factory.return_value.create_delete_task_queue.return_value = mock_queue
-        with patch("buttercup.orchestrator.cancellation.cancellation.TaskRegistry", return_value=mock_registry):
+        with patch("buttercup.orchestrator.scheduler.cancellation.TaskRegistry", return_value=mock_registry):
             return Cancellation(redis=mock_redis)
 
 
@@ -126,13 +126,3 @@ def test_process_iteration_no_delete_request(cancellation, mock_queue, mock_regi
     mock_registry.get.assert_not_called()
     mock_registry.mark_cancelled.assert_not_called()
     mock_queue.ack_item.assert_not_called()
-
-
-def test_run_stops_after_one_iteration(cancellation):
-    # Arrange
-    with patch.object(cancellation, "process_cancellations") as mock_process:
-        with patch("time.sleep", side_effect=KeyboardInterrupt):
-            # Act & Assert
-            with pytest.raises(KeyboardInterrupt):
-                cancellation.run()
-            mock_process.assert_called_once()
