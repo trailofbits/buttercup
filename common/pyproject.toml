@@ -6,11 +6,16 @@ authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
 requires-python = ">=3.9"
 dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
+    "pydantic-settings>=2.7.1",
     "pymongo>=4.10.1",
     "redis (>=5.2.1,<6.0.0)",
     "langchain-core~=0.3.32",
     "langchain-openai~=0.3.2",
 ]
+
+[project.scripts]
+buttercup-msg-publisher = "buttercup.common.msg_publisher:main"
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/buttercup"]
