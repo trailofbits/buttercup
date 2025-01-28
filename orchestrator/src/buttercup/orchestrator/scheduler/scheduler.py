@@ -110,4 +110,3 @@ class Scheduler:
             # Run all scheduler components and track if any did work
             components = [self.serve_ready_task, self.cancellation.process_cancellations]
             did_work = any(component() for component in components)
-            # TODO: do other scheduler logic here
