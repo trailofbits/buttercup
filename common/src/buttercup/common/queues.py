@@ -300,7 +300,10 @@ class QueueFactory:
             "msg_builder": config.msg_builder,
             "task_timeout_ms": config.task_timeout_ms,
         }
-        if group_name is not None and group_name in config.group_names:
+        if group_name is not None:
+            if group_name not in config.group_names:
+                raise ValueError(f"Invalid group name: {group_name}")
+
             queue_args["group_name"] = group_name
 
         queue_args.update(kwargs)
