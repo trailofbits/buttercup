@@ -3,7 +3,7 @@ name = "common"
 version = "0.1.0"
 description = ""
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
     "pymongo>=4.10.1",
