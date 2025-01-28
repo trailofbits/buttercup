@@ -3,11 +3,13 @@ name = "common"
 version = "0.1.0"
 description = ""
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
     "pymongo>=4.10.1",
     "redis (>=5.2.1,<6.0.0)",
+    "langchain-core~=0.3.32",
+    "langchain-openai~=0.3.2",
 ]
 
 [tool.hatch.build.targets.wheel]
