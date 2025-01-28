@@ -12,11 +12,8 @@ from redis import Redis
 from buttercup.common import utils
 from buttercup.common.datastructures.msg_pb2 import WeightedTarget
 from buttercup.common.logger import setup_logging
-from buttercup.common.queues import (
-    NormalQueue,
-    QueueNames,
-    SerializationDeserializationQueue,
-)
+from buttercup.common.maps import FuzzerMap
+from buttercup.seed_gen.tasks import Task, do_seed_init, do_seed_explore, do_vuln_discovery
 
 logger = setup_logging(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
 
@@ -38,18 +35,26 @@ def main() -> None:
         type=Path,
         help="Local path to the /crs_scratch volume directory (for running seed-gen locally)",
     )
+    parser_task = subparsers.add_parser("task", help="Do a task")
+    parser_task.add_argument(
+        "task_name", choices=Task, help="Task name", metavar=", ".join(task.value for task in Task)
+    )
+    parser_task.add_argument("--out-dir", required=True, type=Path, help="Output directory")
     args = parser.parse_args()
     if args.command == "server":
         command_server(args)
+    elif args.command == "task":
+        command_task(args)
 
 
 def command_server(args: argparse.Namespace) -> None:
+    """Seed-gen worker server"""
     os.makedirs(args.wdir, exist_ok=True)
-    conn = Redis.from_url(args.redis_url)
-    q = SerializationDeserializationQueue(NormalQueue(QueueNames.TARGET_LIST, conn), WeightedTarget)
+    q = FuzzerMap(Redis.from_url(args.redis_url))
     while True:
         # TODO: use different weights than fuzzer
-        weighted_items: list[WeightedTarget] = list(iter(q))
+        weighted_items: list[WeightedTarget] = q.list_targets()
+        logger.info(f"Received {len(weighted_items)} weighted targets")
 
         if len(weighted_items) > 0:
             with tempfile.TemporaryDirectory(dir=args.wdir) as td:
@@ -72,3 +77,20 @@ def command_server(args: argparse.Namespace) -> None:
                 logger.info("Copied target to %s", dest_dir)
         logger.info("Sleeping for %s seconds", args.sleep)
         time.sleep(args.sleep)
+
+
+def command_task(args: argparse.Namespace) -> None:
+    """Run single task"""
+    task_name = args.task_name
+    out_dir = args.out_dir
+    out_dir.mkdir(parents=True)
+    seeds = []
+    if task_name == Task.SEED_INIT:
+        seeds = do_seed_init()
+    elif task_name == Task.SEED_EXPLORE:
+        seeds = do_seed_explore()
+    elif task_name == Task.VULN_DISCOVERY:
+        seeds = do_vuln_discovery()
+    for i, seed in enumerate(seeds):
+        with open(out_dir / f"seed-{i}.bin", "wb") as f:
+            f.write(seed)
