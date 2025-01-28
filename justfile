@@ -13,7 +13,7 @@ download-kythe:
     if [[ ! -f "program-model/scripts/gzs/kythe-v0.0.67.tar.gz" ]] 
     then
         mkdir -p program-model/scripts/gzs/
-        curl -o program-model/scripts/gzs/kythe-v0.0.67.tar.gz https://github.com/trailofbits/aixcc-kythe/releases/download/v0.0.2/kythe-v0.0.67.tar.gz
+        gh release download v0.0.2 -R github.com/trailofbits/aixcc-kythe -D program-model/scripts/gzs/
     fi
 
 build-indexer-image: 

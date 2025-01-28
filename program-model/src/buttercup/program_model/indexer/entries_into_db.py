@@ -4,11 +4,13 @@ from typing import Generator
 from io import BytesIO
 from gremlin_python.structure.graph import Graph, GraphTraversalSource
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
+from gremlin_python.driver.serializer import GraphSONSerializersV3d0
 from dataclasses import dataclass
 import urllib
 from gremlin_python.structure.graph import Vertex
 import sys
 import argparse
+from collections import defaultdict
 
 
 @dataclass(frozen=True, repr=False)
@@ -36,64 +38,101 @@ class KytheURI:
 
 
 def is_edge(ent: Entry) -> bool:
+    """Check if the entry is an edge."""
     return ent.edge_kind != ""
 
 
 def convert_node(trv: GraphTraversalSource, nd: VName) -> Vertex:
-    ur = KytheURI.from_vname(nd)
-    s = str(ur)
-    print(s)
-    maybe_nd = next(trv.V().has_label(s), None)
-    if maybe_nd is not None:
-        return maybe_nd
+    """Convert a Kythe node to a JanusGraph vertex."""
+    uri = str(KytheURI.from_vname(nd))
+    print('URI:', uri)
 
-    return trv.add_v(str(ur)).next()
+    # Check if the vertex already exists
+    maybe_node = next(trv.V().has('uri', uri), None)
+    if maybe_node is not None:
+        return maybe_node
+
+    # Add new vertex if it doesn't exist
+    return trv.add_v('node').property('uri', uri).next()
 
 
 class JanusStorage:
+    """Class to interact with JanusGraph."""
+
     def __init__(self, url: str):
-        self.connection = DriverRemoteConnection(url, traversal_source="g")
+        self.connection = DriverRemoteConnection(
+                            url, 
+                            traversal_source="g",
+                            message_serializer=GraphSONSerializersV3d0()
+                          )
         self.graph = Graph()
         self.g = self.graph.traversal().with_remote(self.connection)
-        next(self.g.V().has_label("x"), None)
 
     def process_stream(self, _project_name: str, fl: BytesIO):
-        next(self.g.V().has_label("x"), None)
+        """Process a stream of Kythe entries and add them to JanusGraph."""
         tx = self.g.tx()
         trv = tx.begin()
-        for ent in iterate_over_entries(fl):
-            next(trv.V().has_label("x"), None)
-            if is_edge(ent):
-                n1 = convert_node(trv, ent.source)
-                n2 = convert_node(trv, ent.target)
-                trv.add_e().from_(n1).to(n2).property(
-                    "edge_kind", ent.edge_kind
-                ).iterate()
-            else:
-                n1 = convert_node(trv, ent.source)
-                trv.V().has_id(n1.id).property(
-                    ent.fact_name, ent.fact_value.decode()
-                ).iterate()
-        tx.commit()
+
+        try:
+            for e, entry in enumerate(iterate_over_entries(fl)):
+                print(f"Parsing entry {e}")
+
+                # Convert source node
+                source = convert_node(trv, entry.source)
+
+                if is_edge(entry):
+                    # Convert target node
+                    target = convert_node(trv, entry.target)
+
+                    # Add edge between source and target
+                    trv.add_e(entry.edge_kind).from_(source).to(target).iterate()
+                else:
+                    # Add property to source node
+                    trv.V(source.id).property(entry.fact_name, entry.fact_value.decode()).iterate()
+
+            tx.commit()
+        except Exception as e:
+            tx.rollback()
+            print(f"Exception occurred: {e}")
+            raise e
+        finally:
+            self.connection.close()
+
+    def clear_graph(self):
+        """Remove all vertices and edges from the graph."""
+        self.g.V().drop().iterate()
 
 
 def iterate_over_entries(fl: BytesIO) -> Generator[Entry, None, None]:
-    try:
-        sz = decode_stream(fl)
-        bts = bytes()
-        while len(bts) < sz:
-            rd = fl.read(sz - len(bts))
-            if len(rd) <= 0:
-                return None
-            bts += rd
-        ent = Entry()
-        ent.ParseFromString(bts)
-        yield ent
-    except EOFError:
-        return None
-    except Exception:
-        # TODO(Ian) should catch decode errors
-        return None
+    """Iterate over entries in the stream."""
+
+    # Indexers emit a delimited stream of entry protobufs
+    # From: https://kythe.io/examples/#indexing-compilations
+    while True:
+        try:
+            yield parse_entry(fl)
+        # This is the end of the stream. This error is expected.
+        except EOFError:
+            break
+        except Exception as e:
+            print("Exception: ", e)
+            break
+
+
+def parse_entry(fl: BytesIO) -> Entry:
+    """Parse a Kythe entry from the stream."""
+
+    # Read the size of the entry protobuf
+    sz = decode_stream(fl)
+    bts = bytes()
+    while len(bts) < sz:
+        rd = fl.read(sz - len(bts))
+        if len(rd) <= 0:
+            return None
+        bts += rd
+    ent = Entry()
+    ent.ParseFromString(bts)
+    return ent
 
 
 def main():
@@ -102,6 +141,11 @@ def main():
     args = prsr.parse_args()
 
     storage = JanusStorage(args.url)
+
+    # NOTE(Evan): Leaving this here for now for testing.
+    storage.clear_graph()
+    print("Cleared graph")
+
     with sys.stdin.buffer as f:
         storage.process_stream("", f)
 
