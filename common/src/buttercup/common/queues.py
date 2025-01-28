@@ -256,7 +256,7 @@ class QueueFactory:
                 QueueNames.BUILD_OUTPUT,
                 BuildOutput,
                 BUILD_OUTPUT_TASK_TIMEOUT_MS,
-                [GroupNames.ORCHESTRATOR],
+                [GroupNames.ORCHESTRATOR, GroupNames.SCHEDULER_BUILD_OUTPUT],
             ),
             QueueNames.DOWNLOAD_TASKS: QueueConfig(
                 QueueNames.DOWNLOAD_TASKS,
