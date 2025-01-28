@@ -5,12 +5,13 @@ import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.maps import FuzzerMap
 from buttercup.common import utils
-from buttercup.common.corpus import Corpus
+from buttercup.common.corpus import Corpus, CrashDir
 import random
 import tempfile
 from buttercup.common.logger import setup_logging
 from redis import Redis
-
+from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
+from clusterfuzz.fuzz import engine
 logger = setup_logging(__name__)
 
 
@@ -57,7 +58,20 @@ def main():
                     tgtbuild.sanitizer,
                 )
                 logger.info(f"Starting fuzzer {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
-                runner.run_fuzzer(fuzz_conf)
+                result = runner.run_fuzzer(fuzz_conf)
+
+                crash_dir = CrashDir(chc.harness_path)
+                for crash_ in result.crashes:
+                    crash: engine.Crash = crash_
+                    logger.info(f"Found crash {crash.input_path}")
+                    dst = crash_dir.copy_file(crash.input_path)
+                    crash = Crash(
+                        target=tgtbuild,
+                        harness_path=chc.harness_path,
+                        crash_input_path=dst,
+                    )
+
+                
                 corp.copy_corpus(copied_corp_dir)
                 logger.info(f"Fuzzer finished for {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
 

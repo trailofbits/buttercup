@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x66uzzer_msg.proto\x12\nfuzzermsgs\"m\n\x0c\x42uildRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x04 \x01(\t\x12\x13\n\x0bsource_path\x18\x05 \x01(\t\"x\n\x0b\x42uildOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x1b\n\x13output_ossfuzz_path\x18\x04 \x01(\t\x12\x13\n\x0bsource_path\x18\x05 \x01(\t\"_\n\x0eWeightedTarget\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\'\n\x06target\x18\x02 \x01(\x0b\x32\x17.fuzzermsgs.BuildOutput\x12\x14\n\x0charness_path\x18\x03 \x01(\t\"[\n\x05\x43rash\x12\'\n\x06target\x18\x01 \x01(\x0b\x32\x17.fuzzermsgs.BuildOutput\x12\x14\n\x0charness_path\x18\x02 \x01(\t\x12\x13\n\x0b\x63rash_input\x18\x03 \x01(\x0c\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10\x66uzzer_msg.proto\x12\nfuzzermsgs\"m\n\x0c\x42uildRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x04 \x01(\t\x12\x13\n\x0bsource_path\x18\x05 \x01(\t\"x\n\x0b\x42uildOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x1b\n\x13output_ossfuzz_path\x18\x04 \x01(\t\x12\x13\n\x0bsource_path\x18\x05 \x01(\t\"_\n\x0eWeightedTarget\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\'\n\x06target\x18\x02 \x01(\x0b\x32\x17.fuzzermsgs.BuildOutput\x12\x14\n\x0charness_path\x18\x03 \x01(\t\"`\n\x05\x43rash\x12\'\n\x06target\x18\x01 \x01(\x0b\x32\x17.fuzzermsgs.BuildOutput\x12\x14\n\x0charness_path\x18\x02 \x01(\t\x12\x18\n\x10\x63rash_input_path\x18\x03 \x01(\tb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'fuzzer_msg_pb2', globals())
@@ -27,5 +27,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _WEIGHTEDTARGET._serialized_start=265
   _WEIGHTEDTARGET._serialized_end=360
   _CRASH._serialized_start=362
-  _CRASH._serialized_end=453
+  _CRASH._serialized_end=458
 # @@protoc_insertion_point(module_scope)

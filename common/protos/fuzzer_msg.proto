@@ -27,5 +27,5 @@ message WeightedTarget {
 message Crash {
     BuildOutput target = 1;
     string harness_path = 2;
-    bytes crash_input = 3;
+    string crash_input_path = 3;
 }
