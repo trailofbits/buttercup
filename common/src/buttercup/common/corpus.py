@@ -1,4 +1,4 @@
-from buttercup.common.constants import CORPUS_DIR_NAME
+from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
 import os
 import hashlib
 import shutil
@@ -13,17 +13,35 @@ def hash_file(fl):
     return h.hexdigest()
 
 
-class Corpus:
-    def __init__(self, harness_path: str):
-        build_dir = os.path.dirname(harness_path)
-        self.corpus_dir = os.path.join(build_dir, f"{CORPUS_DIR_NAME}_{os.path.basename(harness_path)}")
-        os.makedirs(self.corpus_dir, exist_ok=True)
+class InputDir:
+    def __init__(self, path: str):
+        self.path = path
+        os.makedirs(self.path, exist_ok=True)
 
     def basename(self) -> str:
-        return os.path.basename(self.corpus_dir)
+        return os.path.basename(self.path)
+
+    def copy_file(self, src_file: str):
+        with open(src_file, "rb") as f:
+            nm = hash_file(f)
+            dst = os.path.join(self.path, nm)
+            shutil.copy(src_file, dst)
+            return dst
 
     def copy_corpus(self, src_dir: str):
         for file in os.listdir(src_dir):
-            with open(os.path.join(src_dir, file), "rb") as f:
-                nm = hash_file(f)
-                shutil.copy(os.path.join(src_dir, file), os.path.join(self.corpus_dir, nm))
+            self.copy_file(os.path.join(src_dir, file))
+
+
+class CrashDir(InputDir):
+    def __init__(self, harness_path: str):
+        build_dir = os.path.dirname(harness_path)
+        self.crash_dir = os.path.join(build_dir, f"{CRASH_DIR_NAME}_{os.path.basename(harness_path)}")
+        super().__init__(self.crash_dir)
+
+
+class Corpus(InputDir):
+    def __init__(self, harness_path: str):
+        build_dir = os.path.dirname(harness_path)
+        self.corpus_dir = os.path.join(build_dir, f"{CORPUS_DIR_NAME}_{os.path.basename(harness_path)}")
+        super().__init__(self.corpus_dir)

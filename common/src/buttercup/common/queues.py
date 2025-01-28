@@ -7,6 +7,7 @@ from google.protobuf.message import Message
 from buttercup.common.datastructures.fuzzer_msg_pb2 import (
     BuildRequest,
     BuildOutput,
+    Crash,
 )
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady
 import logging
@@ -19,6 +20,7 @@ from typing import Any
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
+    CRASH = "fuzzer_crash_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
 
@@ -38,6 +40,7 @@ BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
+CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +266,12 @@ class QueueFactory:
                 TaskReady,
                 READY_TASK_TIMEOUT_MS,
                 [GroupNames.SCHEDULER_READY_TASKS],
+            ),
+            QueueNames.CRASH: QueueConfig(
+                QueueNames.CRASH,
+                Crash,
+                CRASH_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
             ),
         }
     )
