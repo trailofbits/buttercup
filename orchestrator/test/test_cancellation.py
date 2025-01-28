@@ -95,9 +95,7 @@ def test_process_iteration_with_delete_request(cancellation, mock_queue, mock_re
     current_time = time.time()
     delete_request = TaskDelete(task_id=task_id, received_at=current_time)
     mock_queue.pop.return_value = RQItem(
-        item_id="queue_item_1",
-        deserialized=delete_request,
-        consumer_name="test_consumer_1"
+        item_id="queue_item_1", deserialized=delete_request, consumer_name="test_consumer_1"
     )
     mock_task = Mock(spec=Task)
     mock_task.received_at = current_time  # Add received_at for logging

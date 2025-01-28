@@ -37,9 +37,7 @@ class Cancellation:
         if self.redis is None:
             self.redis = get_redis()
 
-        self.delete_queue = QueueFactory(self.redis).create_delete_task_queue(
-            block_time=None
-        )
+        self.delete_queue = QueueFactory(self.redis).create_delete_task_queue(block_time=None)
         self.registry = TaskRegistry(self.redis)
 
     def process_delete_request(self, delete_request: TaskDelete) -> bool:
@@ -55,7 +53,9 @@ class Cancellation:
         task = self.registry.get(delete_request.task_id)
         if task:
             self.registry.mark_cancelled(task)
-            logger.info(f"Task {delete_request.task_id}, cancel request received at {task.received_at}, marked as cancelled")
+            logger.info(
+                f"Task {delete_request.task_id}, cancel request received at {task.received_at}, marked as cancelled"
+            )
             return True
         else:
             logger.info(f"No task found for task_id {delete_request.task_id}")
