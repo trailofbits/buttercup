@@ -11,7 +11,6 @@ import urllib
 from gremlin_python.structure.graph import Vertex
 import sys
 import argparse
-from collections import defaultdict
 
 
 @dataclass(frozen=True, repr=False)
@@ -48,12 +47,12 @@ def convert_node(trv: GraphTraversalSource, nd: VName) -> Vertex:
     uri = str(KytheURI.from_vname(nd))
 
     # Return node if it already exists
-    maybe_node = next(trv.V().has('uri', uri), None)
+    maybe_node = next(trv.V().has("uri", uri), None)
     if maybe_node is not None:
         return maybe_node
 
     # Create a new node
-    return trv.add_v('node').property('uri', uri).next()
+    return trv.add_v("node").property("uri", uri).next()
 
 
 class JanusStorage:
@@ -61,10 +60,8 @@ class JanusStorage:
 
     def __init__(self, url: str):
         self.connection = DriverRemoteConnection(
-                            url, 
-                            traversal_source="g",
-                            message_serializer=GraphSONSerializersV3d0()
-                          )
+            url, traversal_source="g", message_serializer=GraphSONSerializersV3d0()
+        )
         self.graph = Graph()
         self.g = self.graph.traversal().with_remote(self.connection)
 
@@ -99,10 +96,14 @@ class JanusStorage:
                     target = convert_node(trv, entry.target)
 
                     # Add edge between source and target
-                    trv.add_e(entry.edge_kind).from_(source).to(target).property(entry.fact_name, entry.fact_value.decode()).iterate()
+                    trv.add_e(entry.edge_kind).from_(source).to(target).property(
+                        entry.fact_name, entry.fact_value.decode()
+                    ).iterate()
                 else:
                     # Update property of node
-                    trv.V(source.id).property(entry.fact_name, entry.fact_value.decode()).iterate()
+                    trv.V(source.id).property(
+                        entry.fact_name, entry.fact_value.decode()
+                    ).iterate()
 
             tx.commit()
         except Exception as e:

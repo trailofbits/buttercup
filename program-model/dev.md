@@ -185,6 +185,15 @@ docker system prune -a
 docker system df
 ```
 
+## Contributing
+
+Before committing code, run the following to ensure that the code is formatted correctly.
+
+```shell
+just reformat
+just lint
+```
+
 ## TODO
 
 * `org.janusgraph.graphdb.transaction.StandardJanusGraphTx$3.execute - Query requires iterating over all vertices [[~label = x]]. For better performance, use indexes`
