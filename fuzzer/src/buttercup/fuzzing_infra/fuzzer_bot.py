@@ -4,6 +4,7 @@ import time
 import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.maps import FuzzerMap
+from buttercup.common.queues import QueueFactory
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
 import random
@@ -30,6 +31,7 @@ def main():
     runner = Runner(Conf(args.timeout))
     seconds_sleep = args.timer // 1000
     q = FuzzerMap(Redis.from_url(args.redis_url))
+    output_q = QueueFactory(Redis.from_url(args.redis_url)).create_crash_queue()
     while True:
         weighted_items: list[WeightedTarget] = q.list_targets()
         logger.info(f"Received {len(weighted_items)} weighted targets")
@@ -70,9 +72,10 @@ def main():
                         harness_path=chc.harness_path,
                         crash_input_path=dst,
                     )
-
+                    output_q.push(crash)
                 
                 corp.copy_corpus(copied_corp_dir)
+
                 logger.info(f"Fuzzer finished for {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
 
         logger.info(f"Sleeping for {seconds_sleep} seconds")
