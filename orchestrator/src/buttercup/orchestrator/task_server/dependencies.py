@@ -22,4 +22,4 @@ def get_redis() -> Redis:
 @lru_cache
 def get_task_queue() -> ReliableQueue:
     logger.debug(f"Connecting to task queue at {QueueNames.DOWNLOAD_TASKS}")
-    return QueueFactory(get_redis()).create_download_tasks_queue()
+    return QueueFactory(get_redis()).create_queue(QueueNames.DOWNLOAD_TASKS)

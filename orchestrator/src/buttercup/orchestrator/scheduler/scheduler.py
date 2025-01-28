@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from redis import Redis
-from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem
+from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.datastructures.orchestrator_pb2 import TaskReady, Task, SourceDetail
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest
 
@@ -22,8 +22,8 @@ class Scheduler:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            self.ready_queue = queue_factory.create_ready_tasks_queue()
-            self.build_requests_queue = queue_factory.create_build_queue()
+            self.ready_queue = queue_factory.create_queue(QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS)
+            self.build_requests_queue = queue_factory.create_queue(QueueNames.BUILD)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""

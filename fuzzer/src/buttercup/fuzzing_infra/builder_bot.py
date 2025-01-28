@@ -1,4 +1,4 @@
-from buttercup.common.queues import BuildConfiguration
+from buttercup.common.queues import BuildConfiguration, QueueNames, GroupNames
 from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
 from redis import Redis
 import argparse
@@ -29,8 +29,8 @@ def main():
     redis = Redis.from_url(args.redis_url)
 
     queue_factory = QueueFactory(redis)
-    queue = queue_factory.create_build_queue()
-    output_q = queue_factory.create_build_output_queue()
+    queue = queue_factory.create_queue(QueueNames.BUILD, GroupNames.BUILDER_BOT)
+    output_q = queue_factory.create_queue(QueueNames.BUILD_OUTPUT)
 
     seconds = float(args.timer) // 1000.0
     while True:
