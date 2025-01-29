@@ -61,6 +61,12 @@ jobs:
         run: uv run pytest -svv
         working-directory: fuzzer
 
+      - name: Download Wasm runtime
+        run: wget https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
+        working-directory: seed-gen
+
       - name: Run tests on seed-gen package
         run: uv run pytest -svv
+        env:
+          PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
         working-directory: seed-gen

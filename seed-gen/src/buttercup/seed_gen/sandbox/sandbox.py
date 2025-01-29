@@ -24,5 +24,5 @@ def sandbox_exec_funcs(functions: str) -> list[bytes]:
             for pov_file in outdir.iterdir():
                 povs.append(pov_file.read_bytes())
         except Exception as e:
-            logger.error(f"Error running wasm sandbox {e}")
+            logger.error(f"Error running wasm sandbox: {e}")
     return povs
