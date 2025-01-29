@@ -6,7 +6,7 @@ from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.maps import FuzzerMap
 from buttercup.common.datastructures.orchestrator_pb2 import TaskReady, Task, SourceDetail
-from buttercup.orchestrator.cancellation.cancellation import Cancellation
+from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput, WeightedTarget
 from clusterfuzz.fuzz import get_fuzz_targets
 
@@ -34,7 +34,9 @@ class Scheduler:
                 QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
             )
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
-            self.build_output_queue = queue_factory.create(QueueNames.BUILD_OUTPUT, GroupNames.SCHEDULER_BUILD_OUTPUT, block_time=None)
+            self.build_output_queue = queue_factory.create(
+                QueueNames.BUILD_OUTPUT, GroupNames.SCHEDULER_BUILD_OUTPUT, block_time=None
+            )
             self.fuzzer_map = FuzzerMap(self.redis)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
