@@ -1,5 +1,7 @@
 from enum import Enum
-from buttercup.common.llm import create_default_llm
+
+# from buttercup.common.llm import create_default_llm
+from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 
 
 class Task(str, Enum):
@@ -10,9 +12,12 @@ class Task(str, Enum):
 
 def do_seed_init() -> list[bytes]:
     """Do seed-init task"""
-    llm = create_default_llm()
-    msg = llm.invoke("Hello, world!")
-    return [msg.content.encode("utf-8")]
+    # llm = create_default_llm()
+    # msg = llm.invoke("Hello, world!")
+    test_function = "def gen_test() -> bytes: return b'test'"
+    outputs = sandbox_exec_funcs(test_function)
+    # return [msg.content.encode("utf-8")]
+    return outputs
 
 
 def do_seed_explore() -> list[bytes]:
