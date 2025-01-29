@@ -24,10 +24,17 @@ ADD seed-gen /app/seed-gen
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
+RUN apt-get update && apt-get install -y \
+    wget
+# download wasm runtime
+RUN wget -P /app/seed-gen https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
+
 
 FROM python:${PYTHON_BASE} AS runtime
 
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
+COPY --from=builder /app/seed-gen/python-3.12.0.wasm /app/seed-gen/python-3.12.0.wasm
 WORKDIR /app/seed-gen
+ENV PYTHON_WASM_BUILD_PATH="/app/seed-gen/python-3.12.0.wasm"
 ENV PATH=/app/seed-gen/.venv/bin:$PATH
 
