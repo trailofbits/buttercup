@@ -15,8 +15,22 @@ class ServeCommand(BaseModel):
         env_nested_delimiter = "__"
 
 
-class ProcessCommand(BaseModel):
-    pass
+class ProcessReadyTaskCommand(BaseModel):
+    task_id: Annotated[str, Field(description="Task ID")]
+    task_type: Annotated[str, Field(description="Task type")]
+    task_status: Annotated[str, Field(description="Task status")]
+
+    class Config:
+        nested_model_default_partial_update = True
+        env_nested_delimiter = "__"
+
+
+class ProcessBuildOutputCommand(BaseModel):
+    package_name: Annotated[str, Field(description="Package name")]
+    engine: Annotated[str, Field(description="Engine")]
+    sanitizer: Annotated[str, Field(description="Sanitizer")]
+    output_ossfuzz_path: Annotated[str, Field(description="Output ossfuzz path")]
+    source_path: Annotated[str, Field(description="Source path")]
 
     class Config:
         nested_model_default_partial_update = True
@@ -24,10 +38,11 @@ class ProcessCommand(BaseModel):
 
 
 class Settings(BaseSettings):
-    download_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for downloaded files")]
+    tasks_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for Tasks storage")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
     serve: CliSubCommand[ServeCommand]
-    process: CliSubCommand[ProcessCommand]
+    process_ready_task: CliSubCommand[ProcessReadyTaskCommand]
+    process_build_output: CliSubCommand[ProcessBuildOutputCommand]
 
     class Config:
         env_prefix = "BUTTERCUP_SCHEDULER_"

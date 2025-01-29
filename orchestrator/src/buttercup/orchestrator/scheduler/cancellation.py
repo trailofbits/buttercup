@@ -2,8 +2,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from redis import Redis
-
-from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem
+from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDelete
 from buttercup.orchestrator.registry import TaskRegistry
 
@@ -31,7 +30,9 @@ class Cancellation:
 
     def __post_init__(self):
         """Initialize Redis connection, deletion queue and task registry."""
-        self.delete_queue = QueueFactory(self.redis).create_delete_task_queue(block_time=None)
+        self.delete_queue = QueueFactory(self.redis).create(
+            QueueNames.DELETE_TASK, GroupNames.SCHEDULER_DELETE_TASK, block_time=None
+        )
         self.registry = TaskRegistry(self.redis)
 
     def process_delete_request(self, delete_request: TaskDelete) -> bool:

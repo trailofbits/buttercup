@@ -4,21 +4,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
+from buttercup.common.maps import FuzzerMap
 from buttercup.common.datastructures.orchestrator_pb2 import TaskReady, Task, SourceDetail
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest
-from buttercup.orchestrator.cancellation.cancellation import Cancellation
+from buttercup.orchestrator.scheduler.cancellation import Cancellation
+from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput, WeightedTarget
+from clusterfuzz.fuzz import get_fuzz_targets
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Scheduler:
-    download_dir: Path
-    redis: Redis
+    tasks_storage_dir: Path
+    redis: Redis | None = None
     sleep_time: float = 1.0
     mock_mode: bool = False
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
+    build_output_queue: ReliableQueue | None = field(init=False, default=None)
+    fuzzer_map: FuzzerMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
 
     def __post_init__(self):
@@ -30,6 +34,10 @@ class Scheduler:
                 QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
             )
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
+            self.build_output_queue = queue_factory.create(
+                QueueNames.BUILD_OUTPUT, GroupNames.SCHEDULER_BUILD_OUTPUT, block_time=None
+            )
+            self.fuzzer_map = FuzzerMap(self.redis)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""
@@ -43,18 +51,29 @@ class Scheduler:
                 engine="libfuzzer",
                 sanitizer="address",
                 ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
+                source_path=f"/tasks_storage/{task.task_id}/example-libpng",
             )
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
     def process_ready_task(self, task: Task) -> BuildRequest:
         """Parse a task that has been downloaded and is ready to be built"""
-        logger.info(f"Processing task {task.task_id}")
+        logger.info(f"Processing ready task {task.task_id}")
         if self.mock_mode:
             logger.info(f"Mock mode enabled, checking if {task.task_id} can be mocked")
             return self.mock_process_ready_task(task)
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
+
+    def process_build_output(self, build_output: BuildOutput) -> list[WeightedTarget]:
+        """Process a build output"""
+        logger.info(
+            f"Processing build output for {build_output.package_name}/{build_output.engine}/{build_output.sanitizer}/{build_output.output_ossfuzz_path}"
+        )
+        build_dir = Path(build_output.output_ossfuzz_path) / "build" / "out" / build_output.package_name
+        targets = get_fuzz_targets(build_dir)
+        logger.debug(f"Found {len(targets)} targets: {targets}")
+        return [WeightedTarget(weight=1.0, target=build_output, harness_path=tgt) for tgt in targets]
 
     def serve_ready_task(self) -> bool:
         """Handle a ready task"""
@@ -74,6 +93,28 @@ class Scheduler:
 
         return False
 
+    def serve_build_output(self) -> bool:
+        """Handle a build output"""
+        build_output_item: RQItem[BuildOutput] | None = self.build_output_queue.pop()
+        if build_output_item is not None:
+            build_output: BuildOutput = build_output_item.deserialized
+            try:
+                targets = self.process_build_output(build_output)
+                for target in targets:
+                    self.fuzzer_map.push_target(target)
+                self.build_output_queue.ack_item(build_output_item.item_id)
+                logger.info(
+                    f"Pushed {len(targets)} targets to fuzzer map for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.source_path}"
+                )
+                return True
+            except Exception as e:
+                logger.error(
+                    f"Failed to process build output for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.source_path}: {e}"
+                )
+                return False
+
+        return False
+
     def serve(self):
         """Main orchestrator loop that drives task progress forward.
 
@@ -88,14 +129,8 @@ class Scheduler:
         since this suggests more work may be available. If no work was done, the loop
         sleeps briefly to reduce system load.
         """
-        if self.ready_queue is None:
-            raise ValueError("Ready queue is not initialized")
-
-        if self.build_requests_queue is None:
-            raise ValueError("Build requests queue is not initialized")
-
-        if self.cancellation is None:
-            raise ValueError("Cancellation service is not initialized")
+        if self.redis is None:
+            raise ValueError("Redis is not initialized")
 
         logger.info("Starting scheduler service")
 
@@ -110,5 +145,5 @@ class Scheduler:
             did_work = False
 
             # Run all scheduler components and track if any did work
-            components = [self.serve_ready_task, self.cancellation.process_cancellations]
+            components = [self.serve_ready_task, self.serve_build_output, self.cancellation.process_cancellations]
             did_work = any(component() for component in components)

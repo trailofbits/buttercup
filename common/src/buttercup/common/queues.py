@@ -32,6 +32,7 @@ class GroupNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
     SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
+    SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
 
 
 class HashNames(str, Enum):
@@ -130,7 +131,6 @@ class RQItem(Generic[MsgType]):
 
     item_id: str
     deserialized: MsgType
-    consumer_name: str
 
 
 @dataclass
@@ -146,7 +146,7 @@ class ReliableQueue(Generic[MsgType]):
     task_timeout_ms: int = 180000
     reader_name: str | None = None
     last_stream_id: str | None = ">"
-    block_time: int = 200
+    block_time: int | None = 200
 
     INAME = b"item"
 
@@ -220,7 +220,7 @@ class ReliableQueue(Generic[MsgType]):
         msg = self.msg_builder()
         msg.ParseFromString(message_data[self.INAME])
 
-        return RQItem[MsgType](item_id=message_id, deserialized=msg, consumer_name=self.reader_name)
+        return RQItem[MsgType](item_id=message_id, deserialized=msg)
 
     @_ensure_group_name
     def ack_item(self, item_id: str) -> None:
@@ -256,7 +256,7 @@ class QueueFactory:
                 QueueNames.BUILD_OUTPUT,
                 BuildOutput,
                 BUILD_OUTPUT_TASK_TIMEOUT_MS,
-                [GroupNames.ORCHESTRATOR],
+                [GroupNames.ORCHESTRATOR, GroupNames.SCHEDULER_BUILD_OUTPUT],
             ),
             QueueNames.DOWNLOAD_TASKS: QueueConfig(
                 QueueNames.DOWNLOAD_TASKS,
