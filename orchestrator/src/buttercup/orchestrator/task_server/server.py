@@ -12,9 +12,9 @@ from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
-from buttercup.orchestrator.task_server.backend import new_task
+from buttercup.orchestrator.task_server.backend import delete_task, new_task
 from buttercup.common.logger import setup_logging
-from buttercup.orchestrator.task_server.dependencies import get_task_queue, get_settings
+from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
 from buttercup.common.queues import ReliableQueue
 
 settings = get_settings()
@@ -98,8 +98,23 @@ def post_v1_task_(
 def delete_v1_task_task_id_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     task_id: UUID,
+    delete_task_queue: Annotated[ReliableQueue, Depends(get_delete_task_queue)],
 ) -> str:
     """
-    Cancel Task
+    Cancel a task by its ID.
+
+    This endpoint allows canceling an existing task by its unique identifier. The task will be marked for deletion
+    and removed from the system.
+
+    Args:
+        credentials: HTTP Basic authentication credentials required to access this endpoint
+        task_id: The UUID of the task to cancel
+        delete_task_queue: Queue for processing task deletion requests
+
+    Returns:
+        str: Empty string on successful deletion request
+
+    Raises:
+        HTTPException: If authentication fails
     """
-    pass
+    return delete_task(task_id, delete_task_queue)

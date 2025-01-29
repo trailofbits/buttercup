@@ -1,3 +1,5 @@
+import time
+from uuid import UUID
 from buttercup.orchestrator.task_server.models.types import (
     Task,
     TaskType,
@@ -6,10 +8,12 @@ from buttercup.orchestrator.task_server.models.types import (
 from buttercup.common.datastructures.orchestrator_pb2 import (
     Task as TaskProto,
     SourceDetail as SourceDetailProto,
+    TaskDelete,
     TaskDownload,
 )
 from buttercup.common.queues import ReliableQueue
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +58,19 @@ def new_task(task: Task, tasks_queue: ReliableQueue) -> str:
         logger.info(f"New task: {task_proto}")
 
     return task_proto.task_id
+
+
+def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
+    """
+    Delete a task by pushing a delete request to the task deletion queue.
+
+    Args:
+        task_id: The unique identifier of the task to delete
+        delete_task_queue: Queue for processing task deletion requests
+
+    Returns:
+        Empty string on successful deletion request
+    """
+    task_delete = TaskDelete(task_id=str(task_id), received_at=time.time())
+    delete_task_queue.push(task_delete)
+    return ""

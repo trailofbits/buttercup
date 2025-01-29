@@ -6,6 +6,7 @@ from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.datastructures.orchestrator_pb2 import TaskReady, Task, SourceDetail
 from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest
+from buttercup.orchestrator.cancellation.cancellation import Cancellation
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +15,21 @@ logger = logging.getLogger(__name__)
 class Scheduler:
     download_dir: Path
     redis: Redis
-    sleep_time: float = 0.1
+    sleep_time: float = 1.0
     mock_mode: bool = False
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
+    cancellation: Cancellation | None = field(init=False, default=None)
 
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS)
-            self.build_requests_queue = queue_factory.create(QueueNames.BUILD)
+            # Input queues are non-blocking as we're already sleeping between iterations
+            self.cancellation = Cancellation(redis=self.redis)
+            self.ready_queue = queue_factory.create(
+                QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
+            )
+            self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""
@@ -69,18 +75,40 @@ class Scheduler:
         return False
 
     def serve(self):
-        """Main loop to process tasks from queue"""
+        """Main orchestrator loop that drives task progress forward.
+
+        This is the central scheduling loop that coordinates all components of the orchestrator.
+        On each iteration, each subcomponent gets a chance to run and make progress:
+
+        1. Ready tasks are processed and converted to build requests
+        2. Cancellation service checks for timed out or cancelled tasks
+        3. Additional scheduler components will be added here
+
+        If any work was done during an iteration, the next iteration starts immediately
+        since this suggests more work may be available. If no work was done, the loop
+        sleeps briefly to reduce system load.
+        """
         if self.ready_queue is None:
             raise ValueError("Ready queue is not initialized")
 
         if self.build_requests_queue is None:
             raise ValueError("Build requests queue is not initialized")
 
+        if self.cancellation is None:
+            raise ValueError("Cancellation service is not initialized")
+
         logger.info("Starting scheduler service")
 
+        did_work = False
         while True:
-            self.serve_ready_task()
-            # TODO: do other scheduler logic here
+            if not did_work:
+                # Sleep first to prevent busy waiting in case of exceptions in the loop
+                logger.info(f"Sleeping for {self.sleep_time} seconds")
+                time.sleep(self.sleep_time)
 
-            logger.info(f"Sleeping for {self.sleep_time} seconds")
-            time.sleep(self.sleep_time)
+            # Reset work tracker
+            did_work = False
+
+            # Run all scheduler components and track if any did work
+            components = [self.serve_ready_task, self.cancellation.process_cancellations]
+            did_work = any(component() for component in components)

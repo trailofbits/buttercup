@@ -9,7 +9,7 @@ from buttercup.common.datastructures.fuzzer_msg_pb2 import (
     BuildOutput,
     Crash,
 )
-from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady
+from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady, TaskDelete
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
 import uuid
@@ -23,6 +23,7 @@ class QueueNames(str, Enum):
     CRASH = "fuzzer_crash_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
+    DELETE_TASK = "orchestrator_delete_task_queue"
 
 
 class GroupNames(str, Enum):
@@ -30,6 +31,7 @@ class GroupNames(str, Enum):
     ORCHESTRATOR = "orchestrator_group"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
+    SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
 
 
 class HashNames(str, Enum):
@@ -40,6 +42,7 @@ BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
+DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
 CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
 
 logger = logging.getLogger(__name__)
@@ -273,6 +276,12 @@ class QueueFactory:
                 CRASH_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
+            QueueNames.DELETE_TASK: QueueConfig(
+                QueueNames.DELETE_TASK,
+                TaskDelete,
+                DELETE_TASK_TIMEOUT_MS,
+                [GroupNames.SCHEDULER_DELETE_TASK],
+            ),
         }
     )
 
@@ -294,6 +303,11 @@ class QueueFactory:
     @overload
     def create(
         self, queue_name: Literal[QueueNames.READY_TASKS], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[TaskReady]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.DELETE_TASK], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[TaskReady]: ...
 
     def create(

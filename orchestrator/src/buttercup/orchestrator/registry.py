@@ -37,12 +37,32 @@ class TaskRegistry:
         task_bytes = self.redis.hget(self.hash_name, self._prepare_key(task_id))
         if task_bytes is None:
             return None
-
         return Task.FromString(task_bytes)
 
     def delete(self, task_id: str):
         """Delete a task from the registry"""
         self.redis.hdel(self.hash_name, self._prepare_key(task_id))
+
+    def mark_cancelled(self, task: Task):
+        """Mark a task as cancelled in the registry"""
+        task.cancelled = True
+        self.set(task)
+
+    def is_cancelled(self, task_or_id: str | Task) -> bool:
+        """Check if a task is cancelled
+
+        Args:
+            task_or_id: Either a Task object or task ID string
+
+        Returns:
+            True if the task is cancelled, False otherwise
+        """
+        # Get task_id
+        task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
+
+        # Check Redis
+        task = self.get(task_id)
+        return task.cancelled if task else True
 
 
 def task_registry_cli():
