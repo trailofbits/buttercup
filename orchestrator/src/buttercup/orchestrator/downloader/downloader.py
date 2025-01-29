@@ -9,6 +9,7 @@ import time
 from typing import Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import subprocess
 
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue, QueueNames, GroupNames
 from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload, TaskReady
@@ -119,6 +120,46 @@ class Downloader:
             logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
             return None
 
+    def apply_patch_diff(self, task_id: str, tmp_task_dir: Path, diff_dir: Path) -> bool:
+        """Apply a patch diff to the source code."""
+        try:
+            # Find the first .patch or .diff file in the directory
+            diff_files = list(diff_dir.glob("*.patch")) + list(diff_dir.glob("*.diff"))
+            if not diff_files:
+                # If no .patch or .diff files found, try any file
+                diff_files = list(diff_dir.glob("*"))
+
+            if not diff_files:
+                raise FileNotFoundError("No diff file found in the extracted directory")
+
+            diff_file = diff_files[0]
+            logger.info(f"[task {task_id}] Found diff file: {diff_file}")
+
+            # Use patch command to apply the patch
+            subprocess.run(
+                ["patch", "-p1", "-d", str(tmp_task_dir)],
+                input=diff_file.read_text(),
+                text=True,
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+
+            logger.info(f"[task {task_id}] Successfully applied patch")
+            return True
+        except FileNotFoundError as e:
+            logger.error(f"[task {task_id}] File not found: {str(e)}")
+            return False
+        except subprocess.CalledProcessError as e:
+            logger.error(f"[task {task_id}] Error applying diff: {str(e)}")
+            logger.debug(f"[task {task_id}] Error returncode: {e.returncode}")
+            logger.debug(f"[task {task_id}] Error stdout: {e.stdout}")
+            logger.debug(f"[task {task_id}] Error stderr: {e.stderr}")
+            return False
+        except Exception as e:
+            logger.error(f"[task {task_id}] Error applying diff: {str(e)}")
+            return False
+
     def process_task(self, task: Task) -> bool:
         """Process a single task by downloading all its sources"""
         logger.info(f"Processing task {task.task_id} (message_id={task.message_id})")
@@ -128,6 +169,8 @@ class Downloader:
             tmp_task_dir = Path(tmp_task_dir)
             logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
+            # First download all sources
+            source_paths: dict[SourceDetail.SourceType, Path] = {}
             for source in task.sources:
                 # Create temporary directory for download
                 with tempfile.TemporaryDirectory() as temp_dir:
@@ -143,6 +186,14 @@ class Downloader:
                         break
 
                     source.path = extracted_dir
+                    source_paths[source.source_type] = tmp_task_dir / extracted_dir
+
+            # If this is a delta task, apply the diff to the source code
+            if success and task.task_type == Task.TaskType.TASK_TYPE_DELTA:
+                logger.info(f"[task {task.task_id}] Applying diff to source code")
+                diff_dir = source_paths.get(SourceDetail.SourceType.SOURCE_TYPE_DIFF)
+                assert diff_dir is not None, "Missing diff source for delta task"
+                success = self.apply_patch_diff(task.task_id, tmp_task_dir, diff_dir)
 
             if success:
                 # Once everything is downloaded and uncompressed in the
