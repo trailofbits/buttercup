@@ -23,6 +23,8 @@ class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     CRASH = "fuzzer_crash_queue"
+    UNIQUE_VULNERABILITIES = "unique_vulnerabilities_queue"
+    CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
     DELETE_TASK = "orchestrator_delete_task_queue"
@@ -240,7 +242,6 @@ class QueueConfig:
     task_timeout_ms: int
     group_names: list[GroupNames] = field(default_factory=list)
 
-
 @dataclass
 class QueueFactory:
     """Factory for creating common reliable queues"""
@@ -277,6 +278,12 @@ class QueueFactory:
                 Crash,
                 CRASH_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
+            ),
+            QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
+                QueueNames.CONFIRMED_VULNERABILITIES,
+                Crash,
+                CRASH_TASK_TIMEOUT_MS,
+                [],
             ),
             QueueNames.DELETE_TASK: QueueConfig(
                 QueueNames.DELETE_TASK,
