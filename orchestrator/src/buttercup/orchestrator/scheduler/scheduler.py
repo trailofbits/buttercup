@@ -26,7 +26,9 @@ class Scheduler:
             queue_factory = QueueFactory(self.redis)
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis, sleep_time=None)
-            self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None)
+            self.ready_queue = queue_factory.create(
+                QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
+            )
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:

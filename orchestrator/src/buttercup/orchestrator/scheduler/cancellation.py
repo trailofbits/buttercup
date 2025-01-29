@@ -6,7 +6,6 @@ from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDelete
 from buttercup.orchestrator.registry import TaskRegistry
-from buttercup.orchestrator.task_server.dependencies import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ class Cancellation:
     def __post_init__(self):
         """Initialize Redis connection, deletion queue and task registry."""
         if self.redis is None:
-            self.redis = get_redis()
+            raise ValueError("Redis connection is not initialized")
 
         self.delete_queue = QueueFactory(self.redis).create_delete_task_queue(block_time=None)
         self.registry = TaskRegistry(self.redis)

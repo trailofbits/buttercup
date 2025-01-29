@@ -42,11 +42,8 @@ BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
-<<<<<<< HEAD
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
-=======
 CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
->>>>>>> origin/main
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +274,12 @@ class QueueFactory:
                 QueueNames.CRASH,
                 Crash,
                 CRASH_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
+            ),
+            QueueNames.DELETE_TASK: QueueConfig(
+                QueueNames.DELETE_TASK,
+                TaskDelete,
+                DELETE_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
         }
