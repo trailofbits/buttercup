@@ -31,9 +31,6 @@ class Cancellation:
 
     def __post_init__(self):
         """Initialize Redis connection, deletion queue and task registry."""
-        if self.redis is None:
-            raise ValueError("Redis connection is not initialized")
-
         self.delete_queue = QueueFactory(self.redis).create_delete_task_queue(block_time=None)
         self.registry = TaskRegistry(self.redis)
 
