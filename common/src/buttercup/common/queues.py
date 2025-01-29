@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from redis import Redis, RedisError
 from google.protobuf.message import Message
 from buttercup.common.datastructures.fuzzer_msg_pb2 import (
     BuildRequest,
     BuildOutput,
+    Crash,
 )
 from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady, TaskDelete
 import logging
-from typing import Type, Generic, TypeVar
+from typing import Type, Generic, TypeVar, Literal, overload
 import uuid
 from enum import Enum
 from typing import Any
@@ -19,6 +20,7 @@ from typing import Any
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
+    CRASH = "fuzzer_crash_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
     DELETE_TASK = "orchestrator_delete_task_queue"
@@ -40,7 +42,11 @@ BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
 BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
+<<<<<<< HEAD
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
+=======
+CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
+>>>>>>> origin/main
 
 logger = logging.getLogger(__name__)
 
@@ -136,10 +142,10 @@ class ReliableQueue(Generic[MsgType]):
     A queue that is reliable and can be used to process tasks in a distributed environment.
     """
 
-    queue_name: str
-    group_name: str
     redis: Redis
+    queue_name: str
     msg_builder: Type[MsgType]
+    group_name: str | None = None
     task_timeout_ms: int = 180000
     reader_name: str | None = None
     last_stream_id: str | None = ">"
@@ -151,12 +157,13 @@ class ReliableQueue(Generic[MsgType]):
         if self.reader_name is None:
             self.reader_name = f"rqueue_{str(uuid.uuid4())}"
 
-        # Create consumer group if it doesn't exist
-        try:
-            self.redis.xgroup_create(self.queue_name, self.group_name, mkstream=True)
-        except RedisError:
-            # Group may already exist
-            pass
+        if self.group_name is not None:
+            # Create consumer group if it doesn't exist
+            try:
+                self.redis.xgroup_create(self.queue_name, self.group_name, mkstream=True)
+            except RedisError:
+                # Group may already exist
+                pass
 
     def size(self) -> int:
         return self.redis.xlen(self.queue_name)
@@ -165,6 +172,15 @@ class ReliableQueue(Generic[MsgType]):
         bts = item.SerializeToString()
         self.redis.xadd(self.queue_name, {self.INAME: bts})
 
+    def _ensure_group_name(func):
+        def wrapper(self, *args, **kwargs):
+            if self.group_name is None:
+                raise ValueError("group_name must be set for this operation")
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    @_ensure_group_name
     def pop(self) -> RQItem[MsgType] | None:
         streams_items = self.redis.xreadgroup(
             self.group_name,
@@ -209,11 +225,21 @@ class ReliableQueue(Generic[MsgType]):
 
         return RQItem[MsgType](item_id=message_id, deserialized=msg, consumer_name=self.reader_name)
 
+    @_ensure_group_name
     def ack_item(self, item_id: str) -> None:
         self.redis.xack(self.queue_name, self.group_name, item_id)
 
+    @_ensure_group_name
     def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:
         self.redis.xclaim(self.queue_name, self.group_name, self.reader_name, min_idle_time, [item_id])
+
+
+@dataclass
+class QueueConfig:
+    queue_name: QueueNames
+    msg_builder: Type[MsgType]
+    task_timeout_ms: int
+    group_names: list[GroupNames] = field(default_factory=list)
 
 
 @dataclass
@@ -221,55 +247,87 @@ class QueueFactory:
     """Factory for creating common reliable queues"""
 
     redis: Redis
+    _config: dict[QueueNames, QueueConfig] = field(
+        default_factory=lambda: {
+            QueueNames.BUILD: QueueConfig(
+                QueueNames.BUILD,
+                BuildRequest,
+                BUILD_TASK_TIMEOUT_MS,
+                [GroupNames.BUILDER_BOT],
+            ),
+            QueueNames.BUILD_OUTPUT: QueueConfig(
+                QueueNames.BUILD_OUTPUT,
+                BuildOutput,
+                BUILD_OUTPUT_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
+            ),
+            QueueNames.DOWNLOAD_TASKS: QueueConfig(
+                QueueNames.DOWNLOAD_TASKS,
+                TaskDownload,
+                DOWNLOAD_TASK_TIMEOUT_MS,
+                [GroupNames.DOWNLOAD_TASKS],
+            ),
+            QueueNames.READY_TASKS: QueueConfig(
+                QueueNames.READY_TASKS,
+                TaskReady,
+                READY_TASK_TIMEOUT_MS,
+                [GroupNames.SCHEDULER_READY_TASKS],
+            ),
+            QueueNames.CRASH: QueueConfig(
+                QueueNames.CRASH,
+                Crash,
+                CRASH_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
+            ),
+        }
+    )
 
-    def create_build_queue(self, **kwargs: Any) -> ReliableQueue[BuildRequest]:
-        return ReliableQueue(
-            queue_name=QueueNames.BUILD,
-            group_name=GroupNames.BUILDER_BOT,
-            redis=self.redis,
-            msg_builder=BuildRequest,
-            task_timeout_ms=BUILD_TASK_TIMEOUT_MS,
-            **kwargs,
-        )
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.BUILD], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[BuildRequest]: ...
 
-    def create_build_output_queue(self, **kwargs: Any) -> ReliableQueue[BuildOutput]:
-        return ReliableQueue(
-            queue_name=QueueNames.BUILD_OUTPUT,
-            group_name=GroupNames.ORCHESTRATOR,
-            redis=self.redis,
-            msg_builder=BuildOutput,
-            task_timeout_ms=BUILD_OUTPUT_TASK_TIMEOUT_MS,
-            **kwargs,
-        )
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.BUILD_OUTPUT], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[BuildOutput]: ...
 
-    def create_download_tasks_queue(self, **kwargs: Any) -> ReliableQueue[TaskDownload]:
-        return ReliableQueue(
-            queue_name=QueueNames.DOWNLOAD_TASKS,
-            group_name=GroupNames.DOWNLOAD_TASKS,
-            redis=self.redis,
-            msg_builder=TaskDownload,
-            task_timeout_ms=DOWNLOAD_TASK_TIMEOUT_MS,
-            **kwargs,
-        )
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.DOWNLOAD_TASKS], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[TaskDownload]: ...
 
-    def create_ready_tasks_queue(self, **kwargs: Any) -> ReliableQueue[TaskReady]:
-        return ReliableQueue(
-            queue_name=QueueNames.READY_TASKS,
-            group_name=GroupNames.SCHEDULER_READY_TASKS,
-            redis=self.redis,
-            msg_builder=TaskReady,
-            task_timeout_ms=READY_TASK_TIMEOUT_MS,
-        )
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.READY_TASKS], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[TaskReady]: ...
 
-    def create_delete_task_queue(self, **kwargs: Any) -> ReliableQueue[TaskDelete]:
-        return ReliableQueue(
-            queue_name=QueueNames.DELETE_TASK,
-            group_name=GroupNames.DELETE_TASK,
-            redis=self.redis,
-            msg_builder=TaskDelete,
-            task_timeout_ms=DELETE_TASK_TIMEOUT_MS,
-            **kwargs,
-        )
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.DELETE_TASK], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[TaskReady]: ...
+
+    def create(
+        self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
+    ) -> ReliableQueue[MsgType]:
+        if queue_name not in self._config:
+            raise ValueError(f"Invalid queue name: {queue_name}")
+
+        config = self._config[queue_name]
+        queue_args = {
+            "redis": self.redis,
+            "queue_name": config.queue_name,
+            "msg_builder": config.msg_builder,
+            "task_timeout_ms": config.task_timeout_ms,
+        }
+        if group_name is not None:
+            if group_name not in config.group_names:
+                raise ValueError(f"Invalid group name: {group_name}")
+
+            queue_args["group_name"] = group_name
+
+        queue_args.update(kwargs)
+        return ReliableQueue(**queue_args)
 
 
 @dataclass

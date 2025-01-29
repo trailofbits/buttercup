@@ -32,6 +32,16 @@ class BuildRequest(_message.Message):
     source_path: str
     def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
+class Crash(_message.Message):
+    __slots__ = ["crash_input_path", "harness_path", "target"]
+    CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    crash_input_path: str
+    harness_path: str
+    target: BuildOutput
+    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ..., crash_input_path: _Optional[str] = ...) -> None: ...
+
 class WeightedTarget(_message.Message):
     __slots__ = ["harness_path", "target", "weight"]
     HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]

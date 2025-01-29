@@ -22,10 +22,10 @@ def get_redis() -> Redis:
 @lru_cache
 def get_task_queue() -> ReliableQueue:
     logger.debug(f"Connecting to task queue at {QueueNames.DOWNLOAD_TASKS}")
-    return QueueFactory(get_redis()).create_download_tasks_queue()
+    return QueueFactory(get_redis()).create(QueueNames.DOWNLOAD_TASKS)
 
 
 @lru_cache
 def get_delete_task_queue() -> ReliableQueue:
     logger.debug(f"Connecting to delete task queue at {QueueNames.DELETE_TASK}")
-    return QueueFactory(get_redis()).create_delete_task_queue()
+    return QueueFactory(get_redis()).create(QueueNames.DELETE_TASK)

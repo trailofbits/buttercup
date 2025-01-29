@@ -4,12 +4,15 @@ import time
 import os
 from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
 from buttercup.common.maps import FuzzerMap
+from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
 from buttercup.common import utils
-from buttercup.common.corpus import Corpus
+from buttercup.common.corpus import Corpus, CrashDir
 import random
 import tempfile
 from buttercup.common.logger import setup_logging
 from redis import Redis
+from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
+from clusterfuzz.fuzz import engine
 
 logger = setup_logging(__name__)
 
@@ -29,6 +32,7 @@ def main():
     runner = Runner(Conf(args.timeout))
     seconds_sleep = args.timer // 1000
     q = FuzzerMap(Redis.from_url(args.redis_url))
+    output_q = QueueFactory(Redis.from_url(args.redis_url)).create(QueueNames.CRASH, GroupNames.ORCHESTRATOR)
     while True:
         weighted_items: list[WeightedTarget] = q.list_targets()
         logger.info(f"Received {len(weighted_items)} weighted targets")
@@ -57,8 +61,22 @@ def main():
                     tgtbuild.sanitizer,
                 )
                 logger.info(f"Starting fuzzer {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
-                runner.run_fuzzer(fuzz_conf)
+                result = runner.run_fuzzer(fuzz_conf)
+
+                crash_dir = CrashDir(chc.harness_path)
+                for crash_ in result.crashes:
+                    crash: engine.Crash = crash_
+                    logger.info(f"Found crash {crash.input_path}")
+                    dst = crash_dir.copy_file(crash.input_path)
+                    crash = Crash(
+                        target=tgtbuild,
+                        harness_path=chc.harness_path,
+                        crash_input_path=dst,
+                    )
+                    output_q.push(crash)
+
                 corp.copy_corpus(copied_corp_dir)
+
                 logger.info(f"Fuzzer finished for {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
 
         logger.info(f"Sleeping for {seconds_sleep} seconds")
