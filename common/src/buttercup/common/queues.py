@@ -280,7 +280,7 @@ class QueueFactory:
                 QueueNames.DELETE_TASK,
                 TaskDelete,
                 DELETE_TASK_TIMEOUT_MS,
-                [GroupNames.ORCHESTRATOR],
+                [GroupNames.DELETE_TASK],
             ),
         }
     )
