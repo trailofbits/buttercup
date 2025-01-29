@@ -20,13 +20,11 @@ class Cancellation:
     3. Maintaining the task registry state
 
     Attributes:
-        sleep_time (float): Safety delay between processing cycles, defaults to 1.0s
         redis (Redis | None): Redis connection, will use default if None
         delete_queue (ReliableQueue | None): Queue for processing deletion requests
         registry (TaskRegistry | None): Registry for tracking task state
     """
 
-    sleep_time: float = 1.0
     redis: Redis | None = None
     delete_queue: ReliableQueue | None = field(init=False, default=None)
     registry: TaskRegistry | None = field(init=False, default=None)

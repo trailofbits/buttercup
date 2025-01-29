@@ -25,7 +25,7 @@ class Scheduler:
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             # Input queues are non-blocking as we're already sleeping between iterations
-            self.cancellation = Cancellation(redis=self.redis, sleep_time=None)
+            self.cancellation = Cancellation(redis=self.redis)
             self.ready_queue = queue_factory.create(
                 QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
             )
