@@ -31,7 +31,7 @@ class GroupNames(str, Enum):
     ORCHESTRATOR = "orchestrator_group"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
-    DELETE_TASK = "orchestrator_delete_task_group"
+    SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
 
 
 class HashNames(str, Enum):
@@ -280,7 +280,7 @@ class QueueFactory:
                 QueueNames.DELETE_TASK,
                 TaskDelete,
                 DELETE_TASK_TIMEOUT_MS,
-                [GroupNames.DELETE_TASK],
+                [GroupNames.SCHEDULER_DELETE_TASK],
             ),
         }
     )
