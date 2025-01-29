@@ -13,7 +13,7 @@ from buttercup.common import utils
 from buttercup.common.datastructures.msg_pb2 import WeightedTarget
 from buttercup.common.logger import setup_logging
 from buttercup.common.maps import FuzzerMap
-from buttercup.seed_gen.tasks import Task, do_seed_init, do_seed_explore, do_vuln_discovery
+from buttercup.seed_gen.tasks import Task, do_seed_explore, do_seed_init, do_vuln_discovery
 
 logger = setup_logging(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
 
