@@ -25,7 +25,7 @@ class Cancellation:
         registry (TaskRegistry | None): Registry for tracking task state
     """
 
-    redis: Redis | None = None
+    redis: Redis
     delete_queue: ReliableQueue | None = field(init=False, default=None)
     registry: TaskRegistry | None = field(init=False, default=None)
 
