@@ -11,6 +11,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     TaskDownload,
     TaskReady,
     TaskDelete,
+    ConfirmedVulnerability,
 )
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
@@ -23,6 +24,8 @@ class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     CRASH = "fuzzer_crash_queue"
+    UNIQUE_VULNERABILITIES = "unique_vulnerabilities_queue"
+    CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
     DELETE_TASK = "orchestrator_delete_task_queue"
@@ -35,6 +38,8 @@ class GroupNames(str, Enum):
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
     SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
     SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
+    UNIQUE_VULNERABILITIES = "unique_vulnerabilities_group"
+    CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_group"
 
 
 class HashNames(str, Enum):
@@ -47,7 +52,8 @@ DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
 CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
-
+UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
+CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 logger = logging.getLogger(__name__)
 
 
@@ -277,6 +283,18 @@ class QueueFactory:
                 Crash,
                 CRASH_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
+            ),
+            QueueNames.UNIQUE_VULNERABILITIES: QueueConfig(
+                QueueNames.UNIQUE_VULNERABILITIES,
+                Crash,
+                UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS,
+                [GroupNames.UNIQUE_VULNERABILITIES],
+            ),
+            QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
+                QueueNames.CONFIRMED_VULNERABILITIES,
+                ConfirmedVulnerability,
+                CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS,
+                [GroupNames.CONFIRMED_VULNERABILITIES],
             ),
             QueueNames.DELETE_TASK: QueueConfig(
                 QueueNames.DELETE_TASK,

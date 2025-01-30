@@ -72,3 +72,8 @@ message Crash {
     string harness_path = 2;
     string crash_input_path = 3;
 } 
+
+message ConfirmedVulnerability {
+    Crash crash = 1;
+    string vuln_id = 2;
+}

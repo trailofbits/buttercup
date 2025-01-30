@@ -34,6 +34,14 @@ class BuildRequest(_message.Message):
     source_path: str
     def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
+class ConfirmedVulnerability(_message.Message):
+    __slots__ = ["crash", "vuln_id"]
+    CRASH_FIELD_NUMBER: _ClassVar[int]
+    VULN_ID_FIELD_NUMBER: _ClassVar[int]
+    crash: Crash
+    vuln_id: str
+    def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
+
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "harness_path", "target"]
     CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
