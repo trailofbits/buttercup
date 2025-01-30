@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_BASE} AS runtime
 
 # Install required system packages
-RUN apt-get update && \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y patch && \
     rm -rf /var/lib/apt/lists/*
 
