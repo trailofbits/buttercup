@@ -22,7 +22,7 @@ def mock_queues():
     queue_factory.create.side_effect = [crash_queue, unique_vulnerabilities_queue, confirmed_vulnerabilities_queue]
 
     # Create a patch for QueueFactory
-    with patch('buttercup.orchestrator.scheduler.vulnerabilities.QueueFactory', return_value=queue_factory):
+    with patch("buttercup.orchestrator.scheduler.vulnerabilities.QueueFactory", return_value=queue_factory):
         yield {
             "factory": queue_factory,
             "crash": crash_queue,
