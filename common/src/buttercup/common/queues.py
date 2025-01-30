@@ -244,6 +244,7 @@ class QueueConfig:
     task_timeout_ms: int
     group_names: list[GroupNames] = field(default_factory=list)
 
+
 @dataclass
 class QueueFactory:
     """Factory for creating common reliable queues"""
