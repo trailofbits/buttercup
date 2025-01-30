@@ -4,7 +4,7 @@ from redis import Redis
 import argparse
 import tempfile
 from buttercup.common.queues import RQItem, QueueFactory
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
+from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
 from buttercup.common.logger import setup_logging
 import shutil
 import time

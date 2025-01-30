@@ -90,6 +90,7 @@ services:
         condition: service_started
       graphdb:
         condition: service_started
+
   build-bot:
     command: ["buttercup-fuzzer-builder", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
@@ -155,10 +156,13 @@ services:
       context: .
       dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-scheduler", "serve", "--mock_mode"]
+    volumes:
+      - ./crs_scratch:/crs_scratch
     environment:
       - BUTTERCUP_SCHEDULER_SERVE__REDIS_URL=redis://redis:6379
       - BUTTERCUP_SCHEDULER_LOG_LEVEL=debug
       - BUTTERCUP_SCHEDULER_SERVE__SLEEP_TIME=5
+      - BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR=/crs_scratch
     depends_on:
       redis:
         condition: service_healthy

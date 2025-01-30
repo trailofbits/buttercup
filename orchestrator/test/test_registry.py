@@ -1,6 +1,6 @@
 import pytest
 from buttercup.orchestrator.registry import TaskRegistry
-from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail
+from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 from redis import Redis
 
 

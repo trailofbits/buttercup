@@ -6,6 +6,44 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class BuildOutput(_message.Message):
+    __slots__ = ["engine", "output_ossfuzz_path", "package_name", "sanitizer", "source_path"]
+    ENGINE_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_OSSFUZZ_PATH_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    SANITIZER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    engine: str
+    output_ossfuzz_path: str
+    package_name: str
+    sanitizer: str
+    source_path: str
+    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., output_ossfuzz_path: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
+
+class BuildRequest(_message.Message):
+    __slots__ = ["engine", "ossfuzz", "package_name", "sanitizer", "source_path"]
+    ENGINE_FIELD_NUMBER: _ClassVar[int]
+    OSSFUZZ_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    SANITIZER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    engine: str
+    ossfuzz: str
+    package_name: str
+    sanitizer: str
+    source_path: str
+    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
+
+class Crash(_message.Message):
+    __slots__ = ["crash_input_path", "harness_path", "target"]
+    CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    crash_input_path: str
+    harness_path: str
+    target: BuildOutput
+    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ..., crash_input_path: _Optional[str] = ...) -> None: ...
+
 class Patch(_message.Message):
     __slots__ = ["patch", "task_id", "vulnerability_id"]
     PATCH_FIELD_NUMBER: _ClassVar[int]
@@ -92,3 +130,13 @@ class TaskVulnerability(_message.Message):
     task_id: str
     vulnerability_id: str
     def __init__(self, task_id: _Optional[str] = ..., vulnerability_id: _Optional[str] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., harness_path: _Optional[str] = ..., data_file: _Optional[str] = ..., architecture: _Optional[str] = ...) -> None: ...
+
+class WeightedTarget(_message.Message):
+    __slots__ = ["harness_path", "target", "weight"]
+    HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    harness_path: str
+    target: BuildOutput
+    weight: float
+    def __init__(self, weight: _Optional[float] = ..., target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ...) -> None: ...

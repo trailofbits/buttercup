@@ -1,4 +1,4 @@
-from buttercup.common.datastructures.orchestrator_pb2 import Task
+from buttercup.common.datastructures.msg_pb2 import Task
 from redis import Redis
 from buttercup.common.queues import HashNames
 from dataclasses import dataclass

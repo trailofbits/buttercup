@@ -9,9 +9,10 @@ import time
 from typing import Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+import subprocess
 
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue, QueueNames, GroupNames
-from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload, TaskReady
+from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry
@@ -119,47 +120,132 @@ class Downloader:
             logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
             return None
 
+    def apply_patch_diff(self, task_id: str, tmp_task_dir: Path, diff_dir: str | Path) -> bool:
+        """Apply a patch diff to the source code."""
+        try:
+            # Find all .patch and .diff files in the directory
+            diff_dir = tmp_task_dir / diff_dir
+            diff_files = list(diff_dir.glob("*.patch")) + list(diff_dir.glob("*.diff"))
+            if not diff_files:
+                # If no .patch or .diff files found, try any file
+                diff_files = list(diff_dir.glob("*"))
+
+            if not diff_files:
+                raise FileNotFoundError("No diff file found in the extracted directory")
+
+            # Sort the diff files to ensure consistent order
+            diff_files.sort()
+
+            for diff_file in diff_files:
+                logger.info(f"[task {task_id}] Applying diff file: {diff_file}")
+
+                # Use patch command to apply the patch
+                subprocess.run(
+                    ["patch", "-p1", "-d", str(tmp_task_dir)],
+                    input=diff_file.read_text(),
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    timeout=10,
+                )
+
+                logger.info(f"[task {task_id}] Successfully applied patch {diff_file}")
+
+            return True
+        except FileNotFoundError as e:
+            logger.error(f"[task {task_id}] File not found: {str(e)}")
+            return False
+        except subprocess.CalledProcessError as e:
+            logger.error(f"[task {task_id}] Error applying diff: {str(e)}")
+            logger.debug(f"[task {task_id}] Error returncode: {e.returncode}")
+            logger.debug(f"[task {task_id}] Error stdout: {e.stdout}")
+            logger.debug(f"[task {task_id}] Error stderr: {e.stderr}")
+            return False
+        except Exception as e:
+            logger.exception(f"[task {task_id}] Error applying diff: {str(e)}")
+            return False
+
+    def _download_and_extract_sources(
+        self, task_id: str, tmp_task_dir: Path, sources: list
+    ) -> tuple[bool, Optional[SourceDetail]]:
+        """Download and extract all sources for a task"""
+        diff_source: Optional[SourceDetail] = None
+
+        for source in sources:
+            # Create temporary directory for download
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                result = self.download_source(task_id, temp_path, source)
+                if result is None:
+                    return False, None
+
+                extracted_dir = self.extract_source(task_id, tmp_task_dir, result)
+                if not extracted_dir:
+                    return False, None
+
+                source.path = extracted_dir
+                if source.source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
+                    diff_source = source
+
+        return True, diff_source
+
+    def _move_to_final_location(self, task_id: str, tmp_task_dir: Path) -> bool:
+        """Move the temporary task directory to its final location"""
+        final_task_dir = self.get_task_dir(task_id)
+        try:
+            tmp_task_dir.rename(final_task_dir)
+            logger.info(f"[task {task_id}] Successfully moved task directory to final location")
+            return True
+        except OSError as e:
+            # NOTE: Ignore if directory already exists or is not empty - another
+            # process got there first. We can't just skip the task, because we
+            # need to change the Task while downloading/extracting it.
+            if "Directory not empty" in str(e):
+                logger.warning(
+                    f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it..."
+                )
+                return True
+            else:
+                logger.exception(f"Failed to move task directory: {str(e)}")
+                return False
+        except Exception as e:
+            # Re-raise any other errors
+            logger.exception(f"Failed to move task directory: {str(e)}")
+            return False
+
     def process_task(self, task: Task) -> bool:
         """Process a single task by downloading all its sources"""
         logger.info(f"Processing task {task.task_id} (message_id={task.message_id})")
 
-        success = True
         with tempfile.TemporaryDirectory(dir=self.download_dir) as tmp_task_dir:
             tmp_task_dir = Path(tmp_task_dir)
             logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
-            for source in task.sources:
-                # Create temporary directory for download
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_path = Path(temp_dir)
-                    result = self.download_source(task.task_id, temp_path, source)
-                    if result is None:
-                        success = False
-                        break
+            # Download and extract all sources
+            success, diff_source = self._download_and_extract_sources(task.task_id, tmp_task_dir, task.sources)
+            if not success:
+                logger.error(f"Failed to download and extract sources for task {task.task_id}")
+                return False
 
-                    extracted_dir = self.extract_source(task.task_id, tmp_task_dir, result)
-                    if not extracted_dir:
-                        success = False
-                        break
+            # If this is a delta task, apply the diff to the source code
+            if task.task_type == Task.TaskType.TASK_TYPE_DELTA:
+                logger.info(f"[task {task.task_id}] Applying diff to source code")
+                if diff_source is None:
+                    raise ValueError("Missing diff source for delta task")
 
-                    source.path = extracted_dir
+                success = self.apply_patch_diff(task.task_id, tmp_task_dir, diff_source.path)
+                if not success:
+                    logger.error(f"Failed to apply diff to source code for task {task.task_id}")
+                    return False
 
-            if success:
-                # Once everything is downloaded and uncompressed in the
-                # temporary directory, rename the directory to the task id
-                # (atomically)
-                final_task_dir = self.get_task_dir(task.task_id)
-                try:
-                    tmp_task_dir.rename(final_task_dir)
-                    logger.info(f"[task {task.task_id}] Successfully moved task directory to final location")
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to rename {tmp_task_dir} to {final_task_dir}, something else has already downloaded the task: {str(e)}"
-                    )
-                    logger.warning("Ignore the error and continue as if the task was successfully processed")
-                    success = True
+            # Move to final location
+            success = self._move_to_final_location(task.task_id, tmp_task_dir)
+            if not success:
+                logger.error(f"Failed to move task directory to final location for task {task.task_id}")
+                return False
 
-        return success
+        logger.info(f"Successfully processed task {task.task_id}")
+        return True
 
     def serve(self):
         """Main loop to process tasks from queue"""

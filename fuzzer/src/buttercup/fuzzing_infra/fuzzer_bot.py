@@ -2,7 +2,7 @@ import argparse
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import time
 import os
-from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
+from buttercup.common.datastructures.msg_pb2 import WeightedTarget, Crash
 from buttercup.common.maps import FuzzerMap
 from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
 from buttercup.common import utils
@@ -11,7 +11,6 @@ import random
 import tempfile
 from buttercup.common.logger import setup_logging
 from redis import Redis
-from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
 from clusterfuzz.fuzz import engine
 
 logger = setup_logging(__name__)
@@ -66,8 +65,8 @@ def main():
                 crash_dir = CrashDir(chc.harness_path)
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
-                    logger.info(f"Found crash {crash.input_path}")
                     dst = crash_dir.copy_file(crash.input_path)
+                    logger.info(f"Found crash {dst}")
                     crash = Crash(
                         target=tgtbuild,
                         harness_path=chc.harness_path,

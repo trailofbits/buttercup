@@ -10,7 +10,7 @@ from pathlib import Path
 from redis import Redis
 
 from buttercup.common import utils
-from buttercup.common.datastructures.fuzzer_msg_pb2 import WeightedTarget
+from buttercup.common.datastructures.msg_pb2 import WeightedTarget
 from buttercup.common.logger import setup_logging
 from buttercup.common.queues import (
     NormalQueue,
