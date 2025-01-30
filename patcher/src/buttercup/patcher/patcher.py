@@ -115,8 +115,8 @@ class Patcher:
 
     def serve(self):
         """Main loop to process vulnerabilities from queue"""
-        if self.vulnerability_queue is None or self.patches_queue is None:
-            raise ValueError("Redis queues are not initialized, setup redis connection")
+        if self.redis is None:
+            raise ValueError("Redis is not initialized, setup redis connection")
 
         logger.info("Starting patcher service")
         while True:
