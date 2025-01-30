@@ -1,0 +1,126 @@
+import pytest
+from unittest.mock import Mock, MagicMock
+from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
+from buttercup.common.queues import RQItem, QueueFactory
+from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
+from buttercup.common.datastructures.orchestrator_pb2 import ConfirmedVulnerability
+
+
+@pytest.fixture
+def mock_redis():
+    return Mock()
+
+
+@pytest.fixture
+def mock_queues():
+    crash_queue = Mock()
+    unique_vulnerabilities_queue = Mock()
+    confirmed_vulnerabilities_queue = Mock()
+
+    # Mock QueueFactory
+    queue_factory = Mock(spec=QueueFactory)
+    queue_factory.create.side_effect = [crash_queue, unique_vulnerabilities_queue, confirmed_vulnerabilities_queue]
+
+    return {
+        "factory": queue_factory,
+        "crash": crash_queue,
+        "unique": unique_vulnerabilities_queue,
+        "confirmed": confirmed_vulnerabilities_queue,
+    }
+
+
+@pytest.fixture
+def vulnerabilities(mock_redis, mock_queues):
+    # Patch QueueFactory to return our mock queues
+    return Vulnerabilities(redis=mock_redis)
+
+
+def test_process_crashes_with_no_crashes(vulnerabilities, mock_queues):
+    # Setup
+    mock_queues["crash"].pop.return_value = None
+
+    # Execute
+    result = vulnerabilities.process_crashes()
+
+    # Verify
+    assert result is False
+    mock_queues["crash"].pop.assert_called_once()
+    mock_queues["unique"].push.assert_not_called()
+
+
+def test_process_crashes_with_valid_crash(vulnerabilities, mock_queues):
+    # Setup
+    crash = Crash()
+    crash.target_binary = "test_binary"
+
+    mock_item = RQItem(item_id="test_id", deserialized=crash, consumer_name="test_consumer")
+    mock_queues["crash"].pop.return_value = mock_item
+
+    # Execute
+    result = vulnerabilities.process_crashes()
+
+    # Verify
+    assert result is True
+    mock_queues["crash"].pop.assert_called_once()
+    mock_queues["unique"].push.assert_called_once()
+    mock_queues["crash"].ack_item.assert_called_once_with("test_id")
+
+
+def test_process_unique_vulnerabilities_with_no_vulns(vulnerabilities, mock_queues):
+    # Setup
+    mock_queues["unique"].pop.return_value = None
+
+    # Execute
+    result = vulnerabilities.process_unique_vulnerabilities()
+
+    # Verify
+    assert result is False
+    mock_queues["unique"].pop.assert_called_once()
+    mock_queues["confirmed"].push.assert_not_called()
+
+
+def test_process_unique_vulnerabilities_with_valid_vuln(vulnerabilities, mock_queues):
+    # Setup
+    crash = Crash()
+    crash.target_binary = "test_binary"
+
+    mock_item = RQItem(item_id="test_id", deserialized=crash, consumer_name="test_consumer")
+    mock_queues["unique"].pop.return_value = mock_item
+
+    # Execute
+    result = vulnerabilities.process_unique_vulnerabilities()
+
+    # Verify
+    assert result is True
+    mock_queues["unique"].pop.assert_called_once()
+    mock_queues["confirmed"].push.assert_called_once()
+    mock_queues["unique"].ack_item.assert_called_once_with("test_id")
+
+
+def test_submit_vulnerability_creates_confirmed_vuln(vulnerabilities, mock_queues):
+    # Setup
+    crash = Crash()
+    crash.target_binary = "test_binary"
+
+    # Execute
+    vulnerabilities.submit_vulnerability(crash)
+
+    # Verify
+    mock_queues["confirmed"].push.assert_called_once()
+    # Verify the pushed item is a ConfirmedVulnerability
+    pushed_vuln = mock_queues["confirmed"].push.call_args[0][0]
+    assert isinstance(pushed_vuln, ConfirmedVulnerability)
+    assert pushed_vuln.crash.target_binary == "test_binary"
+    assert pushed_vuln.vuln_id != ""  # Verify UUID was generated
+
+
+def test_dedup_crash_returns_crash(vulnerabilities):
+    # Setup
+    crash = Crash()
+    crash.target_binary = "test_binary"
+
+    # Execute
+    result = vulnerabilities.dedup_crash(crash)
+
+    # Verify
+    assert result == crash  # Currently returns all crashes as unique

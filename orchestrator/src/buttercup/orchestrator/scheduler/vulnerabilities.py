@@ -9,6 +9,8 @@ from buttercup.common.queues import (
     GroupNames,
 )
 from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
+from buttercup.common.datastructures.orchestrator_pb2 import ConfirmedVulnerability
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -16,40 +18,34 @@ logger = logging.getLogger(__name__)
 class Vulnerabilities:
     redis: Redis
     sleep_time: float = 1.0
-    crash_queue: ReliableQueue | None = field(init=False, default=None)
-    unique_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
-    confirmed_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
+    crash_queue: ReliableQueue = field(init=False)
+    unique_vulnerabilities_queue: ReliableQueue = field(init=False)
+    confirmed_vulnerabilities_queue: ReliableQueue = field(init=False)
 
     def __post_init__(self):
-        if self.redis is not None:
-            queue_factory = QueueFactory(self.redis)
-            self.crash_queue = queue_factory.create(
-                QueueNames.CRASH,
-                GroupNames.ORCHESTRATOR,
-                block_time=None
-            )
-            self.unique_vulnerabilities_queue = queue_factory.create(
-                QueueNames.UNIQUE_VULNERABILITIES,
-                block_time=None
-            )
-            self.confirmed_vulnerabilities_queue = queue_factory.create(
-                QueueNames.CONFIRMED_VULNERABILITIES,
-                block_time=None
-            )
+        queue_factory = QueueFactory(self.redis)
+        self.crash_queue = queue_factory.create(
+            QueueNames.CRASH,
+            GroupNames.ORCHESTRATOR,
+            block_time=None
+        )
+        self.unique_vulnerabilities_queue = queue_factory.create(
+            QueueNames.UNIQUE_VULNERABILITIES,
+            block_time=None
+        )
+        self.confirmed_vulnerabilities_queue = queue_factory.create(
+            QueueNames.CONFIRMED_VULNERABILITIES,
+            block_time=None
+        )
 
     def process_crashes(self) -> bool:
         """Process crashes from the crash queue"""
-        if self.crash_queue is None:
-            raise ValueError("Crash queue is not initialized")
-
         crash_item: RQItem[Crash] | None = self.crash_queue.pop()
         if crash_item is not None:
             try:
                 crash: Crash = crash_item.deserialized
                 unique_crash = self.dedup_crash(crash)
                 if unique_crash is not None:
-                    if self.unique_vulnerabilities_queue is None:
-                        raise ValueError("Unique vulnerabilities queue is not initialized")
                     self.unique_vulnerabilities_queue.push(unique_crash)
                 self.crash_queue.ack_item(crash_item.item_id)
                 return True
@@ -60,9 +56,6 @@ class Vulnerabilities:
 
     def process_unique_vulnerabilities(self) -> bool:
         """Process unique vulnerabilities from the unique vulnerabilities queue"""
-        if self.unique_vulnerabilities_queue is None:
-            raise ValueError("Unique vulnerabilities queue is not initialized")
-
         vuln_item: RQItem[Crash] | None = self.unique_vulnerabilities_queue.pop()
         if vuln_item is not None:
             try:
@@ -88,8 +81,9 @@ class Vulnerabilities:
         """
         Submit the vulnerability to the confirmed vulnerabilities queue
         """
-        if self.confirmed_vulnerabilities_queue is None:
-            raise ValueError("Confirmed vulnerabilities queue is not initialized")
-        
         logger.info(f"Submitting confirmed vulnerability for crash in {crash.target_binary}")
-        self.confirmed_vulnerabilities_queue.push(crash)
+        # TODO: This is where we would submit the vulnerability to the competition api and get the vuln_id back
+        confirmed_vuln = ConfirmedVulnerability()
+        confirmed_vuln.crash.CopyFrom(crash)
+        confirmed_vuln.vuln_id = str(uuid.uuid4())  # Generate a unique ID for the vulnerability
+        self.confirmed_vulnerabilities_queue.push(confirmed_vuln)

@@ -11,6 +11,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     TaskDownload,
     TaskReady,
     TaskDelete,
+    ConfirmedVulnerability,
 )
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
@@ -281,7 +282,7 @@ class QueueFactory:
             ),
             QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
                 QueueNames.CONFIRMED_VULNERABILITIES,
-                Crash,
+                ConfirmedVulnerability,
                 CRASH_TASK_TIMEOUT_MS,
                 [],
             ),
