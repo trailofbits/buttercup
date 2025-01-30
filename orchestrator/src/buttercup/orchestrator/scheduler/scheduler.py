@@ -14,6 +14,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     WeightedTarget,
 )
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
+from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,14 @@ class Scheduler:
     build_output_queue: ReliableQueue | None = field(init=False, default=None)
     fuzzer_map: FuzzerMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
+    vulnerabilities: Vulnerabilities | None = field(init=False, default=None)
 
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
+            self.vulnerabilities = Vulnerabilities(redis=self.redis)
             self.ready_queue = queue_factory.create(
                 QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
             )
@@ -129,14 +132,13 @@ class Scheduler:
 
         1. Ready tasks are processed and converted to build requests
         2. Cancellation service checks for timed out or cancelled tasks
-        3. Additional scheduler components will be added here
-
-        If any work was done during an iteration, the next iteration starts immediately
-        since this suggests more work may be available. If no work was done, the loop
-        sleeps briefly to reduce system load.
+        3. Process crashes and vulnerabilities from queues
         """
         if self.redis is None:
             raise ValueError("Redis is not initialized")
+
+        if self.vulnerabilities is None:
+            raise ValueError("Vulnerabilities service is not initialized")
 
         logger.info("Starting scheduler service")
 
@@ -151,5 +153,11 @@ class Scheduler:
             did_work = False
 
             # Run all scheduler components and track if any did work
-            components = [self.serve_ready_task, self.serve_build_output, self.cancellation.process_cancellations]
+            components = [
+                self.serve_ready_task,
+                self.serve_build_output,
+                self.cancellation.process_cancellations,
+                self.vulnerabilities.process_crashes,
+                self.vulnerabilities.process_unique_vulnerabilities,
+            ]
             did_work = any(component() for component in components)

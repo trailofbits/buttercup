@@ -73,14 +73,9 @@ message Crash {
     string crash_input_path = 3;
 } 
 
-message TaskVulnerability {
-    string task_id = 1;
-    string vulnerability_id = 2;
-    string package_name = 3;
-    string sanitizer = 4;
-    string harness_path = 5;
-    string data_file = 6;
-    string architecture = 7;
+message ConfirmedVulnerability {
+    Crash crash = 1;
+    string vuln_id = 2;
 }
 
 message Patch {

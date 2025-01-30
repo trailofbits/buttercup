@@ -34,6 +34,14 @@ class BuildRequest(_message.Message):
     source_path: str
     def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
+class ConfirmedVulnerability(_message.Message):
+    __slots__ = ["crash", "vuln_id"]
+    CRASH_FIELD_NUMBER: _ClassVar[int]
+    VULN_ID_FIELD_NUMBER: _ClassVar[int]
+    crash: Crash
+    vuln_id: str
+    def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
+
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "harness_path", "target"]
     CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -112,24 +120,6 @@ class TaskReady(_message.Message):
     TASK_FIELD_NUMBER: _ClassVar[int]
     task: Task
     def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...
-
-class TaskVulnerability(_message.Message):
-    __slots__ = ["architecture", "data_file", "harness_path", "package_name", "sanitizer", "task_id", "vulnerability_id"]
-    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
-    DATA_FILE_FIELD_NUMBER: _ClassVar[int]
-    HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
-    SANITIZER_FIELD_NUMBER: _ClassVar[int]
-    TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    VULNERABILITY_ID_FIELD_NUMBER: _ClassVar[int]
-    architecture: str
-    data_file: str
-    harness_path: str
-    package_name: str
-    sanitizer: str
-    task_id: str
-    vulnerability_id: str
-    def __init__(self, task_id: _Optional[str] = ..., vulnerability_id: _Optional[str] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., harness_path: _Optional[str] = ..., data_file: _Optional[str] = ..., architecture: _Optional[str] = ...) -> None: ...
 
 class WeightedTarget(_message.Message):
     __slots__ = ["harness_path", "target", "weight"]
