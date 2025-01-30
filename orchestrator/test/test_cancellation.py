@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 from redis import Redis
 
-from buttercup.common.datastructures.orchestrator_pb2 import TaskDelete
+from buttercup.common.datastructures.msg_pb2 import TaskDelete
 from buttercup.common.queues import ReliableQueue, RQItem
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.registry import TaskRegistry, Task

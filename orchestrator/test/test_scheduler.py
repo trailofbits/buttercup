@@ -2,9 +2,8 @@ import pytest
 from unittest.mock import Mock, patch
 from redis import Redis
 
-from buttercup.common.datastructures.orchestrator_pb2 import Task, TaskReady, SourceDetail
+from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetail, BuildOutput, WeightedTarget
 
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
 from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
 

@@ -9,7 +9,7 @@ from buttercup.common.maps import FuzzerMap
 
 import argparse
 from redis import Redis
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildOutput, WeightedTarget
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedTarget
 import time
 from clusterfuzz.fuzz import get_fuzz_targets
 import os

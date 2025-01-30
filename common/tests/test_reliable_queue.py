@@ -11,7 +11,7 @@ from buttercup.common.queues import (
     BUILD_TASK_TIMEOUT_MS,
     BUILD_OUTPUT_TASK_TIMEOUT_MS,
 )
-from buttercup.common.datastructures.fuzzer_msg_pb2 import BuildRequest, BuildOutput
+from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
 
 GROUP_NAME = "test_group"
 QUEUE_NAME = "test_queue"
