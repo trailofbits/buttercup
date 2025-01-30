@@ -8,8 +8,7 @@ from buttercup.common.queues import (
     QueueNames,
     GroupNames,
 )
-from buttercup.common.datastructures.fuzzer_msg_pb2 import Crash
-from buttercup.common.datastructures.orchestrator_pb2 import ConfirmedVulnerability
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -81,7 +80,7 @@ class Vulnerabilities:
         """
         Submit the vulnerability to the confirmed vulnerabilities queue
         """
-        logger.info(f"Submitting confirmed vulnerability for crash in {crash.target_binary}")
+        logger.info(f"Submitting confirmed vulnerability for crash in {crash.target.package_name}")
         # TODO: This is where we would submit the vulnerability to the competition api and get the vuln_id back
         confirmed_vuln = ConfirmedVulnerability()
         confirmed_vuln.crash.CopyFrom(crash)

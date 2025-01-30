@@ -50,7 +50,8 @@ DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
 CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
-
+UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
+CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 logger = logging.getLogger(__name__)
 
 
@@ -280,10 +281,16 @@ class QueueFactory:
                 CRASH_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
+            QueueNames.UNIQUE_VULNERABILITIES: QueueConfig(
+                QueueNames.UNIQUE_VULNERABILITIES,
+                Crash,
+                UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
+            ),
             QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
                 QueueNames.CONFIRMED_VULNERABILITIES,
                 ConfirmedVulnerability,
-                CRASH_TASK_TIMEOUT_MS,
+                CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS,
                 [],
             ),
             QueueNames.DELETE_TASK: QueueConfig(
