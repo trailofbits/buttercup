@@ -77,6 +77,8 @@ services:
     build:
       context: ./
       dockerfile: ./program-model/upload_worker.Dockerfile
+    profiles:
+      - indexer-run
     volumes:
       - ./crs_scratch:/crs_scratch
     environment:

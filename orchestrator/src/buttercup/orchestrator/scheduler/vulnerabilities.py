@@ -25,7 +25,7 @@ class Vulnerabilities:
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
         self.crash_queue = queue_factory.create(QueueNames.CRASH, GroupNames.ORCHESTRATOR, block_time=None)
-        self.unique_vulnerabilities_queue = queue_factory.create(QueueNames.UNIQUE_VULNERABILITIES, block_time=None)
+        self.unique_vulnerabilities_queue = queue_factory.create(QueueNames.UNIQUE_VULNERABILITIES, GroupNames.ORCHESTRATOR, block_time=None)
         self.confirmed_vulnerabilities_queue = queue_factory.create(
             QueueNames.CONFIRMED_VULNERABILITIES, block_time=None
         )
