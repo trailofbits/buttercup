@@ -5,9 +5,15 @@ from pathlib import Path
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.maps import FuzzerMap
-from buttercup.common.datastructures.msg_pb2 import TaskReady, Task, SourceDetail
+from buttercup.common.datastructures.msg_pb2 import (
+    TaskReady,
+    Task,
+    SourceDetail,
+    BuildRequest,
+    BuildOutput,
+    WeightedTarget,
+)
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput, WeightedTarget
 from clusterfuzz.fuzz import get_fuzz_targets
 
 logger = logging.getLogger(__name__)
