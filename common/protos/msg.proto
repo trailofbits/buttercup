@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package msgpb2;
 
-// Task-related messages (from orchestrator.proto)
+// Task-related messages
 message Task {
     enum TaskType {
         TASK_TYPE_FULL = 0;
@@ -44,7 +44,7 @@ message TaskDelete {
     float received_at = 2;
 }
 
-// Fuzzer-related messages (from fuzzer_msg.proto)
+// Fuzzer-related messages
 message BuildRequest {
     string package_name = 1;
     string engine = 2;
