@@ -11,12 +11,8 @@ from buttercup.common.datastructures.msg_pb2 import (
     TaskDownload,
     TaskReady,
     TaskDelete,
-<<<<<<< HEAD
-    TaskVulnerability,
     Patch,
-=======
     ConfirmedVulnerability,
->>>>>>> origin/henrik/vuln-processing
 )
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
@@ -34,7 +30,6 @@ class QueueNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
     DELETE_TASK = "orchestrator_delete_task_queue"
-    ACCEPTED_VULNERABILITIES = "accepted_vulnerabilities_queue"
     PATCHES = "patches_queue"
 
 
@@ -44,8 +39,7 @@ class GroupNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
     SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
-    PATCHER_ACCEPTED_VULNERABILITIES = "patcher_accepted_vulnerabilities_group"
-    PATCHER_PATCHES = "patcher_patches_group"
+    PATCHER = "patcher_group"
     SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
 
 
@@ -59,14 +53,11 @@ DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
 CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
-<<<<<<< HEAD
 VULNERABILITY_TASK_TIMEOUT_MS = 10 * 60 * 1000
 PATCH_TASK_TIMEOUT_MS = 10 * 60 * 1000
-
-=======
 UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
->>>>>>> origin/henrik/vuln-processing
+
 logger = logging.getLogger(__name__)
 
 
@@ -307,7 +298,7 @@ class QueueFactory:
                 QueueNames.CONFIRMED_VULNERABILITIES,
                 ConfirmedVulnerability,
                 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS,
-                [],
+                [GroupNames.PATCHER],
             ),
             QueueNames.DELETE_TASK: QueueConfig(
                 QueueNames.DELETE_TASK,
@@ -315,17 +306,11 @@ class QueueFactory:
                 DELETE_TASK_TIMEOUT_MS,
                 [GroupNames.SCHEDULER_DELETE_TASK],
             ),
-            QueueNames.ACCEPTED_VULNERABILITIES: QueueConfig(
-                QueueNames.ACCEPTED_VULNERABILITIES,
-                TaskVulnerability,
-                VULNERABILITY_TASK_TIMEOUT_MS,
-                [GroupNames.PATCHER_ACCEPTED_VULNERABILITIES],
-            ),
             QueueNames.PATCHES: QueueConfig(
                 QueueNames.PATCHES,
                 Patch,
                 PATCH_TASK_TIMEOUT_MS,
-                [GroupNames.PATCHER_PATCHES],
+                [],
             ),
         }
     )
@@ -354,11 +339,6 @@ class QueueFactory:
     def create(
         self, queue_name: Literal[QueueNames.DELETE_TASK], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[TaskDelete]: ...
-
-    @overload
-    def create(
-        self, queue_name: Literal[QueueNames.ACCEPTED_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
-    ) -> ReliableQueue[TaskVulnerability]: ...
 
     @overload
     def create(

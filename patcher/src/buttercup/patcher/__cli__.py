@@ -2,7 +2,7 @@ from buttercup.patcher.config import Settings, ServeCommand, ProcessCommand
 from buttercup.patcher.patcher import Patcher
 from pydantic_settings import get_subcommand
 from buttercup.common.logger import setup_logging
-from buttercup.common.datastructures.orchestrator_pb2 import TaskVulnerability
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput
 import logging
 from redis import Redis
 
@@ -26,21 +26,27 @@ def main():
         patcher.serve()
     elif isinstance(command, ProcessCommand):
         logger.info("Processing task")
-        task_vulnerability = TaskVulnerability(
-            task_id=command.task_id,
-            vulnerability_id=command.vulnerability_id,
-            package_name=command.package_name,
-            sanitizer=command.sanitizer,
-            harness_path=command.harness_path,
-            data_file=command.data_file,
-            architecture=command.architecture,
+        task_vulnerability = ConfirmedVulnerability(
+            crash=Crash(
+                target=BuildOutput(
+                    package_name=command.package_name,
+                    engine=command.engine,
+                    sanitizer=command.sanitizer,
+                    output_ossfuzz_path=command.oss_fuzz_path,
+                    source_path=command.source_path,
+                ),
+                harness_path=command.harness_path,
+                crash_input_path=command.crash_input_path,
+            ),
+            vuln_id=command.vulnerability_id,
         )
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
             mock_mode=settings.mock_mode,
         )
         patch = patcher.process_vulnerability(task_vulnerability)
-        print(patch.patch)
+        if patch is not None:
+            print(patch.patch)
 
 
 if __name__ == "__main__":

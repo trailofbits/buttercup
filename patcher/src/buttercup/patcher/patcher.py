@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from buttercup.common.datastructures.orchestrator_pb2 import TaskVulnerability, Patch
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.logger import setup_logging
@@ -86,31 +86,32 @@ class Patcher:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            self.vulnerability_queue = queue_factory.create(
-                QueueNames.ACCEPTED_VULNERABILITIES, GroupNames.PATCHER_ACCEPTED_VULNERABILITIES
-            )
+            self.vulnerability_queue = queue_factory.create(QueueNames.CONFIRMED_VULNERABILITIES, GroupNames.PATCHER)
             self.patches_queue = queue_factory.create(QueueNames.PATCHES)
 
-    def process_mocked_vulnerability(self, task_vulnerability: TaskVulnerability) -> Patch | None:
-        logger.info(
-            f"Processing mocked vulnerability {task_vulnerability.task_id}/{task_vulnerability.vulnerability_id}"
-        )
-        if task_vulnerability.package_name == "libpng":
+    def process_mocked_vulnerability(self, vuln: ConfirmedVulnerability) -> Patch | None:
+        logger.info(f"Processing mocked vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}")
+        if vuln.crash.target.package_name == "libpng":
             return Patch(
-                task_id=task_vulnerability.task_id,
-                vulnerability_id=task_vulnerability.vulnerability_id,
+                vulnerability_id=vuln.vuln_id,
                 patch=MOCK_LIBPNG_PATCH,
             )
 
         return None
 
-    def process_vulnerability(self, task_vulnerability: TaskVulnerability) -> Patch | None:
-        logger.info(f"Processing vulnerability {task_vulnerability.task_id}/{task_vulnerability.vulnerability_id}")
-        logger.debug(f"Task vulnerability: {task_vulnerability}")
+    def process_vulnerability(self, vuln: ConfirmedVulnerability) -> Patch | None:
+        logger.info(f"Processing vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}")
+        logger.debug(f"Vulnerability: {vuln}")
+        res = None
         if self.mock_mode:
-            return self.process_mocked_vulnerability(task_vulnerability)
+            res = self.process_mocked_vulnerability(vuln)
 
-        raise NotImplementedError("Patcher is not implemented")
+        if res is not None:
+            logger.info(f"Processed vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}")
+        else:
+            logger.error(f"Failed to process vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}")
+
+        return res
 
     def serve(self):
         """Main loop to process vulnerabilities from queue"""
@@ -119,25 +120,25 @@ class Patcher:
 
         logger.info("Starting patcher service")
         while True:
-            rq_item: RQItem[TaskVulnerability] | None = self.vulnerability_queue.pop()
+            rq_item: RQItem[ConfirmedVulnerability] | None = self.vulnerability_queue.pop()
 
             if rq_item is not None:
-                task_vulnerability: TaskVulnerability = rq_item.deserialized
+                vuln: ConfirmedVulnerability = rq_item.deserialized
                 try:
-                    patch = self.process_vulnerability(task_vulnerability)
+                    patch = self.process_vulnerability(vuln)
                     if patch is not None:
                         self.patches_queue.push(patch)
                         self.vulnerability_queue.ack_item(rq_item.item_id)
                         logger.info(
-                            f"Successfully generated patch for vulnerability {task_vulnerability.task_id}/{task_vulnerability.vulnerability_id}"
+                            f"Successfully generated patch for vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}"
                         )
                     else:
                         logger.error(
-                            f"Failed to generate patch for vulnerability {task_vulnerability.task_id}/{task_vulnerability.vulnerability_id}"
+                            f"Failed to generate patch for vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}"
                         )
                 except Exception as e:
                     logger.error(
-                        f"Failed to generate patch for vulnerability {task_vulnerability.task_id}/{task_vulnerability.vulnerability_id}: {e}"
+                        f"Failed to generate patch for vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}: {e}"
                     )
 
             logger.info(f"Sleeping for {self.sleep_time} seconds")
