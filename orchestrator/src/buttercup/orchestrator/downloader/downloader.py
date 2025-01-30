@@ -189,17 +189,29 @@ class Downloader:
 
         return True, diff_source
 
-    def _move_to_final_location(self, task_id: str, tmp_task_dir: Path) -> None:
+    def _move_to_final_location(self, task_id: str, tmp_task_dir: Path) -> bool:
         """Move the temporary task directory to its final location"""
         final_task_dir = self.get_task_dir(task_id)
         try:
             tmp_task_dir.rename(final_task_dir)
             logger.info(f"[task {task_id}] Successfully moved task directory to final location")
+            return True
+        except OSError as e:
+            # NOTE: Ignore if directory already exists or is not empty - another
+            # process got there first. We can't just skip the task, because we
+            # need to change the Task while downloading/extracting it.
+            if "Directory not empty" in str(e):
+                logger.warning(
+                    f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it..."
+                )
+                return True
+            else:
+                logger.exception(f"Failed to move task directory: {str(e)}")
+                return False
         except Exception as e:
-            logger.warning(
-                f"Failed to rename {tmp_task_dir} to {final_task_dir}, something else has already downloaded the task: {str(e)}"
-            )
-            logger.warning("Ignore the error and continue as if the task was successfully processed")
+            # Re-raise any other errors
+            logger.exception(f"Failed to move task directory: {str(e)}")
+            return False
 
     def process_task(self, task: Task) -> bool:
         """Process a single task by downloading all its sources"""
@@ -212,6 +224,7 @@ class Downloader:
             # Download and extract all sources
             success, diff_source = self._download_and_extract_sources(task.task_id, tmp_task_dir, task.sources)
             if not success:
+                logger.error(f"Failed to download and extract sources for task {task.task_id}")
                 return False
 
             # If this is a delta task, apply the diff to the source code
@@ -222,11 +235,17 @@ class Downloader:
 
                 success = self.apply_patch_diff(task.task_id, tmp_task_dir, diff_source.path)
                 if not success:
+                    logger.error(f"Failed to apply diff to source code for task {task.task_id}")
                     return False
 
             # Move to final location
-            self._move_to_final_location(task.task_id, tmp_task_dir)
-            return True
+            success = self._move_to_final_location(task.task_id, tmp_task_dir)
+            if not success:
+                logger.error(f"Failed to move task directory to final location for task {task.task_id}")
+                return False
+
+        logger.info(f"Successfully processed task {task.task_id}")
+        return True
 
     def serve(self):
         """Main loop to process tasks from queue"""
