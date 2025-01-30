@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.msg_pb2 import Crash, ConfirmedVulnerability
