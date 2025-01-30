@@ -65,8 +65,8 @@ def main():
                 crash_dir = CrashDir(chc.harness_path)
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
-                    logger.info(f"Found crash {crash.input_path}")
                     dst = crash_dir.copy_file(crash.input_path)
+                    logger.info(f"Found crash {dst}")
                     crash = Crash(
                         target=tgtbuild,
                         harness_path=chc.harness_path,
