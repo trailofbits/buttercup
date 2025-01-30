@@ -38,6 +38,8 @@ class GroupNames(str, Enum):
     SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
     SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
     SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
+    UNIQUE_VULNERABILITIES = "unique_vulnerabilities_group"
+    CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_group"
 
 
 class HashNames(str, Enum):
@@ -286,13 +288,13 @@ class QueueFactory:
                 QueueNames.UNIQUE_VULNERABILITIES,
                 Crash,
                 UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS,
-                [GroupNames.ORCHESTRATOR],
+                [GroupNames.UNIQUE_VULNERABILITIES],
             ),
             QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
                 QueueNames.CONFIRMED_VULNERABILITIES,
                 ConfirmedVulnerability,
                 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS,
-                [],
+                [GroupNames.CONFIRMED_VULNERABILITIES],
             ),
             QueueNames.DELETE_TASK: QueueConfig(
                 QueueNames.DELETE_TASK,

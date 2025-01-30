@@ -137,9 +137,6 @@ class Scheduler:
         if self.redis is None:
             raise ValueError("Redis is not initialized")
 
-        if self.vulnerabilities is None:
-            raise ValueError("Vulnerabilities service is not initialized")
-
         logger.info("Starting scheduler service")
 
         did_work = False
