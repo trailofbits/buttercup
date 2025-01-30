@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass, field
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.datastructures.orchestrator_pb2 import TaskDelete
+from buttercup.common.datastructures.msg_pb2 import TaskDelete
 from buttercup.orchestrator.registry import TaskRegistry
 
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue, QueueNames, GroupNames
-from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail, TaskDownload, TaskReady
+from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry

@@ -1,7 +1,8 @@
 syntax = "proto3";
 
-package orchestrator;
+package msgpb2;
 
+// Task-related messages (from orchestrator.proto)
 message Task {
     enum TaskType {
         TASK_TYPE_FULL = 0;
@@ -42,3 +43,32 @@ message TaskDelete {
     string task_id = 1;
     float received_at = 2;
 }
+
+// Fuzzer-related messages (from fuzzer_msg.proto)
+message BuildRequest {
+    string package_name = 1;
+    string engine = 2;
+    string sanitizer = 3;
+    string ossfuzz = 4;
+    string source_path = 5;
+}
+
+message BuildOutput {
+    string package_name = 1;
+    string engine = 2;
+    string sanitizer = 3;
+    string output_ossfuzz_path = 4;
+    string source_path = 5;
+}
+
+message WeightedTarget {
+    float weight = 1;
+    BuildOutput target = 2; 
+    string harness_path = 3;
+}
+
+message Crash {
+    BuildOutput target = 1;
+    string harness_path = 2;
+    string crash_input_path = 3;
+} 

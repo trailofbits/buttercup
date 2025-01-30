@@ -5,7 +5,7 @@ from buttercup.orchestrator.task_server.models.types import (
     TaskType,
     SourceType,
 )
-from buttercup.common.datastructures.orchestrator_pb2 import (
+from buttercup.common.datastructures.msg_pb2 import (
     Task as TaskProto,
     SourceDetail as SourceDetailProto,
     TaskDelete,

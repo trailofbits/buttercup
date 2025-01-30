@@ -5,7 +5,7 @@ import tarfile
 import io
 from pathlib import Path
 from buttercup.orchestrator.downloader.downloader import Downloader
-from buttercup.common.datastructures.orchestrator_pb2 import Task, SourceDetail
+from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 
 
 @pytest.fixture

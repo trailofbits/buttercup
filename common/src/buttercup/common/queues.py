@@ -4,12 +4,14 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from redis import Redis, RedisError
 from google.protobuf.message import Message
-from buttercup.common.datastructures.fuzzer_msg_pb2 import (
+from buttercup.common.datastructures.msg_pb2 import (
     BuildRequest,
     BuildOutput,
     Crash,
+    TaskDownload,
+    TaskReady,
+    TaskDelete,
 )
-from buttercup.common.datastructures.orchestrator_pb2 import TaskDownload, TaskReady, TaskDelete
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
 import uuid
