@@ -1,0 +1,44 @@
+I am creating input seeds for a program's fuzzing harness. I will provide the full harness and additional project context.
+
+I will then ask you to write {count} deterministic Python functions that each create a valid input.
+
+Put the functions in ONE MARKDOWN BLOCK. The signature for each function will be identical although the names can vary:
+```
+def gen_test() -> bytes
+```
+
+Example output for an FTP server harness:
+```
+def gen_bytes_user() -> bytes:
+    # user command
+    username = "anonymous"
+    user_cmd = "USER %s\r\n" % (username)
+    return user_cmd.encode()
+
+def gen_bytes_pass() -> bytes:
+    # pass command
+    password = "mypassword"
+    pass_cmd = "PASS %s\r\n" % (password)
+    return pass_cmd.encode()
+```
+
+Remember:
+- The functions must create a deterministic sequence of bytes. Do not use things like `random`.
+- A valid input is one that does not cause an error in the fuzzed program.
+- Create inputs that trigger different functionality in the fuzzed program.
+- Each function has an identical signature.
+- Each function creates a different input.
+- There will be only one markdown block in the answer, containing all functions. Do not nest markdown blocks.
+- You can only use the python standard library.
+- Avoid creating very large seeds
+
+
+The full harness is:
+```
+{harness}
+```
+Additional context from the project is:
+```
+{additional_context}
+```
+The python functions are:

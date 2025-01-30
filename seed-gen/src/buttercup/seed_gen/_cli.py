@@ -86,7 +86,8 @@ def command_task(args: argparse.Namespace) -> None:
     out_dir.mkdir(parents=True)
     seeds = []
     if task_name == Task.SEED_INIT:
-        seeds = do_seed_init()
+        challenge = "libpng"
+        seeds = do_seed_init(challenge)
     elif task_name == Task.SEED_EXPLORE:
         seeds = do_seed_explore()
     elif task_name == Task.VULN_DISCOVERY:
