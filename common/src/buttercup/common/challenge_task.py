@@ -1,9 +1,13 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 import logging
 import subprocess
 from buttercup.common.logger import setup_logging
+from buttercup.common.utils import create_tmp_dir, copyanything
+from contextlib import contextmanager, ExitStack
+from typing import Iterator
 
 
 @dataclass
@@ -17,18 +21,21 @@ class CommandResult:
 class ChallengeTask:
     """Class to manage Challenge Tasks."""
 
-    task_dir: Path | str
+    read_only_task_dir: Path | str
     project_name: str
     oss_fuzz_subpath: Path | str
     source_subpath: Path | str
     diffs_subpath: Path | str | None = None
     python_path: Path | str = Path("python")
+    local_task_dir: Path | str | None = None
 
     logger: logging.Logger = field(default_factory=lambda: setup_logging(__name__))
     _helper_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
-        self.task_dir = Path(self.task_dir)
+        self.read_only_task_dir = Path(self.read_only_task_dir)
+        self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
+        self.project_name = self.project_name
         self.oss_fuzz_subpath = Path(self.oss_fuzz_subpath)
         self.source_subpath = Path(self.source_subpath)
         self.diffs_subpath = Path(self.diffs_subpath) if self.diffs_subpath else None
@@ -59,6 +66,21 @@ class ChallengeTask:
             )
         except FileNotFoundError:
             return CommandResult(success=False, error=f"Python executable not found at: {self.python_path}")
+    
+    @property
+    def task_dir(self) -> Path:
+        if self.local_task_dir is None:
+            return Path(self.read_only_task_dir)
+        return Path(self.local_task_dir)
+    
+    def read_write_decorator(func: Callable) -> Callable:
+        """Decorator to check if the task is read-only."""
+        def wrapper(self, *args: Any, **kwargs: Any) -> Any:
+            if self.local_task_dir is None:
+                raise RuntimeError("Challenge Task is read-only, cannot perform this operation")
+            return func(self, *args, **kwargs)
+
+        return wrapper
 
     def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None):
         if arg is not None:
@@ -144,6 +166,7 @@ class ChallengeTask:
             self.logger.exception(f"Command failed (cwd={self.task_dir / self.oss_fuzz_subpath}): {' '.join(cmd)}")
             return CommandResult(success=False, error=str(e), output=None)
 
+    @read_write_decorator
     def build_image(
         self,
         *,
@@ -172,6 +195,7 @@ class ChallengeTask:
 
         return self._run_helper_cmd(cmd)
 
+    @read_write_decorator
     def build_fuzzers(
         self,
         use_source_dir: bool = True,
@@ -202,6 +226,7 @@ class ChallengeTask:
 
         return self._run_helper_cmd(cmd)
 
+    @read_write_decorator
     def check_build(
         self,
         *,
@@ -229,6 +254,7 @@ class ChallengeTask:
 
         return self._run_helper_cmd(cmd)
 
+    @read_write_decorator
     def reproduce_pov(
         self,
         fuzzer_name: str,
@@ -259,6 +285,36 @@ class ChallengeTask:
 
         return self._run_helper_cmd(cmd)
 
+    @contextmanager
+    def copy(self, work_dir: Path | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
+        """Create a copy of this task in a new writable directory.
+        Returns a context manager that yields a new ChallengeTask instance pointing to the new copy.
+        
+        Example:
+            with task.copy() as local_task:
+                local_task.build_fuzzers()
+        """
+        with create_tmp_dir(work_dir, delete) as tmp_dir:
+            # Copy the entire task directory to the temporary location
+            copyanything(self.task_dir, tmp_dir, symlinks=True)
+            
+            # Create a new ChallengeTask instance pointing to the copy
+            copied_task = ChallengeTask(
+                read_only_task_dir=self.read_only_task_dir,
+                project_name=self.project_name,
+                oss_fuzz_subpath=self.oss_fuzz_subpath,
+                source_subpath=self.source_subpath,
+                diffs_subpath=self.diffs_subpath,
+                python_path=self.python_path,
+                logger=self.logger,
+                local_task_dir=tmp_dir,
+            )
+            
+            try:
+                yield copied_task
+            finally:
+                # The temporary directory will be automatically cleaned up by create_tmp_dir's context
+                pass
 
 def main():
     from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand
