@@ -71,6 +71,7 @@ def main():
                         target=tgtbuild,
                         harness_path=chc.harness_path,
                         crash_input_path=dst,
+                        stacktrace=crash.stacktrace,
                     )
                     output_q.push(crash)
 

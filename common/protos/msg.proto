@@ -73,6 +73,7 @@ message Crash {
     BuildOutput target = 1;
     string harness_path = 2;
     string crash_input_path = 3;
+    string stacktrace = 4;
 } 
 
 message ConfirmedVulnerability {
