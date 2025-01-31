@@ -105,7 +105,7 @@ class Vulnerabilities:
 
             # Submit vulnerability and get response
             response = vuln_api.v1_task_task_id_vuln_post(
-                task_id=crash.target.source_path,  # TODO: Issue #36, provenance of crashes
+                task_id=crash.target.task_id,
                 payload=submission,
             )
 
@@ -113,7 +113,7 @@ class Vulnerabilities:
             if response.status != TypesSubmissionStatus.ACCEPTED:
                 logger.error(
                     f"Vulnerability submission not accepted. Status: {response.status}\n"
-                    f"Task ID: {crash.target.source_path}\n"
+                    f"Task ID: {crash.target.task_id}\n"
                     f"Package: {crash.target.package_name}"
                 )
                 return None
@@ -128,7 +128,7 @@ class Vulnerabilities:
         except Exception as e:
             logger.error(
                 f"Failed to submit vulnerability to competition API: {str(e)}\n"
-                f"Task ID: {crash.target.source_path}\n"
+                f"Task ID: {crash.target.task_id}\n"
                 f"Package: {crash.target.package_name}\n"
                 f"Crash details: {crash}"
             )
