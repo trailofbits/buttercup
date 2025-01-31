@@ -61,6 +61,7 @@ class Scheduler:
                 sanitizer="address",
                 ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
                 source_path=f"/tasks_storage/{task.task_id}/example-libpng",
+                task_id=task.task_id,
             )
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
@@ -136,9 +137,6 @@ class Scheduler:
         """
         if self.redis is None:
             raise ValueError("Redis is not initialized")
-
-        if self.vulnerabilities is None:
-            raise ValueError("Vulnerabilities service is not initialized")
 
         logger.info("Starting scheduler service")
 

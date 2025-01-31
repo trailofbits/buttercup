@@ -41,7 +41,7 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE}
+    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE} --task_id 123e4567-e89b-12d3-a456-426614174000
     profiles:
       - fuzzer-test
     restart: no

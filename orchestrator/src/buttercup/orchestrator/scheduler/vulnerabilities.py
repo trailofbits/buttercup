@@ -25,7 +25,9 @@ class Vulnerabilities:
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
         self.crash_queue = queue_factory.create(QueueNames.CRASH, GroupNames.ORCHESTRATOR, block_time=None)
-        self.unique_vulnerabilities_queue = queue_factory.create(QueueNames.UNIQUE_VULNERABILITIES, GroupNames.ORCHESTRATOR, block_time=None)
+        self.unique_vulnerabilities_queue = queue_factory.create(
+            QueueNames.UNIQUE_VULNERABILITIES, GroupNames.UNIQUE_VULNERABILITIES, block_time=None
+        )
         self.confirmed_vulnerabilities_queue = queue_factory.create(
             QueueNames.CONFIRMED_VULNERABILITIES, block_time=None
         )
@@ -77,5 +79,5 @@ class Vulnerabilities:
         # TODO: This is where we would submit the vulnerability to the competition api and get the vuln_id back
         confirmed_vuln = ConfirmedVulnerability()
         confirmed_vuln.crash.CopyFrom(crash)
-        confirmed_vuln.vuln_id = str(uuid.uuid4())  # Generate a unique ID for the vulnerability
+        confirmed_vuln.vuln_id = str(uuid.uuid4())  # TODO: ID got from the Competition API
         self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
