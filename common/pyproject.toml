@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 buttercup-msg-publisher = "buttercup.common.msg_publisher:main"
+buttercup-challenge-task = "buttercup.common.challenge_task:main"
 
 
 [tool.hatch.build.targets.wheel]
