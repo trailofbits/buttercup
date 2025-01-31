@@ -79,3 +79,9 @@ message ConfirmedVulnerability {
     Crash crash = 1;
     string vuln_id = 2;
 }
+
+message Patch {
+    string task_id = 1;
+    string vulnerability_id = 2;
+    string patch = 3;
+}

@@ -56,6 +56,16 @@ class Crash(_message.Message):
     target: BuildOutput
     def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ..., crash_input_path: _Optional[str] = ...) -> None: ...
 
+class Patch(_message.Message):
+    __slots__ = ["patch", "task_id", "vulnerability_id"]
+    PATCH_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    VULNERABILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    patch: str
+    task_id: str
+    vulnerability_id: str
+    def __init__(self, task_id: _Optional[str] = ..., vulnerability_id: _Optional[str] = ..., patch: _Optional[str] = ...) -> None: ...
+
 class SourceDetail(_message.Message):
     __slots__ = ["path", "sha256", "source_type", "url"]
     class SourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):

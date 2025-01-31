@@ -77,6 +77,8 @@ services:
     build:
       context: ./
       dockerfile: ./program-model/upload_worker.Dockerfile
+    profiles:
+      - indexer-run
     volumes:
       - ./crs_scratch:/crs_scratch
     environment:
@@ -155,7 +157,7 @@ services:
     build:
       context: .
       dockerfile: ./orchestrator/Dockerfile
-    command: ["buttercup-scheduler", "serve", "--mock_mode"]
+    command: ["buttercup-scheduler", "serve"]
     volumes:
       - ./crs_scratch:/crs_scratch
     environment:
@@ -163,6 +165,7 @@ services:
       - BUTTERCUP_SCHEDULER_LOG_LEVEL=debug
       - BUTTERCUP_SCHEDULER_SERVE__SLEEP_TIME=5
       - BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR=/crs_scratch
+      - BUTTERCUP_SCHEDULER_SERVE__MOCK_MODE=true
     depends_on:
       redis:
         condition: service_healthy
@@ -180,6 +183,21 @@ services:
         condition: service_healthy
       litellm:
         condition: service_started
+
+  patcher:
+    build:
+      context: .
+      dockerfile: ./patcher/Dockerfile
+    command: ["buttercup-patcher", "serve"]
+    environment:
+      - BUTTERCUP_PATCHER_SERVE__REDIS_URL=redis://redis:6379
+      - BUTTERCUP_PATCHER_SERVE__SLEEP_TIME=5
+      - BUTTERCUP_PATCHER_LOG_LEVEL=debug
+      - BUTTERCUP_PATCHER_TASK_STORAGE_DIR=/crs_scratch
+      - BUTTERCUP_PATCHER_MOCK_MODE=true
+    depends_on:
+      redis:
+        condition: service_healthy
 
   litellm:
     image: ghcr.io/berriai/litellm:litellm_stable_release_branch-v1.57.8-stable

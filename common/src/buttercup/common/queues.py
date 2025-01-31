@@ -11,6 +11,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     TaskDownload,
     TaskReady,
     TaskDelete,
+    Patch,
     ConfirmedVulnerability,
 )
 import logging
@@ -29,6 +30,7 @@ class QueueNames(str, Enum):
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
     DELETE_TASK = "orchestrator_delete_task_queue"
+    PATCHES = "patches_queue"
 
 
 class GroupNames(str, Enum):
@@ -52,8 +54,10 @@ DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
 CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
+PATCH_TASK_TIMEOUT_MS = 10 * 60 * 1000
 UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
+
 logger = logging.getLogger(__name__)
 
 
@@ -302,6 +306,12 @@ class QueueFactory:
                 DELETE_TASK_TIMEOUT_MS,
                 [GroupNames.SCHEDULER_DELETE_TASK],
             ),
+            QueueNames.PATCHES: QueueConfig(
+                QueueNames.PATCHES,
+                Patch,
+                PATCH_TASK_TIMEOUT_MS,
+                [],
+            ),
         }
     )
 
@@ -328,7 +338,12 @@ class QueueFactory:
     @overload
     def create(
         self, queue_name: Literal[QueueNames.DELETE_TASK], group_name: GroupNames, **kwargs: Any
-    ) -> ReliableQueue[TaskReady]: ...
+    ) -> ReliableQueue[TaskDelete]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.PATCHES], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[Patch]: ...
 
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
