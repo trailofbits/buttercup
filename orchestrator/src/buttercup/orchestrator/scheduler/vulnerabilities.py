@@ -9,7 +9,8 @@ from buttercup.common.queues import (
     GroupNames,
 )
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash
-import uuid
+from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
+from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,8 @@ class Vulnerabilities:
         vuln_item: RQItem[Crash] | None = self.unique_vulnerabilities_queue.pop()
         if vuln_item is not None:
             try:
+                # TODO: Once provenance is implemented, check if the task is cancelled
+                # before submitting the vulnerability. Issue #36.
                 crash: Crash = vuln_item.deserialized
                 self.submit_vulnerability(crash)
                 self.unique_vulnerabilities_queue.ack_item(vuln_item.item_id)
@@ -76,8 +79,37 @@ class Vulnerabilities:
         Submit the vulnerability to the confirmed vulnerabilities queue
         """
         logger.info(f"Submitting confirmed vulnerability for crash in {crash.target.package_name}")
-        # TODO: This is where we would submit the vulnerability to the competition api and get the vuln_id back
-        confirmed_vuln = ConfirmedVulnerability()
-        confirmed_vuln.crash.CopyFrom(crash)
-        confirmed_vuln.vuln_id = str(uuid.uuid4())  # TODO: ID got from the Competition API
-        self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
+        try:
+            # Create vulnerability API client
+            vuln_api = VulnerabilityApi()
+
+            # Create submission payload from crash data
+            submission = TypesVulnSubmission(
+                architecture="x86_64",  # TODO: Issue #50
+                data_file=crash.crash_input_path,  # TODO: Read the contents of the file instead
+                harness_name=crash.harness_path,
+                sanitizer=crash.target.sanitizer,
+                sarif=None,  # Optional, not provided in crash data
+            )
+
+            # Submit vulnerability and get response
+            response = vuln_api.v1_task_task_id_vuln_post(
+                task_id=crash.target.source_path,  # TODO: Issue #36, provenance of crashes
+                payload=submission,
+            )
+
+            # Create confirmed vulnerability with API-provided ID
+            confirmed_vuln = ConfirmedVulnerability()
+            confirmed_vuln.crash.CopyFrom(crash)
+            confirmed_vuln.vuln_id = response.vuln_id
+
+            self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
+
+        except Exception as e:
+            logger.error(
+                f"Failed to submit vulnerability to competition API: {str(e)}\n"
+                f"Task ID: {crash.target.source_path}\n"  # Assuming this contains the task_id
+                f"Package: {crash.target.package_name}\n"
+                f"Crash details: {crash}"
+            )
+            raise
