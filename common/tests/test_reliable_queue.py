@@ -208,6 +208,7 @@ def test_queue_factory(redis_client):
             engine="test_engine",
             sanitizer="test_sanitizer",
             ossfuzz="test_ossfuzz",
+            task_id="test_task_id",
         )
     )
 
@@ -217,6 +218,7 @@ def test_queue_factory(redis_client):
     assert item.deserialized.engine == "test_engine"
     assert item.deserialized.sanitizer == "test_sanitizer"
     assert item.deserialized.ossfuzz == "test_ossfuzz"
+    assert item.deserialized.task_id == "test_task_id"
     queue.ack_item(item.item_id)
 
 

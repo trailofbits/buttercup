@@ -12,6 +12,7 @@ def main():
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
     prsr.add_argument("--sanitizer", required=True)
     prsr.add_argument("--source_path", required=True)
+    prsr.add_argument("--task_id", required=True)
     args = prsr.parse_args()
 
     redis = Redis.from_url(args.redis_url)
@@ -22,6 +23,7 @@ def main():
         sanitizer=args.sanitizer,
         ossfuzz=args.ossfuzz,
         source_path=args.source_path,
+        task_id=args.task_id,
     )
     queue.push(req)
 

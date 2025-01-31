@@ -51,6 +51,7 @@ message BuildRequest {
     string sanitizer = 3;
     string ossfuzz = 4;
     string source_path = 5;
+    string task_id = 6;
 }
 
 message BuildOutput {
@@ -59,6 +60,7 @@ message BuildOutput {
     string sanitizer = 3;
     string output_ossfuzz_path = 4;
     string source_path = 5;
+    string task_id = 6;
 }
 
 message WeightedTarget {
