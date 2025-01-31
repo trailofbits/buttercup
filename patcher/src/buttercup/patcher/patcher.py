@@ -93,6 +93,7 @@ class Patcher:
         logger.info(f"Processing mocked vulnerability {vuln.crash.target.package_name}/{vuln.vuln_id}")
         if vuln.crash.target.package_name == "libpng":
             return Patch(
+                task_id=vuln.crash.target.task_id,
                 vulnerability_id=vuln.vuln_id,
                 patch=MOCK_LIBPNG_PATCH,
             )

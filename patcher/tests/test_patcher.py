@@ -12,6 +12,7 @@ def test_patcher_mock_mode_libpng():
         vuln_id="test-vuln-1",
         crash=Crash(
             target=BuildOutput(
+                task_id="test-task-id-1",
                 package_name="libpng",
                 engine="test-engine-1",
                 sanitizer="test-sanitizer-1",
@@ -28,5 +29,6 @@ def test_patcher_mock_mode_libpng():
 
     # Verify the patch was generated
     assert patch is not None
+    assert patch.task_id == "test-task-id-1"
     assert patch.vulnerability_id == "test-vuln-1"
     assert "diff --git" in patch.patch  # Verify it contains the mock patch content
