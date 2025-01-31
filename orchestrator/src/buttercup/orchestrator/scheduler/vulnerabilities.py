@@ -10,10 +10,8 @@ from buttercup.common.queues import (
 )
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash
 from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
-from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import (
-    TypesVulnSubmission,
-    TypesSubmissionStatus,
-)
+from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +110,7 @@ class Vulnerabilities:
             )
 
             # Check submission status before proceeding
-            if response.status != TypesSubmissionStatus.SUBMISSION_STATUS_ACCEPTED:
+            if response.status != TypesSubmissionStatus.ACCEPTED:
                 logger.error(
                     f"Vulnerability submission not accepted. Status: {response.status}\n"
                     f"Task ID: {crash.target.source_path}\n"

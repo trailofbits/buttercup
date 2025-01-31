@@ -1,9 +1,12 @@
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from buttercup.common.queues import RQItem, QueueFactory
-from buttercup.common.datastructures.msg_pb2 import Crash, ConfirmedVulnerability
-from unittest.mock import patch
+from buttercup.common.datastructures.msg_pb2 import Crash, ConfirmedVulnerability, BuildOutput
+from buttercup.orchestrator.competition_api_client.models.types_vuln_submission_response import (
+    TypesVulnSubmissionResponse,
+)
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 
 
 @pytest.fixture
@@ -32,6 +35,19 @@ def mock_queues():
 
 
 @pytest.fixture
+def sample_crash():
+    crash = Crash()
+    target = BuildOutput()
+    target.package_name = "test_package"
+    target.sanitizer = "test_sanitizer"
+    target.source_path = "test/source/path"
+    crash.target.CopyFrom(target)
+    crash.harness_path = "test_harness"
+    crash.crash_input_path = "test/crash/input.txt"
+    return crash
+
+
+@pytest.fixture
 def vulnerabilities(mock_redis, mock_queues):
     vuln = Vulnerabilities(redis=mock_redis)
     # Manually set the queues to match our mocks
@@ -54,14 +70,9 @@ def test_process_crashes_with_no_crashes(vulnerabilities, mock_queues):
     mock_queues["unique"].push.assert_not_called()
 
 
-def test_process_crashes_with_valid_crash(vulnerabilities, mock_queues):
+def test_process_crashes_with_valid_crash(vulnerabilities, mock_queues, sample_crash):
     # Setup
-    crash = Crash()
-    crash.target.package_name = "test_package"
-    crash.harness_name = "test_harness"
-    crash.crash_input_path = "test_input"
-
-    mock_item = RQItem(item_id="test_id", deserialized=crash)
+    mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
     mock_queues["crash"].pop.return_value = mock_item
 
     # Execute
@@ -78,7 +89,7 @@ def test_process_unique_vulnerabilities_with_no_vulns(vulnerabilities, mock_queu
     # Setup
     mock_queues["unique"].pop.return_value = None
 
-    # Execute/test
+    # Execute
     result = vulnerabilities.process_unique_vulnerabilities()
 
     # Verify
@@ -87,15 +98,20 @@ def test_process_unique_vulnerabilities_with_no_vulns(vulnerabilities, mock_queu
     mock_queues["confirmed"].push.assert_not_called()
 
 
-def test_process_unique_vulnerabilities_with_valid_vuln(vulnerabilities, mock_queues):
+@patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
+def test_process_unique_vulnerabilities_with_accepted_submission(
+    mock_vuln_api, vulnerabilities, mock_queues, sample_crash
+):
     # Setup
-    crash = Crash()
-    crash.target.package_name = "test_package"
-    crash.harness_name = "test_harness"
-    crash.crash_input_path = "test_input"
-
-    mock_item = RQItem(item_id="test_id", deserialized=crash)
+    mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
     mock_queues["unique"].pop.return_value = mock_item
+
+    # Mock API response
+    mock_api_instance = Mock()
+    mock_vuln_api.return_value = mock_api_instance
+
+    mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, vuln_id="test-vuln-123")
+    mock_api_instance.v1_task_task_id_vuln_post.return_value = mock_response
 
     # Execute
     result = vulnerabilities.process_unique_vulnerabilities()
@@ -106,35 +122,60 @@ def test_process_unique_vulnerabilities_with_valid_vuln(vulnerabilities, mock_qu
     mock_queues["confirmed"].push.assert_called_once()
     mock_queues["unique"].ack_item.assert_called_once_with("test_id")
 
+    # Verify the API was called correctly
+    mock_api_instance.v1_task_task_id_vuln_post.assert_called_once()
+    call_args = mock_api_instance.v1_task_task_id_vuln_post.call_args
+    assert call_args[1]["task_id"] == sample_crash.target.source_path
 
-def test_submit_vulnerability_creates_confirmed_vuln(vulnerabilities, mock_queues):
-    # Setup
-    crash = Crash()
-    crash.target.package_name = "test_package"
-    crash.harness_name = "test_harness"
-    crash.crash_input_path = "test_input"
-
-    # Execute
-    vulnerabilities.submit_vulnerability(crash)
-
-    # Verify
-    mock_queues["confirmed"].push.assert_called_once()
-    # Verify the pushed item is a ConfirmedVulnerability
+    # Verify the pushed confirmed vulnerability
     pushed_vuln = mock_queues["confirmed"].push.call_args[0][0]
     assert isinstance(pushed_vuln, ConfirmedVulnerability)
-    assert pushed_vuln.crash.target.package_name == "test_package"
-    assert pushed_vuln.vuln_id != ""  # Verify UUID was generated
+    assert pushed_vuln.crash.target.package_name == sample_crash.target.package_name
+    assert pushed_vuln.vuln_id == "test-vuln-123"
 
 
-def test_dedup_crash_returns_crash(vulnerabilities):
+@patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
+def test_process_unique_vulnerabilities_with_rejected_submission(
+    mock_vuln_api, vulnerabilities, mock_queues, sample_crash
+):
     # Setup
-    crash = Crash()
-    crash.target.package_name = "test_package"
-    crash.harness_name = "test_harness"
-    crash.crash_input_path = "test_input"
+    mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
+    mock_queues["unique"].pop.return_value = mock_item
+
+    # Mock API response for rejected submission
+    mock_api_instance = Mock()
+    mock_vuln_api.return_value = mock_api_instance
+
+    mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.INVALID, vuln_id="rejected-123")
+    mock_api_instance.v1_task_task_id_vuln_post.return_value = mock_response
 
     # Execute
-    result = vulnerabilities.dedup_crash(crash)
+    result = vulnerabilities.process_unique_vulnerabilities()
 
     # Verify
-    assert result == crash  # Currently returns all crashes as unique
+    assert result is False
+    mock_queues["unique"].pop.assert_called_once()
+    mock_queues["confirmed"].push.assert_not_called()
+    mock_queues["unique"].ack_item.assert_called_once_with("test_id")
+
+
+@patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
+def test_submit_vulnerability_api_error(mock_vuln_api, vulnerabilities, sample_crash):
+    # Setup
+    mock_api_instance = Mock()
+    mock_vuln_api.return_value = mock_api_instance
+    mock_api_instance.v1_task_task_id_vuln_post.side_effect = Exception("API Error")
+
+    # Execute and verify exception is raised
+    with pytest.raises(Exception) as exc_info:
+        vulnerabilities.submit_vulnerability(sample_crash)
+
+    assert "API Error" in str(exc_info.value)
+
+
+def test_dedup_crash_returns_crash(vulnerabilities, sample_crash):
+    # Execute
+    result = vulnerabilities.dedup_crash(sample_crash)
+
+    # Verify
+    assert result == sample_crash  # Currently returns all crashes as unique
