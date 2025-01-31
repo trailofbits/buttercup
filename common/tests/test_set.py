@@ -16,12 +16,12 @@ def test_redis_set_add_and_contains(redis_client):
     test_value = "test_value"
     was_present = redis_set.add(test_value)
     assert not was_present  # Should return False since value wasn't already in set
-    
+
     # Verify the value is in the set
     assert redis_set.contains(test_value)
 
     # Add same value again
-    was_present = redis_set.add(test_value) 
+    was_present = redis_set.add(test_value)
     assert was_present  # Should return True since value was already in set
 
     # Clean up
@@ -39,7 +39,7 @@ def test_redis_set_remove(redis_client):
     # Test removing the value
     was_present = redis_set.remove(test_value)
     assert was_present  # Should return True since value was in set
-    
+
     # Verify value was removed
     assert not redis_set.contains(test_value)
 

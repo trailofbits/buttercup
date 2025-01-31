@@ -1,4 +1,3 @@
-
 from typing import Iterator
 from redis import Redis
 

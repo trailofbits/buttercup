@@ -6,6 +6,7 @@ from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 
 logger = logging.getLogger(__name__)
 
+
 class CrashSet:
     def __init__(self, redis: Redis):
         self.redis = redis
@@ -13,7 +14,7 @@ class CrashSet:
         self.set = RedisSet(redis, self.set_name)
 
     # Returns True if the crash was already in the set
-    def add(self, project:str, harness_name:str, task_id:str, stacktrace: str) -> bool:
+    def add(self, project: str, harness_name: str, task_id: str, stacktrace: str) -> bool:
         crash_data = get_crash_data(stacktrace)
         key = dumps([project, harness_name, task_id, crash_data], json_options=CANONICAL_JSON_OPTIONS)
         return self.redis.sadd(self.set_name, key)
