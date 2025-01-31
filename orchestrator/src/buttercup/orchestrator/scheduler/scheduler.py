@@ -61,6 +61,7 @@ class Scheduler:
                 sanitizer="address",
                 ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
                 source_path=f"/tasks_storage/{task.task_id}/example-libpng",
+                task_id=task.task_id,
             )
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
