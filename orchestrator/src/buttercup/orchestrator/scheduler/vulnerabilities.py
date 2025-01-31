@@ -10,7 +10,10 @@ from buttercup.common.queues import (
 )
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash
 from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
-from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
+from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import (
+    TypesVulnSubmission,
+    TypesSubmissionStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +60,12 @@ class Vulnerabilities:
                 # TODO: Once provenance is implemented, check if the task is cancelled
                 # before submitting the vulnerability. Issue #36.
                 crash: Crash = vuln_item.deserialized
-                self.submit_vulnerability(crash)
+                confirmed_vuln = self.submit_vulnerability(crash)
+                # Acknowledge the item regardless of submission result
                 self.unique_vulnerabilities_queue.ack_item(vuln_item.item_id)
-                return True
+                if confirmed_vuln is not None:
+                    self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
+                return confirmed_vuln is not None
             except Exception as e:
                 logger.error(f"Failed to process unique vulnerability: {e}")
                 return False
@@ -74,9 +80,16 @@ class Vulnerabilities:
         # For now, treating all crashes as unique
         return crash
 
-    def submit_vulnerability(self, crash: Crash) -> None:
+    def submit_vulnerability(self, crash: Crash) -> ConfirmedVulnerability | None:
         """
-        Submit the vulnerability to the confirmed vulnerabilities queue
+        Submit the vulnerability to the competition API
+
+        Returns:
+            ConfirmedVulnerability | None: The confirmed vulnerability with API-provided ID if successful,
+                                          None if submission was not accepted
+
+        Raises:
+            Exception: If there is an error communicating with the API
         """
         logger.info(f"Submitting confirmed vulnerability for crash in {crash.target.package_name}")
         try:
@@ -98,17 +111,26 @@ class Vulnerabilities:
                 payload=submission,
             )
 
+            # Check submission status before proceeding
+            if response.status != TypesSubmissionStatus.SUBMISSION_STATUS_ACCEPTED:
+                logger.error(
+                    f"Vulnerability submission not accepted. Status: {response.status}\n"
+                    f"Task ID: {crash.target.source_path}\n"
+                    f"Package: {crash.target.package_name}"
+                )
+                return None
+
             # Create confirmed vulnerability with API-provided ID
             confirmed_vuln = ConfirmedVulnerability()
             confirmed_vuln.crash.CopyFrom(crash)
             confirmed_vuln.vuln_id = response.vuln_id
 
-            self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
+            return confirmed_vuln
 
         except Exception as e:
             logger.error(
                 f"Failed to submit vulnerability to competition API: {str(e)}\n"
-                f"Task ID: {crash.target.source_path}\n"  # Assuming this contains the task_id
+                f"Task ID: {crash.target.source_path}\n"
                 f"Package: {crash.target.package_name}\n"
                 f"Crash details: {crash}"
             )
