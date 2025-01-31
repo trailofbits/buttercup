@@ -12,6 +12,7 @@ from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Cras
 from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
 from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.registry import TaskRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class Vulnerabilities:
     crash_queue: ReliableQueue = field(init=False)
     unique_vulnerabilities_queue: ReliableQueue = field(init=False)
     confirmed_vulnerabilities_queue: ReliableQueue = field(init=False)
+    task_registry: TaskRegistry = field(init=False)
 
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
@@ -33,6 +35,7 @@ class Vulnerabilities:
         self.confirmed_vulnerabilities_queue = queue_factory.create(
             QueueNames.CONFIRMED_VULNERABILITIES, block_time=None
         )
+        self.task_registry = TaskRegistry(self.redis)
 
     def process_crashes(self) -> bool:
         """Process crashes from the crash queue"""
@@ -51,23 +54,43 @@ class Vulnerabilities:
         return False
 
     def process_unique_vulnerabilities(self) -> bool:
+        """Process unique vulnerabilities from the unique vulnerabilities queue.
+
+        This method:
+        1. Pops a vulnerability from the unique vulnerabilities queue
+        2. Checks if the associated task is cancelled
+        3. If not cancelled, submits the vulnerability to the competition API
+        4. If submission is successful, pushes to confirmed vulnerabilities queue
+        5. Acknowledges the processed item
+
+        Returns:
+            bool: True if an item was processed (even if it failed), False if queue was empty
+        """
         """Process unique vulnerabilities from the unique vulnerabilities queue"""
         vuln_item: RQItem[Crash] | None = self.unique_vulnerabilities_queue.pop()
-        if vuln_item is not None:
-            try:
-                # TODO: Once provenance is implemented, check if the task is cancelled
-                # before submitting the vulnerability. Issue #36.
-                crash: Crash = vuln_item.deserialized
+        if vuln_item is None:
+            return False
+
+        try:
+            crash: Crash = vuln_item.deserialized
+
+            if self.task_registry.is_cancelled(crash.target.task_id):
+                logger.info(
+                    f"Skipping vulnerability submission for cancelled task:\n"
+                    f"Task ID: {crash.target.task_id}\n"
+                    f"Package: {crash.target.package_name}\n"
+                    f"Harness: {crash.harness_path}"
+                )
+            else:
                 confirmed_vuln = self.submit_vulnerability(crash)
-                # Acknowledge the item regardless of submission result
-                self.unique_vulnerabilities_queue.ack_item(vuln_item.item_id)
                 if confirmed_vuln is not None:
                     self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
-                return confirmed_vuln is not None
-            except Exception as e:
-                logger.error(f"Failed to process unique vulnerability: {e}")
-                return False
-        return False
+
+            self.unique_vulnerabilities_queue.ack_item(vuln_item.item_id)
+        except Exception as e:
+            logger.error(f"Failed to process unique vulnerability: {e}")
+
+        return True
 
     def dedup_crash(self, crash: Crash) -> Crash | None:
         """

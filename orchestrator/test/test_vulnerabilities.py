@@ -50,11 +50,18 @@ def sample_crash():
 
 @pytest.fixture
 def vulnerabilities(mock_redis, mock_queues):
+    # Mock Redis operations for TaskRegistry
+    mock_redis.hexists.return_value = False
+    mock_redis.hget.return_value = None
+
     vuln = Vulnerabilities(redis=mock_redis)
     # Manually set the queues to match our mocks
     vuln.crash_queue = mock_queues["crash"]
     vuln.unique_vulnerabilities_queue = mock_queues["unique"]
     vuln.confirmed_vulnerabilities_queue = mock_queues["confirmed"]
+
+    # Mock task_registry methods directly instead of relying on Redis
+    vuln.task_registry.is_cancelled = Mock(return_value=False)
     return vuln
 
 
@@ -169,7 +176,7 @@ def test_process_unique_vulnerabilities_with_rejected_submission(
     result = vulnerabilities.process_unique_vulnerabilities()
 
     # Verify
-    assert result is False
+    assert result is True
     mock_queues["unique"].pop.assert_called_once()
     mock_queues["confirmed"].push.assert_not_called()
     mock_queues["unique"].ack_item.assert_called_once_with("test_id")
@@ -190,7 +197,7 @@ def test_process_unique_vulnerabilities_with_api_error(mock_vuln_api, vulnerabil
     result = vulnerabilities.process_unique_vulnerabilities()
 
     # Verify
-    assert result is False
+    assert result is True
     mock_queues["unique"].pop.assert_called_once()
     mock_queues["confirmed"].push.assert_not_called()
     mock_queues["unique"].ack_item.assert_not_called()
@@ -216,3 +223,22 @@ def test_dedup_crash_returns_crash(vulnerabilities, sample_crash):
 
     # Verify
     assert result == sample_crash  # Currently returns all crashes as unique
+
+
+def test_process_unique_vulnerabilities_with_cancelled_task(vulnerabilities, mock_queues, sample_crash):
+    # Setup
+    mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
+    mock_queues["unique"].pop.return_value = mock_item
+
+    # Mock task registry to indicate cancelled task
+    vulnerabilities.task_registry.is_cancelled = Mock(return_value=True)
+
+    # Execute
+    result = vulnerabilities.process_unique_vulnerabilities()
+
+    # Verify
+    assert result is True
+    mock_queues["unique"].pop.assert_called_once()
+    mock_queues["confirmed"].push.assert_not_called()
+    mock_queues["unique"].ack_item.assert_called_once_with("test_id")
+    vulnerabilities.task_registry.is_cancelled.assert_called_once_with(sample_crash.target.task_id)
