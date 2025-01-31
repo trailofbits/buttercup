@@ -20,7 +20,7 @@ class CrashSet:
 
 
 def get_crash_data(stacktrace: str) -> str:
-    parser = StackParser(symbolized=True, detect_ooms_and_hangs=True, detect_v8_runtime_errors=False)
+    parser = StackParser(symbolized=False, detect_ooms_and_hangs=True, detect_v8_runtime_errors=False)
     prs = parser.parse(stacktrace)
     logger.info(f"Crash data: {prs.crash_state}")
     return prs.crash_state
