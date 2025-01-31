@@ -7,6 +7,7 @@ from buttercup.common.maps import FuzzerMap
 from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.fuzzing_infra.stack_parsing import CrashSet
 import random
 import tempfile
 from buttercup.common.logger import setup_logging
@@ -61,12 +62,15 @@ def main():
                 )
                 logger.info(f"Starting fuzzer {chc.target.engine} | {chc.target.sanitizer} | {chc.harness_path}")
                 result = runner.run_fuzzer(fuzz_conf)
-
+                crash_set = CrashSet(Redis.from_url(args.redis_url))
                 crash_dir = CrashDir(chc.harness_path)
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
                     dst = crash_dir.copy_file(crash.input_path)
                     logger.info(f"Found crash {dst}")
+                    if not crash_set.add(chc.target.package_name,os.path.basename(chc.harness_path), crash.stacktrace):
+                        logger.info(f"Crash {crash.stacktrace} already in set")
+                        continue
                     crash = Crash(
                         target=tgtbuild,
                         harness_path=chc.harness_path,
