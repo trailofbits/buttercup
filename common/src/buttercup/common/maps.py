@@ -72,7 +72,7 @@ class BuildMap:
 
     def get_build(self, task_id: str, build_type: BUILD_TYPES) -> BuildOutput | None:
         mp = RedisMap(self.redis, self.map_key_from_task_id(task_id), BuildOutput)
-        return mp.get(self.output_key_from_build_type(str(build_type)))
+        return mp.get(self.output_key_from_build_type(build_type.value))
 
 class HarnessWeights:
     def __init__(self, redis: Redis):
