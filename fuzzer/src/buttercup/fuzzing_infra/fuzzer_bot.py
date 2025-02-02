@@ -86,7 +86,7 @@ def main():
                         continue
                     crash = Crash(
                         target=build,
-                        harness_path=chc.harness_name,
+                        harness_name=chc.harness_name,
                         crash_input_path=dst,
                         stacktrace=crash.stacktrace,
                     )
