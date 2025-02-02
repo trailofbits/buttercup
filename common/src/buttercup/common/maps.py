@@ -32,11 +32,7 @@ class RedisMap(Generic[MsgType]):
 
 
 HARNESS_WEIGHTS_MAP_NAME = "harness_weights"
-
-
-
 BUILD_MAP_NAME = "build_list"
-
 
 
 class BUILD_TYPES(str, Enum):
@@ -54,7 +50,8 @@ class BuildMap:
 
     def map_key_from_task_id(self, task_id: str) -> str:
         return dumps([
-            task_id
+            task_id,
+            BUILD_MAP_NAME
         ], json_options=CANONICAL_JSON_OPTIONS)
     
     def build_map_key(self, build: BuildOutput) -> str:
