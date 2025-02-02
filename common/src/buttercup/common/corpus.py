@@ -14,8 +14,8 @@ def hash_file(fl):
 
 
 class InputDir:
-    def __init__(self, path: str):
-        self.path = path
+    def __init__(self, wdir: str, name: str):
+        self.path = os.path.join(wdir, name)
         os.makedirs(self.path, exist_ok=True)
 
     def basename(self) -> str:
@@ -34,14 +34,12 @@ class InputDir:
 
 
 class CrashDir(InputDir):
-    def __init__(self, harness_path: str):
-        build_dir = os.path.dirname(harness_path)
-        self.crash_dir = os.path.join(build_dir, f"{CRASH_DIR_NAME}_{os.path.basename(harness_path)}")
+    def __init__(self, task_id: str, harness_name: str):
+        self.crash_dir = os.path.join(task_id, f"{CRASH_DIR_NAME}_{harness_name}")
         super().__init__(self.crash_dir)
 
 
 class Corpus(InputDir):
-    def __init__(self, harness_path: str):
-        build_dir = os.path.dirname(harness_path)
-        self.corpus_dir = os.path.join(build_dir, f"{CORPUS_DIR_NAME}_{os.path.basename(harness_path)}")
+    def __init__(self, task_id: str, harness_name: str):
+        self.corpus_dir = os.path.join(task_id, f"{CORPUS_DIR_NAME}_{harness_name}")
         super().__init__(self.corpus_dir)
