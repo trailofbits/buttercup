@@ -39,7 +39,14 @@ def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: Bu
             for tgt in targets:
                 logger.info(f"Adding target: {tgt}")
                 print(f"Adding target: {tgt}")
-                target_list.push_harness(WeightedHarness(weight=1.0, harness_name=os.path.basename(tgt), package_name=deser_output.package_name, task_id=deser_output.task_id))
+                target_list.push_harness(
+                    WeightedHarness(
+                        weight=1.0,
+                        harness_name=os.path.basename(tgt),
+                        package_name=deser_output.package_name,
+                        task_id=deser_output.task_id,
+                    )
+                )
             output_queue.ack_item(output.item_id)
 
 

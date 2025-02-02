@@ -4,6 +4,7 @@ from redis import Redis
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from google.protobuf.message import Message
 from enum import Enum
+
 MsgType = TypeVar("MsgType", bound=Message)
 MSG_FIELD_NAME = b"msg"
 
@@ -47,21 +48,19 @@ class BuildMap:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-
     def map_key_from_task_id(self, task_id: str) -> str:
-        return dumps([
-            task_id,
-            BUILD_MAP_NAME
-        ], json_options=CANONICAL_JSON_OPTIONS)
-    
+        return dumps([task_id, BUILD_MAP_NAME], json_options=CANONICAL_JSON_OPTIONS)
+
     def build_map_key(self, build: BuildOutput) -> str:
         return self.map_key_from_task_id(build.task_id)
-    
 
     def output_key_from_build_type(self, build_type: str) -> str:
-        return dumps([
-            build_type,
-        ], json_options=CANONICAL_JSON_OPTIONS)
+        return dumps(
+            [
+                build_type,
+            ],
+            json_options=CANONICAL_JSON_OPTIONS,
+        )
 
     def build_output_key(self, build: BuildOutput) -> str:
         return self.output_key_from_build_type(build.build_type)
@@ -73,6 +72,7 @@ class BuildMap:
     def get_build(self, task_id: str, build_type: BUILD_TYPES) -> BuildOutput | None:
         mp = RedisMap(self.redis, self.map_key_from_task_id(task_id), BuildOutput)
         return mp.get(self.output_key_from_build_type(build_type.value))
+
 
 class HarnessWeights:
     def __init__(self, redis: Redis):
@@ -88,4 +88,4 @@ class HarnessWeights:
             harness.task_id,
         ]
         key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
-        self.mp.set(key_str,harness)
+        self.mp.set(key_str, harness)
