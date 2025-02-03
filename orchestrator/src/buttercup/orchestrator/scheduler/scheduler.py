@@ -12,11 +12,11 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildRequest,
     BuildOutput,
     WeightedHarness,
+    BUILD_TYPES
 )
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
-
 logger = logging.getLogger(__name__)
 
 
@@ -64,6 +64,7 @@ class Scheduler:
                 ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
                 source_path=f"/tasks_storage/{task.task_id}/example-libpng",
                 task_id=task.task_id,
+                build_type=BUILD_TYPES.FUZZER,
             )
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
