@@ -8,8 +8,6 @@ from tempfile import TemporaryDirectory
 from buttercup.common.logger import setup_logging
 from pathlib import Path
 
-logger = setup_logging(__name__)
-
 
 def copyanything(src: Path | str, dst: Path | str, **kwargs: Any) -> None:
     """Copy a file or directory to a destination.
@@ -32,6 +30,7 @@ def copyanything(src: Path | str, dst: Path | str, **kwargs: Any) -> None:
 def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | None = None) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
     delete it after use."""
+    logger = setup_logging(__name__)
     if work_dir:
         work_dir.mkdir(parents=True, exist_ok=True)
 
