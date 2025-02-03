@@ -41,9 +41,9 @@ class BUILD_TYPES(str, Enum):
     COVERAGE = "coverage"
 
 
-# A build map makes it effecient to find for a given task_id + harness  a build type
+# A build map makes it effecient to find for a given task_id + harness a build type
 # we currently only support a single item of a given type
-# add a new type if you want to support dofferent builds
+# add a new type if you want to support different builds
 class BuildMap:
     def __init__(self, redis: Redis):
         self.redis = redis
