@@ -6,7 +6,7 @@ import logging
 import subprocess
 from buttercup.common.logger import setup_logging
 from buttercup.common.utils import create_tmp_dir, copyanything
-from contextlib import contextmanager, ExitStack
+from contextlib import contextmanager
 from typing import Iterator
 
 
@@ -23,11 +23,12 @@ class ChallengeTask:
 
     read_only_task_dir: Path | str
     project_name: str
-    oss_fuzz_subpath: Path | str
-    source_subpath: Path | str
-    diffs_subpath: Path | str | None = None
     python_path: Path | str = Path("python")
     local_task_dir: Path | str | None = None
+
+    SRC_DIR = "src"
+    DIFF_DIR = "diff"
+    OSS_FUZZ_DIR = "fuzz-tooling"
 
     logger: logging.Logger = field(default_factory=lambda: setup_logging(__name__))
     _helper_path: Path = field(init=False)
@@ -36,24 +37,33 @@ class ChallengeTask:
         self.read_only_task_dir = Path(self.read_only_task_dir)
         self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
         self.project_name = self.project_name
-        self.oss_fuzz_subpath = Path(self.oss_fuzz_subpath)
-        self.source_subpath = Path(self.source_subpath)
-        self.diffs_subpath = Path(self.diffs_subpath) if self.diffs_subpath else None
         self.python_path = Path(self.python_path)
 
         if not self.task_dir.exists():
             raise ValueError(f"Task directory does not exist: {self.task_dir}")
 
         # Verify required directories exist
-        for directory in [self.oss_fuzz_subpath, self.source_subpath]:
+        for directory in [self.SRC_DIR, self.OSS_FUZZ_DIR]:
             if not (self.task_dir / directory).is_dir():
                 raise ValueError(f"Missing required directory: {self.task_dir / directory}")
 
-        self._helper_path = self.oss_fuzz_subpath / "infra/helper.py"
+        self._helper_path = self.get_oss_fuzz_subpath() / "infra/helper.py"
         if not (self.task_dir / self._helper_path).exists():
             raise ValueError(f"Missing required file: {self.task_dir / self._helper_path}")
 
         self._check_python_path()
+
+    def get_source_subpath(self) -> Path:
+        # NOTE: gets the first directory inside the `src` subdir
+        return next((self.task_dir / self.SRC_DIR).iterdir()).relative_to(self.task_dir)
+
+    def get_diff_subpath(self) -> Path:
+        # NOTE: this assumes there is only one diff directory in the `diff` subdir
+        return next((self.task_dir / self.DIFF_DIR).iterdir()).relative_to(self.task_dir)
+
+    def get_oss_fuzz_subpath(self) -> Path:
+        # NOTE: this assumes there is only one oss-fuzz directory in the `fuzz-tooling` subdir
+        return next((self.task_dir / self.OSS_FUZZ_DIR).iterdir()).relative_to(self.task_dir)
 
     def _check_python_path(self) -> CommandResult:
         """Check if the configured python_path is available in system PATH."""
@@ -66,15 +76,16 @@ class ChallengeTask:
             )
         except FileNotFoundError:
             return CommandResult(success=False, error=f"Python executable not found at: {self.python_path}")
-    
+
     @property
     def task_dir(self) -> Path:
         if self.local_task_dir is None:
             return Path(self.read_only_task_dir)
         return Path(self.local_task_dir)
-    
+
     def read_write_decorator(func: Callable) -> Callable:
         """Decorator to check if the task is read-only."""
+
         def wrapper(self, *args: Any, **kwargs: Any) -> Any:
             if self.local_task_dir is None:
                 raise RuntimeError("Challenge Task is read-only, cannot perform this operation")
@@ -122,12 +133,12 @@ class ChallengeTask:
 
     def _run_helper_cmd(self, cmd: list[str]) -> CommandResult:
         try:
-            self.logger.debug(f"Running command (cwd={self.task_dir / self.oss_fuzz_subpath}): {' '.join(cmd)}")
+            self.logger.debug(f"Running command (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             process = subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                cwd=self.task_dir / self.oss_fuzz_subpath,
+                cwd=self.task_dir / self.get_oss_fuzz_subpath(),
             )
 
             # Poll process for new output until finished
@@ -158,12 +169,14 @@ class ChallengeTask:
                 output=stdout,
             )
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Command failed (cwd={self.task_dir / self.oss_fuzz_subpath}): {' '.join(cmd)}")
+            self.logger.error(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(
                 success=False, error=e.stderr if e.stderr else None, output=e.stdout if e.stdout else None
             )
         except Exception as e:
-            self.logger.exception(f"Command failed (cwd={self.task_dir / self.oss_fuzz_subpath}): {' '.join(cmd)}")
+            self.logger.exception(
+                f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}"
+            )
             return CommandResult(success=False, error=str(e), output=None)
 
     @read_write_decorator
@@ -217,7 +230,7 @@ class ChallengeTask:
         cmd = self._get_helper_cmd(
             "build_fuzzers",
             self.project_name,
-            str((self.task_dir / self.source_subpath).absolute()) if use_source_dir else None,
+            str((self.task_dir / self.get_source_subpath()).absolute()) if use_source_dir else None,
             architecture=architecture,
             engine=engine,
             sanitizer=sanitizer,
@@ -289,7 +302,7 @@ class ChallengeTask:
     def copy(self, work_dir: Path | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
         """Create a copy of this task in a new writable directory.
         Returns a context manager that yields a new ChallengeTask instance pointing to the new copy.
-        
+
         Example:
             with task.copy() as local_task:
                 local_task.build_fuzzers()
@@ -297,24 +310,22 @@ class ChallengeTask:
         with create_tmp_dir(work_dir, delete) as tmp_dir:
             # Copy the entire task directory to the temporary location
             copyanything(self.task_dir, tmp_dir, symlinks=True)
-            
+
             # Create a new ChallengeTask instance pointing to the copy
             copied_task = ChallengeTask(
                 read_only_task_dir=self.read_only_task_dir,
                 project_name=self.project_name,
-                oss_fuzz_subpath=self.oss_fuzz_subpath,
-                source_subpath=self.source_subpath,
-                diffs_subpath=self.diffs_subpath,
                 python_path=self.python_path,
                 logger=self.logger,
                 local_task_dir=tmp_dir,
             )
-            
+
             try:
                 yield copied_task
             finally:
                 # The temporary directory will be automatically cleaned up by create_tmp_dir's context
                 pass
+
 
 def main():
     from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand
@@ -347,9 +358,6 @@ def main():
     class Settings(BaseSettings):
         task_dir: Path
         project_name: str
-        oss_fuzz_subpath: Path = Path("fuzz-tooling")
-        source_subpath: Path = Path("source")
-        diffs_subpath: Path | None = None
         python_path: Path = Path("python")
 
         build_image: CliSubCommand[BuildImageCommand]
@@ -370,9 +378,6 @@ def main():
     task = ChallengeTask(
         task_dir=settings.task_dir,
         project_name=settings.project_name,
-        oss_fuzz_subpath=settings.oss_fuzz_subpath,
-        source_subpath=settings.source_subpath,
-        diffs_subpath=settings.diffs_subpath,
         python_path=settings.python_path,
         logger=logger,
     )

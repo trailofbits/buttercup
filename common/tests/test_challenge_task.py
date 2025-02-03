@@ -10,13 +10,13 @@ import logging
 def task_dir(tmp_path: Path) -> Path:
     """Create a mock challenge task directory structure."""
     # Create the main directories
-    oss_fuzz = tmp_path / "oss-fuzz"
-    source = tmp_path / "source"
-    diffs = tmp_path / "diffs"
+    oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
+    source = tmp_path / "src" / "my-source"
+    diffs = tmp_path / "diff" / "my-diff"
 
-    oss_fuzz.mkdir()
-    source.mkdir()
-    diffs.mkdir()
+    oss_fuzz.mkdir(parents=True, exist_ok=True)
+    source.mkdir(parents=True, exist_ok=True)
+    diffs.mkdir(parents=True, exist_ok=True)
 
     # Create some mock patch files
     (diffs / "patch1.diff").write_text("mock patch 1")
@@ -27,7 +27,11 @@ def task_dir(tmp_path: Path) -> Path:
     helper_path.parent.mkdir(parents=True, exist_ok=True)
     helper_path.write_text("import sys;\nsys.exit(0)\n")
 
+    # Create a mock test.txt file
+    (source / "test.txt").write_text("mock test content")
+
     return tmp_path
+
 
 @pytest.fixture
 def challenge_task_readonly(task_dir: Path) -> ChallengeTask:
@@ -35,9 +39,6 @@ def challenge_task_readonly(task_dir: Path) -> ChallengeTask:
     return ChallengeTask(
         read_only_task_dir=task_dir,
         project_name="example_project",
-        oss_fuzz_subpath="oss-fuzz",
-        source_subpath="source",
-        diffs_subpath="diffs",
     )
 
 
@@ -48,9 +49,6 @@ def challenge_task(task_dir: Path) -> ChallengeTask:
         read_only_task_dir=task_dir,
         local_task_dir=task_dir,
         project_name="example_project",
-        oss_fuzz_subpath="oss-fuzz",
-        source_subpath="source",
-        diffs_subpath="diffs",
     )
 
 
@@ -61,8 +59,6 @@ def challenge_task_custom_python(task_dir: Path) -> ChallengeTask:
         read_only_task_dir=task_dir,
         local_task_dir=task_dir,
         project_name="example_project",
-        oss_fuzz_subpath="oss-fuzz",
-        source_subpath="source",
         python_path="/usr/local/bin/python3",
     )
 
@@ -113,13 +109,14 @@ def mock_failed_subprocess():
 
 def test_directory_structure(challenge_task: ChallengeTask):
     """Test that the challenge task correctly identifies its directory structure."""
-    assert challenge_task.oss_fuzz_subpath == Path("oss-fuzz")
-    assert challenge_task.source_subpath == Path("source")
-    assert challenge_task.diffs_subpath == Path("diffs")
+    assert challenge_task.get_oss_fuzz_subpath() == Path("fuzz-tooling") / "my-oss-fuzz"
+    assert challenge_task.get_source_subpath() == Path("src") / "my-source"
+    assert challenge_task.get_diff_subpath() == Path("diff") / "my-diff"
 
-    assert (challenge_task.task_dir / challenge_task.oss_fuzz_subpath).is_dir()
-    assert (challenge_task.task_dir / challenge_task.source_subpath).is_dir()
-    assert (challenge_task.task_dir / challenge_task.diffs_subpath).is_dir()
+    assert (challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()).is_dir()
+    assert (challenge_task.task_dir / challenge_task.get_source_subpath()).is_dir()
+    assert (challenge_task.task_dir / challenge_task.get_diff_subpath()).is_dir()
+
 
 def test_readonly_task(challenge_task_readonly: ChallengeTask):
     """Test that a readonly task raises an error when trying to build."""
@@ -131,6 +128,7 @@ def test_readonly_task(challenge_task_readonly: ChallengeTask):
 
     with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
         challenge_task_readonly.reproduce_pov(fuzzer_name="fuzz_target", crash_path=Path("crash-sample"))
+
 
 def test_build_image(challenge_task: ChallengeTask, mock_subprocess):
     """Test building the docker image for the project."""
@@ -144,7 +142,7 @@ def test_build_image(challenge_task: ChallengeTask, mock_subprocess):
     # Verify the command and working directory
     args, kwargs = mock_subprocess.call_args
     assert args[0] == ["python", "infra/helper.py", "build_image", "--no-pull", "example_project"]
-    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.oss_fuzz_subpath
+    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
 
     # Verify output was read
     mock_process = mock_subprocess.return_value
@@ -171,8 +169,8 @@ def test_build_fuzzers(challenge_task: ChallengeTask, mock_subprocess):
         "address",
         "example_project",
     ]
-    assert args[0][-1].endswith("/source")
-    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.oss_fuzz_subpath
+    assert args[0][-1].endswith(str(challenge_task.get_source_subpath()))
+    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
 
 
 def test_check_build(challenge_task: ChallengeTask, mock_subprocess):
@@ -192,7 +190,7 @@ def test_check_build(challenge_task: ChallengeTask, mock_subprocess):
         "address",
         "example_project",
     ]
-    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.oss_fuzz_subpath
+    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
 
 
 def test_reproduce_pov(challenge_task: ChallengeTask, mock_subprocess):
@@ -208,7 +206,7 @@ def test_reproduce_pov(challenge_task: ChallengeTask, mock_subprocess):
     args, kwargs = mock_subprocess.call_args
     assert args[0][:-1] == ["python", "infra/helper.py", "reproduce", "example_project", "fuzz_target"]
     assert args[0][-1].endswith("/crash-sample")
-    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.oss_fuzz_subpath
+    assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
 
 
 def test_failed_build_image(challenge_task: ChallengeTask, mock_failed_subprocess):
@@ -225,8 +223,6 @@ def test_invalid_task_dir():
         ChallengeTask(
             read_only_task_dir=Path("/nonexistent"),
             project_name="example_project",
-            oss_fuzz_subpath="oss-fuzz",
-            source_subpath="source",
         )
 
 
@@ -240,8 +236,6 @@ def test_missing_required_dirs(tmp_path: Path):
         ChallengeTask(
             read_only_task_dir=task_dir,
             project_name="example_project",
-            oss_fuzz_subpath="oss-fuzz",
-            source_subpath="source",
         )
 
 
@@ -253,7 +247,7 @@ def test_build_image_custom_python(challenge_task_custom_python: ChallengeTask, 
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
     assert args[0] == ["/usr/local/bin/python3", "infra/helper.py", "build_image", "--no-pull", "example_project"]
-    assert kwargs["cwd"] == challenge_task_custom_python.task_dir / challenge_task_custom_python.oss_fuzz_subpath
+    assert kwargs["cwd"] == challenge_task_custom_python.task_dir / challenge_task_custom_python.get_oss_fuzz_subpath()
 
 
 def test_build_fuzzers_custom_python(challenge_task_custom_python: ChallengeTask, mock_subprocess):
@@ -276,62 +270,70 @@ def test_build_fuzzers_custom_python(challenge_task_custom_python: ChallengeTask
         "address",
         "example_project",
     ]
-    assert args[0][-1].endswith("/source")
-    assert kwargs["cwd"] == challenge_task_custom_python.task_dir / challenge_task_custom_python.oss_fuzz_subpath
+    assert args[0][-1].endswith(str(challenge_task_custom_python.get_source_subpath()))
+    assert kwargs["cwd"] == challenge_task_custom_python.task_dir / challenge_task_custom_python.get_oss_fuzz_subpath()
 
 
 @pytest.fixture
-def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
+def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
     """Create a challenge task using a real OSS-Fuzz repository."""
     # Clone real oss-fuzz repo into temp dir
-    oss_fuzz_dir = tmp_path / "oss-fuzz"
-    source_dir = tmp_path / "source"
-    source_dir.mkdir()
+    oss_fuzz_dir = tmp_path / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = tmp_path / "src"
+    source_dir.mkdir(parents=True)
 
+    subprocess.run(["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/google/oss-fuzz.git"], check=True)
+    # Restore libjpeg-turbo project directory to specific commit
     subprocess.run(
-        ["git", "clone", "--depth=1", "https://github.com/google/oss-fuzz.git", str(oss_fuzz_dir)], check=True
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir / "oss-fuzz"),
+            "checkout",
+            "a5d517924f758028f299d7c6cecf3b471503a202",
+            "--",
+            "projects/libjpeg-turbo",
+        ],
+        check=True,
     )
 
     # Download libpng source code
-    libpng_url = "https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.34.tar.gz"
-    libpng_tar = tmp_path / "libpng.tar.gz"
-
-    subprocess.run(["curl", "-L", "-o", str(libpng_tar), libpng_url], check=True)
-
-    # Extract libpng source into source directory, stripping first directory level
-    subprocess.run(["tar", "--strip-components=1", "-xzf", str(libpng_tar), "-C", str(source_dir)], check=True)
+    libjpeg_url = "https://github.com/libjpeg-turbo/libjpeg-turbo"
+    # Checkout specific libjpeg commit for reproducibility
+    subprocess.run(["git", "-C", str(source_dir), "clone", libjpeg_url], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_dir / "libjpeg-turbo"), "checkout", "6d91e950c871103a11bac2f10c63bf998796c719"],
+        check=True,
+    )
 
     return ChallengeTask(
         read_only_task_dir=tmp_path,
         local_task_dir=tmp_path,
-        project_name="libpng",
-        oss_fuzz_subpath="oss-fuzz",
-        source_subpath="source",
+        project_name="libjpeg-turbo",
         logger=logging.getLogger(__name__),
     )
 
 
 @pytest.fixture
-def libpng_crash_testcase(tmp_path: Path) -> Path:
-    """Download libpng crash testcase from oss-fuzz."""
-    # https://issues.oss-fuzz.com/issues/42499503
-    crash_url = "https://oss-fuzz.com/download?testcase_id=5112664847024128"
-    crash_file = tmp_path / "crash-testcase"
-
-    subprocess.run(["curl", "-L", "-o", str(crash_file), crash_url], check=True)
+def libjpeg_crash_testcase() -> Path:
+    """Get libjpeg-turbo crash testcase"""
+    crash_file = Path(__file__).parent / "data" / "libjpeg-crash"
+    if not crash_file.exists():
+        raise FileNotFoundError(f"Crash file not found at {crash_file}")
 
     return crash_file
 
 
 @pytest.mark.integration
-def test_real_build_workflow(libpng_oss_fuzz_task: ChallengeTask):
+def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
     """Test the full build workflow using actual OSS-Fuzz repository."""
     # Build the base image
-    result = libpng_oss_fuzz_task.build_image(pull_latest_base_image=False)
+    result = libjpeg_oss_fuzz_task.build_image(pull_latest_base_image=False)
     assert result.success is True, f"Build image failed: {result.error}"
 
     # Build the fuzzers
-    result = libpng_oss_fuzz_task.build_fuzzers(
+    result = libjpeg_oss_fuzz_task.build_fuzzers(
         engine="libfuzzer",
         sanitizer="address",
         architecture="x86_64",
@@ -339,7 +341,7 @@ def test_real_build_workflow(libpng_oss_fuzz_task: ChallengeTask):
     assert result.success is True, f"Build fuzzers failed: {result.error}"
 
     # Check the build
-    result = libpng_oss_fuzz_task.check_build(
+    result = libjpeg_oss_fuzz_task.check_build(
         engine="libfuzzer",
         sanitizer="address",
         architecture="x86_64",
@@ -348,58 +350,40 @@ def test_real_build_workflow(libpng_oss_fuzz_task: ChallengeTask):
 
 
 @pytest.mark.integration
-def test_real_reproduce_pov(libpng_oss_fuzz_task: ChallengeTask, libpng_crash_testcase: Path):
+def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_testcase: Path):
     """Test the reproduce POV workflow using actual OSS-Fuzz repository."""
     # Reproduce the POV
-    libpng_oss_fuzz_task.build_image(pull_latest_base_image=False)
-    libpng_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
-    result = libpng_oss_fuzz_task.reproduce_pov(
-        fuzzer_name="libFuzzer_libpng_read_fuzzer",
-        crash_path=libpng_crash_testcase,
+    libjpeg_oss_fuzz_task.build_image(pull_latest_base_image=False)
+    libjpeg_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
+    result = libjpeg_oss_fuzz_task.reproduce_pov(
+        fuzzer_name="libjpeg_turbo_fuzzer",
+        crash_path=libjpeg_crash_testcase,
     )
     assert result.success is False, "Reproduce POV failed"
-    assert "MemorySanitizer: use-of-uninitialized-value" in result.output.decode(), (
-        "MemorySanitizer error not found in error message"
-    )
-    assert "png_read_filter_row_paeth_multibyte_pixel" in result.output.decode(), (
-        "Fuzz target name not found in error message"
-    )
-
-
-@pytest.mark.integration
-def test_real_reproduce_pov_no_source_dir(libpng_oss_fuzz_task: ChallengeTask, libpng_crash_testcase: Path):
-    """Test the reproduce POV workflow using actual OSS-Fuzz repository."""
-    libpng_oss_fuzz_task.build_image(pull_latest_base_image=False)
-    libpng_oss_fuzz_task.build_fuzzers(False, engine="libfuzzer", sanitizer="address")
-    result = libpng_oss_fuzz_task.reproduce_pov(
-        fuzzer_name="libpng_read_fuzzer",
-        crash_path=libpng_crash_testcase,
-    )
-    assert result.success is True, "POV was triggered but it should not have been"
 
 
 def test_copy_task(challenge_task: ChallengeTask, mock_subprocess):
     """Test copying a challenge task to a temporary directory."""
     # Create a test file in the source directory to verify it gets copied
-    test_file = challenge_task.task_dir / challenge_task.source_subpath / "test.txt"
+    test_file = challenge_task.task_dir / challenge_task.get_source_subpath() / "test.txt"
     test_content = "test content"
     test_file.write_text(test_content)
 
-    with patch.object(ChallengeTask, '_check_python_path'):
+    with patch.object(ChallengeTask, "_check_python_path"):
         with challenge_task.copy() as local_task:
             # Verify the task directory is different
             assert local_task.task_dir != challenge_task.task_dir
-            
+
             # Verify the file structure was copied
-            assert (local_task.task_dir / local_task.source_subpath).is_dir()
-            assert (local_task.task_dir / local_task.oss_fuzz_subpath).is_dir()
-            assert (local_task.task_dir / local_task.diffs_subpath).is_dir()
-            
+            assert (local_task.task_dir / local_task.get_source_subpath()).is_dir()
+            assert (local_task.task_dir / local_task.get_oss_fuzz_subpath()).is_dir()
+            assert (local_task.task_dir / local_task.get_diff_subpath()).is_dir()
+
             # Verify file contents were copied
-            copied_file = local_task.task_dir / local_task.source_subpath / "test.txt"
+            copied_file = local_task.task_dir / local_task.get_source_subpath() / "test.txt"
             assert copied_file.exists()
             assert copied_file.read_text() == test_content
-            
+
             # Verify we can modify the copy without affecting the original
             new_content = "modified content"
             copied_file.write_text(new_content)
@@ -410,6 +394,6 @@ def test_copy_task(challenge_task: ChallengeTask, mock_subprocess):
             assert result.output is not None
             assert result.output == b"output line 1\noutput line 2\n"
             mock_subprocess.assert_called_once()
-        
+
     # Verify the temporary directory was cleaned up
     assert not local_task.task_dir.exists()

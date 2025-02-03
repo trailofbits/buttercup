@@ -10,6 +10,7 @@ from pathlib import Path
 
 logger = setup_logging(__name__)
 
+
 def copyanything(src: Path | str, dst: Path | str, **kwargs: Any) -> None:
     """Copy a file or directory to a destination.
     This function will:
@@ -25,6 +26,7 @@ def copyanything(src: Path | str, dst: Path | str, **kwargs: Any) -> None:
             shutil.copy(src, dst)
         else:
             raise
+
 
 @contextmanager
 def create_tmp_dir(work_dir: Path | None, delete: bool = True) -> Iterator[Path]:
