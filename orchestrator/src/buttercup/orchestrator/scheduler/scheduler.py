@@ -89,7 +89,10 @@ class Scheduler:
 
         return [
             WeightedHarness(
-                weight=1.0, harness_name=tgt, package_name=build_output.package_name, task_id=build_output.task_id
+                weight=1.0,
+                harness_name=Path(tgt).name,
+                package_name=build_output.package_name,
+                task_id=build_output.task_id,
             )
             for tgt in targets
         ]
