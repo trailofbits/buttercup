@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, patch
 from redis import Redis
 
-from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetail, BuildOutput, WeightedTarget
+from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetail, BuildOutput, WeightedHarness
 
 from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
@@ -15,7 +15,7 @@ def mock_redis():
 
 @pytest.fixture
 def scheduler(mock_redis, tmp_path):
-    return Scheduler(tasks_storage_dir=tmp_path, redis=mock_redis)
+    return Scheduler(tasks_storage_dir=tmp_path, crs_scratch_dir=tmp_path, redis=mock_redis)
 
 
 @pytest.mark.skip(reason="Not implemented")
@@ -51,15 +51,16 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         sanitizer="address",
         output_ossfuzz_path="/path/to/output",
         source_path="/path/to/source",
+        task_id="blah",
     )
 
     targets = scheduler.process_build_output(build_output)
 
     assert len(targets) == 2
-    assert all(isinstance(t, WeightedTarget) for t in targets)
+    assert all(isinstance(t, WeightedHarness) for t in targets)
     assert all(t.weight == 1.0 for t in targets)
-    assert all(t.target == build_output for t in targets)
-    assert [t.harness_path for t in targets] == ["target1", "target2"]
+    assert all(t.task_id == build_output.task_id for t in targets)
+    assert [t.harness_name for t in targets] == ["target1", "target2"]
 
 
 @pytest.mark.skip(reason="Not implemented")

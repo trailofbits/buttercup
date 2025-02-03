@@ -70,6 +70,7 @@ def main():
                     output_ossfuzz_path=target,
                     source_path=source_path_output,
                     task_id=msg.task_id,
+                    build_type=msg.build_type,
                 )
             )
             logger.info(f"Acked build request for {msg.package_name}")

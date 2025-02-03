@@ -133,7 +133,7 @@ class Downloader:
             diff_files = list(diff_dir.rglob("*.patch")) + list(diff_dir.rglob("*.diff"))
             if not diff_files:
                 # If no .patch or .diff files found, try any file
-                diff_files = list(diff_dir.glob("*"))
+                diff_files = list(diff_dir.rglob("*"))
 
             if not diff_files:
                 raise FileNotFoundError("No diff file found in the extracted directory")

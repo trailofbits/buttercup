@@ -58,7 +58,7 @@ def test_process_crashes_with_valid_crash(vulnerabilities, mock_queues):
     # Setup
     crash = Crash()
     crash.target.package_name = "test_package"
-    crash.harness_path = "test_harness"
+    crash.harness_name = "test_harness"
     crash.crash_input_path = "test_input"
 
     mock_item = RQItem(item_id="test_id", deserialized=crash)
@@ -91,7 +91,7 @@ def test_process_unique_vulnerabilities_with_valid_vuln(vulnerabilities, mock_qu
     # Setup
     crash = Crash()
     crash.target.package_name = "test_package"
-    crash.harness_path = "test_harness"
+    crash.harness_name = "test_harness"
     crash.crash_input_path = "test_input"
 
     mock_item = RQItem(item_id="test_id", deserialized=crash)
@@ -111,7 +111,7 @@ def test_submit_vulnerability_creates_confirmed_vuln(vulnerabilities, mock_queue
     # Setup
     crash = Crash()
     crash.target.package_name = "test_package"
-    crash.harness_path = "test_harness"
+    crash.harness_name = "test_harness"
     crash.crash_input_path = "test_input"
 
     # Execute
@@ -130,7 +130,7 @@ def test_dedup_crash_returns_crash(vulnerabilities):
     # Setup
     crash = Crash()
     crash.target.package_name = "test_package"
-    crash.harness_path = "test_harness"
+    crash.harness_name = "test_harness"
     crash.crash_input_path = "test_input"
 
     # Execute
