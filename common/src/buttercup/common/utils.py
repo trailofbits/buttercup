@@ -29,7 +29,7 @@ def copyanything(src: Path | str, dst: Path | str, **kwargs: Any) -> None:
 
 
 @contextmanager
-def create_tmp_dir(work_dir: Path | None, delete: bool = True) -> Iterator[Path]:
+def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | None = None) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
     delete it after use."""
     if work_dir:
@@ -37,10 +37,10 @@ def create_tmp_dir(work_dir: Path | None, delete: bool = True) -> Iterator[Path]
 
     if delete:
         try:
-            with TemporaryDirectory(dir=work_dir) as tmp_dir:
+            with TemporaryDirectory(dir=work_dir, prefix=prefix) as tmp_dir:
                 yield Path(tmp_dir)
         except PermissionError:
             logger.warning("Issues while creating/deleting a temporary directory...")
     else:
-        with contextlib.nullcontext(tempfile.mkdtemp(dir=work_dir)) as tmp_dir:
+        with contextlib.nullcontext(tempfile.mkdtemp(dir=work_dir, prefix=prefix)) as tmp_dir:
             yield Path(tmp_dir)

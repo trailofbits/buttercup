@@ -2,8 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, Callable
+from os import PathLike
 import logging
 import subprocess
+import shutil
 from buttercup.common.logger import setup_logging
 from buttercup.common.utils import create_tmp_dir, copyanything
 from contextlib import contextmanager
@@ -21,10 +23,10 @@ class CommandResult:
 class ChallengeTask:
     """Class to manage Challenge Tasks."""
 
-    read_only_task_dir: Path | str
+    read_only_task_dir: PathLike
     project_name: str
-    python_path: Path | str = Path("python")
-    local_task_dir: Path | str | None = None
+    python_path: PathLike = Path("python")
+    local_task_dir: PathLike | None = None
 
     SRC_DIR = "src"
     DIFF_DIR = "diff"
@@ -53,17 +55,29 @@ class ChallengeTask:
 
         self._check_python_path()
 
+    def _find_first_dir(self, subpath: Path) -> Path:
+        return next((self.task_dir / subpath).iterdir()).relative_to(self.task_dir)
+
     def get_source_subpath(self) -> Path:
-        # NOTE: gets the first directory inside the `src` subdir
-        return next((self.task_dir / self.SRC_DIR).iterdir()).relative_to(self.task_dir)
+        # NOTE: assume the first directory inside the `src` subdir is the correct one
+        return self._find_first_dir(self.SRC_DIR)
 
     def get_diff_subpath(self) -> Path:
-        # NOTE: this assumes there is only one diff directory in the `diff` subdir
-        return next((self.task_dir / self.DIFF_DIR).iterdir()).relative_to(self.task_dir)
+        # NOTE: assume the first directory inside the `diff` subdir is the correct one
+        return self._find_first_dir(self.DIFF_DIR)
 
     def get_oss_fuzz_subpath(self) -> Path:
-        # NOTE: this assumes there is only one oss-fuzz directory in the `fuzz-tooling` subdir
-        return next((self.task_dir / self.OSS_FUZZ_DIR).iterdir()).relative_to(self.task_dir)
+        # NOTE: assume the first directory inside the `fuzz-tooling` subdir is the correct one
+        return self._find_first_dir(self.OSS_FUZZ_DIR)
+
+    def get_source_path(self) -> Path:
+        return self.task_dir / self.get_source_subpath()
+
+    def get_diff_path(self) -> Path:
+        return self.task_dir / self.get_diff_subpath()
+
+    def get_oss_fuzz_path(self) -> Path:
+        return self.task_dir / self.get_oss_fuzz_subpath()
 
     def _check_python_path(self) -> CommandResult:
         """Check if the configured python_path is available in system PATH."""
@@ -217,7 +231,18 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
+        use_cache: bool = True,
     ) -> CommandResult:
+        if use_cache:
+            check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
+            if check_build_res.success:
+                self.logger.info("Build is up to date, skipping building fuzzers")
+                return CommandResult(
+                    success=True,
+                    error=None,
+                    output=None,
+                )
+
         self.logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
             self.project_name,
@@ -299,16 +324,24 @@ class ChallengeTask:
         return self._run_helper_cmd(cmd)
 
     @contextmanager
-    def copy(self, work_dir: Path | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
+    def get_rw_copy(
+        self, work_dir: PathLike | None = None, delete: bool = True, clean_on_failure: bool = True
+    ) -> Iterator[ChallengeTask]:
         """Create a copy of this task in a new writable directory.
         Returns a context manager that yields a new ChallengeTask instance pointing to the new copy.
 
         Example:
-            with task.copy() as local_task:
+            with task.get_rw_copy() as local_task:
                 local_task.build_fuzzers()
         """
-        with create_tmp_dir(work_dir, delete) as tmp_dir:
+        if self.local_task_dir is not None:
+            yield self
+            return
+
+        work_dir = Path(work_dir) if work_dir else None
+        with create_tmp_dir(work_dir, delete, prefix=self.task_dir.name + "-") as tmp_dir:
             # Copy the entire task directory to the temporary location
+            self.logger.info(f"Copying task directory {self.task_dir} to {tmp_dir}")
             copyanything(self.task_dir, tmp_dir, symlinks=True)
 
             # Create a new ChallengeTask instance pointing to the copy
@@ -323,8 +356,22 @@ class ChallengeTask:
             try:
                 yield copied_task
             finally:
-                # The temporary directory will be automatically cleaned up by create_tmp_dir's context
-                pass
+                # If the build failed, clean the local task directory if
+                # requested, otherwise keep the `delete` behaviour for the whole
+                # `work_dir``
+                try:
+                    if clean_on_failure:
+                        self.clean_task_dir()
+                except Exception:
+                    self.logger.exception("Failed to clean task directory")
+                    self.logger.warning("Ignoring the error, continuing...")
+
+    def clean_task_dir(self) -> None:
+        """Clean the local task directory if this is not the original task directory."""
+        if self.local_task_dir is None or self.local_task_dir == self.read_only_task_dir:
+            return
+
+        shutil.rmtree(self.local_task_dir, ignore_errors=True)
 
 
 def main():

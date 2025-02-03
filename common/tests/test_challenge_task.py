@@ -117,6 +117,10 @@ def test_directory_structure(challenge_task: ChallengeTask):
     assert (challenge_task.task_dir / challenge_task.get_source_subpath()).is_dir()
     assert (challenge_task.task_dir / challenge_task.get_diff_subpath()).is_dir()
 
+    assert challenge_task.get_source_path() == challenge_task.task_dir / challenge_task.get_source_subpath()
+    assert challenge_task.get_diff_path() == challenge_task.task_dir / challenge_task.get_diff_subpath()
+    assert challenge_task.get_oss_fuzz_path() == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
+
 
 def test_readonly_task(challenge_task_readonly: ChallengeTask):
     """Test that a readonly task raises an error when trying to build."""
@@ -124,7 +128,7 @@ def test_readonly_task(challenge_task_readonly: ChallengeTask):
         challenge_task_readonly.build_image()
 
     with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
-        challenge_task_readonly.build_fuzzers(engine="libfuzzer", sanitizer="address")
+        challenge_task_readonly.build_fuzzers(engine="libfuzzer", sanitizer="address", use_cache=False)
 
     with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
         challenge_task_readonly.reproduce_pov(fuzzer_name="fuzz_target", crash_path=Path("crash-sample"))
@@ -154,6 +158,7 @@ def test_build_fuzzers(challenge_task: ChallengeTask, mock_subprocess):
     result = challenge_task.build_fuzzers(
         engine="libfuzzer",
         sanitizer="address",
+        use_cache=False,
     )
 
     assert result.success is True
@@ -255,6 +260,7 @@ def test_build_fuzzers_custom_python(challenge_task_custom_python: ChallengeTask
     result = challenge_task_custom_python.build_fuzzers(
         engine="libfuzzer",
         sanitizer="address",
+        use_cache=False,
     )
 
     assert result.success is True
@@ -337,6 +343,7 @@ def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
         engine="libfuzzer",
         sanitizer="address",
         architecture="x86_64",
+        use_cache=False,
     )
     assert result.success is True, f"Build fuzzers failed: {result.error}"
 
@@ -354,7 +361,7 @@ def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_
     """Test the reproduce POV workflow using actual OSS-Fuzz repository."""
     # Reproduce the POV
     libjpeg_oss_fuzz_task.build_image(pull_latest_base_image=False)
-    libjpeg_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
+    libjpeg_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address", use_cache=False)
     result = libjpeg_oss_fuzz_task.reproduce_pov(
         fuzzer_name="libjpeg_turbo_fuzzer",
         crash_path=libjpeg_crash_testcase,
@@ -362,32 +369,27 @@ def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_
     assert result.success is False, "Reproduce POV failed"
 
 
-def test_copy_task(challenge_task: ChallengeTask, mock_subprocess):
+def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
     """Test copying a challenge task to a temporary directory."""
-    # Create a test file in the source directory to verify it gets copied
-    test_file = challenge_task.task_dir / challenge_task.get_source_subpath() / "test.txt"
-    test_content = "test content"
-    test_file.write_text(test_content)
-
     with patch.object(ChallengeTask, "_check_python_path"):
-        with challenge_task.copy() as local_task:
+        with challenge_task_readonly.get_rw_copy() as local_task:
             # Verify the task directory is different
-            assert local_task.task_dir != challenge_task.task_dir
+            assert local_task.task_dir != challenge_task_readonly.task_dir
 
             # Verify the file structure was copied
-            assert (local_task.task_dir / local_task.get_source_subpath()).is_dir()
-            assert (local_task.task_dir / local_task.get_oss_fuzz_subpath()).is_dir()
-            assert (local_task.task_dir / local_task.get_diff_subpath()).is_dir()
+            assert local_task.get_source_path().is_dir()
+            assert local_task.get_oss_fuzz_path().is_dir()
+            assert local_task.get_diff_path().is_dir()
 
             # Verify file contents were copied
-            copied_file = local_task.task_dir / local_task.get_source_subpath() / "test.txt"
+            copied_file = local_task.get_source_path() / "test.txt"
             assert copied_file.exists()
-            assert copied_file.read_text() == test_content
+            assert copied_file.read_text() == "mock test content"
 
             # Verify we can modify the copy without affecting the original
             new_content = "modified content"
             copied_file.write_text(new_content)
-            assert test_file.read_text() == test_content
+            assert copied_file.read_text() != (challenge_task_readonly.get_source_path() / "test.txt").read_text()
 
             result = local_task.build_image()
             assert result.success is True
