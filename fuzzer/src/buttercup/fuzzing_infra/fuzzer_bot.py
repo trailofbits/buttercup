@@ -79,9 +79,9 @@ def main():
                     dst = crash_dir.copy_file(crash.input_path)
                     logger.info(f"Found crash {dst}")
                     if crash_set.add(
-                        chc.target.package_name,
-                        os.path.basename(chc.harness_path),
-                        chc.target.task_id,
+                        chc.package_name,
+                        chc.harness_name,
+                        chc.task_id,
                         crash.stacktrace,
                     ):
                         logger.info(f"Crash {crash.stacktrace} already in set")
