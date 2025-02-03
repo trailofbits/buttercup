@@ -17,7 +17,7 @@ class CrashSet:
     def add(self, project: str, harness_name: str, task_id: str, stacktrace: str) -> bool:
         crash_data = get_crash_data(stacktrace)
         key = dumps([project, harness_name, task_id, crash_data], json_options=CANONICAL_JSON_OPTIONS)
-        return self.redis.sadd(self.set_name, key)
+        return self.set.add(key)
 
 
 def get_crash_data(stacktrace: str) -> str:
