@@ -1,3 +1,4 @@
+import base64
 import logging
 from dataclasses import dataclass, field
 from redis import Redis
@@ -10,6 +11,8 @@ from buttercup.common.queues import (
 )
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash
 from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
+from buttercup.orchestrator.competition_api_client.configuration import Configuration
+from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.registry import TaskRegistry
@@ -20,11 +23,24 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Vulnerabilities:
     redis: Redis
+    competition_api_url: str
     sleep_time: float = 1.0
     crash_queue: ReliableQueue = field(init=False)
     unique_vulnerabilities_queue: ReliableQueue = field(init=False)
     confirmed_vulnerabilities_queue: ReliableQueue = field(init=False)
     task_registry: TaskRegistry = field(init=False)
+    competition_vulnerability_api: VulnerabilityApi = field(init=False)
+
+    def __setup_vulnerability_api(self) -> VulnerabilityApi:
+        """Initialize the competition vulnerability API client."""
+        configuration = Configuration(
+            host=self.competition_api_url,
+            username="api_key_id",  # TODO: Make configurable
+            password="api_key_token",  # TODO: Make configurable
+        )
+        logger.info(f"Initializing vulnerability API client with URL: {self.competition_api_url}")
+        api_client = ApiClient(configuration=configuration)
+        return VulnerabilityApi(api_client=api_client)
 
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
@@ -36,6 +52,10 @@ class Vulnerabilities:
             QueueNames.CONFIRMED_VULNERABILITIES, block_time=None
         )
         self.task_registry = TaskRegistry(self.redis)
+        self.competition_vulnerability_api = self.__setup_vulnerability_api()
+        logger.info(
+            f"Competition vulnerability API client initialized: {self.competition_vulnerability_api is not None}"
+        )
 
     def process_crashes(self) -> bool:
         """Process crashes from the crash queue"""
@@ -114,20 +134,19 @@ class Vulnerabilities:
         """
         logger.info(f"Submitting confirmed vulnerability for crash in {crash.target.package_name}")
         try:
-            # Create vulnerability API client
-            vuln_api = VulnerabilityApi()
-
             # Create submission payload from crash data
             submission = TypesVulnSubmission(
                 architecture="x86_64",  # TODO: Issue #50
-                data_file=crash.crash_input_path,  # TODO: Read the contents of the file instead
+                data_file=base64.b64encode(
+                    crash.crash_input_path.encode()
+                ).decode(),  # Use the contents of the file instead
                 harness_name=crash.harness_path,
                 sanitizer=crash.target.sanitizer,
                 sarif=None,  # Optional, not provided in crash data
             )
 
             # Submit vulnerability and get response
-            response = vuln_api.v1_task_task_id_vuln_post(
+            response = self.competition_vulnerability_api.v1_task_task_id_vuln_post(
                 task_id=crash.target.task_id,
                 payload=submission,
             )
@@ -140,6 +159,15 @@ class Vulnerabilities:
                     f"Package: {crash.target.package_name}"
                 )
                 return None
+
+            # TODO: Could a successful response be PASSED?
+
+            logger.info(
+                f"Vulnerability submission accepted. Status: {response.status}\n"
+                f"Task ID: {crash.target.task_id}\n"
+                f"Package: {crash.target.package_name}\n"
+                f"Vulnerability ID: {response.vuln_id}"
+            )
 
             # Create confirmed vulnerability with API-provided ID
             confirmed_vuln = ConfirmedVulnerability()

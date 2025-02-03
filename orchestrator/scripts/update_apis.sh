@@ -43,6 +43,7 @@ docker run --rm --user $USER_ID:$GROUP_ID -v "$(realpath example-crs-architectur
     --package-name competition_api_client
 
 sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
+sed -i.bak 's/competition_api_client.models,/buttercup.orchestrator.competition_api_client.models,/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
 sed -i.bak 's/^import competition_api_client/import buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
 sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
 sed -i.bak 's/^import competition_api_client./import buttercup.orchestrator.competition_api_client./' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')

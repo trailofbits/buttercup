@@ -41,6 +41,7 @@ def main():
             redis,
             sleep_time=command.sleep_time,
             mock_mode=command.mock_mode,
+            competition_api_url=settings.competition_api_url,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):

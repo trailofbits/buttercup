@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     serve: CliSubCommand[ServeCommand]
     process_ready_task: CliSubCommand[ProcessReadyTaskCommand]
     process_build_output: CliSubCommand[ProcessBuildOutputCommand]
+    competition_api_url: Annotated[str, Field(default="http://competition-api:8080", description="Competition API URL")]
 
     class Config:
         env_prefix = "BUTTERCUP_SCHEDULER_"
