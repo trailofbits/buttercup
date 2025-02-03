@@ -86,7 +86,12 @@ class Scheduler:
         targets = get_fuzz_targets(build_dir)
         logger.debug(f"Found {len(targets)} targets: {targets}")
 
-        return [WeightedHarness(weight=1.0, harness_name=tgt, package_name=build_output.package_name, task_id=build_output.task_id) for tgt in targets]
+        return [
+            WeightedHarness(
+                weight=1.0, harness_name=tgt, package_name=build_output.package_name, task_id=build_output.task_id
+            )
+            for tgt in targets
+        ]
 
     def serve_ready_task(self) -> bool:
         """Handle a ready task"""

@@ -51,7 +51,7 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         sanitizer="address",
         output_ossfuzz_path="/path/to/output",
         source_path="/path/to/source",
-        task_id="blah"
+        task_id="blah",
     )
 
     targets = scheduler.process_build_output(build_output)
