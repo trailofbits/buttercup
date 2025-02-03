@@ -15,7 +15,7 @@ def mock_redis():
 
 @pytest.fixture
 def scheduler(mock_redis, tmp_path):
-    return Scheduler(tasks_storage_dir=tmp_path, redis=mock_redis)
+    return Scheduler(tasks_storage_dir=tmp_path, crs_scratch_dir=tmp_path, redis=mock_redis)
 
 
 @pytest.mark.skip(reason="Not implemented")
