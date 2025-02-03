@@ -47,14 +47,16 @@ class ConfirmedVulnerability(_message.Message):
     def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
-    __slots__ = ["crash_input_path", "harness_path", "target"]
+    __slots__ = ["crash_input_path", "harness_path", "stacktrace", "target"]
     CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
     HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
+    STACKTRACE_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     crash_input_path: str
     harness_path: str
+    stacktrace: str
     target: BuildOutput
-    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ..., crash_input_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ...) -> None: ...
 
 class Patch(_message.Message):
     __slots__ = ["patch", "task_id", "vulnerability_id"]
