@@ -68,7 +68,7 @@ def main():
                     crash: engine.Crash = crash_
                     dst = crash_dir.copy_file(crash.input_path)
                     logger.info(f"Found crash {dst}")
-                    if not crash_set.add(
+                    if crash_set.add(
                         chc.target.package_name,
                         os.path.basename(chc.harness_path),
                         chc.target.task_id,
