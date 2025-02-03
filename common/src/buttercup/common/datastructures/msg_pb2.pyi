@@ -7,36 +7,40 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BuildOutput(_message.Message):
-    __slots__ = ["engine", "output_ossfuzz_path", "package_name", "sanitizer", "source_path", "task_id"]
+    __slots__ = ["build_type", "engine", "output_ossfuzz_path", "package_name", "sanitizer", "source_path", "task_id"]
+    BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_OSSFUZZ_PATH_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    build_type: str
     engine: str
     output_ossfuzz_path: str
     package_name: str
     sanitizer: str
     source_path: str
     task_id: str
-    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., output_ossfuzz_path: _Optional[str] = ..., source_path: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., output_ossfuzz_path: _Optional[str] = ..., source_path: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ...) -> None: ...
 
 class BuildRequest(_message.Message):
-    __slots__ = ["engine", "ossfuzz", "package_name", "sanitizer", "source_path", "task_id"]
+    __slots__ = ["build_type", "engine", "ossfuzz", "package_name", "sanitizer", "source_path", "task_id"]
+    BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     OSSFUZZ_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    build_type: str
     engine: str
     ossfuzz: str
     package_name: str
     sanitizer: str
     source_path: str
     task_id: str
-    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "vuln_id"]
@@ -47,14 +51,16 @@ class ConfirmedVulnerability(_message.Message):
     def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
-    __slots__ = ["crash_input_path", "harness_path", "target"]
+    __slots__ = ["crash_input_path", "harness_name", "stacktrace", "target"]
     CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
-    HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_NAME_FIELD_NUMBER: _ClassVar[int]
+    STACKTRACE_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     crash_input_path: str
-    harness_path: str
+    harness_name: str
+    stacktrace: str
     target: BuildOutput
-    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ..., crash_input_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_name: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ...) -> None: ...
 
 class Patch(_message.Message):
     __slots__ = ["patch", "task_id", "vulnerability_id"]
@@ -123,12 +129,14 @@ class TaskReady(_message.Message):
     task: Task
     def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...
 
-class WeightedTarget(_message.Message):
-    __slots__ = ["harness_path", "target", "weight"]
-    HARNESS_PATH_FIELD_NUMBER: _ClassVar[int]
-    TARGET_FIELD_NUMBER: _ClassVar[int]
+class WeightedHarness(_message.Message):
+    __slots__ = ["harness_name", "package_name", "task_id", "weight"]
+    HARNESS_NAME_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
     WEIGHT_FIELD_NUMBER: _ClassVar[int]
-    harness_path: str
-    target: BuildOutput
+    harness_name: str
+    package_name: str
+    task_id: str
     weight: float
-    def __init__(self, weight: _Optional[float] = ..., target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, weight: _Optional[float] = ..., package_name: _Optional[str] = ..., harness_name: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...

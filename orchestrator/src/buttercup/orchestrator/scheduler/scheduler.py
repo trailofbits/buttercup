@@ -4,14 +4,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.maps import FuzzerMap
+from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
 from buttercup.common.datastructures.msg_pb2 import (
     TaskReady,
     Task,
     SourceDetail,
     BuildRequest,
     BuildOutput,
-    WeightedTarget,
+    WeightedHarness,
 )
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
@@ -23,13 +23,15 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Scheduler:
     tasks_storage_dir: Path
+    crs_scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1.0
     mock_mode: bool = False
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
     build_output_queue: ReliableQueue | None = field(init=False, default=None)
-    fuzzer_map: FuzzerMap | None = field(init=False, default=None)
+    harness_map: HarnessWeights | None = field(init=False, default=None)
+    build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
     vulnerabilities: Vulnerabilities | None = field(init=False, default=None)
 
@@ -46,23 +48,29 @@ class Scheduler:
             self.build_output_queue = queue_factory.create(
                 QueueNames.BUILD_OUTPUT, GroupNames.SCHEDULER_BUILD_OUTPUT, block_time=None
             )
-            self.fuzzer_map = FuzzerMap(self.redis)
+            self.harness_map = HarnessWeights(self.redis)
+            self.build_map = BuildMap(self.redis)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""
         repo_source = next(
             (source for source in task.sources if source.source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO), None
         )
-        if repo_source is not None and repo_source.path == "example-libpng":
-            logger.info(f"Mocking task {task.task_id} / example-libpng")
-            return BuildRequest(
-                package_name="libpng",
-                engine="libfuzzer",
-                sanitizer="address",
-                ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
-                source_path=f"/tasks_storage/{task.task_id}/example-libpng",
-                task_id=task.task_id,
-            )
+        if repo_source is not None:
+            example_libpng_path = Path(f"/tasks_storage/{task.task_id}/src/example-libpng")
+            logger.info(f"Checking if {example_libpng_path} exists")
+            if example_libpng_path.is_dir():
+                logger.info(f"Mocking task {task.task_id} / example-libpng")
+                return BuildRequest(
+                    package_name="libpng",
+                    engine="libfuzzer",
+                    sanitizer="address",
+                    ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
+                    source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
+                    task_id=task.task_id,
+                    build_type=BUILD_TYPES.FUZZER,
+                )
+            logger.info(f"{example_libpng_path} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
@@ -75,15 +83,21 @@ class Scheduler:
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
-    def process_build_output(self, build_output: BuildOutput) -> list[WeightedTarget]:
+    def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"Processing build output for {build_output.package_name}/{build_output.engine}/{build_output.sanitizer}/{build_output.output_ossfuzz_path}"
+            f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.output_ossfuzz_path}"
         )
         build_dir = Path(build_output.output_ossfuzz_path) / "build" / "out" / build_output.package_name
         targets = get_fuzz_targets(build_dir)
         logger.debug(f"Found {len(targets)} targets: {targets}")
-        return [WeightedTarget(weight=1.0, target=build_output, harness_path=tgt) for tgt in targets]
+
+        return [
+            WeightedHarness(
+                weight=1.0, harness_name=tgt, package_name=build_output.package_name, task_id=build_output.task_id
+            )
+            for tgt in targets
+        ]
 
     def serve_ready_task(self) -> bool:
         """Handle a ready task"""
@@ -98,7 +112,7 @@ class Scheduler:
                 logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
                 return True
             except Exception as e:
-                logger.error(f"Failed to process task {task_ready.task.task_id}: {e}")
+                logger.exception(f"Failed to process task {task_ready.task.task_id}: {e}")
                 return False
 
         return False
@@ -108,10 +122,11 @@ class Scheduler:
         build_output_item: RQItem[BuildOutput] | None = self.build_output_queue.pop()
         if build_output_item is not None:
             build_output: BuildOutput = build_output_item.deserialized
+            self.build_map.add_build(build_output)
             try:
                 targets = self.process_build_output(build_output)
                 for target in targets:
-                    self.fuzzer_map.push_target(target)
+                    self.harness_map.push_harness(target)
                 self.build_output_queue.ack_item(build_output_item.item_id)
                 logger.info(
                     f"Pushed {len(targets)} targets to fuzzer map for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.source_path}"

@@ -13,6 +13,7 @@ def main():
     prsr.add_argument("--sanitizer", required=True)
     prsr.add_argument("--source_path", required=True)
     prsr.add_argument("--task_id", required=True)
+    prsr.add_argument("--build_type", required=True)
     args = prsr.parse_args()
 
     redis = Redis.from_url(args.redis_url)
@@ -24,6 +25,7 @@ def main():
         ossfuzz=args.ossfuzz,
         source_path=args.source_path,
         task_id=args.task_id,
+        build_type=args.build_type,
     )
     queue.push(req)
 

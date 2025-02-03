@@ -5,11 +5,11 @@ from buttercup.common.queues import (
     QueueNames,
     GroupNames,
 )
-from buttercup.common.maps import FuzzerMap
+from buttercup.common.maps import HarnessWeights, BuildMap
 
 import argparse
 from redis import Redis
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedTarget
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
 import time
 from clusterfuzz.fuzz import get_fuzz_targets
 import os
@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 DEFAULT_WEIGHT = 1.0
 
 
-def loop(output_queue: ReliableQueue, target_list: FuzzerMap, sleep_time_seconds: int):
+def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: BuildMap, sleep_time_seconds: int):
     while True:
         time.sleep(sleep_time_seconds)
         output: RQItem = output_queue.pop()
@@ -35,10 +35,18 @@ def loop(output_queue: ReliableQueue, target_list: FuzzerMap, sleep_time_seconds
             logger.info(f"Received build of package: {build_dir}")
             print(f"Received build of package: {build_dir}")
             targets = get_fuzz_targets(build_dir)
+            build_map.add_build(deser_output)
             for tgt in targets:
                 logger.info(f"Adding target: {tgt}")
                 print(f"Adding target: {tgt}")
-                target_list.push_target(WeightedTarget(weight=1.0, target=deser_output, harness_path=tgt))
+                target_list.push_harness(
+                    WeightedHarness(
+                        weight=1.0,
+                        harness_name=os.path.basename(tgt),
+                        package_name=deser_output.package_name,
+                        task_id=deser_output.task_id,
+                    )
+                )
             output_queue.ack_item(output.item_id)
 
 
@@ -50,8 +58,9 @@ def main():
     conn = Redis.from_url(args.redis_url)
     seconds = args.timer // 1000
     builder_output = QueueFactory(conn).create(QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR)
-    target_list = FuzzerMap(conn)
-    loop(builder_output, target_list, seconds)
+    target_list = HarnessWeights(conn)
+    build_map = BuildMap(conn)
+    loop(builder_output, target_list, build_map, seconds)
 
 
 if __name__ == "__main__":
