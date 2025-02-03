@@ -16,6 +16,7 @@ from buttercup.common.datastructures.msg_pb2 import (
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
+
 logger = logging.getLogger(__name__)
 
 
