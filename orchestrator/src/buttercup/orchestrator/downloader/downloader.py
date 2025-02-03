@@ -81,11 +81,22 @@ class Downloader:
             logger.error(f"Failed to download {source.url}: {str(e)}")
             return None
 
-    def extract_source(self, task_id: str, tmp_task_dir: Path, source_file: Path) -> Optional[Path]:
+    def _get_source_type_dir(self, source_type: SourceDetail.SourceType) -> str:
+        if source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO:
+            return "src"
+        elif source_type == SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING:
+            return "fuzz-tooling"
+        elif source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
+            return "diff"
+        else:
+            raise ValueError(f"Unknown source type: {source_type}")
+
+    def extract_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail, source_file: Path) -> bool:
         """Uncompress a source file and returns the name of the main directory it contains"""
         try:
-            logger.info(f"[task {task_id}] Extracting {source_file}")
-            tmp_task_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"[task {task_id}] Extracting {source.url}")
+            destination = tmp_task_dir / self._get_source_type_dir(source.source_type)
+            destination.mkdir(parents=True, exist_ok=True)
 
             def is_within_directory(directory: Path, target: Path) -> bool:
                 try:
@@ -102,30 +113,24 @@ class Downloader:
 
             with tarfile.open(source_file) as tar:
                 # First verify all paths are safe
-                safe_extract(tar, tmp_task_dir)
-
-                # Get the name of the main directory
-                main_dir = tar.getmembers()[0].name
+                safe_extract(tar, destination)
 
                 # Extract all members directly into tmp_task_dir
                 for member in tar.getmembers():
-                    tar.extract(member, path=tmp_task_dir)
+                    tar.extract(member, path=destination)
 
             logger.info(f"[task {task_id}] Successfully extracted {source_file}")
-            # Remove the tar file after successful extraction
-            source_file.unlink()
-            logger.info(f"[task {task_id}] Removed tar file {source_file}")
-            return main_dir
+            return True
         except Exception as e:
             logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
-            return None
+            return False
 
-    def apply_patch_diff(self, task_id: str, tmp_task_dir: Path, diff_dir: str | Path) -> bool:
+    def apply_patch_diff(self, task_id: str, tmp_task_dir: Path, diff_source: SourceDetail) -> bool:
         """Apply a patch diff to the source code."""
         try:
             # Find all .patch and .diff files in the directory
-            diff_dir = tmp_task_dir / diff_dir
-            diff_files = list(diff_dir.glob("*.patch")) + list(diff_dir.glob("*.diff"))
+            diff_dir = tmp_task_dir / self._get_source_type_dir(SourceDetail.SourceType.SOURCE_TYPE_DIFF)
+            diff_files = list(diff_dir.rglob("*.patch")) + list(diff_dir.rglob("*.diff"))
             if not diff_files:
                 # If no .patch or .diff files found, try any file
                 diff_files = list(diff_dir.glob("*"))
@@ -141,7 +146,12 @@ class Downloader:
 
                 # Use patch command to apply the patch
                 subprocess.run(
-                    ["patch", "-p1", "-d", str(tmp_task_dir)],
+                    [
+                        "patch",
+                        "-p1",
+                        "-d",
+                        str(tmp_task_dir / self._get_source_type_dir(SourceDetail.SourceType.SOURCE_TYPE_REPO)),
+                    ],
                     input=diff_file.read_text(),
                     text=True,
                     capture_output=True,
@@ -179,11 +189,9 @@ class Downloader:
                 if result is None:
                     return False, None
 
-                extracted_dir = self.extract_source(task_id, tmp_task_dir, result)
-                if not extracted_dir:
+                if not self.extract_source(task_id, tmp_task_dir, source, result):
                     return False, None
 
-                source.path = extracted_dir
                 if source.source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
                     diff_source = source
 
@@ -194,7 +202,7 @@ class Downloader:
         final_task_dir = self.get_task_dir(task_id)
         try:
             tmp_task_dir.rename(final_task_dir)
-            logger.info(f"[task {task_id}] Successfully moved task directory to final location")
+            logger.info(f"[task {task_id}] Successfully moved task directory to {final_task_dir}")
             return True
         except OSError as e:
             # NOTE: Ignore if directory already exists or is not empty - another
@@ -217,6 +225,12 @@ class Downloader:
         """Process a single task by downloading all its sources"""
         logger.info(f"Processing task {task.task_id} (message_id={task.message_id})")
 
+        # Check if task is already downloaded in final destination
+        final_task_dir = self.get_task_dir(task.task_id)
+        if final_task_dir.exists() and final_task_dir.is_dir() and len(list(final_task_dir.iterdir())) > 0:
+            logger.info(f"[task {task.task_id}] Task already downloaded at {final_task_dir}")
+            return True
+
         with tempfile.TemporaryDirectory(dir=self.download_dir) as tmp_task_dir:
             tmp_task_dir = Path(tmp_task_dir)
             logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
@@ -233,7 +247,7 @@ class Downloader:
                 if diff_source is None:
                     raise ValueError("Missing diff source for delta task")
 
-                success = self.apply_patch_diff(task.task_id, tmp_task_dir, diff_source.path)
+                success = self.apply_patch_diff(task.task_id, tmp_task_dir, diff_source)
                 if not success:
                     logger.error(f"Failed to apply diff to source code for task {task.task_id}")
                     return False
