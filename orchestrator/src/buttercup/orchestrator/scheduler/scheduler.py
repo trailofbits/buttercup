@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.maps import HarnessWeights, BuildMap
+from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
 from buttercup.common.datastructures.msg_pb2 import (
     TaskReady,
     Task,
@@ -12,7 +12,6 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildRequest,
     BuildOutput,
     WeightedHarness,
-    BUILD_TYPES
 )
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
