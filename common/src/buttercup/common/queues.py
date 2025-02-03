@@ -337,6 +337,21 @@ class QueueFactory:
 
     @overload
     def create(
+        self, queue_name: Literal[QueueNames.CRASH], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[Crash]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.UNIQUE_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[Crash]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.CONFIRMED_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[ConfirmedVulnerability]: ...
+
+    @overload
+    def create(
         self, queue_name: Literal[QueueNames.DELETE_TASK], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[TaskDelete]: ...
 
