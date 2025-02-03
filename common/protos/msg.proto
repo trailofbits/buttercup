@@ -52,6 +52,7 @@ message BuildRequest {
     string ossfuzz = 4;
     string source_path = 5;
     string task_id = 6;
+    string build_type = 7;
 }
 
 message BuildOutput {
@@ -61,17 +62,21 @@ message BuildOutput {
     string output_ossfuzz_path = 4;
     string source_path = 5;
     string task_id = 6;
+    string build_type = 7;
 }
 
-message WeightedTarget {
+
+
+message WeightedHarness {
     float weight = 1;
-    BuildOutput target = 2; 
-    string harness_path = 3;
+    string package_name = 2;
+    string harness_name = 3;
+    string task_id = 4;
 }
 
 message Crash {
     BuildOutput target = 1;
-    string harness_path = 2;
+    string harness_name = 2;
     string crash_input_path = 3;
     string stacktrace = 4;
 } 
