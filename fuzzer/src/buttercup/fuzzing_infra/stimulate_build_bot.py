@@ -38,7 +38,7 @@ def main():
         build_type=BUILD_TYPES.COVERAGE.name,
     )
 
-    #queue.push(req)
+    queue.push(req)
     queue.push(coverage_req)
 
 if __name__ == "__main__":

@@ -25,25 +25,7 @@ def main():
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir})")
 
-    seconds_sleep = args.timer // 1000
-    q = HarnessWeights(Redis.from_url(args.redis_url))
-    builds = BuildMap(Redis.from_url(args.redis_url))
-    while True:
-        weighted_items: list[WeightedHarness] = q.list_harnesses()
-        logger.info(f"Received {len(weighted_items)} weighted targets")
-
-        if len(weighted_items) > 0:
-            with tempfile.TemporaryDirectory(dir=args.wdir) as td:
-                print(type(weighted_items[0]))
-                chc = random.choices(
-                    [it for it in weighted_items],
-                    weights=[it.weight for it in weighted_items],
-                    k=1,
-                )[0]
-                logger.info(f"Running coverage collection for {chc.harness_name} | {chc.package_name} | {chc.task_id}")
-
-        logger.info(f"Sleeping for {seconds_sleep} seconds")
-        time.sleep(seconds_sleep)
+    raise NotImplementedError
 
 
 if __name__ == "__main__":
