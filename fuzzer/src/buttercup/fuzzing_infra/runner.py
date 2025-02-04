@@ -1,6 +1,7 @@
 from clusterfuzz.fuzz import get_engine
 from clusterfuzz.fuzz.engine import Engine, FuzzResult, FuzzOptions
 from buttercup.common.queues import FuzzConfiguration
+from buttercup.common.logger import setup_package_logger
 import typing
 import os
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ class Runner:
         self.conf = conf
 
     def run_fuzzer(self, conf: FuzzConfiguration) -> FuzzResult:
+        logger.info(f"Running fuzzer with {conf.engine} | {conf.sanitizer} | {conf.target_path}")
         job_name = f"{conf.engine}_{conf.sanitizer}"
 
         engine = typing.cast(Engine, get_engine(conf.engine))
@@ -36,7 +38,7 @@ class Runner:
         logger.debug(f"Calling engine.fuzz with {target} | {repro_dir} | {self.conf.timeout}")
         results: FuzzResult = engine.fuzz(target, opts, repro_dir, self.conf.timeout)
         os.environ["JOB_NAME"] = ""
-        print(results.logs)
+        logger.debug(f"Fuzzer logs: {results.logs}")
         return results
 
 
@@ -48,6 +50,8 @@ def main():
     prsr.add_argument("--sanitizer", required=True)
     prsr.add_argument("target")
     args = prsr.parse_args()
+
+    setup_package_logger(__name__, "DEBUG")
 
     conf = Conf(args.timeout)
     fuzzconf = FuzzConfiguration(args.corpusdir, args.target, args.engine, args.sanitizer)

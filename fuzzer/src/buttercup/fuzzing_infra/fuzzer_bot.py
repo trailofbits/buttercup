@@ -68,7 +68,10 @@ class FuzzerBot(TaskLoop):
                         task.task_id,
                         crash.stacktrace,
                     ):
-                        logger.info(f"Crash {crash.stacktrace} already in set")
+                        logger.info(
+                            f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set"
+                        )
+                        logger.debug(f"Crash stacktrace: {crash.stacktrace}")
                         continue
                     dst = crash_dir.copy_file(crash.input_path)
                     logger.info(f"Found unique crash {dst}")
@@ -86,7 +89,7 @@ class FuzzerBot(TaskLoop):
 
 def main():
     args = FuzzerBotSettings()
-    setup_package_logger(__name__, "DEBUG")
+    setup_package_logger(__name__, args.log_level)
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir})")
