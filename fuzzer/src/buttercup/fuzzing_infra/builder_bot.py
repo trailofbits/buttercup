@@ -1,16 +1,11 @@
-from buttercup.common.queues import BuildConfiguration, QueueNames, GroupNames
-from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
+from buttercup.common.queues import QueueNames, GroupNames
 from redis import Redis
 import argparse
-import tempfile
-from pathlib import Path
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
 from buttercup.common.logger import setup_logging
 from buttercup.common.challenge_task import ChallengeTask
-import shutil
 import time
-import uuid
 import os
 
 logger = setup_logging(__name__)
@@ -42,7 +37,9 @@ def main():
             logger.info(f"Received build request for {msg.package_name}")
             task_dir = os.path.dirname(os.path.dirname(msg.source_path))
             if args.allow_caching:
-                origin_task = ChallengeTask(task_dir, msg.package_name, python_path=args.python, local_task_dir=task_dir, logger=logger)
+                origin_task = ChallengeTask(
+                    task_dir, msg.package_name, python_path=args.python, local_task_dir=task_dir, logger=logger
+                )
             else:
                 origin_task = ChallengeTask(task_dir, msg.package_name, python_path=args.python, logger=logger)
 
