@@ -39,8 +39,7 @@ class CoverageBot(TaskLoop):
             logger.info(f"Coverage for {task.harness_name} | {coverage_build.package_name} | {task.task_id} | {corpus.path} | {coverage_build.output_ossfuzz_path}")
 
 def main():
-    prsr = argparse.ArgumentParser("fuzz bot")
-    prsr.add_argument("--timeout", required=True, type=int)
+    prsr = argparse.ArgumentParser("coverage bot")
     prsr.add_argument("--timer", default=1000, type=int)
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
     prsr.add_argument("--wdir", required=True)
