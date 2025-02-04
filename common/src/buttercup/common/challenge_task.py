@@ -40,10 +40,10 @@ class ChallengeTask:
         self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
         self.python_path = Path(self.python_path)
 
-        if not self.read_only_task_dir.exists() and self.read_only_task_dir.is_dir():
+        if not self.read_only_task_dir.exists() or not self.read_only_task_dir.is_dir():
             raise ValueError(f"Task directory does not exist: {self.read_only_task_dir}")
 
-        if self.local_task_dir is not None and not self.local_task_dir.exists() and self.local_task_dir.is_dir():
+        if self.local_task_dir is not None and (not self.local_task_dir.exists() or not self.local_task_dir.is_dir()):
             raise ValueError(f"Local task directory does not exist: {self.local_task_dir}")
 
         # Verify required directories exist
@@ -123,7 +123,7 @@ class ChallengeTask:
                 cmd.append(str(arg))
 
     def _get_helper_cmd(self, helper_cmd: str, *args: Any, **kwargs: Any) -> list[str]:
-        cmd = [str(self.python_path), self._helper_path, helper_cmd]
+        cmd = [str(self.python_path), str(self._helper_path), helper_cmd]
         for key, value in kwargs.items():
             if key == "e":
                 for k, v in value.items() if isinstance(value, dict) else {}:
@@ -237,18 +237,7 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
-        use_cache: bool = True,
     ) -> CommandResult:
-        if use_cache:
-            check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
-            if check_build_res.success:
-                self.logger.info("Build is up to date, skipping building fuzzers")
-                return CommandResult(
-                    success=True,
-                    error=None,
-                    output=None,
-                )
-
         self.logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
             self.project_name,
@@ -269,6 +258,29 @@ class ChallengeTask:
         )
 
         return self._run_helper_cmd(cmd)
+
+    @read_write_decorator
+    def build_fuzzers_with_cache(
+        self,
+        use_source_dir: bool = True,
+        *,
+        architecture: str | None = None,
+        engine: str | None = None,
+        sanitizer: str | None = None,
+        env: Dict[str, str] | None = None,
+    ) -> CommandResult:
+        check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
+        if check_build_res.success:
+            self.logger.info("Build is up to date, skipping building fuzzers")
+            return check_build_res
+
+        return self.build_fuzzers(
+            use_source_dir=use_source_dir,
+            architecture=architecture,
+            engine=engine,
+            sanitizer=sanitizer,
+            env=env,
+        )
 
     @read_write_decorator
     def check_build(

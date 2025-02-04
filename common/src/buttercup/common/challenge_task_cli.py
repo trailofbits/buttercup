@@ -63,13 +63,20 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
             architecture=subcommand.architecture,
         )
     elif isinstance(subcommand, BuildFuzzersCommand):
-        return task.build_fuzzers(
-            architecture=subcommand.architecture,
-            engine=subcommand.engine,
-            sanitizer=subcommand.sanitizer,
-            env=subcommand.env,
-            use_cache=subcommand.use_cache,
-        )
+        if subcommand.use_cache:
+            return task.build_fuzzers_with_cache(
+                architecture=subcommand.architecture,
+                engine=subcommand.engine,
+                sanitizer=subcommand.sanitizer,
+                env=subcommand.env,
+            )
+        else:
+            return task.build_fuzzers(
+                architecture=subcommand.architecture,
+                engine=subcommand.engine,
+                sanitizer=subcommand.sanitizer,
+                env=subcommand.env,
+            )
     elif isinstance(subcommand, CheckBuildCommand):
         return task.check_build(
             architecture=subcommand.architecture,

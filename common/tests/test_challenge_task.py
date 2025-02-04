@@ -59,7 +59,7 @@ def challenge_task_custom_python(task_dir: Path) -> ChallengeTask:
         read_only_task_dir=task_dir,
         local_task_dir=task_dir,
         project_name="example_project",
-        python_path="/usr/local/bin/python3",
+        python_path="/usr/bin/python3",
     )
 
 
@@ -128,7 +128,7 @@ def test_readonly_task(challenge_task_readonly: ChallengeTask):
         challenge_task_readonly.build_image()
 
     with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
-        challenge_task_readonly.build_fuzzers(engine="libfuzzer", sanitizer="address", use_cache=False)
+        challenge_task_readonly.build_fuzzers(engine="libfuzzer", sanitizer="address")
 
     with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
         challenge_task_readonly.reproduce_pov(fuzzer_name="fuzz_target", crash_path=Path("crash-sample"))
@@ -158,7 +158,6 @@ def test_build_fuzzers(challenge_task: ChallengeTask, mock_subprocess):
     result = challenge_task.build_fuzzers(
         engine="libfuzzer",
         sanitizer="address",
-        use_cache=False,
     )
 
     assert result.success is True
@@ -251,7 +250,7 @@ def test_build_image_custom_python(challenge_task_custom_python: ChallengeTask, 
     assert result.success is True
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
-    assert args[0] == ["/usr/local/bin/python3", "infra/helper.py", "build_image", "--no-pull", "example_project"]
+    assert args[0] == ["/usr/bin/python3", "infra/helper.py", "build_image", "--no-pull", "example_project"]
     assert kwargs["cwd"] == challenge_task_custom_python.task_dir / challenge_task_custom_python.get_oss_fuzz_subpath()
 
 
@@ -260,14 +259,13 @@ def test_build_fuzzers_custom_python(challenge_task_custom_python: ChallengeTask
     result = challenge_task_custom_python.build_fuzzers(
         engine="libfuzzer",
         sanitizer="address",
-        use_cache=False,
     )
 
     assert result.success is True
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
     assert args[0][:-1] == [
-        "/usr/local/bin/python3",
+        "/usr/bin/python3",
         "infra/helper.py",
         "build_fuzzers",
         "--engine",
@@ -343,7 +341,6 @@ def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
         engine="libfuzzer",
         sanitizer="address",
         architecture="x86_64",
-        use_cache=False,
     )
     assert result.success is True, f"Build fuzzers failed: {result.error}"
 
@@ -357,11 +354,32 @@ def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
 
 
 @pytest.mark.integration
+def test_build_fuzzers_with_cache(libjpeg_oss_fuzz_task: ChallengeTask):
+    """Test building fuzzers with cache."""
+    result = libjpeg_oss_fuzz_task.build_fuzzers_with_cache(
+        engine="libfuzzer",
+        sanitizer="address",
+    )
+    assert result.success is True
+    assert result.output is not None
+    assert "cp /src/libjpeg_turbo_fuzzer_seed_corpus.zip /out/" in result.output.decode()
+
+    result = libjpeg_oss_fuzz_task.build_fuzzers_with_cache(
+        engine="libfuzzer",
+        sanitizer="address",
+    )
+    assert result.success is True
+    assert result.output is not None
+    assert "Check build passed" in result.output.decode()
+    assert "cp /src/libjpeg_turbo_fuzzer_seed_corpus.zip /out/" not in result.output.decode()
+
+
+@pytest.mark.integration
 def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_testcase: Path):
     """Test the reproduce POV workflow using actual OSS-Fuzz repository."""
     # Reproduce the POV
     libjpeg_oss_fuzz_task.build_image(pull_latest_base_image=False)
-    libjpeg_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address", use_cache=False)
+    libjpeg_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
     result = libjpeg_oss_fuzz_task.reproduce_pov(
         fuzzer_name="libjpeg_turbo_fuzzer",
         crash_path=libjpeg_crash_testcase,
