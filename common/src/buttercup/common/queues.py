@@ -169,7 +169,7 @@ class ReliableQueue(Generic[MsgType]):
         if self.group_name is not None:
             # Create consumer group if it doesn't exist
             try:
-                self.redis.xgroup_create(self.queue_name, self.group_name, mkstream=True)
+                self.redis.xgroup_create(self.queue_name, self.group_name, mkstream=True, id="0")
             except RedisError:
                 # Group may already exist
                 pass
