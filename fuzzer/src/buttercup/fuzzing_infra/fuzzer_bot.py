@@ -1,14 +1,12 @@
 import argparse
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-import time
 import os
 from buttercup.common.datastructures.msg_pb2 import WeightedHarness, Crash
-from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
+from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.fuzzing_infra.stack_parsing import CrashSet
-import random
 import tempfile
 from buttercup.common.logger import setup_logging
 from redis import Redis
@@ -18,7 +16,6 @@ from typing import List
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 
 logger = setup_logging(__name__)
-
 
 
 class FuzzerBot(TaskLoop):
@@ -93,11 +90,10 @@ def main():
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir})")
 
-    
     seconds_sleep = args.timer // 1000
     fuzzer = FuzzerBot(Redis.from_url(args.redis_url), seconds_sleep, args.timeout, args.wdir)
     fuzzer.run()
- 
+
 
 if __name__ == "__main__":
     main()

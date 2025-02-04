@@ -1,15 +1,7 @@
 import argparse
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-import time
 import os
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness
-from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
-from buttercup.common.queues import QueueFactory
-from buttercup.common.corpus import Corpus
-import random
-import tempfile
 from buttercup.common.logger import setup_logging
-from redis import Redis
+
 logger = setup_logging(__name__)
 
 

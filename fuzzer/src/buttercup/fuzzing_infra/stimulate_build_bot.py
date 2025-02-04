@@ -4,6 +4,7 @@ from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.datastructures.msg_pb2 import BuildRequest
 from buttercup.common.maps import BUILD_TYPES
 
+
 def main():
     prsr = argparse.ArgumentParser("stimulate build bot manually")
     prsr.add_argument("--target_package", required=True)
@@ -40,6 +41,7 @@ def main():
 
     queue.push(req)
     queue.push(coverage_req)
+
 
 if __name__ == "__main__":
     main()
