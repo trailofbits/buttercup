@@ -10,6 +10,7 @@ jobs:
   test:
     strategy:
       matrix:
+        component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
         python:
           - "3.12"
 
@@ -33,40 +34,17 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Setup common package
-        run: uv sync --all-extras
-        working-directory: common
-
-      - name: Setup orchestrator package
-        run: uv sync --all-extras
-        working-directory: orchestrator
-
-      - name: Setup fuzzer package
-        run: uv sync --all-extras
-        working-directory: fuzzer
-
-      - name: Setup seed-gen package
-        run: uv sync --all-extras
-        working-directory: seed-gen
-
-      - name: Run tests on common package
-        run: uv run pytest -svv
-        working-directory: common
-
-      - name: Run tests on orchestrator package
-        run: uv run pytest -svv
-        working-directory: orchestrator
-
-      - name: Run tests on fuzzer package
-        run: uv run pytest -svv
-        working-directory: fuzzer
-
       - name: Download Wasm runtime
         run: wget https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
+        if: ${{ matrix.component }} == 'seed-gen'
         working-directory: seed-gen
 
-      - name: Run tests on seed-gen package
-        run: uv run pytest -svv
+      - name: Setup ${{ matrix.component }} component
+        run: uv sync --all-extras
+        working-directory: ${{ matrix.component }}
+
+      - name: Run tests on ${{ matrix.component }} component
+        run: uv run pytest -svv ${{ matrix.pytest_args }}
         env:
           PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
-        working-directory: seed-gen
+        working-directory: ${{ matrix.component }}
