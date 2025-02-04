@@ -27,12 +27,12 @@ class ChallengeTask:
     project_name: str
     python_path: PathLike = Path("python")
     local_task_dir: PathLike | None = None
+    logger: logging.Logger = field(default_factory=lambda: setup_logging(__name__))
 
     SRC_DIR = "src"
     DIFF_DIR = "diff"
     OSS_FUZZ_DIR = "fuzz-tooling"
 
-    logger: logging.Logger = field(default_factory=lambda: setup_logging(__name__))
     _helper_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
