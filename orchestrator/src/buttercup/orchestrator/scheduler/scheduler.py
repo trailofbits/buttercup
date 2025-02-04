@@ -62,7 +62,7 @@ class Scheduler:
             challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, "example-libpng")
             if challenge_task.get_source_path().is_dir():
                 logger.info(f"Mocking task {task.task_id} / example-libpng")
-                return BuildRequest(
+                [BuildRequest(
                     package_name="libpng",
                     engine="libfuzzer",
                     sanitizer="address",
@@ -70,11 +70,20 @@ class Scheduler:
                     source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
                     task_id=task.task_id,
                     build_type=BUILD_TYPES.FUZZER,
-                )
+                ), BuildRequest(
+                    package_name="libpng",
+                    engine="libfuzzer",
+                    sanitizer="coverage",
+                    ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
+                    source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
+                    task_id=task.task_id,
+                    build_type=BUILD_TYPES.COVERAGE,
+                )]
+            logger.info(f"{example_libpng_path} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
-    def process_ready_task(self, task: Task) -> BuildRequest:
+    def process_ready_task(self, task: Task) -> list[BuildRequest]:
         """Parse a task that has been downloaded and is ready to be built"""
         logger.info(f"Processing ready task {task.task_id}")
         if self.mock_mode:
@@ -113,10 +122,10 @@ class Scheduler:
         if task_ready_item is not None:
             task_ready: TaskReady = task_ready_item.deserialized
             try:
-                build_request = self.process_ready_task(task_ready.task)
-                self.build_requests_queue.push(build_request)
-                self.ready_queue.ack_item(task_ready_item.item_id)
-                logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
+                for build_req in self.process_ready_task(task_ready.task):
+                    self.build_requests_queue.push(build_req)
+                    self.ready_queue.ack_item(task_ready_item.item_id)
+                    logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
                 return True
             except Exception as e:
                 logger.exception(f"Failed to process task {task_ready.task.task_id}: {e}")
