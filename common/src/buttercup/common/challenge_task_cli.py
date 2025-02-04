@@ -55,26 +55,15 @@ class Settings(BaseSettings):
         extra = "allow"
 
 
-def main():
-    settings = Settings()
-    logger = setup_logging(__name__, "DEBUG")
-    task = ChallengeTask(
-        read_only_task_dir=settings.task_dir,
-        project_name=settings.project_name,
-        python_path=settings.python_path,
-        local_task_dir=settings.task_dir if settings.rw else None,
-        logger=logger,
-    )
-
-    subcommand = get_subcommand(settings)
+def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
     if isinstance(subcommand, BuildImageCommand):
-        result = task.build_image(
+        return task.build_image(
             pull_latest_base_image=subcommand.pull_latest_base_image,
             cache=subcommand.cache,
             architecture=subcommand.architecture,
         )
     elif isinstance(subcommand, BuildFuzzersCommand):
-        result = task.build_fuzzers(
+        return task.build_fuzzers(
             architecture=subcommand.architecture,
             engine=subcommand.engine,
             sanitizer=subcommand.sanitizer,
@@ -82,20 +71,46 @@ def main():
             use_cache=subcommand.use_cache,
         )
     elif isinstance(subcommand, CheckBuildCommand):
-        result = task.check_build(
+        return task.check_build(
             architecture=subcommand.architecture,
             engine=subcommand.engine,
             sanitizer=subcommand.sanitizer,
             env=subcommand.env,
         )
     elif isinstance(subcommand, ReproducePovCommand):
-        result = task.reproduce_pov(
+        return task.reproduce_pov(
             fuzzer_name=subcommand.fuzzer_name,
             crash_path=subcommand.crash_path,
             fuzzer_args=subcommand.fuzzer_args,
             architecture=subcommand.architecture,
             env=subcommand.env,
         )
+    else:
+        raise ValueError(f"Unknown subcommand: {subcommand}")
+
+
+def main():
+    settings = Settings()
+    logger = setup_logging(__name__, "DEBUG")
+    if settings.rw:
+        task = ChallengeTask(
+            read_only_task_dir=settings.task_dir,
+            project_name=settings.project_name,
+            python_path=settings.python_path,
+            local_task_dir=settings.task_dir,
+            logger=logger,
+        )
+    else:
+        task = ChallengeTask(
+            read_only_task_dir=settings.task_dir,
+            project_name=settings.project_name,
+            python_path=settings.python_path,
+            logger=logger,
+        )
+
+    subcommand = get_subcommand(settings)
+    with task.get_rw_copy(delete=False) as rw_task:
+        result = handle_subcommand(rw_task, subcommand)
 
     print("Command result:", result.success)
 
