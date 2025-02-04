@@ -90,17 +90,12 @@ class ChallengeTask:
     def get_oss_fuzz_path(self) -> Path | None:
         return self._compose_path(self.get_oss_fuzz_subpath)
 
-    def _check_python_path(self) -> CommandResult:
+    def _check_python_path(self) -> None:
         """Check if the configured python_path is available in system PATH."""
         try:
-            result = subprocess.run([self.python_path, "--version"], check=False, capture_output=True, text=True)
-            return CommandResult(
-                success=result.returncode == 0,
-                error=result.stderr if result.returncode != 0 else None,
-                output=result.stdout,
-            )
-        except FileNotFoundError:
-            return CommandResult(success=False, error=f"Python executable not found at: {self.python_path}")
+            subprocess.run([self.python_path, "--version"], check=False, capture_output=True, text=True)
+        except Exception as e:
+            raise ValueError(f"Python executable couldn't be run: {self.python_path}") from e
 
     @property
     def task_dir(self) -> Path:
