@@ -19,7 +19,9 @@ QUEUE_NAME = "test_queue"
 
 @pytest.fixture
 def redis_client():
-    return Redis(host="localhost", port=6379, db=0)
+    res = Redis(host="localhost", port=6379, db=15)
+    yield res
+    res.flushdb()
 
 
 @pytest.fixture
@@ -226,3 +228,82 @@ def test_invalid_group_name():
     factory = QueueFactory(redis_client)
     with pytest.raises(ValueError):
         factory.create(QueueNames.BUILD_OUTPUT, "invalid_group")
+
+
+def test_consumer_group_race(redis_client):
+    outonly_queue = ReliableQueue[Struct](
+        redis_client,
+        "test_queue2",
+        Struct,
+    )
+
+    msg1 = Struct()
+    msg1.update({"key1": "value1"})
+    outonly_queue.push(msg1)
+
+    msg2 = Struct()
+    msg2.update({"key2": "value2"})
+    outonly_queue.push(msg2)
+
+    reading_queue = ReliableQueue[Struct](
+        redis_client,
+        "test_queue2",
+        Struct,
+        group_name="test_group2",
+    )
+
+    item = reading_queue.pop()
+    assert item is not None
+    assert item.deserialized.fields["key1"].string_value == "value1"
+    reading_queue.ack_item(item.item_id)
+
+    item = reading_queue.pop()
+    assert item is not None
+    assert item.deserialized.fields["key2"].string_value == "value2"
+    reading_queue.ack_item(item.item_id)
+
+
+def test_group_create_race2(redis_client):
+    outonly_queue = ReliableQueue[Struct](
+        redis_client,
+        "test_queue2",
+        Struct,
+    )
+
+    msg1 = Struct()
+    msg1.update({"key1": "value1"})
+    outonly_queue.push(msg1)
+
+    msg2 = Struct()
+    msg2.update({"key2": "value2"})
+    outonly_queue.push(msg2)
+
+    reading_queue1 = ReliableQueue[Struct](
+        redis_client,
+        "test_queue2",
+        Struct,
+        group_name="test_group2",
+    )
+
+    item = reading_queue1.pop()
+    assert item is not None
+    assert item.deserialized.fields["key1"].string_value == "value1"
+    reading_queue1.ack_item(item.item_id)
+
+    reading_queue2 = ReliableQueue[Struct](
+        redis_client,
+        "test_queue2",
+        Struct,
+        group_name="test_group2",
+    )
+
+    item = reading_queue2.pop()
+    assert item is not None
+    assert item.deserialized.fields["key2"].string_value == "value2"
+    reading_queue2.ack_item(item.item_id)
+
+    item = reading_queue1.pop()
+    assert item is None
+
+    item = reading_queue2.pop()
+    assert item is None

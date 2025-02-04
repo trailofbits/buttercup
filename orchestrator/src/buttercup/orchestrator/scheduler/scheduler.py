@@ -28,6 +28,7 @@ class Scheduler:
     redis: Redis | None = None
     sleep_time: float = 1.0
     mock_mode: bool = False
+    competition_api_url: str = "http://competition-api:8080"
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
     build_output_queue: ReliableQueue | None = field(init=False, default=None)
@@ -41,7 +42,7 @@ class Scheduler:
             queue_factory = QueueFactory(self.redis)
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
-            self.vulnerabilities = Vulnerabilities(redis=self.redis)
+            self.vulnerabilities = Vulnerabilities(redis=self.redis, competition_api_url=self.competition_api_url)
             self.ready_queue = queue_factory.create(
                 QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
             )

@@ -165,6 +165,7 @@ services:
       - BUTTERCUP_SCHEDULER_SERVE__REDIS_URL=redis://redis:6379
       - BUTTERCUP_SCHEDULER_LOG_LEVEL=debug
       - BUTTERCUP_SCHEDULER_SERVE__SLEEP_TIME=5
+      - BUTTERCUP_SCHEDULER_SERVE__COMPETITION_API_URL=http://competition-api:1323
       - BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR=/tasks_storage
       - BUTTERCUP_SCHEDULER_SCRATCH_DIR=/crs_scratch
       - BUTTERCUP_SCHEDULER_SERVE__MOCK_MODE=true
@@ -229,6 +230,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  competition-api:
+    image: ghcr.io/aixcc-finals/example-crs-architecture/example-competition-api:v0.1
 
 configs:
   litellm_config:
