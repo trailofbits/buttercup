@@ -89,6 +89,9 @@ class Scheduler:
             f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.output_ossfuzz_path}"
         )
 
+        if build_output.build_type != BUILD_TYPES.FUZZER.value:
+            return []
+
         build_dir = Path(build_output.output_ossfuzz_path) / "build" / "out" / build_output.package_name
         targets = get_fuzz_targets(build_dir)
         logger.debug(f"Found {len(targets)} targets: {targets}")
