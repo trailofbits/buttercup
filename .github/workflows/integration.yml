@@ -30,13 +30,13 @@ jobs:
           sed -i "s|AZURE_API_KEY=.*|AZURE_API_KEY=${{ secrets.AZURE_API_KEY }}|" .env
 
       - name: Run CRS
-        run: docker compose run up -d
+        run: docker compose up -d
 
       - name: Submit a task to the CRS
         run: ./orchestrator/scripts/task_crs.sh
 
-      - name: Wait for 10 minutes
-        run: sleep 600
+      - name: Wait for 10 minutes and monitor logs
+        run: timeout 600 docker compose logs -f
 
       - name: Collect Docker logs
         run: |
