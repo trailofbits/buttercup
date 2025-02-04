@@ -1,6 +1,7 @@
 import logging
 import re
 from enum import Enum
+from pathlib import Path
 
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
@@ -73,7 +74,7 @@ def generate_seed_funcs(harness: str, additional_context: str, count: int) -> li
     return funcs
 
 
-def do_seed_init(challenge: str) -> list[bytes]:
+def do_seed_init(challenge: str, output_dir: Path) -> None:
     """Do seed-init task"""
     logger.info("Doing seed-init for challenge %s", challenge)
     count = 10
@@ -83,18 +84,16 @@ def do_seed_init(challenge: str) -> list[bytes]:
         logger.info("Generating %s seed functions for challenge %s", count, challenge)
         funcs = generate_seed_funcs(harness, additional_context, count)
         logger.info("Executing seed functions for challenge %s", challenge)
-        seeds = sandbox_exec_funcs(funcs)
-        return seeds
+        sandbox_exec_funcs(funcs, output_dir)
     except Exception as err:
         logger.error("Failed seed-init for challenge %s: %s", challenge, str(err))
-        return []
 
 
-def do_seed_explore() -> list[bytes]:
+def do_seed_explore() -> None:
     """Do seed-explore task"""
     raise NotImplementedError(f"{Task.SEED_EXPLORE} not implemented")
 
 
-def do_vuln_discovery() -> list[bytes]:
+def do_vuln_discovery() -> None:
     """Do vuln-discovery task"""
     raise NotImplementedError(f"{Task.VULN_DISCOVERY} not implemented")

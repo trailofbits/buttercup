@@ -26,7 +26,7 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
 def create_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the given configuration."""
     return ChatOpenAI(
-        openai_api_base=os.getenv("BUTTERCUP_LITELLM_HOSTNAME"),  # type: ignore[call-arg]
-        openai_api_key=os.getenv("BUTTERCUP_LITELLM_KEY"),
+        openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
+        openai_api_key=os.environ["BUTTERCUP_LITELLM_KEY"],
         **kwargs,
     )
