@@ -51,9 +51,9 @@ class ChallengeTask:
             if not (self.task_dir / directory).is_dir():
                 raise ValueError(f"Missing required directory: {self.task_dir / directory}")
 
-        self._helper_path = self.get_oss_fuzz_subpath() / "infra/helper.py"
-        if not (self.task_dir / self._helper_path).exists():
-            raise ValueError(f"Missing required file: {self.task_dir / self._helper_path}")
+        self._helper_path = Path("infra/helper.py")
+        if not (self.get_oss_fuzz_path() / self._helper_path).exists():
+            raise ValueError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
 
         self._check_python_path()
 
@@ -128,7 +128,7 @@ class ChallengeTask:
                 cmd.append(str(arg))
 
     def _get_helper_cmd(self, helper_cmd: str, *args: Any, **kwargs: Any) -> list[str]:
-        cmd = [str(self.python_path), "infra/helper.py", helper_cmd]
+        cmd = [str(self.python_path), self._helper_path, helper_cmd]
         for key, value in kwargs.items():
             if key == "e":
                 for k, v in value.items() if isinstance(value, dict) else {}:
