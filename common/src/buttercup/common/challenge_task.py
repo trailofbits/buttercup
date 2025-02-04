@@ -40,8 +40,11 @@ class ChallengeTask:
         self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
         self.python_path = Path(self.python_path)
 
-        if not self.task_dir.exists():
-            raise ValueError(f"Task directory does not exist: {self.task_dir}")
+        if not self.read_only_task_dir.exists() and self.read_only_task_dir.is_dir():
+            raise ValueError(f"Task directory does not exist: {self.read_only_task_dir}")
+
+        if self.local_task_dir is not None and not self.local_task_dir.exists() and self.local_task_dir.is_dir():
+            raise ValueError(f"Local task directory does not exist: {self.local_task_dir}")
 
         # Verify required directories exist
         for directory in [self.SRC_DIR, self.OSS_FUZZ_DIR]:
