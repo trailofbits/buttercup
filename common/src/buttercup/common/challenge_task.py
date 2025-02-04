@@ -38,7 +38,6 @@ class ChallengeTask:
     def __post_init__(self) -> None:
         self.read_only_task_dir = Path(self.read_only_task_dir)
         self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
-        self.project_name = self.project_name
         self.python_path = Path(self.python_path)
 
         if not self.task_dir.exists():
