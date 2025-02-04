@@ -75,20 +75,20 @@ class ChallengeTask:
         # NOTE: assume the first directory inside the `fuzz-tooling` subdir is the correct one
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
-    def _compose_path(self, subpath_method: Callable[[], Path | None]) -> Path | None:
+    def _task_dir_compose_path(self, subpath_method: Callable[[], Path | None]) -> Path | None:
         subpath = subpath_method()
         if subpath is None:
             return None
         return self.task_dir / subpath
 
     def get_source_path(self) -> Path | None:
-        return self._compose_path(self.get_source_subpath)
+        return self._task_dir_compose_path(self.get_source_subpath)
 
     def get_diff_path(self) -> Path | None:
-        return self._compose_path(self.get_diff_subpath)
+        return self._task_dir_compose_path(self.get_diff_subpath)
 
     def get_oss_fuzz_path(self) -> Path | None:
-        return self._compose_path(self.get_oss_fuzz_subpath)
+        return self._task_dir_compose_path(self.get_oss_fuzz_subpath)
 
     def _check_python_path(self) -> None:
         """Check if the configured python_path is available in system PATH."""
