@@ -2,7 +2,7 @@ import argparse
 from redis import Redis
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.datastructures.msg_pb2 import BuildRequest
-
+from buttercup.common.maps import BUILD_TYPES
 
 def main():
     prsr = argparse.ArgumentParser("stimulate build bot manually")
@@ -27,8 +27,19 @@ def main():
         task_id=args.task_id,
         build_type=args.build_type,
     )
-    queue.push(req)
 
+    coverage_req = BuildRequest(
+        package_name=args.target_package,
+        engine=args.engine,
+        sanitizer="coverage",
+        ossfuzz=args.ossfuzz,
+        source_path=args.source_path,
+        task_id=args.task_id,
+        build_type=BUILD_TYPES.COVERAGE.name,
+    )
+
+    #queue.push(req)
+    queue.push(coverage_req)
 
 if __name__ == "__main__":
     main()
