@@ -63,9 +63,28 @@ class Vulnerabilities:
         if crash_item is not None:
             try:
                 crash: Crash = crash_item.deserialized
+                logger.info(
+                    f"Received crash:\n"
+                    f"Task ID: {crash.target.task_id}\n"
+                    f"Package: {crash.target.package_name}\n"
+                    f"Harness: {crash.harness_name}"
+                )
                 unique_crash = self.dedup_crash(crash)
                 if unique_crash is not None:
+                    logger.info(
+                        f"Crash determined to be unique, pushing to unique vulnerabilities queue:\n"
+                        f"Task ID: {crash.target.task_id}\n"
+                        f"Package: {crash.target.package_name}\n"
+                        f"Harness: {crash.harness_name}"
+                    )
                     self.unique_vulnerabilities_queue.push(unique_crash)
+                else:
+                    logger.info(
+                        f"Crash determined to be duplicate, skipping:\n"
+                        f"Task ID: {crash.target.task_id}\n"
+                        f"Package: {crash.target.package_name}\n"
+                        f"Harness: {crash.harness_name}"
+                    )
                 self.crash_queue.ack_item(crash_item.item_id)
                 return True
             except Exception as e:
@@ -152,7 +171,10 @@ class Vulnerabilities:
             )
 
             # Check submission status before proceeding
-            if response.status != TypesSubmissionStatus.ACCEPTED:
+            # Currently allowing both ACCEPTED and PASSED submissions to continue,
+            # as we don't know if the competition API can return PASSED immediately on submission.
+            # If we don't acknowledge the PASSED status, we may miss a successful submission.
+            if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(
                     f"Vulnerability submission not accepted. Status: {response.status}\n"
                     f"Task ID: {crash.target.task_id}\n"
