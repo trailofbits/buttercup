@@ -112,7 +112,7 @@ services:
       dind:
         condition: service_started
 
-  coverage-bot:
+  build-bot:
     command: ["buttercup-fuzzer-builder", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ./
