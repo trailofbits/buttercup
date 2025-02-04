@@ -44,7 +44,7 @@ def main():
                 origin_task = ChallengeTask(task_dir, msg.package_name, python_path=args.python, logger=logger)
 
             with origin_task.get_rw_copy(work_dir=args.wdir, delete=False) as task:
-                res = task.build_fuzzers(engine=msg.engine, sanitizer=msg.sanitizer)
+                res = task.build_fuzzers_with_cache(engine=msg.engine, sanitizer=msg.sanitizer)
                 if not res.success:
                     logger.error(f"Could not build fuzzer {msg.package_name}")
                     task.clean_task_dir()
