@@ -47,9 +47,9 @@ def main():
                 res = task.build_fuzzers_with_cache(engine=msg.engine, sanitizer=msg.sanitizer)
                 if not res.success:
                     logger.error(f"Could not build fuzzer {msg.package_name}")
-                    task.clean_task_dir()
                     continue
 
+                task.commit()
                 logger.info(f"Pushing build output for {msg.package_name}")
                 output_q.push(
                     BuildOutput(

@@ -7,9 +7,10 @@ from typing import Iterator, Any
 from tempfile import TemporaryDirectory
 from buttercup.common.logger import setup_logging
 from pathlib import Path
+from os import PathLike
 
 
-def copyanything(src: Path | str, dst: Path | str, **kwargs: Any) -> None:
+def copyanything(src: PathLike, dst: PathLike, **kwargs: Any) -> None:
     """Copy a file or directory to a destination.
     This function will:
     - Copy directories recursively

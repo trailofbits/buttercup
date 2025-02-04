@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Dict, Any, Callable
 from os import PathLike
 import logging
+import uuid
 import subprocess
-import shutil
 from buttercup.common.logger import setup_logging
 from buttercup.common.utils import create_tmp_dir, copyanything
 from contextlib import contextmanager
@@ -33,6 +33,8 @@ class ChallengeTask:
     DIFF_DIR = "diff"
     OSS_FUZZ_DIR = "fuzz-tooling"
 
+    MAX_COMMIT_RETRIES = 3
+
     _helper_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
@@ -40,22 +42,27 @@ class ChallengeTask:
         self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
         self.python_path = Path(self.python_path)
 
-        if not self.read_only_task_dir.exists() or not self.read_only_task_dir.is_dir():
-            raise ValueError(f"Task directory does not exist: {self.read_only_task_dir}")
-
-        if self.local_task_dir is not None and (not self.local_task_dir.exists() or not self.local_task_dir.is_dir()):
-            raise ValueError(f"Local task directory does not exist: {self.local_task_dir}")
+        self._check_dir_exists(self.read_only_task_dir)
+        if self.local_task_dir:
+            self._check_dir_exists(self.local_task_dir)
 
         # Verify required directories exist
         for directory in [self.SRC_DIR, self.OSS_FUZZ_DIR]:
             if not (self.task_dir / directory).is_dir():
-                raise ValueError(f"Missing required directory: {self.task_dir / directory}")
+                raise RuntimeError(f"Missing required directory: {self.task_dir / directory}")
 
         self._helper_path = Path("infra/helper.py")
         if not (self.get_oss_fuzz_path() / self._helper_path).exists():
-            raise ValueError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
+            raise RuntimeError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
 
         self._check_python_path()
+
+    def _check_dir_exists(self, path: Path) -> None:
+        if not path.exists():
+            raise RuntimeError(f"Missing required directory: {path}")
+
+        if not path.is_dir():
+            raise RuntimeError(f"Required directory is not a directory: {path}")
 
     def _find_first_dir(self, subpath: Path) -> Path | None:
         first_elem = next((self.task_dir / subpath).iterdir(), None)
@@ -64,15 +71,15 @@ class ChallengeTask:
         return first_elem.relative_to(self.task_dir)
 
     def get_source_subpath(self) -> Path | None:
-        # NOTE: assume the first directory inside the `src` subdir is the correct one
+        # TODO: "Review task structure and Challenge Task operations" Issue #74
         return self._find_first_dir(self.SRC_DIR)
 
     def get_diff_subpath(self) -> Path | None:
-        # NOTE: assume the first directory inside the `diff` subdir is the correct one
+        # TODO: "Review task structure and Challenge Task operations" Issue #74
         return self._find_first_dir(self.DIFF_DIR)
 
     def get_oss_fuzz_subpath(self) -> Path | None:
-        # NOTE: assume the first directory inside the `fuzz-tooling` subdir is the correct one
+        # TODO: "Review task structure and Challenge Task operations" Issue #74
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
     def _task_dir_compose_path(self, subpath_method: Callable[[], Path | None]) -> Path | None:
@@ -95,7 +102,7 @@ class ChallengeTask:
         try:
             subprocess.run([self.python_path, "--version"], check=False, capture_output=True, text=True)
         except Exception as e:
-            raise ValueError(f"Python executable couldn't be run: {self.python_path}") from e
+            raise RuntimeError(f"Python executable couldn't be run: {self.python_path}") from e
 
     @property
     def task_dir(self) -> Path:
@@ -342,9 +349,7 @@ class ChallengeTask:
         return self._run_helper_cmd(cmd)
 
     @contextmanager
-    def get_rw_copy(
-        self, work_dir: PathLike | None = None, delete: bool = True, clean_on_failure: bool = True
-    ) -> Iterator[ChallengeTask]:
+    def get_rw_copy(self, work_dir: PathLike | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
         """Create a copy of this task in a new writable directory.
         Returns a context manager that yields a new ChallengeTask instance pointing to the new copy.
 
@@ -374,19 +379,35 @@ class ChallengeTask:
             try:
                 yield copied_task
             finally:
-                # If the build failed, clean the local task directory if
-                # requested, otherwise keep the `delete` behaviour for the whole
-                # `work_dir``
-                try:
-                    if clean_on_failure:
-                        self.clean_task_dir()
-                except Exception:
-                    self.logger.exception("Failed to clean task directory")
-                    self.logger.warning("Ignoring the error, continuing...")
+                pass
 
-    def clean_task_dir(self) -> None:
-        """Clean the local task directory if this is not the original task directory."""
-        if self.local_task_dir is None or self.local_task_dir == self.read_only_task_dir:
+    def commit(self, suffix: str | None = None, retry: bool = True) -> None:
+        """Commit the local task directory to a stable path.
+
+        This is useful to save the task state for later use and together with
+        the `get_rw_copy` context manager.
+        """
+        if self.local_task_dir is None:
             return
 
-        shutil.rmtree(self.local_task_dir, ignore_errors=True)
+        assert isinstance(self.local_task_dir, Path)
+        max_retries = self.MAX_COMMIT_RETRIES if retry else 1
+        new_local_task_dir = None
+        for i in range(max_retries):
+            suffix = suffix if suffix is not None else str(uuid.uuid4())[:16]
+            new_name = f"{self.read_only_task_dir.name}-{suffix}"
+            try:
+                self.logger.info(f"Committing task {self.local_task_dir} to {new_name}")
+                new_local_task_dir = self.local_task_dir.rename(self.local_task_dir.parent / new_name)
+                self.logger.info(f"Committed task {self.local_task_dir} to {new_name}")
+                break
+            except OSError:
+                if i == max_retries - 1:
+                    raise RuntimeError("Failed to commit task")
+
+                self.logger.error(
+                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix..."
+                )
+                suffix = None
+
+        self.local_task_dir = new_local_task_dir

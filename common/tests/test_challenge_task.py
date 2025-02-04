@@ -223,7 +223,7 @@ def test_failed_build_image(challenge_task: ChallengeTask, mock_failed_subproces
 
 def test_invalid_task_dir():
     """Test handling of invalid task directory."""
-    with pytest.raises(ValueError, match="Task directory does not exist"):
+    with pytest.raises(RuntimeError, match="Missing required directory: /nonexistent"):
         ChallengeTask(
             read_only_task_dir=Path("/nonexistent"),
             project_name="example_project",
@@ -236,7 +236,7 @@ def test_missing_required_dirs(tmp_path: Path):
     task_dir = tmp_path / "task"
     task_dir.mkdir()
 
-    with pytest.raises(ValueError, match="Missing required directory"):
+    with pytest.raises(RuntimeError, match=f"Missing required directory: {task_dir / 'src'}"):
         ChallengeTask(
             read_only_task_dir=task_dir,
             project_name="example_project",
@@ -417,3 +417,50 @@ def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
 
     # Verify the temporary directory was cleaned up
     assert not local_task.task_dir.exists()
+
+
+def test_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
+    """Test committing a challenge task."""
+    with patch.object(ChallengeTask, "_check_python_path"):
+        with challenge_task_readonly.get_rw_copy() as local_task:
+            local_task.build_image()
+            local_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
+            old_local_dir = local_task.task_dir
+            local_task.commit()
+            commited_local_dir = local_task.task_dir
+            assert commited_local_dir != old_local_dir
+            assert commited_local_dir.exists()
+            assert commited_local_dir.is_dir()
+            assert not old_local_dir.exists()
+
+        commited_task = ChallengeTask(
+            read_only_task_dir=commited_local_dir,
+            local_task_dir=commited_local_dir,
+            project_name="example_project",
+        )
+        assert commited_task.get_source_path().exists()
+        assert commited_task.get_oss_fuzz_path().exists()
+        assert commited_task.get_diff_path().exists()
+
+        with pytest.raises(RuntimeError, match="Missing required directory"):
+            ChallengeTask(
+                read_only_task_dir=old_local_dir,
+                local_task_dir=old_local_dir,
+                project_name="example_project",
+            )
+
+
+def test_no_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
+    """Test that a not-commited task cannot be accessed after the context manager is closed."""
+    with patch.object(ChallengeTask, "_check_python_path"):
+        with challenge_task_readonly.get_rw_copy() as local_task:
+            local_task.build_image()
+            local_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
+            old_local_dir = local_task.task_dir
+
+        with pytest.raises(RuntimeError, match="Missing required directory"):
+            ChallengeTask(
+                read_only_task_dir=old_local_dir,
+                local_task_dir=old_local_dir,
+                project_name="example_project",
+            )
