@@ -9,6 +9,7 @@ class ServeCommand(BaseModel):
     sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     mock_mode: CliImplicitFlag[bool] = Field(default=False, description="Mock mode")
+    competition_api_url: Annotated[str, Field(default="http://competition-api:8080", description="Competition API URL")]
 
     class Config:
         nested_model_default_partial_update = True
