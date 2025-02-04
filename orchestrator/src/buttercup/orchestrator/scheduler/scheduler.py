@@ -62,23 +62,26 @@ class Scheduler:
             challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, "example-libpng")
             if challenge_task.get_source_path().is_dir():
                 logger.info(f"Mocking task {task.task_id} / example-libpng")
-                [BuildRequest(
-                    package_name="libpng",
-                    engine="libfuzzer",
-                    sanitizer="address",
-                    ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
-                    source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
-                    task_id=task.task_id,
-                    build_type=BUILD_TYPES.FUZZER,
-                ), BuildRequest(
-                    package_name="libpng",
-                    engine="libfuzzer",
-                    sanitizer="coverage",
-                    ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
-                    source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
-                    task_id=task.task_id,
-                    build_type=BUILD_TYPES.COVERAGE,
-                )]
+                [
+                    BuildRequest(
+                        package_name="libpng",
+                        engine="libfuzzer",
+                        sanitizer="address",
+                        ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
+                        source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
+                        task_id=task.task_id,
+                        build_type=BUILD_TYPES.FUZZER,
+                    ),
+                    BuildRequest(
+                        package_name="libpng",
+                        engine="libfuzzer",
+                        sanitizer="coverage",
+                        ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
+                        source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
+                        task_id=task.task_id,
+                        build_type=BUILD_TYPES.COVERAGE,
+                    ),
+                ]
             logger.info(f"{example_libpng_path} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
