@@ -16,6 +16,7 @@ class Conf:
 class OSSFuzzTool:
     def __init__(self, conf: Conf):
         self._conf = conf
+        self.oss_fuzz_path = conf.oss_fuzz_path
         self._helper_path = os.path.join(self._conf.oss_fuzz_path, "infra/helper.py")
 
     @staticmethod
@@ -58,6 +59,12 @@ class OSSFuzzTool:
 
     def build_fuzzer(self, fuzz_conf: BuildConfiguration):
         args = self.build_fuzzer_command("build_fuzzers", fuzz_conf)
+        ret = subprocess.run(args)
+        return ret.returncode == 0
+
+
+    def run_coverage(self, harness_name: str, corpus_dir: str, package_name: str):
+        args = [self._conf.python_path, self._helper_path, "coverage", "--corpus-dir", corpus_dir, "--fuzz-target", harness_name, "--no-serve", package_name]
         ret = subprocess.run(args)
         return ret.returncode == 0
 
