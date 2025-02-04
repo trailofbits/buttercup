@@ -3,7 +3,7 @@ from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import os
 from buttercup.common.datastructures.msg_pb2 import WeightedHarness, Crash
 from buttercup.common.maps import BUILD_TYPES
-from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
+from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.fuzzing_infra.stack_parsing import CrashSet
@@ -22,7 +22,7 @@ class FuzzerBot(TaskLoop):
     def __init__(self, redis: Redis, timer_seconds: int, timeout_seconds: int, wdir: str):
         self.wdir = wdir
         self.runner = Runner(Conf(timeout_seconds))
-        self.output_q = QueueFactory(redis).create(QueueNames.CRASH, GroupNames.ORCHESTRATOR)
+        self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
 
         super().__init__(redis, timer_seconds)
 
