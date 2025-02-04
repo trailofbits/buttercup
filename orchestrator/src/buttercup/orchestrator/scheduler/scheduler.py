@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Scheduler:
     tasks_storage_dir: Path
+    scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1.0
     mock_mode: bool = False
@@ -55,17 +56,21 @@ class Scheduler:
         repo_source = next(
             (source for source in task.sources if source.source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO), None
         )
-        if repo_source is not None and repo_source.path == "example-libpng":
-            logger.info(f"Mocking task {task.task_id} / example-libpng")
-            return BuildRequest(
-                package_name="libpng",
-                engine="libfuzzer",
-                sanitizer="address",
-                ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling",
-                source_path=f"/tasks_storage/{task.task_id}/example-libpng",
-                task_id=task.task_id,
-                build_type=BUILD_TYPES.FUZZER,
-            )
+        if repo_source is not None:
+            example_libpng_path = Path(f"/tasks_storage/{task.task_id}/src/example-libpng")
+            logger.info(f"Checking if {example_libpng_path} exists")
+            if example_libpng_path.is_dir():
+                logger.info(f"Mocking task {task.task_id} / example-libpng")
+                return BuildRequest(
+                    package_name="libpng",
+                    engine="libfuzzer",
+                    sanitizer="address",
+                    ossfuzz=f"/tasks_storage/{task.task_id}/fuzz-tooling/fuzz-tooling",
+                    source_path=f"/tasks_storage/{task.task_id}/src/example-libpng",
+                    task_id=task.task_id,
+                    build_type=BUILD_TYPES.FUZZER,
+                )
+            logger.info(f"{example_libpng_path} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
@@ -81,7 +86,7 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"Processing build output for {build_output.package_name}/{build_output.engine}/{build_output.sanitizer}/{build_output.output_ossfuzz_path}"
+            f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.output_ossfuzz_path}"
         )
         build_dir = Path(build_output.output_ossfuzz_path) / "build" / "out" / build_output.package_name
         targets = get_fuzz_targets(build_dir)
@@ -110,7 +115,7 @@ class Scheduler:
                 logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
                 return True
             except Exception as e:
-                logger.error(f"Failed to process task {task_ready.task.task_id}: {e}")
+                logger.exception(f"Failed to process task {task_ready.task.task_id}: {e}")
                 return False
 
         return False
