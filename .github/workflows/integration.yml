@@ -23,7 +23,13 @@ jobs:
       - name: Build docker images
         run: docker compose build
 
-      - name: Run integration tests
+      - name: Configure .env file
+        run: |
+          cp env.template .env
+          sed -i "s|AZURE_API_BASE=.*|AZURE_API_BASE=${{ secrets.AZURE_API_BASE }}|" .env
+          sed -i "s|AZURE_API_KEY=.*|AZURE_API_KEY=${{ secrets.AZURE_API_KEY }}|" .env
+
+      - name: Run CRS
         run: docker compose run up -d
 
       - name: Submit a task to the CRS
