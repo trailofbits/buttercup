@@ -18,11 +18,21 @@ logger = setup_logging(__name__)
 
 
 class CoverageBot(TaskLoop):
-    def __init__(self, redis: Redis, timer_seconds: int, wdir: str, python: str, allow_pull: bool, base_image_url: str):
+    def __init__(
+        self,
+        redis: Redis,
+        timer_seconds: int,
+        wdir: str,
+        python: str,
+        allow_pull: bool,
+        base_image_url: str,
+        llvm_cov_tool: str,
+    ):
         self.wdir = wdir
         self.python = python
         self.allow_pull = allow_pull
         self.base_image_url = base_image_url
+        self.llvm_cov_tool = llvm_cov_tool
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> List[BUILD_TYPES]:
@@ -40,7 +50,7 @@ class CoverageBot(TaskLoop):
                 OSSFuzzTool(
                     Conf(coverage_build.output_ossfuzz_path, self.python, self.allow_pull, self.base_image_url)
                 ),
-                "llvm-cov",
+                self.llvm_cov_tool,
             )
             runner.run(task.harness_name, corpus.path, coverage_build.package_name)
             logger.info(
@@ -56,6 +66,7 @@ def main():
     prsr.add_argument("--python", default="python")
     prsr.add_argument("--allow-pull", action="store_true", default=False)
     prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
+    prsr.add_argument("--llvm-cov-tool", default="llvm-cov")
     args = prsr.parse_args()
 
     os.makedirs(args.wdir, exist_ok=True)
@@ -63,7 +74,13 @@ def main():
 
     seconds_sleep = args.timer // 1000
     fuzzer = CoverageBot(
-        Redis.from_url(args.redis_url), seconds_sleep, args.wdir, args.python, args.allow_pull, args.base_image_url
+        Redis.from_url(args.redis_url),
+        seconds_sleep,
+        args.wdir,
+        args.python,
+        args.allow_pull,
+        args.base_image_url,
+        args.llvm_cov_tool,
     )
     fuzzer.run()
 
