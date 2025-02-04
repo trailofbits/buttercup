@@ -40,7 +40,7 @@ def main():
     )
 
     queue.push(req)
-    queue.push(coverage_req)
+    #queue.push(coverage_req)
 
 
 if __name__ == "__main__":
