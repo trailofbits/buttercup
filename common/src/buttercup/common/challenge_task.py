@@ -55,29 +55,38 @@ class ChallengeTask:
 
         self._check_python_path()
 
-    def _find_first_dir(self, subpath: Path) -> Path:
-        return next((self.task_dir / subpath).iterdir()).relative_to(self.task_dir)
+    def _find_first_dir(self, subpath: Path) -> Path | None:
+        first_elem = next((self.task_dir / subpath).iterdir(), None)
+        if first_elem is None:
+            return None
+        return first_elem.relative_to(self.task_dir)
 
-    def get_source_subpath(self) -> Path:
+    def get_source_subpath(self) -> Path | None:
         # NOTE: assume the first directory inside the `src` subdir is the correct one
         return self._find_first_dir(self.SRC_DIR)
 
-    def get_diff_subpath(self) -> Path:
+    def get_diff_subpath(self) -> Path | None:
         # NOTE: assume the first directory inside the `diff` subdir is the correct one
         return self._find_first_dir(self.DIFF_DIR)
 
-    def get_oss_fuzz_subpath(self) -> Path:
+    def get_oss_fuzz_subpath(self) -> Path | None:
         # NOTE: assume the first directory inside the `fuzz-tooling` subdir is the correct one
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
-    def get_source_path(self) -> Path:
-        return self.task_dir / self.get_source_subpath()
+    def _compose_path(self, subpath_method: Callable[[], Path | None]) -> Path | None:
+        subpath = subpath_method()
+        if subpath is None:
+            return None
+        return self.task_dir / subpath
 
-    def get_diff_path(self) -> Path:
-        return self.task_dir / self.get_diff_subpath()
+    def get_source_path(self) -> Path | None:
+        return self._compose_path(self.get_source_subpath)
 
-    def get_oss_fuzz_path(self) -> Path:
-        return self.task_dir / self.get_oss_fuzz_subpath()
+    def get_diff_path(self) -> Path | None:
+        return self._compose_path(self.get_diff_subpath)
+
+    def get_oss_fuzz_path(self) -> Path | None:
+        return self._compose_path(self.get_oss_fuzz_subpath)
 
     def _check_python_path(self) -> CommandResult:
         """Check if the configured python_path is available in system PATH."""

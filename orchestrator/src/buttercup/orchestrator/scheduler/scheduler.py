@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Scheduler:
     tasks_storage_dir: Path
-    crs_scratch_dir: Path
+    scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1.0
     mock_mode: bool = False

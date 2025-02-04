@@ -15,13 +15,13 @@ def mock_redis():
 
 @pytest.fixture
 def scheduler(mock_redis, tmp_path):
-    return Scheduler(tasks_storage_dir=tmp_path, crs_scratch_dir=tmp_path, redis=mock_redis)
+    return Scheduler(tasks_storage_dir=tmp_path, scratch_dir=tmp_path, redis=mock_redis)
 
 
 @pytest.mark.skip(reason="Not implemented")
 def test_process_ready_task(scheduler):
     # Create a mock task with example-libpng source
-    source = SourceDetail(source_type=SourceDetail.SourceType.SOURCE_TYPE_REPO, url="example-libpng")
+    source = SourceDetail(source_type=SourceDetail.SourceType.SOURCE_TYPE_REPO, url="https://github.com/libpng/libpng")
     task = Task(task_id="test-task-1", sources=[source])
 
     build_request = scheduler.process_ready_task(task)
@@ -34,7 +34,7 @@ def test_process_ready_task(scheduler):
 
 def test_process_ready_task_mock_mode_invalid_source(scheduler):
     # Create a mock task with invalid source
-    source = SourceDetail(source_type=SourceDetail.SourceType.SOURCE_TYPE_REPO, url="invalid-source")
+    source = SourceDetail(source_type=SourceDetail.SourceType.SOURCE_TYPE_REPO, url="https://github.com/invalid-source")
     task = Task(task_id="test-task-2", sources=[source])
 
     with pytest.raises(RuntimeError, match="Couldn't handle task test-task-2"):

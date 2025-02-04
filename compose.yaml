@@ -166,7 +166,7 @@ services:
       - BUTTERCUP_SCHEDULER_LOG_LEVEL=debug
       - BUTTERCUP_SCHEDULER_SERVE__SLEEP_TIME=5
       - BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR=/tasks_storage
-      - BUTTERCUP_SCHEDULER_CRS_SCRATCH_DIR=/crs_scratch
+      - BUTTERCUP_SCHEDULER_SCRATCH_DIR=/crs_scratch
       - BUTTERCUP_SCHEDULER_SERVE__MOCK_MODE=true
     depends_on:
       redis:
