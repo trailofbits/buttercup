@@ -39,7 +39,7 @@ class ProcessBuildOutputCommand(BaseModel):
 
 class Settings(BaseSettings):
     tasks_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for Tasks storage")]
-    crs_scratch_dir: Annotated[Path, Field(default="/tmp/crs_scratch", description="Directory for CRS scratch")]
+    scratch_dir: Annotated[Path, Field(default="/tmp/crs_scratch", description="Directory for CRS scratch")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
     serve: CliSubCommand[ServeCommand]
     process_ready_task: CliSubCommand[ProcessReadyTaskCommand]

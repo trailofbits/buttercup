@@ -37,19 +37,19 @@ def main():
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         scheduler = Scheduler(
             settings.tasks_storage_dir,
-            settings.crs_scratch_dir,
+            settings.scratch_dir,
             redis,
             sleep_time=command.sleep_time,
             mock_mode=command.mock_mode,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):
-        scheduler = Scheduler(settings.tasks_storage_dir, settings.crs_scratch_dir)
+        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)
         task = _prepare_ready_task(command)
         build_request = scheduler.process_ready_task(task)
         print(build_request)
     elif isinstance(command, ProcessBuildOutputCommand):
-        scheduler = Scheduler(settings.tasks_storage_dir, settings.crs_scratch_dir)
+        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)
         build_output = _prepare_build_output(command)
         targets = scheduler.process_build_output(build_output)
         print(targets)
