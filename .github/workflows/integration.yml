@@ -38,8 +38,8 @@ jobs:
       - name: Submit a task to the CRS
         run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
 
-      - name: Wait for 10 minutes and monitor logs
-        run: timeout 600 docker compose logs -f
+      - name: Wait for 4 minutes and monitor logs
+        run: timeout 240 docker compose logs -f
 
       - name: Collect Docker logs
         run: |
