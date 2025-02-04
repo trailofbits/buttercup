@@ -6,10 +6,9 @@ from buttercup.common.maps import HarnessWeights, BuildMap
 from typing import List
 from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.logger import setup_logging
-from redis import Redis
 import random
-logger = setup_logging(__name__)
 
+logger = setup_logging(__name__)
 
 
 class TaskLoop(ABC):
@@ -40,15 +39,17 @@ class TaskLoop(ABC):
                 )[0]
                 logger.info(f"Running fuzzer for {chc.harness_name} | {chc.package_name} | {chc.task_id}")
 
-                builds = dict([(reqbuild, self.builds.get_build(chc.task_id, reqbuild)) for reqbuild in self.required_builds()])
+                builds = dict(
+                    [(reqbuild, self.builds.get_build(chc.task_id, reqbuild)) for reqbuild in self.required_builds()]
+                )
 
                 has_all_builds = True
-                for (k, build) in builds.items():
+                for k, build in builds.items():
                     if build is None:
                         logger.error(f"Build {k} for {chc.task_id} not found")
                         has_all_builds = False
 
                 if has_all_builds:
                     self.run_task(chc, builds)
-                    
+
             time.sleep(self.timeout)
