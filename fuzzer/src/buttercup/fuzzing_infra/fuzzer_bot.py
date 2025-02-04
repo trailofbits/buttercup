@@ -50,11 +50,11 @@ def main():
 
                 build = builds.get_build(chc.task_id, BUILD_TYPES.FUZZER)
 
-                logger.info(f"Build dir: {build.output_ossfuzz_path}")
-
                 if build is None:
                     logger.error(f"No fuzzer build found for {chc.task_id}")
                     continue
+
+                logger.info(f"Build dir: {build.output_ossfuzz_path}")
 
                 build_dir = os.path.join(build.output_ossfuzz_path, "build/out/", build.package_name)
                 corp = Corpus(args.wdir, chc.task_id, chc.harness_name)
