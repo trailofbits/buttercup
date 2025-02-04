@@ -34,7 +34,7 @@ class TaskLoop(ABC):
 
             if len(weighted_items) > 0:
                 chc = random.choices(
-                    [it for it in weighted_items],
+                    weighted_items,
                     weights=[it.weight for it in weighted_items],
                     k=1,
                 )[0]
