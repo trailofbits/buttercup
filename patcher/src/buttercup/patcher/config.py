@@ -18,7 +18,8 @@ class ProcessCommand(BaseModel):
     sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")
     oss_fuzz_path: CliPositionalArg[str] = Field(description="OSS Fuzz Path")
     source_path: CliPositionalArg[str] = Field(description="Source Path")
-    harness_path: CliPositionalArg[str] = Field(description="Harness Path")
+    build_type: CliPositionalArg[str] = Field(description="Build Type")
+    harness_name: CliPositionalArg[str] = Field(description="Harness Name")
     crash_input_path: CliPositionalArg[str] = Field(description="Crash Input Path")
 
 
