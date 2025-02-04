@@ -43,7 +43,7 @@ def sample_crash():
     target.sanitizer = "test_sanitizer"
     target.task_id = str(uuid.uuid4())
     crash.target.CopyFrom(target)
-    crash.harness_path = "test_harness"
+    crash.harness_name = "test_harness"
     crash.crash_input_path = "test/crash/input.txt"
     return crash
 

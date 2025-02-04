@@ -99,7 +99,7 @@ class Vulnerabilities:
                     f"Skipping vulnerability submission for cancelled task:\n"
                     f"Task ID: {crash.target.task_id}\n"
                     f"Package: {crash.target.package_name}\n"
-                    f"Harness: {crash.harness_path}"
+                    f"Harness: {crash.harness_name}"
                 )
             else:
                 confirmed_vuln = self.submit_vulnerability(crash)
@@ -140,7 +140,7 @@ class Vulnerabilities:
                 data_file=base64.b64encode(
                     crash.crash_input_path.encode()
                 ).decode(),  # Use the contents of the file instead
-                harness_name=crash.harness_path,
+                harness_name=crash.harness_name,
                 sanitizer=crash.target.sanitizer,
                 sarif=None,  # Optional, not provided in crash data
             )
