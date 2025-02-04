@@ -32,8 +32,11 @@ jobs:
       - name: Run CRS
         run: docker compose up -d
 
+      - name: Check if curl exists
+        run: which curl
+
       - name: Submit a task to the CRS
-        run: ./orchestrator/scripts/task_crs.sh
+        run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
 
       - name: Wait for 10 minutes and monitor logs
         run: timeout 600 docker compose logs -f
@@ -44,10 +47,12 @@ jobs:
           for service in $(docker compose ps --services); do
             docker compose logs $service > "docker_logs/${service}.log" 2>&1
           done
+        if: always()
 
       - name: Upload Docker logs
         uses: actions/upload-artifact@v4
         with:
           name: docker-logs
           path: docker_logs/
-          retention-days: 7
+          retention-days: 4
+        if: always()
