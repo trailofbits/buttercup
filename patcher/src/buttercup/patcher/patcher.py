@@ -86,7 +86,9 @@ class Patcher:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            self.vulnerability_queue = queue_factory.create(QueueNames.CONFIRMED_VULNERABILITIES, GroupNames.CONFIRMED_VULNERABILITIES)
+            self.vulnerability_queue = queue_factory.create(
+                QueueNames.CONFIRMED_VULNERABILITIES, GroupNames.CONFIRMED_VULNERABILITIES
+            )
             self.patches_queue = queue_factory.create(QueueNames.PATCHES)
 
     def process_mocked_vulnerability(self, vuln: ConfirmedVulnerability) -> Patch | None:
