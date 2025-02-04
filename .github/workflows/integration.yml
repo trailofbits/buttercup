@@ -38,8 +38,18 @@ jobs:
       - name: Submit a task to the CRS
         run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
 
-      - name: Wait for 4 minutes and monitor logs
-        run: timeout 240 docker compose logs -f
+      - name: Wait for vuln submission to happen
+        run: |
+          while ! docker compose logs scheduler | grep "Submitting confirmed vulnerability for crash in libpng"; do
+            sleep 10
+          done
+
+      # TODO: switch to checking patch submission when it's implemented
+      - name: Wait for patch to be generated
+        run: |
+          while ! docker compose logs patcher | grep "Successfully generated patch for vulnerability libpng/"; do
+            sleep 10
+          done
 
       - name: Collect Docker logs
         run: |
