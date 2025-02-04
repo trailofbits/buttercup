@@ -153,12 +153,14 @@ class Vulnerabilities:
         """
         logger.info(f"Submitting confirmed vulnerability for crash in {crash.target.package_name}")
         try:
+            # Read crash input file contents and encode as base64
+            with open(crash.crash_input_path, "rb") as f:
+                crash_data = base64.b64encode(f.read()).decode()
+
             # Create submission payload from crash data
             submission = TypesVulnSubmission(
                 architecture="x86_64",  # TODO: Issue #50
-                data_file=base64.b64encode(
-                    crash.crash_input_path.encode()
-                ).decode(),  # Use the contents of the file instead
+                data_file=crash_data,
                 harness_name=crash.harness_name,
                 sanitizer=crash.target.sanitizer,
                 sarif=None,  # Optional, not provided in crash data

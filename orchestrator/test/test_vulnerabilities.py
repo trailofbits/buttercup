@@ -105,9 +105,15 @@ class TestProcessUniqueVulnerabilities:
         mock_queues["confirmed"].push.assert_not_called()
 
     @patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
+    @patch("builtins.open")
     def test_accepted_submission_processes_successfully(
-        self, mock_vuln_api, vulnerabilities, mock_queues, sample_crash
+        self, mock_open, mock_vuln_api, vulnerabilities, mock_queues, sample_crash
     ):
+        # Mock file reading
+        mock_file = Mock()
+        mock_file.read.return_value = b"test crash data"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["unique"].pop.return_value = mock_item
 
@@ -124,7 +130,15 @@ class TestProcessUniqueVulnerabilities:
         mock_queues["unique"].ack_item.assert_called_once_with("test_id")
 
     @patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
-    def test_rejected_submission_is_handled_gracefully(self, mock_vuln_api, vulnerabilities, mock_queues, sample_crash):
+    @patch("builtins.open")
+    def test_rejected_submission_is_handled_gracefully(
+        self, mock_open, mock_vuln_api, vulnerabilities, mock_queues, sample_crash
+    ):
+        # Mock file reading
+        mock_file = Mock()
+        mock_file.read.return_value = b"test crash data"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["unique"].pop.return_value = mock_item
 
@@ -132,6 +146,7 @@ class TestProcessUniqueVulnerabilities:
         mock_vuln_api.return_value = mock_api_instance
         mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.INVALID, vuln_id="rejected-123")
         mock_api_instance.v1_task_task_id_vuln_post.return_value = mock_response
+        vulnerabilities.competition_vulnerability_api = mock_api_instance
 
         assert vulnerabilities.process_unique_vulnerabilities() is True
         mock_queues["unique"].pop.assert_called_once()
@@ -139,7 +154,15 @@ class TestProcessUniqueVulnerabilities:
         mock_queues["unique"].ack_item.assert_called_once_with("test_id")
 
     @patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
-    def test_api_error_is_handled_gracefully(self, mock_vuln_api, vulnerabilities, mock_queues, sample_crash):
+    @patch("builtins.open")
+    def test_api_error_is_handled_gracefully(
+        self, mock_open, mock_vuln_api, vulnerabilities, mock_queues, sample_crash
+    ):
+        # Mock file reading
+        mock_file = Mock()
+        mock_file.read.return_value = b"test crash data"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["unique"].pop.return_value = mock_item
 
@@ -166,7 +189,43 @@ class TestProcessUniqueVulnerabilities:
 
 class TestSubmitVulnerability:
     @patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
-    def test_api_error_raises_exception(self, mock_vuln_api, vulnerabilities, sample_crash):
+    @patch("builtins.open")
+    def test_successful_submission(self, mock_open, mock_vuln_api, vulnerabilities, sample_crash):
+        # Mock file reading
+        mock_file = Mock()
+        mock_file.read.return_value = b"test crash data"
+        mock_open.return_value.__enter__.return_value = mock_file
+
+        mock_api_instance = Mock()
+        mock_vuln_api.return_value = mock_api_instance
+        mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, vuln_id="test-vuln-123")
+        mock_api_instance.v1_task_task_id_vuln_post.return_value = mock_response
+        vulnerabilities.competition_vulnerability_api = mock_api_instance
+
+        result = vulnerabilities.submit_vulnerability(sample_crash)
+
+        # Verify file was read correctly
+        mock_open.assert_called_once_with(sample_crash.crash_input_path, "rb")
+
+        # Verify API was called with correct data
+        mock_api_instance.v1_task_task_id_vuln_post.assert_called_once()
+        call_args = mock_api_instance.v1_task_task_id_vuln_post.call_args
+        assert call_args[1]["task_id"] == sample_crash.target.task_id
+        assert call_args[1]["payload"].data_file == "dGVzdCBjcmFzaCBkYXRh"  # base64 encoded "test crash data"
+
+        # Verify returned vulnerability object
+        assert result is not None
+        assert result.crash == sample_crash
+        assert result.vuln_id == "test-vuln-123"
+
+    @patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
+    @patch("builtins.open")
+    def test_api_error_raises_exception(self, mock_open, mock_vuln_api, vulnerabilities, sample_crash):
+        # Mock file reading
+        mock_file = Mock()
+        mock_file.read.return_value = b"test crash data"
+        mock_open.return_value.__enter__.return_value = mock_file
+
         mock_api_instance = Mock()
         mock_vuln_api.return_value = mock_api_instance
         mock_api_instance.v1_task_task_id_vuln_post.side_effect = Exception("API Error")
@@ -175,6 +234,16 @@ class TestSubmitVulnerability:
         with pytest.raises(Exception) as exc_info:
             vulnerabilities.submit_vulnerability(sample_crash)
         assert "API Error" in str(exc_info.value)
+
+    @patch("buttercup.orchestrator.scheduler.vulnerabilities.VulnerabilityApi")
+    @patch("builtins.open")
+    def test_file_read_error_raises_exception(self, mock_open, mock_vuln_api, vulnerabilities, sample_crash):
+        # Mock file reading error
+        mock_open.side_effect = FileNotFoundError("File not found")
+
+        with pytest.raises(Exception) as exc_info:
+            vulnerabilities.submit_vulnerability(sample_crash)
+        assert "File not found" in str(exc_info.value)
 
 
 class TestDedupCrash:
