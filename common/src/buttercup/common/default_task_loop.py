@@ -42,10 +42,13 @@ class TaskLoop(ABC):
 
                 builds = dict([(reqbuild, self.builds.get_build(chc.task_id, reqbuild)) for reqbuild in self.required_builds()])
 
+                has_all_builds = True
                 for (k, build) in builds.items():
                     if build is None:
                         logger.error(f"Build {k} for {chc.task_id} not found")
-                        continue
+                        has_all_builds = False
 
-                self.run_task(chc, builds)
+                if has_all_builds:
+                    self.run_task(chc, builds)
+                    
             time.sleep(self.timeout)
