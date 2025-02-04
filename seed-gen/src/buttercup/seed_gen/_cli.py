@@ -9,7 +9,7 @@ from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common import utils
+from buttercup.common.corpus import Corpus
 from buttercup.common.datastructures.msg_pb2 import WeightedTarget
 from buttercup.common.logger import setup_logging
 from buttercup.common.maps import FuzzerMap
@@ -28,12 +28,6 @@ def main() -> None:
     parser_server.add_argument("--wdir", required=True, help="Working directory")
     parser_server.add_argument(
         "--sleep", required=False, default=1, type=int, help="Sleep between runs (seconds)"
-    )
-    parser_server.add_argument(
-        "--local_crs_scratch",
-        required=False,
-        type=Path,
-        help="Local path to the /crs_scratch volume directory (for running seed-gen locally)",
     )
     parser_task = subparsers.add_parser("task", help="Do a task")
     parser_task.add_argument(
@@ -57,24 +51,33 @@ def command_server(args: argparse.Namespace) -> None:
         logger.info(f"Received {len(weighted_items)} weighted targets")
 
         if len(weighted_items) > 0:
-            with tempfile.TemporaryDirectory(dir=args.wdir) as td:
-                chc = random.choices(
-                    [it for it in weighted_items],
-                    weights=[it.weight for it in weighted_items],
-                    k=1,
-                )[0]
-                logger.info(
-                    "Starting run on challenge %s at path %s",
-                    chc.target.package_name,
-                    chc.target.output_ossfuzz_path,
-                )
-                target_dir = Path(chc.target.output_ossfuzz_path)
-                if args.local_crs_scratch:
-                    target_dir = args.local_crs_scratch / target_dir.relative_to("/crs_scratch")
-                    logger.info("Using local dir in local crs_scratch: %s", target_dir)
-                dest_dir = Path(td) / target_dir.name
-                utils.copyanything(target_dir, dest_dir)
-                logger.info("Copied target to %s", dest_dir)
+            chc = random.choices(
+                [it for it in weighted_items],
+                weights=[it.weight for it in weighted_items],
+                k=1,
+            )[0]
+
+            output_ossfuzz_path = Path(chc.target.output_ossfuzz_path)
+            harness_path = Path(chc.harness_path)
+            source_path = Path(chc.target.source_path)  # noqa: F841
+            package_name = chc.target.package_name
+
+            logger.info(
+                "Starting run on challenge %s at path %s",
+                package_name,
+                output_ossfuzz_path,
+            )
+
+            corp = Corpus(harness_path)
+            challenge = package_name
+            with tempfile.TemporaryDirectory(dir=args.wdir) as out_dir_str:
+                out_dir = Path(out_dir_str)
+                do_seed_init(challenge, out_dir)
+                logger.info("Copying corpus to %s", out_dir)
+                num_files = sum(1 for _ in out_dir.iterdir())
+                logger.info("Copying %d files to corpus %s", num_files, corp.corpus_dir)
+                corp.copy_corpus(out_dir)
+
         logger.info("Sleeping for %s seconds", args.sleep)
         time.sleep(args.sleep)
 
@@ -84,14 +87,10 @@ def command_task(args: argparse.Namespace) -> None:
     task_name = args.task_name
     out_dir = args.out_dir
     out_dir.mkdir(parents=True)
-    seeds = []
     if task_name == Task.SEED_INIT:
         challenge = "libpng"
-        seeds = do_seed_init(challenge)
+        do_seed_init(challenge, out_dir)
     elif task_name == Task.SEED_EXPLORE:
-        seeds = do_seed_explore()
+        do_seed_explore()
     elif task_name == Task.VULN_DISCOVERY:
-        seeds = do_vuln_discovery()
-    for i, seed in enumerate(seeds):
-        with open(out_dir / f"seed-{i}.bin", "wb") as f:
-            f.write(seed)
+        do_vuln_discovery()

@@ -200,6 +200,9 @@ services:
     command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/crs_scratch/seed-gen", "--sleep", "60"]
     volumes:
       - ./crs_scratch:/crs_scratch
+    environment:
+      - BUTTERCUP_LITELLM_KEY=sk-1234
+      - BUTTERCUP_LITELLM_HOSTNAME=http://litellm:8080
     depends_on:
       redis:
         condition: service_healthy

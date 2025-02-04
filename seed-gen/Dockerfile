@@ -18,17 +18,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=seed-gen/pyproject.toml,target=seed-gen/pyproject.toml \
     cd seed-gen && uv sync --frozen --no-install-project --no-editable
 
-ADD common /app/common
-ADD seed-gen /app/seed-gen
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    cd seed-gen && uv sync --frozen --no-editable
-
 RUN apt-get update && apt-get install -y \
     wget
 # download wasm runtime
 RUN wget -P /app/seed-gen https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
 
+ADD common /app/common
+ADD seed-gen /app/seed-gen
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd seed-gen && uv sync --frozen --no-editable
 
 FROM python:${PYTHON_BASE} AS runtime
 
