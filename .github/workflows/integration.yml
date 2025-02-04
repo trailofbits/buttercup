@@ -22,6 +22,9 @@ jobs:
       - name: Run integration tests
         run: docker compose run up -d
 
+      - name: Submit a task to the CRS
+        run: ./orchestrator/scripts/task_crs.sh
+
       - name: Wait for 10 minutes
         run: sleep 600
 
