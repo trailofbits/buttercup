@@ -8,6 +8,10 @@ on:
 
 jobs:
   lint:
+    strategy:
+      matrix:
+        component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,38 +21,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Setup common package
+      - name: Setup ${{ matrix.component }} component
         run: uv sync --all-extras
-        working-directory: common
+        working-directory: ${{ matrix.component }}
 
-      - name: Setup orchestrator package
-        run: uv sync --all-extras
-        working-directory: orchestrator
-
-      - name: Setup fuzzer package
-        run: uv sync --all-extras
-        working-directory: fuzzer
-
-      - name: Setup seed-gen package
-        run: uv sync --all-extras
-        working-directory: seed-gen
-
-      - name: Run ruff on common
+      - name: Run ruff on ${{ matrix.component }}
         run: uv run ruff format --check && uv run ruff check
-        working-directory: common
-
-      - name: Run ruff on orchestrator
-        run: uv run ruff format --check && uv run ruff check
-        working-directory: orchestrator
-
-      - name: Run ruff on fuzzer
-        run: uv run ruff format --check && uv run ruff check
-        working-directory: fuzzer
-
-      - name: Run ruff on program-model
-        run: uv run ruff format --check && uv run ruff check
-        working-directory: program-model
-
-      - name: Run ruff on seed-gen
-        run: uv run ruff format --check && uv run ruff check
-        working-directory: seed-gen
+        working-directory: ${{ matrix.component }}
