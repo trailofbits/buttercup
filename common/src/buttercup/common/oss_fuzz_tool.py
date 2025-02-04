@@ -62,9 +62,18 @@ class OSSFuzzTool:
         ret = subprocess.run(args)
         return ret.returncode == 0
 
-
     def run_coverage(self, harness_name: str, corpus_dir: str, package_name: str):
-        args = [self._conf.python_path, self._helper_path, "coverage", "--corpus-dir", corpus_dir, "--fuzz-target", harness_name, "--no-serve", package_name]
+        args = [
+            self._conf.python_path,
+            self._helper_path,
+            "coverage",
+            "--corpus-dir",
+            corpus_dir,
+            "--fuzz-target",
+            harness_name,
+            "--no-serve",
+            package_name,
+        ]
         ret = subprocess.run(args)
         return ret.returncode == 0
 

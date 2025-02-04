@@ -13,7 +13,9 @@ from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
 from buttercup.common import utils
 import tempfile
 from pathlib import Path
+
 logger = setup_logging(__name__)
+
 
 class CoverageBot(TaskLoop):
     def __init__(self, redis: Redis, timer_seconds: int, wdir: str, python: str, allow_pull: bool, base_image_url: str):
@@ -33,10 +35,18 @@ class CoverageBot(TaskLoop):
             corpus = Corpus(self.wdir, task.task_id, task.harness_name)
             output_oss_fuzz_path = Path(td) / "coverage-oss-fuzz"
             utils.copyanything(coverage_build.output_ossfuzz_path, output_oss_fuzz_path)
-    
-            runner = CoverageRunner(OSSFuzzTool(Conf(coverage_build.output_ossfuzz_path, self.python, self.allow_pull, self.base_image_url)), "llvm-cov")
+
+            runner = CoverageRunner(
+                OSSFuzzTool(
+                    Conf(coverage_build.output_ossfuzz_path, self.python, self.allow_pull, self.base_image_url)
+                ),
+                "llvm-cov",
+            )
             runner.run(task.harness_name, corpus.path, coverage_build.package_name)
-            logger.info(f"Coverage for {task.harness_name} | {coverage_build.package_name} | {task.task_id} | {corpus.path} | {coverage_build.output_ossfuzz_path}")
+            logger.info(
+                f"Coverage for {task.harness_name} | {coverage_build.package_name} | {task.task_id} | {corpus.path} | {coverage_build.output_ossfuzz_path}"
+            )
+
 
 def main():
     prsr = argparse.ArgumentParser("coverage bot")
@@ -52,7 +62,9 @@ def main():
     logger.info(f"Starting coverage bot (wdir: {args.wdir})")
 
     seconds_sleep = args.timer // 1000
-    fuzzer = CoverageBot(Redis.from_url(args.redis_url), seconds_sleep, args.wdir, args.python, args.allow_pull, args.base_image_url)
+    fuzzer = CoverageBot(
+        Redis.from_url(args.redis_url), seconds_sleep, args.wdir, args.python, args.allow_pull, args.base_image_url
+    )
     fuzzer.run()
 
 
