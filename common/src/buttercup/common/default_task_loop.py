@@ -40,7 +40,7 @@ class TaskLoop(ABC):
                 logger.info(f"Running task for {chc.harness_name} | {chc.package_name} | {chc.task_id}")
 
                 builds = {
-                    (reqbuild, self.builds.get_build(chc.task_id, reqbuild)) for reqbuild in self.required_builds()}
+                    reqbuild: self.builds.get_build(chc.task_id, reqbuild) for reqbuild in self.required_builds()}
 
                 has_all_builds = True
                 for k, build in builds.items():
