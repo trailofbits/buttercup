@@ -5,8 +5,8 @@ from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
 from buttercup.common.logger import setup_logging
 from buttercup.common.challenge_task import ChallengeTask
+from pathlib import Path
 import time
-import os
 
 logger = setup_logging(__name__)
 
@@ -35,7 +35,7 @@ def main():
         if rqit is not None:
             msg = rqit.deserialized
             logger.info(f"Received build request for {msg.package_name}")
-            task_dir = os.path.dirname(os.path.dirname(msg.source_path))
+            task_dir = Path(msg.source_path).parent.parent
             if args.allow_caching:
                 origin_task = ChallengeTask(
                     task_dir, msg.package_name, python_path=args.python, local_task_dir=task_dir, logger=logger
