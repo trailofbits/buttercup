@@ -197,7 +197,7 @@ services:
       context: .
       dockerfile: ./seed-gen/Dockerfile
     # TODO: Update seed-gen sleep once service is doing useful work
-    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/crs_scratch/seed-gen", "--sleep", "60"]
+    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/crs_scratch", "--sleep", "60"]
     volumes:
       - ./crs_scratch:/crs_scratch
     environment:
