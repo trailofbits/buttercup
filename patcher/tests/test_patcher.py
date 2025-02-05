@@ -19,7 +19,7 @@ def test_patcher_mock_mode_libpng():
                 output_ossfuzz_path="test-output-ossfuzz-path-1",
                 source_path="test-source-path-1",
             ),
-            harness_path="test-harness-path-1",
+            harness_name="test-harness-name-1",
             crash_input_path="test-crash-input-path-1",
         ),
     )
