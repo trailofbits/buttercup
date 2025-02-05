@@ -2,6 +2,7 @@ import base64
 import logging
 from dataclasses import dataclass, field
 from redis import Redis
+from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.queues import (
     ReliableQueue,
     QueueFactory,
@@ -16,7 +17,6 @@ from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.registry import TaskRegistry
-from common.src.buttercup.common.constants import ARCHITECTURE
 
 logger = logging.getLogger(__name__)
 
