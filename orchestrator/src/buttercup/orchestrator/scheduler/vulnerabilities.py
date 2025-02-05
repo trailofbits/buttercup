@@ -38,7 +38,7 @@ class Vulnerabilities:
             username="api_key_id",  # TODO: Make configurable
             password="api_key_token",  # TODO: Make configurable
         )
-        logger.info(f"Initializing vulnerability API client with URL: {self.competition_api_url}")
+        logger.info(f"Initializing vulnerability API with URL: {self.competition_api_url}")
         api_client = ApiClient(configuration=configuration)
         return VulnerabilityApi(api_client=api_client)
 
@@ -53,9 +53,7 @@ class Vulnerabilities:
         )
         self.task_registry = TaskRegistry(self.redis)
         self.competition_vulnerability_api = self.__setup_vulnerability_api()
-        logger.info(
-            f"Competition vulnerability API client initialized: {self.competition_vulnerability_api is not None}"
-        )
+        logger.info(f"Competition vulnerability API initialized: {self.competition_vulnerability_api is not None}")
 
     def process_crashes(self) -> bool:
         """Process crashes from the crash queue"""
@@ -64,31 +62,22 @@ class Vulnerabilities:
             try:
                 crash: Crash = crash_item.deserialized
                 logger.info(
-                    f"Received crash:\n"
-                    f"Task ID: {crash.target.task_id}\n"
-                    f"Package: {crash.target.package_name}\n"
-                    f"Harness: {crash.harness_name}"
+                    f"[{crash.target.task_id}] Processing crash for {crash.target.package_name} (harness: {crash.harness_name})"
                 )
                 unique_crash = self.dedup_crash(crash)
                 if unique_crash is not None:
                     logger.info(
-                        f"Crash determined to be unique, pushing to unique vulnerabilities queue:\n"
-                        f"Task ID: {crash.target.task_id}\n"
-                        f"Package: {crash.target.package_name}\n"
-                        f"Harness: {crash.harness_name}"
+                        f"[{crash.target.task_id}] Unique crash found in {crash.target.package_name} (harness: {crash.harness_name})"
                     )
                     self.unique_vulnerabilities_queue.push(unique_crash)
                 else:
                     logger.info(
-                        f"Crash determined to be duplicate, skipping:\n"
-                        f"Task ID: {crash.target.task_id}\n"
-                        f"Package: {crash.target.package_name}\n"
-                        f"Harness: {crash.harness_name}"
+                        f"[{crash.target.task_id}] Duplicate crash in {crash.target.package_name} (harness: {crash.harness_name})"
                     )
                 self.crash_queue.ack_item(crash_item.item_id)
                 return True
             except Exception as e:
-                logger.error(f"Failed to process crash: {e}")
+                logger.error(f"[{crash.target.task_id}] Failed to process crash: {e}")
                 return False
         return False
 
@@ -115,10 +104,7 @@ class Vulnerabilities:
 
             if self.task_registry.is_cancelled(crash.target.task_id):
                 logger.info(
-                    f"Skipping vulnerability submission for cancelled task:\n"
-                    f"Task ID: {crash.target.task_id}\n"
-                    f"Package: {crash.target.package_name}\n"
-                    f"Harness: {crash.harness_name}"
+                    f"[{crash.target.task_id}] Skipping cancelled task for {crash.target.package_name} (harness: {crash.harness_name})"
                 )
             else:
                 confirmed_vuln = self.submit_vulnerability(crash)
@@ -127,7 +113,7 @@ class Vulnerabilities:
 
             self.unique_vulnerabilities_queue.ack_item(vuln_item.item_id)
         except Exception as e:
-            logger.error(f"Failed to process unique vulnerability: {e}")
+            logger.error(f"[{crash.target.task_id}] Failed to process unique vulnerability: {e}")
 
         return True
 
@@ -151,7 +137,9 @@ class Vulnerabilities:
         Raises:
             Exception: If there is an error communicating with the API
         """
-        logger.info(f"Submitting confirmed vulnerability for crash in {crash.target.package_name}")
+        logger.info(
+            f"[{crash.target.task_id}] Submitting vulnerability for {crash.target.package_name} (harness: {crash.harness_name})"
+        )
         try:
             # Read crash input file contents and encode as base64
             with open(crash.crash_input_path, "rb") as f:
@@ -178,19 +166,14 @@ class Vulnerabilities:
             # If we don't acknowledge the PASSED status, we may miss a successful submission.
             if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(
-                    f"Vulnerability submission not accepted. Status: {response.status}\n"
-                    f"Task ID: {crash.target.task_id}\n"
-                    f"Package: {crash.target.package_name}"
+                    f"[{crash.target.task_id}] Vulnerability submission rejected (status: {response.status}) for {crash.target.package_name} (harness: {crash.harness_name})"
                 )
                 return None
 
             # TODO: Could a successful response be PASSED?
 
             logger.info(
-                f"Vulnerability submission accepted. Status: {response.status}\n"
-                f"Task ID: {crash.target.task_id}\n"
-                f"Package: {crash.target.package_name}\n"
-                f"Vulnerability ID: {response.vuln_id}"
+                f"[{crash.target.task_id}] Vulnerability {response.vuln_id} accepted for {crash.target.package_name} (harness: {crash.harness_name})"
             )
 
             # Create confirmed vulnerability with API-provided ID
@@ -202,9 +185,6 @@ class Vulnerabilities:
 
         except Exception as e:
             logger.error(
-                f"Failed to submit vulnerability to competition API: {str(e)}\n"
-                f"Task ID: {crash.target.task_id}\n"
-                f"Package: {crash.target.package_name}\n"
-                f"Crash details: {crash}"
+                f"[{crash.target.task_id}] Failed to submit vulnerability: {str(e)} ({crash.target.package_name}, harness: {crash.harness_name})"
             )
             raise
