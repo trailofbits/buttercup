@@ -1,3 +1,9 @@
+
+PYTHON_SEED_SYSTEM_PROMPT = """
+Write python functions which create seeds for a program under test.
+"""
+
+PYTHON_SEED_USER_PROMPT = """
 I am creating input seeds for a program's fuzzing harness. I will provide the full harness and additional project context.
 
 I will then ask you to write {count} deterministic Python functions that each create a valid input.
@@ -42,3 +48,4 @@ Additional context from the project is:
 {additional_context}
 ```
 The python functions are:
+"""

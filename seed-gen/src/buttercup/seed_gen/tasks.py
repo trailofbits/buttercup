@@ -11,10 +11,7 @@ from langchain_core.runnables import RunnableConfig
 from buttercup.common.llm import create_default_llm
 from buttercup.seed_gen.mock_context.mock import get_additional_context, get_harness
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
-from buttercup.seed_gen.utils import resolve_module_subpath
-
-PYTHON_SEED_SYSTEM_PROMPT = resolve_module_subpath("data/seed_init.system.prompt")
-PYTHON_SEED_USER_PROMPT = resolve_module_subpath("data/seed_init.user.prompt")
+from buttercup.seed_gen.prompts import PYTHON_SEED_SYSTEM_PROMPT, PYTHON_SEED_USER_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +50,11 @@ def extract_md(msg: AIMessage) -> str:
 def generate_seed_funcs(harness: str, additional_context: str, count: int) -> list[bytes]:
     """Generate a python file of seed-generation functions"""
     logger.debug('Additional context (snippet): "%s"', additional_context[:250])
-    system_prompt = PYTHON_SEED_SYSTEM_PROMPT.read_text()
-    user_prompt = PYTHON_SEED_USER_PROMPT.read_text()
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", system_prompt),
-            ("human", user_prompt),
-        ]
+        ("system", PYTHON_SEED_SYSTEM_PROMPT),
+        ("human", PYTHON_SEED_USER_PROMPT),
+    ]
     )
     llm = create_default_llm()
     chain = prompt | llm | extract_md
