@@ -12,6 +12,12 @@ from contextlib import contextmanager
 from typing import Iterator
 
 
+class ChallengeTaskError(Exception):
+    """Base class for Challenge Task errors."""
+
+    pass
+
+
 @dataclass
 class CommandResult:
     success: bool
@@ -49,20 +55,20 @@ class ChallengeTask:
         # Verify required directories exist
         for directory in [self.SRC_DIR, self.OSS_FUZZ_DIR]:
             if not (self.task_dir / directory).is_dir():
-                raise RuntimeError(f"Missing required directory: {self.task_dir / directory}")
+                raise ChallengeTaskError(f"Missing required directory: {self.task_dir / directory}")
 
         self._helper_path = Path("infra/helper.py")
         if not (self.get_oss_fuzz_path() / self._helper_path).exists():
-            raise RuntimeError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
+            raise ChallengeTaskError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
 
         self._check_python_path()
 
     def _check_dir_exists(self, path: Path) -> None:
         if not path.exists():
-            raise RuntimeError(f"Missing required directory: {path}")
+            raise ChallengeTaskError(f"Missing required directory: {path}")
 
         if not path.is_dir():
-            raise RuntimeError(f"Required directory is not a directory: {path}")
+            raise ChallengeTaskError(f"Required directory is not a directory: {path}")
 
     def _find_first_dir(self, subpath: Path) -> Path | None:
         first_elem = next((self.task_dir / subpath).iterdir(), None)
@@ -102,7 +108,7 @@ class ChallengeTask:
         try:
             subprocess.run([self.python_path, "--version"], check=False, capture_output=True, text=True)
         except Exception as e:
-            raise RuntimeError(f"Python executable couldn't be run: {self.python_path}") from e
+            raise ChallengeTaskError(f"Python executable couldn't be run: {self.python_path}") from e
 
     @property
     def task_dir(self) -> Path:
@@ -115,7 +121,7 @@ class ChallengeTask:
 
         def wrapper(self, *args: Any, **kwargs: Any) -> Any:
             if self.local_task_dir is None:
-                raise RuntimeError("Challenge Task is read-only, cannot perform this operation")
+                raise ChallengeTaskError("Challenge Task is read-only, cannot perform this operation")
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -381,18 +387,18 @@ class ChallengeTask:
             finally:
                 pass
 
-    def commit(self, suffix: str | None = None, retry: bool = True) -> None:
+    def commit(self, suffix: str | None = None) -> None:
         """Commit the local task directory to a stable path.
 
         This is useful to save the task state for later use and together with
         the `get_rw_copy` context manager.
         """
         if self.local_task_dir is None:
-            return
+            raise ChallengeTaskError("Challenge Task is read-only, cannot commit")
 
         assert isinstance(self.local_task_dir, Path)
-        max_retries = self.MAX_COMMIT_RETRIES if retry else 1
         new_local_task_dir = None
+        max_retries = self.MAX_COMMIT_RETRIES if suffix is None else 1
         for i in range(max_retries):
             suffix = suffix if suffix is not None else str(uuid.uuid4())[:16]
             new_name = f"{self.read_only_task_dir.name}-{suffix}"
@@ -401,9 +407,9 @@ class ChallengeTask:
                 new_local_task_dir = self.local_task_dir.rename(self.local_task_dir.parent / new_name)
                 self.logger.info(f"Committed task {self.local_task_dir} to {new_name}")
                 break
-            except OSError:
+            except OSError as e:
                 if i == max_retries - 1:
-                    raise RuntimeError("Failed to commit task")
+                    raise ChallengeTaskError("Failed to commit task") from e
 
                 self.logger.error(
                     f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix..."

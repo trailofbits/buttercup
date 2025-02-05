@@ -2,7 +2,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch
 import subprocess
-from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 import logging
 
 
@@ -124,13 +124,13 @@ def test_directory_structure(challenge_task: ChallengeTask):
 
 def test_readonly_task(challenge_task_readonly: ChallengeTask):
     """Test that a readonly task raises an error when trying to build."""
-    with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
+    with pytest.raises(ChallengeTaskError, match="Challenge Task is read-only, cannot perform this operation"):
         challenge_task_readonly.build_image()
 
-    with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
+    with pytest.raises(ChallengeTaskError, match="Challenge Task is read-only, cannot perform this operation"):
         challenge_task_readonly.build_fuzzers(engine="libfuzzer", sanitizer="address")
 
-    with pytest.raises(RuntimeError, match="Challenge Task is read-only, cannot perform this operation"):
+    with pytest.raises(ChallengeTaskError, match="Challenge Task is read-only, cannot perform this operation"):
         challenge_task_readonly.reproduce_pov(fuzzer_name="fuzz_target", crash_path=Path("crash-sample"))
 
 
@@ -223,7 +223,7 @@ def test_failed_build_image(challenge_task: ChallengeTask, mock_failed_subproces
 
 def test_invalid_task_dir():
     """Test handling of invalid task directory."""
-    with pytest.raises(RuntimeError, match="Missing required directory: /nonexistent"):
+    with pytest.raises(ChallengeTaskError, match="Missing required directory: /nonexistent"):
         ChallengeTask(
             read_only_task_dir=Path("/nonexistent"),
             project_name="example_project",
@@ -236,7 +236,7 @@ def test_missing_required_dirs(tmp_path: Path):
     task_dir = tmp_path / "task"
     task_dir.mkdir()
 
-    with pytest.raises(RuntimeError, match=f"Missing required directory: {task_dir / 'src'}"):
+    with pytest.raises(ChallengeTaskError, match=f"Missing required directory: {task_dir / 'src'}"):
         ChallengeTask(
             read_only_task_dir=task_dir,
             project_name="example_project",
@@ -442,12 +442,23 @@ def test_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
         assert commited_task.get_oss_fuzz_path().exists()
         assert commited_task.get_diff_path().exists()
 
-        with pytest.raises(RuntimeError, match="Missing required directory"):
+        with pytest.raises(ChallengeTaskError, match="Missing required directory"):
             ChallengeTask(
                 read_only_task_dir=old_local_dir,
                 local_task_dir=old_local_dir,
                 project_name="example_project",
             )
+
+
+def test_commit_task_with_suffix(challenge_task_readonly: ChallengeTask, mock_subprocess, tmp_path: Path):
+    """Test committing a challenge task with a suffix."""
+    with patch.object(ChallengeTask, "_check_python_path"):
+        with challenge_task_readonly.get_rw_copy(work_dir=tmp_path) as local_task:
+            local_task.commit(suffix="test")
+
+        with challenge_task_readonly.get_rw_copy(work_dir=tmp_path) as local_task:
+            with pytest.raises(ChallengeTaskError, match="Failed to commit task"):
+                local_task.commit(suffix="test")
 
 
 def test_no_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
@@ -458,7 +469,7 @@ def test_no_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess)
             local_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
             old_local_dir = local_task.task_dir
 
-        with pytest.raises(RuntimeError, match="Missing required directory"):
+        with pytest.raises(ChallengeTaskError, match="Missing required directory"):
             ChallengeTask(
                 read_only_task_dir=old_local_dir,
                 local_task_dir=old_local_dir,
