@@ -39,6 +39,7 @@ jobs:
         run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
 
       - name: Wait for vuln submission to happen
+        timeout-minutes: 5
         run: |
           while ! docker compose logs scheduler | grep "Submitting confirmed vulnerability for crash in libpng"; do
             sleep 10
@@ -46,6 +47,7 @@ jobs:
 
       # TODO: switch to checking patch submission when it's implemented
       - name: Wait for patch to be generated
+        timeout-minutes: 5
         run: |
           while ! docker compose logs patcher | grep "Successfully generated patch for vulnerability libpng/"; do
             sleep 10
