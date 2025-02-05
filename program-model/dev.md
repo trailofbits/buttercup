@@ -69,8 +69,11 @@ git clone git@github.com:aixcc-finals/example-libpng.git crs_scratch/libpng
 
 ```shell
 mkdir -p scripts/gzs/
+
 gh release download v0.0.2 -R github.com/trailofbits/aixcc-kythe -D scripts/gzs/
+
 mkdir crs_scratch/opt/
+
 tar -zxf scripts/gzs/kythe-v0.0.67.tar.gz --directory crs_scratch/opt/
 ```
 
@@ -94,11 +97,17 @@ From [documentation](https://kythe.io/getting-started/#build-a-release-of-kythe-
 
 ```shell
 git clone git@github.com:trailofbits/aixcc-kythe.git crs_scratch/aixcc-kythe
+
 cd crs_scratch/aixcc-kythe
+
 git checkout a301676c20db9849a06878fa9cc017907eb64d72
+
 bazel build //kythe/release
+
 mkdir ../opt/
+
 tar -zxf bazel-bin/kythe/release/kythe-v0.0.67.tar.gz --directory ../opt/
+
 cd ../
 ```
 
@@ -119,6 +128,7 @@ mkdir -p "$KYTHE_OUTPUT_DIRECTORY"
 export CMAKE_ROOT_DIRECTORY=`pwd`/libpng
 
 cd libpng/
+
 ../opt/kythe-v0.0.67/tools/runextractor cmake -extractor=../opt/kythe-v0.0.67/extractors/cxx_extractor -sourcedir=$CMAKE_ROOT_DIRECTORY
 ```
 
@@ -126,47 +136,61 @@ cd libpng/
 
 ```shell
 cd crs_scratch/
+
 ./opt/kythe-v0.0.67/tools/kzip merge --output $KYTHE_OUTPUT_DIRECTORY/merged.kzip $KYTHE_OUTPUT_DIRECTORY/*.kzip
 
 ./opt/kythe-v0.0.67/tools/kzip info --input $KYTHE_OUTPUT_DIRECTORY/merged.kzip | jq .
+
 ./opt/kythe-v0.0.67/tools/kzip view $KYTHE_OUTPUT_DIRECTORY/merged.kzip | jq .
 ```
 
 ### Upload to JanusGraph
 
+Extract graphml file from kzip contents.
+
+```shell
+cd program-model/src/buttercup
+
+mkdir ../../data/
+
+time ../../crs_scratch/opt/kythe-v0.0.67/indexers/cxx_indexer --ignore_unimplemented ../../crs_scratch/kythe_output/merged.kzip | uv run program_model/indexer/entries_into_graphml.py --output ../../data/graph.xml
+```
+
+Create network for JanusGraph to talk to Cassandra backend storage.
+
+```shell
+docker network create janusgraph-net
+```
+
+Start Cassandra [container](https://github.com/JanusGraph/janusgraph/blob/master/docs/storage-backend/cassandra.md#local-container-mode).
+
+```shell
+cd program-model/
+
+./start_cql.sh
+```
+
 Start JanusGraph container with custom configuration file.
 
 ```shell
-docker run -v `pwd`/program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml janusgraph/janusgraph
-```
+cd program-model/
 
-To modify the JanusGraph `yaml` file, make sure to understand the default values first.
-
-```shell
-docker run -it janusgraph/janusgraph /bin/bash
-
-$ cat /opt/janusgraph/conf/janusgraph-server.yaml
-```
-
-Get IP address of JanusGraph container.
-
-```shell
-docker ps | grep janusgraph
-docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <container_id>
+./start_jg.sh
 ```
 
 Run graph creation.
 
 ```shell
-cd program-model/src/buttercup
-../../crs_scratch/opt/kythe-v0.0.67/indexers/cxx_indexer --ignore_unimplemented ../../crs_scratch/kythe_output/merged.kzip | uv run program_model/indexer/entries_into_db.py --url ws://<ip_address>:8182/gremlin
+cd program-model/
+docker ps | grep janusgraph
+
+time docker run --rm --link <container_name>:janusgraph --network janusgraph-net -e GREMLIN_REMOTE_HOSTS=janusgraph -v `pwd`/load_data.groovy:/opt/janusgraph/load_data.groovy janusgraph/janusgraph -- ./bin/gremlin.sh -e load_data.groovy
 ```
 
 Verify graph creation. From [documentation](https://docs.janusgraph.org/getting-started/installation/).
 
 ```shell
-docker ps | grep janusgraph
-docker run --rm --link <container_name>:janusgraph -e GREMLIN_REMOTE_HOSTS=janusgraph -it janusgraph/janusgraph ./bin/gremlin.sh
+docker run --rm --link <container_name>:janusgraph --network janusgraph-net -e GREMLIN_REMOTE_HOSTS=janusgraph -it janusgraph/janusgraph ./bin/gremlin.sh
 ```
 
 ```shell
@@ -176,13 +200,11 @@ gremlin> g.V().count()
 gremlin> g.E().count()
 ```
 
-Remove all docker containers to continue testing from scratch
+Clear graph.
 
 ```shell
-CTRL-C janusgraph/janusgraph
-
-docker system prune -a
-docker system df
+gremlin> g.V().drop().iterate()
+gremlin> g.E().drop().iterate()
 ```
 
 ## Contributing
@@ -190,10 +212,18 @@ docker system df
 Before committing code, run the following to ensure that the code is formatted correctly.
 
 ```shell
+cd program-model/
+
 just reformat
+
 just lint
 ```
 
 ## TODO
 
-* `org.janusgraph.graphdb.transaction.StandardJanusGraphTx$3.execute - Query requires iterating over all vertices [[~label = x]]. For better performance, use indexes`
+* [x] Use Indexes: `org.janusgraph.graphdb.transaction.StandardJanusGraphTx$3.execute - Query requires iterating over all vertices [[~label = x]]. For better performance, use indexes`
+* [x] Consider [bulk loading](https://docs.janusgraph.org/operations/bulk-loading/) if needed
+  * Not required at the moment.
+* [x] Consider loading data from a [file](https://tinkerpop.apache.org/docs/3.7.3/dev/io/).
+* [ ] Create script to verify creation of graph is accurate.
+* [ ] Reconcile the differences in the number of nodes and edges for libpng example.
