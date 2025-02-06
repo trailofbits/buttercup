@@ -2,6 +2,7 @@ import base64
 import logging
 from dataclasses import dataclass, field
 from redis import Redis
+from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.queues import (
     ReliableQueue,
     QueueFactory,
@@ -147,7 +148,7 @@ class Vulnerabilities:
 
             # Create submission payload from crash data
             submission = TypesVulnSubmission(
-                architecture="x86_64",  # TODO: Issue #50
+                architecture=ARCHITECTURE,
                 data_file=crash_data,
                 harness_name=crash.harness_name,
                 sanitizer=crash.target.sanitizer,

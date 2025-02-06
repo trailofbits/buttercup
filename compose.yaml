@@ -56,6 +56,8 @@ services:
         condition: service_started
       orchestrator-sim:
         condition: service_started
+      coverage-bot:
+        condition: service_started
       
 
   orchestrator-sim:
@@ -91,6 +93,23 @@ services:
       dind:
         condition: service_started
       graphdb:
+        condition: service_started
+
+  coverage-bot:
+    command: ["buttercup-coverage-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    volumes:
+      - ./crs_scratch:/crs_scratch
+      - ./tasks_storage:/tasks_storage
+    environment:
+      # These values will be modified automatically at competition time
+      - DOCKER_HOST=tcp://dind:2375
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
         condition: service_started
 
   build-bot:
