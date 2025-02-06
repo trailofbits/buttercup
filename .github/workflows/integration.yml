@@ -6,8 +6,7 @@ on:
       - main
   pull_request:
     branches:
-      - ci-*
-
+      - "ci-*"
 
 jobs:
   integration:
@@ -46,7 +45,6 @@ jobs:
             sleep 10
           done
 
-      # TODO: switch to checking patch submission when it's implemented
       - name: Wait for patch to be generated
         timeout-minutes: 5
         run: |
