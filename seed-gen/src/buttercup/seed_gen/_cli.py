@@ -27,13 +27,13 @@ def command_task(args: argparse.Namespace) -> None:
     task_name = args.task_name
     out_dir = args.out_dir
     out_dir.mkdir(parents=True)
+    challenge = "libpng"
     if task_name == Task.SEED_INIT:
-        challenge = "libpng"
         do_seed_init(challenge, out_dir)
     elif task_name == Task.SEED_EXPLORE:
         do_seed_explore()
     elif task_name == Task.VULN_DISCOVERY:
-        do_vuln_discovery()
+        do_vuln_discovery(challenge, out_dir)
 
 
 def main() -> None:
