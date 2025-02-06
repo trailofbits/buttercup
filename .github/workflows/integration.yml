@@ -44,7 +44,7 @@ jobs:
       - name: Wait for vuln submission to happen
         timeout-minutes: 5
         run: |
-          while ! docker compose logs scheduler | grep "Submitting confirmed vulnerability for crash in libpng"; do
+          while ! docker compose logs scheduler | grep "Vulnerability .* accepted for libpng (harness: .*)" ; do
             sleep 10
           done
       - name: Wait for patch to be generated
