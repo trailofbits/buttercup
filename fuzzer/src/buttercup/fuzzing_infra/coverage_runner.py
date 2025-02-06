@@ -1,6 +1,5 @@
 from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
 import argparse
-from buttercup.common.logger import setup_logging
 from pathlib import Path
 import subprocess
 import json
