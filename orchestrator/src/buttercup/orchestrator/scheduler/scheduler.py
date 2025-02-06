@@ -5,6 +5,7 @@ from pathlib import Path
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import (
     TaskReady,
     Task,
@@ -58,9 +59,8 @@ class Scheduler:
             (source for source in task.sources if source.source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO), None
         )
         if repo_source is not None:
-            example_libpng_path = Path(f"/tasks_storage/{task.task_id}/src/example-libpng")
-            logger.info(f"Checking if {example_libpng_path} exists")
-            if example_libpng_path.is_dir():
+            challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, "example-libpng")
+            if challenge_task.get_source_path().is_dir():
                 logger.info(f"Mocking task {task.task_id} / example-libpng")
                 return BuildRequest(
                     package_name="libpng",
@@ -71,7 +71,6 @@ class Scheduler:
                     task_id=task.task_id,
                     build_type=BUILD_TYPES.FUZZER,
                 )
-            logger.info(f"{example_libpng_path} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
@@ -89,6 +88,7 @@ class Scheduler:
         logger.info(
             f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.output_ossfuzz_path}"
         )
+
         build_dir = Path(build_output.output_ossfuzz_path) / "build" / "out" / build_output.package_name
         targets = get_fuzz_targets(build_dir)
         logger.debug(f"Found {len(targets)} targets: {targets}")
