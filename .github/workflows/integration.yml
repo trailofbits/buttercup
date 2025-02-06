@@ -22,7 +22,9 @@ jobs:
 
       - name: Setup ghcr.io credentials
         run: |
-          echo ${{ secrets.GH_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
+          echo ${{ env.GH_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Build docker images
         run: docker compose build
@@ -32,6 +34,7 @@ jobs:
           cp env.template .env
           sed -i "s|AZURE_API_BASE=.*|AZURE_API_BASE=${{ secrets.AZURE_API_BASE }}|" .env
           sed -i "s|AZURE_API_KEY=.*|AZURE_API_KEY=${{ secrets.AZURE_API_KEY }}|" .env
+
       - name: Run CRS
         run: docker compose up -d
 
