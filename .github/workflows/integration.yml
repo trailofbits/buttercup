@@ -23,3 +23,45 @@ jobs:
       - name: Setup ghcr.io credentials
         run: |
           echo ${{ secrets.GH_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
+
+      - name: Build docker images
+        run: docker compose build
+
+      - name: Configure .env file
+        run: |
+          cp env.template .env
+          sed -i "s|AZURE_API_BASE=.*|AZURE_API_BASE=${{ secrets.AZURE_API_BASE }}|" .env
+          sed -i "s|AZURE_API_KEY=.*|AZURE_API_KEY=${{ secrets.AZURE_API_KEY }}|" .env
+      - name: Run CRS
+        run: docker compose up -d
+
+      - name: Submit a task to the CRS
+        run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
+
+      - name: Wait for vuln submission to happen
+        timeout-minutes: 5
+        run: |
+          while ! docker compose logs scheduler | grep "Submitting confirmed vulnerability for crash in libpng"; do
+            sleep 10
+          done
+      - name: Wait for patch to be generated
+        timeout-minutes: 5
+        run: |
+          while ! docker compose logs patcher | grep "Successfully generated patch for vulnerability libpng/"; do
+            sleep 10
+          done
+      - name: Collect Docker logs
+        run: |
+          mkdir -p docker_logs
+          for service in $(docker compose ps --services); do
+            docker compose logs $service > "docker_logs/${service}.log" 2>&1
+          done
+        if: always()
+
+      - name: Upload Docker logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: docker_logs/
+          retention-days: 4
+        if: always()
