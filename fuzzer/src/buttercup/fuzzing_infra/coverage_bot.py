@@ -1,8 +1,9 @@
 import argparse
+import logging
 import os
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -13,6 +14,7 @@ def main():
     prsr.add_argument("--wdir", required=True)
 
     args = prsr.parse_args()
+    setup_package_logger(__name__, "DEBUG")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir})")

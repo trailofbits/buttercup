@@ -8,14 +8,15 @@ from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.fuzzing_infra.stack_parsing import CrashSet
 import tempfile
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from redis import Redis
 from clusterfuzz.fuzz import engine
 from buttercup.common.default_task_loop import TaskLoop
 from typing import List
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
+import logging
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 class FuzzerBot(TaskLoop):
@@ -86,6 +87,7 @@ def main():
     prsr.add_argument("--wdir", required=True)
 
     args = prsr.parse_args()
+    setup_package_logger(__name__, "DEBUG")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir})")

@@ -1,6 +1,7 @@
 """The `seed-gen` entrypoint."""
 
 import argparse
+import logging
 import os
 import random
 import tempfile
@@ -11,11 +12,11 @@ from redis import Redis
 
 from buttercup.common import utils
 from buttercup.common.datastructures.msg_pb2 import WeightedTarget
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from buttercup.common.maps import FuzzerMap
 from buttercup.seed_gen.tasks import Task, do_seed_explore, do_seed_init, do_vuln_discovery
 
-logger = setup_logging(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -41,6 +42,7 @@ def main() -> None:
     )
     parser_task.add_argument("--out-dir", required=True, type=Path, help="Output directory")
     args = parser.parse_args()
+    setup_package_logger(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
     if args.command == "server":
         command_server(args)
     elif args.command == "task":

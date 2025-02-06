@@ -3,10 +3,10 @@ from pathlib import Path
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.logger import setup_logging
 import time
+import logging
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 MOCK_LIBPNG_PATCH = """diff --git a/pngrutil.c b/pngrutil.c
 index 01e08bfe7..7c609b4b4 100644

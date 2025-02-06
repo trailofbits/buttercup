@@ -1,12 +1,12 @@
 import logging
 import os
 import tempfile
-from typing import Optional
 
 _is_initialized = False
+PACKAGE_LOGGER_NAME = "buttercup"
 
 
-def setup_logging(logger_name: Optional[str] = None, log_level: str = "info") -> logging.Logger:
+def setup_package_logger(logger_name: str, log_level: str = "info") -> logging.Logger:
     global _is_initialized
 
     if not _is_initialized:
@@ -18,15 +18,16 @@ def setup_logging(logger_name: Optional[str] = None, log_level: str = "info") ->
 
         # Configure root logger
         logging.basicConfig(
-            level=log_level.upper(),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
                 logging.StreamHandler(),
-                logging.FileHandler(os.path.join(tempfile.gettempdir(), f"{logger_name or __name__}.log")),
+                logging.FileHandler(os.path.join(tempfile.gettempdir(), f"{logger_name}.log")),
             ],
         )
 
+        _package_logger = logging.getLogger(PACKAGE_LOGGER_NAME)
+        _package_logger.setLevel(log_level.upper())
+
         _is_initialized = True
 
-    # Return a logger with the caller's module name or specified name
-    return logging.getLogger(logger_name or __name__)
+    return logging.getLogger(PACKAGE_LOGGER_NAME)
