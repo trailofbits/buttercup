@@ -62,7 +62,7 @@ class Scheduler:
             challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, "example-libpng")
             if challenge_task.get_source_path().is_dir():
                 logger.info(f"Mocking task {task.task_id} / example-libpng")
-                [
+                return [
                     BuildRequest(
                         package_name="libpng",
                         engine="libfuzzer",
@@ -82,7 +82,7 @@ class Scheduler:
                         build_type=BUILD_TYPES.COVERAGE,
                     ),
                 ]
-            logger.info(f"{example_libpng_path} does not exist")
+            logger.info(f"{challenge_task.get_source_path()} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 
