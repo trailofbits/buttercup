@@ -1,17 +1,16 @@
 import logging
-import re
 from enum import Enum
 from pathlib import Path
 
-from langchain_core.exceptions import OutputParserException
-from langchain_core.messages import AIMessage
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
 from buttercup.common.llm import create_default_llm
-from buttercup.seed_gen.mock_context.mock import get_additional_context, get_harness
-from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
+from buttercup.seed_gen.mock_context.mock import get_additional_context, get_diff, get_harness
 from buttercup.seed_gen.prompts import PYTHON_SEED_SYSTEM_PROMPT, PYTHON_SEED_USER_PROMPT
+from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
+from buttercup.seed_gen.utils import extract_md
+from buttercup.seed_gen.vuln_discovery import analyze_diff, write_pov_funcs
 
 logger = logging.getLogger(__name__)
 
@@ -22,39 +21,14 @@ class Task(str, Enum):
     VULN_DISCOVERY = "vuln-discovery"
 
 
-def extract_md(msg: AIMessage) -> str:
-    """Extract the markdown from the AI message."""
-    if not isinstance(msg, AIMessage):
-        raise OutputParserException(
-            "extract_md: did not receive an AIMessage. Received: %s", type(msg)
-        )
-    content = msg.content
-
-    if not isinstance(content, str):
-        raise OutputParserException(
-            "extract_md: content is not a string. Content is %s", type(content)
-        )
-
-    match = re.search(r"```([A-Za-z]*)\n(.*?)```", content, re.DOTALL)
-    if match is not None:
-        content = match.group(2)
-    else:
-        logger.warning(
-            "extract_md: did not find a markdown block in the AI message. Content is %s...",
-            content[:250],
-        )
-
-    return content.strip("`")
-
-
 def generate_seed_funcs(harness: str, additional_context: str, count: int) -> list[bytes]:
     """Generate a python file of seed-generation functions"""
     logger.debug('Additional context (snippet): "%s"', additional_context[:250])
     prompt = ChatPromptTemplate.from_messages(
         [
-        ("system", PYTHON_SEED_SYSTEM_PROMPT),
-        ("human", PYTHON_SEED_USER_PROMPT),
-    ]
+            ("system", PYTHON_SEED_SYSTEM_PROMPT),
+            ("human", PYTHON_SEED_USER_PROMPT),
+        ]
     )
     llm = create_default_llm()
     chain = prompt | llm | extract_md
@@ -89,6 +63,17 @@ def do_seed_explore() -> None:
     raise NotImplementedError(f"{Task.SEED_EXPLORE} not implemented")
 
 
-def do_vuln_discovery() -> None:
+def do_vuln_discovery(challenge: str, output_dir: Path) -> None:
     """Do vuln-discovery task"""
-    raise NotImplementedError(f"{Task.VULN_DISCOVERY} not implemented")
+    logger.info("Doing vuln-discovery for challenge %s", challenge)
+    max_povs = 10
+    harness = get_harness(challenge)
+    diff = get_diff(challenge)
+    try:
+        logger.info("Analyzing the diff in challenge %s", challenge)
+        analysis = analyze_diff(diff, harness)
+        logger.info("Making PoVs for the challenge %s", challenge)
+        pov_funcs = write_pov_funcs(analysis, harness, diff, max_povs)
+        sandbox_exec_funcs(pov_funcs, output_dir)
+    except Exception as err:
+        logger.error("Failed vuln-discovery for challenge %s: %s", challenge, str(err))
