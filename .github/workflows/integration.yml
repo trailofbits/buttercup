@@ -20,6 +20,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Setup ghcr.io credentials
+        run: |
+          echo ${{ secrets.GH_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
+
       - name: Build docker images
         run: docker compose build
 
@@ -31,9 +35,6 @@ jobs:
 
       - name: Run CRS
         run: docker compose up -d
-
-      - name: Check if curl exists
-        run: which curl
 
       - name: Submit a task to the CRS
         run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
