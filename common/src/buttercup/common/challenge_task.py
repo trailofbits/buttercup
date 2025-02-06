@@ -6,10 +6,11 @@ from os import PathLike
 import logging
 import uuid
 import subprocess
-from buttercup.common.logger import setup_logging
 from buttercup.common.utils import create_tmp_dir, copyanything
 from contextlib import contextmanager
 from typing import Iterator
+
+logger = logging.getLogger(__name__)
 
 
 class ChallengeTaskError(Exception):
@@ -33,7 +34,6 @@ class ChallengeTask:
     project_name: str
     python_path: PathLike = Path("python")
     local_task_dir: PathLike | None = None
-    logger: logging.Logger = field(default_factory=lambda: setup_logging(__name__))
 
     SRC_DIR = "src"
     DIFF_DIR = "diff"
@@ -160,13 +160,13 @@ class ChallengeTask:
         if b"\n" in current_line:
             line_to_print = current_line[: current_line.index(b"\n")]
             current_line = current_line[current_line.index(b"\n") + 1 :]
-            self.logger.debug(line_to_print.decode())
+            logger.debug(line_to_print.decode())
 
         return current_line
 
     def _run_helper_cmd(self, cmd: list[str]) -> CommandResult:
         try:
-            self.logger.debug(f"Running command (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
+            logger.debug(f"Running command (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             process = subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
@@ -202,14 +202,12 @@ class ChallengeTask:
                 output=stdout,
             )
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
+            logger.error(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(
                 success=False, error=e.stderr if e.stderr else None, output=e.stdout if e.stdout else None
             )
         except Exception as e:
-            self.logger.exception(
-                f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}"
-            )
+            logger.exception(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(success=False, error=str(e), output=None)
 
     @read_write_decorator
@@ -220,7 +218,7 @@ class ChallengeTask:
         cache: bool | None = None,
         architecture: str | None = None,
     ) -> CommandResult:
-        self.logger.info(
+        logger.info(
             "Building image for project %s | pull_latest_base_image=%s | cache=%s | architecture=%s",
             self.project_name,
             pull_latest_base_image,
@@ -251,7 +249,7 @@ class ChallengeTask:
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
-        self.logger.info(
+        logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
             self.project_name,
             architecture,
@@ -284,7 +282,7 @@ class ChallengeTask:
     ) -> CommandResult:
         check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
         if check_build_res.success:
-            self.logger.info("Build is up to date, skipping building fuzzers")
+            logger.info("Build is up to date, skipping building fuzzers")
             return check_build_res
 
         return self.build_fuzzers(
@@ -304,7 +302,7 @@ class ChallengeTask:
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
-        self.logger.info(
+        logger.info(
             "Checking build for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
             self.project_name,
             architecture,
@@ -333,7 +331,7 @@ class ChallengeTask:
         architecture: str | None = None,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
-        self.logger.info(
+        logger.info(
             "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
             self.project_name,
             fuzzer_name,
@@ -370,7 +368,7 @@ class ChallengeTask:
         work_dir = Path(work_dir) if work_dir else None
         with create_tmp_dir(work_dir, delete, prefix=self.task_dir.name + "-") as tmp_dir:
             # Copy the entire task directory to the temporary location
-            self.logger.info(f"Copying task directory {self.task_dir} to {tmp_dir}")
+            logger.info(f"Copying task directory {self.task_dir} to {tmp_dir}")
             copyanything(self.task_dir, tmp_dir, symlinks=True)
 
             # Create a new ChallengeTask instance pointing to the copy
@@ -378,7 +376,6 @@ class ChallengeTask:
                 read_only_task_dir=self.read_only_task_dir,
                 project_name=self.project_name,
                 python_path=self.python_path,
-                logger=self.logger,
                 local_task_dir=tmp_dir,
             )
 
@@ -403,15 +400,15 @@ class ChallengeTask:
             suffix = suffix if suffix is not None else str(uuid.uuid4())[:16]
             new_name = f"{self.read_only_task_dir.name}-{suffix}"
             try:
-                self.logger.info(f"Committing task {self.local_task_dir} to {new_name}")
+                logger.info(f"Committing task {self.local_task_dir} to {new_name}")
                 new_local_task_dir = self.local_task_dir.rename(self.local_task_dir.parent / new_name)
-                self.logger.info(f"Committed task {self.local_task_dir} to {new_name}")
+                logger.info(f"Committed task {self.local_task_dir} to {new_name}")
                 break
             except OSError as e:
                 if i == max_retries - 1:
                     raise ChallengeTaskError("Failed to commit task") from e
 
-                self.logger.error(
+                logger.error(
                     f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix..."
                 )
                 suffix = None
