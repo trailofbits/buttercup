@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 from redis import Redis
 
 from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetail, BuildOutput, WeightedHarness
+from buttercup.common.maps import BUILD_TYPES
 
 from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
@@ -52,6 +53,7 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         output_ossfuzz_path="/path/to/output",
         source_path="/path/to/source",
         task_id="blah",
+        build_type=BUILD_TYPES.FUZZER.value,
     )
 
     targets = scheduler.process_build_output(build_output)
