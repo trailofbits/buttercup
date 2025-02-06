@@ -38,10 +38,17 @@ def main():
             task_dir = Path(msg.source_path).parent.parent
             if args.allow_caching:
                 origin_task = ChallengeTask(
-                    task_dir, msg.package_name, python_path=args.python, local_task_dir=task_dir, logger=logger
+                    task_dir,
+                    msg.package_name,
+                    python_path=args.python,
+                    local_task_dir=task_dir,
                 )
             else:
-                origin_task = ChallengeTask(task_dir, msg.package_name, python_path=args.python, logger=logger)
+                origin_task = ChallengeTask(
+                    task_dir,
+                    msg.package_name,
+                    python_path=args.python,
+                )
 
             with origin_task.get_rw_copy(work_dir=args.wdir, delete=False) as task:
                 res = task.build_fuzzers_with_cache(engine=msg.engine, sanitizer=msg.sanitizer)
