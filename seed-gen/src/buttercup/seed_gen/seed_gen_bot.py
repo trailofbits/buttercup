@@ -4,7 +4,6 @@ from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common import utils
 from buttercup.common.corpus import Corpus
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
@@ -21,7 +20,7 @@ class SeedGenBot(TaskLoop):
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BUILD_TYPES]:
-        return [BUILD_TYPES.FUZZER]
+        return []
 
     def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
@@ -35,14 +34,7 @@ class SeedGenBot(TaskLoop):
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
 
-            build = builds[BUILD_TYPES.FUZZER]
-            logger.info(f"Build dir: {build.output_ossfuzz_path}")
-            output_ossfuzz_path = Path(build.output_ossfuzz_path)
-            build_dir = output_ossfuzz_path / "build/out" / build.package_name
-            copied_build_dir = temp_dir / build_dir.name
-            utils.copyanything(build_dir, copied_build_dir)
-
-            do_seed_init(build.package_name, out_dir)
+            do_seed_init(task.package_name, out_dir)
             num_files = sum(1 for _ in out_dir.iterdir())
             logger.info("Copying %d files to corpus %s", num_files, corp.corpus_dir)
             corp.copy_corpus(out_dir)
