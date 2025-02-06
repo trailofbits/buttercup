@@ -115,6 +115,10 @@ class ChallengeTask:
         if self.local_task_dir is None:
             return Path(self.read_only_task_dir)
         return Path(self.local_task_dir)
+    
+    @property
+    def name(self) -> str:
+        return self.project_name
 
     def read_write_decorator(func: Callable) -> Callable:
         """Decorator to check if the task is read-only."""

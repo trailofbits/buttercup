@@ -25,7 +25,8 @@ def test_patcher_mock_mode_libpng():
     )
 
     # Test patch generation
-    patch = patcher.process_vulnerability(vuln)
+    patch_input = patcher._create_patch_input(vuln)
+    patch = patcher.process_vulnerability(patch_input)
 
     # Verify the patch was generated
     assert patch is not None
