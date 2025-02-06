@@ -127,8 +127,8 @@ class Scheduler:
             try:
                 for build_req in self.process_ready_task(task_ready.task):
                     self.build_requests_queue.push(build_req)
-                    self.ready_queue.ack_item(task_ready_item.item_id)
                     logger.info(f"Pushed build request for task {task_ready.task.task_id} to build requests queue")
+                self.ready_queue.ack_item(task_ready_item.item_id)
                 return True
             except Exception as e:
                 logger.exception(f"Failed to process task {task_ready.task.task_id}: {e}")
