@@ -6,7 +6,7 @@ import subprocess
 import json
 import logging
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 class CoverageRunner:
