@@ -320,7 +320,13 @@ class SWEAgent:
 
     def _get_vulnerable_file_content(self, vulnerable_file: str) -> str | None:
         try:
-            vulnerable_path = self.challenge.local_path / "src" / vulnerable_file
+            vulnerable_path = self.challenge.get_source_path() / vulnerable_file
+            if not vulnerable_path.exists() or not vulnerable_path.is_file():
+                logger.error("Could not find file '%s' specified in the context", vulnerable_path)
+                # TODO: try to find the file in a smarter way
+                logger.warning("Trying to find the file in the task directory")
+                vulnerable_path = self.challenge.get_source_path().parent / vulnerable_file
+
             if not vulnerable_path.exists() or not vulnerable_path.is_file():
                 logger.error("Could not find file '%s' specified in the context", vulnerable_path)
                 return None
@@ -341,7 +347,10 @@ class SWEAgent:
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=state["context"]["commit_content"])]
+        # TODO: add support for multiple diffs if necessary
+        diff_content = next(iter(self.challenge.get_diffs())).read_text()
+
+        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
         if state.get("root_cause"):
             messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state["root_cause"])]
 
@@ -359,6 +368,7 @@ class SWEAgent:
 
     def create_upatch(self, inp: CreateUPatchInput) -> Patch | None:
         """Extract the patch the new vulnerable code."""
+        import pdb; pdb.set_trace()
         code_snippets, state = inp["code_snippets"], inp["state"]
 
         orig_code_snippets = {
@@ -413,13 +423,14 @@ class SWEAgent:
                 continue
 
             file_content = file_content.replace(orig_code_snippet, new_code_snippet)
-            target = Path()
+            # target = Path()
             patched_file = Path(code_snippet.file_path)
-            for cp_source_name in self.challenge.source_names:
-                if Path(cp_source_name) in patched_file.parents:
-                    target = cp_source_name
-                    patched_file = patched_file.relative_to(target)
-                    break
+            # TODO: check if this is still necessary
+            # for cp_source_name in self.challenge.source_names:
+            #     if Path(cp_source_name) in patched_file.parents:
+            #         target = cp_source_name
+            #         patched_file = patched_file.relative_to(target)
+            #         break
 
             patch = difflib.unified_diff(
                 orig_file_content.splitlines(),
@@ -437,20 +448,26 @@ class SWEAgent:
                 )
                 continue
 
-            patches.append(Patch(patch_str, target))
+            patch = Patch()
+            patch.patch = patch_str
+            patches.append(patch)
 
         if not patches:
             logger.warning("No valid patches generated")
             return None
 
-        # Check all patches are about the same target
-        if len(set(p.target for p in patches)) != 1:
-            logger.warning("All patches must be about the same target")
-            return None
+        # # Check all patches are about the same target
+        # if len(set(p.target for p in patches)) != 1:
+        #     logger.warning("All patches must be about the same target")
+        #     return None
 
         # Concatenate all patches in one
-        patch_content = "\n".join(p.patch_content for p in patches)
-        return Patch(patch_content, patches[0].target)
+        patch_content = "\n".join(p.patch for p in patches)
+        final_patch = Patch()
+        final_patch.patch = patch_content
+        final_patch.task_id = self.input.task_id
+        final_patch.vulnerability_id = self.input.vulnerability_id
+        return final_patch
 
     def create_patch_node(self, state: PatcherAgentState) -> dict:
         """Node in the LangGraph that generates a patch (in diff format)"""
@@ -464,11 +481,12 @@ class SWEAgent:
         #         "build_stderr": None,
         #     }
 
+        import pdb; pdb.set_trace()
         messages = []
         if state.get("patches"):
             old_patches = FewShotChatMessagePromptTemplate(
                 input_variables=[],
-                examples=[{"patch": p.patch_content} for p in state["patches"][-1:]],
+                examples=[{"patch": p.patch} for p in state["patches"][-1:]],
                 example_prompt=PATCH_PROMPT,
             )
             messages += old_patches.format_messages()
@@ -514,7 +532,7 @@ class SWEAgent:
                 temperature += 0.1
                 continue
 
-            if patch.patch_content in [p.patch_content for p in (state.get("patches") or [])]:
+            if patch.patch in [p.patch for p in (state.get("patches") or [])]:
                 logger.error("Generated patch already exists, try again with higher temperature...")
                 temperature += 0.2
                 continue
@@ -525,6 +543,8 @@ class SWEAgent:
         if not is_patch_generated:
             raise ValueError("Could not generate a new different patch")
 
+        logger.info("Generated a patch for Challenge Task %s", self.challenge.name)
+        logger.debug("Patch: %s", patch.patch)
         patch_tries = (state.get("patch_tries") or 0) + 1
         patches = (state.get("patches") or []) + [patch]
         return {

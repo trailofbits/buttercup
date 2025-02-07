@@ -254,8 +254,9 @@ class RootCauseAgent:
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        # TODO: add API to get list of diffs
-        diff_content = next(self.challenge.get_diff_path().rglob("*.diff")).read_text()
+        # TODO: add support for multiple diffs if necessary
+        diff_content = next(iter(self.challenge.get_diffs())).read_text()
+
         messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
         if state["context"].get("sanitizer") and state["context"].get("sanitizer_output"):
             messages += [
@@ -522,7 +523,7 @@ class RootCauseAgent:
             self.build_failure_analysis_chain.stream(
                 {
                     "code_snippets": code_snippets,
-                    "patch": state["patches"][-1].patch_content,
+                    "patch": state["patches"][-1].patch,
                     "build_stdout": decode_bytes(state.get("build_stdout")),
                     "build_stderr": decode_bytes(state.get("build_stderr")),
                 }

@@ -119,7 +119,10 @@ class QEAgent:
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=state["context"]["commit_content"])]
+        # TODO: add support for multiple diffs if necessary
+        diff_content = next(iter(self.challenge.get_diffs())).read_text()
+
+        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
         if state.get("root_cause"):
             messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state["root_cause"])]
 
@@ -137,6 +140,7 @@ class QEAgent:
 
     def review_patch_node(self, state: PatcherAgentState) -> dict:
         """Node in the LangGraph that reviews a patch"""
+        import pdb; pdb.set_trace()
         logger.info("Reviewing the last patch to ensure it follows the guidelines")
         default_review_result = ReviewPatchOutput(suggestions=[], approved=True)
         review_result_dict: dict = functools.reduce(
@@ -144,7 +148,7 @@ class QEAgent:
             self.review_patch_structured_chain.stream(
                 {
                     "context": self.get_context(state),
-                    "patch": state["patches"][-1].patch_content,
+                    "patch": state["patches"][-1].patch,
                 }
             ),
             # If the reviewer fails for some unexpected reasons, assume the patch is
@@ -173,7 +177,7 @@ class QEAgent:
         """Node in the LangGraph that builds a patch"""
         logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
         with tempfile.NamedTemporaryFile(mode="w+") as patch_file:
-            patch_file.write(state["patches"][-1].patch_content)
+            patch_file.write(state["patches"][-1].patch)
             patch_file.flush()
             logger.debug("Patch written to %s", patch_file.name)
 
@@ -252,7 +256,9 @@ class QEAgent:
         logger.debug("PoV stdout: %s", pov_output.stdout)
         logger.debug("PoV stderr: %s", pov_output.stderr)
 
-        is_pov_triggered = self.challenge.is_sanitizer_triggered(self.sanitizer, pov_output)
+        # is_pov_triggered = self.challenge.is_sanitizer_triggered(self.sanitizer, pov_output)
+        # TODO: implement this
+        is_pov_triggered = True
         logger.info("PoV was %sfixed", "not " if is_pov_triggered else "")
         return {
             "pov_fixed": not is_pov_triggered,

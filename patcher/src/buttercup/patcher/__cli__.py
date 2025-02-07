@@ -36,7 +36,7 @@ def main():
             engine=command.engine,
             sanitizer=command.sanitizer,
             pov=Path(command.crash_input_path).read_bytes(),
-            stacktrace=Path(command.stacktrace_path).read_text(),
+            sanitizer_output=Path(command.stacktrace_path).read_bytes(),
         )
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,

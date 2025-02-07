@@ -24,7 +24,7 @@ class PatchInput:
     engine: str
     sanitizer: str
     pov: bytes | Path
-    stacktrace: str | None = None
+    sanitizer_output: bytes | None = None
     vulnerable_functions: list[ContextCodeSnippet] | None = None
 
     def __getitem__(self, key: str) -> Any:

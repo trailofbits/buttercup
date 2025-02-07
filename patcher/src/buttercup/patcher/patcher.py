@@ -362,7 +362,7 @@ class Patcher:
             project_name=vuln.crash.target.package_name,
             harness_name=vuln.crash.harness_name,
             pov=vuln.crash.crash_input_path,
-            stacktrace=vuln.crash.stacktrace,
+            sanitizer_output=vuln.crash.stacktrace.encode(),
             engine=vuln.crash.target.engine,
             sanitizer=vuln.crash.target.sanitizer,
         )
