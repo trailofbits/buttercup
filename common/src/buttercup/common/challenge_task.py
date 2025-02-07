@@ -6,7 +6,7 @@ from os import PathLike
 import logging
 import uuid
 import subprocess
-from buttercup.common.utils import create_tmp_dir, copyanything
+from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -103,6 +103,9 @@ class ChallengeTask:
     def get_oss_fuzz_path(self) -> Path | None:
         return self._task_dir_compose_path(self.get_oss_fuzz_subpath)
 
+    def get_diffs(self) -> list[Path]:
+        return get_diffs(self.get_diff_path())
+
     def _check_python_path(self) -> None:
         """Check if the configured python_path is available in system PATH."""
         try:
@@ -115,7 +118,7 @@ class ChallengeTask:
         if self.local_task_dir is None:
             return Path(self.read_only_task_dir)
         return Path(self.local_task_dir)
-    
+
     @property
     def name(self) -> str:
         return self.project_name

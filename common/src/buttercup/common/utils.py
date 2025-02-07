@@ -44,3 +44,13 @@ def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | Non
     else:
         with contextlib.nullcontext(tempfile.mkdtemp(dir=work_dir, prefix=prefix)) as tmp_dir:
             yield Path(tmp_dir)
+
+
+def get_diffs(path: Path) -> list[Path]:
+    """Get all diff files in the given path."""
+    diff_files = list(path.rglob("*.patch")) + list(path.rglob("*.diff"))
+    if not diff_files:
+        # If no .patch or .diff files found, try any file
+        diff_files = list(path.rglob("*"))
+
+    return diff_files
