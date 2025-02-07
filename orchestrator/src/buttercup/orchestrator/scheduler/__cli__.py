@@ -5,7 +5,7 @@ from buttercup.orchestrator.scheduler.config import (
     ProcessReadyTaskCommand,
 )
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from pydantic_settings import get_subcommand
 from redis import Redis
 from buttercup.orchestrator.scheduler.scheduler import Task, BuildOutput
@@ -31,7 +31,7 @@ def _prepare_build_output(command: ProcessBuildOutputCommand) -> BuildOutput:
 
 def main():
     settings = Settings()
-    setup_logging(__name__, settings.log_level)
+    setup_package_logger(__name__, settings.log_level)
     command = get_subcommand(settings)
     if isinstance(command, ServeCommand):
         redis = Redis.from_url(command.redis_url, decode_responses=False)

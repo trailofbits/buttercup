@@ -5,10 +5,10 @@ from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
 from buttercup.common.maps import HarnessWeights, BuildMap
 from typing import List
 from buttercup.common.maps import BUILD_TYPES
-from buttercup.common.logger import setup_logging
 import random
+import logging
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 class TaskLoop(ABC):

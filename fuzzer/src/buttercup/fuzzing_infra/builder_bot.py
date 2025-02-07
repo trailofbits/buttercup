@@ -3,12 +3,13 @@ from redis import Redis
 import argparse
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
+import time
+import logging
 from buttercup.common.challenge_task import ChallengeTask
 from pathlib import Path
-import time
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -21,6 +22,7 @@ def main():
     prsr.add_argument("--allow-pull", action="store_true", default=False)
     prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
     args = prsr.parse_args()
+    setup_package_logger(__name__, "DEBUG")
 
     logger.info(f"Starting builder bot ({args.wdir})")
     redis = Redis.from_url(args.redis_url)

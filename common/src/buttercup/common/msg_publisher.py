@@ -1,4 +1,4 @@
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from buttercup.common.queues import QueueFactory, QueueNames
 from redis import Redis
 from pydantic_settings import BaseSettings, CliSubCommand, CliPositionalArg, get_subcommand
@@ -7,6 +7,9 @@ from typing import Annotated
 from pydantic import Field
 from pathlib import Path
 from google.protobuf.text_format import Parse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_queue_names():
@@ -47,7 +50,7 @@ class Settings(BaseSettings):
 
 def main():
     settings = Settings()
-    logger = setup_logging(__name__, settings.log_level)
+    setup_package_logger(__name__, settings.log_level)
 
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     command = get_subcommand(settings)

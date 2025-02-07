@@ -1,16 +1,17 @@
 """The `seed-gen` entrypoint."""
 
 import argparse
+import logging
 import os
 from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from buttercup.seed_gen.seed_gen_bot import SeedGenBot
 from buttercup.seed_gen.tasks import Task, do_seed_explore, do_seed_init, do_vuln_discovery
 
-logger = setup_logging(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
+logger = logging.getLogger(__name__)
 
 
 def command_server(args: argparse.Namespace) -> None:
@@ -52,6 +53,7 @@ def main() -> None:
     )
     parser_task.add_argument("--out-dir", required=True, type=Path, help="Output directory")
     args = parser.parse_args()
+    setup_package_logger(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
     if args.command == "server":
         command_server(args)
     elif args.command == "task":
