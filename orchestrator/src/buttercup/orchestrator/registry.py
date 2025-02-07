@@ -26,7 +26,7 @@ class TaskRegistry:
         return self.redis.hexists(self.hash_name, self._prepare_key(task_id))
 
     def _prepare_key(self, task_id: str) -> str:
-        return task_id.upper()
+        return task_id.lower()
 
     def set(self, task: Task):
         """Update a task in the registry"""
