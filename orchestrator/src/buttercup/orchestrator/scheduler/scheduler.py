@@ -107,10 +107,10 @@ class Scheduler:
         if build_output.build_type != BUILD_TYPES.FUZZER.value:
             return []
 
-
-
         # TODO(Ian): what to do if a task dir doesnt need a python path?
-        tsk = ChallengeTask(read_only_task_dir=build_output.task_dir, project_name=build_output.package_name, python_path="python")
+        tsk = ChallengeTask(
+            read_only_task_dir=build_output.task_dir, project_name=build_output.package_name, python_path="python"
+        )
 
         build_dir = tsk.get_build_dir()
         targets = get_fuzz_targets(build_dir)

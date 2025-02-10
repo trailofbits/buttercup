@@ -11,6 +11,7 @@ from buttercup.orchestrator.scheduler.scheduler import Scheduler
 import tempfile
 from pathlib import Path
 
+
 @pytest.fixture
 def mock_redis():
     return Mock(spec=Redis)
@@ -48,7 +49,6 @@ def test_process_ready_task_mock_mode_invalid_source(scheduler):
 def test_process_build_output(mock_get_fuzz_targets, scheduler):
     mock_get_fuzz_targets.return_value = ["target1", "target2"]
 
-
     # TODO(Ian): this is stupid
     with tempfile.TemporaryDirectory() as td:
         task_dir = Path(td) / "test-task"
@@ -69,10 +69,9 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
             engine="libfuzzer",
             sanitizer="address",
             task_dir=str(task_dir),
-        task_id="blah",
-        build_type=BUILD_TYPES.FUZZER.value,
+            task_id="blah",
+            build_type=BUILD_TYPES.FUZZER.value,
         )
-
 
         targets = scheduler.process_build_output(build_output)
 

@@ -16,6 +16,7 @@ from typing import List
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
 from buttercup.common.challenge_task import ChallengeTask
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,8 +37,10 @@ class FuzzerBot(TaskLoop):
 
             build = builds[BUILD_TYPES.FUZZER]
 
-            tsk = ChallengeTask(read_only_task_dir=build.task_dir, project_name=build.package_name, python_path=self.python)
-            
+            tsk = ChallengeTask(
+                read_only_task_dir=build.task_dir, project_name=build.package_name, python_path=self.python
+            )
+
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 logger.info(f"Build dir: {build.output_ossfuzz_path}")
 
