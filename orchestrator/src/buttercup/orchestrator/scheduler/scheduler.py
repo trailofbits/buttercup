@@ -17,6 +17,7 @@ from buttercup.common.datastructures.msg_pb2 import (
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
+from buttercup.orchestrator.scheduler.patches import Patches
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class Scheduler:
     build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
     vulnerabilities: Vulnerabilities | None = field(init=False, default=None)
+    patches: Patches = field(init=False)
 
     def __post_init__(self):
         if self.redis is not None:
@@ -52,6 +54,7 @@ class Scheduler:
             )
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
+            self.patches = Patches(redis=self.redis, competition_api_url=self.competition_api_url)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""
@@ -193,5 +196,6 @@ class Scheduler:
                 self.cancellation.process_cancellations,
                 self.vulnerabilities.process_crashes,
                 self.vulnerabilities.process_unique_vulnerabilities,
+                self.patches.process_patches,
             ]
             did_work = any(component() for component in components)
