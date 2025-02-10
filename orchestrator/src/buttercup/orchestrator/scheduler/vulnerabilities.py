@@ -12,12 +12,10 @@ from buttercup.common.queues import (
 )
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash
 from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
-from buttercup.orchestrator.competition_api_client.configuration import Configuration
 from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.registry import TaskRegistry
-from buttercup.orchestrator.api_client_factory import create_api_client
 
 logger = logging.getLogger(__name__)
 

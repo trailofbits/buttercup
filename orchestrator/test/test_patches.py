@@ -61,10 +61,7 @@ def patches(mock_redis, mock_api_client, mock_queues):
 class TestSubmitPatch:
     def test_successful_submission(self, patches, sample_patch):
         # Mock successful API response
-        mock_response = TypesPatchSubmissionResponse(
-            status=TypesSubmissionStatus.ACCEPTED,
-            patch_id="test-patch-789"
-        )
+        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, patch_id="test-patch-789")
         patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
 
         result = patches.submit_patch(sample_patch)
@@ -100,10 +97,7 @@ class TestProcessPatches:
         mock_item = RQItem(item_id="test_id", deserialized=sample_patch)
         mock_queues["patches"].pop.return_value = mock_item
 
-        mock_response = TypesPatchSubmissionResponse(
-            status=TypesSubmissionStatus.ACCEPTED,
-            patch_id="test-patch-789"
-        )
+        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, patch_id="test-patch-789")
         patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True
@@ -115,10 +109,7 @@ class TestProcessPatches:
         mock_item = RQItem(item_id="test_id", deserialized=sample_patch)
         mock_queues["patches"].pop.return_value = mock_item
 
-        mock_response = TypesPatchSubmissionResponse(
-            status=TypesSubmissionStatus.INVALID,
-            patch_id="rejected-789"
-        )
+        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.INVALID, patch_id="rejected-789")
         patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True
@@ -141,12 +132,9 @@ class TestProcessPatches:
         mock_item = RQItem(item_id="test_id", deserialized=sample_patch)
         mock_queues["patches"].pop.return_value = mock_item
 
-        mock_response = TypesPatchSubmissionResponse(
-            status=TypesSubmissionStatus.PASSED,
-            patch_id="test-patch-789"
-        )
+        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.PASSED, patch_id="test-patch-789")
         patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
-        mock_queues["patches"].ack_item.assert_called_once_with("test_id") 
+        mock_queues["patches"].ack_item.assert_called_once_with("test_id")

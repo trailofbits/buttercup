@@ -110,9 +110,7 @@ class TestProcessUniqueVulnerabilities:
         mock_queues["confirmed"].push.assert_not_called()
 
     @patch("builtins.open")
-    def test_accepted_submission_processes_successfully(
-        self, mock_open, vulnerabilities, mock_queues, sample_crash
-    ):
+    def test_accepted_submission_processes_successfully(self, mock_open, vulnerabilities, mock_queues, sample_crash):
         # Mock file reading
         mock_file = Mock()
         mock_file.read.return_value = b"test crash data"
@@ -130,9 +128,7 @@ class TestProcessUniqueVulnerabilities:
         mock_queues["unique"].ack_item.assert_called_once_with("test_id")
 
     @patch("builtins.open")
-    def test_rejected_submission_is_handled_gracefully(
-        self, mock_open, vulnerabilities, mock_queues, sample_crash
-    ):
+    def test_rejected_submission_is_handled_gracefully(self, mock_open, vulnerabilities, mock_queues, sample_crash):
         # Mock file reading
         mock_file = Mock()
         mock_file.read.return_value = b"test crash data"
@@ -150,9 +146,7 @@ class TestProcessUniqueVulnerabilities:
         mock_queues["unique"].ack_item.assert_called_once_with("test_id")
 
     @patch("builtins.open")
-    def test_api_error_is_handled_gracefully(
-        self, mock_open, vulnerabilities, mock_queues, sample_crash
-    ):
+    def test_api_error_is_handled_gracefully(self, mock_open, vulnerabilities, mock_queues, sample_crash):
         # Mock file reading
         mock_file = Mock()
         mock_file.read.return_value = b"test crash data"

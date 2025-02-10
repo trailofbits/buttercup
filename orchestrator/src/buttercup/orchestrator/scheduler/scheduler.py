@@ -18,7 +18,6 @@ from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
-from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.api_client_factory import create_api_client
 
 logger = logging.getLogger(__name__)
