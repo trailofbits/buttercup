@@ -107,7 +107,6 @@ class Patcher:
 
     def _create_patch_input(self, vuln: ConfirmedVulnerability) -> PatchInput:
         return PatchInput(
-            # TODO: modify to use proper task_dir once in msg
             challenge_task_dir=Path(vuln.crash.target.task_dir),
             task_id=vuln.crash.target.task_id,
             vulnerability_id=vuln.vuln_id,
