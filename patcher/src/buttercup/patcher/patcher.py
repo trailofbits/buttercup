@@ -9,15 +9,15 @@ from buttercup.patcher.agents.common import PatchOutput
 from redis import Redis
 from typing import Callable, Any
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.logger import setup_logging
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
 from buttercup.patcher.mock import MOCK_LIBPNG_FUNCTION_CODE
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
 import time
+import logging
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand, CliImplicitFlag
 from pydantic import BaseModel
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from pathlib import Path
 from typing import Dict
 
@@ -98,7 +98,7 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
 
 def main():
     settings = Settings()
-    logger = setup_logging(__name__, "DEBUG")
+    logger = setup_package_logger(__name__, "DEBUG")
     if settings.rw:
         task = ChallengeTask(
             read_only_task_dir=settings.task_dir,

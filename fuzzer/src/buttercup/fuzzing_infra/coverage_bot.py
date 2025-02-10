@@ -1,6 +1,7 @@
 import argparse
+import logging
 import os
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.datastructures.msg_pb2 import WeightedHarness
 from buttercup.common.maps import BUILD_TYPES
@@ -14,7 +15,7 @@ from buttercup.common import utils
 import tempfile
 from pathlib import Path
 
-logger = setup_logging(__name__)
+logger = logging.getLogger(__name__)
 
 
 class CoverageBot(TaskLoop):
@@ -68,6 +69,7 @@ def main():
     prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
     prsr.add_argument("--llvm-cov-tool", default="llvm-cov")
     args = prsr.parse_args()
+    setup_package_logger(__name__, "DEBUG")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting coverage bot (wdir: {args.wdir})")

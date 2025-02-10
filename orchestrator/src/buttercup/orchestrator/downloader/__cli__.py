@@ -5,7 +5,7 @@ from buttercup.orchestrator.downloader.config import (
     DownloaderProcessCommand,
     TaskType,
 )
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from pydantic_settings import get_subcommand
 from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 from buttercup.orchestrator.utils import response_stream_to_file
@@ -48,7 +48,7 @@ def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -
 
 def main():
     settings = DownloaderSettings()
-    setup_logging(__name__, settings.log_level)
+    setup_package_logger(__name__, settings.log_level)
     command = get_subcommand(settings)
     if isinstance(command, DownloaderServeCommand):
         redis = Redis.from_url(command.redis_url, decode_responses=False)

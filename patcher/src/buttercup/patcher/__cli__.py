@@ -1,18 +1,19 @@
 from buttercup.patcher.config import Settings, ServeCommand, ProcessCommand
 from buttercup.patcher.patcher import Patcher
 from pydantic_settings import get_subcommand
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 import logging
 from redis import Redis
 from buttercup.patcher.utils import PatchInput
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 
 def main():
     settings = Settings()
     command = get_subcommand(settings)
-    setup_logging(__name__, settings.log_level)
-    logger = logging.getLogger(__name__)
+    setup_package_logger(__name__, settings.log_level)
 
     logger.info("Starting patcher")
     if isinstance(command, ServeCommand):

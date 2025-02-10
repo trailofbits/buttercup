@@ -5,7 +5,7 @@ import contextlib
 from contextlib import contextmanager
 from typing import Iterator, Any
 from tempfile import TemporaryDirectory
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from pathlib import Path
 from os import PathLike
 
@@ -31,7 +31,7 @@ def copyanything(src: PathLike, dst: PathLike, **kwargs: Any) -> None:
 def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | None = None) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
     delete it after use."""
-    logger = setup_logging(__name__)
+    logger = setup_package_logger(__name__)
     if work_dir:
         work_dir.mkdir(parents=True, exist_ok=True)
 

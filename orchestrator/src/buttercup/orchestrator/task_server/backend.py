@@ -24,7 +24,7 @@ def _api_task_to_proto(task: Task) -> list[TaskProto]:
         task_proto = TaskProto()
         task_proto.message_id = task.message_id
         task_proto.message_time = task.message_time
-        task_proto.task_id = task_detail.task_id
+        task_proto.task_id = task_detail.task_id.lower()
         match task_detail.type:
             case TaskType.TaskTypeFull:
                 task_proto.task_type = TaskProto.TaskType.TASK_TYPE_FULL
@@ -71,6 +71,6 @@ def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
     Returns:
         Empty string on successful deletion request
     """
-    task_delete = TaskDelete(task_id=str(task_id), received_at=time.time())
+    task_delete = TaskDelete(task_id=str(task_id).lower(), received_at=time.time())
     delete_task_queue.push(task_delete)
     return ""

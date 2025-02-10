@@ -13,12 +13,12 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
 from buttercup.orchestrator.task_server.backend import delete_task, new_task
-from buttercup.common.logger import setup_logging
+from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
 from buttercup.common.queues import ReliableQueue
 
 settings = get_settings()
-logger = setup_logging(__name__, settings.log_level)
+logger = setup_package_logger(__name__, settings.log_level)
 
 app = FastAPI(
     title="Buttercup CRS API",
