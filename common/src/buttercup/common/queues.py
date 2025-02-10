@@ -310,7 +310,7 @@ class QueueFactory:
                 QueueNames.PATCHES,
                 Patch,
                 PATCH_TASK_TIMEOUT_MS,
-                [],
+                [GroupNames.ORCHESTRATOR],
             ),
         }
     )
