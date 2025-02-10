@@ -48,6 +48,7 @@ class Patches:
         logger.info(f"Submit patch: task={patch.task_id} vuln={patch.vulnerability_id}")
         submission = TypesPatchSubmission(
             patch=patch.patch,
+            vuln_id=patch.vulnerability_id
         )
 
         return self.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post(
