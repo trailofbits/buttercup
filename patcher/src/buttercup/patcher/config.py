@@ -11,22 +11,23 @@ class ServeCommand(BaseModel):
 
 
 class ProcessCommand(BaseModel):
+    challenge_task_dir: CliPositionalArg[Path] = Field(description="Challenge Task Directory")
     task_id: CliPositionalArg[str] = Field(description="Task ID")
     vulnerability_id: CliPositionalArg[str] = Field(description="Vulnerability ID")
-    package_name: CliPositionalArg[str] = Field(description="Package Name")
+    project_name: CliPositionalArg[str] = Field(description="Package Name")
+    harness_name: CliPositionalArg[str] = Field(description="Harness Name")
     engine: CliPositionalArg[str] = Field(description="Engine")
     sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")
-    oss_fuzz_path: CliPositionalArg[str] = Field(description="OSS Fuzz Path")
-    source_path: CliPositionalArg[str] = Field(description="Source Path")
-    build_type: CliPositionalArg[str] = Field(description="Build Type")
-    harness_name: CliPositionalArg[str] = Field(description="Harness Name")
     crash_input_path: CliPositionalArg[str] = Field(description="Crash Input Path")
+    stacktrace_path: CliPositionalArg[str] = Field(description="Stacktrace Path")
 
 
 class Settings(BaseSettings):
     task_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for task storage")]
+    scratch_dir: Annotated[Path, Field(default="/tmp/scratch", description="Directory for scratch space")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
     mock_mode: CliImplicitFlag[bool] = Field(default=False, description="Mock mode")
+    dev_mode: CliImplicitFlag[bool] = Field(default=False, description="Dev mode")
 
     serve: CliSubCommand[ServeCommand]
     process: CliSubCommand[ProcessCommand]

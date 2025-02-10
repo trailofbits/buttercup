@@ -214,15 +214,23 @@ services:
       context: .
       dockerfile: ./patcher/Dockerfile
     command: ["buttercup-patcher", "serve"]
+    volumes:
+      - ./crs_scratch:/crs_scratch
     environment:
       - BUTTERCUP_PATCHER_SERVE__REDIS_URL=redis://redis:6379
       - BUTTERCUP_PATCHER_SERVE__SLEEP_TIME=5
       - BUTTERCUP_PATCHER_LOG_LEVEL=debug
       - BUTTERCUP_PATCHER_TASK_STORAGE_DIR=/crs_scratch
+      - BUTTERCUP_PATCHER_SCRATCH_DIR=/crs_scratch
       - BUTTERCUP_PATCHER_MOCK_MODE=true
+      - BUTTERCUP_LITELLM_KEY=sk-1234
+      - BUTTERCUP_LITELLM_HOSTNAME=http://litellm:8080
+      - DOCKER_HOST=tcp://dind:2375
     depends_on:
       redis:
         condition: service_healthy
+      dind:
+        condition: service_started
 
   litellm:
     image: ghcr.io/berriai/litellm:litellm_stable_release_branch-v1.57.8-stable

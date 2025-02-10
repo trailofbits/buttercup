@@ -12,6 +12,7 @@ from urllib3.util.retry import Retry
 import subprocess
 
 from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue, QueueNames, GroupNames
+from buttercup.common.utils import get_diffs
 from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
@@ -130,11 +131,7 @@ class Downloader:
         try:
             # Find all .patch and .diff files in the directory
             diff_dir = tmp_task_dir / self._get_source_type_dir(SourceDetail.SourceType.SOURCE_TYPE_DIFF)
-            diff_files = list(diff_dir.rglob("*.patch")) + list(diff_dir.rglob("*.diff"))
-            if not diff_files:
-                # If no .patch or .diff files found, try any file
-                diff_files = list(diff_dir.rglob("*"))
-
+            diff_files = get_diffs(diff_dir)
             if not diff_files:
                 raise FileNotFoundError("No diff file found in the extracted directory")
 

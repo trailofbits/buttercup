@@ -1,5 +1,14 @@
 ARG PYTHON_BASE=3.12-slim-bookworm
 
+FROM python:${PYTHON_BASE} AS runtime-base
+RUN apt-get update
+RUN apt-get install -y curl
+RUN curl -fsSL https://get.docker.com | sh
+RUN apt-get install -y \
+    patch \
+    && rm -rf /var/lib/apt/lists/*
+
+
 FROM python:${PYTHON_BASE} AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
@@ -25,7 +34,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd patcher && uv sync --frozen --no-editable
 
 
-FROM python:${PYTHON_BASE} AS runtime
+FROM runtime-base AS runtime
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
 WORKDIR /app/patcher
