@@ -37,7 +37,7 @@ def main():
         if rqit is not None:
             msg = rqit.deserialized
             logger.info(f"Received build request for {msg.package_name}")
-            task_dir = Path(msg.source_path).parent.parent
+            task_dir = Path(msg.task_dir)
             if args.allow_caching:
                 origin_task = ChallengeTask(
                     task_dir,
@@ -52,7 +52,7 @@ def main():
                     python_path=args.python,
                 )
 
-            with origin_task.get_rw_copy(work_dir=args.wdir, delete=False) as task:
+            with origin_task.get_rw_copy(work_dir=args.wdir) as task:
                 res = task.build_fuzzers_with_cache(engine=msg.engine, sanitizer=msg.sanitizer)
                 if not res.success:
                     logger.error(f"Could not build fuzzer {msg.package_name}")
@@ -65,8 +65,7 @@ def main():
                         package_name=msg.package_name,
                         engine=msg.engine,
                         sanitizer=msg.sanitizer,
-                        output_ossfuzz_path=str(task.get_oss_fuzz_path()),
-                        source_path=str(task.get_source_path()),
+                        task_dir=str(task.task_dir),
                         task_id=msg.task_id,
                         build_type=msg.build_type,
                     )

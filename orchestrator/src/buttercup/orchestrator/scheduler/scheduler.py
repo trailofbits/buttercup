@@ -72,8 +72,7 @@ class Scheduler:
                         package_name="libpng",
                         engine="libfuzzer",
                         sanitizer="address",
-                        ossfuzz=str(challenge_task.get_oss_fuzz_path()),
-                        source_path=str(challenge_task.get_source_path()),
+                        task_dir=f"/tasks_storage/{task.task_id}",
                         task_id=task.task_id,
                         build_type=BUILD_TYPES.FUZZER,
                     ),
@@ -81,8 +80,7 @@ class Scheduler:
                         package_name="libpng",
                         engine="libfuzzer",
                         sanitizer="coverage",
-                        ossfuzz=str(challenge_task.get_oss_fuzz_path()),
-                        source_path=str(challenge_task.get_source_path()),
+                        task_dir=f"/tasks_storage/{task.task_id}",
                         task_id=task.task_id,
                         build_type=BUILD_TYPES.COVERAGE,
                     ),
@@ -103,13 +101,18 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.output_ossfuzz_path}"
+            f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.task_dir}"
         )
 
         if build_output.build_type != BUILD_TYPES.FUZZER.value:
             return []
 
-        build_dir = Path(build_output.output_ossfuzz_path) / "build" / "out" / build_output.package_name
+
+
+        # TODO(Ian): what to do if a task dir doesnt need a python path?
+        tsk = ChallengeTask(read_only_task_dir=build_output.task_dir, project_name=build_output.package_name, python_path="python")
+
+        build_dir = tsk.get_build_dir()
         targets = get_fuzz_targets(build_dir)
         logger.debug(f"Found {len(targets)} targets: {targets}")
 
@@ -155,12 +158,12 @@ class Scheduler:
                     self.harness_map.push_harness(target)
                 self.build_output_queue.ack_item(build_output_item.item_id)
                 logger.info(
-                    f"Pushed {len(targets)} targets to fuzzer map for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.source_path}"
+                    f"Pushed {len(targets)} targets to fuzzer map for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}"
                 )
                 return True
             except Exception as e:
                 logger.error(
-                    f"Failed to process build output for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.source_path}: {e}"
+                    f"Failed to process build output for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}"
                 )
                 return False
 

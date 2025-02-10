@@ -102,6 +102,10 @@ class ChallengeTask:
 
     def get_oss_fuzz_path(self) -> Path | None:
         return self._task_dir_compose_path(self.get_oss_fuzz_subpath)
+    
+
+    def get_build_dir(self) -> Path | None:
+        return self.get_oss_fuzz_path() / "build" / "out" / self.project_name
 
     def get_diffs(self) -> list[Path]:
         return get_diffs(self.get_diff_path())
