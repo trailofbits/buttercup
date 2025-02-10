@@ -53,6 +53,12 @@ jobs:
           while ! docker compose logs patcher | grep "Successfully generated patch for vulnerability libpng/"; do
             sleep 10
           done
+      - name: Wait for patch to be submitted
+        timeout-minutes: 5
+        run: |
+          while ! docker compose logs scheduler | grep "Patch accepted: task=.*vuln=.*patch_id=.*status=TypesSubmissionStatus.ACCEPTED"; do
+            sleep 10
+          done
       - name: Collect Docker logs
         run: |
           mkdir -p docker_logs

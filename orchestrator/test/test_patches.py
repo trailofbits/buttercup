@@ -7,6 +7,7 @@ from buttercup.orchestrator.competition_api_client.models.types_patch_submission
     TypesPatchSubmissionResponse,
 )
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+import base64
 
 
 @pytest.fixture
@@ -52,8 +53,8 @@ def patches(mock_redis, mock_api_client, mock_queues):
     # Manually set the queue to match our mock
     patches.patches_queue = mock_queues["patches"]
 
-    # Mock the vulnerability API method we use
-    patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post = Mock()
+    # Mock the patch API method we use
+    patches.patch_api.v1_task_task_id_patch_post = Mock()
 
     return patches
 
@@ -62,16 +63,17 @@ class TestSubmitPatch:
     def test_successful_submission(self, patches, sample_patch):
         # Mock successful API response
         mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, patch_id="test-patch-789")
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
+        patches.patch_api.v1_task_task_id_patch_post.return_value = mock_response
 
         result = patches.submit_patch(sample_patch)
 
         # Verify API was called with correct data
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.assert_called_once()
-        call_args = patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.call_args
+        patches.patch_api.v1_task_task_id_patch_post.assert_called_once()
+        call_args = patches.patch_api.v1_task_task_id_patch_post.call_args
         assert call_args[1]["task_id"] == sample_patch.task_id
-        assert call_args[1]["vuln_id"] == sample_patch.vulnerability_id
-        assert call_args[1]["payload"].patch == sample_patch.patch
+        # Verify the patch content is base64 encoded
+        expected_encoded_patch = base64.b64encode(sample_patch.patch.encode()).decode()
+        assert call_args[1]["payload"].patch == expected_encoded_patch
         assert call_args[1]["payload"].vuln_id == sample_patch.vulnerability_id
 
         # Verify returned response
@@ -79,11 +81,25 @@ class TestSubmitPatch:
 
     def test_api_error_raises_exception(self, patches, sample_patch):
         # Mock API error
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.side_effect = Exception("API Error")
+        patches.patch_api.v1_task_task_id_patch_post.side_effect = Exception("API Error")
 
         with pytest.raises(Exception) as exc_info:
             patches.submit_patch(sample_patch)
         assert "API Error" in str(exc_info.value)
+
+    def test_encoding_error_raises_exception(self, patches):
+        # Create a patch with non-encodable content
+        bad_patch = Patch()
+        bad_patch.task_id = "test-task-123"
+        bad_patch.vulnerability_id = "test-vuln-456"
+        # Use a valid string for the protobuf, but one that will fail base64 encoding
+        bad_patch.patch = "test patch content"
+
+        # Mock base64.b64encode to simulate the encoding failure
+        with patch("base64.b64encode", side_effect=Exception("Failed to encode")):
+            with pytest.raises(Exception) as exc_info:
+                patches.submit_patch(bad_patch)
+            assert "Failed to encode" in str(exc_info.value)
 
 
 class TestProcessPatches:
@@ -98,7 +114,7 @@ class TestProcessPatches:
         mock_queues["patches"].pop.return_value = mock_item
 
         mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, patch_id="test-patch-789")
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
+        patches.patch_api.v1_task_task_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
@@ -110,7 +126,7 @@ class TestProcessPatches:
         mock_queues["patches"].pop.return_value = mock_item
 
         mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.INVALID, patch_id="rejected-789")
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
+        patches.patch_api.v1_task_task_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
@@ -121,7 +137,7 @@ class TestProcessPatches:
         mock_item = RQItem(item_id="test_id", deserialized=sample_patch)
         mock_queues["patches"].pop.return_value = mock_item
 
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.side_effect = Exception("API Error")
+        patches.patch_api.v1_task_task_id_patch_post.side_effect = Exception("API Error")
 
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
@@ -133,7 +149,7 @@ class TestProcessPatches:
         mock_queues["patches"].pop.return_value = mock_item
 
         mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.PASSED, patch_id="test-patch-789")
-        patches.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post.return_value = mock_response
+        patches.patch_api.v1_task_task_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
