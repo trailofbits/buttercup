@@ -47,12 +47,6 @@ jobs:
           while ! docker compose logs scheduler | grep "Vulnerability .* accepted for libpng (harness: .*)" ; do
             sleep 10
           done
-      - name: Wait for patch to be generated
-        timeout-minutes: 5
-        run: |
-          while ! docker compose logs patcher | grep "Successfully generated patch for vulnerability libpng/"; do
-            sleep 10
-          done
       - name: Wait for patch to be submitted
         timeout-minutes: 5
         run: |
