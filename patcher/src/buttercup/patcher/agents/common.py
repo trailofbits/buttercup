@@ -5,9 +5,16 @@ from typing import Annotated, TypedDict
 
 from buttercup.patcher.context import ContextCodeSnippet
 from buttercup.patcher.utils import PatchInput
-from buttercup.common.datastructures.msg_pb2 import Patch
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel
+
+class PatchOutput(BaseModel):
+    """Output for the Patch Agent."""
+
+    task_id: str
+    vulnerability_id: str
+    patch: str
 
 
 class PatcherAgentState(TypedDict):
@@ -20,7 +27,7 @@ class PatcherAgentState(TypedDict):
     relevant_code_snippets: Annotated[list[ContextCodeSnippet], operator.add]
     root_cause: str
 
-    patches: list[Patch]
+    patches: list[PatchOutput]
     patch_tries: int | None
 
     patch_review: str | None

@@ -23,6 +23,7 @@ def main():
             redis,
             sleep_time=command.sleep_time,
             mock_mode=settings.mock_mode,
+            dev_mode=settings.dev_mode,
         )
         patcher.serve()
     elif isinstance(command, ProcessCommand):
@@ -41,6 +42,7 @@ def main():
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
             mock_mode=settings.mock_mode,
+            dev_mode=settings.dev_mode,
         )
         patch = patcher.process_vulnerability(patch_input)
         if patch is not None:

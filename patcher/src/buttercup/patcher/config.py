@@ -24,8 +24,9 @@ class ProcessCommand(BaseModel):
 
 class Settings(BaseSettings):
     task_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for task storage")]
-    log_level: Annotated[str, Field(default="info", description="Log level")]
-    mock_mode: CliImplicitFlag[bool] = Field(default=False, description="Mock mode")
+    log_level: Annotated[str, Field(default="info", description="Log level", alias="log-level")]
+    mock_mode: CliImplicitFlag[bool] = Field(default=False, description="Mock mode", alias="mock-mode")
+    dev_mode: CliImplicitFlag[bool] = Field(default=False, description="Dev mode", alias="dev-mode")
 
     serve: CliSubCommand[ServeCommand]
     process: CliSubCommand[ProcessCommand]

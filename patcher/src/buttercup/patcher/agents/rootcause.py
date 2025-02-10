@@ -417,8 +417,7 @@ class RootCauseAgent:
 
     def _do_filter_code_snippet(self, state: FilterSnippetState, vc: ContextCodeSnippet) -> bool:
         try:
-            include_code_snippet = functools.reduce(
-                lambda _, y: y,
+            include_code_snippet = next(
                 self.filter_code_snippet_bool_chain.stream(
                     {
                         "context": self.get_filter_snippet_context(state),

@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from operator import itemgetter
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, Iterator
 
 from buttercup.common.challenge_task import ChallengeTask
 # from buttercup.common.challenge_task.snapshot import SnapshotChallenge, SnapshotError
@@ -31,10 +31,10 @@ from buttercup.patcher.agents.common import (
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
     PatcherAgentState,
+    PatchOutput,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
 from buttercup.patcher.utils import decode_bytes, PatchInput
-from buttercup.common.datastructures.msg_pb2 import Patch
 
 logger = logging.getLogger(__name__)
 
@@ -320,12 +320,12 @@ class SWEAgent:
 
     def _get_vulnerable_file_content(self, vulnerable_file: str) -> str | None:
         try:
-            vulnerable_path = self.challenge.get_source_path() / vulnerable_file
+            vulnerable_path = self.challenge.get_source_path() / vulnerable_file.strip()
             if not vulnerable_path.exists() or not vulnerable_path.is_file():
                 logger.error("Could not find file '%s' specified in the context", vulnerable_path)
                 # TODO: try to find the file in a smarter way
                 logger.warning("Trying to find the file in the task directory")
-                vulnerable_path = self.challenge.get_source_path().parent / vulnerable_file
+                vulnerable_path = self.challenge.get_source_path().parent / vulnerable_file.strip()
 
             if not vulnerable_path.exists() or not vulnerable_path.is_file():
                 logger.error("Could not find file '%s' specified in the context", vulnerable_path)
@@ -338,7 +338,7 @@ class SWEAgent:
 
             return res
         except FileNotFoundError:
-            logger.error("Could not read file '%s' specified in the context", vulnerable_file)
+            logger.error("Could not read file '%s' specified in the context", vulnerable_file.strip())
             return None
 
     def get_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
@@ -366,9 +366,8 @@ class SWEAgent:
 
         return messages
 
-    def create_upatch(self, inp: CreateUPatchInput) -> Patch | None:
+    def create_upatch(self, inp: CreateUPatchInput) -> PatchOutput:
         """Extract the patch the new vulnerable code."""
-        import pdb; pdb.set_trace()
         code_snippets, state = inp["code_snippets"], inp["state"]
 
         orig_code_snippets = {
@@ -377,7 +376,7 @@ class SWEAgent:
             if cs.get("code") and cs.get("function_name")
         }
 
-        patches: list[Patch] = []
+        patches: list[PatchOutput] = []
         for code_snippet in code_snippets.items or []:
             if (
                 not code_snippet.file_path
@@ -448,13 +447,16 @@ class SWEAgent:
                 )
                 continue
 
-            patch = Patch()
-            patch.patch = patch_str
+            patch = PatchOutput(
+                task_id=self.input.task_id,
+                vulnerability_id=self.input.vulnerability_id,
+                patch=patch_str,
+            )
             patches.append(patch)
 
         if not patches:
             logger.warning("No valid patches generated")
-            return None
+            return PatchOutput(task_id="", vulnerability_id="", patch="")
 
         # # Check all patches are about the same target
         # if len(set(p.target for p in patches)) != 1:
@@ -463,10 +465,11 @@ class SWEAgent:
 
         # Concatenate all patches in one
         patch_content = "\n".join(p.patch for p in patches)
-        final_patch = Patch()
-        final_patch.patch = patch_content
-        final_patch.task_id = self.input.task_id
-        final_patch.vulnerability_id = self.input.vulnerability_id
+        final_patch = PatchOutput(
+            task_id=self.input.task_id,
+            vulnerability_id=self.input.vulnerability_id,
+            patch=patch_content,
+        )
         return final_patch
 
     def create_patch_node(self, state: PatcherAgentState) -> dict:
@@ -481,7 +484,6 @@ class SWEAgent:
         #         "build_stderr": None,
         #     }
 
-        import pdb; pdb.set_trace()
         messages = []
         if state.get("patches"):
             old_patches = FewShotChatMessagePromptTemplate(
@@ -511,7 +513,7 @@ class SWEAgent:
         is_patch_generated = False
 
         for _ in range(3):
-            patch: Patch | None = functools.reduce(
+            patch: PatchOutput = functools.reduce(
                 lambda _, y: y,
                 self.create_patch_chain.stream(
                     {
@@ -525,9 +527,9 @@ class SWEAgent:
                         },
                     ),
                 ),
-                None,
+                PatchOutput(task_id="", vulnerability_id="", patch=""),
             )
-            if not patch:
+            if not patch or not patch.patch:
                 logger.error("Could not generate a patch")
                 temperature += 0.1
                 continue

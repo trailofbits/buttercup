@@ -140,7 +140,6 @@ class QEAgent:
 
     def review_patch_node(self, state: PatcherAgentState) -> dict:
         """Node in the LangGraph that reviews a patch"""
-        import pdb; pdb.set_trace()
         logger.info("Reviewing the last patch to ensure it follows the guidelines")
         default_review_result = ReviewPatchOutput(suggestions=[], approved=True)
         review_result_dict: dict = functools.reduce(
@@ -181,9 +180,14 @@ class QEAgent:
             patch_file.flush()
             logger.debug("Patch written to %s", patch_file.name)
 
-            # TODO: apply the patch to the source code
-            # patch=str(patch_file.name),
-            # source_target=str(state["patches"][-1].target),
+            # Apply the patch to the source code of the challenge task, forcing and not asking questions
+            # First try from source dir, if that fails try from parent dir
+            import subprocess
+            result = subprocess.run(["patch", "-p1", "-d", self.challenge.get_source_path(), "-i", patch_file.name, "--force", "--quiet", "--no-backup-if-mismatch"], check=False)
+            if result.returncode != 0:
+                # NOTE: this address the fact that sometimes example-libpng is in the patch target
+                # Try applying from parent dir if first attempt failed
+                subprocess.run(["patch", "-p1", "-d", self.challenge.get_source_path().parent, "-i", patch_file.name, "--force", "--quiet", "--no-backup-if-mismatch"], check=False)
 
             try:
                 cp_output = self.challenge.build_fuzzers_with_cache(
@@ -199,12 +203,12 @@ class QEAgent:
                     "patch_review_tries": 0,
                 }
 
-            if cp_output.return_code != 0 or cp_output.exitcode != 0:
+            if not cp_output.success:
                 logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
                 return {
                     "build_succeeded": False,
-                    "build_stdout": cp_output.stdout,
-                    "build_stderr": cp_output.stderr,
+                    "build_stdout": cp_output.output,
+                    "build_stderr": cp_output.error,
                     "patch_review_tries": 0,
                 }
 
@@ -212,8 +216,8 @@ class QEAgent:
 
         return {
             "build_succeeded": True,
-            "build_stdout": cp_output.stdout,
-            "build_stderr": cp_output.stderr,
+            "build_stdout": cp_output.output,
+            "build_stderr": cp_output.error,
             "patch_review_tries": 0,
         }
 
@@ -239,12 +243,12 @@ class QEAgent:
                 "build_stderr": exc.stderr,
             }
 
-        if pov_output.return_code != 0:
+        if not pov_output.success:
             logger.error("PoV failed running")
             return {
                 "pov_fixed": False,
-                "pov_stdout": pov_output.stdout,
-                "pov_stderr": pov_output.stderr,
+                "pov_stdout": pov_output.output,
+                "pov_stderr": pov_output.error,
             }
 
         logger.info(
@@ -253,17 +257,14 @@ class QEAgent:
             pov_name,
             self.input.harness_name,
         )
-        logger.debug("PoV stdout: %s", pov_output.stdout)
-        logger.debug("PoV stderr: %s", pov_output.stderr)
+        logger.debug("PoV stdout: %s", pov_output.output)
+        logger.debug("PoV stderr: %s", pov_output.error)
 
-        # is_pov_triggered = self.challenge.is_sanitizer_triggered(self.sanitizer, pov_output)
-        # TODO: implement this
-        is_pov_triggered = True
-        logger.info("PoV was %sfixed", "not " if is_pov_triggered else "")
+        logger.info("PoV was %sfixed", "" if pov_output.success else "not ")
         return {
-            "pov_fixed": not is_pov_triggered,
-            "pov_stdout": pov_output.stdout,
-            "pov_stderr": pov_output.stderr,
+            "pov_fixed": pov_output.success,
+            "pov_stdout": pov_output.output,
+            "pov_stderr": pov_output.error,
         }
 
     def run_tests_node(self, state: PatcherAgentState) -> dict:

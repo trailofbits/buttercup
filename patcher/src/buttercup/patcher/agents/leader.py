@@ -10,13 +10,14 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.constants import Send
 from langgraph.graph import END, StateGraph
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.patcher.agents.common import PatcherAgentState
+from buttercup.patcher.agents.common import PatcherAgentState, PatchOutput
 from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
 from buttercup.patcher.utils import PatchInput
-from buttercup.common.datastructures.msg_pb2 import Patch
 from buttercup.patcher.llm import get_langfuse_callbacks
+from langchain_core.globals import set_llm_cache
+from langchain_community.cache import SQLiteCache
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,7 @@ class PatcherLeaderAgent:
 
         return workflow
 
-    def run_patch_task(self) -> Patch | None:
+    def run_patch_task(self) -> PatchOutput | None:
         """Run the patching task."""
         patch_team = self._init_patch_team()
         llm_callbacks = get_langfuse_callbacks()
@@ -138,6 +139,7 @@ class PatcherLeaderAgent:
         )
 
         try:
+            # TODO: langgraph should raise exceptions if something fails in the agents
             state: PatcherAgentState = chain.invoke({"context": self.input})
             if (
                 state.get("build_succeeded")
@@ -150,6 +152,9 @@ class PatcherLeaderAgent:
             return None
         except ValueError as e:
             logger.error("Could not generate a patch: %s", e)
+            return None
+        except Exception as e:
+            logger.error("Unexpected error during patch generation: %s", e)
             return None
 
         return None

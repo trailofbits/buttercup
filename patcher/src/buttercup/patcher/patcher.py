@@ -3,11 +3,14 @@ from pathlib import Path
 from buttercup.patcher.context import ContextCodeSnippet
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from buttercup.patcher.utils import PatchInput
+from buttercup.patcher.agents.common import PatchOutput
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.logger import setup_logging
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
+from langchain_core.globals import set_llm_cache
+from langchain_community.cache import SQLiteCache
 import time
 
 logger = setup_logging(__name__)
@@ -297,6 +300,7 @@ class Patcher:
     redis: Redis | None = None
     sleep_time: float = 1
     mock_mode: bool = False
+    dev_mode: bool = False
 
     vulnerability_queue: ReliableQueue | None = field(init=False, default=None)
     patches_queue: ReliableQueue | None = field(init=False, default=None)
@@ -309,7 +313,7 @@ class Patcher:
             )
             self.patches_queue = queue_factory.create(QueueNames.PATCHES)
 
-    def _process_vulnerability(self, input: PatchInput) -> Patch | None:
+    def _process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
         challenge_task = ChallengeTask(
             read_only_task_dir=input.challenge_task_dir,
             project_name=input.project_name,
@@ -328,9 +332,12 @@ class Patcher:
             logger.debug(f"Patch: {patch}")
             return patch
 
-    def process_vulnerability(self, input: PatchInput) -> Patch | None:
+    def process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
         logger.info(f"Processing vulnerability {input.project_name}/{input.vulnerability_id}")
         logger.debug(f"Patch Input: {input}")
+
+        if self.dev_mode:
+            set_llm_cache(SQLiteCache(database_path=f".{input.task_id}.langchain.db"))
 
         res = None
         if self.mock_mode:
@@ -382,7 +389,12 @@ class Patcher:
                 try:
                     patch = self.process_vulnerability(patch_input)
                     if patch is not None:
-                        self.patches_queue.push(patch)
+                        patch_msg = Patch(
+                            task_id=patch.task_id,
+                            vulnerability_id=patch.vulnerability_id,
+                            patch=patch.patch,
+                        )
+                        self.patches_queue.push(patch_msg)
                         self.vulnerability_queue.ack_item(rq_item.item_id)
                         logger.info(
                             f"Successfully generated patch for vulnerability {patch_input.project_name}/{patch_input.vulnerability_id}"
