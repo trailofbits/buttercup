@@ -264,7 +264,7 @@ class RootCauseAgent:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
                     sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"].decode("utf-8", errors="ignore"),
+                    sanitizer_output=state["context"]["sanitizer_output"],
                 )
             ]
         if state["context"].get("vulnerable_functions"):
@@ -302,7 +302,7 @@ class RootCauseAgent:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
                     sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"].decode("utf-8", errors="ignore"),
+                    sanitizer_output=state["context"]["sanitizer_output"],
                 )
             ]
 
@@ -321,7 +321,7 @@ class RootCauseAgent:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
                     sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"].decode("utf-8", errors="ignore"),
+                    sanitizer_output=state["context"]["sanitizer_output"],
                 )
             ]
 
