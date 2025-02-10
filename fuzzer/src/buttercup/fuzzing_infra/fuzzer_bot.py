@@ -52,7 +52,7 @@ class FuzzerBot(TaskLoop):
                 build_dir = local_tsk.get_build_dir()
                 fuzz_conf = FuzzConfiguration(
                     copied_corp_dir,
-                    build_dir / task.harness_name,
+                    str(build_dir / task.harness_name),
                     build.engine,
                     build.sanitizer,
                 )
