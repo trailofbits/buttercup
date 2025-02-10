@@ -35,8 +35,13 @@ def tasks_dir(tmp_path: Path) -> Path:
     yield tmp_path
 
 
-def test_vuln_to_patch_input(tasks_dir: Path):
-    patcher = Patcher(task_storage_dir=tasks_dir, redis=None, mock_mode=True)
+def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
+    patcher = Patcher(
+        task_storage_dir=tasks_dir,
+        scratch_dir=tmp_path,
+        redis=None,
+        mock_mode=True,
+    )
 
     vuln = ConfirmedVulnerability(
         vuln_id="test-vuln-1",
@@ -64,7 +69,7 @@ def test_vuln_to_patch_input(tasks_dir: Path):
     assert patch_input.vulnerability_id == "test-vuln-1"
     assert patch_input.project_name == "libpng"
     assert patch_input.harness_name == "test-harness-name-1"
-    assert patch_input.pov == "test-crash-input-path-1"
+    assert patch_input.pov == Path("test-crash-input-path-1")
     assert patch_input.sanitizer_output == "test-stacktrace-1"
     assert patch_input.engine == "test-engine-1"
     assert patch_input.sanitizer == "test-sanitizer-1"
