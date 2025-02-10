@@ -1,7 +1,7 @@
 """Software Engineer LLM agent, analyzing the root cause of a vulnerability."""
 
-import functools
 import logging
+from typing import Callable
 from dataclasses import dataclass, field
 from operator import itemgetter
 
@@ -205,6 +205,8 @@ class RootCauseAgent:
     """Software Engineer LLM agent, handling the creation of patches."""
 
     challenge: ChallengeTask
+    chain_call: Callable
+
     llm: Runnable = field(init=False)
     root_cause_chain: Runnable = field(init=False)
     commit_analysis_chain: Runnable = field(init=False)
@@ -333,18 +335,15 @@ class RootCauseAgent:
         if state.get("commit_analysis"):
             messages += OLD_COMMIT_ANALYSIS_PROMPT.format_messages(commit_analysis=state["commit_analysis"])
 
-        # We use the stream API to avoid hitting the LLM limits for large
-        # messages which may require a while to generate.
-        commit_analysis = functools.reduce(
+        commit_analysis = self.chain_call(
             lambda x, y: x + y,
-            self.commit_analysis_one_chain.stream(
-                {
-                    "context": self.get_commit_analysis_context(state),
-                    "messages": messages,
-                    "commit_analysis": state.get("commit_analysis"),
-                }
-            ),
-            "",
+            self.commit_analysis_one_chain,
+            {
+                "context": self.get_commit_analysis_context(state),
+                "messages": messages,
+                "commit_analysis": state.get("commit_analysis"),
+            },
+            default="",
         )
         if not commit_analysis:
             logger.error("Could not analyze the commit diff")
@@ -379,17 +378,14 @@ class RootCauseAgent:
         if state.get("root_cause"):
             messages += OLD_ROOT_CAUSE_PROMPT.format_messages(root_cause=state["root_cause"])
 
-        # We use the stream API to avoid hitting the LLM limits for large
-        # messages which may require a while to generate.
-        root_cause = functools.reduce(
+        root_cause = self.chain_call(
             lambda x, y: x + y,
-            self.root_cause_chain.stream(
-                {
-                    "context": self.get_root_cause_context(state),
-                    "messages": messages,
-                }
-            ),
-            "",
+            self.root_cause_chain,
+            {
+                "context": self.get_root_cause_context(state),
+                "messages": messages,
+            },
+            default="",
         )
         if not root_cause:
             logger.error("Could not find the root cause of the vulnerability")
@@ -405,17 +401,17 @@ class RootCauseAgent:
 
     def _do_filter_code_snippet(self, state: FilterSnippetState, vc: ContextCodeSnippet) -> bool:
         try:
-            include_code_snippet = next(
-                self.filter_code_snippet_bool_chain.stream(
-                    {
-                        "context": self.get_filter_snippet_context(state),
-                        "code": vc["code"],
-                        "code_context": vc["code_context"],
-                        "function_name": vc["function_name"],
-                        "file_path": vc["file_path"],
-                    }
-                ),
-                True,
+            include_code_snippet = self.chain_call(
+                lambda _, y: y,
+                self.filter_code_snippet_bool_chain,
+                {
+                    "context": self.get_filter_snippet_context(state),
+                    "code": vc["code"],
+                    "code_context": vc["code_context"],
+                    "function_name": vc["function_name"],
+                    "file_path": vc["file_path"],
+                },
+                default=True,
             )
         except Exception:
             logger.warning("Error while filtering code snippet")
@@ -505,17 +501,16 @@ class RootCauseAgent:
         """Analyze the build failure to understand the issue and suggest a fix."""
         logger.info("Analyzing the build failure in Challenge Task %s", self.challenge.name)
         code_snippets = self._get_relevant_code_snippets_msgs(state["relevant_code_snippets"] or [])
-        build_analysis: str = functools.reduce(
+        build_analysis: str = self.chain_call(
             lambda x, y: x + y,
-            self.build_failure_analysis_chain.stream(
-                {
-                    "code_snippets": code_snippets,
-                    "patch": state["patches"][-1].patch,
-                    "build_stdout": decode_bytes(state.get("build_stdout")),
-                    "build_stderr": decode_bytes(state.get("build_stderr")),
-                }
-            ),
-            "",
+            self.build_failure_analysis_chain,
+            {
+                "code_snippets": code_snippets,
+                "patch": state["patches"][-1].patch,
+                "build_stdout": decode_bytes(state.get("build_stdout")),
+                "build_stderr": decode_bytes(state.get("build_stderr")),
+            },
+            default="",
         )
 
         return {

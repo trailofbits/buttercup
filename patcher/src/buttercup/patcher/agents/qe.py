@@ -1,6 +1,5 @@
 """Quality Engineer LLM agent, handling the testing of patches."""
 
-import functools
 import logging
 import tempfile
 from dataclasses import dataclass, field
@@ -24,7 +23,7 @@ from buttercup.patcher.agents.common import (
     PatcherAgentState,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
-from buttercup.patcher.utils import PatchInput
+from buttercup.patcher.utils import PatchInput, CHAIN_CALL_TYPE
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -86,6 +85,7 @@ class QEAgent:
 
     challenge: ChallengeTask
     input: PatchInput
+    chain_call: CHAIN_CALL_TYPE
 
     llm: Runnable = field(init=False)
     review_patch_chain: Runnable = field(init=False)
@@ -140,18 +140,17 @@ class QEAgent:
         """Node in the LangGraph that reviews a patch"""
         logger.info("Reviewing the last patch to ensure it follows the guidelines")
         default_review_result = ReviewPatchOutput(suggestions=[], approved=True)
-        review_result_dict: dict = functools.reduce(
+        review_result_dict: dict = self.chain_call(
             lambda _, y: y,
-            self.review_patch_structured_chain.stream(
-                {
-                    "context": self.get_context(state),
-                    "patch": state["patches"][-1].patch,
-                }
-            ),
+            self.review_patch_structured_chain,
+            {
+                "context": self.get_context(state),
+                "patch": state["patches"][-1].patch,
+            },
             # If the reviewer fails for some unexpected reasons, assume the patch is
             # good, so the patching process does not stop and tries to build the
             # patch anyway.
-            default_review_result.dict(),
+            default=default_review_result.dict(),
         )
         try:
             review_result = ReviewPatchOutput.validate(review_result_dict)

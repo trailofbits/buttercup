@@ -1,7 +1,6 @@
 """Software Engineer LLM agent, handling the creation of patches."""
 
 import difflib
-import functools
 import logging
 import re
 from dataclasses import dataclass, field
@@ -35,7 +34,7 @@ from buttercup.patcher.agents.common import (
     PatchOutput,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
-from buttercup.patcher.utils import decode_bytes, PatchInput
+from buttercup.patcher.utils import decode_bytes, PatchInput, CHAIN_CALL_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -268,6 +267,7 @@ class SWEAgent:
 
     challenge: ChallengeTask
     input: PatchInput
+    chain_call: CHAIN_CALL_TYPE
     # snapshot_challenge: SnapshotChallenge
 
     llm: Runnable = field(init=False)
@@ -503,21 +503,20 @@ class SWEAgent:
         is_patch_generated = False
 
         for _ in range(3):
-            patch: PatchOutput = functools.reduce(
+            patch: PatchOutput = self.chain_call(
                 lambda _, y: y,
-                self.create_patch_chain.stream(
-                    {
-                        "context": self.get_context(state),
-                        "state": state,
-                        "messages": messages,
+                self.create_patch_chain,
+                {
+                    "context": self.get_context(state),
+                    "state": state,
+                    "messages": messages,
+                },
+                config=RunnableConfig(
+                    configurable={
+                        "llm_temperature": temperature,
                     },
-                    config=RunnableConfig(
-                        configurable={
-                            "llm_temperature": temperature,
-                        },
-                    ),
                 ),
-                PatchOutput(task_id="", vulnerability_id="", patch=""),
+                default=PatchOutput(task_id="", vulnerability_id="", patch=""),
             )
             if not patch or not patch.patch:
                 logger.error("Could not generate a patch")

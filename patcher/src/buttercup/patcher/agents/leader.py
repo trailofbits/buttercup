@@ -3,8 +3,8 @@
 import logging
 import os
 from dataclasses import dataclass
-
 import openai
+from buttercup.patcher.utils import CHAIN_CALL_TYPE
 
 # from challenge_project_api.snapshot import SnapshotChallenge
 from langchain_core.runnables import RunnableConfig
@@ -29,6 +29,7 @@ class PatcherLeaderAgent:
 
     challenge: ChallengeTask
     input: PatchInput
+    chain_call: CHAIN_CALL_TYPE
     # snapshot_challenge: SnapshotChallenge
 
     max_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCHES_PER_RUN", 15))
@@ -81,10 +82,10 @@ class PatcherLeaderAgent:
         ]
 
     def _init_patch_team(self) -> StateGraph:
-        rootcause_agent = RootCauseAgent(self.challenge)
+        rootcause_agent = RootCauseAgent(self.challenge, chain_call=self.chain_call)
         # swe_agent = SWEAgent(self.challenge, self.snapshot_challenge, self.input)
-        swe_agent = SWEAgent(self.challenge, self.input)
-        qe_agent = QEAgent(self.challenge, self.input)
+        swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
+        qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
 
         workflow = StateGraph(PatcherAgentState)
         workflow.add_node("commit_analysis_node", rootcause_agent.commit_analysis)
@@ -148,8 +149,8 @@ class PatcherLeaderAgent:
         except ValueError as e:
             logger.error("Could not generate a patch: %s", e)
             return None
-        except Exception as e:
-            logger.error("Unexpected error during patch generation: %s", e)
+        except Exception:
+            logger.exception("Unexpected error during patch generation")
             return None
 
         return None

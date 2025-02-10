@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from functools import reduce
 from buttercup.patcher.context import ContextCodeSnippet
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from buttercup.patcher.utils import PatchInput
+from langchain_core.runnables import Runnable, RunnableConfig
 from buttercup.patcher.agents.common import PatchOutput
 from redis import Redis
+from typing import Callable, Any
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.logger import setup_logging
 from buttercup.common.challenge_task import ChallengeTask
@@ -314,6 +317,21 @@ class Patcher:
             )
             self.patches_queue = queue_factory.create(QueueNames.PATCHES)
 
+    def _chain_call(
+        self,
+        reduce_function: Callable,
+        runnable: Runnable,
+        args: dict[str, Any],
+        config: RunnableConfig | None = None,
+        default: Any = None,
+    ) -> Any:
+        if self.dev_mode:
+            res = runnable.invoke(args, config=config)
+        else:
+            res = reduce(reduce_function, runnable.stream(args, config=config), default)
+
+        return res
+
     def _process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
         challenge_task = ChallengeTask(
             read_only_task_dir=input.challenge_task_dir,
@@ -323,6 +341,7 @@ class Patcher:
             patcher_agent = PatcherLeaderAgent(
                 rw_task,
                 input,
+                chain_call=self._chain_call,
             )
             patch = patcher_agent.run_patch_task()
             if patch is None:

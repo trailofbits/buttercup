@@ -8,8 +8,12 @@ from pathlib import Path
 from buttercup.patcher.context import ContextCodeSnippet
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
+from langchain_core.runnables import Runnable, RunnableConfig
+from typing import Callable
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
+
+CHAIN_CALL_TYPE = Callable[[Runnable, Callable, dict[str, Any], RunnableConfig | None, Any], Any]
 
 
 @dataclass
