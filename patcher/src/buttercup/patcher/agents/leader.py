@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass
 
 import openai
+
 # from challenge_project_api.snapshot import SnapshotChallenge
 from langchain_core.runnables import RunnableConfig
 from langgraph.constants import Send
@@ -16,8 +17,6 @@ from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
 from buttercup.patcher.utils import PatchInput
 from buttercup.patcher.llm import get_langfuse_callbacks
-from langchain_core.globals import set_llm_cache
-from langchain_community.cache import SQLiteCache
 
 logger = logging.getLogger(__name__)
 
@@ -141,11 +140,7 @@ class PatcherLeaderAgent:
         try:
             # TODO: langgraph should raise exceptions if something fails in the agents
             state: PatcherAgentState = chain.invoke({"context": self.input})
-            if (
-                state.get("build_succeeded")
-                and state.get("pov_fixed")
-                and state.get("tests_passed")
-            ):
+            if state.get("build_succeeded") and state.get("pov_fixed") and state.get("tests_passed"):
                 return state["patches"][-1]
         except openai.OpenAIError as e:
             logger.error("OpenAI error: %s", e)

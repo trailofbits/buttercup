@@ -103,9 +103,7 @@ class QEAgent:
         self.review_patch_chain = REVIEW_PATCH_PROMPT | self.llm | StrOutputParser()
         self.review_patch_structured_chain = (
             {"patch": itemgetter("patch"), "review": self.review_patch_chain}
-            | REVIEW_PATCH_STRUCTURED_PROMPT.partial(
-                format_instructions=parser.get_format_instructions()
-            )
+            | REVIEW_PATCH_STRUCTURED_PROMPT.partial(format_instructions=parser.get_format_instructions())
             | self.llm
             | parser
         )
@@ -163,9 +161,7 @@ class QEAgent:
 
         patch_review_tries = (state.get("patch_review_tries") or 0) + 1
         patch_review_str = (
-            None
-            if review_result.approved
-            else "\n".join("- " + x for x in review_result.suggestions or [])
+            None if review_result.approved else "\n".join("- " + x for x in review_result.suggestions or [])
         )
         return {
             "patch_review": patch_review_str,
@@ -183,11 +179,38 @@ class QEAgent:
             # Apply the patch to the source code of the challenge task, forcing and not asking questions
             # First try from source dir, if that fails try from parent dir
             import subprocess
-            result = subprocess.run(["patch", "-p1", "-d", self.challenge.get_source_path(), "-i", patch_file.name, "--force", "--quiet", "--no-backup-if-mismatch"], check=False)
+
+            result = subprocess.run(
+                [
+                    "patch",
+                    "-p1",
+                    "-d",
+                    self.challenge.get_source_path(),
+                    "-i",
+                    patch_file.name,
+                    "--force",
+                    "--quiet",
+                    "--no-backup-if-mismatch",
+                ],
+                check=False,
+            )
             if result.returncode != 0:
                 # NOTE: this address the fact that sometimes example-libpng is in the patch target
                 # Try applying from parent dir if first attempt failed
-                subprocess.run(["patch", "-p1", "-d", self.challenge.get_source_path().parent, "-i", patch_file.name, "--force", "--quiet", "--no-backup-if-mismatch"], check=False)
+                subprocess.run(
+                    [
+                        "patch",
+                        "-p1",
+                        "-d",
+                        self.challenge.get_source_path().parent,
+                        "-i",
+                        patch_file.name,
+                        "--force",
+                        "--quiet",
+                        "--no-backup-if-mismatch",
+                    ],
+                    check=False,
+                )
 
             try:
                 cp_output = self.challenge.build_fuzzers_with_cache(

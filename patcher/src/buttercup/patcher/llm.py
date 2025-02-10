@@ -3,16 +3,13 @@
 import functools
 import logging
 import os
-from enum import Enum
-from typing import Any
 
 import requests
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain_core.language_models import BaseChatModel
-from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
 
 logger = logging.getLogger(__name__)
+
 
 @functools.cache
 def is_langfuse_available() -> bool:

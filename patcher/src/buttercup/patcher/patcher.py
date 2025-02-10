@@ -294,6 +294,7 @@ png_handle_iCCP(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
 }
 """
 
+
 @dataclass
 class Patcher:
     task_storage_dir: Path
@@ -325,9 +326,11 @@ class Patcher:
             )
             patch = patcher_agent.run_patch_task()
             if patch is None:
-                logger.error("Could not generate a patch for vulnerability %s/%s", input.project_name, input.vulnerability_id)
+                logger.error(
+                    "Could not generate a patch for vulnerability %s/%s", input.project_name, input.vulnerability_id
+                )
                 return None
-            
+
             logger.info("Generated patch for vulnerabiity %s/%s", input.project_name, input.vulnerability_id)
             logger.debug(f"Patch: {patch}")
             return patch
@@ -359,7 +362,7 @@ class Patcher:
             logger.error(f"Failed to process vulnerability {input.project_name}/{input.vulnerability_id}")
 
         return res
-    
+
     def _create_patch_input(self, vuln: ConfirmedVulnerability) -> PatchInput:
         return PatchInput(
             # TODO: modify to use proper task_dir once in msg

@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass
-from typing import TypedDict, Any
+from typing import Any
 from pathlib import Path
 
 from buttercup.patcher.context import ContextCodeSnippet

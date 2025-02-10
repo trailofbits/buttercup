@@ -262,9 +262,7 @@ class RootCauseAgent:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
                     sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"].decode(
-                        "utf-8", errors="ignore"
-                    ),
+                    sanitizer_output=state["context"]["sanitizer_output"].decode("utf-8", errors="ignore"),
                 )
             ]
         if state["context"].get("vulnerable_functions"):
@@ -296,17 +294,13 @@ class RootCauseAgent:
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
         if state.get("commit_analysis"):
-            messages += [
-                CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state["commit_analysis"])
-            ]
+            messages += [CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state["commit_analysis"])]
 
         if state["context"].get("sanitizer") and state["context"].get("sanitizer_output"):
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
                     sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"].decode(
-                        "utf-8", errors="ignore"
-                    ),
+                    sanitizer_output=state["context"]["sanitizer_output"].decode("utf-8", errors="ignore"),
                 )
             ]
 
@@ -319,17 +313,13 @@ class RootCauseAgent:
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
         if state.get("commit_analysis"):
-            messages += [
-                CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state["commit_analysis"])
-            ]
+            messages += [CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state["commit_analysis"])]
 
         if state["context"].get("sanitizer") and state["context"].get("sanitizer_output"):
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
                     sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"].decode(
-                        "utf-8", errors="ignore"
-                    ),
+                    sanitizer_output=state["context"]["sanitizer_output"].decode("utf-8", errors="ignore"),
                 )
             ]
 
@@ -341,9 +331,7 @@ class RootCauseAgent:
         logger.info("Analyzing the commit diff in Challenge Task %s", self.challenge.name)
         messages = []
         if state.get("commit_analysis"):
-            messages += OLD_COMMIT_ANALYSIS_PROMPT.format_messages(
-                commit_analysis=state["commit_analysis"]
-            )
+            messages += OLD_COMMIT_ANALYSIS_PROMPT.format_messages(commit_analysis=state["commit_analysis"])
 
         # We use the stream API to avoid hitting the LLM limits for large
         # messages which may require a while to generate.

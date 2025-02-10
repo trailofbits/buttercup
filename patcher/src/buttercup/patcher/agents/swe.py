@@ -7,9 +7,10 @@ import re
 from dataclasses import dataclass, field
 from operator import itemgetter
 from pathlib import Path
-from typing import TypedDict, Iterator
+from typing import TypedDict
 
 from buttercup.common.challenge_task import ChallengeTask
+
 # from buttercup.common.challenge_task.snapshot import SnapshotChallenge, SnapshotError
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -296,9 +297,7 @@ class SWEAgent:
             )
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
-        code_snippets_chain = (
-            CREATE_PATCH_STR_PROMPT | self.llm | StrOutputParser() | self.parse_code_snippets
-        )
+        code_snippets_chain = CREATE_PATCH_STR_PROMPT | self.llm | StrOutputParser() | self.parse_code_snippets
         self.create_patch_chain = {
             "code_snippets": code_snippets_chain,
             "state": itemgetter("state"),
@@ -311,9 +310,7 @@ class SWEAgent:
         for match in matches:
             file_path, function_name, old_code, code = match
             items.append(
-                CodeSnippetChange(
-                    file_path=file_path, function_name=function_name, old_code=old_code, code=code
-                )
+                CodeSnippetChange(file_path=file_path, function_name=function_name, old_code=old_code, code=code)
             )
 
         return CodeSnippetChanges(items=items)
@@ -402,20 +399,15 @@ class SWEAgent:
             orig_file_content = file_content
             if code_snippet_key in orig_code_snippets:
                 orig_code_snippet = orig_code_snippets[code_snippet_key]
-                new_code_snippet = orig_code_snippet.replace(
-                    code_snippet.old_code, code_snippet.code
-                )
-                new_code_snippet = new_code_snippet + (
-                    "\n" if orig_code_snippet.endswith("\n") else ""
-                )
+                new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
+                new_code_snippet = new_code_snippet + ("\n" if orig_code_snippet.endswith("\n") else "")
             else:
                 orig_code_snippet = code_snippet.old_code
                 new_code_snippet = code_snippet.code
 
             if orig_code_snippet not in file_content:
                 logger.error(
-                    "Could not generate a valid patch for %s | %s, original code "
-                    "snippet not found in the file",
+                    "Could not generate a valid patch for %s | %s, original code snippet not found in the file",
                     code_snippet.file_path,
                     code_snippet.function_name,
                 )
@@ -494,9 +486,7 @@ class SWEAgent:
             messages += old_patches.format_messages()
 
         if state.get("patch_review") is not None:
-            messages += ADDRESS_REVIEW_PATCH_PROMPT.format_messages(
-                review=state.get("patch_review")
-            )
+            messages += ADDRESS_REVIEW_PATCH_PROMPT.format_messages(review=state.get("patch_review"))
         elif state.get("build_succeeded") is False:
             messages += BUILD_ANALYSIS_PROMPT.format_messages(
                 build_failure_analysis=state.get("build_analysis"),

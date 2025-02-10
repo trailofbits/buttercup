@@ -9,6 +9,7 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
+
 class PatchOutput(BaseModel):
     """Output for the Patch Agent."""
 
