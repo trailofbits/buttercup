@@ -15,33 +15,22 @@ from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
 from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import TypesPatchSubmissionResponse
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.api_client_factory import create_api_client
 
 logger = logging.getLogger(__name__)
 
 @dataclass
 class Patches:
     redis: Redis
-    competition_api_url: str
-    patches_queue: ReliableQueue = field(init=False)
-    competition_vulnerability_api: VulnerabilityApi = field(init=False)
-
-    def __setup_vulnerability_api(self) -> VulnerabilityApi:
-        """Initialize the competition vulnerability API client."""
-        configuration = Configuration(
-            host=self.competition_api_url,
-            username="api_key_id",  # TODO: Make configurable
-            password="api_key_token",  # TODO: Make configurable
-        )
-        logger.info(f"Init API: {self.competition_api_url}")
-        api_client = ApiClient(configuration=configuration)
-        return VulnerabilityApi(api_client=api_client)
+    api_client: ApiClient
+    vulnerability_api: VulnerabilityApi = field(init=False)
 
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
         self.patches_queue = queue_factory.create(
-            QueueNames.PATCHES, GroupNames.PATCHES, block_time=None
+            QueueNames.PATCHES, GroupNames.ORCHESTRATOR, block_time=None
         )
-        self.competition_vulnerability_api = self.__setup_vulnerability_api()
+        self.vulnerability_api = VulnerabilityApi(api_client=self.api_client)
 
     def submit_patch(self, patch: Patch) -> TypesPatchSubmissionResponse:
         """
@@ -61,7 +50,7 @@ class Patches:
             patch=patch.patch,
         )
 
-        return self.competition_vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post(
+        return self.vulnerability_api.v1_task_task_id_vuln_vuln_id_patch_post(
             task_id=patch.task_id,
             vuln_id=patch.vulnerability_id,
             payload=submission,

@@ -17,6 +17,7 @@ from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.orchestrator.api_client_factory import create_api_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,24 +25,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Vulnerabilities:
     redis: Redis
-    competition_api_url: str
+    api_client: ApiClient
     sleep_time: float = 1.0
     crash_queue: ReliableQueue = field(init=False)
     unique_vulnerabilities_queue: ReliableQueue = field(init=False)
     confirmed_vulnerabilities_queue: ReliableQueue = field(init=False)
     task_registry: TaskRegistry = field(init=False)
-    competition_vulnerability_api: VulnerabilityApi = field(init=False)
-
-    def __setup_vulnerability_api(self) -> VulnerabilityApi:
-        """Initialize the competition vulnerability API client."""
-        configuration = Configuration(
-            host=self.competition_api_url,
-            username="api_key_id",  # TODO: Make configurable
-            password="api_key_token",  # TODO: Make configurable
-        )
-        logger.info(f"Initializing vulnerability API with URL: {self.competition_api_url}")
-        api_client = ApiClient(configuration=configuration)
-        return VulnerabilityApi(api_client=api_client)
+    vulnerability_api: VulnerabilityApi = field(init=False)
 
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
@@ -53,8 +43,8 @@ class Vulnerabilities:
             QueueNames.CONFIRMED_VULNERABILITIES, block_time=None
         )
         self.task_registry = TaskRegistry(self.redis)
-        self.competition_vulnerability_api = self.__setup_vulnerability_api()
-        logger.info(f"Competition vulnerability API initialized: {self.competition_vulnerability_api is not None}")
+        self.vulnerability_api = VulnerabilityApi(api_client=self.api_client)
+        logger.info(f"Competition vulnerability API initialized: {self.vulnerability_api is not None}")
 
     def process_crashes(self) -> bool:
         """Process crashes from the crash queue"""
@@ -156,7 +146,7 @@ class Vulnerabilities:
             )
 
             # Submit vulnerability and get response
-            response = self.competition_vulnerability_api.v1_task_task_id_vuln_post(
+            response = self.vulnerability_api.v1_task_task_id_vuln_post(
                 task_id=crash.target.task_id,
                 payload=submission,
             )

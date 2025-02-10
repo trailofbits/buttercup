@@ -18,6 +18,8 @@ from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
+from buttercup.orchestrator.competition_api_client.api_client import ApiClient
+from buttercup.orchestrator.api_client_factory import create_api_client
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +44,10 @@ class Scheduler:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
+            api_client = create_api_client(self.competition_api_url)
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
-            self.vulnerabilities = Vulnerabilities(redis=self.redis, competition_api_url=self.competition_api_url)
+            self.vulnerabilities = Vulnerabilities(redis=self.redis, api_client=api_client)
             self.ready_queue = queue_factory.create(
                 QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
             )
@@ -54,7 +57,7 @@ class Scheduler:
             )
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
-            self.patches = Patches(redis=self.redis, competition_api_url=self.competition_api_url)
+            self.patches = Patches(redis=self.redis, api_client=api_client)
 
     def mock_process_ready_task(self, task: Task) -> BuildRequest:
         """Mock a ready task processing"""
