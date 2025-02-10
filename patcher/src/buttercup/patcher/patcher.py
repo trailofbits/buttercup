@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Patcher:
     task_storage_dir: Path
+    scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1
     mock_mode: bool = False
@@ -59,7 +60,7 @@ class Patcher:
             read_only_task_dir=input.challenge_task_dir,
             project_name=input.project_name,
         )
-        with challenge_task.get_rw_copy() as rw_task:
+        with challenge_task.get_rw_copy(work_dir=self.scratch_dir) as rw_task:
             patcher_agent = PatcherLeaderAgent(
                 rw_task,
                 input,
@@ -112,7 +113,7 @@ class Patcher:
             vulnerability_id=vuln.vuln_id,
             project_name=vuln.crash.target.package_name,
             harness_name=vuln.crash.harness_name,
-            pov=vuln.crash.crash_input_path,
+            pov=Path(vuln.crash.crash_input_path),
             sanitizer_output=vuln.crash.stacktrace,
             engine=vuln.crash.target.engine,
             sanitizer=vuln.crash.target.sanitizer,

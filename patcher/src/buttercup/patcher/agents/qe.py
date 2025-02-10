@@ -179,6 +179,7 @@ class QEAgent:
             # First try from source dir, if that fails try from parent dir
             import subprocess
 
+            logger.info("Applying patch to task %s / vulnerability %s", self.input.task_id, self.input.vulnerability_id)
             result = subprocess.run(
                 [
                     "patch",
@@ -212,7 +213,7 @@ class QEAgent:
                 )
 
             try:
-                cp_output = self.challenge.build_fuzzers_with_cache(
+                cp_output = self.challenge.build_fuzzers(
                     engine=self.input.engine,
                     sanitizer=self.input.sanitizer,
                 )

@@ -16,12 +16,14 @@ def main():
     setup_package_logger(__name__, settings.log_level)
 
     logger.info("Starting patcher")
+    logger.debug("Settings: %s", settings)
     if isinstance(command, ServeCommand):
         logger.info("Serving...")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
-            settings.task_storage_dir,
-            redis,
+            task_storage_dir=settings.task_storage_dir,
+            scratch_dir=settings.scratch_dir,
+            redis=redis,
             sleep_time=command.sleep_time,
             mock_mode=settings.mock_mode,
             dev_mode=settings.dev_mode,
@@ -42,6 +44,7 @@ def main():
         )
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
+            scratch_dir=settings.scratch_dir,
             mock_mode=settings.mock_mode,
             dev_mode=settings.dev_mode,
         )

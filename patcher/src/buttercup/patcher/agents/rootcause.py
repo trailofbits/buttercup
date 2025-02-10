@@ -202,7 +202,7 @@ BUILD_FAILURE_PROMPT = ChatPromptTemplate.from_messages(
 
 @dataclass
 class RootCauseAgent:
-    """Software Engineer LLM agent, handling the creation of patches."""
+    """Software Engineer LLM agent, triaging a vulnerability."""
 
     challenge: ChallengeTask
     chain_call: Callable
