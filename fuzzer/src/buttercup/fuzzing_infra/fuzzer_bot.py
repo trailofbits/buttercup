@@ -42,7 +42,7 @@ class FuzzerBot(TaskLoop):
             )
 
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
-                logger.info(f"Build dir: {build.output_ossfuzz_path}")
+                logger.info(f"Build dir: {local_tsk.get_build_dir()}")
 
                 corp = Corpus(self.wdir, task.task_id, task.harness_name)
 
