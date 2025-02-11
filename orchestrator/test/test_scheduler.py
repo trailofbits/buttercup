@@ -8,6 +8,9 @@ from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
 
+import tempfile
+from pathlib import Path
+
 
 @pytest.fixture
 def mock_redis():
@@ -30,7 +33,7 @@ def test_process_ready_task(scheduler):
     assert build_request.package_name == "libpng"
     assert build_request.engine == "libfuzzer"
     assert build_request.sanitizer == "address"
-    assert build_request.ossfuzz == "/tasks_storage/test-task-1/fuzz-tooling"
+    assert build_request.task_dir == "/tasks_storage/test-task-1"
 
 
 def test_process_ready_task_mock_mode_invalid_source(scheduler):
@@ -46,23 +49,37 @@ def test_process_ready_task_mock_mode_invalid_source(scheduler):
 def test_process_build_output(mock_get_fuzz_targets, scheduler):
     mock_get_fuzz_targets.return_value = ["target1", "target2"]
 
-    build_output = BuildOutput(
-        package_name="test-package",
-        engine="libfuzzer",
-        sanitizer="address",
-        output_ossfuzz_path="/path/to/output",
-        source_path="/path/to/source",
-        task_id="blah",
-        build_type=BUILD_TYPES.FUZZER.value,
-    )
+    # TODO(Ian): this is stupid
+    with tempfile.TemporaryDirectory() as td:
+        task_dir = Path(td) / "test-task"
+        src_dir = task_dir / "src"
+        tooling_dir = task_dir / "fuzz-tooling"
+        ossfuzz_dir = tooling_dir / "oss-fuzz"
+        source_code_dir = src_dir / "source-code"
+        stub_helper_py = tooling_dir / "infra" / "infra" / "helper.py"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        tooling_dir.mkdir(parents=True, exist_ok=True)
+        ossfuzz_dir.mkdir(parents=True, exist_ok=True)
+        source_code_dir.mkdir(parents=True, exist_ok=True)
+        stub_helper_py.parent.mkdir(parents=True, exist_ok=True)
+        stub_helper_py.touch()
 
-    targets = scheduler.process_build_output(build_output)
+        build_output = BuildOutput(
+            package_name="test-package",
+            engine="libfuzzer",
+            sanitizer="address",
+            task_dir=str(task_dir),
+            task_id="blah",
+            build_type=BUILD_TYPES.FUZZER.value,
+        )
 
-    assert len(targets) == 2
-    assert all(isinstance(t, WeightedHarness) for t in targets)
-    assert all(t.weight == 1.0 for t in targets)
-    assert all(t.task_id == build_output.task_id for t in targets)
-    assert [t.harness_name for t in targets] == ["target1", "target2"]
+        targets = scheduler.process_build_output(build_output)
+
+        assert len(targets) == 2
+        assert all(isinstance(t, WeightedHarness) for t in targets)
+        assert all(t.weight == 1.0 for t in targets)
+        assert all(t.task_id == build_output.task_id for t in targets)
+        assert [t.harness_name for t in targets] == ["target1", "target2"]
 
 
 @pytest.mark.skip(reason="Not implemented")
