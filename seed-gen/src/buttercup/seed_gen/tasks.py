@@ -14,6 +14,9 @@ from buttercup.seed_gen.vuln_discovery import analyze_diff, write_pov_funcs
 
 logger = logging.getLogger(__name__)
 
+SEED_INIT_SEED_COUNT = 10
+VULN_DISCOVERY_MAX_POV_COUNT = 10
+
 
 class Task(str, Enum):
     SEED_INIT = "seed-init"
@@ -46,7 +49,7 @@ def generate_seed_funcs(harness: str, additional_context: str, count: int) -> li
 def do_seed_init(challenge: str, output_dir: Path) -> None:
     """Do seed-init task"""
     logger.info("Doing seed-init for challenge %s", challenge)
-    count = 10
+    count = SEED_INIT_SEED_COUNT
     harness = get_harness(challenge)
     additional_context = get_additional_context(challenge)
     try:
@@ -66,7 +69,7 @@ def do_seed_explore() -> None:
 def do_vuln_discovery(challenge: str, output_dir: Path) -> None:
     """Do vuln-discovery task"""
     logger.info("Doing vuln-discovery for challenge %s", challenge)
-    max_povs = 10
+    max_povs = VULN_DISCOVERY_MAX_POV_COUNT
     harness = get_harness(challenge)
     diff = get_diff(challenge)
     try:
