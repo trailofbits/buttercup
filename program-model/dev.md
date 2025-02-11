@@ -1,10 +1,36 @@
 # Dev
 
-Documentation to get started on developing Program Model APIs.
+Documentation for development.
 
 ## Requirements
 
 `n2-standard-4` [instance](https://cloud.google.com/compute/docs/general-purpose-machines#n2_machine_types).
+
+## Build Kythe
+
+From [documentation](https://kythe.io/getting-started/#build-a-release-of-kythe-using-bazel-and-unpack-it-in-optkythe)
+
+Takes about 3 hours to build.
+
+Follow [instructions](https://bazel.build/install/ubuntu#install-on-ubuntu). You will need to install a specific version of Bazel depending on what the `build` outputs below.
+
+```shell
+sudo apt install flex bison asciidoc graphviz source-highlight clang
+```
+
+```shell
+git clone git@github.com:trailofbits/aixcc-kythe.git
+
+cd aixcc-kythe/
+
+bazel build //kythe/release
+
+mkdir ../opt/
+
+tar -zxf bazel-bin/kythe/release/kythe-v0.0.67.tar.gz --directory ../opt/
+
+cd ../
+```
 
 ## Docker (WIP)
 
@@ -225,5 +251,4 @@ just lint
 * [x] Consider [bulk loading](https://docs.janusgraph.org/operations/bulk-loading/) if needed
   * Not required at the moment.
 * [x] Consider loading data from a [file](https://tinkerpop.apache.org/docs/3.7.3/dev/io/).
-* [ ] Create script to verify creation of graph is accurate.
-* [ ] Reconcile the differences in the number of nodes and edges for libpng example.
+* [ ] Create script to verify creation of graph from file is accurate.

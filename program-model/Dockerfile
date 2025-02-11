@@ -26,6 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ADD ./common /common
 
+COPY program-model/README.md /app/README.md
 COPY program-model/src /app/src
 COPY program-model/pyproject.toml /app/pyproject.toml
 COPY program-model/uv.lock /app/uv.lock

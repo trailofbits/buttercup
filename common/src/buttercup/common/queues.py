@@ -13,6 +13,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     TaskDelete,
     Patch,
     ConfirmedVulnerability,
+    IndexRequest,
 )
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
@@ -31,6 +32,7 @@ class QueueNames(str, Enum):
     READY_TASKS = "tasks_ready_queue"
     DELETE_TASK = "orchestrator_delete_task_queue"
     PATCHES = "patches_queue"
+    INDEX = "index_queue"
 
 
 class GroupNames(str, Enum):
@@ -42,6 +44,7 @@ class GroupNames(str, Enum):
     SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
     UNIQUE_VULNERABILITIES = "unique_vulnerabilities_group"
     CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_group"
+    INDEX = "index_group"
 
 
 class HashNames(str, Enum):
@@ -57,6 +60,7 @@ CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
 PATCH_TASK_TIMEOUT_MS = 10 * 60 * 1000
 UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
+INDEX_TASK_TIMEOUT_MS = 10 * 60 * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +316,12 @@ class QueueFactory:
                 PATCH_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
+            QueueNames.INDEX: QueueConfig(
+                QueueNames.INDEX,
+                IndexRequest,
+                INDEX_TASK_TIMEOUT_MS,
+                [GroupNames.INDEX],
+            ),
         }
     )
 
@@ -359,6 +369,11 @@ class QueueFactory:
     def create(
         self, queue_name: Literal[QueueNames.PATCHES], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[Patch]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.INDEX], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[IndexRequest]: ...
 
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any

@@ -31,12 +31,6 @@ services:
       timeout: 3s
       retries: 5
 
-  graphdb:
-    image: janusgraph/janusgraph:1.2.0-20250113-082101.7f6ffcf
-    restart: always
-    ports:
-      - '127.0.0.1:8182:8182'
-  
   stimulate-fuzzer-test:
     build:
       context: ./
@@ -58,7 +52,6 @@ services:
         condition: service_started
       coverage-bot:
         condition: service_started
-      
 
   orchestrator-sim:
     build:
@@ -73,27 +66,61 @@ services:
       redis:
         condition: service_healthy
 
-  indexer-run:
-    image: program-model-image
-    command: -m buttercup.program_model.indexer.oss_fuzz_indexer --scriptdir /app/scripts --url ws://graphdb:8182/gremlin --allow_pull --oss_fuzz_dir /crs_scratch/ossfuzz --base_image_url gcr.io/oss-fuzz --package_name libpng --wdir /crs_scratch/ --kythe_dir /app/kythe-v0.0.67 --python /app/.venv/bin/python
-    build:
-      context: ./
-      dockerfile: ./program-model/upload_worker.Dockerfile
-    profiles:
-      - indexer-run
+  graphdb:
+    image: janusgraph/janusgraph:1.2.0-20250126-150810.46a971a
+    restart: always
+    ports:
+      - "127.0.0.1:8182:8182"
+    environment:
+      - janusgraph.storage.backend=cql
+      - janusgraph.storage.hostname=jg-cassandra
+      - janusgraph.storage.cql.keyspace=janusgraph
+#   healthcheck:
+#     test: ["CMD", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
+#     interval: 10s
+#     timeout: 60s
+#     retries: 4
     volumes:
       - ./crs_scratch:/crs_scratch
+#   depends_on:
+#     graphdb-storage:
+#       condition: service_healthy
+
+  graphdb-storage:
+    image: cassandra:4.0.6
+    container_name: jg-cassandra
+    restart: always
+    ports:
+      - "127.0.0.1:9160:9160"
+      - "127.0.0.1:7199:7199"
+      - "127.0.0.1:7001:7001"
+      - "127.0.0.1:7000:7000"
     environment:
-      # These values will be modified automatically at competition time
-      - DOCKER_HOST=tcp://dind:2375
-    restart: no
+      - CASSANDRA_START_RPC=true
+#   healthcheck:
+#     test: ["CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-k", "janusgraph"]
+#     interval: 10s
+#     timeout: 60s
+#     retries: 4
+
+  program-model:
+    build:
+      context: .
+      dockerfile: ./program-model/Dockerfile
+    command: ["buttercup-program-model", "serve"]
+    environment:
+      - BUTTERCUP_PROGRAM_MODEL_SERVE__REDIS_URL=redis://redis:6379
+      - BUTTERCUP_PROGRAM_MODEL_SERVE__SLEEP_TIME=5
+      - BUTTERCUP_PROGRAM_MODEL_LOG_LEVEL=debug
+      - BUTTERCUP_PROGRAM_MODEL_TASK_STORAGE_DIR=/crs_scratch
+      - BUTTERCUP_PROGRAM_MODEL_MOCK_MODE=true
+    volumes:
+      - ./crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
-      dind:
-        condition: service_started
-      graphdb:
-        condition: service_started
+#     graphdb:
+#       condition: service_healthy
 
   coverage-bot:
     command: ["buttercup-coverage-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
@@ -242,7 +269,6 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
         DATABASE_URL: "postgresql://litellm_user:litellm_password11@litellm-db:5432/litellm"
-
     command: ["--config", "/app/config.yaml", "--port", "8080"]
     depends_on:
       litellm-db:

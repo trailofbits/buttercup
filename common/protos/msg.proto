@@ -64,8 +64,6 @@ message BuildOutput {
     string build_type = 7;
 }
 
-
-
 message WeightedHarness {
     float weight = 1;
     string package_name = 2;
@@ -89,4 +87,12 @@ message Patch {
     string task_id = 1;
     string vulnerability_id = 2;
     string patch = 3;
+}
+
+message IndexRequest {
+    string package_name = 1;
+    string ossfuzz = 2;
+    string source_path = 3;
+    string task_id = 4;
+    string build_type = 5;
 }

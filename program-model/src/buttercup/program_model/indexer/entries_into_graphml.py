@@ -11,10 +11,7 @@ from buttercup.program_model.data.kythe.proto.storage_pb2 import Entry, VName
 from buttercup.program_model.utils.varint import decode_stream
 import base64
 
-from buttercup.program_model.logger import MAIN_LOGGER_NAME, logger_configurer
-
-logger_configurer(os.getenv("LOG_LEVEL", "INFO").upper())
-logger = logging.getLogger(MAIN_LOGGER_NAME)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, repr=False)
@@ -82,11 +79,10 @@ class Edge:
 
 
 @dataclass(repr=False)
-class FileStorage:
+class GraphStorage:
     """Class to interact between Kythe and an output file."""
 
-    def __init__(self, fp: TextIOWrapper):
-        self.fp: TextIOWrapper = fp
+    def __init__(self):
         self.nodes: Dict[str, Node] = {}
         self.node_properties: Set[str] = set()
         self.edges: Dict[str, Edge] = {}
@@ -163,8 +159,8 @@ class FileStorage:
         ent.ParseFromString(bts)
         return ent
 
-    def write_graphml(self):
-        """Write the graph to a GraphML file.
+    def to_graphml(self) -> str:
+        """Convert the graph to GraphML.
         From: https://tinkerpop.apache.org/docs/3.7.3/dev/io/
         """
         content = '<?xml version="1.0" encoding="UTF-8"?>'
@@ -192,8 +188,7 @@ class FileStorage:
 
         xml_doc = minidom.parseString(content)
         pretty_xml = xml_doc.toprettyxml(indent="  ")
-        self.fp.write(pretty_xml)
-
+        return pretty_xml
 
 def main():
     prsr = argparse.ArgumentParser("Entry Output to GraphML")
@@ -201,9 +196,9 @@ def main():
     args = prsr.parse_args()
 
     with open(args.output, "w") as fw, sys.stdin.buffer as fr:
-        fs = FileStorage(fw)
-        fs.process_stream(fr)
-        fs.write_graphml()
+        gs = GraphStorage()
+        gs.process_stream(fr)
+        fw.write(gs.to_graphml())
 
 
 if __name__ == "__main__":
