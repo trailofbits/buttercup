@@ -243,7 +243,8 @@ services:
     environment:
         DATABASE_URL: "postgresql://litellm_user:litellm_password11@litellm-db:5432/litellm"
 
-    command: ["--config", "/app/config.yaml", "--port", "8080"]
+    # note: litellm recommends 1 worker for kubernetes: https://docs.litellm.ai/docs/proxy/prod
+    command: ["--config", "/app/config.yaml", "--port", "8080", "--num_workers", "8"]
     depends_on:
       litellm-db:
         condition: service_healthy
