@@ -4,7 +4,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.common.llm import create_default_llm
+from buttercup.common.llm import create_default_llm, get_langfuse_callbacks
 from buttercup.seed_gen.prompts import (
     DIFF_ANALYSIS_SYSTEM_PROMPT,
     DIFF_ANALYSIS_USER_PROMPT,
@@ -20,7 +20,8 @@ def analyze_diff(diff: str, harness: str) -> str:
     """
     Analyze a diff for a project and a test harness to determine if the diff introduces a vuln.
     """
-    llm = create_default_llm()
+    llm_callbacks = get_langfuse_callbacks()
+    llm = create_default_llm(callbacks=llm_callbacks)
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", DIFF_ANALYSIS_SYSTEM_PROMPT),
@@ -42,7 +43,8 @@ def write_pov_funcs(analysis: str, harness: str, diff: str, max_povs: int) -> st
     """
     Write PoVs for a vulnerability.
     """
-    llm = create_default_llm()
+    llm_callbacks = get_langfuse_callbacks()
+    llm = create_default_llm(callbacks=llm_callbacks)
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", WRITE_POV_SYSTEM_PROMPT),

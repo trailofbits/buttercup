@@ -5,7 +5,7 @@ from pathlib import Path
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.common.llm import create_default_llm
+from buttercup.common.llm import create_default_llm, get_langfuse_callbacks
 from buttercup.seed_gen.mock_context.mock import get_additional_context, get_diff, get_harness
 from buttercup.seed_gen.prompts import PYTHON_SEED_SYSTEM_PROMPT, PYTHON_SEED_USER_PROMPT
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
@@ -33,7 +33,8 @@ def generate_seed_funcs(harness: str, additional_context: str, count: int) -> li
             ("human", PYTHON_SEED_USER_PROMPT),
         ]
     )
-    llm = create_default_llm()
+    llm_callbacks = get_langfuse_callbacks()
+    llm = create_default_llm(callbacks=llm_callbacks)
     chain = prompt | llm | extract_md
     chain_config = chain.with_config(RunnableConfig(tags=["generate_seed_funcs"]))
     funcs = chain_config.invoke(
