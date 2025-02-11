@@ -11,6 +11,7 @@ from os import PathLike
 
 logger = logging.getLogger(__name__)
 
+
 def copyanything(src: PathLike, dst: PathLike, **kwargs: Any) -> None:
     """Copy a file or directory to a destination.
     This function will:
