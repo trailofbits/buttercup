@@ -16,7 +16,7 @@ from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
 from buttercup.patcher.utils import PatchInput
-from buttercup.patcher.llm import get_langfuse_callbacks
+from buttercup.common.llm import get_langfuse_callbacks
 
 logger = logging.getLogger(__name__)
 

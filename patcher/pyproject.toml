@@ -9,7 +9,6 @@ dependencies = [
     "common",
     "langchain>=0.3.17",
     "langchain-community>=0.3.16",
-    "langfuse>=2.59.1",
     "langgraph>=0.2.69",
     "openai>=1.60.2",
     "pydantic-settings>=2.7.1",
