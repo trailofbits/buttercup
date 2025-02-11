@@ -1,7 +1,7 @@
 model_list:
   - model_name: azure-gpt-4o
     litellm_params:
-      model: azure/gpt-4o-2024-11-20 # Name defined in Azure Deployment
+      model: azure/gpt-4o # Name defined in Azure Deployment
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       tpm: 3000000 # TPM of deployment is 30M
@@ -9,7 +9,7 @@ model_list:
 
   - model_name: azure-gpt-4o-mini
     litellm_params:
-      model: azure/gpt-4o-mini-2024-07-18 # Name defined in Azure Deployment
+      model: azure/gpt-4o-mini # Name defined in Azure Deployment
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       tpm: 5000000 # TPM of deployment is 50M
@@ -17,7 +17,7 @@ model_list:
 
   - model_name: azure-o3-mini
     litellm_params:
-      model: azure/o3-mini-2025-01-31 # Name defined in Azure Deployment
+      model: azure/o3-mini # Name defined in Azure Deployment
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       api_version: 2024-12-01-preview
@@ -26,7 +26,7 @@ model_list:
 
   - model_name: azure-o1
     litellm_params:
-      model: azure/o1-2024-12-17 # Name defined in Azure Deployment
+      model: azure/o1 # Name defined in Azure Deployment
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       api_version: 2024-12-01-preview
