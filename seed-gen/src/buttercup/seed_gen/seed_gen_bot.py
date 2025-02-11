@@ -1,4 +1,4 @@
-import os
+import logging
 import random
 import tempfile
 from pathlib import Path
@@ -8,11 +8,10 @@ from redis import Redis
 from buttercup.common.corpus import Corpus
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
-from buttercup.common.logger import setup_logging
 from buttercup.common.maps import BUILD_TYPES
 from buttercup.seed_gen.tasks import Task, do_seed_init, do_vuln_discovery
 
-logger = setup_logging(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
+logger = logging.getLogger(__name__)
 
 
 class SeedGenBot(TaskLoop):

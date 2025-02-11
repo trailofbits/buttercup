@@ -1,7 +1,6 @@
 """The `seed-gen` entrypoint."""
 
 import argparse
-import logging
 import os
 from pathlib import Path
 
@@ -10,8 +9,6 @@ from redis import Redis
 from buttercup.common.logger import setup_package_logger
 from buttercup.seed_gen.seed_gen_bot import SeedGenBot
 from buttercup.seed_gen.tasks import Task, do_seed_explore, do_seed_init, do_vuln_discovery
-
-logger = logging.getLogger(__name__)
 
 
 def command_server(args: argparse.Namespace) -> None:
