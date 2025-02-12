@@ -1,6 +1,5 @@
 from buttercup.common.queues import QueueNames, GroupNames
 from redis import Redis
-import argparse
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
 from buttercup.common.logger import setup_package_logger
@@ -8,20 +7,13 @@ import time
 import logging
 from buttercup.common.challenge_task import ChallengeTask
 from pathlib import Path
+from buttercup.fuzzing_infra.settings import BuilderBotSettings
 
 logger = logging.getLogger(__name__)
 
 
 def main():
-    prsr = argparse.ArgumentParser("Builder bot")
-    prsr.add_argument("--wdir", default="/tmp/builder-bot")
-    prsr.add_argument("--python", default="python")
-    prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
-    prsr.add_argument("--timer", default=1000, type=int)
-    prsr.add_argument("--allow-caching", action="store_true", default=False)
-    prsr.add_argument("--allow-pull", action="store_true", default=False)
-    prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
-    args = prsr.parse_args()
+    args = BuilderBotSettings()
     setup_package_logger(__name__, "DEBUG")
 
     logger.info(f"Starting builder bot ({args.wdir})")
@@ -53,7 +45,9 @@ def main():
                 )
 
             with origin_task.get_rw_copy(work_dir=args.wdir) as task:
-                res = task.build_fuzzers_with_cache(engine=msg.engine, sanitizer=msg.sanitizer)
+                res = task.build_fuzzers_with_cache(
+                    engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=args.allow_pull
+                )
                 if not res.success:
                     logger.error(f"Could not build fuzzer {msg.package_name}")
                     continue

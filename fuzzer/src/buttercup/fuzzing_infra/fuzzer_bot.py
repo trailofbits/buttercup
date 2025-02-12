@@ -1,4 +1,3 @@
-import argparse
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import os
 from buttercup.common.datastructures.msg_pb2 import WeightedHarness, Crash
@@ -16,6 +15,7 @@ from typing import List
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
 
@@ -85,13 +85,7 @@ class FuzzerBot(TaskLoop):
 
 
 def main():
-    prsr = argparse.ArgumentParser("fuzz bot")
-    prsr.add_argument("--timeout", required=True, type=int)
-    prsr.add_argument("--timer", default=1000, type=int)
-    prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
-    prsr.add_argument("--wdir", required=True)
-    prsr.add_argument("--python", default="python")
-    args = prsr.parse_args()
+    args = FuzzerBotSettings()
     setup_package_logger(__name__, "DEBUG")
 
     os.makedirs(args.wdir, exist_ok=True)

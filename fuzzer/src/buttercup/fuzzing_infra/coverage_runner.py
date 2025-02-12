@@ -1,6 +1,5 @@
-from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
+from buttercup.common.challenge_task import ChallengeTask
 import argparse
-from pathlib import Path
 import subprocess
 import json
 import logging
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class CoverageRunner:
-    def __init__(self, tool: OSSFuzzTool, llvm_cov_path: str):
+    def __init__(self, tool: ChallengeTask, llvm_cov_path: str):
         self.tool = tool
         self.llvm_cov_path = llvm_cov_path
 
@@ -20,7 +19,7 @@ class CoverageRunner:
             return False
 
         # after we run coverage we need to find the profdata report then convert it to json, and load it
-        package_path = Path(self.tool.oss_fuzz_path) / "build" / "out" / package_name
+        package_path = self.tool.get_build_dir()
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(
@@ -52,14 +51,14 @@ def main():
     prsr.add_argument("--allow-pull", action="store_true", default=False)
     prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
     prsr.add_argument("--python", default="python")
-    prsr.add_argument("--oss-fuzz-dir", required=True)
+    prsr.add_argument("--task-dir", required=True)
     prsr.add_argument("--harness-name", required=True)
     prsr.add_argument("--corpus-dir", required=True)
     prsr.add_argument("--package-name", required=True)
     prsr.add_argument("--llvm-cov-path", default="llvm-cov")
     args = prsr.parse_args()
 
-    tool = OSSFuzzTool(Conf(args.oss_fuzz_dir, args.python, args.allow_pull, args.base_image_url))
+    tool = ChallengeTask(read_only_task_dir=args.task_dir, project_name=args.package_name)
     runner = CoverageRunner(tool, args.llvm_cov_path)
     runner.run(args.harness_name, args.corpus_dir, args.package_name)
 

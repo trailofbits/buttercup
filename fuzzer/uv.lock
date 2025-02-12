@@ -225,6 +225,7 @@ dependencies = [
     { name = "clusterfuzz" },
     { name = "common" },
     { name = "protobuf" },
+    { name = "pydantic-settings" },
     { name = "redis" },
 ]
 
@@ -239,6 +240,7 @@ requires-dist = [
     { name = "clusterfuzz", specifier = "==2.6.0" },
     { name = "common", editable = "../common" },
     { name = "protobuf", specifier = ">=3.20,<=3.20.3" },
+    { name = "pydantic-settings", specifier = ">=2.7.1" },
     { name = "redis", specifier = ">=5.2.1,<6.0.0" },
 ]
 

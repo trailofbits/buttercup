@@ -288,12 +288,15 @@ class ChallengeTask:
         architecture: str | None = None,
         engine: str | None = None,
         sanitizer: str | None = None,
+        pull_latest_base_image: bool = True,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
         check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
         if check_build_res.success:
             logger.info("Build is up to date, skipping building fuzzers")
             return check_build_res
+
+        self.build_image(pull_latest_base_image=pull_latest_base_image, architecture=architecture)
 
         return self.build_fuzzers(
             use_source_dir=use_source_dir,
@@ -360,6 +363,36 @@ class ChallengeTask:
             e=env,
         )
 
+        return self._run_helper_cmd(cmd)
+
+    @read_write_decorator
+    def run_coverage(
+        self,
+        harness_name: str,
+        corpus_dir: str,
+        package_name: str,
+        architecture: str | None = None,
+        env: Dict[str, str] | None = None,
+    ) -> CommandResult:
+        logger.info(
+            "Running coverage for project %s | harness_name=%s | corpus_dir=%s | package_name=%s | architecture=%s | env=%s",
+            self.project_name,
+            harness_name,
+            corpus_dir,
+            package_name,
+            architecture,
+            env,
+        )
+        args = [
+            "coverage",
+            "--corpus-dir",
+            corpus_dir,
+            "--fuzz-target",
+            harness_name,
+            "--no-serve",
+            package_name,
+        ]
+        cmd = self._get_helper_cmd(*args, e=env, architecture=architecture)
         return self._run_helper_cmd(cmd)
 
     @contextmanager

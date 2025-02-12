@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 from buttercup.common.logger import setup_package_logger
@@ -10,10 +9,8 @@ from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.corpus import Corpus
 from buttercup.fuzzing_infra.coverage_runner import CoverageRunner
-from buttercup.common.oss_fuzz_tool import OSSFuzzTool, Conf
-from buttercup.common import utils
-import tempfile
-from pathlib import Path
+from buttercup.fuzzing_infra.settings import CoverageBotSettings
+from buttercup.common.challenge_task import ChallengeTask
 
 logger = logging.getLogger(__name__)
 
@@ -42,33 +39,23 @@ class CoverageBot(TaskLoop):
     def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
         coverage_build = builds[BUILD_TYPES.COVERAGE]
         logger.info(f"Coverage build: {coverage_build}")
-        with tempfile.TemporaryDirectory(dir=self.wdir) as td:
-            corpus = Corpus(self.wdir, task.task_id, task.harness_name)
-            output_oss_fuzz_path = Path(td) / "coverage-oss-fuzz"
-            utils.copyanything(coverage_build.output_ossfuzz_path, output_oss_fuzz_path)
 
+        tsk = ChallengeTask(read_only_task_dir=coverage_build.task_dir, project_name=coverage_build.package_name)
+        with tsk.get_rw_copy(work_dir=self.wdir) as local_tsk:
+            corpus = Corpus(self.wdir, task.task_id, task.harness_name)
             runner = CoverageRunner(
-                OSSFuzzTool(
-                    Conf(coverage_build.output_ossfuzz_path, self.python, self.allow_pull, self.base_image_url)
-                ),
+                local_tsk,
                 self.llvm_cov_tool,
             )
             runner.run(task.harness_name, corpus.path, coverage_build.package_name)
             logger.info(
-                f"Coverage for {task.harness_name} | {coverage_build.package_name} | {task.task_id} | {corpus.path} | {coverage_build.output_ossfuzz_path}"
+                f"Coverage for {task.harness_name} | {coverage_build.package_name} | {task.task_id} | {corpus.path} | {coverage_build.task_dir}"
             )
 
 
 def main():
-    prsr = argparse.ArgumentParser("coverage bot")
-    prsr.add_argument("--timer", default=1000, type=int)
-    prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
-    prsr.add_argument("--wdir", required=True)
-    prsr.add_argument("--python", default="python")
-    prsr.add_argument("--allow-pull", action="store_true", default=False)
-    prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
-    prsr.add_argument("--llvm-cov-tool", default="llvm-cov")
-    args = prsr.parse_args()
+    args = CoverageBotSettings()
+
     setup_package_logger(__name__, "DEBUG")
 
     os.makedirs(args.wdir, exist_ok=True)

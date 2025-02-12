@@ -9,6 +9,7 @@ dependencies = [
     "redis (>=5.2.1,<6.0.0)",
     "clusterfuzz==2.6.0",
     "common",
+    "pydantic-settings>=2.7.1",
 ]
 
 [project.scripts]
