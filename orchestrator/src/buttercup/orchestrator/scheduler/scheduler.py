@@ -47,12 +47,10 @@ class Scheduler:
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
             self.vulnerabilities = Vulnerabilities(redis=self.redis, api_client=api_client)
-            self.ready_queue = queue_factory.create(
-                QueueNames.READY_TASKS, GroupNames.SCHEDULER_READY_TASKS, block_time=None
-            )
+            self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.ORCHESTRATOR, block_time=None)
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
             self.build_output_queue = queue_factory.create(
-                QueueNames.BUILD_OUTPUT, GroupNames.SCHEDULER_BUILD_OUTPUT, block_time=None
+                QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR, block_time=None
             )
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
