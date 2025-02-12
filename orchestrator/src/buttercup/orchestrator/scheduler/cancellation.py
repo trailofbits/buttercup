@@ -31,7 +31,7 @@ class Cancellation:
     def __post_init__(self):
         """Initialize Redis connection, deletion queue and task registry."""
         self.delete_queue = QueueFactory(self.redis).create(
-            QueueNames.DELETE_TASK, GroupNames.SCHEDULER_DELETE_TASK, block_time=None
+            QueueNames.DELETE_TASK, GroupNames.ORCHESTRATOR, block_time=None
         )
         self.registry = TaskRegistry(self.redis)
 
