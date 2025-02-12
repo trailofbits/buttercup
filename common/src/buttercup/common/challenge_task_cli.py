@@ -98,21 +98,19 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
 
 def main():
     settings = Settings()
-    logger = setup_package_logger(__name__, "DEBUG")
+    setup_package_logger(__name__, "DEBUG")
     if settings.rw:
         task = ChallengeTask(
             read_only_task_dir=settings.task_dir,
             project_name=settings.project_name,
             python_path=settings.python_path,
             local_task_dir=settings.task_dir,
-            logger=logger,
         )
     else:
         task = ChallengeTask(
             read_only_task_dir=settings.task_dir,
             project_name=settings.project_name,
             python_path=settings.python_path,
-            logger=logger,
         )
 
     subcommand = get_subcommand(settings)

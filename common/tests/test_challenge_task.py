@@ -3,7 +3,6 @@ import pytest
 from unittest.mock import Mock, patch
 import subprocess
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
-import logging
 
 
 @pytest.fixture
@@ -315,7 +314,6 @@ def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
         read_only_task_dir=tmp_path,
         local_task_dir=tmp_path,
         project_name="libjpeg-turbo",
-        logger=logging.getLogger(__name__),
     )
 
 
