@@ -15,7 +15,7 @@ def command_server(args: argparse.Namespace) -> None:
     """Seed-gen worker server"""
     os.makedirs(args.wdir, exist_ok=True)
     redis = Redis.from_url(args.redis_url)
-    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir)
+    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir, args.python)
     seed_gen_bot.run()
 
 
@@ -44,6 +44,7 @@ def main() -> None:
     parser_server.add_argument(
         "--sleep", required=False, default=1, type=int, help="Sleep between runs (seconds)"
     )
+    parser_server.add_argument("--python", required=True, type=Path, help="Python path")
     parser_task = subparsers.add_parser("task", help="Do a task")
     parser_task.add_argument(
         "task_name", choices=Task, help="Task name", metavar=", ".join(task.value for task in Task)

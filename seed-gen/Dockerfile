@@ -1,5 +1,13 @@
 ARG PYTHON_BASE=3.12-slim-bookworm
 
+FROM python:${PYTHON_BASE} AS runtime-base
+RUN apt-get update
+RUN apt-get install -y curl
+RUN curl -fsSL https://get.docker.com | sh
+RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
+
+RUN rm -rf /var/lib/apt/lists/*
+
 FROM python:${PYTHON_BASE} AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
@@ -18,22 +26,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=seed-gen/pyproject.toml,target=seed-gen/pyproject.toml \
     cd seed-gen && uv sync --frozen --no-install-project --no-editable
 
-RUN apt-get update && apt-get install -y \
-    wget
-# download wasm runtime
-RUN wget -P /app/seed-gen https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
-
 ADD common /app/common
 ADD seed-gen /app/seed-gen
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
-FROM python:${PYTHON_BASE} AS runtime
-
+FROM runtime-base AS runtime
+ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
 COPY --from=builder /app/seed-gen/python-3.12.0.wasm /app/seed-gen/python-3.12.0.wasm
 WORKDIR /app/seed-gen
-ENV PYTHON_WASM_BUILD_PATH="/app/seed-gen/python-3.12.0.wasm"
 ENV PATH=/app/seed-gen/.venv/bin:$PATH
 

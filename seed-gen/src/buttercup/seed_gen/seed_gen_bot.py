@@ -5,6 +5,7 @@ from pathlib import Path
 
 from redis import Redis
 
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.corpus import Corpus
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
@@ -15,12 +16,40 @@ logger = logging.getLogger(__name__)
 
 
 class SeedGenBot(TaskLoop):
-    def __init__(self, redis: Redis, timer_seconds: int, wdir: str):
+    def __init__(self, redis: Redis, timer_seconds: int, wdir: str, python: str):
         self.wdir = wdir
+        self.python = python
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BUILD_TYPES]:
-        return []
+        return [BUILD_TYPES.FUZZER]
+
+    def submit_valid_povs(
+        self,
+        task: WeightedHarness,
+        builds: dict[BUILD_TYPES, BuildOutput],
+        out_dir: Path,
+        temp_dir: Path,
+    ):
+        build = builds[BUILD_TYPES.FUZZER]
+        chall_task = ChallengeTask(
+            read_only_task_dir=build.task_dir,
+            project_name=build.package_name,
+            python_path=self.python,
+        )
+        with chall_task.get_rw_copy(work_dir=temp_dir) as rw_task:
+            for pov in out_dir.iterdir():
+                try:
+                    pov_output = rw_task.reproduce_pov(task.harness_name, pov)
+                    # TODO: is this the right way to check if the PoV is valid?
+                    if not pov_output.success:
+                        logger.info(f"Valid PoV found: {pov}")
+                    else:
+                        logger.info(f"Not valid PoV: {pov}")
+                    logger.debug("PoV stdout: %s", pov_output.output)
+                    logger.debug("PoV stderr: %s", pov_output.error)
+                except ChallengeTaskError as exc:
+                    logger.error(f"Error reproducing PoV {pov}: {exc}")
 
     def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
@@ -39,6 +68,7 @@ class SeedGenBot(TaskLoop):
                 do_seed_init(task.package_name, out_dir)
             elif task_choice == Task.VULN_DISCOVERY:
                 do_vuln_discovery(task.package_name, out_dir)
+                self.submit_valid_povs(task, builds, out_dir, temp_dir)
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 
