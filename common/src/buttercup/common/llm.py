@@ -28,8 +28,26 @@ def is_langfuse_available() -> bool:
         logger.info("LangFuse not configured")
         return False
     try:
-        response = requests.get(f"{langfuse_host}/api/public/health", timeout=2)
-        return response.status_code == 200
+        response = requests.post(f"{langfuse_host}/api/public/ingestion", timeout=2)
+        return response.status_code == 401  # expect that we aren't authenticated
+    except requests.RequestException:
+        return False
+
+
+@functools.cache
+def langfuse_auth_check() -> bool:
+    """Check if LangFuse is available.
+
+    Uses the ingestion endpoint to check if the API key is valid.
+    """
+    langfuse_host = os.getenv("LANGFUSE_HOST")
+    langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
+    langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY")
+    try:
+        response = requests.post(
+            f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
+        )
+        return response.status_code == 400  # expect that we authenticate, but the request is invalid
     except requests.RequestException:
         return False
 
@@ -44,7 +62,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
                 secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
                 host=os.getenv("LANGFUSE_HOST"),
             )
-            if langfuse_handler.auth_check():
+            if langfuse_auth_check():
                 logger.info("Tracing with LangFuse enabled")
                 return [langfuse_handler]
 
