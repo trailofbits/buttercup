@@ -5,7 +5,7 @@ from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.fuzzing_infra.stack_parsing import CrashSet
+from buttercup.common.stack_parsing import CrashSet
 import tempfile
 from buttercup.common.logger import setup_package_logger
 from redis import Redis

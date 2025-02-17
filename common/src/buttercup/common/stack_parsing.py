@@ -20,8 +20,8 @@ class CrashSet:
         return self.set.add(key)
 
 
-def get_crash_data(stacktrace: str) -> str:
-    parser = StackParser(symbolized=False, detect_ooms_and_hangs=True, detect_v8_runtime_errors=False)
+def get_crash_data(stacktrace: str, symbolized: bool = False) -> str:
+    parser = StackParser(symbolized=symbolized, detect_ooms_and_hangs=True, detect_v8_runtime_errors=False)
     prs = parser.parse(stacktrace)
     logger.info(f"Crash data: {prs.crash_state}")
     return prs.crash_state
