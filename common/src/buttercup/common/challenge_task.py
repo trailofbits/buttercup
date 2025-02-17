@@ -25,6 +25,15 @@ class CommandResult:
     error: bytes | None = None
     output: bytes | None = None
 
+    def stacktrace(self) -> str | None:
+        """Build clusterfuzz-compatible stacktrace"""
+        # from clusterfuzz libfuzzer engine
+        MAX_OUTPUT_LEN = 1 * 1024 * 1024  # 1 MB
+        if self.output:
+            output_bytes = self.output[:MAX_OUTPUT_LEN]
+            output = output_bytes.decode('utf-8', errors='ignore')
+            return output
+        return None
 
 @dataclass
 class ChallengeTask:

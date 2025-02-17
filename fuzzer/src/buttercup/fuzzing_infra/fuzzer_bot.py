@@ -62,8 +62,6 @@ class FuzzerBot(TaskLoop):
                 crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
-                    dst = crash_dir.copy_file(crash.input_path)
-                    logger.info(f"Found crash {dst}")
                     if crash_set.add(
                         task.package_name,
                         task.harness_name,
@@ -72,6 +70,8 @@ class FuzzerBot(TaskLoop):
                     ):
                         logger.info(f"Crash {crash.stacktrace} already in set")
                         continue
+                    dst = crash_dir.copy_file(crash.input_path)
+                    logger.info(f"Found unique crash {dst}")
                     crash = Crash(
                         target=build,
                         harness_name=task.harness_name,

@@ -6,10 +6,12 @@ from pathlib import Path
 from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
-from buttercup.common.corpus import Corpus
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
+from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.maps import BUILD_TYPES
+from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.stack_parsing import CrashSet
 from buttercup.seed_gen.tasks import Task, do_seed_init, do_vuln_discovery
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,8 @@ class SeedGenBot(TaskLoop):
     def __init__(self, redis: Redis, timer_seconds: int, wdir: str, python: str):
         self.wdir = wdir
         self.python = python
+        self.crash_set = CrashSet(redis)
+        self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BUILD_TYPES]:
@@ -37,6 +41,7 @@ class SeedGenBot(TaskLoop):
             project_name=build.package_name,
             python_path=self.python,
         )
+        crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
         with chall_task.get_rw_copy(work_dir=temp_dir) as rw_task:
             for pov in out_dir.iterdir():
                 try:
@@ -44,6 +49,27 @@ class SeedGenBot(TaskLoop):
                     # TODO: is this the right way to check if the PoV is valid?
                     if not pov_output.success:
                         logger.info(f"Valid PoV found: {pov}")
+                        stacktrace = pov_output.stacktrace()
+                        if stacktrace is None:
+                            logger.error("Stacktrace is empty for PoV, skipping.")
+                            continue
+                        if self.crash_set.add(
+                            task.package_name,
+                            task.harness_name,
+                            task.task_id,
+                            stacktrace,
+                        ):
+                            logger.info(f"PoV with crash {stacktrace} already in crash set")
+                            continue
+                        logger.info("Submitting PoV to crash queue")
+                        dst = crash_dir.copy_file(pov)
+                        crash = Crash(
+                            target=build,
+                            harness_name=task.harness_name,
+                            crash_input_path=dst,
+                            stacktrace=stacktrace,
+                        )
+                        self.crash_queue.push(crash)
                     else:
                         logger.info(f"Not valid PoV: {pov}")
                     logger.debug("PoV stdout: %s", pov_output.output)
