@@ -91,9 +91,9 @@ class Vulnerabilities:
         try:
             crash: Crash = vuln_item.deserialized
 
-            if self.task_registry.is_cancelled(crash.target.task_id):
+            if self.task_registry.is_stale(crash.target.task_id):
                 logger.info(
-                    f"[{crash.target.task_id}] Skipping cancelled task for {crash.target.package_name} (harness: {crash.harness_name})"
+                    f"[{crash.target.task_id}] Skipping stale task for {crash.target.package_name} (harness: {crash.harness_name})"
                 )
             else:
                 confirmed_vuln = self.submit_vulnerability(crash)

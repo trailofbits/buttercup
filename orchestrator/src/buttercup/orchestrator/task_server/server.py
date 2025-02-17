@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, VulnBroadcast
-from buttercup.orchestrator.task_server.backend import delete_task, new_task
+from buttercup.orchestrator.task_server.backend import delete_task, new_task, get_system_status
 from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
 from buttercup.common.queues import ReliableQueue
@@ -60,9 +60,11 @@ def check_auth(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
 @app.get("/status/", response_model=Status, tags=["status"])
 def get_status_() -> Status:
     """
-    CRS Status
+    Get CRS Status
+
+    Returns the current system status including task states and system readiness.
     """
-    pass
+    return get_system_status()
 
 
 @app.post("/v1/sarif/", response_model=str, tags=["sarif"])

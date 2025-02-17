@@ -70,25 +70,6 @@ def test_process_delete_request_task_not_found(cancellation, mock_registry):
     mock_registry.mark_cancelled.assert_not_called()
 
 
-def test_check_timeouts(cancellation, mock_registry):
-    # Arrange
-    current_time = time.time()
-    mock_tasks = [
-        Mock(spec=Task, task_id="task1", deadline=current_time - 100),  # Expired
-        Mock(spec=Task, task_id="task2", deadline=current_time + 100),  # Not expired
-        Mock(spec=Task, task_id="task3", deadline=current_time - 50),  # Expired
-    ]
-    mock_registry.__iter__.return_value = iter(mock_tasks)
-
-    # Act
-    cancellation.check_timeouts()
-
-    # Assert
-    assert mock_registry.mark_cancelled.call_count == 2
-    mock_registry.mark_cancelled.assert_any_call(mock_tasks[0])
-    mock_registry.mark_cancelled.assert_any_call(mock_tasks[2])
-
-
 def test_process_iteration_with_delete_request(cancellation, mock_queue, mock_registry):
     # Arrange
     task_id = "test_task_456"

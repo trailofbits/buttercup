@@ -1,6 +1,9 @@
 import time
 from uuid import UUID
 from buttercup.orchestrator.task_server.models.types import (
+    Status,
+    StatusState,
+    StatusTasksState,
     Task,
     TaskType,
     SourceType,
@@ -13,6 +16,7 @@ from buttercup.common.datastructures.msg_pb2 import (
 )
 from buttercup.common.queues import ReliableQueue
 import logging
+from buttercup.orchestrator.task_server.dependencies import get_status_collector
 
 
 logger = logging.getLogger(__name__)
@@ -74,3 +78,30 @@ def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
     task_delete = TaskDelete(task_id=str(task_id).lower(), received_at=time.time())
     delete_task_queue.push(task_delete)
     return ""
+
+
+def get_system_status() -> Status:
+    """
+    Get the current system status.
+
+    Returns:
+        Status: The current system status
+    """
+    # Get status from collector
+    status_proto = get_status_collector().get_status()
+
+    # Convert to API type
+    return Status(
+        ready=status_proto.ready,
+        state=StatusState(
+            tasks=StatusTasksState(
+                canceled=status_proto.state.tasks.canceled,
+                errored=status_proto.state.tasks.errored,
+                pending=status_proto.state.tasks.pending,
+                running=status_proto.state.tasks.running,
+                succeeded=status_proto.state.tasks.succeeded,
+            )
+        ),
+        version=status_proto.version,
+        details=dict(status_proto.details) if status_proto.details else None,
+    )

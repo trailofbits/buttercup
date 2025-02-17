@@ -68,7 +68,7 @@ def vulnerabilities(mock_redis, mock_api_client, mock_queues):
     vuln.confirmed_vulnerabilities_queue = mock_queues["confirmed"]
 
     # Mock task_registry methods directly instead of relying on Redis
-    vuln.task_registry.is_cancelled = Mock(return_value=False)
+    vuln.task_registry.is_stale = Mock(return_value=False)
 
     # Mock the vulnerability API method we use
     vuln.vulnerability_api.v1_task_task_id_vuln_post = Mock()
@@ -165,13 +165,13 @@ class TestProcessUniqueVulnerabilities:
     def test_cancelled_task_is_skipped(self, vulnerabilities, mock_queues, sample_crash):
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["unique"].pop.return_value = mock_item
-        vulnerabilities.task_registry.is_cancelled = Mock(return_value=True)
+        vulnerabilities.task_registry.is_stale = Mock(return_value=True)
 
         assert vulnerabilities.process_unique_vulnerabilities() is True
         mock_queues["unique"].pop.assert_called_once()
         mock_queues["confirmed"].push.assert_not_called()
         mock_queues["unique"].ack_item.assert_called_once_with("test_id")
-        vulnerabilities.task_registry.is_cancelled.assert_called_once_with(sample_crash.target.task_id)
+        vulnerabilities.task_registry.is_stale.assert_called_once_with(sample_crash.target.task_id)
 
 
 class TestSubmitVulnerability:

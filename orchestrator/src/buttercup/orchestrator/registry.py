@@ -3,6 +3,7 @@ from redis import Redis
 from buttercup.common.queues import HashNames
 from dataclasses import dataclass
 from google.protobuf import text_format
+import time
 
 
 @dataclass
@@ -63,6 +64,36 @@ class TaskRegistry:
         # Check Redis
         task = self.get(task_id)
         return task.cancelled if task else True
+
+    def is_expired(self, task_or_id: str | Task) -> bool:
+        """Check if a task has expired (passed its deadline)
+
+        Args:
+            task_or_id: Either a Task object or task ID string
+
+        Returns:
+            True if the task has expired, False otherwise
+        """
+        # Get task
+        if isinstance(task_or_id, Task):
+            task = task_or_id
+        else:
+            task = self.get(task_or_id)
+            if task is None:
+                return True
+
+        return task.deadline < time.time()
+
+    def is_stale(self, task_or_id: str | Task) -> bool:
+        """Check if a task is stale (either cancelled or expired)
+
+        Args:
+            task_or_id: Either a Task object or task ID string
+
+        Returns:
+            True if the task is stale (cancelled or expired), False otherwise
+        """
+        return self.is_cancelled(task_or_id) or self.is_expired(task_or_id)
 
 
 def task_registry_cli():

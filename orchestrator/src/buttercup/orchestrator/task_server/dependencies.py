@@ -4,6 +4,7 @@ from redis import Redis
 from functools import lru_cache
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue, QueueNames, QueueFactory
+from buttercup.orchestrator.scheduler.status_collector import StatusCollector
 
 logger = logging.getLogger(__name__)
 
@@ -29,3 +30,14 @@ def get_task_queue() -> ReliableQueue:
 def get_delete_task_queue() -> ReliableQueue:
     logger.debug(f"Connecting to delete task queue at {QueueNames.DELETE_TASK}")
     return QueueFactory(get_redis()).create(QueueNames.DELETE_TASK)
+
+
+@lru_cache
+def get_status_collector() -> StatusCollector:
+    """
+    Get or create a singleton instance of StatusCollector.
+
+    Returns:
+        StatusCollector: The singleton instance
+    """
+    return StatusCollector(get_redis())

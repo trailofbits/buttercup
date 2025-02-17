@@ -64,8 +64,6 @@ message BuildOutput {
     bool apply_diff = 7;
 }
 
-
-
 message WeightedHarness {
     float weight = 1;
     string package_name = 2;
@@ -89,4 +87,24 @@ message Patch {
     string task_id = 1;
     string vulnerability_id = 2;
     string patch = 3;
+}
+
+// Status-related messages
+message TasksState {
+    int32 canceled = 1;
+    int32 errored = 2;
+    int32 pending = 3;
+    int32 running = 4;
+    int32 succeeded = 5;
+}
+
+message SystemState {
+    TasksState tasks = 1;
+}
+
+message SystemStatus {
+    bool ready = 1;
+    SystemState state = 2;
+    string version = 3;
+    map<string, string> details = 4;
 }
