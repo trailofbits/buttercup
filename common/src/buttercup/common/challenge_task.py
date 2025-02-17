@@ -31,9 +31,10 @@ class CommandResult:
         MAX_OUTPUT_LEN = 1 * 1024 * 1024  # 1 MB
         if self.output:
             output_bytes = self.output[:MAX_OUTPUT_LEN]
-            output = output_bytes.decode('utf-8', errors='ignore')
+            output = output_bytes.decode("utf-8", errors="ignore")
             return output
         return None
+
 
 @dataclass
 class ChallengeTask:
