@@ -4,16 +4,16 @@ model_list:
       model: azure/gpt-4o # Name defined in Azure Deployment
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
-      tpm: 30000 # TPM of deployment is 30M
-      rpm: 1800 # RPM of deployment is 180K
+      tpm: 30000
+      rpm: 1800
 
   - model_name: azure-gpt-4o-mini
     litellm_params:
       model: azure/gpt-4o-mini # Name defined in Azure Deployment
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
-      tpm: 50000 # TPM of deployment is 50M
-      rpm: 5000 # RPM of deployment is 500K
+      tpm: 50000
+      rpm: 5000
 
   - model_name: azure-o3-mini
     litellm_params:
@@ -21,8 +21,8 @@ model_list:
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       api_version: 2024-12-01-preview
-      tpm: 50000 # TPM of deployment is 50M
-      rpm: 50 # RPM of deployment is 5K
+      tpm: 50000
+      rpm: 50
 
   - model_name: azure-o1
     litellm_params:
@@ -30,8 +30,8 @@ model_list:
       api_base: os.environ/AZURE_API_BASE
       api_key: os.environ/AZURE_API_KEY
       api_version: 2024-12-01-preview
-      tpm: 30000 # TPM of deployment is 30M
-      rpm: 50 # RPM of deployment is 5K
+      tpm: 30000
+      rpm: 50
 
   - model_name: openai-gpt-4o
     litellm_params:
