@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **assessment** | [**TypesAssessment**](TypesAssessment.md) |  | 
-**description** | **str** | Plain text reasoning for the assesment | 
+**description** | **str** | Plain text reasoning for the assessment  128KiB max size | 
 
 ## Example
 

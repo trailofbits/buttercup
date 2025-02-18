@@ -18,20 +18,19 @@ from enum import Enum
 from typing_extensions import Self
 
 
-class TypesAssessment(str, Enum):
+class TypesArchitecture(str, Enum):
     """
-    TypesAssessment
+    TypesArchitecture
     """
 
     """
     allowed enum values
     """
-    CORRECT = 'correct'
-    INCORRECT = 'incorrect'
+    X86_64 = 'x86_64'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of TypesAssessment from a JSON string"""
+        """Create an instance of TypesArchitecture from a JSON string"""
         return cls(json.loads(json_str))
 
 

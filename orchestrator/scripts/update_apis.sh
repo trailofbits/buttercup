@@ -37,7 +37,7 @@ $PYTHON_CMD -m venv "$TEMPDIR/venv"
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)
 docker run --rm --user $USER_ID:$GROUP_ID -v "$(realpath example-crs-architecture/docs/api):/local" -v "$OUTPUT_DIR/src/buttercup/orchestrator:/out" openapitools/openapi-generator-cli generate \
-    -i /local/competition-swagger-v0.2.json \
+    -i /local/competition-swagger-v0.3.json \
     -g python \
     -o /out \
     --package-name competition_api_client
@@ -61,7 +61,7 @@ pip install uvicorn
 pip install fastapi
 
 TEMPDIR=$(mktemp -d)
-curl -o "$TEMPDIR/openapi.json" -X POST https://converter.swagger.io/api/convert -H "Content-Type: application/json" --data-binary "@example-crs-architecture/docs/api/crs-swagger-v0.1.json"
+curl -o "$TEMPDIR/openapi.json" -X POST https://converter.swagger.io/api/convert -H "Content-Type: application/json" --data-binary "@example-crs-architecture/docs/api/crs-swagger-v0.3.json"
 
 fastapi-codegen --input "$TEMPDIR/openapi.json" --output "$OUTPUT_DIR/src/buttercup/orchestrator/task_server"
 

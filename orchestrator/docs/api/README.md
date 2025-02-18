@@ -1,7 +1,7 @@
 # API
 
-- Competitors will consume the API described by `competition-swagger-v0.1.yaml`
-- Competitors will provide the API described by `crs-swagger-v0.1.yaml`
+- Competitors will consume the API described by `competition-swagger-v0.3.yaml`
+- Competitors will provide the API described by `crs-swagger-v0.3.yaml`
 
 NOTE: The JSON and YAML documents contain the same information and are generated from the same source.
 
@@ -39,6 +39,77 @@ python -m http.server
 - This will only allow viewing the documentation. Experimenting with the API endpoints requires a running API server serving the spec file.
   If the spec is served from the API server and it supports CORS, it is possible to specify the full URL to the spec in the box.
   This will allow you to experiment with the API using the `Try it Out` button.
+
+## Competition API Interaction
+
+During the competition, the Competition API sends tasks and SARIF broadcasts to CRSs and receives responses of several types (vulnerability, patch, or SARIF assessment). The Example Competition API checks interfaces
+only. It does not send tasks, and it accepts any valid request.
+
+The competition-time workflows for interacting with the Competition API are documented in the following charts.
+
+### Submitting a vulnerability
+
+```mermaid
+sequenceDiagram
+    accTitle: CRS Vuln Submission Workflow
+
+    API->>CRS: Task(s)
+    CRS->>API: Vuln Submission
+    API->>CRS: Vuln ID, Vuln Status "accepted"
+    API->>API: Vuln Testing
+    CRS->>API: Vuln Status Polling
+    API->>CRS: Current Vuln Status ("accepted")
+    API->>API: Vuln Testing Complete, update status to "passed" or "failed"
+    CRS->>API: Vuln Status Polling
+    API->>CRS: Current Vuln Status ("passed" or "failed")
+```
+
+### Submitting a SARIF assessment
+
+```mermaid
+sequenceDiagram
+    accTitle: CRS SARIF Assessment Workflow
+
+    API->>CRS: SARIF Broadcast
+    CRS->>API: SARIF Assessment
+    API->>CRS: Assessment Status "accepted"
+```
+
+### Submitting a patch
+
+```mermaid
+sequenceDiagram
+    accTitle: CRS Patch Submission Workflow
+
+    API->>CRS: Task(s) and/or SARIF Broadcast
+    CRS->>API: Patch Submission (optionally against an existing vuln or SARIF broadcast)
+    API->>CRS: Patch ID, Patch Status "accepted"
+    API->>API: Patch Testing
+    CRS->>API: Patch Status Polling
+    API->>CRS: Current Patch Status ("accepted")
+    API->>API: Patch Testing Complete, update status to "passed" or "failed"
+    CRS->>API: Patch Status Polling
+    API->>CRS: Current Patch Status ("passed" or "failed")
+```
+
+## CRS API Task Statuses
+
+The CRS API has a status endpoint which provides a summary of tasks by status, among other things. The statuses which tasks go through are documented in the state diagram below.
+
+```mermaid
+stateDiagram-v2
+    accTitle: Task Status State Diagram
+
+    nonexistent --> pending: Competition infrastructure sends a task to the CRS
+    pending --> processing: CRS starts work on a task
+    processing --> errored: CRS had an unrecoverable issue while working on the task
+    processing --> canceled: Competition infrastructure cancels the task
+    processing --> waiting: CRS sends a submission in for the task
+    waiting --> processing: CRS receives a result from the Competition API for its submission, and intends to submit again for the task
+    waiting --> succeeded: CRS receives a positive result from the Competition API for its submission, and does not intend to submit again for the task
+    waiting --> failed: CRS receives a negative result from the Competition API for its submission, and does not intend to submit again for the task
+    waiting --> canceled: Competition infrastructure cancels the task
+```
 
 ## Generating a Client or Server
 
