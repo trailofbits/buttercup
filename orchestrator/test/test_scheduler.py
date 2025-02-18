@@ -36,15 +36,6 @@ def test_process_ready_task(scheduler):
     assert build_request.task_dir == "/tasks_storage/test-task-1"
 
 
-def test_process_ready_task_mock_mode_invalid_source(scheduler):
-    # Create a mock task with invalid source
-    source = SourceDetail(source_type=SourceDetail.SourceType.SOURCE_TYPE_REPO, url="https://github.com/invalid-source")
-    task = Task(task_id="test-task-2", sources=[source])
-
-    with pytest.raises(RuntimeError, match="Couldn't handle task test-task-2"):
-        scheduler.process_ready_task(task)
-
-
 @patch("buttercup.orchestrator.scheduler.scheduler.get_fuzz_targets")
 def test_process_build_output(mock_get_fuzz_targets, scheduler):
     mock_get_fuzz_targets.return_value = ["target1", "target2"]

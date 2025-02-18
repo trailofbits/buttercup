@@ -40,7 +40,6 @@ def main():
             settings.scratch_dir,
             redis,
             sleep_time=command.sleep_time,
-            mock_mode=command.mock_mode,
             competition_api_url=command.competition_api_url,
         )
         scheduler.serve()

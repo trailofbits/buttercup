@@ -9,16 +9,17 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import (
     TaskReady,
     Task,
-    SourceDetail,
     BuildRequest,
     BuildOutput,
     WeightedHarness,
 )
+from buttercup.common.project_yaml import ProjectYaml
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
 from buttercup.orchestrator.api_client_factory import create_api_client
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,6 @@ class Scheduler:
     scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1.0
-    mock_mode: bool = False
     competition_api_url: str = "http://competition-api:8080"
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
@@ -56,63 +56,58 @@ class Scheduler:
             self.build_map = BuildMap(self.redis)
             self.patches = Patches(redis=self.redis, api_client=api_client)
 
-    def mock_process_ready_task(self, task: Task) -> BuildRequest:
-        """Mock a ready task processing"""
-        repo_source = next(
-            (source for source in task.sources if source.source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO), None
-        )
-        if repo_source is not None:
-            challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, "example-libpng")
-            if challenge_task.get_source_path().is_dir():
-                logger.info(f"Mocking task {task.task_id} / example-libpng")
-                return [
-                    BuildRequest(
-                        package_name="libpng",
-                        engine="libfuzzer",
-                        sanitizer="address",
-                        task_dir=str(challenge_task.task_dir),
-                        task_id=task.task_id,
-                        build_type=BUILD_TYPES.FUZZER,
-                        apply_diff=True,
-                    ),
-                    BuildRequest(
-                        package_name="libpng",
-                        engine="libfuzzer",
-                        sanitizer="coverage",
-                        task_dir=str(challenge_task.task_dir),
-                        task_id=task.task_id,
-                        build_type=BUILD_TYPES.COVERAGE,
-                        apply_diff=True,
-                    ),
-                    BuildRequest(
-                        package_name="libpng",
-                        engine="libfuzzer",
-                        sanitizer="address",
-                        task_dir=str(challenge_task.task_dir),
-                        task_id=task.task_id,
-                        build_type=BUILD_TYPES.TRACER,
-                        apply_diff=False,
-                    ),
-                    BuildRequest(
-                        package_name="libpng",
-                        engine="libfuzzer",
-                        sanitizer="address",
-                        task_dir=str(challenge_task.task_dir),
-                        task_id=task.task_id,
-                        build_type=BUILD_TYPES.TRACER_NO_DIFF,
-                        apply_diff=False,
-                    ),
-                ]
-            logger.info(f"{challenge_task.get_source_path()} does not exist")
+    def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
+        """Select from preferred options if available, otherwise random choice.
 
-        raise RuntimeError(f"Couldn't handle task {task.task_id}")
+        Args:
+            available_options: List of available options to choose from
+            preferred_order: List of preferred options in priority order
+
+        Returns:
+            Selected option string
+        """
+        for preferred in preferred_order:
+            if preferred in available_options:
+                return preferred
+        return random.choice(available_options)
 
     def process_ready_task(self, task: Task) -> list[BuildRequest]:
         """Parse a task that has been downloaded and is ready to be built"""
         logger.info(f"Processing ready task {task.task_id}")
-        if self.mock_mode:
-            logger.info(f"Mock mode enabled, checking if {task.task_id} can be mocked")
-            return self.mock_process_ready_task(task)
+        challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, task.project_name)
+        if challenge_task.get_source_path().is_dir():
+            logger.info(f"Processing task {task.task_id} / {task.focus}")
+
+            project_yaml = ProjectYaml(challenge_task, task.project_name)
+
+            engine = self.select_preferred(project_yaml.fuzzing_engines, ["libfuzzer", "afl"])
+            sanitizer = self.select_preferred(project_yaml.sanitizers, ["address", "memory", "undefined"])
+            logger.info(f"Selected engine={engine}, sanitizer={sanitizer} for task {task.task_id}")
+
+            build_types = [
+                (BUILD_TYPES.FUZZER, sanitizer, True),
+                (BUILD_TYPES.COVERAGE, "coverage", True),
+                (BUILD_TYPES.TRACER, sanitizer, True),
+            ]
+
+            if challenge_task.get_diffs():
+                build_types.append((BUILD_TYPES.TRACER_NO_DIFF, sanitizer, False))
+
+            build_requests = [
+                BuildRequest(
+                    package_name=task.project_name,
+                    engine=engine,
+                    task_dir=str(challenge_task.task_dir),
+                    task_id=task.task_id,
+                    build_type=build_type,
+                    sanitizer=san,
+                    apply_diff=apply_diff,
+                )
+                for build_type, san, apply_diff in build_types
+            ]
+
+            return build_requests
+        logger.info(f"{challenge_task.get_source_path()} does not exist")
 
         raise RuntimeError(f"Couldn't handle task {task.task_id}")
 

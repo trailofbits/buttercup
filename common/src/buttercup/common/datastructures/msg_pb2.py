@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tmsg.proto\x12\x06msgpb2\"\xec\x01\n\x04Task\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cmessage_time\x18\x02 \x01(\x03\x12\x0f\n\x07task_id\x18\x03 \x01(\t\x12(\n\ttask_type\x18\x04 \x01(\x0e\x32\x15.msgpb2.Task.TaskType\x12%\n\x07sources\x18\x05 \x03(\x0b\x32\x14.msgpb2.SourceDetail\x12\x10\n\x08\x64\x65\x61\x64line\x18\x06 \x01(\x03\x12\x11\n\tcancelled\x18\x07 \x01(\x08\"3\n\x08TaskType\x12\x12\n\x0eTASK_TYPE_FULL\x10\x00\x12\x13\n\x0fTASK_TYPE_DELTA\x10\x01\"\xb9\x01\n\x0cSourceDetail\x12\x0e\n\x06sha256\x18\x01 \x01(\t\x12\x34\n\x0bsource_type\x18\x02 \x01(\x0e\x32\x1f.msgpb2.SourceDetail.SourceType\x12\x0b\n\x03url\x18\x03 \x01(\t\"V\n\nSourceType\x12\x14\n\x10SOURCE_TYPE_REPO\x10\x00\x12\x1c\n\x18SOURCE_TYPE_FUZZ_TOOLING\x10\x01\x12\x14\n\x10SOURCE_TYPE_DIFF\x10\x02\"*\n\x0cTaskDownload\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"\'\n\tTaskReady\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"2\n\nTaskDelete\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x13\n\x0breceived_at\x18\x02 \x01(\x02\"\x92\x01\n\x0c\x42uildRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\t\x12\x12\n\napply_diff\x18\x07 \x01(\x08\"\x91\x01\n\x0b\x42uildOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\t\x12\x12\n\napply_diff\x18\x07 \x01(\x08\"^\n\x0fWeightedHarness\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x14\n\x0charness_name\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\"p\n\x05\x43rash\x12#\n\x06target\x18\x01 \x01(\x0b\x32\x13.msgpb2.BuildOutput\x12\x14\n\x0charness_name\x18\x02 \x01(\t\x12\x18\n\x10\x63rash_input_path\x18\x03 \x01(\t\x12\x12\n\nstacktrace\x18\x04 \x01(\t\"G\n\x16\x43onfirmedVulnerability\x12\x1c\n\x05\x63rash\x18\x01 \x01(\x0b\x32\r.msgpb2.Crash\x12\x0f\n\x07vuln_id\x18\x02 \x01(\t\"A\n\x05Patch\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x18\n\x10vulnerability_id\x18\x02 \x01(\t\x12\r\n\x05patch\x18\x03 \x01(\t\"\x82\x01\n\x0cIndexRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x03 \x01(\t\x12\x13\n\x0bsource_path\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\t\"\x81\x01\n\x0bIndexOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x03 \x01(\t\x12\x13\n\x0bsource_path\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tmsg.proto\x12\x06msgpb2\"\x91\x02\n\x04Task\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cmessage_time\x18\x02 \x01(\x03\x12\x0f\n\x07task_id\x18\x03 \x01(\t\x12(\n\ttask_type\x18\x04 \x01(\x0e\x32\x15.msgpb2.Task.TaskType\x12%\n\x07sources\x18\x05 \x03(\x0b\x32\x14.msgpb2.SourceDetail\x12\x10\n\x08\x64\x65\x61\x64line\x18\x06 \x01(\x03\x12\x11\n\tcancelled\x18\x07 \x01(\x08\x12\x14\n\x0cproject_name\x18\x08 \x01(\t\x12\r\n\x05\x66ocus\x18\t \x01(\t\"3\n\x08TaskType\x12\x12\n\x0eTASK_TYPE_FULL\x10\x00\x12\x13\n\x0fTASK_TYPE_DELTA\x10\x01\"\xb9\x01\n\x0cSourceDetail\x12\x0e\n\x06sha256\x18\x01 \x01(\t\x12\x34\n\x0bsource_type\x18\x02 \x01(\x0e\x32\x1f.msgpb2.SourceDetail.SourceType\x12\x0b\n\x03url\x18\x03 \x01(\t\"V\n\nSourceType\x12\x14\n\x10SOURCE_TYPE_REPO\x10\x00\x12\x1c\n\x18SOURCE_TYPE_FUZZ_TOOLING\x10\x01\x12\x14\n\x10SOURCE_TYPE_DIFF\x10\x02\"*\n\x0cTaskDownload\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"\'\n\tTaskReady\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"2\n\nTaskDelete\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x13\n\x0breceived_at\x18\x02 \x01(\x02\"\x92\x01\n\x0c\x42uildRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\t\x12\x12\n\napply_diff\x18\x07 \x01(\x08\"\x91\x01\n\x0b\x42uildOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x0e\n\x06\x65ngine\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\t\x12\x12\n\napply_diff\x18\x07 \x01(\x08\"^\n\x0fWeightedHarness\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x14\n\x0charness_name\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\"p\n\x05\x43rash\x12#\n\x06target\x18\x01 \x01(\x0b\x32\x13.msgpb2.BuildOutput\x12\x14\n\x0charness_name\x18\x02 \x01(\t\x12\x18\n\x10\x63rash_input_path\x18\x03 \x01(\t\x12\x12\n\nstacktrace\x18\x04 \x01(\t\"G\n\x16\x43onfirmedVulnerability\x12\x1c\n\x05\x63rash\x18\x01 \x01(\x0b\x32\r.msgpb2.Crash\x12\x0f\n\x07vuln_id\x18\x02 \x01(\t\"A\n\x05Patch\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x18\n\x10vulnerability_id\x18\x02 \x01(\t\x12\r\n\x05patch\x18\x03 \x01(\t\"\x82\x01\n\x0cIndexRequest\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x03 \x01(\t\x12\x13\n\x0bsource_path\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\t\"\x81\x01\n\x0bIndexOutput\x12\x14\n\x0cpackage_name\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x0f\n\x07ossfuzz\x18\x03 \x01(\t\x12\x13\n\x0bsource_path\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\x12\x12\n\nbuild_type\x18\x06 \x01(\tb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'msg_pb2', globals())
@@ -21,33 +21,33 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   _TASK._serialized_start=22
-  _TASK._serialized_end=258
-  _TASK_TASKTYPE._serialized_start=207
-  _TASK_TASKTYPE._serialized_end=258
-  _SOURCEDETAIL._serialized_start=261
-  _SOURCEDETAIL._serialized_end=446
-  _SOURCEDETAIL_SOURCETYPE._serialized_start=360
-  _SOURCEDETAIL_SOURCETYPE._serialized_end=446
-  _TASKDOWNLOAD._serialized_start=448
-  _TASKDOWNLOAD._serialized_end=490
-  _TASKREADY._serialized_start=492
-  _TASKREADY._serialized_end=531
-  _TASKDELETE._serialized_start=533
-  _TASKDELETE._serialized_end=583
-  _BUILDREQUEST._serialized_start=586
-  _BUILDREQUEST._serialized_end=732
-  _BUILDOUTPUT._serialized_start=735
-  _BUILDOUTPUT._serialized_end=880
-  _WEIGHTEDHARNESS._serialized_start=882
-  _WEIGHTEDHARNESS._serialized_end=976
-  _CRASH._serialized_start=978
-  _CRASH._serialized_end=1090
-  _CONFIRMEDVULNERABILITY._serialized_start=1092
-  _CONFIRMEDVULNERABILITY._serialized_end=1163
-  _PATCH._serialized_start=1165
-  _PATCH._serialized_end=1230
-  _INDEXREQUEST._serialized_start=1233
-  _INDEXREQUEST._serialized_end=1363
-  _INDEXOUTPUT._serialized_start=1366
-  _INDEXOUTPUT._serialized_end=1495
+  _TASK._serialized_end=295
+  _TASK_TASKTYPE._serialized_start=244
+  _TASK_TASKTYPE._serialized_end=295
+  _SOURCEDETAIL._serialized_start=298
+  _SOURCEDETAIL._serialized_end=483
+  _SOURCEDETAIL_SOURCETYPE._serialized_start=397
+  _SOURCEDETAIL_SOURCETYPE._serialized_end=483
+  _TASKDOWNLOAD._serialized_start=485
+  _TASKDOWNLOAD._serialized_end=527
+  _TASKREADY._serialized_start=529
+  _TASKREADY._serialized_end=568
+  _TASKDELETE._serialized_start=570
+  _TASKDELETE._serialized_end=620
+  _BUILDREQUEST._serialized_start=623
+  _BUILDREQUEST._serialized_end=769
+  _BUILDOUTPUT._serialized_start=772
+  _BUILDOUTPUT._serialized_end=917
+  _WEIGHTEDHARNESS._serialized_start=919
+  _WEIGHTEDHARNESS._serialized_end=1013
+  _CRASH._serialized_start=1015
+  _CRASH._serialized_end=1127
+  _CONFIRMEDVULNERABILITY._serialized_start=1129
+  _CONFIRMEDVULNERABILITY._serialized_end=1200
+  _PATCH._serialized_start=1202
+  _PATCH._serialized_end=1267
+  _INDEXREQUEST._serialized_start=1270
+  _INDEXREQUEST._serialized_end=1400
+  _INDEXOUTPUT._serialized_start=1403
+  _INDEXOUTPUT._serialized_end=1532
 # @@protoc_insertion_point(module_scope)

@@ -16,6 +16,8 @@ message Task {
     repeated SourceDetail sources = 5;
     int64 deadline = 6;
     bool cancelled = 7;
+    string project_name = 8;
+    string focus = 9;
 }
 
 message SourceDetail {

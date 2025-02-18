@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings, CliSubCommand, CliImplicitFlag
+from pydantic_settings import BaseSettings, CliSubCommand
 from pydantic import BaseModel
 from typing import Annotated
 from pydantic import Field
@@ -8,7 +8,6 @@ from pathlib import Path
 class ServeCommand(BaseModel):
     sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
-    mock_mode: CliImplicitFlag[bool] = Field(default=False, description="Mock mode")
     competition_api_url: Annotated[str, Field(default="http://competition-api:8080", description="Competition API URL")]
 
     class Config:
