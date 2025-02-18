@@ -39,6 +39,8 @@ BUILD_MAP_NAME = "build_list"
 class BUILD_TYPES(str, Enum):
     FUZZER = "fuzzer"
     COVERAGE = "coverage"
+    TRACER = "tracer_with_diff"
+    TRACER_NO_DIFF = "tracer_no_diff"
 
 
 # A build map makes it effecient to find for a given task_id + harness a build type

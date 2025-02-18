@@ -7,36 +7,40 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BuildOutput(_message.Message):
-    __slots__ = ["build_type", "engine", "package_name", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_type", "engine", "package_name", "sanitizer", "task_dir", "task_id"]
+    APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    apply_diff: bool
     build_type: str
     engine: str
     package_name: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ...) -> None: ...
+    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ..., apply_diff: bool = ...) -> None: ...
 
 class BuildRequest(_message.Message):
-    __slots__ = ["build_type", "engine", "package_name", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_type", "engine", "package_name", "sanitizer", "task_dir", "task_id"]
+    APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    apply_diff: bool
     build_type: str
     engine: str
     package_name: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ...) -> None: ...
+    def __init__(self, package_name: _Optional[str] = ..., engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ..., apply_diff: bool = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "vuln_id"]

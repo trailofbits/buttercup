@@ -75,6 +75,7 @@ class Scheduler:
                         task_dir=str(challenge_task.task_dir),
                         task_id=task.task_id,
                         build_type=BUILD_TYPES.FUZZER,
+                        apply_diff=True,
                     ),
                     BuildRequest(
                         package_name="libpng",
@@ -83,6 +84,25 @@ class Scheduler:
                         task_dir=str(challenge_task.task_dir),
                         task_id=task.task_id,
                         build_type=BUILD_TYPES.COVERAGE,
+                        apply_diff=True,
+                    ),
+                    BuildRequest(
+                        package_name="libpng",
+                        engine="libfuzzer",
+                        sanitizer="address",
+                        task_dir=str(challenge_task.task_dir),
+                        task_id=task.task_id,
+                        build_type=BUILD_TYPES.TRACER,
+                        apply_diff=False,
+                    ),
+                    BuildRequest(
+                        package_name="libpng",
+                        engine="libfuzzer",
+                        sanitizer="address",
+                        task_dir=str(challenge_task.task_dir),
+                        task_id=task.task_id,
+                        build_type=BUILD_TYPES.TRACER_NO_DIFF,
+                        apply_diff=False,
                     ),
                 ]
             logger.info(f"{challenge_task.get_source_path()} does not exist")

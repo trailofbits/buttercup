@@ -51,6 +51,7 @@ message BuildRequest {
     string task_dir = 4;
     string task_id = 5;
     string build_type = 6;
+    bool apply_diff = 7;
 }
 
 message BuildOutput {
@@ -60,6 +61,7 @@ message BuildOutput {
     string task_dir = 4;
     string task_id = 5;
     string build_type = 6;
+    bool apply_diff = 7;
 }
 
 

@@ -45,6 +45,11 @@ def main():
                 )
 
             with origin_task.get_rw_copy(work_dir=args.wdir) as task:
+                if msg.apply_diff:
+                    logger.info(f"Applying diff for {msg.package_name} {msg.task_id}")
+                    res = task.apply_patch_diff()
+                    if not res:
+                        logger.info(f"No diffs for {msg.package_name} {msg.task_id}")
                 res = task.build_fuzzers_with_cache(
                     engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=args.allow_pull
                 )
@@ -62,6 +67,7 @@ def main():
                         task_dir=str(task.task_dir),
                         task_id=msg.task_id,
                         build_type=msg.build_type,
+                        apply_diff=msg.apply_diff,
                     )
                 )
                 logger.info(f"Acked build request for {msg.package_name}")
