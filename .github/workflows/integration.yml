@@ -33,6 +33,7 @@ jobs:
         run: |
           cp env.template .env
           sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" .env
+          echo "BUTTERCUP_TEST_VULN_DISCOVERY=yes" >> .env # only test vuln discovery
 
       - name: Run CRS
         run: docker compose up -d
@@ -52,6 +53,13 @@ jobs:
           while ! docker compose logs scheduler | grep "Patch accepted: task=.*vuln=.*patch_id=.*status=TypesSubmissionStatus.ACCEPTED"; do
             sleep 10
           done
+      - name: Wait for seed-gen to find PoV
+        timeout-minutes: 1 # low timeout because already waiting for prior steps
+        run: |
+          while ! docker compose logs seed-gen | grep "Valid PoV found:"; do
+            sleep 10
+          done
+
       - name: Collect Docker logs
         run: |
           mkdir -p docker_logs

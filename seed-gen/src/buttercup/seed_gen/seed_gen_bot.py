@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import tempfile
 from pathlib import Path
@@ -88,7 +89,11 @@ class SeedGenBot(TaskLoop):
             out_dir.mkdir()
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
-            task_choice = random.choices([Task.SEED_INIT, Task.VULN_DISCOVERY], k=1)[0]
+            choices = [Task.SEED_INIT, Task.VULN_DISCOVERY]
+            if os.getenv("BUTTERCUP_TEST_VULN_DISCOVERY"):
+                logger.info("Only testing vuln discovery")
+                choices = [Task.VULN_DISCOVERY]
+            task_choice = random.choices(choices, k=1)[0]
             logger.info(f"Running seed-gen task: {task_choice.value}")
             if task_choice == Task.SEED_INIT:
                 do_seed_init(task.package_name, out_dir)
