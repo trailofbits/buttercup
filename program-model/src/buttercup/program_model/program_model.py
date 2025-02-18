@@ -1,7 +1,6 @@
 import logging
 import os
 import stat
-import shutil
 from dataclasses import dataclass, field
 from buttercup.common.queues import (
     RQItem,
@@ -148,10 +147,6 @@ class ProgramModel:
                     f"Successfully stored program {args.package_name} in graphml file: {graphml}"
                 )
 
-                # Copy graphml file
-                graphml_final = Path(td) / "graph.xml"
-                shutil.copy2(graphml, graphml_final)
-
                 logger.debug("Loading graphml file into JanusGraph...")
 
                 # TODO(Evan): This needs to wait until JanusGraph is ready. For some reason, even if the container is running and healthy, it's not ready to accept connections.
@@ -165,7 +160,7 @@ class ProgramModel:
                 g = traversal().withRemote(
                     DriverRemoteConnection(self.graphdb_url, "g")
                 )
-                g.io(str(graphml_final)).read().iterate()
+                g.io(str(graphml)).read().iterate()
 
                 logger.debug("Successfully loaded graphml file into JanusGraph")
 
@@ -179,7 +174,7 @@ class ProgramModel:
         if self.output_queue is None:
             raise ValueError("Output queue is not initialized")
 
-        logger.info("Starting downloader service")
+        logger.info("Starting indexing service")
 
         while True:
             rq_item: Optional[RQItem] = self.task_queue.pop()

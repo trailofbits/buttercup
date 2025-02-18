@@ -84,7 +84,6 @@ services:
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
-      - ./program-model/load_data.groovy:/opt/janusgraph/load_data.groovy
     depends_on:
       graphdb-storage:
         condition: service_healthy
@@ -97,6 +96,8 @@ services:
     ports:
       - "127.0.0.1:9042:9042"
       - "127.0.0.1:9160:9160"
+    volumes:
+      - graphdb_data:/var/lib/cassandra/data
     healthcheck:
       test: ["CMD-SHELL", "nodetool", "status"]
       interval: 10s
@@ -310,4 +311,6 @@ configs:
 
 volumes:
   cache:
+    driver: local
+  graphdb_data:
     driver: local
