@@ -35,6 +35,7 @@ class ProgramModel:
     wdir: Path | None = None
     script_dir: Path | None = None
     kythe_dir: Path | None = None
+    graphdb_url: str = "ws://graphdb:8182/gremlin"
     python: str | None = None
     allow_pull: bool = True
     base_image_url: str = "gcr.io/oss-fuzz"
@@ -162,7 +163,7 @@ class ProgramModel:
                 )
 
                 g = traversal().withRemote(
-                    DriverRemoteConnection("ws://graphdb:8182/gremlin", "g")
+                    DriverRemoteConnection(self.graphdb_url, "g")
                 )
                 g.io(str(graphml_final)).read().iterate()
 

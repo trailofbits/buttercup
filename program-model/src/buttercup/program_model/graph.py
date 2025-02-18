@@ -13,6 +13,16 @@ import base64
 logger = logging.getLogger(__name__)
 
 
+def encode_value(value: bytes) -> str:
+    """Encode a value in base64."""
+    return base64.b64encode(value).decode()
+
+
+def decode_value(value: str) -> bytes:
+    """Decode a value from base64."""
+    return base64.b64decode(value)
+
+
 @dataclass(frozen=True, repr=False)
 class KytheURI:
     """Kythe entries described here: https://kythe.io/docs/kythe-storage.html#_entry"""
@@ -44,6 +54,7 @@ class Node:
     """Node in the graph."""
 
     id: str
+    label: str | None = None
     property: Dict[str, str] = field(default_factory=dict)
 
     def to_graphml(self) -> str:
@@ -91,10 +102,6 @@ class GraphStorage:
         """Check if the entry is an edge."""
         return ent.edge_kind != ""
 
-    def encode_value(self, value: bytes) -> str:
-        """Encode a value in base64."""
-        return base64.b64encode(value).decode()
-
     def convert_node(self, nd: VName) -> Node:
         """Converts a Kythe node to a GraphML node."""
         uri = str(KytheURI.from_vname(nd))
@@ -109,7 +116,7 @@ class GraphStorage:
             for count, entry in enumerate(self.iterate_over_entries(fl)):
                 source_node = self.convert_node(entry.source)
                 key = entry.fact_name
-                value = self.encode_value(entry.fact_value)
+                value = encode_value(entry.fact_value)
 
                 if self.is_edge(entry):
                     target_node = self.convert_node(entry.target)
@@ -125,10 +132,6 @@ class GraphStorage:
                     source_node.property[key] = value
                     self.node_properties.add(key)
                     self.nodes[source_node.id] = source_node
-
-                # TODO(Evan): Remove this after diagnosing graph creation error
-                if count == 1000:
-                    break
         except Exception as e:
             logger.error("Exception occurred: %s", e)
             raise e

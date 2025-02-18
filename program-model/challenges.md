@@ -4,17 +4,13 @@ Details of challenges tested.
 
 ## [libpng](https://github.com/aixcc-finals/example-libpng)
 
-* 2 minutes to write graphml file
-  * Takes about 8 GB of memory
-* Outputted:
-  * Nodes:   424,350
-  * Edges: 3,706,932
+* 6 minutes to write graphml file
 
-* 14 minutes to load into JanusGraph
-  * Takes about 10 GB of memory
-* Outputted:
-  * Nodes:   217,060
-  * Edges: 1,853,466
+* 12 minutes to load into JanusGraph
+
+* Graph dimensions:
+  * Nodes:   291,910
+  * Edges: 1,991,311
 
 **TODO:** Reconcile the differences in the number of nodes and edges.
 

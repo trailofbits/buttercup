@@ -61,3 +61,7 @@ class ProgramModelSettings(ButtercupBaseSettings):
     log_level: Annotated[str, Field(default="info", description="Log level")]
     serve: CliSubCommand[ProgramModelServeCommand]
     process: CliSubCommand[ProgramModelProcessCommand]
+    graphdb_url: Annotated[
+        str,
+        Field(description="Graph database URL", default="ws://graphdb:8182/gremlin"),
+    ]

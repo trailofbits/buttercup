@@ -144,27 +144,16 @@ just lint
   * ClusterFuzz uses Python 3.10.
 * How do I build Kythe?
   * Follow the instructions in [dev.md](dev.md).
+* What are available APIs for this component?
+  * See [api.md](api.md).
 
 ## TODO
 
-* [x] Configure Dockerfiles
-* [x] Modify `cxxwrapper.sh` to match `ccwrapper.sh`
-* [x] Untruncate graph (see `graph.py`)
-* [x] Speed up graph creation (see `program_model.py`)
-* [ ] Create getter/setter APIs
+* [ ] Add getter/setter primitives
 * [ ] Create unit and regression tests
-* [ ] Create one graph per task id
 * [ ] Integrate Program Model with other CRS components
   * [ ] Coverage Tracker
   * [ ] Seed Generator
   * [ ] Patcher
-* [ ] Verify graph creation correctness
-* [ ] Implement more error handling, especially for subprocess runs
-* [ ] Download Kythe `.tar.gz` file automatically from github releases
 * [ ] Debug issue in `oss_fuzz_indexer.py:index_target()` -- outputted `kzip` files contain critical errors
-* [ ] Ensure challenge project is being built and not the oss-fuzz project
-* [ ] Periodically backup the graph database into a graphml file
-* [ ] Figure out how to make `ccwrapper.sh` not break LD detection
-* [ ] Consider periodically removing indexing images for disk space
-* [ ] Add support for `java`
-* [ ] Consider corner cases
+* [ ] Debug issues with Kythe. E.g., `Error: Errors during indexing:unknown argument: '-nocudalib'`
