@@ -473,3 +473,31 @@ def test_no_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess)
                 local_task_dir=old_local_dir,
                 project_name="example_project",
             )
+
+
+def test_get_diffs(challenge_task: ChallengeTask):
+    """Test getting diffs from the source code."""
+    diffs = challenge_task.get_diffs()
+    assert len(diffs) == 2
+    assert diffs[0].name == "patch1.diff"
+    assert diffs[1].name == "patch2.diff"
+
+
+def test_apply_patch_diff(challenge_task: ChallengeTask):
+    """Test applying a patch diff to the source code."""
+    diff_path = challenge_task.get_diff_path() / "patch1.diff"
+    challenge_task.get_diffs = Mock(return_value=[diff_path])
+    with diff_path.open("w") as f:
+        f.write(r"""diff -ru a/my-source/test.txt b/my-source/test.txt
+--- a/my-source/test.txt        2025-02-18 14:27:44.815130716 +0000
++++ b/my-source/test.txt        2025-02-18 14:28:12.061424543 +0000
+@@ -1 +1 @@
+-mock test content
+\ No newline at end of file
++modified content
+\ No newline at end of file
+""")
+
+    challenge_task.apply_patch_diff()
+    assert challenge_task.get_source_path().joinpath("test.txt").exists()
+    assert challenge_task.get_source_path().joinpath("test.txt").read_text() == "modified content"

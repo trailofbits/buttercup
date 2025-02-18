@@ -53,4 +53,4 @@ def get_diffs(path: Path) -> list[Path]:
         # If no .patch or .diff files found, try any file
         diff_files = list(path.rglob("*"))
 
-    return diff_files
+    return sorted(diff_files)

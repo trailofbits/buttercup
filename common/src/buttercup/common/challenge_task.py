@@ -405,6 +405,49 @@ class ChallengeTask:
         cmd = self._get_helper_cmd(*args, e=env, architecture=architecture)
         return self._run_helper_cmd(cmd)
 
+    @read_write_decorator
+    def apply_patch_diff(self) -> bool:
+        """Apply the  patch diff to the source code."""
+        try:
+            # Find all .patch and .diff files in the directory
+            diff_files = self.get_diffs()
+            if not diff_files:
+                return False
+
+            for diff_file in diff_files:
+                logger.info(f"[task {self.task_dir}] Applying diff file: {diff_file}")
+
+                # Use patch command to apply the patch
+                subprocess.run(
+                    [
+                        "patch",
+                        "-p1",
+                        "-d",
+                        str(self.task_dir / self.SRC_DIR),
+                    ],
+                    input=diff_file.read_text(),
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    timeout=10,
+                )
+
+                logger.info(f"[task {self.task_dir}] Successfully applied patch {diff_file}")
+
+            return True
+        except FileNotFoundError as e:
+            logger.error(f"[task {self.task_dir}] File not found: {str(e)}")
+            return False
+        except subprocess.CalledProcessError as e:
+            logger.error(f"[task {self.task_dir}] Error applying diff: {str(e)}")
+            logger.debug(f"[task {self.task_dir}] Error returncode: {e.returncode}")
+            logger.debug(f"[task {self.task_dir}] Error stdout: {e.stdout}")
+            logger.debug(f"[task {self.task_dir}] Error stderr: {e.stderr}")
+            return False
+        except Exception as e:
+            logger.exception(f"[task {self.task_dir}] Error applying diff: {str(e)}")
+            return False
+
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
         """Create a copy of this task in a new writable directory.

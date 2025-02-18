@@ -56,7 +56,7 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         tooling_dir = task_dir / "fuzz-tooling"
         ossfuzz_dir = tooling_dir / "oss-fuzz"
         source_code_dir = src_dir / "source-code"
-        stub_helper_py = tooling_dir / "infra" / "infra" / "helper.py"
+        stub_helper_py = ossfuzz_dir / "infra" / "helper.py"
         src_dir.mkdir(parents=True, exist_ok=True)
         tooling_dir.mkdir(parents=True, exist_ok=True)
         ossfuzz_dir.mkdir(parents=True, exist_ok=True)
