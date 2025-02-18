@@ -1,12 +1,14 @@
 import argparse
+import logging
 import uuid
 import subprocess
 from dataclasses import dataclass
 from buttercup.common import oss_fuzz_tool
 from buttercup.common.oss_fuzz_tool import OSSFuzzTool
-from buttercup.program_model.indexer.entries_into_db import JanusStorage
-
+from buttercup.program_model.kythe import KytheTool, KytheConf
 import os
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,9 +18,8 @@ class IndexTarget:
 
 
 @dataclass
-class Conf:
+class IndexConf:
     scriptdir: str
-    url: str
     python: str
     allow_pull: bool
     base_image_url: str
@@ -26,7 +27,7 @@ class Conf:
 
 
 class Indexer:
-    def __init__(self, conf: Conf):
+    def __init__(self, conf: IndexConf):
         self.conf = conf
 
     def build_image(self, idx_target: IndexTarget):
@@ -39,7 +40,7 @@ class Indexer:
             )
         )
         base_image_name = fzz_tool.build_base_image(idx_target.package_name)
-        print(base_image_name)
+        logger.debug(f"Base image name: {base_image_name}")
         if base_image_name is None:
             return None
 
@@ -85,38 +86,9 @@ class Indexer:
         return output_dir
 
 
-@dataclass
-class KytheConf:
-    kythe_dir: str
-
-
-class KytheTool:
-    def __init__(self, conf: KytheConf):
-        self.conf = conf
-
-    def merge_kythe_output(self, input_dir: str, output_kzip: str):
-        merge_path = os.path.join(self.conf.kythe_dir, "tools/kzip")
-
-        total = []
-        for fl in os.listdir(input_dir):
-            if fl.endswith(".kzip"):
-                total.append(os.path.join(input_dir, fl))
-
-        command = [merge_path, "merge", "--output", output_kzip] + total
-        subprocess.run(command, check=True)
-        return True
-
-    def cxx_index(self, input_kzip: str, output_bin: str):
-        indexer_path = os.path.join(self.conf.kythe_dir, "indexers/cxx_indexer")
-        command = [indexer_path, "-i", input_kzip, "-o", output_bin]
-        subprocess.run(command, check=True)
-        return True
-
-
 def main():
     prsr = argparse.ArgumentParser("oss fuzz builder")
     prsr.add_argument("--scriptdir", required=True)
-    prsr.add_argument("--url", required=True)
     prsr.add_argument("--python", default="python")
     prsr.add_argument("--allow_pull", action="store_true", default=False)
     prsr.add_argument("--base_image_url", required=True)
@@ -126,9 +98,8 @@ def main():
     prsr.add_argument("--kythe_dir", required=True)
     args = prsr.parse_args()
 
-    conf = Conf(
+    conf = IndexConf(
         args.scriptdir,
-        args.url,
         args.python,
         args.allow_pull,
         args.base_image_url,
@@ -137,18 +108,15 @@ def main():
     indexer = Indexer(conf)
     output_dir = indexer.index_target(IndexTarget(args.oss_fuzz_dir, args.package_name))
     if output_dir is None:
-        print("Failed to index target")
+        logger.error("Failed to index target")
         return
-    print(output_dir)
+    logger.debug(f"Output dir: {output_dir}")
     output_id = str(uuid.uuid4())
     ktool = KytheTool(KytheConf(args.kythe_dir))
     merged_kzip = os.path.join(args.wdir, f"kythe_output_merge_{output_id}.kzip")
     ktool.merge_kythe_output(output_dir, merged_kzip)
     cxx_bin = os.path.join(args.wdir, f"kythe_output_cxx_{output_id}.bin")
     ktool.cxx_index(merged_kzip, cxx_bin)
-
-    with open(cxx_bin, "rb") as f:
-        JanusStorage(args.url).process_stream(args.package_name, f)
 
 
 if __name__ == "__main__":

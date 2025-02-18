@@ -1,4 +1,4 @@
-# cxx_wrapper.sh
+# ccwrapper.sh
 #!/bin/bash -e
 
 set -euxo pipefail

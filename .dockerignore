@@ -16,7 +16,10 @@
 **/.pdm-build/
 **/.pdm-python
 **/pdm.lock
-**/Dockerfile
+fuzzer/dockerfiles/runner_image.Dockerfile
+orchestrator/Dockerfile
+patcher/Dockerfile
+seed-gen/Dockerfile
 **/.mypy_cache/
 **/.ruff_cache/
 

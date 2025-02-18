@@ -1,0 +1,9 @@
+task {
+    message_id: "my-message-id"
+    message_time: 123
+    task_type: TASK_TYPE_FULL
+    task_id: "example-libpng"
+    sources {
+        url: "https://github.com/buttercup-project/buttercup"
+    }
+}

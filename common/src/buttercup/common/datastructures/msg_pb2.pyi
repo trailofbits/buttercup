@@ -62,6 +62,38 @@ class Crash(_message.Message):
     target: BuildOutput
     def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_name: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ...) -> None: ...
 
+class IndexOutput(_message.Message):
+    __slots__ = ["build_type", "ossfuzz", "package_name", "sanitizer", "source_path", "task_id"]
+    BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
+    OSSFUZZ_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    SANITIZER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    build_type: str
+    ossfuzz: str
+    package_name: str
+    sanitizer: str
+    source_path: str
+    task_id: str
+    def __init__(self, package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ...) -> None: ...
+
+class IndexRequest(_message.Message):
+    __slots__ = ["build_type", "ossfuzz", "package_name", "sanitizer", "source_path", "task_id"]
+    BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
+    OSSFUZZ_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    SANITIZER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    build_type: str
+    ossfuzz: str
+    package_name: str
+    sanitizer: str
+    source_path: str
+    task_id: str
+    def __init__(self, package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., ossfuzz: _Optional[str] = ..., source_path: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ...) -> None: ...
+
 class Patch(_message.Message):
     __slots__ = ["patch", "task_id", "vulnerability_id"]
     PATCH_FIELD_NUMBER: _ClassVar[int]

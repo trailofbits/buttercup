@@ -90,3 +90,21 @@ message Patch {
     string vulnerability_id = 2;
     string patch = 3;
 }
+
+message IndexRequest {
+    string package_name = 1;
+    string sanitizer = 2;
+    string ossfuzz = 3;
+    string source_path = 4;
+    string task_id = 5;
+    string build_type = 6;
+}
+
+message IndexOutput {
+    string package_name = 1;
+    string sanitizer = 2;
+    string ossfuzz = 3;
+    string source_path = 4;
+    string task_id = 5;
+    string build_type = 6;
+}
