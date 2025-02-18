@@ -36,5 +36,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM runner-base AS runtime
 
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y patch \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder --chown=app:app /fuzzer/.venv /fuzzer/.venv
 ENV PATH=/fuzzer/.venv/bin:$PATH

@@ -437,16 +437,16 @@ class ChallengeTask:
             return True
         except FileNotFoundError as e:
             logger.error(f"[task {self.task_dir}] File not found: {str(e)}")
-            return False
+            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {str(e)}") from e
         except subprocess.CalledProcessError as e:
             logger.error(f"[task {self.task_dir}] Error applying diff: {str(e)}")
             logger.debug(f"[task {self.task_dir}] Error returncode: {e.returncode}")
             logger.debug(f"[task {self.task_dir}] Error stdout: {e.stdout}")
             logger.debug(f"[task {self.task_dir}] Error stderr: {e.stderr}")
-            return False
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
         except Exception as e:
             logger.exception(f"[task {self.task_dir}] Error applying diff: {str(e)}")
-            return False
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
 
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
