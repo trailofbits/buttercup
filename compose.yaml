@@ -73,12 +73,14 @@ services:
       - janusgraph.storage.backend=cql
       - janusgraph.storage.hostname=jg-cassandra
       - janusgraph.storage.cql.keyspace=janusgraph
-      - _JAVA_OPTIONS=-Xms4g -Xmx6g
+      - _JAVA_OPTIONS=-Xmx2g -Xms2g
     healthcheck:
       test: ["CMD-SHELL", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
       interval: 10s
       timeout: 60s
       retries: 4
+    ports:
+      - "127.0.0.1:8182:8182"
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
@@ -92,6 +94,9 @@ services:
     container_name: jg-cassandra
     environment:
       - CASSANDRA_START_RPC=true
+    ports:
+      - "127.0.0.1:9042:9042"
+      - "127.0.0.1:9160:9160"
     healthcheck:
       test: ["CMD-SHELL", "nodetool", "status"]
       interval: 10s
