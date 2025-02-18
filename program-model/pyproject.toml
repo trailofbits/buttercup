@@ -3,15 +3,9 @@ name = "program-model"
 version = "0.1.0"
 description = "Buttercup contextualizer"
 readme = "README.md"
-authors = [
-    {name = "Trail of Bits",email = "opensource@trailofbits"}
-]
-requires-python = ">=3.9,<3.11"
-dependencies = [
-    "gremlinpython==3.7.3",
-    "common",
-    "protobuf (>=3.20, <=3.20.3)",
-]
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
+requires-python = ">=3.10,<3.13"
+dependencies = ["gremlinpython==3.7.3", "common", "protobuf (>=3.20, <=3.20.3)"]
 
 [project.scripts]
 buttercup-program-model = "buttercup.program_model.__cli__:main"
@@ -28,10 +22,10 @@ build-backend = "hatchling.build"
 
 
 [tool.ruff]
-extend-exclude = ["aixcc-kythe", "src/buttercup/program_model/data/kythe/proto/"]
+extend-exclude = [
+    "aixcc-kythe",
+    "src/buttercup/program_model/data/kythe/proto/",
+]
 
 [dependency-groups]
-dev = [
-    "pytest>=8.3.4",
-    "ruff>=0.9.2",
-]
+dev = ["pytest>=8.3.4", "ruff>=0.9.2"]
