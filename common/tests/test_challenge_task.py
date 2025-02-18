@@ -488,9 +488,9 @@ def test_apply_patch_diff(challenge_task: ChallengeTask):
     diff_path = challenge_task.get_diff_path() / "patch1.diff"
     challenge_task.get_diffs = Mock(return_value=[diff_path])
     with diff_path.open("w") as f:
-        f.write(r"""diff -ru a/my-source/test.txt b/my-source/test.txt
---- a/my-source/test.txt        2025-02-18 14:27:44.815130716 +0000
-+++ b/my-source/test.txt        2025-02-18 14:28:12.061424543 +0000
+        f.write(r"""diff -ru a/test.txt b/test.txt
+--- a/test.txt        2025-02-18 14:27:44.815130716 +0000
++++ b/test.txt        2025-02-18 14:28:12.061424543 +0000
 @@ -1 +1 @@
 -mock test content
 \ No newline at end of file

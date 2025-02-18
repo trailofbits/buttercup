@@ -423,7 +423,7 @@ class ChallengeTask:
                         "patch",
                         "-p1",
                         "-d",
-                        str(self.task_dir / self.SRC_DIR),
+                        str(self.get_source_path()),
                     ],
                     input=diff_file.read_text(),
                     text=True,
