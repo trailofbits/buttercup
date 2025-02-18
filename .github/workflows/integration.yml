@@ -32,8 +32,7 @@ jobs:
       - name: Configure .env file
         run: |
           cp env.template .env
-          sed -i "s|AZURE_API_BASE=.*|AZURE_API_BASE=${{ secrets.AZURE_API_BASE }}|" .env
-          sed -i "s|AZURE_API_KEY=.*|AZURE_API_KEY=${{ secrets.AZURE_API_KEY }}|" .env
+          sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" .env
 
       - name: Run CRS
         run: docker compose up -d

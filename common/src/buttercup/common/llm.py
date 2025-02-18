@@ -18,6 +18,14 @@ class ButtercupLLM(Enum):
 
     AZURE_GPT_4O = "azure-gpt-4o"
     AZURE_GPT_4O_MINI = "azure-gpt-4o-mini"
+    AZURE_O3_MINI = "azure-o3-mini"
+    AZURE_O1 = "azure-o1"
+    OPENAI_GPT_4O = "openai-gpt-4o"
+    OPENAI_GPT_4O_MINI = "openai-gpt-4o-mini"
+    OPENAI_O3_MINI = "openai-o3-mini"
+    OPENAI_O1 = "openai-o1"
+    CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
+    CLAUDE_3_5_HAIKU = "claude-3.5-haiku"
 
 
 @functools.cache
@@ -78,7 +86,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
 def create_default_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration."""
     return create_llm(
-        model_name=ButtercupLLM.AZURE_GPT_4O.value,
+        model_name=ButtercupLLM.OPENAI_GPT_4O.value,
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,

@@ -284,7 +284,7 @@ class SWEAgent:
         )
         fallback_llms: list[Runnable] = []
         for fb_model in [
-            ButtercupLLM.AZURE_GPT_4O_MINI,
+            ButtercupLLM.OPENAI_GPT_4O_MINI,
         ]:
             fallback_llms.append(
                 create_llm(model_name=fb_model.value, temperature=0.1).configurable_fields(
