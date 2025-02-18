@@ -14,25 +14,20 @@
 
 import unittest
 
-from buttercup.orchestrator.competition_api_client.api.sarif_api import SarifApi
+from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture
 
+class TestTypesArchitecture(unittest.TestCase):
+    """TypesArchitecture unit test stubs"""
 
-class TestSarifApi(unittest.TestCase):
-    """SarifApi unit test stubs"""
-
-    def setUp(self) -> None:
-        self.api = SarifApi()
-
-    def tearDown(self) -> None:
+    def setUp(self):
         pass
 
-    def test_v1_task_task_id_sarif_sarif_id_post(self) -> None:
-        """Test case for v1_task_task_id_sarif_sarif_id_post
-
-        Submit Sarif Assessment
-        """
+    def tearDown(self):
         pass
 
+    def testTypesArchitecture(self):
+        """Test TypesArchitecture"""
+        # inst = TypesArchitecture()
 
 if __name__ == '__main__':
     unittest.main()

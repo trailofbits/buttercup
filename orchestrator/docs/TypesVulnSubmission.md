@@ -5,11 +5,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**architecture** | **str** |  | 
-**data_file** | **str** | 2mb max size | 
-**harness_name** | **str** |  | 
-**sanitizer** | **str** |  | 
-**sarif** | **object** | SARIF Report compliant with \&quot;https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json\&quot; | [optional] 
+**architecture** | [**TypesArchitecture**](TypesArchitecture.md) |  | 
+**data_file** | **str** | Base64 encoded vuln trigger  2MiB max size before Base64 encoding | 
+**harness_name** | **str** | Fuzz Tooling Harness Name that exercises this vuln  4KiB max size | 
+**sanitizer** | **str** | Fuzz Tooling Sanitizer that exercises this vuln  4KiB max size | 
+**sarif** | **object** | Optional SARIF Report compliant with the provided versioned SARIF schema | [optional] 
 
 ## Example
 

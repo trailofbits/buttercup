@@ -9,6 +9,7 @@ competition_api_client/api_response.py
 competition_api_client/configuration.py
 competition_api_client/exceptions.py
 competition_api_client/models/__init__.py
+competition_api_client/models/types_architecture.py
 competition_api_client/models/types_assessment.py
 competition_api_client/models/types_error.py
 competition_api_client/models/types_patch_submission.py
@@ -22,6 +23,7 @@ competition_api_client/py.typed
 competition_api_client/rest.py
 docs/PatchApi.md
 docs/SarifApi.md
+docs/TypesArchitecture.md
 docs/TypesAssessment.md
 docs/TypesError.md
 docs/TypesPatchSubmission.md
@@ -35,6 +37,7 @@ docs/VulnerabilityApi.md
 test/__init__.py
 test/test_patch_api.py
 test/test_sarif_api.py
+test/test_types_architecture.py
 test/test_types_assessment.py
 test/test_types_error.py
 test/test_types_patch_submission.py
