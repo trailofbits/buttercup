@@ -35,7 +35,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM runtime-base AS runtime
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
-COPY --from=builder /app/seed-gen/python-3.12.0.wasm /app/seed-gen/python-3.12.0.wasm
 WORKDIR /app/seed-gen
 ENV PATH=/app/seed-gen/.venv/bin:$PATH
 
