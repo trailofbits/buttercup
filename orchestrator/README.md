@@ -75,3 +75,11 @@ Run the tests:
 ```shell
 pytest
 ```
+
+To update the apis to a newer version, run the following script:
+```shell
+make update-apis
+```
+from the orchestrator directory.
+
+
