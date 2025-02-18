@@ -14,28 +14,28 @@ ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     UV_PYTHON=python3.10
 
-WORKDIR /program-model
+WORKDIR /app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=/common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=/common/pyproject.toml \
     --mount=type=bind,source=common/README.md,target=/common/README.md \
-    --mount=type=bind,source=program-model/uv.lock,target=/program-model/uv.lock \
-    --mount=type=bind,source=program-model/pyproject.toml,target=/program-model/pyproject.toml \
-    --mount=type=bind,source=program-model/README.md,target=/program-model/README.md \
-    cd /program-model && uv sync --frozen --no-install-project --no-editable
+    --mount=type=bind,source=program-model/uv.lock,target=/app/uv.lock \
+    --mount=type=bind,source=program-model/pyproject.toml,target=/app/pyproject.toml \
+    --mount=type=bind,source=program-model/README.md,target=/app/README.md \
+    cd /app && uv sync --frozen --no-install-project --no-editable
 
 COPY ./common /common
-COPY ./program-model /program-model
+COPY ./program-model /app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
 
 FROM base AS runtime
-WORKDIR /program-model
+WORKDIR /app
 
-COPY ./program-model/scripts /program-model/scripts
+COPY ./program-model/scripts /app/scripts
 
-COPY --from=builder --chown=app:app /program-model/.venv /program-model/.venv
-ENV PATH=/program-model/.venv/bin:$PATH
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+ENV PATH=/app/.venv/bin:$PATH
