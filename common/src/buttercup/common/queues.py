@@ -40,12 +40,7 @@ class QueueNames(str, Enum):
 class GroupNames(str, Enum):
     BUILDER_BOT = "build_bot_consumers"
     ORCHESTRATOR = "orchestrator_group"
-    DOWNLOAD_TASKS = "orchestrator_download_tasks_group"
-    SCHEDULER_READY_TASKS = "scheduler_ready_tasks_group"
-    SCHEDULER_DELETE_TASK = "scheduler_delete_task_group"
-    SCHEDULER_BUILD_OUTPUT = "scheduler_build_output_group"
-    UNIQUE_VULNERABILITIES = "unique_vulnerabilities_group"
-    CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_group"
+    PATCHER = "patcher_group"
     INDEX = "index_group"
 
 
@@ -274,19 +269,19 @@ class QueueFactory:
                 QueueNames.BUILD_OUTPUT,
                 BuildOutput,
                 BUILD_OUTPUT_TASK_TIMEOUT_MS,
-                [GroupNames.ORCHESTRATOR, GroupNames.SCHEDULER_BUILD_OUTPUT],
+                [GroupNames.ORCHESTRATOR],
             ),
             QueueNames.DOWNLOAD_TASKS: QueueConfig(
                 QueueNames.DOWNLOAD_TASKS,
                 TaskDownload,
                 DOWNLOAD_TASK_TIMEOUT_MS,
-                [GroupNames.DOWNLOAD_TASKS],
+                [GroupNames.ORCHESTRATOR],
             ),
             QueueNames.READY_TASKS: QueueConfig(
                 QueueNames.READY_TASKS,
                 TaskReady,
                 READY_TASK_TIMEOUT_MS,
-                [GroupNames.SCHEDULER_READY_TASKS],
+                [GroupNames.ORCHESTRATOR],
             ),
             QueueNames.CRASH: QueueConfig(
                 QueueNames.CRASH,
@@ -298,19 +293,19 @@ class QueueFactory:
                 QueueNames.UNIQUE_VULNERABILITIES,
                 Crash,
                 UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS,
-                [GroupNames.UNIQUE_VULNERABILITIES],
+                [GroupNames.ORCHESTRATOR],
             ),
             QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
                 QueueNames.CONFIRMED_VULNERABILITIES,
                 ConfirmedVulnerability,
                 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS,
-                [GroupNames.CONFIRMED_VULNERABILITIES],
+                [GroupNames.PATCHER],
             ),
             QueueNames.DELETE_TASK: QueueConfig(
                 QueueNames.DELETE_TASK,
                 TaskDelete,
                 DELETE_TASK_TIMEOUT_MS,
-                [GroupNames.SCHEDULER_DELETE_TASK],
+                [GroupNames.ORCHESTRATOR],
             ),
             QueueNames.PATCHES: QueueConfig(
                 QueueNames.PATCHES,
