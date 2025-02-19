@@ -84,7 +84,6 @@ services:
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
-      - ./program-model/load_data.groovy:/opt/janusgraph/load_data.groovy
     depends_on:
       graphdb-storage:
         condition: service_healthy
@@ -97,6 +96,8 @@ services:
     ports:
       - "127.0.0.1:9042:9042"
       - "127.0.0.1:9160:9160"
+    volumes:
+      - graphdb_data:/var/lib/cassandra/data
     healthcheck:
       test: ["CMD-SHELL", "nodetool", "status"]
       interval: 10s
@@ -165,6 +166,23 @@ services:
       dind:
         condition: service_started
 
+  tracer-bot:
+    command: ["buttercup-tracer-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
+    build:
+      context: ./
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+    volumes:
+      - ./crs_scratch:/crs_scratch
+      - ./tasks_storage:/tasks_storage
+    environment:
+      # These values will be modified automatically at competition time
+      - DOCKER_HOST=tcp://dind:2375
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
+
   fuzzer-bot:
     build:
       context: ./
@@ -225,7 +243,6 @@ services:
       - BUTTERCUP_SCHEDULER_SERVE__COMPETITION_API_URL=http://competition-api:1323
       - BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR=/tasks_storage
       - BUTTERCUP_SCHEDULER_SCRATCH_DIR=/crs_scratch
-      - BUTTERCUP_SCHEDULER_SERVE__MOCK_MODE=true
     depends_on:
       redis:
         condition: service_healthy
@@ -244,6 +261,9 @@ services:
       - BUTTERCUP_LITELLM_HOSTNAME=http://litellm:8080
       - DOCKER_HOST=tcp://dind:2375
       - LOG_LEVEL=DEBUG
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
     depends_on:
       redis:
         condition: service_healthy
@@ -268,6 +288,9 @@ services:
       - BUTTERCUP_PATCHER_MOCK_MODE=true
       - BUTTERCUP_LITELLM_KEY=sk-1234
       - BUTTERCUP_LITELLM_HOSTNAME=http://litellm:8080
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - DOCKER_HOST=tcp://dind:2375
     depends_on:
       redis:
@@ -314,4 +337,6 @@ configs:
 
 volumes:
   cache:
+    driver: local
+  graphdb_data:
     driver: local

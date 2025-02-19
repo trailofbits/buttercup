@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, Callable
 from os import PathLike
 import logging
+import shutil
 import uuid
 import subprocess
 from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
@@ -22,18 +23,29 @@ class ChallengeTaskError(Exception):
 @dataclass
 class CommandResult:
     success: bool
+    returncode: int | None = None
     error: bytes | None = None
     output: bytes | None = None
+
+
+@dataclass
+class ReproduceResult:
+    command_result: CommandResult
 
     def stacktrace(self) -> str | None:
         """Build clusterfuzz-compatible stacktrace"""
         # from clusterfuzz libfuzzer engine
         MAX_OUTPUT_LEN = 1 * 1024 * 1024  # 1 MB
-        if self.output:
-            output_bytes = self.output[:MAX_OUTPUT_LEN]
+        if self.command_result.output:
+            output_bytes = self.command_result.output[:MAX_OUTPUT_LEN]
             output = output_bytes.decode("utf-8", errors="ignore")
             return output
         return None
+
+    # This is inteneded to encapsulate heuristics for determining if a run caused a crash
+    # Could grep for strings from sanitizers as well
+    def did_crash(self) -> bool:
+        return self.command_result.returncode is not None and self.command_result.returncode != 0
 
 
 @dataclass
@@ -218,17 +230,21 @@ class ChallengeTask:
 
             return CommandResult(
                 success=returncode == 0,
+                returncode=returncode,
                 error=stderr,
                 output=stdout,
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(
-                success=False, error=e.stderr if e.stderr else None, output=e.stdout if e.stdout else None
+                success=False,
+                returncode=None,
+                error=e.stderr if e.stderr else None,
+                output=e.stdout if e.stdout else None,
             )
         except Exception as e:
             logger.exception(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
-            return CommandResult(success=False, error=str(e), output=None)
+            return CommandResult(success=False, returncode=None, error=str(e), output=None)
 
     @read_write_decorator
     def build_image(
@@ -353,7 +369,7 @@ class ChallengeTask:
         *,
         architecture: str | None = None,
         env: Dict[str, str] | None = None,
-    ) -> CommandResult:
+    ) -> ReproduceResult:
         logger.info(
             "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
             self.project_name,
@@ -373,7 +389,7 @@ class ChallengeTask:
             e=env,
         )
 
-        return self._run_helper_cmd(cmd)
+        return ReproduceResult(self._run_helper_cmd(cmd))
 
     @read_write_decorator
     def run_coverage(
@@ -406,13 +422,16 @@ class ChallengeTask:
         return self._run_helper_cmd(cmd)
 
     @read_write_decorator
-    def apply_patch_diff(self) -> bool:
+    def apply_patch_diff(self, diff_file: Path | None = None) -> bool:
         """Apply the  patch diff to the source code."""
         try:
-            # Find all .patch and .diff files in the directory
-            diff_files = self.get_diffs()
-            if not diff_files:
-                return False
+            if diff_file is None:
+                # Find all .patch and .diff files in the directory
+                diff_files = self.get_diffs()
+                if not diff_files:
+                    return False
+            else:
+                diff_files = [diff_file]
 
             for diff_file in diff_files:
                 logger.info(f"[task {self.task_dir}] Applying diff file: {diff_file}")
@@ -510,3 +529,18 @@ class ChallengeTask:
                 suffix = None
 
         self.local_task_dir = new_local_task_dir
+
+    @read_write_decorator
+    def restore(self) -> None:
+        """Restore the task from the original read-only task directory (if
+        different from the local task directory)."""
+        if self.read_only_task_dir == self.local_task_dir:
+            raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
+
+        logger.info(f"Restoring task from {self.read_only_task_dir} to {self.local_task_dir}")
+        if self.local_task_dir.exists():
+            logger.info(f"Removing local task directory {self.local_task_dir}")
+            shutil.rmtree(self.local_task_dir)
+
+        logger.info(f"Restoring task {self.read_only_task_dir} to {self.local_task_dir}")
+        copyanything(self.read_only_task_dir, self.local_task_dir, symlinks=True)

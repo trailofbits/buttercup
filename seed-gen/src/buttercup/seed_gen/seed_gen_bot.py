@@ -6,7 +6,7 @@ from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, ReproduceResult
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
@@ -46,9 +46,8 @@ class SeedGenBot(TaskLoop):
         with chall_task.get_rw_copy(work_dir=temp_dir) as rw_task:
             for pov in out_dir.iterdir():
                 try:
-                    pov_output = rw_task.reproduce_pov(task.harness_name, pov)
-                    # TODO: is this the right way to check if the PoV is valid?
-                    if not pov_output.success:
+                    pov_output: ReproduceResult = rw_task.reproduce_pov(task.harness_name, pov)
+                    if pov_output.did_crash():
                         logger.info(f"Valid PoV found: {pov}")
                         stacktrace = pov_output.stacktrace()
                         if stacktrace is None:
@@ -73,8 +72,8 @@ class SeedGenBot(TaskLoop):
                         self.crash_queue.push(crash)
                     else:
                         logger.info(f"Not valid PoV: {pov}")
-                    logger.debug("PoV stdout: %s", pov_output.output)
-                    logger.debug("PoV stderr: %s", pov_output.error)
+                    logger.debug("PoV stdout: %s", pov_output.command_result.output)
+                    logger.debug("PoV stderr: %s", pov_output.command_result.error)
                 except ChallengeTaskError as exc:
                     logger.error(f"Error reproducing PoV {pov}: {exc}")
 

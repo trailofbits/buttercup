@@ -1,6 +1,6 @@
 from pathlib import Path
 from buttercup.patcher.patcher import Patcher
-from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash
 import pytest
 
 
@@ -45,17 +45,20 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
 
     vuln = ConfirmedVulnerability(
         vuln_id="test-vuln-1",
-        crash=Crash(
-            target=BuildOutput(
-                task_id="test-task-id-1",
-                package_name="libpng",
-                engine="test-engine-1",
-                sanitizer="test-sanitizer-1",
-                task_dir=str(tasks_dir / "test-task-id-1"),
+        crash=TracedCrash(
+            crash=Crash(
+                target=BuildOutput(
+                    task_id="test-task-id-1",
+                    package_name="libpng",
+                    engine="test-engine-1",
+                    sanitizer="test-sanitizer-1",
+                    task_dir=str(tasks_dir / "test-task-id-1"),
+                ),
+                harness_name="test-harness-name-1",
+                crash_input_path="test-crash-input-path-1",
+                stacktrace="test-stacktrace-1",
             ),
-            harness_name="test-harness-name-1",
-            crash_input_path="test-crash-input-path-1",
-            stacktrace="test-stacktrace-1",
+            tracer_stacktrace="test-tracer-stacktrace-1",
         ),
     )
 
@@ -69,6 +72,6 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
     assert patch_input.project_name == "libpng"
     assert patch_input.harness_name == "test-harness-name-1"
     assert patch_input.pov == Path("test-crash-input-path-1")
-    assert patch_input.sanitizer_output == "test-stacktrace-1"
+    assert patch_input.sanitizer_output == "test-tracer-stacktrace-1"
     assert patch_input.engine == "test-engine-1"
     assert patch_input.sanitizer == "test-sanitizer-1"

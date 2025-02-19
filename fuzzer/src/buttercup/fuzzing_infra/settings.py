@@ -32,6 +32,10 @@ class WorkerSettings(ButtercupBaseSettings):
     log_level: Annotated[str, Field(default="INFO")]
 
 
+class TracerSettings(WorkerSettings):
+    pass
+
+
 class FuzzerBotSettings(WorkerSettings):
     timeout: Annotated[int, Field(default="")]
 

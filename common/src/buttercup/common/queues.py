@@ -15,6 +15,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     ConfirmedVulnerability,
     IndexRequest,
     IndexOutput,
+    TracedCrash,
 )
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
@@ -27,7 +28,6 @@ class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
     CRASH = "fuzzer_crash_queue"
-    UNIQUE_VULNERABILITIES = "unique_vulnerabilities_queue"
     CONFIRMED_VULNERABILITIES = "confirmed_vulnerabilities_queue"
     DOWNLOAD_TASKS = "orchestrator_download_tasks_queue"
     READY_TASKS = "tasks_ready_queue"
@@ -35,6 +35,7 @@ class QueueNames(str, Enum):
     PATCHES = "patches_queue"
     INDEX = "index_queue"
     INDEX_OUTPUT = "index_output_queue"
+    TRACED_VULNERABILITIES = "traced_vulnerabilities_queue"
 
 
 class GroupNames(str, Enum):
@@ -42,6 +43,7 @@ class GroupNames(str, Enum):
     ORCHESTRATOR = "orchestrator_group"
     PATCHER = "patcher_group"
     INDEX = "index_group"
+    TRACER_BOT = "tracer_bot_group"
 
 
 class HashNames(str, Enum):
@@ -53,12 +55,15 @@ BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
 READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
 DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
-CRASH_TASK_TIMEOUT_MS = 10 * 60 * 1000
+# Shorter timeout for crashes we want to retry builds fairly quickly since
+# all we do in these tasks is reproduce
+CRASH_TASK_TIMEOUT_MS = 4 * 60 * 1000
 PATCH_TASK_TIMEOUT_MS = 10 * 60 * 1000
-UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
 INDEX_TASK_TIMEOUT_MS = 10 * 60 * 1000
 INDEX_OUTPUT_TASK_TIMEOUT_MS = 10 * 60 * 1000
+TRACED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
+
 logger = logging.getLogger(__name__)
 
 
@@ -287,12 +292,12 @@ class QueueFactory:
                 QueueNames.CRASH,
                 Crash,
                 CRASH_TASK_TIMEOUT_MS,
-                [GroupNames.ORCHESTRATOR],
+                [GroupNames.TRACER_BOT],
             ),
-            QueueNames.UNIQUE_VULNERABILITIES: QueueConfig(
-                QueueNames.UNIQUE_VULNERABILITIES,
-                Crash,
-                UNIQUE_VULNERABILITIES_TASK_TIMEOUT_MS,
+            QueueNames.TRACED_VULNERABILITIES: QueueConfig(
+                QueueNames.TRACED_VULNERABILITIES,
+                TracedCrash,
+                TRACED_VULNERABILITIES_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
             QueueNames.CONFIRMED_VULNERABILITIES: QueueConfig(
@@ -355,8 +360,8 @@ class QueueFactory:
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.UNIQUE_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
-    ) -> ReliableQueue[Crash]: ...
+        self, queue_name: Literal[QueueNames.TRACED_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[TracedCrash]: ...
 
     @overload
     def create(

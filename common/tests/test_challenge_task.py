@@ -204,7 +204,7 @@ def test_reproduce_pov(challenge_task: ChallengeTask, mock_subprocess):
         crash_path=pov_file,
     )
 
-    assert result.success is True
+    assert result.did_crash() is False
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
     assert args[0][:-1] == ["python", "infra/helper.py", "reproduce", "example_project", "fuzz_target"]
@@ -501,3 +501,30 @@ def test_apply_patch_diff(challenge_task: ChallengeTask):
     challenge_task.apply_patch_diff()
     assert challenge_task.get_source_path().joinpath("test.txt").exists()
     assert challenge_task.get_source_path().joinpath("test.txt").read_text() == "modified content"
+
+
+def test_restore_task(challenge_task_readonly: ChallengeTask):
+    """Test restoring a challenge task."""
+    with patch.object(ChallengeTask, "_check_python_path"):
+        with challenge_task_readonly.get_rw_copy() as local_task:
+            local_task.get_source_path().joinpath("a.txt").write_text("a")
+            local_task.get_source_path().joinpath("b.txt").write_text("b")
+            assert local_task.get_source_path().joinpath("a.txt").exists()
+
+            local_task.restore()
+            assert not local_task.get_source_path().joinpath("a.txt").exists()
+            assert not local_task.get_source_path().joinpath("b.txt").exists()
+            assert local_task.get_source_path().joinpath("test.txt").exists()
+
+
+def test_restore_task_same_dir(challenge_task: ChallengeTask):
+    """Test restoring a challenge task to the same directory."""
+    with patch.object(ChallengeTask, "_check_python_path"):
+        with challenge_task.get_rw_copy() as local_task:
+            assert local_task.task_dir == local_task.read_only_task_dir
+            local_task.get_source_path().joinpath("b.txt").write_text("b")
+
+            with pytest.raises(
+                ChallengeTaskError, match="Task cannot be restored, it doesn't have a local task directory"
+            ):
+                local_task.restore()

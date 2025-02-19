@@ -16,6 +16,8 @@ message Task {
     repeated SourceDetail sources = 5;
     int64 deadline = 6;
     bool cancelled = 7;
+    string project_name = 8;
+    string focus = 9;
 }
 
 message SourceDetail {
@@ -80,8 +82,13 @@ message Crash {
     string stacktrace = 4;
 } 
 
-message ConfirmedVulnerability {
+message TracedCrash {
     Crash crash = 1;
+    string tracer_stacktrace = 2;
+}
+
+message ConfirmedVulnerability {
+    TracedCrash crash = 1;
     string vuln_id = 2;
 }
 

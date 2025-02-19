@@ -25,6 +25,8 @@ def _api_task_to_proto(task: Task) -> list[TaskProto]:
         task_proto.message_id = task.message_id
         task_proto.message_time = task.message_time
         task_proto.task_id = task_detail.task_id.lower()
+        task_proto.project_name = task_detail.project_name
+        task_proto.focus = task_detail.focus
         match task_detail.type:
             case TaskType.TaskTypeFull:
                 task_proto.task_type = TaskProto.TaskType.TASK_TYPE_FULL

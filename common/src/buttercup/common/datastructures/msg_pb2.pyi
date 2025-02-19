@@ -46,9 +46,9 @@ class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "vuln_id"]
     CRASH_FIELD_NUMBER: _ClassVar[int]
     VULN_ID_FIELD_NUMBER: _ClassVar[int]
-    crash: Crash
+    crash: TracedCrash
     vuln_id: str
-    def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "harness_name", "stacktrace", "target"]
@@ -120,13 +120,15 @@ class SourceDetail(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
 
 class Task(_message.Message):
-    __slots__ = ["cancelled", "deadline", "message_id", "message_time", "sources", "task_id", "task_type"]
+    __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "project_name", "sources", "task_id", "task_type"]
     class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     CANCELLED_FIELD_NUMBER: _ClassVar[int]
     DEADLINE_FIELD_NUMBER: _ClassVar[int]
+    FOCUS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_TIME_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     TASK_TYPE_DELTA: Task.TaskType
@@ -134,12 +136,14 @@ class Task(_message.Message):
     TASK_TYPE_FULL: Task.TaskType
     cancelled: bool
     deadline: int
+    focus: str
     message_id: str
     message_time: int
+    project_name: str
     sources: _containers.RepeatedCompositeFieldContainer[SourceDetail]
     task_id: str
     task_type: Task.TaskType
-    def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., cancelled: bool = ...) -> None: ...
+    def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., cancelled: bool = ..., project_name: _Optional[str] = ..., focus: _Optional[str] = ...) -> None: ...
 
 class TaskDelete(_message.Message):
     __slots__ = ["received_at", "task_id"]
@@ -160,6 +164,14 @@ class TaskReady(_message.Message):
     TASK_FIELD_NUMBER: _ClassVar[int]
     task: Task
     def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...
+
+class TracedCrash(_message.Message):
+    __slots__ = ["crash", "tracer_stacktrace"]
+    CRASH_FIELD_NUMBER: _ClassVar[int]
+    TRACER_STACKTRACE_FIELD_NUMBER: _ClassVar[int]
+    crash: Crash
+    tracer_stacktrace: str
+    def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., tracer_stacktrace: _Optional[str] = ...) -> None: ...
 
 class WeightedHarness(_message.Message):
     __slots__ = ["harness_name", "package_name", "task_id", "weight"]
