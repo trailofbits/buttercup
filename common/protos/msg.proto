@@ -82,8 +82,13 @@ message Crash {
     string stacktrace = 4;
 } 
 
-message ConfirmedVulnerability {
+message TracedCrash {
     Crash crash = 1;
+    string tracer_stacktrace = 2;
+}
+
+message ConfirmedVulnerability {
+    TracedCrash crash = 1;
     string vuln_id = 2;
 }
 

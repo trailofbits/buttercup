@@ -23,18 +23,29 @@ class ChallengeTaskError(Exception):
 @dataclass
 class CommandResult:
     success: bool
+    returncode: int | None = None
     error: bytes | None = None
     output: bytes | None = None
+
+
+@dataclass
+class ReproduceResult:
+    command_result: CommandResult
 
     def stacktrace(self) -> str | None:
         """Build clusterfuzz-compatible stacktrace"""
         # from clusterfuzz libfuzzer engine
         MAX_OUTPUT_LEN = 1 * 1024 * 1024  # 1 MB
-        if self.output:
-            output_bytes = self.output[:MAX_OUTPUT_LEN]
+        if self.command_result.output:
+            output_bytes = self.command_result.output[:MAX_OUTPUT_LEN]
             output = output_bytes.decode("utf-8", errors="ignore")
             return output
         return None
+
+    # This is inteneded to encapsulate heuristics for determining if a run caused a crash
+    # Could grep for strings from sanitizers as well
+    def did_crash(self) -> bool:
+        return self.command_result.returncode is not None and self.command_result.returncode != 0
 
 
 @dataclass
@@ -219,17 +230,21 @@ class ChallengeTask:
 
             return CommandResult(
                 success=returncode == 0,
+                returncode=returncode,
                 error=stderr,
                 output=stdout,
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(
-                success=False, error=e.stderr if e.stderr else None, output=e.stdout if e.stdout else None
+                success=False,
+                returncode=None,
+                error=e.stderr if e.stderr else None,
+                output=e.stdout if e.stdout else None,
             )
         except Exception as e:
             logger.exception(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
-            return CommandResult(success=False, error=str(e), output=None)
+            return CommandResult(success=False, returncode=None, error=str(e), output=None)
 
     @read_write_decorator
     def build_image(
@@ -354,7 +369,7 @@ class ChallengeTask:
         *,
         architecture: str | None = None,
         env: Dict[str, str] | None = None,
-    ) -> CommandResult:
+    ) -> ReproduceResult:
         logger.info(
             "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
             self.project_name,
@@ -374,7 +389,7 @@ class ChallengeTask:
             e=env,
         )
 
-        return self._run_helper_cmd(cmd)
+        return ReproduceResult(self._run_helper_cmd(cmd))
 
     @read_write_decorator
     def run_coverage(

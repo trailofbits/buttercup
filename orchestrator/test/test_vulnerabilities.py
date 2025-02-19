@@ -3,7 +3,7 @@ import uuid
 from unittest.mock import Mock, patch
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from buttercup.common.queues import RQItem, QueueFactory
-from buttercup.common.datastructures.msg_pb2 import Crash, BuildOutput
+from buttercup.common.datastructures.msg_pb2 import Crash, BuildOutput, TracedCrash
 from buttercup.orchestrator.competition_api_client.models.types_vuln_submission_response import (
     TypesVulnSubmissionResponse,
 )
@@ -23,19 +23,19 @@ def mock_api_client():
 @pytest.fixture
 def mock_queues():
     crash_queue = Mock()
-    unique_vulnerabilities_queue = Mock()
+    traced_vulnerabilities_queue = Mock()
     confirmed_vulnerabilities_queue = Mock()
 
     # Mock QueueFactory
     queue_factory = Mock(spec=QueueFactory)
-    queue_factory.create.side_effect = [crash_queue, unique_vulnerabilities_queue, confirmed_vulnerabilities_queue]
+    queue_factory.create.side_effect = [crash_queue, traced_vulnerabilities_queue, confirmed_vulnerabilities_queue]
 
     # Create a patch for QueueFactory
     with patch("buttercup.orchestrator.scheduler.vulnerabilities.QueueFactory", return_value=queue_factory):
         yield {
             "factory": queue_factory,
             "crash": crash_queue,
-            "unique": unique_vulnerabilities_queue,
+            "traced": traced_vulnerabilities_queue,
             "confirmed": confirmed_vulnerabilities_queue,
         }
 
@@ -50,7 +50,10 @@ def sample_crash():
     crash.target.CopyFrom(target)
     crash.harness_name = "test_harness"
     crash.crash_input_path = "test/crash/input.txt"
-    return crash
+    annotated_crash = TracedCrash()
+    annotated_crash.crash.CopyFrom(crash)
+    annotated_crash.tracer_stacktrace = "test_stacktrace"
+    return annotated_crash
 
 
 @pytest.fixture
@@ -64,7 +67,7 @@ def vulnerabilities(mock_redis, mock_api_client, mock_queues):
 
     # Manually set the queues to match our mocks
     vuln.crash_queue = mock_queues["crash"]
-    vuln.unique_vulnerabilities_queue = mock_queues["unique"]
+    vuln.traced_vulnerabilities_queue = mock_queues["traced"]
     vuln.confirmed_vulnerabilities_queue = mock_queues["confirmed"]
 
     # Mock task_registry methods directly instead of relying on Redis
@@ -76,37 +79,11 @@ def vulnerabilities(mock_redis, mock_api_client, mock_queues):
     return vuln
 
 
-class TestProcessCrashes:
-    def test_no_crashes_returns_false(self, vulnerabilities, mock_queues):
-        mock_queues["crash"].pop.return_value = None
-        assert vulnerabilities.process_crashes() is False
-        mock_queues["crash"].pop.assert_called_once()
-        mock_queues["unique"].push.assert_not_called()
-
-    def test_valid_crash_processes_successfully(self, vulnerabilities, mock_queues, sample_crash):
-        mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
-        mock_queues["crash"].pop.return_value = mock_item
-
-        assert vulnerabilities.process_crashes() is True
-        mock_queues["crash"].pop.assert_called_once()
-        mock_queues["unique"].push.assert_called_once()
-        mock_queues["crash"].ack_item.assert_called_once_with("test_id")
-
-    def test_exception_during_processing_returns_false(self, vulnerabilities, mock_queues, sample_crash):
-        mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
-        mock_queues["crash"].pop.return_value = mock_item
-        mock_queues["unique"].push.side_effect = Exception("Test error")
-
-        assert vulnerabilities.process_crashes() is False
-        mock_queues["crash"].pop.assert_called_once()
-        mock_queues["crash"].ack_item.assert_not_called()
-
-
-class TestProcessUniqueVulnerabilities:
+class TestProcessTracedVulnerabilities:
     def test_no_vulns_returns_false(self, vulnerabilities, mock_queues):
-        mock_queues["unique"].pop.return_value = None
-        assert vulnerabilities.process_unique_vulnerabilities() is False
-        mock_queues["unique"].pop.assert_called_once()
+        mock_queues["traced"].pop.return_value = None
+        assert vulnerabilities.process_traced_vulnerabilities() is False
+        mock_queues["traced"].pop.assert_called_once()
         mock_queues["confirmed"].push.assert_not_called()
 
     @patch("builtins.open")
@@ -117,15 +94,15 @@ class TestProcessUniqueVulnerabilities:
         mock_open.return_value.__enter__.return_value = mock_file
 
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
-        mock_queues["unique"].pop.return_value = mock_item
+        mock_queues["traced"].pop.return_value = mock_item
 
         mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, vuln_id="test-vuln-123")
         vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.return_value = mock_response
 
-        assert vulnerabilities.process_unique_vulnerabilities() is True
-        mock_queues["unique"].pop.assert_called_once()
+        assert vulnerabilities.process_traced_vulnerabilities() is True
+        mock_queues["traced"].pop.assert_called_once()
         mock_queues["confirmed"].push.assert_called_once()
-        mock_queues["unique"].ack_item.assert_called_once_with("test_id")
+        mock_queues["traced"].ack_item.assert_called_once_with("test_id")
 
     @patch("builtins.open")
     def test_rejected_submission_is_handled_gracefully(self, mock_open, vulnerabilities, mock_queues, sample_crash):
@@ -135,15 +112,15 @@ class TestProcessUniqueVulnerabilities:
         mock_open.return_value.__enter__.return_value = mock_file
 
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
-        mock_queues["unique"].pop.return_value = mock_item
+        mock_queues["traced"].pop.return_value = mock_item
 
         mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.INVALID, vuln_id="rejected-123")
         vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.return_value = mock_response
 
-        assert vulnerabilities.process_unique_vulnerabilities() is True
-        mock_queues["unique"].pop.assert_called_once()
+        assert vulnerabilities.process_traced_vulnerabilities() is True
+        mock_queues["traced"].pop.assert_called_once()
         mock_queues["confirmed"].push.assert_not_called()
-        mock_queues["unique"].ack_item.assert_called_once_with("test_id")
+        mock_queues["traced"].ack_item.assert_called_once_with("test_id")
 
     @patch("builtins.open")
     def test_api_error_is_handled_gracefully(self, mock_open, vulnerabilities, mock_queues, sample_crash):
@@ -153,25 +130,25 @@ class TestProcessUniqueVulnerabilities:
         mock_open.return_value.__enter__.return_value = mock_file
 
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
-        mock_queues["unique"].pop.return_value = mock_item
+        mock_queues["traced"].pop.return_value = mock_item
 
         vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.side_effect = Exception("API Error")
 
-        assert vulnerabilities.process_unique_vulnerabilities() is True
-        mock_queues["unique"].pop.assert_called_once()
+        assert vulnerabilities.process_traced_vulnerabilities() is True
+        mock_queues["traced"].pop.assert_called_once()
         mock_queues["confirmed"].push.assert_not_called()
-        mock_queues["unique"].ack_item.assert_not_called()
+        mock_queues["traced"].ack_item.assert_not_called()
 
     def test_cancelled_task_is_skipped(self, vulnerabilities, mock_queues, sample_crash):
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
-        mock_queues["unique"].pop.return_value = mock_item
+        mock_queues["traced"].pop.return_value = mock_item
         vulnerabilities.task_registry.is_cancelled = Mock(return_value=True)
 
-        assert vulnerabilities.process_unique_vulnerabilities() is True
-        mock_queues["unique"].pop.assert_called_once()
+        assert vulnerabilities.process_traced_vulnerabilities() is True
+        mock_queues["traced"].pop.assert_called_once()
         mock_queues["confirmed"].push.assert_not_called()
-        mock_queues["unique"].ack_item.assert_called_once_with("test_id")
-        vulnerabilities.task_registry.is_cancelled.assert_called_once_with(sample_crash.target.task_id)
+        mock_queues["traced"].ack_item.assert_called_once_with("test_id")
+        vulnerabilities.task_registry.is_cancelled.assert_called_once_with(sample_crash.crash.target.task_id)
 
 
 class TestSubmitVulnerability:
@@ -188,12 +165,12 @@ class TestSubmitVulnerability:
         result = vulnerabilities.submit_vulnerability(sample_crash)
 
         # Verify file was read correctly
-        mock_open.assert_called_once_with(sample_crash.crash_input_path, "rb")
+        mock_open.assert_called_once_with(sample_crash.crash.crash_input_path, "rb")
 
         # Verify API was called with correct data
         vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.assert_called_once()
         call_args = vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.call_args
-        assert call_args[1]["task_id"] == sample_crash.target.task_id
+        assert call_args[1]["task_id"] == sample_crash.crash.target.task_id
         assert call_args[1]["payload"].data_file == "dGVzdCBjcmFzaCBkYXRh"  # base64 encoded "test crash data"
 
         # Verify returned vulnerability object

@@ -46,9 +46,9 @@ class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "vuln_id"]
     CRASH_FIELD_NUMBER: _ClassVar[int]
     VULN_ID_FIELD_NUMBER: _ClassVar[int]
-    crash: Crash
+    crash: TracedCrash
     vuln_id: str
-    def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "harness_name", "stacktrace", "target"]
@@ -164,6 +164,14 @@ class TaskReady(_message.Message):
     TASK_FIELD_NUMBER: _ClassVar[int]
     task: Task
     def __init__(self, task: _Optional[_Union[Task, _Mapping]] = ...) -> None: ...
+
+class TracedCrash(_message.Message):
+    __slots__ = ["crash", "tracer_stacktrace"]
+    CRASH_FIELD_NUMBER: _ClassVar[int]
+    TRACER_STACKTRACE_FIELD_NUMBER: _ClassVar[int]
+    crash: Crash
+    tracer_stacktrace: str
+    def __init__(self, crash: _Optional[_Union[Crash, _Mapping]] = ..., tracer_stacktrace: _Optional[str] = ...) -> None: ...
 
 class WeightedHarness(_message.Message):
     __slots__ = ["harness_name", "package_name", "task_id", "weight"]

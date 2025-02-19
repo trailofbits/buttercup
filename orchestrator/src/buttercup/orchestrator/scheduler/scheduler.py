@@ -212,8 +212,7 @@ class Scheduler:
                 self.serve_ready_task,
                 self.serve_build_output,
                 self.cancellation.process_cancellations,
-                self.vulnerabilities.process_crashes,
-                self.vulnerabilities.process_unique_vulnerabilities,
+                self.vulnerabilities.process_traced_vulnerabilities,
                 self.patches.process_patches,
             ]
             did_work = any(component() for component in components)

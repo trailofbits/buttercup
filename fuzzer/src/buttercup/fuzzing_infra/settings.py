@@ -31,6 +31,10 @@ class WorkerSettings(ButtercupBaseSettings):
     python: Annotated[str, Field(default="python")]
 
 
+class TracerSettings(WorkerSettings):
+    pass
+
+
 class FuzzerBotSettings(WorkerSettings):
     timeout: Annotated[int, Field(default="")]
 

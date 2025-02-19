@@ -49,6 +49,7 @@ def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | Non
 
 def get_diffs(path: Path) -> list[Path]:
     """Get all diff files in the given path."""
+    logger.info(f"Getting diffs from {path}")
     diff_files = list(path.rglob("*.patch")) + list(path.rglob("*.diff"))
     if not diff_files:
         # If no .patch or .diff files found, try any file

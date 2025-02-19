@@ -270,8 +270,8 @@ class QEAgent:
             logger.error("PoV failed running")
             return {
                 "pov_fixed": False,
-                "pov_stdout": pov_output.output,
-                "pov_stderr": pov_output.error,
+                "pov_stdout": pov_output.command_result.output,
+                "pov_stderr": pov_output.command_result.error,
             }
 
         logger.info(
@@ -280,14 +280,14 @@ class QEAgent:
             pov_name,
             self.input.harness_name,
         )
-        logger.debug("PoV stdout: %s", pov_output.output)
-        logger.debug("PoV stderr: %s", pov_output.error)
+        logger.debug("PoV stdout: %s", pov_output.command_result.output)
+        logger.debug("PoV stderr: %s", pov_output.command_result.error)
 
-        logger.info("PoV was %sfixed", "" if pov_output.success else "not ")
+        logger.info("PoV was %sfixed", "" if not pov_output.did_crash() else "not ")
         return {
-            "pov_fixed": pov_output.success,
-            "pov_stdout": pov_output.output,
-            "pov_stderr": pov_output.error,
+            "pov_fixed": not pov_output.did_crash(),
+            "pov_stdout": pov_output.command_result.output,
+            "pov_stderr": pov_output.command_result.error,
         }
 
     def run_tests_node(self, state: PatcherAgentState) -> dict:

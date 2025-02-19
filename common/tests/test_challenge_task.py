@@ -204,7 +204,7 @@ def test_reproduce_pov(challenge_task: ChallengeTask, mock_subprocess):
         crash_path=pov_file,
     )
 
-    assert result.success is True
+    assert result.did_crash() is False
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
     assert args[0][:-1] == ["python", "infra/helper.py", "reproduce", "example_project", "fuzz_target"]
