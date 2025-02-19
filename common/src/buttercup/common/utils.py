@@ -40,8 +40,10 @@ def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | Non
         try:
             with TemporaryDirectory(dir=work_dir, prefix=prefix, ignore_cleanup_errors=True) as tmp_dir:
                 yield Path(tmp_dir)
-        except PermissionError:
+        except PermissionError as e:
             logger.warning("Issues while creating/deleting a temporary directory...")
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                logger.exception(f"PermissionError: {e}")
     else:
         with contextlib.nullcontext(tempfile.mkdtemp(dir=work_dir, prefix=prefix)) as tmp_dir:
             yield Path(tmp_dir)

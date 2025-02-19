@@ -6,16 +6,15 @@ from dataclasses import dataclass
 import openai
 from buttercup.patcher.utils import CHAIN_CALL_TYPE
 
-# from challenge_project_api.snapshot import SnapshotChallenge
 from langchain_core.runnables import RunnableConfig
 from langgraph.constants import Send
 from langgraph.graph import END, StateGraph
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.patcher.agents.common import PatcherAgentState, PatchOutput
+from buttercup.patcher.agents.common import PatcherAgentState
 from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
-from buttercup.patcher.utils import PatchInput
+from buttercup.patcher.utils import PatchInput, PatchOutput
 from buttercup.common.llm import get_langfuse_callbacks
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,6 @@ class PatcherLeaderAgent:
     challenge: ChallengeTask
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
-    # snapshot_challenge: SnapshotChallenge
 
     max_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCHES_PER_RUN", 15))
     max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 3))
@@ -83,7 +81,6 @@ class PatcherLeaderAgent:
 
     def _init_patch_team(self) -> StateGraph:
         rootcause_agent = RootCauseAgent(self.challenge, chain_call=self.chain_call)
-        # swe_agent = SWEAgent(self.challenge, self.snapshot_challenge, self.input)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
 
@@ -139,7 +136,6 @@ class PatcherLeaderAgent:
         )
 
         try:
-            # TODO: langgraph should raise exceptions if something fails in the agents
             state: PatcherAgentState = chain.invoke({"context": self.input})
             if state.get("build_succeeded") and state.get("pov_fixed") and state.get("tests_passed"):
                 return state["patches"][-1]

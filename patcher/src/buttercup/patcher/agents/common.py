@@ -4,18 +4,9 @@ import operator
 from typing import Annotated, TypedDict
 
 from buttercup.patcher.context import ContextCodeSnippet
-from buttercup.patcher.utils import PatchInput
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel
-
-
-class PatchOutput(BaseModel):
-    """Output for the Patch Agent."""
-
-    task_id: str
-    vulnerability_id: str
-    patch: str
+from buttercup.patcher.utils import PatchInput, PatchOutput
 
 
 class PatcherAgentState(TypedDict):

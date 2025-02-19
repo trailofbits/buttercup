@@ -3,9 +3,8 @@ from pathlib import Path
 from functools import reduce
 from buttercup.patcher.context import ContextCodeSnippet
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
-from buttercup.patcher.utils import PatchInput
+from buttercup.patcher.utils import PatchInput, PatchOutput
 from langchain_core.runnables import Runnable, RunnableConfig
-from buttercup.patcher.agents.common import PatchOutput
 from redis import Redis
 from typing import Callable, Any
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames

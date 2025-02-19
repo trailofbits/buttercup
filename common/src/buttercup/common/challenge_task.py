@@ -537,10 +537,9 @@ class ChallengeTask:
         if self.read_only_task_dir == self.local_task_dir:
             raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
 
-        logger.info(f"Restoring task from {self.read_only_task_dir} to {self.local_task_dir}")
         if self.local_task_dir.exists():
-            logger.info(f"Removing local task directory {self.local_task_dir}")
+            logger.debug(f"Removing local task directory {self.local_task_dir}")
             shutil.rmtree(self.local_task_dir)
 
-        logger.info(f"Restoring task {self.read_only_task_dir} to {self.local_task_dir}")
         copyanything(self.read_only_task_dir, self.local_task_dir, symlinks=True)
+        logger.info(f"Restored task from {self.read_only_task_dir} to {self.local_task_dir}")

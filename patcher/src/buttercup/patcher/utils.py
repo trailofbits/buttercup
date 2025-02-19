@@ -1,23 +1,23 @@
 """Various utility functions for the patching engine."""
 
 import re
-from dataclasses import dataclass
 from typing import Any
-from pathlib import Path
 
-from buttercup.patcher.context import ContextCodeSnippet
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
 from typing import Callable
+from pathlib import Path
+
+from buttercup.patcher.context import ContextCodeSnippet
+from pydantic import BaseModel
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 
 CHAIN_CALL_TYPE = Callable[[Runnable, Callable, dict[str, Any], RunnableConfig | None, Any], Any]
 
 
-@dataclass
-class PatchInput:
+class PatchInput(BaseModel):
     """Input for the patching process."""
 
     challenge_task_dir: Path
@@ -36,6 +36,14 @@ class PatchInput:
 
     def get(self, key: str, default: Any = None) -> Any:
         return getattr(self, key, default)
+
+
+class PatchOutput(BaseModel):
+    """Output for the Patch Agent."""
+
+    task_id: str
+    vulnerability_id: str
+    patch: str
 
 
 def extract_md(content: AIMessage | str) -> str:

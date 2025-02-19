@@ -10,7 +10,6 @@ from typing import TypedDict
 
 from buttercup.common.challenge_task import ChallengeTask
 
-# from buttercup.common.challenge_task.snapshot import SnapshotChallenge, SnapshotError
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
@@ -31,10 +30,9 @@ from buttercup.patcher.agents.common import (
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
     PatcherAgentState,
-    PatchOutput,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
-from buttercup.patcher.utils import decode_bytes, PatchInput, CHAIN_CALL_TYPE
+from buttercup.patcher.utils import decode_bytes, PatchInput, CHAIN_CALL_TYPE, PatchOutput
 
 logger = logging.getLogger(__name__)
 
@@ -235,17 +233,37 @@ tests work. Do not generate an already existing patch.""",
 )
 
 
-class CodeSnippetChange(BaseModel):
-    """Code snippet change"""
+class CodeSnippetKey(BaseModel):
+    """Code snippet key"""
 
     file_path: str | None = Field(description="The file path of the code snippet")
     function_name: str | None = Field(description="The function name of the code snippet")
+
+    def __hash__(self) -> int:
+        """Hash the code snippet key"""
+        return hash((self.file_path, self.function_name))
+
+    def __eq__(self, other: object) -> bool:
+        """Check if the code snippet key is equal to another object"""
+        if not isinstance(other, CodeSnippetKey):
+            return False
+        return self.file_path == other.file_path and self.function_name == other.function_name
+
+
+class CodeSnippetChange(BaseModel):
+    """Code snippet change"""
+
+    key: CodeSnippetKey = Field(description="The key of the code snippet")
     old_code: str | None = Field(
         description="The old piece of code, as-is, with spaces, trailing/leading whitespaces, etc."
     )
     code: str | None = Field(
         description="The fixed piece of code snippet, as-is, with spaces, trailing/leading whitespaces, etc."  # noqa: E501
     )
+
+    def is_valid(self) -> bool:
+        """Check if the code snippet change is valid"""
+        return self.key.file_path and self.key.function_name and self.old_code and self.code
 
 
 class CodeSnippetChanges(BaseModel):
@@ -268,10 +286,11 @@ class SWEAgent:
     challenge: ChallengeTask
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
-    # snapshot_challenge: SnapshotChallenge
 
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
+
+    MATCH_RATIO_THRESHOLD: float = 0.8
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -310,33 +329,46 @@ class SWEAgent:
         for match in matches:
             file_path, function_name, old_code, code = match
             items.append(
-                CodeSnippetChange(file_path=file_path, function_name=function_name, old_code=old_code, code=code)
+                CodeSnippetChange(
+                    key=CodeSnippetKey(file_path=file_path.strip(), function_name=function_name.strip()),
+                    old_code=old_code,
+                    code=code,
+                )
             )
 
         return CodeSnippetChanges(items=items)
 
-    def _get_vulnerable_file_content(self, vulnerable_file: str) -> str | None:
-        try:
-            vulnerable_path = self.challenge.get_source_path() / vulnerable_file.strip()
-            if not vulnerable_path.exists() or not vulnerable_path.is_file():
-                logger.error("Could not find file '%s' specified in the context", vulnerable_path)
-                # TODO: try to find the file in a smarter way
-                logger.warning("Trying to find the file in the task directory")
-                vulnerable_path = self.challenge.get_source_path().parent / vulnerable_file.strip()
+    def _get_file_content(self, file_path: str) -> str | None:
+        """Get the content of a file, trying multiple search strategies."""
+        file_path = file_path.strip()
+        search_paths = [
+            # Strategy 1: Direct path from source
+            lambda: [self.challenge.get_source_path() / file_path],
+            # Strategy 2: Parent directory
+            lambda: [self.challenge.get_source_path().parent / file_path],
+            # Strategy 3: Search recursively in source directory
+            lambda: list(self.challenge.get_source_path().rglob(Path(file_path))),
+            # Strategy 4: Search recursively in source directory for just the file name
+            lambda: list(self.challenge.get_source_path().rglob(Path(file_path).name)),
+        ]
 
-            if not vulnerable_path.exists() or not vulnerable_path.is_file():
-                logger.error("Could not find file '%s' specified in the context", vulnerable_path)
-                return None
+        for path_fn in search_paths:
+            paths = path_fn()
+            for path in paths:
+                if path.exists() and path.is_file():
+                    try:
+                        res = path.read_text()
+                        if isinstance(res, str):
+                            logger.debug("Got file content for %s", file_path)
+                            return res
 
-            res = vulnerable_path.read_text()
-            if not isinstance(res, str):
-                logger.error("read_text for %s did not return a string", vulnerable_path)
-                return None
+                        logger.error("read_text for %s did not return a string", path)
+                    except OSError as e:
+                        logger.debug("Could not read file %s: %s", path, e)
+                        continue
 
-            return res
-        except FileNotFoundError:
-            logger.error("Could not read file '%s' specified in the context", vulnerable_file.strip())
-            return None
+        logger.error("Could not find file '%s' after trying multiple locations", file_path)
+        return None
 
     def get_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
         """Get the messages for the context."""
@@ -363,65 +395,100 @@ class SWEAgent:
 
         return messages
 
-    def create_upatch(self, inp: CreateUPatchInput) -> PatchOutput:
-        """Extract the patch the new vulnerable code."""
-        code_snippets, state = inp["code_snippets"], inp["state"]
+    def _find_closest_match(
+        self, orig_code_snippets: dict[CodeSnippetKey, str], target_key: CodeSnippetKey
+    ) -> CodeSnippetKey | None:
+        """Find the closest matching file path and function name in orig_code_snippets."""
+        if not orig_code_snippets:
+            return None
 
-        orig_code_snippets = {
-            (cs["file_path"], cs["function_name"]): cs["code"]
-            for cs in state["relevant_code_snippets"]
-            if cs.get("code") and cs.get("function_name")
-        }
+        # First try exact function name match with fuzzy file path
+        func_matches = [key for key in orig_code_snippets.keys() if key.function_name == target_key.function_name]
+        if func_matches:
+            # Find best file path match among function matches
+            best_match = max(
+                func_matches, key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio()
+            )
+            match_ratio = difflib.SequenceMatcher(None, target_key.file_path, best_match.file_path).ratio()
+            if match_ratio > self.MATCH_RATIO_THRESHOLD:
+                return best_match
 
-        patches: list[PatchOutput] = []
-        for code_snippet in code_snippets.items or []:
-            if (
-                not code_snippet.file_path
-                or not code_snippet.old_code
-                or not code_snippet.code
-                or not code_snippet.function_name
-            ):
-                continue
+        # If no good match found with function name, try best overall match
+        best_match = max(
+            orig_code_snippets.keys(),
+            key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio(),
+        )
+        match_ratio = difflib.SequenceMatcher(None, target_key.file_path, best_match.file_path).ratio()
+        return best_match if match_ratio > self.MATCH_RATIO_THRESHOLD else None
 
-            code_snippet_key = (code_snippet.file_path, code_snippet.function_name)
-            if code_snippet_key not in orig_code_snippets:
+    def _get_code_snippet_key(
+        self, code_snippet: CodeSnippetChange, orig_code_snippets: dict[CodeSnippetKey, str]
+    ) -> CodeSnippetKey | None:
+        code_snippet_key = CodeSnippetKey(
+            file_path=code_snippet.key.file_path, function_name=code_snippet.key.function_name
+        )
+        if code_snippet_key not in orig_code_snippets:
+            closest_match = self._find_closest_match(orig_code_snippets, code_snippet_key)
+            if closest_match:
+                logger.info(
+                    "Found similar file match: '%s' -> '%s'",
+                    code_snippet_key,
+                    closest_match,
+                )
+                code_snippet_key = closest_match
+            else:
                 logger.warning(
-                    "Code snippet not found in the original context, trying to continue anyway: %s | %s",  # noqa: E501
-                    code_snippet.file_path,
-                    code_snippet.function_name,
+                    "Code snippet not found in the original context, trying to continue anyway: %s",
+                    code_snippet_key,
                 )
 
-            file_content = self._get_vulnerable_file_content(code_snippet.file_path)
+        return code_snippet_key
+
+    def _get_snippets_patches(
+        self, code_snippets: CodeSnippetChanges, orig_code_snippets: dict[CodeSnippetKey, str]
+    ) -> list[PatchOutput]:
+        patches: list[PatchOutput] = []
+        for code_snippet_idx, code_snippet in enumerate(code_snippets.items or []):
+            if not code_snippet.is_valid():
+                logger.warning("Invalid code snippet: %s (%d)", code_snippet.key, code_snippet_idx)
+                continue
+
+            code_snippet_key = self._get_code_snippet_key(code_snippet, orig_code_snippets)
+            if not code_snippet_key:
+                logger.warning(
+                    "Could not find a valid code snippet key for %s (%d)", code_snippet.key, code_snippet_idx
+                )
+                code_snippet_key = CodeSnippetKey(
+                    file_path=code_snippet.key.file_path, function_name=code_snippet.key.function_name
+                )
+
+            file_content = self._get_file_content(code_snippet_key.file_path)
             if file_content is None:
-                logger.warning("Could not read the file: %s", code_snippet.file_path)
+                logger.warning("Could not read the file: %s", code_snippet_key.file_path)
                 continue
 
             orig_file_content = file_content
             if code_snippet_key in orig_code_snippets:
+                logger.debug("Found code snippet in orig_code_snippets: %s (%d)", code_snippet_key, code_snippet_idx)
                 orig_code_snippet = orig_code_snippets[code_snippet_key]
                 new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
-                new_code_snippet = new_code_snippet + ("\n" if orig_code_snippet.endswith("\n") else "")
             else:
+                logger.debug(
+                    "Code snippet not found in orig_code_snippets: %s (%d)", code_snippet_key, code_snippet_idx
+                )
                 orig_code_snippet = code_snippet.old_code
                 new_code_snippet = code_snippet.code
 
             if orig_code_snippet not in file_content:
                 logger.error(
-                    "Could not generate a valid patch for %s | %s, original code snippet not found in the file",
-                    code_snippet.file_path,
-                    code_snippet.function_name,
+                    "Could not generate a valid patch for %s (%d), original code snippet not found in the file",
+                    code_snippet_key,
+                    code_snippet_idx,
                 )
                 continue
 
             file_content = file_content.replace(orig_code_snippet, new_code_snippet)
-            # target = Path()
-            patched_file = Path(code_snippet.file_path)
-            # TODO: check if this is still necessary
-            # for cp_source_name in self.challenge.source_names:
-            #     if Path(cp_source_name) in patched_file.parents:
-            #         target = cp_source_name
-            #         patched_file = patched_file.relative_to(target)
-            #         break
+            patched_file = Path(code_snippet_key.file_path)
 
             patch = difflib.unified_diff(
                 orig_file_content.splitlines(),
@@ -433,12 +500,13 @@ class SWEAgent:
             patch_str = "\n".join(patch) + "\n"
             if not patch_str.strip():
                 logger.warning(
-                    "Could not generate a valid patch for %s | %s",
-                    code_snippet.file_path,
-                    code_snippet.function_name,
+                    "Could not generate a valid patch for %s (%d)",
+                    code_snippet_key,
+                    code_snippet_idx,
                 )
                 continue
 
+            logger.debug("Generated patch for %s (%d)", code_snippet_key, code_snippet_idx)
             patch = PatchOutput(
                 task_id=self.input.task_id,
                 vulnerability_id=self.input.vulnerability_id,
@@ -446,16 +514,26 @@ class SWEAgent:
             )
             patches.append(patch)
 
+        return patches
+
+    def create_upatch(self, inp: CreateUPatchInput) -> PatchOutput:
+        """Extract the patch the new vulnerable code."""
+        code_snippets, state = inp["code_snippets"], inp["state"]
+
+        orig_code_snippets = {
+            CodeSnippetKey(file_path=cs["file_path"], function_name=cs["function_name"]): cs["code"]
+            for cs in state["relevant_code_snippets"]
+            if cs.get("code") and cs.get("function_name")
+        }
+
+        logger.debug("Creating patches for %d code snippets", len(code_snippets.items or []))
+        patches: list[PatchOutput] = self._get_snippets_patches(code_snippets, orig_code_snippets)
         if not patches:
             logger.warning("No valid patches generated")
             return PatchOutput(task_id="", vulnerability_id="", patch="")
 
-        # # Check all patches are about the same target
-        # if len(set(p.target for p in patches)) != 1:
-        #     logger.warning("All patches must be about the same target")
-        #     return None
-
         # Concatenate all patches in one
+        logger.debug("Concatenating %d patches", len(patches))
         patch_content = "\n".join(p.patch for p in patches)
         final_patch = PatchOutput(
             task_id=self.input.task_id,
@@ -466,15 +544,8 @@ class SWEAgent:
 
     def create_patch_node(self, state: PatcherAgentState) -> dict:
         """Node in the LangGraph that generates a patch (in diff format)"""
-        # try:
-        #     self.snapshot_challenge.restore()
-        # except SnapshotError:
-        #     logger.error("Cannot get snapshot for Challenge Task %s", self.challenge.name)
-        #     return {
-        #         "build_succeeded": False,
-        #         "build_stdout": None,
-        #         "build_stderr": None,
-        #     }
+        logger.info("Creating a patch for Challenge Task %s", self.challenge.name)
+        self.challenge.restore()
 
         messages = []
         if state.get("patches"):

@@ -90,7 +90,6 @@ class QEAgent:
     llm: Runnable = field(init=False)
     review_patch_chain: Runnable = field(init=False)
     review_patch_structured_chain: Runnable = field(init=False)
-    # sanitizer: ChallengeProjectSanitizer | None = field(init=False)
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -107,9 +106,6 @@ class QEAgent:
             | self.llm
             | parser
         )
-        # self.sanitizer = self.challenge.get_sanitizer(self.input.context["sanitizer_id"])
-        # if self.sanitizer is None:
-        #     raise ValueError(f"Sanitizer ID {self.input.context['sanitizer_id']} not found")
 
     def get_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
         """Get the messages for the context."""
@@ -175,42 +171,16 @@ class QEAgent:
             patch_file.flush()
             logger.debug("Patch written to %s", patch_file.name)
 
-            # Apply the patch to the source code of the challenge task, forcing and not asking questions
-            # First try from source dir, if that fails try from parent dir
-            import subprocess
-
             logger.info("Applying patch to task %s / vulnerability %s", self.input.task_id, self.input.vulnerability_id)
-            result = subprocess.run(
-                [
-                    "patch",
-                    "-p1",
-                    "-d",
-                    self.challenge.get_source_path(),
-                    "-i",
-                    patch_file.name,
-                    "--force",
-                    "--quiet",
-                    "--no-backup-if-mismatch",
-                ],
-                check=False,
-            )
-            if result.returncode != 0:
-                # NOTE: this address the fact that sometimes example-libpng is in the patch target
-                # Try applying from parent dir if first attempt failed
-                subprocess.run(
-                    [
-                        "patch",
-                        "-p1",
-                        "-d",
-                        self.challenge.get_source_path().parent,
-                        "-i",
-                        patch_file.name,
-                        "--force",
-                        "--quiet",
-                        "--no-backup-if-mismatch",
-                    ],
-                    check=False,
-                )
+            is_patched = self.challenge.apply_patch_diff(Path(patch_file.name))
+            if not is_patched:
+                logger.error("Failed to apply patch to Challenge Task %s", self.challenge.name)
+                return {
+                    "build_succeeded": False,
+                    "build_stdout": None,
+                    "build_stderr": None,
+                    "patch_review_tries": 0,
+                }
 
             try:
                 cp_output = self.challenge.build_fuzzers(
