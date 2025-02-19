@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     args = BuilderBotSettings()
-    setup_package_logger(__name__, "DEBUG")
+    setup_package_logger(__name__, args.log_level)
 
     logger.info(f"Starting builder bot ({args.wdir})")
     redis = Redis.from_url(args.redis_url)

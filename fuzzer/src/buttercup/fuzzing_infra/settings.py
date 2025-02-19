@@ -29,6 +29,7 @@ class WorkerSettings(ButtercupBaseSettings):
     timer: Annotated[int, Field(default=1000)]
     wdir: Annotated[str, Field(default=...)]
     python: Annotated[str, Field(default="python")]
+    log_level: Annotated[str, Field(default="INFO")]
 
 
 class TracerSettings(WorkerSettings):
