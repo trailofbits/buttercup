@@ -232,11 +232,11 @@ class QEAgent:
             logger.error("Failed to run pov for Challenge Task %s", self.challenge.name)
             return {
                 "pov_fixed": False,
-                "build_stdout": exc.stdout,
-                "build_stderr": exc.stderr,
+                "pov_stdout": exc.stdout,
+                "pov_stderr": exc.stderr,
             }
 
-        if not pov_output.success:
+        if not pov_output.command_result.success:
             logger.error("PoV failed running")
             return {
                 "pov_fixed": False,

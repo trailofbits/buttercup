@@ -28,12 +28,15 @@ class TracerBot:
         while True:
             item = self.queue.pop()
             if item is not None:
+                logger.info(f"Received tracer request for {item.deserialized.target.task_id}")
                 runner = TracerRunner(item.deserialized.target.task_id, self.wdir, self.redis)
                 tinfo = runner.run(item.deserialized.harness_name, Path(item.deserialized.crash_input_path))
                 if tinfo is None:
+                    logger.warning(f"No tracer info found for {item.deserialized.target.task_id}")
                     continue
                 else:
                     if tinfo.is_valid:
+                        logger.info(f"Valid tracer info found for {item.deserialized.target.task_id}")
                         prsed = stack_parsing.parse_stacktrace(tinfo.stacktrace)
                         output = prsed.crash_stacktrace
                         ntrace = output if output is not None and len(output) > 0 else tinfo.stacktrace
@@ -43,7 +46,11 @@ class TracerBot:
                                 tracer_stacktrace=ntrace,
                             )
                         )
+
+                    logger.info(f"Acknowledging tracer request for {item.deserialized.target.task_id}")
                     self.queue.ack_item(item.item_id)
+
+            logger.info(f"Sleeping for {self.seconds_sleep} seconds")
             time.sleep(self.seconds_sleep)
 
 
