@@ -1,7 +1,5 @@
 import urllib.parse
 from xml.dom import minidom
-import sys
-import argparse
 import logging
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -195,18 +193,3 @@ class GraphStorage:
         xml_doc = minidom.parseString(content)
         pretty_xml = xml_doc.toprettyxml(indent="  ")
         return pretty_xml
-
-
-def main():
-    prsr = argparse.ArgumentParser("Entry Output to GraphML")
-    prsr.add_argument("--output", required=True)
-    args = prsr.parse_args()
-
-    with open(args.output, "w") as fw, sys.stdin.buffer as fr:
-        gs = GraphStorage()
-        gs.process_stream(fr)
-        fw.write(gs.to_graphml())
-
-
-if __name__ == "__main__":
-    main()

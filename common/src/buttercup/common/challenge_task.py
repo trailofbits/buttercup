@@ -93,6 +93,8 @@ class ChallengeTask:
             raise ChallengeTaskError(f"Required directory is not a directory: {path}")
 
     def _find_first_dir(self, subpath: Path) -> Path | None:
+        if not (self.task_dir / subpath).exists():
+            return None
         first_elem = next((self.task_dir / subpath).iterdir(), None)
         if first_elem is None:
             return None

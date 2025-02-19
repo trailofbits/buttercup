@@ -9,7 +9,7 @@ from buttercup.common.queues import (
     QueueNames,
     GroupNames,
 )
-from buttercup.program_model.indexer import Indexer, IndexConf, IndexTarget
+from buttercup.program_model.indexer import Indexer, IndexConf
 from buttercup.program_model.kythe import KytheTool, KytheConf
 from buttercup.program_model.graph import GraphStorage
 from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
@@ -64,23 +64,16 @@ class ProgramModel:
     def process_task(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         # Convert path strings to Path objects
-        ossfuzz = Path(args.ossfuzz).resolve()
-        source_path = Path(args.source_path).resolve()
-        task_dir = source_path.parent.parent.resolve()
-
         logger.debug(f"Kythe dir: {self.kythe_dir}")
         logger.debug(f"Script dir: {self.script_dir}")
         logger.debug(f"Wdir: {self.wdir}")
-        logger.debug(f"Task dir: {task_dir}")
-        logger.debug(f"Source dir: {source_path}")
-        logger.debug(f"OSSFuzz dir: {ossfuzz}")
         logger.debug(f"Python: {self.python}")
         logger.debug(f"Allow pull: {self.allow_pull}")
         logger.debug(f"Base image URL: {self.base_image_url}")
 
         with tempfile.TemporaryDirectory(dir=self.wdir) as td:
             logger.info(
-                f"Running indexer for {args.package_name} | {source_path} | {args.task_id}"
+                f"Running indexer for {args.package_name} | {args.task_dir} | {args.task_id}"
             )
 
             # Change permissions so that JanusGraph can read from the temporary directory
@@ -89,7 +82,7 @@ class ProgramModel:
             os.chmod(td, current | janus_user)
 
             tsk = ChallengeTask(
-                read_only_task_dir=task_dir,
+                read_only_task_dir=args.task_dir,
                 project_name=args.package_name,
                 python_path=self.python,
             )
@@ -97,7 +90,12 @@ class ProgramModel:
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 logger.debug(f"Local path: {local_tsk.local_task_dir}")
 
-                # Index the program
+                # Apply the diff if it exists
+                logger.info(f"Applying diff for {args.package_name} {args.task_id}")
+                if not local_tsk.apply_patch_diff():
+                    logger.info(f"No diffs for {args.package_name} {args.task_id}")
+
+                # Index the task
                 indexer_conf = IndexConf(
                     scriptdir=self.script_dir,
                     python=self.python,
@@ -106,17 +104,11 @@ class ProgramModel:
                     wdir=td,
                 )
                 indexer = Indexer(indexer_conf)
-                output_dir = indexer.index_target(
-                    IndexTarget(
-                        oss_fuzz_dir=ossfuzz,
-                        package_name=args.package_name,
-                    )
-                )
+                output_dir = indexer.index_target(local_tsk)
                 if output_dir is None:
-                    logger.error(f"Failed to index program {args.package_name}")
+                    logger.error(f"Failed to index task {args.task_id}")
                     return False
-                else:
-                    logger.info(f"Successfully indexed program {args.package_name}")
+                logger.info(f"Successfully indexed task {args.task_id}")
 
                 # Merge index files
                 output_id = str(uuid.uuid4())
@@ -186,12 +178,12 @@ class ProgramModel:
                 if success:
                     self.output_queue.push(
                         IndexOutput(
+                            apply_diff=task_index.apply_diff,
+                            build_type=task_index.build_type,
                             package_name=task_index.package_name,
                             sanitizer=task_index.sanitizer,
-                            ossfuzz=task_index.ossfuzz,
-                            source_path=task_index.source_path,
+                            task_dir=task_index.task_dir,
                             task_id=task_index.task_id,
-                            build_type=task_index.build_type,
                         )
                     )
                     self.task_queue.ack_item(rq_item.item_id)

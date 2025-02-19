@@ -49,12 +49,11 @@ class ProgramModelServeCommand(WorkerSettings, IndexerSettings, BuilderSettings)
 
 
 class ProgramModelProcessCommand(WorkerSettings, IndexerSettings, BuilderSettings):
+    build_type: Annotated[str, Field(description="Build type", default=...)]
     package_name: Annotated[str, Field(description="Package name", default=...)]
     sanitizer: Annotated[str, Field(description="Sanitizer", default=...)]
-    ossfuzz: Annotated[str, Field(description="OSSFuzz directory", default=...)]
-    source_path: Annotated[str, Field(description="Source path", default=...)]
+    task_dir: Annotated[str, Field(description="Task directory", default=...)]
     task_id: Annotated[str, Field(description="Task ID", default=...)]
-    build_type: Annotated[str, Field(description="Build type", default=...)]
 
 
 class ProgramModelSettings(ButtercupBaseSettings):

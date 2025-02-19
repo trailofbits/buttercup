@@ -63,7 +63,7 @@ Start up CRS.
 ```shell
 cd afc-crs-trail-of-bits/
 
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 
 # cd common/
 # uv run src/buttercup/common/msg_publisher.py send tasks_ready_queue ../program-model/mock_data/ready_msg.json
@@ -79,31 +79,11 @@ docker compose logs -f program-model
 cd afc-crs-trail-of-bits/program-model/
 
 uv run mock/trigger_pm.py \
+  --build_type full \
   --package_name libpng \
   --sanitizer AddressSanitizer \
-  --source_path ../tasks_storage/example-libpng/src/example-libpng/ \
-  --ossfuzz ../tasks_storage/example-libpng/fuzz-tooling/fuzz-tooling/ \
-  --task_id example-libpng \
-  --build_type full
-```
-
-Send task to Program Model via cli.
-
-```shell
-cd afc-crs-trail-of-bits/program-model/
-
-uv run buttercup-program-model \
-  --log_level debug \
-  process \
-  --wdir ../crs_scratch/ \
-  --script_dir scripts/ \
-  --kythe_dir scripts/gzs/kythe/ \
-  --package_name libpng \
-  --sanitizer AddressSanitizer \
-  --source_path ../tasks_storage/example-libpng/src/example-libpng/ \
-  --ossfuzz ../tasks_storage/example-libpng/fuzz-tooling/fuzz-tooling/ \
-  --task_id example-libpng \
-  --build_type full
+  --task_dir ../tasks_storage/example-libpng \
+  --task_id libpng
 ```
 
 ## Testing on Challenges
@@ -146,14 +126,3 @@ just lint
   * Follow the instructions in [dev.md](dev.md).
 * What are available APIs for this component?
   * See [api.md](api.md).
-
-## TODO
-
-* [ ] Add getter/setter primitives
-* [ ] Create unit and regression tests
-* [ ] Integrate Program Model with other CRS components
-  * [ ] Coverage Tracker
-  * [ ] Seed Generator
-  * [ ] Patcher
-* [ ] Debug issue in `oss_fuzz_indexer.py:index_target()` -- outputted `kzip` files contain critical errors
-* [ ] Debug issues with Kythe. E.g., `Error: Errors during indexing:unknown argument: '-nocudalib'`
