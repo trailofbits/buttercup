@@ -240,6 +240,9 @@ services:
       - BUTTERCUP_LITELLM_HOSTNAME=http://litellm:8080
       - DOCKER_HOST=tcp://dind:2375
       - LOG_LEVEL=DEBUG
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
     depends_on:
       redis:
         condition: service_healthy
@@ -264,6 +267,9 @@ services:
       - BUTTERCUP_PATCHER_MOCK_MODE=true
       - BUTTERCUP_LITELLM_KEY=sk-1234
       - BUTTERCUP_LITELLM_HOSTNAME=http://litellm:8080
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - DOCKER_HOST=tcp://dind:2375
     depends_on:
       redis:

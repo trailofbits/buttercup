@@ -37,6 +37,10 @@ jobs:
 
       - name: Run CRS
         run: docker compose up -d
+        env:
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
 
       - name: Submit a task to the CRS
         run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
