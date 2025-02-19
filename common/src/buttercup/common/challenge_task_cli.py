@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand, CliImplicitFlag
 from pydantic import BaseModel
-from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.common.logger import setup_package_logger
 from pathlib import Path
 from typing import Dict
@@ -10,6 +10,10 @@ class BuildImageCommand(BaseModel):
     pull_latest_base_image: bool = False
     cache: bool | None = None
     architecture: str | None = None
+
+
+class ApplyPatchCommand(BaseModel):
+    diff_file: Path | None = None
 
 
 class BuildFuzzersCommand(BaseModel):
@@ -41,6 +45,7 @@ class Settings(BaseSettings):
     python_path: Path = Path("python")
     rw: CliImplicitFlag[bool] = False
 
+    apply_patch: CliSubCommand[ApplyPatchCommand]
     build_image: CliSubCommand[BuildImageCommand]
     build_fuzzers: CliSubCommand[BuildFuzzersCommand]
     check_build: CliSubCommand[CheckBuildCommand]
@@ -92,6 +97,8 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
             architecture=subcommand.architecture,
             env=subcommand.env,
         )
+    elif isinstance(subcommand, ApplyPatchCommand):
+        return CommandResult(success=task.apply_patch_diff(diff_file=subcommand.diff_file))
     else:
         raise ValueError(f"Unknown subcommand: {subcommand}")
 

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, Callable
 from os import PathLike
 import logging
+import shutil
 import uuid
 import subprocess
 from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
@@ -406,13 +407,16 @@ class ChallengeTask:
         return self._run_helper_cmd(cmd)
 
     @read_write_decorator
-    def apply_patch_diff(self) -> bool:
+    def apply_patch_diff(self, diff_file: Path | None = None) -> bool:
         """Apply the  patch diff to the source code."""
         try:
-            # Find all .patch and .diff files in the directory
-            diff_files = self.get_diffs()
-            if not diff_files:
-                return False
+            if diff_file is None:
+                # Find all .patch and .diff files in the directory
+                diff_files = self.get_diffs()
+                if not diff_files:
+                    return False
+            else:
+                diff_files = [diff_file]
 
             for diff_file in diff_files:
                 logger.info(f"[task {self.task_dir}] Applying diff file: {diff_file}")
@@ -510,3 +514,18 @@ class ChallengeTask:
                 suffix = None
 
         self.local_task_dir = new_local_task_dir
+
+    @read_write_decorator
+    def restore(self) -> None:
+        """Restore the task from the original read-only task directory (if
+        different from the local task directory)."""
+        if self.read_only_task_dir == self.local_task_dir:
+            raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
+
+        logger.info(f"Restoring task from {self.read_only_task_dir} to {self.local_task_dir}")
+        if self.local_task_dir.exists():
+            logger.info(f"Removing local task directory {self.local_task_dir}")
+            shutil.rmtree(self.local_task_dir)
+
+        logger.info(f"Restoring task {self.read_only_task_dir} to {self.local_task_dir}")
+        copyanything(self.read_only_task_dir, self.local_task_dir, symlinks=True)
