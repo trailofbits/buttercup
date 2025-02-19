@@ -20,6 +20,7 @@ from buttercup.common.datastructures.msg_pb2 import (
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
 import uuid
+import os
 from enum import Enum
 from typing import Any
 
@@ -50,19 +51,19 @@ class HashNames(str, Enum):
     TASKS_REGISTRY = "tasks_registry"
 
 
-BUILD_TASK_TIMEOUT_MS = 15 * 60 * 1000
-BUILD_OUTPUT_TASK_TIMEOUT_MS = 3 * 60 * 1000
-DOWNLOAD_TASK_TIMEOUT_MS = 10 * 60 * 1000
-READY_TASK_TIMEOUT_MS = 3 * 60 * 1000
-DELETE_TASK_TIMEOUT_MS = 5 * 60 * 1000
+BUILD_TASK_TIMEOUT_MS = int(os.getenv("BUILD_TASK_TIMEOUT_MS", 15 * 60 * 1000))
+BUILD_OUTPUT_TASK_TIMEOUT_MS = int(os.getenv("BUILD_OUTPUT_TASK_TIMEOUT_MS", 3 * 60 * 1000))
+DOWNLOAD_TASK_TIMEOUT_MS = int(os.getenv("DOWNLOAD_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+READY_TASK_TIMEOUT_MS = int(os.getenv("READY_TASK_TIMEOUT_MS", 3 * 60 * 1000))
+DELETE_TASK_TIMEOUT_MS = int(os.getenv("DELETE_TASK_TIMEOUT_MS", 5 * 60 * 1000))
 # Shorter timeout for crashes we want to retry builds fairly quickly since
 # all we do in these tasks is reproduce
-CRASH_TASK_TIMEOUT_MS = 4 * 60 * 1000
-PATCH_TASK_TIMEOUT_MS = 10 * 60 * 1000
-CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
-INDEX_TASK_TIMEOUT_MS = 10 * 60 * 1000
-INDEX_OUTPUT_TASK_TIMEOUT_MS = 10 * 60 * 1000
-TRACED_VULNERABILITIES_TASK_TIMEOUT_MS = 10 * 60 * 1000
+CRASH_TASK_TIMEOUT_MS = int(os.getenv("CRASH_TASK_TIMEOUT_MS", 4 * 60 * 1000))
+PATCH_TASK_TIMEOUT_MS = int(os.getenv("PATCH_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = int(os.getenv("CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+INDEX_TASK_TIMEOUT_MS = int(os.getenv("INDEX_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+INDEX_OUTPUT_TASK_TIMEOUT_MS = int(os.getenv("INDEX_OUTPUT_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+TRACED_VULNERABILITIES_TASK_TIMEOUT_MS = int(os.getenv("TRACED_VULNERABILITIES_TASK_TIMEOUT_MS", 10 * 60 * 1000))
 
 logger = logging.getLogger(__name__)
 
