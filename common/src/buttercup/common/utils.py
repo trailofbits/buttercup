@@ -4,10 +4,11 @@ import tempfile
 import contextlib
 import logging
 from contextlib import contextmanager
-from typing import Iterator, Any
+from typing import Iterator, Any, Callable
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from os import PathLike
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -60,3 +61,24 @@ def get_diffs(path: Path | None) -> list[Path]:
         diff_files = list(path.rglob("*"))
 
     return sorted(diff_files)
+
+
+def serve_loop(func: Callable[[], bool], sleep_time: float = 1.0, report_time: float = 60.0) -> None:
+    """Serve a function in a loop."""
+    if sleep_time < 0:
+        raise ValueError("sleep_time must be greater than 0")
+
+    if report_time < 0:
+        raise ValueError("report_time must be greater than 0")
+
+    did_work = False
+    start_time = time.time()
+
+    while True:
+        if time.time() - start_time > report_time:
+            logger.info("Sleeping, waiting for inputs")
+            start_time = time.time()
+
+        did_work = func()
+        if not did_work:
+            time.sleep(sleep_time)

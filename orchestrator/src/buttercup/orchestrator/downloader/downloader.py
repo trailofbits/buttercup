@@ -5,16 +5,16 @@ from dataclasses import dataclass, field
 import uuid
 import tempfile
 from pathlib import Path
-import time
 from typing import Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from buttercup.common.queues import RQItem, QueueFactory, ReliableQueue, QueueNames, GroupNames
+from buttercup.common.queues import QueueFactory, ReliableQueue, QueueNames, GroupNames
 from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.common.utils import serve_loop
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +192,25 @@ class Downloader:
         logger.info(f"Successfully processed task {task.task_id}")
         return True
 
+    def serve_item(self) -> bool:
+        rq_item = self.task_queue.pop()
+
+        if rq_item is None:
+            return False
+
+        task_download: TaskDownload = rq_item.deserialized
+        success = self.process_task(task_download.task)
+
+        if success:
+            self.registry.set(task_download.task)
+            self.ready_queue.push(TaskReady(task=task_download.task))
+            self.task_queue.ack_item(rq_item.item_id)
+            logger.info(f"Successfully processed task {task_download.task.task_id}")
+        else:
+            logger.error(f"Failed to process task {task_download.task.task_id}")
+
+        return True
+
     def serve(self):
         """Main loop to process tasks from queue"""
         if self.task_queue is None:
@@ -201,24 +220,7 @@ class Downloader:
             raise ValueError("Ready queue is not initialized")
 
         logger.info("Starting downloader service")
-
-        while True:
-            rq_item: Optional[RQItem] = self.task_queue.pop()
-
-            if rq_item is not None:
-                task_download: TaskDownload = rq_item.deserialized
-                success = self.process_task(task_download.task)
-
-                if success:
-                    self.registry.set(task_download.task)
-                    self.ready_queue.push(TaskReady(task=task_download.task))
-                    self.task_queue.ack_item(rq_item.item_id)
-                    logger.info(f"Successfully processed task {task_download.task.task_id}")
-                else:
-                    logger.error(f"Failed to process task {task_download.task.task_id}")
-
-            logger.info(f"Sleeping for {self.sleep_time} seconds")
-            time.sleep(self.sleep_time)
+        serve_loop(self.serve_item, self.sleep_time)
 
     def cleanup(self):
         """Cleanup resources used by the downloader"""

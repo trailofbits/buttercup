@@ -14,7 +14,6 @@ class ProcessCommand(BaseModel):
     challenge_task_dir: CliPositionalArg[Path] = Field(description="Challenge Task Directory")
     task_id: CliPositionalArg[str] = Field(description="Task ID")
     vulnerability_id: CliPositionalArg[str] = Field(description="Vulnerability ID")
-    project_name: CliPositionalArg[str] = Field(description="Package Name")
     harness_name: CliPositionalArg[str] = Field(description="Harness Name")
     engine: CliPositionalArg[str] = Field(description="Engine")
     sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")

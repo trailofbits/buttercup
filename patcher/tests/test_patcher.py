@@ -69,7 +69,6 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
     assert patch_input is not None
     assert patch_input.task_id == "test-task-id-1"
     assert patch_input.vulnerability_id == "test-vuln-1"
-    assert patch_input.project_name == "libpng"
     assert patch_input.harness_name == "test-harness-name-1"
     assert patch_input.pov == Path("test-crash-input-path-1")
     assert patch_input.sanitizer_output == "test-tracer-stacktrace-1"

@@ -23,7 +23,6 @@ class PatchInput(BaseModel):
     challenge_task_dir: Path
     task_id: str
     vulnerability_id: str
-    project_name: str
     harness_name: str
     engine: str
     sanitizer: str

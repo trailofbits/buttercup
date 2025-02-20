@@ -1,5 +1,4 @@
 import logging
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from redis import Redis
@@ -20,6 +19,7 @@ from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
 from buttercup.orchestrator.api_client_factory import create_api_client
+from buttercup.common.utils import serve_loop
 import random
 
 
@@ -187,6 +187,17 @@ class Scheduler:
 
         return False
 
+    def serve_item(self) -> bool:
+        # Run all scheduler components and track if any did work
+        components = [
+            self.serve_ready_task,
+            self.serve_build_output,
+            self.cancellation.process_cancellations,
+            self.vulnerabilities.process_traced_vulnerabilities,
+            self.patches.process_patches,
+        ]
+        return any(component() for component in components)
+
     def serve(self):
         """Main orchestrator loop that drives task progress forward.
 
@@ -201,23 +212,4 @@ class Scheduler:
             raise ValueError("Redis is not initialized")
 
         logger.info("Starting scheduler service")
-
-        did_work = False
-        while True:
-            if not did_work:
-                # Sleep first to prevent busy waiting in case of exceptions in the loop
-                logger.info(f"Sleeping for {self.sleep_time} seconds")
-                time.sleep(self.sleep_time)
-
-            # Reset work tracker
-            did_work = False
-
-            # Run all scheduler components and track if any did work
-            components = [
-                self.serve_ready_task,
-                self.serve_build_output,
-                self.cancellation.process_cancellations,
-                self.vulnerabilities.process_traced_vulnerabilities,
-                self.patches.process_patches,
-            ]
-            did_work = any(component() for component in components)
+        serve_loop(self.serve_item, self.sleep_time)

@@ -3,7 +3,6 @@ import os
 import stat
 from dataclasses import dataclass, field
 from buttercup.common.queues import (
-    RQItem,
     QueueFactory,
     ReliableQueue,
     QueueNames,
@@ -14,13 +13,12 @@ from buttercup.program_model.kythe import KytheTool, KytheConf
 from buttercup.program_model.graph import GraphStorage
 from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.utils import serve_loop
 from pathlib import Path
 from redis import Redis
-import time
 import subprocess
 import uuid
 import tempfile
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +155,32 @@ class ProgramModel:
 
         return True
 
+    def serve_item(self) -> bool:
+        rq_item = self.task_queue.pop()
+        if rq_item is None:
+            return False
+
+        task_index: IndexRequest = rq_item.deserialized
+        success = self.process_task(task_index)
+
+        if success:
+            self.output_queue.push(
+                IndexOutput(
+                    apply_diff=task_index.apply_diff,
+                    build_type=task_index.build_type,
+                    package_name=task_index.package_name,
+                    sanitizer=task_index.sanitizer,
+                    task_dir=task_index.task_dir,
+                    task_id=task_index.task_id,
+                )
+            )
+            self.task_queue.ack_item(rq_item.item_id)
+            logger.info(f"Successfully processed task {task_index.task_id}")
+        else:
+            logger.error(f"Failed to process task {task_index.task_id}")
+
+        return True
+
     def serve(self):
         """Main loop to process tasks from queue"""
         if self.task_queue is None:
@@ -166,29 +190,4 @@ class ProgramModel:
             raise ValueError("Output queue is not initialized")
 
         logger.info("Starting indexing service")
-
-        while True:
-            rq_item: Optional[RQItem] = self.task_queue.pop()
-
-            if rq_item is not None:
-                task_index: IndexRequest = rq_item.deserialized
-                success = self.process_task(task_index)
-
-                if success:
-                    self.output_queue.push(
-                        IndexOutput(
-                            apply_diff=task_index.apply_diff,
-                            build_type=task_index.build_type,
-                            package_name=task_index.package_name,
-                            sanitizer=task_index.sanitizer,
-                            task_dir=task_index.task_dir,
-                            task_id=task_index.task_id,
-                        )
-                    )
-                    self.task_queue.ack_item(rq_item.item_id)
-                    logger.info(f"Successfully processed task {task_index.task_id}")
-                else:
-                    logger.error(f"Failed to process task {task_index.task_id}")
-
-            logger.info(f"Sleeping for {self.sleep_time} seconds")
-            time.sleep(self.sleep_time)
+        serve_loop(self.serve_item, self.sleep_time)

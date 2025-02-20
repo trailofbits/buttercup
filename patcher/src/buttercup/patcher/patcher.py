@@ -7,13 +7,13 @@ from buttercup.patcher.utils import PatchInput, PatchOutput
 from langchain_core.runnables import Runnable, RunnableConfig
 from redis import Redis
 from typing import Callable, Any
-from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
+from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames, GroupNames
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
 from buttercup.patcher.mock import MOCK_LIBPNG_FUNCTION_CODE
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
-import time
+from buttercup.common.utils import serve_loop
 import logging
 
 logger = logging.getLogger(__name__)
@@ -53,10 +53,7 @@ class Patcher:
         return res
 
     def _process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
-        challenge_task = ChallengeTask(
-            read_only_task_dir=input.challenge_task_dir,
-            project_name=input.project_name,
-        )
+        challenge_task = ChallengeTask(input.challenge_task_dir)
         with challenge_task.get_rw_copy(work_dir=self.scratch_dir) as rw_task:
             patcher_agent = PatcherLeaderAgent(
                 rw_task,
@@ -66,16 +63,16 @@ class Patcher:
             patch = patcher_agent.run_patch_task()
             if patch is None:
                 logger.error(
-                    "Could not generate a patch for vulnerability %s/%s", input.project_name, input.vulnerability_id
+                    "Could not generate a patch for vulnerability %s/%s", challenge_task.name, input.vulnerability_id
                 )
                 return None
 
-            logger.info("Generated patch for vulnerabiity %s/%s", input.project_name, input.vulnerability_id)
+            logger.info("Generated patch for vulnerabiity %s/%s", challenge_task.name, input.vulnerability_id)
             logger.debug(f"Patch: {patch}")
             return patch
 
     def process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
-        logger.info(f"Processing vulnerability {input.project_name}/{input.vulnerability_id}")
+        logger.info(f"Processing vulnerability {input.task_id}/{input.vulnerability_id}")
         logger.debug(f"Patch Input: {input}")
 
         if self.dev_mode:
@@ -96,9 +93,9 @@ class Patcher:
             res = self._process_vulnerability(input)
 
         if res is not None:
-            logger.info(f"Processed vulnerability {input.project_name}/{input.vulnerability_id}")
+            logger.info(f"Processed vulnerability {input.task_id}/{input.vulnerability_id}")
         else:
-            logger.error(f"Failed to process vulnerability {input.project_name}/{input.vulnerability_id}")
+            logger.error(f"Failed to process vulnerability {input.task_id}/{input.vulnerability_id}")
 
         return res
 
@@ -107,7 +104,6 @@ class Patcher:
             challenge_task_dir=Path(vuln.crash.crash.target.task_dir),
             task_id=vuln.crash.crash.target.task_id,
             vulnerability_id=vuln.vuln_id,
-            project_name=vuln.crash.crash.target.package_name,
             harness_name=vuln.crash.crash.harness_name,
             pov=Path(vuln.crash.crash.crash_input_path),
             sanitizer_output=vuln.crash.tracer_stacktrace,
@@ -115,39 +111,41 @@ class Patcher:
             sanitizer=vuln.crash.crash.target.sanitizer,
         )
 
-    def serve(self):
+    def serve_item(self) -> None:
+        rq_item = self.vulnerability_queue.pop()
+        if rq_item is None:
+            return False
+
+        vuln = rq_item.deserialized
+        patch_input = self._create_patch_input(vuln)
+        try:
+            patch = self.process_vulnerability(patch_input)
+            if patch is not None:
+                patch_msg = Patch(
+                    task_id=patch.task_id,
+                    vulnerability_id=patch.vulnerability_id,
+                    patch=patch.patch,
+                )
+                self.patches_queue.push(patch_msg)
+                self.vulnerability_queue.ack_item(rq_item.item_id)
+                logger.info(
+                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}"
+                )
+            else:
+                logger.error(
+                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}"
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}: {e}"
+            )
+
+        return True
+
+    def serve(self) -> None:
         """Main loop to process vulnerabilities from queue"""
         if self.redis is None:
             raise ValueError("Redis is not initialized, setup redis connection")
 
         logger.info("Starting patcher service")
-        while True:
-            rq_item: RQItem[ConfirmedVulnerability] | None = self.vulnerability_queue.pop()
-
-            if rq_item is not None:
-                vuln: ConfirmedVulnerability = rq_item.deserialized
-                patch_input = self._create_patch_input(vuln)
-                try:
-                    patch = self.process_vulnerability(patch_input)
-                    if patch is not None:
-                        patch_msg = Patch(
-                            task_id=patch.task_id,
-                            vulnerability_id=patch.vulnerability_id,
-                            patch=patch.patch,
-                        )
-                        self.patches_queue.push(patch_msg)
-                        self.vulnerability_queue.ack_item(rq_item.item_id)
-                        logger.info(
-                            f"Successfully generated patch for vulnerability {patch_input.project_name}/{patch_input.vulnerability_id}"
-                        )
-                    else:
-                        logger.error(
-                            f"Failed to generate patch for vulnerability {patch_input.project_name}/{patch_input.vulnerability_id}"
-                        )
-                except Exception as e:
-                    logger.error(
-                        f"Failed to generate patch for vulnerability {patch_input.project_name}/{patch_input.vulnerability_id}: {e}"
-                    )
-
-            logger.info(f"Sleeping for {self.sleep_time} seconds")
-            time.sleep(self.sleep_time)
+        serve_loop(self.serve_item, self.sleep_time)

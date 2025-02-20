@@ -35,7 +35,6 @@ def main():
             challenge_task_dir=command.challenge_task_dir,
             task_id=command.task_id,
             vulnerability_id=command.vulnerability_id,
-            project_name=command.project_name,
             harness_name=command.harness_name,
             engine=command.engine,
             sanitizer=command.sanitizer,
