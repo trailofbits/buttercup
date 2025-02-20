@@ -25,6 +25,9 @@ from enum import Enum
 from typing import Any
 
 
+TIMES_DELIVERED_FIELD = "times_delivered"
+
+
 class QueueNames(str, Enum):
     BUILD = "fuzzer_build_queue"
     BUILD_OUTPUT = "fuzzer_build_output_queue"
@@ -244,6 +247,14 @@ class ReliableQueue(Generic[MsgType]):
     @_ensure_group_name
     def ack_item(self, item_id: str) -> None:
         self.redis.xack(self.queue_name, self.group_name, item_id)
+
+    @_ensure_group_name
+    def times_delivered(self, item_id: str) -> int:
+        pending = self.redis.xpending_range(self.queue_name, self.group_name, item_id, item_id, count=1)
+        if pending is None or len(pending) == 0:
+            return 0
+
+        return pending[0][TIMES_DELIVERED_FIELD]
 
     @_ensure_group_name
     def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:

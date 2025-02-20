@@ -88,17 +88,17 @@ class Scheduler:
             project_yaml = ProjectYaml(challenge_task, task.project_name)
 
             engine = self.select_preferred(project_yaml.fuzzing_engines, ["libfuzzer", "afl"])
-            sanitizer = self.select_preferred(project_yaml.sanitizers, ["address", "memory", "undefined"])
-            logger.info(f"Selected engine={engine}, sanitizer={sanitizer} for task {task.task_id}")
+            sanitizers = project_yaml.sanitizers
+            logger.info(f"Selected engine={engine}, sanitizers={sanitizers} for task {task.task_id}")
 
             build_types = [
-                (BUILD_TYPES.FUZZER, sanitizer, True),
                 (BUILD_TYPES.COVERAGE, "coverage", True),
-                (BUILD_TYPES.TRACER, sanitizer, True),
             ]
 
-            if challenge_task.get_diffs():
-                build_types.append((BUILD_TYPES.TRACER_NO_DIFF, sanitizer, False))
+            for san in sanitizers:
+                build_types.append((BUILD_TYPES.FUZZER, san, True))
+                if len(challenge_task.get_diffs()) > 0:
+                    build_types.append((BUILD_TYPES.TRACER_NO_DIFF, san, False))
 
             build_requests = [
                 BuildRequest(

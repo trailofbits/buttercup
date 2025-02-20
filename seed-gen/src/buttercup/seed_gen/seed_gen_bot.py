@@ -36,7 +36,10 @@ class SeedGenBot(TaskLoop):
         out_dir: Path,
         temp_dir: Path,
     ):
-        build = builds[BUILD_TYPES.FUZZER]
+        build = random.choice(builds[BUILD_TYPES.FUZZER])
+        for build_canidate in builds[BUILD_TYPES.FUZZER]:
+            if build_canidate.sanitizer == "address":
+                build = build_canidate
         chall_task = ChallengeTask(
             read_only_task_dir=build.task_dir,
             python_path=self.python,

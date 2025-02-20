@@ -7,7 +7,7 @@ from buttercup.common.challenge_task import ChallengeTask
 class ProjectYaml:
     challenge_task: ChallengeTask
     project_name: str
-    _sanitizers: str | None = field(init=False, default=None)
+    _sanitizers: list[str] | None = field(init=False, default=None)
     _fuzzing_engines: list[str] | None = field(init=False, default=None)
 
     def __post_init__(self):
@@ -22,7 +22,7 @@ class ProjectYaml:
         self._fuzzing_engines = yaml_content.get("fuzzing_engines", ["libfuzzer"])
 
     @property
-    def sanitizers(self) -> str | None:
+    def sanitizers(self) -> list[str]:
         return self._sanitizers
 
     @property

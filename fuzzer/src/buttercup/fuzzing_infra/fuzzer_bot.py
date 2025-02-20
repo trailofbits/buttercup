@@ -12,6 +12,7 @@ from redis import Redis
 from clusterfuzz.fuzz import engine
 from buttercup.common.default_task_loop import TaskLoop
 from typing import List
+import random
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
 from buttercup.common.challenge_task import ChallengeTask
@@ -35,7 +36,7 @@ class FuzzerBot(TaskLoop):
         with tempfile.TemporaryDirectory(dir=self.wdir) as td:
             logger.info(f"Running fuzzer for {task.harness_name} | {task.package_name} | {task.task_id}")
 
-            build = builds[BUILD_TYPES.FUZZER]
+            build = random.choice(builds[BUILD_TYPES.FUZZER])
 
             tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
 

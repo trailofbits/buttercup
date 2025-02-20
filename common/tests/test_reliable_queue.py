@@ -307,3 +307,41 @@ def test_group_create_race2(redis_client):
 
     item = reading_queue2.pop()
     assert item is None
+
+
+def test_times_delivered(reliable_queue, redis_client):
+    # Push a test message
+    test_msg = Struct()
+    test_msg.update({"test_key": "test_value"})
+    reliable_queue.push(test_msg)
+
+    # First delivery
+    item = reliable_queue.pop()
+    assert item is not None
+    msg_id = item.item_id
+
+    # Should be delivered once
+    times = reliable_queue.times_delivered(msg_id)
+    assert times == 1
+
+    # Wait for timeout and let another consumer claim it
+    time.sleep(2)
+
+    # Create second consumer
+    queue2 = ReliableQueue[Struct](
+        queue_name=QUEUE_NAME,
+        group_name=GROUP_NAME,
+        redis=redis_client,
+        task_timeout_ms=1,
+        msg_builder=Struct,
+        reader_name="test_reader2",
+    )
+
+    # Second delivery
+    item = queue2.pop()
+    assert item is not None
+    assert item.item_id == msg_id
+
+    # Should be delivered twice
+    times = queue2.times_delivered(msg_id)
+    assert times == 2

@@ -4,6 +4,7 @@ from redis import Redis
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from google.protobuf.message import Message
 from enum import Enum
+from buttercup.common.sets import RedisSet
 
 MsgType = TypeVar("MsgType", bound=Message)
 MSG_FIELD_NAME = b"msg"
@@ -34,12 +35,12 @@ class RedisMap(Generic[MsgType]):
 
 HARNESS_WEIGHTS_MAP_NAME = "harness_weights"
 BUILD_MAP_NAME = "build_list"
+BUILD_SAN_MAP_NAME = "build_san_list"
 
 
 class BUILD_TYPES(str, Enum):
     FUZZER = "fuzzer"
     COVERAGE = "coverage"
-    TRACER = "tracer_with_diff"
     TRACER_NO_DIFF = "tracer_no_diff"
 
 
@@ -50,30 +51,39 @@ class BuildMap:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-    def map_key_from_task_id(self, task_id: str) -> str:
-        return dumps([task_id, BUILD_MAP_NAME], json_options=CANONICAL_JSON_OPTIONS)
+    def san_set_key(self, task_id: str, build_type: str) -> str:
+        return dumps([task_id, BUILD_MAP_NAME, build_type], json_options=CANONICAL_JSON_OPTIONS)
 
-    def build_map_key(self, build: BuildOutput) -> str:
-        return self.map_key_from_task_id(build.task_id)
-
-    def output_key_from_build_type(self, build_type: str) -> str:
-        return dumps(
-            [
-                build_type,
-            ],
-            json_options=CANONICAL_JSON_OPTIONS,
-        )
-
-    def build_output_key(self, build: BuildOutput) -> str:
-        return self.output_key_from_build_type(build.build_type)
+    def build_output_key(self, task_id: str, build_type: str, san: str) -> str:
+        return dumps([task_id, BUILD_SAN_MAP_NAME, build_type, san], json_options=CANONICAL_JSON_OPTIONS)
 
     def add_build(self, build: BuildOutput) -> None:
-        mp = RedisMap(self.redis, self.build_map_key(build), BuildOutput)
-        mp.set(self.build_output_key(build), build)
+        btype = build.build_type
+        san_set = self.san_set_key(build.task_id, btype)
+        pipe = self.redis.pipeline()
+        pipe.sadd(san_set, build.sanitizer)
+        serialized = build.SerializeToString()
+        boutput_key = self.build_output_key(build.task_id, btype, build.sanitizer)
+        pipe.set(boutput_key, serialized)
+        pipe.execute()
 
-    def get_build(self, task_id: str, build_type: BUILD_TYPES) -> BuildOutput | None:
-        mp = RedisMap(self.redis, self.map_key_from_task_id(task_id), BuildOutput)
-        return mp.get(self.output_key_from_build_type(build_type.value))
+    def get_builds(self, task_id: str, build_type: BUILD_TYPES) -> list[BuildOutput]:
+        sanitizer_set = RedisSet(self.redis, self.san_set_key(task_id, build_type.value))
+        builds = []
+        for san in list(sanitizer_set):
+            build = self.get_build_from_san(task_id, build_type, san)
+            if build is not None:
+                builds.append(build)
+        return builds
+
+    def get_build_from_san(self, task_id: str, build_type: BUILD_TYPES, san: str) -> BuildOutput | None:
+        build_output_key = self.build_output_key(task_id, build_type.value, san)
+        it = self.redis.get(build_output_key)
+        if it is None:
+            return None
+        msg = BuildOutput()
+        msg.ParseFromString(it)
+        return msg
 
 
 class HarnessWeights:

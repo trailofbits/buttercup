@@ -39,11 +39,13 @@ class TaskLoop(ABC):
                 )[0]
                 logger.info(f"Running task for {chc.harness_name} | {chc.package_name} | {chc.task_id}")
 
-                builds = {reqbuild: self.builds.get_build(chc.task_id, reqbuild) for reqbuild in self.required_builds()}
+                builds = {
+                    reqbuild: self.builds.get_builds(chc.task_id, reqbuild) for reqbuild in self.required_builds()
+                }
 
                 has_all_builds = True
                 for k, build in builds.items():
-                    if build is None:
+                    if len(build) <= 0:
                         logger.error(f"Build {k} for {chc.task_id} not found")
                         has_all_builds = False
 

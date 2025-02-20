@@ -33,7 +33,7 @@ class WorkerSettings(ButtercupBaseSettings):
 
 
 class TracerSettings(WorkerSettings):
-    pass
+    max_tries: Annotated[int, Field(default=3)]
 
 
 class FuzzerBotSettings(WorkerSettings):

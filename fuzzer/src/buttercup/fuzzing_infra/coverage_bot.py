@@ -37,7 +37,13 @@ class CoverageBot(TaskLoop):
         return [BUILD_TYPES.COVERAGE]
 
     def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
-        coverage_build = builds[BUILD_TYPES.COVERAGE]
+        coverage_builds = builds[BUILD_TYPES.COVERAGE]
+        if len(coverage_builds) <= 0:
+            logger.error(f"No coverage build found for {task.task_id}")
+            return
+
+        coverage_build = coverage_builds[0]
+
         logger.info(f"Coverage build: {coverage_build}")
 
         tsk = ChallengeTask(read_only_task_dir=coverage_build.task_dir)
