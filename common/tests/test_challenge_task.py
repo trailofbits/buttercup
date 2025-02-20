@@ -392,7 +392,7 @@ def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_
 def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
     """Test copying a challenge task to a temporary directory."""
     with patch.object(ChallengeTask, "_check_python_path"):
-        with challenge_task_readonly.get_rw_copy() as local_task:
+        with challenge_task_readonly.get_rw_copy(None) as local_task:
             # Verify the task directory is different
             assert local_task.task_dir != challenge_task_readonly.task_dir
 
@@ -424,7 +424,7 @@ def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
 def test_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
     """Test committing a challenge task."""
     with patch.object(ChallengeTask, "_check_python_path"):
-        with challenge_task_readonly.get_rw_copy() as local_task:
+        with challenge_task_readonly.get_rw_copy(None) as local_task:
             local_task.build_image()
             local_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
             old_local_dir = local_task.task_dir
@@ -464,7 +464,7 @@ def test_commit_task_with_suffix(challenge_task_readonly: ChallengeTask, mock_su
 def test_no_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
     """Test that a not-commited task cannot be accessed after the context manager is closed."""
     with patch.object(ChallengeTask, "_check_python_path"):
-        with challenge_task_readonly.get_rw_copy() as local_task:
+        with challenge_task_readonly.get_rw_copy(None) as local_task:
             local_task.build_image()
             local_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
             old_local_dir = local_task.task_dir
@@ -507,7 +507,7 @@ def test_apply_patch_diff(challenge_task: ChallengeTask):
 def test_restore_task(challenge_task_readonly: ChallengeTask):
     """Test restoring a challenge task."""
     with patch.object(ChallengeTask, "_check_python_path"):
-        with challenge_task_readonly.get_rw_copy() as local_task:
+        with challenge_task_readonly.get_rw_copy(None) as local_task:
             local_task.get_source_path().joinpath("a.txt").write_text("a")
             local_task.get_source_path().joinpath("b.txt").write_text("b")
             assert local_task.get_source_path().joinpath("a.txt").exists()
@@ -521,7 +521,7 @@ def test_restore_task(challenge_task_readonly: ChallengeTask):
 def test_restore_task_same_dir(challenge_task: ChallengeTask):
     """Test restoring a challenge task to the same directory."""
     with patch.object(ChallengeTask, "_check_python_path"):
-        with challenge_task.get_rw_copy() as local_task:
+        with challenge_task.get_rw_copy(None) as local_task:
             assert local_task.task_dir == local_task.read_only_task_dir
             local_task.get_source_path().joinpath("b.txt").write_text("b")
 

@@ -6,12 +6,13 @@ from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, ReproduceResult
+from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.seed_gen.tasks import Task, do_seed_init, do_vuln_discovery
 
@@ -36,48 +37,40 @@ class SeedGenBot(TaskLoop):
         out_dir: Path,
         temp_dir: Path,
     ):
-        build = random.choice(builds[BUILD_TYPES.FUZZER])
-        for build_canidate in builds[BUILD_TYPES.FUZZER]:
-            if build_canidate.sanitizer == "address":
-                build = build_canidate
-        chall_task = ChallengeTask(
-            read_only_task_dir=build.task_dir,
-            python_path=self.python,
-        )
+        fbuilds = builds[BUILD_TYPES.FUZZER]
+        reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
+
         crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
-        with chall_task.get_rw_copy(work_dir=temp_dir) as rw_task:
-            for pov in out_dir.iterdir():
-                try:
-                    pov_output: ReproduceResult = rw_task.reproduce_pov(task.harness_name, pov)
-                    if pov_output.did_crash():
-                        logger.info(f"Valid PoV found: {pov}")
-                        stacktrace = pov_output.stacktrace()
-                        if stacktrace is None:
-                            logger.error("Stacktrace is empty for PoV, skipping.")
-                            continue
-                        if self.crash_set.add(
-                            task.package_name,
-                            task.harness_name,
-                            task.task_id,
-                            stacktrace,
-                        ):
-                            logger.info(f"PoV with crash {stacktrace} already in crash set")
-                            continue
-                        logger.info("Submitting PoV to crash queue")
-                        dst = crash_dir.copy_file(pov)
-                        crash = Crash(
-                            target=build,
-                            harness_name=task.harness_name,
-                            crash_input_path=dst,
-                            stacktrace=stacktrace,
-                        )
-                        self.crash_queue.push(crash)
-                    else:
-                        logger.info(f"Not valid PoV: {pov}")
-                    logger.debug("PoV stdout: %s", pov_output.command_result.output)
-                    logger.debug("PoV stderr: %s", pov_output.command_result.error)
-                except ChallengeTaskError as exc:
-                    logger.error(f"Error reproducing PoV {pov}: {exc}")
+
+        for pov in out_dir.iterdir():
+            try:
+                pov_output = reproduce_multiple.get_first_crash()
+                if pov_output is not None:
+                    build, result = pov_output
+                    logger.info(f"Valid PoV found: {pov}")
+                    stacktrace = result.stacktrace()
+                    if self.crash_set.add(
+                        task.package_name,
+                        task.harness_name,
+                        task.task_id,
+                        stacktrace,
+                    ):
+                        logger.info(f"PoV with crash {stacktrace} already in crash set")
+                        continue
+                    logger.info("Submitting PoV to crash queue")
+                    dst = crash_dir.copy_file(pov)
+                    crash = Crash(
+                        target=build,
+                        harness_name=task.harness_name,
+                        crash_input_path=dst,
+                        stacktrace=stacktrace,
+                    )
+                    self.crash_queue.push(crash)
+
+                    logger.debug("PoV stdout: %s", result.command_result.output)
+                    logger.debug("PoV stderr: %s", result.command_result.error)
+            except ChallengeTaskError as exc:
+                logger.error(f"Error reproducing PoV {pov}: {exc}")
 
     def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:

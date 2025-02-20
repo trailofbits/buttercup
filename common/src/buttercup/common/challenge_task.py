@@ -484,12 +484,12 @@ class ChallengeTask:
             raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
 
     @contextmanager
-    def get_rw_copy(self, work_dir: PathLike | None = None, delete: bool = True) -> Iterator[ChallengeTask]:
+    def get_rw_copy(self, work_dir: PathLike | None, delete: bool = True) -> Iterator[ChallengeTask]:
         """Create a copy of this task in a new writable directory.
         Returns a context manager that yields a new ChallengeTask instance pointing to the new copy.
 
         Example:
-            with task.get_rw_copy() as local_task:
+            with task.get_rw_copy(work_dir) as local_task:
                 local_task.build_fuzzers()
         """
         if self.local_task_dir is not None:
