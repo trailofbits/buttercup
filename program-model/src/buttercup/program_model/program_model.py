@@ -83,7 +83,6 @@ class ProgramModel:
 
             tsk = ChallengeTask(
                 read_only_task_dir=args.task_dir,
-                project_name=args.package_name,
                 python_path=self.python,
             )
 

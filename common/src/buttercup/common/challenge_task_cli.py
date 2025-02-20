@@ -109,14 +109,12 @@ def main():
     if settings.rw:
         task = ChallengeTask(
             read_only_task_dir=settings.task_dir,
-            project_name=settings.project_name,
             python_path=settings.python_path,
             local_task_dir=settings.task_dir,
         )
     else:
         task = ChallengeTask(
             read_only_task_dir=settings.task_dir,
-            project_name=settings.project_name,
             python_path=settings.python_path,
         )
 

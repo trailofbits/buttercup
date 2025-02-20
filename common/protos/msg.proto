@@ -47,26 +47,22 @@ message TaskDelete {
 
 // Fuzzer-related messages
 message BuildRequest {
-    string package_name = 1;
-    string engine = 2;
-    string sanitizer = 3;
-    string task_dir = 4;
-    string task_id = 5;
-    string build_type = 6;
-    bool apply_diff = 7;
+    string engine = 1;
+    string sanitizer = 2;
+    string task_dir = 3;
+    string task_id = 4;
+    string build_type = 5;
+    bool apply_diff = 6;
 }
 
 message BuildOutput {
-    string package_name = 1;
-    string engine = 2;
-    string sanitizer = 3;
-    string task_dir = 4;
-    string task_id = 5;
-    string build_type = 6;
-    bool apply_diff = 7;
+    string engine = 1;
+    string sanitizer = 2;
+    string task_dir = 3;
+    string task_id = 4;
+    string build_type = 5;
+    bool apply_diff = 6;
 }
-
-
 
 message WeightedHarness {
     float weight = 1;

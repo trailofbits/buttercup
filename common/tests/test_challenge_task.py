@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import Mock, patch
 import subprocess
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
+from buttercup.common.task_meta import TaskMeta
 
 
 @pytest.fixture
@@ -29,6 +30,9 @@ def task_dir(tmp_path: Path) -> Path:
     # Create a mock test.txt file
     (source / "test.txt").write_text("mock test content")
 
+    # Create task metadata
+    TaskMeta(project_name="example_project", focus="my-source").save(tmp_path)
+
     return tmp_path
 
 
@@ -37,7 +41,6 @@ def challenge_task_readonly(task_dir: Path) -> ChallengeTask:
     """Create a mock challenge task for testing."""
     return ChallengeTask(
         read_only_task_dir=task_dir,
-        project_name="example_project",
     )
 
 
@@ -47,7 +50,6 @@ def challenge_task(task_dir: Path) -> ChallengeTask:
     return ChallengeTask(
         read_only_task_dir=task_dir,
         local_task_dir=task_dir,
-        project_name="example_project",
     )
 
 
@@ -57,7 +59,6 @@ def challenge_task_custom_python(task_dir: Path) -> ChallengeTask:
     return ChallengeTask(
         read_only_task_dir=task_dir,
         local_task_dir=task_dir,
-        project_name="example_project",
         python_path="/usr/bin/python3",
     )
 
@@ -225,7 +226,6 @@ def test_invalid_task_dir():
     with pytest.raises(ChallengeTaskError, match="Missing required directory: /nonexistent"):
         ChallengeTask(
             read_only_task_dir=Path("/nonexistent"),
-            project_name="example_project",
         )
 
 
@@ -235,10 +235,12 @@ def test_missing_required_dirs(tmp_path: Path):
     task_dir = tmp_path / "task"
     task_dir.mkdir()
 
+    # Add TaskMeta even though directories are missing
+    TaskMeta(project_name="example_project", focus="my-source").save(task_dir)
+
     with pytest.raises(ChallengeTaskError, match=f"Missing required directory: {task_dir / 'src'}"):
         ChallengeTask(
             read_only_task_dir=task_dir,
-            project_name="example_project",
         )
 
 
@@ -310,10 +312,12 @@ def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
         check=True,
     )
 
+    # Create task metadata
+    TaskMeta(project_name="libjpeg-turbo", focus="libjpeg-turbo").save(tmp_path)
+
     return ChallengeTask(
         read_only_task_dir=tmp_path,
         local_task_dir=tmp_path,
-        project_name="libjpeg-turbo",
     )
 
 
@@ -434,7 +438,6 @@ def test_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
         commited_task = ChallengeTask(
             read_only_task_dir=commited_local_dir,
             local_task_dir=commited_local_dir,
-            project_name="example_project",
         )
         assert commited_task.get_source_path().exists()
         assert commited_task.get_oss_fuzz_path().exists()
@@ -444,7 +447,6 @@ def test_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
             ChallengeTask(
                 read_only_task_dir=old_local_dir,
                 local_task_dir=old_local_dir,
-                project_name="example_project",
             )
 
 
@@ -471,7 +473,6 @@ def test_no_commit_task(challenge_task_readonly: ChallengeTask, mock_subprocess)
             ChallengeTask(
                 read_only_task_dir=old_local_dir,
                 local_task_dir=old_local_dir,
-                project_name="example_project",
             )
 
 

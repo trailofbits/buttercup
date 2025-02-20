@@ -4,6 +4,7 @@ from redis import Redis
 
 from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetail, BuildOutput, WeightedHarness
 from buttercup.common.maps import BUILD_TYPES
+from buttercup.common.task_meta import TaskMeta
 
 from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
@@ -48,12 +49,18 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         ossfuzz_dir = tooling_dir / "oss-fuzz"
         source_code_dir = src_dir / "source-code"
         stub_helper_py = ossfuzz_dir / "infra" / "helper.py"
+
+        # Create directories
         src_dir.mkdir(parents=True, exist_ok=True)
         tooling_dir.mkdir(parents=True, exist_ok=True)
         ossfuzz_dir.mkdir(parents=True, exist_ok=True)
         source_code_dir.mkdir(parents=True, exist_ok=True)
         stub_helper_py.parent.mkdir(parents=True, exist_ok=True)
         stub_helper_py.touch()
+
+        # Create and save TaskMeta
+        task_meta = TaskMeta(project_name="test-package", focus="test-focus")
+        task_meta.save(task_dir)
 
         build_output = BuildOutput(
             package_name="test-package",

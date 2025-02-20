@@ -39,7 +39,6 @@ class SeedGenBot(TaskLoop):
         build = builds[BUILD_TYPES.FUZZER]
         chall_task = ChallengeTask(
             read_only_task_dir=build.task_dir,
-            project_name=build.package_name,
             python_path=self.python,
         )
         crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)

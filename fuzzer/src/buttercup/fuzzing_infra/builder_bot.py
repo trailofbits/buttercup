@@ -33,14 +33,12 @@ def main():
             if args.allow_caching:
                 origin_task = ChallengeTask(
                     task_dir,
-                    msg.package_name,
                     python_path=args.python,
                     local_task_dir=task_dir,
                 )
             else:
                 origin_task = ChallengeTask(
                     task_dir,
-                    msg.package_name,
                     python_path=args.python,
                 )
 

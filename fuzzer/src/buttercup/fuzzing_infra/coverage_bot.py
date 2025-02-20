@@ -40,7 +40,7 @@ class CoverageBot(TaskLoop):
         coverage_build = builds[BUILD_TYPES.COVERAGE]
         logger.info(f"Coverage build: {coverage_build}")
 
-        tsk = ChallengeTask(read_only_task_dir=coverage_build.task_dir, project_name=coverage_build.package_name)
+        tsk = ChallengeTask(read_only_task_dir=coverage_build.task_dir)
         with tsk.get_rw_copy(work_dir=self.wdir) as local_tsk:
             corpus = Corpus(self.wdir, task.task_id, task.harness_name)
             runner = CoverageRunner(

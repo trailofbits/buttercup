@@ -58,7 +58,7 @@ def main():
     prsr.add_argument("--llvm-cov-path", default="llvm-cov")
     args = prsr.parse_args()
 
-    tool = ChallengeTask(read_only_task_dir=args.task_dir, project_name=args.package_name)
+    tool = ChallengeTask(read_only_task_dir=args.task_dir)
     runner = CoverageRunner(tool, args.llvm_cov_path)
     runner.run(args.harness_name, args.corpus_dir, args.package_name)
 

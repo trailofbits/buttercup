@@ -39,9 +39,7 @@ class TracerRunner:
             logger.warning("No tracer build output found for task %s", self.tsk_id)
             return None
 
-        diff_task = ChallengeTask(
-            read_only_task_dir=build_output_with_diff.task_dir, project_name=build_output_with_diff.package_name
-        )
+        diff_task = ChallengeTask(read_only_task_dir=build_output_with_diff.task_dir)
         is_diff_mode = len(diff_task.get_diffs()) > 0
         build_output_no_diffs = builds.get_build(self.tsk_id, BUILD_TYPES.TRACER_NO_DIFF)
         if is_diff_mode and build_output_no_diffs is None:
@@ -56,9 +54,7 @@ class TracerRunner:
             return self._create_tracer_info(info_with_diff)
 
         logger.info("Checking if task %s crashed without diffs", self.tsk_id)
-        no_diff_task = ChallengeTask(
-            read_only_task_dir=build_output_no_diffs.task_dir, project_name=build_output_no_diffs.package_name
-        )
+        no_diff_task = ChallengeTask(read_only_task_dir=build_output_no_diffs.task_dir)
 
         with no_diff_task.get_rw_copy(work_dir=self.wdir) as local_no_diff_task:
             info_without_diff = local_no_diff_task.reproduce_pov(harness_name, crash_path)

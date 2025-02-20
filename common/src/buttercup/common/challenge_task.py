@@ -7,9 +7,11 @@ import logging
 import shutil
 import uuid
 import subprocess
+from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
 from contextlib import contextmanager
 from typing import Iterator
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,7 @@ class ChallengeTask:
     """Class to manage Challenge Tasks."""
 
     read_only_task_dir: PathLike
-    project_name: str
+    task_meta: TaskMeta = field(init=False)
     python_path: PathLike = Path("python")
     local_task_dir: PathLike | None = None
 
@@ -71,8 +73,12 @@ class ChallengeTask:
         self.python_path = Path(self.python_path)
 
         self._check_dir_exists(self.read_only_task_dir)
+
         if self.local_task_dir:
             self._check_dir_exists(self.local_task_dir)
+
+        # Pickup the TaskMeta from the read-only task directory
+        self.task_meta = TaskMeta.load(self.read_only_task_dir)
 
         # Verify required directories exist
         for directory in [self.SRC_DIR, self.OSS_FUZZ_DIR]:
@@ -101,8 +107,8 @@ class ChallengeTask:
         return first_elem.relative_to(self.task_dir)
 
     def get_source_subpath(self) -> Path | None:
-        # TODO: "Review task structure and Challenge Task operations" Issue #74
-        return self._find_first_dir(self.SRC_DIR)
+        # Return the focus path relative to SRC_DIR
+        return Path(self.SRC_DIR) / self.focus
 
     def get_diff_subpath(self) -> Path | None:
         # TODO: "Review task structure and Challenge Task operations" Issue #74
@@ -149,6 +155,14 @@ class ChallengeTask:
     @property
     def name(self) -> str:
         return self.project_name
+
+    @property
+    def focus(self) -> str:
+        return self.task_meta.focus
+
+    @property
+    def project_name(self) -> str:
+        return self.task_meta.project_name
 
     def read_write_decorator(func: Callable) -> Callable:
         """Decorator to check if the task is read-only."""
@@ -491,7 +505,6 @@ class ChallengeTask:
             # Create a new ChallengeTask instance pointing to the copy
             copied_task = ChallengeTask(
                 read_only_task_dir=self.read_only_task_dir,
-                project_name=self.project_name,
                 python_path=self.python_path,
                 local_task_dir=tmp_dir,
             )

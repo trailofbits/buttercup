@@ -37,9 +37,7 @@ class FuzzerBot(TaskLoop):
 
             build = builds[BUILD_TYPES.FUZZER]
 
-            tsk = ChallengeTask(
-                read_only_task_dir=build.task_dir, project_name=build.package_name, python_path=self.python
-            )
+            tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
 
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 logger.info(f"Build dir: {local_tsk.get_build_dir()}")

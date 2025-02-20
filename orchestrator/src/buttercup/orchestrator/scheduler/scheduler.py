@@ -14,12 +14,14 @@ from buttercup.common.datastructures.msg_pb2 import (
     WeightedHarness,
 )
 from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.task_meta import TaskMeta
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
 from buttercup.orchestrator.api_client_factory import create_api_client
 import random
+
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +76,12 @@ class Scheduler:
     def process_ready_task(self, task: Task) -> list[BuildRequest]:
         """Parse a task that has been downloaded and is ready to be built"""
         logger.info(f"Processing ready task {task.task_id}")
-        challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id, task.project_name)
+
+        # Store the task meta in the tasks storage directory
+        task_meta = TaskMeta(task.project_name, task.focus)
+        task_meta.save(self.tasks_storage_dir / task.task_id)
+
+        challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id)
         if challenge_task.get_source_path().is_dir():
             logger.info(f"Processing task {task.task_id} / {task.focus}")
 
@@ -121,9 +128,7 @@ class Scheduler:
             return []
 
         # TODO(Ian): what to do if a task dir doesnt need a python path?
-        tsk = ChallengeTask(
-            read_only_task_dir=build_output.task_dir, project_name=build_output.package_name, python_path="python"
-        )
+        tsk = ChallengeTask(read_only_task_dir=build_output.task_dir, python_path="python")
 
         build_dir = tsk.get_build_dir()
         targets = get_fuzz_targets(build_dir)
