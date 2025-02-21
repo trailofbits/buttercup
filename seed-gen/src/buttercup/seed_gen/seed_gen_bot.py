@@ -44,7 +44,7 @@ class SeedGenBot(TaskLoop):
 
         for pov in out_dir.iterdir():
             try:
-                pov_output = reproduce_multiple.get_first_crash()
+                pov_output = reproduce_multiple.get_first_crash(pov, task.harness_name)
                 if pov_output is not None:
                     build, result = pov_output
                     logger.info(f"Valid PoV found: {pov}")

@@ -17,8 +17,8 @@ class ReproduceMultiple:
             with task.get_rw_copy(self.wdir) as local_task:
                 yield (build, local_task.reproduce_pov(harness_name, pov))
 
-    def get_first_crash(self) -> tuple[BuildOutput, ReproduceResult] | None:
-        for build, result in self.attempt_reproduce():
+    def get_first_crash(self, pov: Path, harness_name: str) -> tuple[BuildOutput, ReproduceResult] | None:
+        for build, result in self.attempt_reproduce(pov, harness_name):
             if result.command_result.returncode is not None and result.stacktrace() is not None and result.did_crash():
                 return build, result
         return None

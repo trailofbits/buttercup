@@ -86,7 +86,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
 def create_default_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration."""
     return create_llm(
-        model_name=ButtercupLLM.OPENAI_GPT_4O.value,
+        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4O.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,

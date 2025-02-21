@@ -1,0 +1,50 @@
+{
+    "configs": [
+        {
+            "name": "gpt-4o",
+            "llm_kwargs": {
+                "model_name": "openai-gpt-4o",
+                "temperature": 0.1,
+                "timeout": 420.0,
+                "max_retries": 3
+            }
+        },
+        {
+            "name": "gpt-4o-mini",
+            "llm_kwargs": {
+                "model_name": "openai-gpt-4o-mini",
+                "temperature": 0.1,
+                "timeout": 420.0,
+                "max_retries": 3
+            }
+        },
+        {
+            "name": "o3-mini",
+            "llm_kwargs": {
+                "model_name": "openai-o3-mini",
+                "timeout": 420.0,
+                "max_retries": 3
+            }
+        },
+        {
+            "name": "o1",
+            "llm_kwargs": {
+                "model_name": "openai-o1",
+                "timeout": 420.0,
+                "max_retries": 3
+            }
+        },
+        {
+            "name": "3.5-sonnet",
+            "llm_kwargs": {
+                "model_name": "claude-3.5-sonnet",
+                "temperature": 0.1,
+                "timeout": 420.0,
+                "max_retries": 3
+            }
+        }
+    ],
+    "attempts_per_config": 1,
+    "package_name": "libpng",
+    "harness_name": "libpng_read_fuzzer"
+}

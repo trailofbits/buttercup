@@ -24,19 +24,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.optional-dependencies]
-doc = []
-test = ["pytest", "pytest-cov", "pretend", "coverage[toml]"]
-lint = [
-    # NOTE: ruff is under active development, so we pin conservatively here
-    # and let Dependabot periodically perform this update.
+dev = [
+    "mypy ~= 1.15.0",
+    "pytest ~= 8.3.4",
     "ruff ~= 0.6.2",
-    "mypy >= 1.0",
-    "types-html5lib",
-    "types-requests",
-    "types-toml",
-    "interrogate",
+    "tqdm ~= 4.67.1",
 ]
-dev = ["seed-gen[doc,test,lint]", "twine", "build"]
 
 [project.scripts]
 "seed-gen" = "buttercup.seed_gen._cli:main"
@@ -66,7 +59,7 @@ warn_unused_ignores = true
 
 [tool.ruff]
 line-length = 100
-include = ["src/**/*.py", "test/**/*.py"]
+include = ["src/**/*.py", "test/**/*.py", "eval/**/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]

@@ -5,12 +5,12 @@ from pathlib import Path
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.common.llm import create_default_llm, get_langfuse_callbacks
+from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 from buttercup.seed_gen.mock_context.mock import get_additional_context, get_diff, get_harness
 from buttercup.seed_gen.prompts import PYTHON_SEED_SYSTEM_PROMPT, PYTHON_SEED_USER_PROMPT
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_md
-from buttercup.seed_gen.vuln_discovery import analyze_diff, write_pov_funcs
+from buttercup.seed_gen.vuln_discovery import VulnDiscovery
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,9 @@ def generate_seed_funcs(harness: str, additional_context: str, count: int) -> li
         ]
     )
     llm_callbacks = get_langfuse_callbacks()
-    llm = create_default_llm(callbacks=llm_callbacks)
+    llm = create_default_llm(
+        model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value, callbacks=llm_callbacks
+    )
     chain = prompt | llm | extract_md
     chain_config = chain.with_config(RunnableConfig(tags=["generate_seed_funcs"]))
     funcs = chain_config.invoke(
@@ -70,14 +72,19 @@ def do_seed_explore() -> None:
 def do_vuln_discovery(challenge: str, output_dir: Path) -> None:
     """Do vuln-discovery task"""
     logger.info("Doing vuln-discovery for challenge %s", challenge)
+    llm_callbacks = get_langfuse_callbacks()
+    llm = create_default_llm(
+        model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value, callbacks=llm_callbacks
+    )
+    vuln_discovery = VulnDiscovery(llm)
     max_povs = VULN_DISCOVERY_MAX_POV_COUNT
     harness = get_harness(challenge)
     diff = get_diff(challenge)
     try:
         logger.info("Analyzing the diff in challenge %s", challenge)
-        analysis = analyze_diff(diff, harness)
+        analysis = vuln_discovery.analyze_diff(diff, harness)
         logger.info("Making PoVs for the challenge %s", challenge)
-        pov_funcs = write_pov_funcs(analysis, harness, diff, max_povs)
+        pov_funcs = vuln_discovery.write_pov_funcs(analysis, harness, diff, max_povs)
         sandbox_exec_funcs(pov_funcs, output_dir)
     except Exception as err:
         logger.error("Failed vuln-discovery for challenge %s: %s", challenge, str(err))

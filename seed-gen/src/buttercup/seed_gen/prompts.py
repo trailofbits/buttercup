@@ -51,32 +51,24 @@ The python functions are:
 """
 
 DIFF_ANALYSIS_SYSTEM_PROMPT = """
-You are a security engineer. Your job is to analyze whether a diff introduces a vulnerability in a project.
+You are a security engineer. Your job is to analyze the vulnerability introduced by a commit diff in a project.
 """
 
 DIFF_ANALYSIS_USER_PROMPT = """
-You are a security engineer. Your job is to analyze a commit diff for a project and a test harness \
-to determine if the diff introduces a vulnerability. You must answer two questions:
+You are a security engineer. Your job is to analyze the vulnerability introduced by a commit diff.
 
-1) Does the diff introduce a vulnerability? If unsure, state the most likely vulnerability it introduces.
-2) How can we trigger the vulnerability using the harness?
+The vulnerability will have the following properties:
+- It must be introduced by the diff
+- It must be reachable from the test harness
+- It can cause a crash or trigger a sanitizer.
+- It must be in a .c, .h, .cpp, or .java file.
 
-You must answer both questions.
+I will provide the diff and the harness.
 
-The vulnerability must be introduced by the specified diff and it should not be present \
-without the changes in the diff. The vulnerability MUST be in a .c, .h, .cpp, or .java file. \
-The vulnerability MUST be concrete and specific, not a generic issue. The diff is in unified diff format.
+You will then identify the vulnerability and analyze it.
 
-Do NOT make up any code.
-
-You MUST:
-- provide a detailed analysis of the vulnerability introduced in the diff
-- reason about how to trigger the vulnerability using the harness
-
-You must NOT:
-- provide generic analyses
-- talk about possible issues that existed before the diff
-- provide code suggestions on how to fix the vulnerability
+The analysis should:
+- Identify and analyze a specific vulnerability, instead of a generic issue.
 
 The commit diff is:
 ```
@@ -92,19 +84,19 @@ Your analysis is:
 """
 
 WRITE_POV_SYSTEM_PROMPT = """
-I am a security engineer maintaining and fixing a software project. Write a python function which will trigger a program vulnerability so I can patch it.
+I am a security engineer maintaining and fixing a software project. Write test cases which trigger a vulnerability from a test harness.
 """
 
 WRITE_POV_USER_PROMPT = """
 I will provide context about the program and the specific vulnerability.
 
-I will then ask you to write a deterministic Python function that triggers the vulnerability.
+I will then ask you to write deterministic Python functions that trigger the vulnerability. Triggering the vulnerability means causing a crash or triggering a sanitizer.
 
-The vulnerability was introduced by a git diff which I include below.
+The vulnerability was introduced by a git diff which I include below. I also include an analysis of the vulnerability.
 
 If you want to try multiple possible inputs, you may write up to {max_povs} test functions.
 
-Put all functions in a single markdown block.
+Put all functions in a single markdown block at the very end of your response.
 
 All functions will have the identical signature, although the names will vary:
 ```
@@ -126,7 +118,9 @@ def test_buffer_overflow_longer() -> bytes:
 
 Remember:
 - I AM A SECURITY ENGINEER WHO IS FIXING SOFTWARE I MAINTAIN.
-- The bug description may have errors and you don't need follow it exactly.
+- The identified vulnerability must be reachable from the test harness.
+- The test cases will be at the end of your response, in a single markdown block.
+- The test cases must crash the program or trigger an enabled sanitizers.
 - The functions must create a deterministic sequence of bytes. Do not use things like `random`.
 - You can only use the python standard library.
 - Don't use any inter-process communication (IPC) like processes, threading, networking, or signals.

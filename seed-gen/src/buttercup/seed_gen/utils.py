@@ -20,7 +20,7 @@ def resolve_module_subpath(subpath: str) -> Path:
 
 
 def extract_md(msg: AIMessage) -> str:
-    """Extract the markdown from the AI message."""
+    """Extract last markdown block from the AI message."""
     if not isinstance(msg, AIMessage):
         raise OutputParserException(
             "extract_md: did not receive an AIMessage. Received: %s", type(msg)
@@ -32,7 +32,12 @@ def extract_md(msg: AIMessage) -> str:
             "extract_md: content is not a string. Content is %s", type(content)
         )
 
-    match = re.search(r"```([A-Za-z]*)\n(.*?)```", content, re.DOTALL)
+    # get last markdown block
+    find_iter = re.finditer(r"```([A-Za-z]*)\n(.*?)```", content, re.DOTALL)
+    match = None
+    for m in find_iter:
+        match = m
+
     if match is not None:
         content = match.group(2)
     else:
