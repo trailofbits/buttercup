@@ -108,6 +108,9 @@ services:
     build:
       context: ./
       dockerfile: ./program-model/Dockerfile
+      args:
+        GH_TOKEN: ${GH_TOKEN}
+        ASSET_ID: ${ASSET_ID}
     command: [
       "buttercup-program-model",
       "--log_level", "debug",

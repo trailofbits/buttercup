@@ -1,4 +1,3 @@
-# ccwrapper.sh
 #!/bin/bash -e
 
 set -euxo pipefail

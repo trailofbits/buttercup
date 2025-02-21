@@ -20,29 +20,21 @@ sudo mkdir /crs_scratch/ && sudo chown `whoami`:`whoami` /crs_scratch && sudo mo
 sudo mkdir /tasks_storage && sudo chown `whoami`:`whoami` /tasks_storage && sudo mount --bind ./tasks_storage /tasks_storage
 ```
 
-Set up GitHub token.
+Set up a GitHub token.
 
 ```shell
 gh auth login
 GitHub.com
 SSH
 No
-Paste an authentication token
+Paste the authentication token
 
-echo <token> | docker login ghcr.io -u <username> --password-stdin
+gh auth token
 ```
 
-Download Kythe.
+Put GitHub token in `.env`.
 
-```shell
-cd afc-crs-trail-of-bits/
-
-mkdir -p program-model/scripts/gzs/kythe/
-
-gh release download v0.0.2 -R github.com/trailofbits/aixcc-kythe -D program-model/scripts/gzs/
-
-tar -xvzf program-model/scripts/gzs/kythe-v0.0.67.tar.gz -C program-model/scripts/gzs/kythe/ --strip-components=1
-```
+See [REST API](https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#list-releases-assets) if you need to find the asset ID of a new release.
 
 ## Usage
 
@@ -51,11 +43,7 @@ Prepare example challenge project.
 ```shell
 cd afc-crs-trail-of-bits/
 
-mkdir -p tasks_storage/example-libpng/src/ && mkdir -p tasks_storage/example-libpng/fuzz-tooling/
-
-git clone --branch aixcc-exemplar-challenge-01 git@github.com:aixcc-finals/example-libpng.git tasks_storage/example-libpng/src/example-libpng
-
-git clone --branch master git@github.com:aixcc-finals/oss-fuzz-aixcc.git tasks_storage/example-libpng/fuzz-tooling/fuzz-tooling
+./orchestrator/scripts/task_crs.sh
 ```
 
 Start up CRS.
@@ -82,7 +70,7 @@ uv run mock/trigger_pm.py \
   --build_type full \
   --package_name libpng \
   --sanitizer AddressSanitizer \
-  --task_dir ../tasks_storage/example-libpng \
+  --task_dir ../tasks_storage/5cea8f59-a7ab-4c77-97a9-f92fcfeb33d8 \
   --task_id libpng
 ```
 

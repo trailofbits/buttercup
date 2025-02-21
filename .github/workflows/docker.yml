@@ -68,5 +68,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            GH_TOKEN=${{ secrets.GH_TOKEN_KYTHE }}
+            ASSET_ID=${{ secrets.ASSET_ID_KYTHE }}
         env:
           DOCKER_BUILD_RECORD_RETENTION_DAYS: ${{ github.ref_type == 'tag' || github.event_name == 'release' && '0' || '7' }}

@@ -33,9 +33,22 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 FROM base AS runtime
+ARG GH_TOKEN
+ARG ASSET_ID
 WORKDIR /app
 
 COPY ./program-model/scripts /app/scripts
+
+# Authorize GH token
+RUN mkdir -p /app/scripts/gzs/kythe/
+RUN curl -L \
+  -H "Accept: application/octet-stream" \
+  -H "Authorization: Bearer ${GH_TOKEN}" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/trailofbits/aixcc-kythe/releases/assets/${ASSET_ID} \
+  -o /app/scripts/gzs/kythe/kythe.tar.gz
+RUN tar xvzf /app/scripts/gzs/kythe/kythe.tar.gz -C /app/scripts/gzs/kythe/ --strip-components=1
+RUN rm /app/scripts/gzs/kythe/kythe.tar.gz
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH
