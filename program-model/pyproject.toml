@@ -5,7 +5,13 @@ description = "Buttercup contextualizer"
 readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
 requires-python = ">=3.10,<3.13"
-dependencies = ["gremlinpython==3.7.3", "common", "protobuf (>=3.20, <=3.20.3)"]
+dependencies = [
+    "gremlinpython==3.7.3",
+    "common",
+    "protobuf (>=3.20, <=3.20.3)",
+    "tree-sitter>=0.24.0",
+    "tree-sitter-language-pack>=0.4.0",
+]
 
 [project.scripts]
 buttercup-program-model = "buttercup.program_model.__cli__:main"
