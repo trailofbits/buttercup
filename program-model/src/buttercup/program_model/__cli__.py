@@ -17,10 +17,9 @@ def prepare_task(command: ProgramModelProcessCommand) -> IndexRequest:
     """Prepares task for indexing."""
 
     return IndexRequest(
+        task_dir=command.task_dir,
         package_name=command.package_name,
         sanitizer=command.sanitizer,
-        ossfuzz=command.ossfuzz,
-        source_path=command.source_path,
         task_id=command.task_id,
         build_type=command.build_type,
     )

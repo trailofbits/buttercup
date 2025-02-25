@@ -1,11 +1,15 @@
-lock:
-    uv lock
+all: && sync reformat lint test
+
+sync:
     uv sync --all-extras
+
+reformat:
+    uv run ruff format
+    uv run ruff check --fix
 
 lint:
     uv run ruff format --check
     uv run ruff check
 
-reformat:
-    uv run ruff format
-    uv run ruff check --fix
+test:
+    uv run pytest -svv

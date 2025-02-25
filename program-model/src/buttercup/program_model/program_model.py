@@ -166,7 +166,6 @@ class ProgramModel:
         if success:
             self.output_queue.push(
                 IndexOutput(
-                    apply_diff=task_index.apply_diff,
                     build_type=task_index.build_type,
                     package_name=task_index.package_name,
                     sanitizer=task_index.sanitizer,

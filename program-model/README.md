@@ -52,9 +52,6 @@ Start up CRS.
 cd afc-crs-trail-of-bits/
 
 docker compose up -d --build --remove-orphans
-
-# cd common/
-# uv run src/buttercup/common/msg_publisher.py send tasks_ready_queue ../program-model/mock_data/ready_msg.json
 ```
 
 Send task to Program Model via Redis queue.
@@ -74,34 +71,20 @@ uv run mock/trigger_pm.py \
   --task_id libpng
 ```
 
+## API
+
+See [api.md](api.md).
+
 ## Testing on Challenges
 
 See [challenges.md](challenges.md).
 
 ## Development
 
-Create a new virtual environment and enter it:
+Sync, reformat, lint, and test before committing changes:
 
 ```shell
-cd afc-crs-trail-of-bits/program-model/
-
-uv venv
-source .venv/bin/activate
-uv sync --all-extras
-```
-
-Run tests:
-
-```shell
-pytest
-```
-
-Lock, reformat, and lint before committing changes:
-
-```shell
-just lock
-just reformat
-just lint
+just all
 ```
 
 ## FAQs
@@ -112,5 +95,3 @@ just lint
   * ClusterFuzz uses Python 3.10.
 * How do I build Kythe?
   * Follow the instructions in [dev.md](dev.md).
-* What are available APIs for this component?
-  * See [api.md](api.md).

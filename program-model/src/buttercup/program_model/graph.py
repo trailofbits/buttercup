@@ -6,33 +6,32 @@ from io import BytesIO
 from typing import Generator, Dict, Set
 from buttercup.program_model.data.kythe.proto.storage_pb2 import Entry, VName
 from buttercup.program_model.utils.varint import decode_stream
-import base64
 
 logger = logging.getLogger(__name__)
 
 
 def encode_value(value: bytes) -> str:
-    """Encode a value in base64."""
-    return base64.b64encode(value).decode()
+    """Encode bytes as hex string"""
+    return value.hex()
 
 
 def decode_value(value: str) -> bytes:
-    """Decode a value from base64."""
-    return base64.b64decode(value)
+    """Decode hex string as bytes"""
+    return bytes.fromhex(value)
 
 
 @dataclass(frozen=True, repr=False)
 class KytheURI:
     """Kythe entries described here: https://kythe.io/docs/kythe-storage.html#_entry"""
 
-    signature: str
     corpus: str
-    root: str
-    path: str
     language: str
+    path: str
+    root: str
+    signature: str
 
     def __str__(self):
-        lst = [self.signature, self.corpus, self.root, self.path, self.language]
+        lst = [self.corpus, self.language, self.path, self.root, self.signature]
         uristr = "/".join([urllib.parse.quote(x, safe="") for x in lst])
         return uristr
 
@@ -53,13 +52,17 @@ class Node:
 
     id: str
     label: str | None = None
-    property: Dict[str, str] = field(default_factory=dict)
+    properties: Dict[str, str] = field(default_factory=dict)
+
+    def __str__(self):
+        properties_str = ",".join([f"[{k}: {v}]" for k, v in self.properties.items()])
+        return f"Node(id={self.id}, label={self.label}, properties={properties_str}"
 
     def to_graphml(self) -> str:
         """Convert node to a GraphML string."""
         content = []
         content.append(f'<node id="{self.id}">')
-        for key, value in self.property.items():
+        for key, value in self.properties.items():
             content.append(f'<data key="{key}">{value}</data>')
         content.append("</node>")
         return "".join(content)
@@ -72,7 +75,11 @@ class Edge:
     id: str
     source_id: str
     target_id: str
-    property: Dict[str, str] = field(default_factory=dict)
+    properties: Dict[str, str] = field(default_factory=dict)
+
+    def __str__(self):
+        properties_str = ",".join([f"[{k}: {v}]" for k, v in self.properties.items()])
+        return f"Edge(id={self.id}, source_id={self.source_id}, target_id={self.target_id}, properties={properties_str}"
 
     def to_graphml(self) -> str:
         """Convert edge to a GraphML string."""
@@ -80,7 +87,7 @@ class Edge:
         content.append(
             f'<edge id="{self.id}" source="{self.source_id}" target="{self.target_id}">'
         )
-        for key, value in self.property.items():
+        for key, value in self.properties.items():
             content.append(f'<data key="{key}">{value}</data>')
         content.append("</edge>")
         return "".join(content)
@@ -92,7 +99,9 @@ class GraphStorage:
 
     def __init__(self):
         self.nodes: Dict[str, Node] = {}
-        self.node_properties: Set[str] = set()
+        self.node_properties: Set[str] = set(
+            ["corpus", "language", "path", "root", "signature"]
+        )
         self.edges: Dict[str, Edge] = {}
         self.edge_properties: Set[str] = set()
 
@@ -105,13 +114,22 @@ class GraphStorage:
         uri = str(KytheURI.from_vname(nd))
         if uri in self.nodes.keys():
             return self.nodes[uri]
-        return Node(id=uri)
+        return Node(
+            id=uri,
+            properties={
+                "corpus": encode_value(nd.corpus.encode("utf-8")),
+                "language": encode_value(nd.language.encode("utf-8")),
+                "path": encode_value(nd.path.encode("utf-8")),
+                "root": encode_value(nd.root.encode("utf-8")),
+                "signature": encode_value(nd.signature.encode("utf-8")),
+            },
+        )
 
     def process_stream(self, fl: BytesIO):
         """Process a stream of Kythe entries and output them to a GraphML file."""
 
         try:
-            for count, entry in enumerate(self.iterate_over_entries(fl)):
+            for entry in self.iterate_over_entries(fl):
                 source_node = self.convert_node(entry.source)
                 key = entry.fact_name
                 value = encode_value(entry.fact_value)
@@ -123,11 +141,11 @@ class GraphStorage:
                         source_id=source_node.id,
                         target_id=target_node.id,
                     )
-                    edge.property["labelE"] = entry.edge_kind
+                    edge.properties["labelE"] = entry.edge_kind
                     self.edge_properties.add("labelE")
                     self.edges[edge.id] = edge
                 else:
-                    source_node.property[key] = value
+                    source_node.properties[key] = value
                     self.node_properties.add(key)
                     self.nodes[source_node.id] = source_node
         except Exception as e:
