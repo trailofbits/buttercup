@@ -13,7 +13,6 @@ from buttercup.common.datastructures.msg_pb2 import (
     WeightedHarness,
 )
 from buttercup.common.project_yaml import ProjectYaml
-from buttercup.common.task_meta import TaskMeta
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
@@ -76,10 +75,6 @@ class Scheduler:
     def process_ready_task(self, task: Task) -> list[BuildRequest]:
         """Parse a task that has been downloaded and is ready to be built"""
         logger.info(f"Processing ready task {task.task_id}")
-
-        # Store the task meta in the tasks storage directory
-        task_meta = TaskMeta(task.project_name, task.focus)
-        task_meta.save(self.tasks_storage_dir / task.task_id)
 
         challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id)
         if challenge_task.get_source_path().is_dir():

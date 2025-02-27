@@ -12,6 +12,7 @@ from urllib3.util.retry import Retry
 from buttercup.common.queues import QueueFactory, ReliableQueue, QueueNames, GroupNames
 from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
+from buttercup.common.task_meta import TaskMeta
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry
 from buttercup.common.utils import serve_loop
@@ -182,6 +183,10 @@ class Downloader:
             if not success:
                 logger.error(f"Failed to download and extract sources for task {task.task_id}")
                 return False
+
+            # Store the task meta in the tasks storage directory
+            task_meta = TaskMeta(task.project_name, task.focus)
+            task_meta.save(tmp_task_dir)
 
             # Move to final location
             success = self._move_to_final_location(task.task_id, tmp_task_dir)
