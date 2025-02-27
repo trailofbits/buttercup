@@ -6,9 +6,10 @@ import re
 from dataclasses import dataclass, field
 from operator import itemgetter
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal
 
-from buttercup.common.challenge_task import ChallengeTask
+from langgraph.types import Command
+
 
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -30,9 +31,12 @@ from buttercup.patcher.agents.common import (
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
     PatcherAgentState,
+    PatcherAgentName,
+    PatcherAgentBase,
+    CodeSnippetKey,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
-from buttercup.patcher.utils import decode_bytes, PatchInput, CHAIN_CALL_TYPE, PatchOutput
+from buttercup.patcher.utils import decode_bytes, PatchOutput
 
 logger = logging.getLogger(__name__)
 
@@ -233,23 +237,6 @@ tests work. Do not generate an already existing patch.""",
 )
 
 
-class CodeSnippetKey(BaseModel):
-    """Code snippet key"""
-
-    file_path: str | None = Field(description="The file path of the code snippet")
-    function_name: str | None = Field(description="The function name of the code snippet")
-
-    def __hash__(self) -> int:
-        """Hash the code snippet key"""
-        return hash((self.file_path, self.function_name))
-
-    def __eq__(self, other: object) -> bool:
-        """Check if the code snippet key is equal to another object"""
-        if not isinstance(other, CodeSnippetKey):
-            return False
-        return self.file_path == other.file_path and self.function_name == other.function_name
-
-
 class CodeSnippetChange(BaseModel):
     """Code snippet change"""
 
@@ -272,7 +259,7 @@ class CodeSnippetChanges(BaseModel):
     items: list[CodeSnippetChange] | None = Field(description="List of code snippet changes")
 
 
-class CreateUPatchInput(TypedDict):
+class CreateUPatchInput(BaseModel):
     """Input for the create_upatch function"""
 
     code_snippets: CodeSnippetChanges
@@ -280,12 +267,8 @@ class CreateUPatchInput(TypedDict):
 
 
 @dataclass
-class SWEAgent:
+class SWEAgent(PatcherAgentBase):
     """Software Engineer LLM agent, handling the creation of patches."""
-
-    challenge: ChallengeTask
-    input: PatchInput
-    chain_call: CHAIN_CALL_TYPE
 
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
@@ -341,6 +324,8 @@ class SWEAgent:
     def _get_file_content(self, file_path: str) -> str | None:
         """Get the content of a file, trying multiple search strategies."""
         file_path = file_path.strip()
+        file_path = self.rebase_src_path(file_path)
+
         search_paths = [
             # Strategy 1: Direct path from source
             lambda: [self.challenge.get_source_path() / file_path],
@@ -353,7 +338,12 @@ class SWEAgent:
         ]
 
         for path_fn in search_paths:
-            paths = path_fn()
+            try:
+                paths = path_fn()
+            except Exception as e:
+                logger.debug("Error getting file content for %s: %s", file_path, e)
+                continue
+
             for path in paths:
                 if path.exists() and path.is_file():
                     try:
@@ -380,16 +370,16 @@ class SWEAgent:
         diff_content = next(iter(self.challenge.get_diffs())).read_text()
 
         messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
-        if state.get("root_cause"):
-            messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state["root_cause"])]
+        if state.root_cause:
+            messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause)]
 
-        for code_snippet in state.get("relevant_code_snippets") or []:
+        for code_snippet in state.relevant_code_snippets:
             messages += [
                 CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet["file_path"],
-                    function_name=code_snippet.get("function_name", ""),
-                    code=code_snippet.get("code", ""),
-                    code_context=code_snippet.get("code_context", ""),
+                    file_path=code_snippet.file_path,
+                    function_name=code_snippet.function_name,
+                    code=code_snippet.code,
+                    code_context=code_snippet.code_context,
                 )
             ]
 
@@ -516,14 +506,15 @@ class SWEAgent:
 
         return patches
 
-    def create_upatch(self, inp: CreateUPatchInput) -> PatchOutput:
+    def create_upatch(self, inp: CreateUPatchInput | dict) -> PatchOutput:
         """Extract the patch the new vulnerable code."""
-        code_snippets, state = inp["code_snippets"], inp["state"]
+        inp = inp if isinstance(inp, CreateUPatchInput) else CreateUPatchInput(**inp)
+        code_snippets, state = inp.code_snippets, inp.state
 
         orig_code_snippets = {
-            CodeSnippetKey(file_path=cs["file_path"], function_name=cs["function_name"]): cs["code"]
-            for cs in state["relevant_code_snippets"]
-            if cs.get("code") and cs.get("function_name")
+            CodeSnippetKey(file_path=cs.file_path, function_name=cs.function_name): cs.code
+            for cs in (state.relevant_code_snippets)
+            if cs.code and cs.function_name
         }
 
         logger.debug("Creating patches for %d code snippets", len(code_snippets.items or []))
@@ -542,32 +533,33 @@ class SWEAgent:
         )
         return final_patch
 
-    def create_patch_node(self, state: PatcherAgentState) -> dict:
+    def create_patch_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.REVIEW_PATCH.value]]:
         """Node in the LangGraph that generates a patch (in diff format)"""
         logger.info("Creating a patch for Challenge Task %s", self.challenge.name)
         self.challenge.restore()
 
         messages = []
-        if state.get("patches"):
+        last_patch = state.get_last_patch()
+        if last_patch:
             old_patches = FewShotChatMessagePromptTemplate(
                 input_variables=[],
-                examples=[{"patch": p.patch} for p in state["patches"][-1:]],
+                examples=[{"patch": last_patch.patch}],
                 example_prompt=PATCH_PROMPT,
             )
             messages += old_patches.format_messages()
 
-        if state.get("patch_review") is not None:
-            messages += ADDRESS_REVIEW_PATCH_PROMPT.format_messages(review=state.get("patch_review"))
-        elif state.get("build_succeeded") is False:
+        if state.patch_review is not None:
+            messages += ADDRESS_REVIEW_PATCH_PROMPT.format_messages(review=state.patch_review)
+        elif state.build_succeeded is False:
             messages += BUILD_ANALYSIS_PROMPT.format_messages(
-                build_failure_analysis=state.get("build_analysis"),
+                build_failure_analysis=state.build_analysis,
             )
-        elif state.get("pov_fixed") is False:
+        elif state.pov_fixed is False:
             messages += POV_FAILED_PROMPT.format_messages()
-        elif state.get("tests_passed") is False:
+        elif state.tests_passed is False:
             messages += TESTS_FAILED_PROMPT.format_messages(
-                tests_stdout=decode_bytes(state.get("tests_stdout")),
-                tests_stderr=decode_bytes(state.get("tests_stderr")),
+                tests_stdout=decode_bytes(state.tests_stdout),
+                tests_stderr=decode_bytes(state.tests_stderr),
             )
 
         temperature = 0.0
@@ -594,7 +586,7 @@ class SWEAgent:
                 temperature += 0.1
                 continue
 
-            if patch.patch in [p.patch for p in (state.get("patches") or [])]:
+            if patch.patch in [p.patch for p in (state.patches)]:
                 logger.error("Generated patch already exists, try again with higher temperature...")
                 temperature += 0.2
                 continue
@@ -607,13 +599,16 @@ class SWEAgent:
 
         logger.info("Generated a patch for Challenge Task %s", self.challenge.name)
         logger.debug("Patch: %s", patch.patch)
-        patch_tries = (state.get("patch_tries") or 0) + 1
-        patches = (state.get("patches") or []) + [patch]
-        return {
-            "patches": patches,
-            "patch_tries": patch_tries,
-            "patch_review": None,
-            "build_succeeded": None,
-            "pov_fixed": None,
-            "tests_passed": None,
-        }
+        patch_tries = state.patch_tries + 1
+        patches = state.patches + [patch]
+        return Command(
+            update={
+                "patches": patches,
+                "patch_tries": patch_tries,
+                "patch_review": None,
+                "build_succeeded": False,
+                "pov_fixed": False,
+                "tests_passed": False,
+            },
+            goto=PatcherAgentName.REVIEW_PATCH.value,
+        )

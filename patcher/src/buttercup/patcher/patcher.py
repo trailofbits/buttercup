@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from functools import reduce
-from buttercup.patcher.context import ContextCodeSnippet
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from buttercup.patcher.utils import PatchInput, PatchOutput
 from langchain_core.runnables import Runnable, RunnableConfig
@@ -10,7 +9,6 @@ from typing import Callable, Any
 from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames, GroupNames
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
-from buttercup.patcher.mock import MOCK_LIBPNG_FUNCTION_CODE
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
 from buttercup.common.utils import serve_loop
@@ -25,11 +23,10 @@ class Patcher:
     scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1
-    mock_mode: bool = False
     dev_mode: bool = False
 
-    vulnerability_queue: ReliableQueue | None = field(init=False, default=None)
-    patches_queue: ReliableQueue | None = field(init=False, default=None)
+    vulnerability_queue: ReliableQueue[ConfirmedVulnerability] | None = field(init=False, default=None)
+    patches_queue: ReliableQueue[Patch] | None = field(init=False, default=None)
 
     def __post_init__(self):
         if self.redis is not None:
@@ -63,11 +60,11 @@ class Patcher:
             patch = patcher_agent.run_patch_task()
             if patch is None:
                 logger.error(
-                    "Could not generate a patch for vulnerability %s/%s", challenge_task.name, input.vulnerability_id
+                    "Could not generate a patch for vulnerability %s/%s", input.task_id, input.vulnerability_id
                 )
                 return None
 
-            logger.info("Generated patch for vulnerabiity %s/%s", challenge_task.name, input.vulnerability_id)
+            logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.vulnerability_id)
             logger.debug(f"Patch: {patch}")
             return patch
 
@@ -78,20 +75,7 @@ class Patcher:
         if self.dev_mode:
             set_llm_cache(SQLiteCache(database_path=f".{input.task_id}.langchain.db"))
 
-        res = None
-        if self.mock_mode:
-            input.vulnerable_functions = [
-                ContextCodeSnippet(
-                    file_path="pngrutil.c",
-                    function_name="png_handle_iCCP",
-                    code_context="",
-                    code=MOCK_LIBPNG_FUNCTION_CODE,
-                )
-            ]
-            res = self._process_vulnerability(input)
-        else:
-            res = self._process_vulnerability(input)
-
+        res = self._process_vulnerability(input)
         if res is not None:
             logger.info(f"Processed vulnerability {input.task_id}/{input.vulnerability_id}")
         else:
@@ -111,8 +95,9 @@ class Patcher:
             sanitizer=vuln.crash.crash.target.sanitizer,
         )
 
-    def serve_item(self) -> None:
+    def serve_item(self) -> bool:
         rq_item = self.vulnerability_queue.pop()
+
         if rq_item is None:
             return False
 

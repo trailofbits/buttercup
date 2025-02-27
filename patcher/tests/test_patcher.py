@@ -40,7 +40,6 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
         task_storage_dir=tasks_dir,
         scratch_dir=tmp_path,
         redis=None,
-        mock_mode=True,
     )
 
     vuln = ConfirmedVulnerability(

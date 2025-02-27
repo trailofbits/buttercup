@@ -41,7 +41,6 @@ class ReproducePovCommand(BaseModel):
 
 class Settings(BaseSettings):
     task_dir: Path
-    project_name: str
     python_path: Path = Path("python")
     rw: CliImplicitFlag[bool] = False
 
@@ -96,7 +95,7 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
             fuzzer_args=subcommand.fuzzer_args,
             architecture=subcommand.architecture,
             env=subcommand.env,
-        )
+        ).command_result
     elif isinstance(subcommand, ApplyPatchCommand):
         return CommandResult(success=task.apply_patch_diff(diff_file=subcommand.diff_file))
     else:

@@ -7,10 +7,9 @@ import openai
 from buttercup.patcher.utils import CHAIN_CALL_TYPE
 
 from langchain_core.runnables import RunnableConfig
-from langgraph.constants import Send
-from langgraph.graph import END, StateGraph
+from langgraph.graph import StateGraph
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.patcher.agents.common import PatcherAgentState
+from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName
 from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
@@ -33,94 +32,23 @@ class PatcherLeaderAgent:
     max_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCHES_PER_RUN", 15))
     max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 3))
 
-    def is_review_successful(self, state: PatcherAgentState) -> str:
-        """Determines the next step in the LangGraph after reviewing a patch."""
-        if (state.get("patch_review_tries") or 0) > self.max_review_retries:
-            return "yes"
-
-        return "yes" if state.get("patch_review") is None else "no"
-
-    def after_build(self, state: PatcherAgentState) -> str:
-        """Determine the next step after building a patch."""
-        if (state.get("patch_tries") or 0) > self.max_retries:
-            return END
-
-        if state.get("build_succeeded", False):
-            return "run_pov"
-
-        return "build_failure_analysis"
-
-    def is_pov_fixed(self, state: PatcherAgentState) -> str:
-        """Determines the next step in the LangGraph after running a PoV."""
-        if (state.get("patch_tries") or 0) > self.max_retries:
-            return "end"
-
-        return "yes" if state.get("pov_fixed", False) else "no"
-
-    def is_tests_passed(self, state: PatcherAgentState) -> str:
-        """Determines the next step in the LangGraph after running tests."""
-        if (state.get("patch_tries") or 0) > self.max_retries:
-            return "end"
-
-        return "yes" if state.get("tests_passed", False) else "no"
-
-    def filter_snippets(self, state: PatcherAgentState) -> list:
-        """Filter the snippets."""
-
-        return [
-            Send(
-                "filter_code_snippet",
-                {
-                    "code_snippet": vc,
-                    "commit_analysis": state["commit_analysis"],
-                    "context": state["context"],
-                },
-            )
-            for vc in state["context"].get("vulnerable_functions", [])
-        ]
-
     def _init_patch_team(self) -> StateGraph:
-        rootcause_agent = RootCauseAgent(self.challenge, chain_call=self.chain_call)
+        rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
 
         workflow = StateGraph(PatcherAgentState)
-        workflow.add_node("commit_analysis_node", rootcause_agent.commit_analysis)
-        workflow.add_node("second_commit_analysis_node", rootcause_agent.commit_analysis)
-        workflow.add_node("filter_code_snippet", rootcause_agent.filter_code_snippet_node)
-        workflow.add_node("root_cause_analysis", rootcause_agent.analyze_vulnerability)
-        workflow.add_node("create_patch", swe_agent.create_patch_node)
-        workflow.add_node("review_patch", qe_agent.review_patch_node)
-        workflow.add_node("build_patch", qe_agent.build_patch_node)
-        workflow.add_node("build_failure_analysis", rootcause_agent.analyze_build_failure)
-        workflow.add_node("run_pov", qe_agent.run_pov_node)
-        workflow.add_node("run_tests", qe_agent.run_tests_node)
+        workflow.add_node(PatcherAgentName.COMMIT_ANALYSIS.value, rootcause_agent.commit_analysis)
+        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, rootcause_agent.context_retriever)
+        workflow.add_node(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, rootcause_agent.analyze_vulnerability)
+        workflow.add_node(PatcherAgentName.CREATE_PATCH.value, swe_agent.create_patch_node)
+        workflow.add_node(PatcherAgentName.REVIEW_PATCH.value, qe_agent.review_patch_node)
+        workflow.add_node(PatcherAgentName.BUILD_PATCH.value, qe_agent.build_patch_node)
+        workflow.add_node(PatcherAgentName.BUILD_FAILURE_ANALYSIS.value, rootcause_agent.analyze_build_failure)
+        workflow.add_node(PatcherAgentName.RUN_POV.value, qe_agent.run_pov_node)
+        workflow.add_node(PatcherAgentName.RUN_TESTS.value, qe_agent.run_tests_node)
 
-        workflow.set_entry_point("commit_analysis_node")
-
-        workflow.add_conditional_edges("commit_analysis_node", self.filter_snippets)
-        workflow.add_edge("second_commit_analysis_node", "root_cause_analysis")
-        workflow.add_edge("filter_code_snippet", "root_cause_analysis")
-        workflow.add_edge("root_cause_analysis", "create_patch")
-        workflow.add_edge("build_failure_analysis", "create_patch")
-        workflow.add_edge("create_patch", "review_patch")
-        workflow.add_conditional_edges(
-            "review_patch",
-            self.is_review_successful,
-            {"yes": "build_patch", "no": "create_patch", "end": END},
-        )
-        workflow.add_conditional_edges("build_patch", self.after_build)
-        workflow.add_conditional_edges(
-            "run_pov",
-            self.is_pov_fixed,
-            {"yes": "run_tests", "no": "second_commit_analysis_node", "end": END},
-        )
-        workflow.add_conditional_edges(
-            "run_tests",
-            self.is_tests_passed,
-            {"yes": END, "no": "create_patch", "end": END},
-        )
-
+        workflow.set_entry_point(PatcherAgentName.COMMIT_ANALYSIS.value)
         return workflow
 
     def run_patch_task(self) -> PatchOutput | None:
@@ -130,20 +58,27 @@ class PatcherLeaderAgent:
         chain = patch_team.compile().with_config(
             RunnableConfig(
                 callbacks=llm_callbacks,
-                tags=["patch_team", self.challenge.name],
+                tags=["patch_team", self.challenge.name, self.input.task_id, self.input.vulnerability_id],
+                metadata={
+                    "task_id": self.input.task_id,
+                    "vulnerability_id": self.input.vulnerability_id,
+                    "challenge_project_name": self.challenge.name,
+                    "challenge_task_dir": self.challenge.task_dir,
+                },
                 recursion_limit=RECURSION_LIMIT,
             )
         )
 
+        state = PatcherAgentState(messages=[], context=self.input)
         try:
-            state: PatcherAgentState = chain.invoke({"context": self.input})
-            if state.get("build_succeeded") and state.get("pov_fixed") and state.get("tests_passed"):
-                return state["patches"][-1]
-        except openai.OpenAIError as e:
-            logger.error("OpenAI error: %s", e)
+            output_state: dict = chain.invoke(state)
+            output_state = PatcherAgentState(**output_state)
+            return output_state.get_successful_patch()
+        except openai.OpenAIError:
+            logger.exception("OpenAI error")
             return None
-        except ValueError as e:
-            logger.error("Could not generate a patch: %s", e)
+        except ValueError:
+            logger.exception("Could not generate a patch")
             return None
         except Exception:
             logger.exception("Unexpected error during patch generation")

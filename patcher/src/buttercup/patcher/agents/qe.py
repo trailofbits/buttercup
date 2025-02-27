@@ -5,8 +5,11 @@ import tempfile
 from dataclasses import dataclass, field
 from operator import itemgetter
 from pathlib import Path
+from typing import Literal
+from langgraph.types import Command
+from langgraph.constants import END
 
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
+from buttercup.common.challenge_task import ChallengeTaskError
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import (
@@ -21,9 +24,10 @@ from buttercup.patcher.agents.common import (
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
     PatcherAgentState,
+    PatcherAgentName,
+    PatcherAgentBase,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
-from buttercup.patcher.utils import PatchInput, CHAIN_CALL_TYPE
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -46,6 +50,8 @@ root-cause vulnerability. No indirect or related vulnerabilities;
 vulnerability described in the root cause analysis;
 - The patch should not contain TODOs, FIXMEs, other placeholders, or incomplete \
 code.
+- The patch should try to fix the root cause of the vulnerability, not just \
+address the symptoms.
 
 Analyze each snippet of the patch and provide feedback for each snippet.
 """
@@ -80,12 +86,8 @@ there are some points to address in the review."
 
 
 @dataclass
-class QEAgent:
+class QEAgent(PatcherAgentBase):
     """Quality Engineer LLM agent, handling the testing of patches."""
-
-    challenge: ChallengeTask
-    input: PatchInput
-    chain_call: CHAIN_CALL_TYPE
 
     llm: Runnable = field(init=False)
     review_patch_chain: Runnable = field(init=False)
@@ -117,31 +119,38 @@ class QEAgent:
         diff_content = next(iter(self.challenge.get_diffs())).read_text()
 
         messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
-        if state.get("root_cause"):
-            messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state["root_cause"])]
+        if state.root_cause:
+            messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause)]
 
-        for code_snippet in state.get("relevant_code_snippets") or []:
+        for code_snippet in state.relevant_code_snippets:
             messages += [
                 CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet["file_path"],
-                    function_name=code_snippet.get("function_name", ""),
-                    code=code_snippet.get("code", ""),
-                    code_context=code_snippet.get("code_context", ""),
+                    file_path=code_snippet.file_path,
+                    function_name=code_snippet.function_name,
+                    code=code_snippet.code,
+                    code_context=code_snippet.code_context,
                 )
             ]
 
         return messages
 
-    def review_patch_node(self, state: PatcherAgentState) -> dict:
+    def review_patch_node(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.BUILD_PATCH.value, PatcherAgentName.CREATE_PATCH.value]]:
         """Node in the LangGraph that reviews a patch"""
         logger.info("Reviewing the last patch to ensure it follows the guidelines")
         default_review_result = ReviewPatchOutput(suggestions=[], approved=True)
+        last_patch = state.get_last_patch()
+        if not last_patch:
+            logger.fatal("No patch to review")
+            raise RuntimeError("No patch to review")
+
         review_result_dict: dict = self.chain_call(
             lambda _, y: y,
             self.review_patch_structured_chain,
             {
                 "context": self.get_context(state),
-                "patch": state["patches"][-1].patch,
+                "patch": last_patch.patch,
             },
             # If the reviewer fails for some unexpected reasons, assume the patch is
             # good, so the patching process does not stop and tries to build the
@@ -154,33 +163,52 @@ class QEAgent:
             logger.warning("Failed to parse the review result: %s", review_result_dict)
             review_result = default_review_result
 
-        patch_review_tries = (state.get("patch_review_tries") or 0) + 1
+        patch_review_tries = state.patch_review_tries + 1
         patch_review_str = (
             None if review_result.approved else "\n".join("- " + x for x in review_result.suggestions or [])
         )
-        return {
-            "patch_review": patch_review_str,
-            "patch_review_tries": patch_review_tries,
-        }
+        return Command(
+            update={
+                "patch_review": patch_review_str,
+                "patch_review_tries": patch_review_tries,
+            },
+            goto=PatcherAgentName.BUILD_PATCH.value if review_result.approved else PatcherAgentName.CREATE_PATCH.value,
+        )
 
-    def build_patch_node(self, state: PatcherAgentState) -> dict:
+    def build_patch_node(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.BUILD_FAILURE_ANALYSIS.value]]:
         """Node in the LangGraph that builds a patch"""
         logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
         with tempfile.NamedTemporaryFile(mode="w+") as patch_file:
-            patch_file.write(state["patches"][-1].patch)
+            last_patch = state.get_last_patch()
+            if not last_patch:
+                logger.fatal("No patch to build")
+                raise RuntimeError("No patch to build")
+
+            patch_file.write(last_patch.patch)
             patch_file.flush()
             logger.debug("Patch written to %s", patch_file.name)
 
             logger.info("Applying patch to task %s / vulnerability %s", self.input.task_id, self.input.vulnerability_id)
-            is_patched = self.challenge.apply_patch_diff(Path(patch_file.name))
+            try:
+                is_patched = self.challenge.apply_patch_diff(Path(patch_file.name))
+            except ChallengeTaskError:
+                if logger.getEffectiveLevel() == logging.DEBUG:
+                    logger.exception("Failed to apply patch to Challenge Task %s", self.challenge.name)
+                is_patched = False
+
             if not is_patched:
                 logger.error("Failed to apply patch to Challenge Task %s", self.challenge.name)
-                return {
-                    "build_succeeded": False,
-                    "build_stdout": None,
-                    "build_stderr": None,
-                    "patch_review_tries": 0,
-                }
+                return Command(
+                    update={
+                        "build_succeeded": False,
+                        "build_stdout": None,
+                        "build_stderr": None,
+                        "patch_review_tries": 0,
+                    },
+                    goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
+                )
 
             try:
                 cp_output = self.challenge.build_fuzzers(
@@ -189,32 +217,43 @@ class QEAgent:
                 )
             except ChallengeTaskError as exc:
                 logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
-                return {
-                    "build_succeeded": False,
-                    "build_stdout": exc.stdout,
-                    "build_stderr": exc.stderr,
-                    "patch_review_tries": 0,
-                }
+                return Command(
+                    update={
+                        "build_succeeded": False,
+                        "build_stdout": exc.stdout,
+                        "build_stderr": exc.stderr,
+                        "patch_review_tries": 0,
+                    },
+                    goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
+                )
 
             if not cp_output.success:
                 logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
-                return {
-                    "build_succeeded": False,
-                    "build_stdout": cp_output.output,
-                    "build_stderr": cp_output.error,
-                    "patch_review_tries": 0,
-                }
+                return Command(
+                    update={
+                        "build_succeeded": False,
+                        "build_stdout": cp_output.output,
+                        "build_stderr": cp_output.error,
+                        "patch_review_tries": 0,
+                    },
+                    goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
+                )
 
             logger.info("Challenge Task %s rebuilt with patch", self.challenge.name)
 
-        return {
-            "build_succeeded": True,
-            "build_stdout": cp_output.output,
-            "build_stderr": cp_output.error,
-            "patch_review_tries": 0,
-        }
+        return Command(
+            update={
+                "build_succeeded": True,
+                "build_stdout": cp_output.output,
+                "build_stderr": cp_output.error,
+                "patch_review_tries": 0,
+            },
+            goto=PatcherAgentName.RUN_POV.value,
+        )
 
-    def run_pov_node(self, state: PatcherAgentState) -> dict:
+    def run_pov_node(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.COMMIT_ANALYSIS.value]]:
         """Node in the LangGraph that runs a PoV against a currently built patch"""
         logger.info("Testing PoV on Challenge Task %s rebuilt with patch", self.challenge.name)
         try:
@@ -230,19 +269,25 @@ class QEAgent:
                 pov_output = self.challenge.reproduce_pov(self.input.harness_name, pov_name)
         except ChallengeTaskError as exc:
             logger.error("Failed to run pov for Challenge Task %s", self.challenge.name)
-            return {
-                "pov_fixed": False,
-                "pov_stdout": exc.stdout,
-                "pov_stderr": exc.stderr,
-            }
+            return Command(
+                update={
+                    "pov_fixed": False,
+                    "pov_stdout": exc.stdout,
+                    "pov_stderr": exc.stderr,
+                },
+                goto=PatcherAgentName.COMMIT_ANALYSIS.value,
+            )
 
         if not pov_output.command_result.success:
             logger.error("PoV failed running")
-            return {
-                "pov_fixed": False,
-                "pov_stdout": pov_output.command_result.output,
-                "pov_stderr": pov_output.command_result.error,
-            }
+            return Command(
+                update={
+                    "pov_fixed": False,
+                    "pov_stdout": pov_output.command_result.output,
+                    "pov_stderr": pov_output.command_result.error,
+                },
+                goto=PatcherAgentName.COMMIT_ANALYSIS.value,
+            )
 
         logger.info(
             "Ran PoV %s/%s for harness %s",
@@ -254,15 +299,28 @@ class QEAgent:
         logger.debug("PoV stderr: %s", pov_output.command_result.error)
 
         logger.info("PoV was %sfixed", "" if not pov_output.did_crash() else "not ")
-        return {
-            "pov_fixed": not pov_output.did_crash(),
-            "pov_stdout": pov_output.command_result.output,
-            "pov_stderr": pov_output.command_result.error,
-        }
+        return Command(
+            update={
+                "pov_fixed": not pov_output.did_crash(),
+                "pov_stdout": pov_output.command_result.output,
+                "pov_stderr": pov_output.command_result.error,
+            },
+            goto=PatcherAgentName.RUN_TESTS.value
+            if not pov_output.did_crash()
+            else PatcherAgentName.COMMIT_ANALYSIS.value,
+        )
 
-    def run_tests_node(self, state: PatcherAgentState) -> dict:
+    def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:
         """Node in the LangGraph that runs tests against a currently built patch"""
         logger.info("Running tests on Challenge Task %s rebuilt with patch", self.challenge.name)
+        # TODO: implement tests
         logger.warning("Tests are not implemented yet")
         logger.info("Tests for Challenge Task %s ran successfully", self.challenge.name)
-        return {"tests_passed": True, "tests_stdout": None, "tests_stderr": None}
+        return Command(
+            update={
+                "tests_passed": True,
+                "tests_stdout": None,
+                "tests_stderr": None,
+            },
+            goto=END,
+        )

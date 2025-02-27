@@ -11,7 +11,9 @@ dependencies = [
     "langchain-community>=0.3.16",
     "langgraph>=0.2.69",
     "openai>=1.60.2",
+    "program-model",
     "pydantic-settings>=2.7.1",
+    "python-dotenv>=1.0.1",
 ]
 
 [project.scripts]
@@ -41,3 +43,4 @@ line-length = 120
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
+program-model = { path = "../program-model", editable = true }

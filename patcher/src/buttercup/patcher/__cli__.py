@@ -3,6 +3,7 @@ from buttercup.patcher.patcher import Patcher
 from pydantic_settings import get_subcommand
 from buttercup.common.logger import setup_package_logger
 import logging
+from dotenv import load_dotenv
 from redis import Redis
 from buttercup.patcher.utils import PatchInput
 from pathlib import Path
@@ -11,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    load_dotenv()
+
     settings = Settings()
     command = get_subcommand(settings)
     setup_package_logger(__name__, settings.log_level)
@@ -25,7 +28,6 @@ def main():
             scratch_dir=settings.scratch_dir,
             redis=redis,
             sleep_time=command.sleep_time,
-            mock_mode=settings.mock_mode,
             dev_mode=settings.dev_mode,
         )
         patcher.serve()
@@ -44,7 +46,6 @@ def main():
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
             scratch_dir=settings.scratch_dir,
-            mock_mode=settings.mock_mode,
             dev_mode=settings.dev_mode,
         )
         patch = patcher.process_vulnerability(patch_input)

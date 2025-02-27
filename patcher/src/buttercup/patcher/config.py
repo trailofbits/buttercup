@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     task_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for task storage")]
     scratch_dir: Annotated[Path, Field(default="/tmp/scratch", description="Directory for scratch space")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
-    mock_mode: CliImplicitFlag[bool] = Field(default=False, description="Mock mode")
     dev_mode: CliImplicitFlag[bool] = Field(default=False, description="Dev mode")
 
     serve: CliSubCommand[ServeCommand]

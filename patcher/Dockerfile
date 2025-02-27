@@ -23,11 +23,15 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
+    --mount=type=bind,source=program-model/uv.lock,target=program-model/uv.lock \
+    --mount=type=bind,source=program-model/pyproject.toml,target=program-model/pyproject.toml \
+    --mount=type=bind,source=program-model/README.md,target=program-model/README.md \
     --mount=type=bind,source=patcher/uv.lock,target=patcher/uv.lock \
     --mount=type=bind,source=patcher/pyproject.toml,target=patcher/pyproject.toml \
     cd patcher && uv sync --frozen --no-install-project --no-editable
 
 ADD common /app/common
+ADD program-model /app/program-model
 ADD patcher /app/patcher
 
 RUN --mount=type=cache,target=/root/.cache/uv \

@@ -1,14 +1,17 @@
 """Software Engineer LLM agent, analyzing the root cause of a vulnerability."""
 
 import logging
-from typing import Callable
+import subprocess
+import re
+from typing import Literal
 from dataclasses import dataclass, field
 from operator import itemgetter
+from langchain_core.tools import tool
+from langgraph.prebuilt import create_react_agent
 
 import tiktoken
-from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.patcher.context import ContextCodeSnippet
-from langchain.output_parsers import BooleanOutputParser
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
@@ -23,33 +26,62 @@ from buttercup.patcher.agents.common import (
     CONTEXT_EXTRA_CODE_TMPL,
     CONTEXT_PROJECT_TMPL,
     CONTEXT_SANITIZER_TMPL,
-    FilterSnippetState,
     PatcherAgentState,
+    PatcherAgentName,
+    PatcherAgentBase,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
-from buttercup.patcher.utils import VALID_PATCH_EXTENSIONS, decode_bytes
+from buttercup.patcher.utils import decode_bytes
+from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
 
+ROOT_CAUSE_CODE_SNIPPET_REQUEST_TMPL = """File path: <file_path{i}>
+Function name: <function_name{i}>
+"""
 ROOT_CAUSE_SYSTEM_TMPL = """You are a security engineer. Your job is to analyze the \
-vulnerability and determine its root cause. The vulnerability is introduced in \
-the specified commit and it was not present before that.
-
-You MUST:
-- provide a detailed root cause analysis of the vulnerability
-- describe a concrete and specific root cause
-- focus ONLY on the issue introduced in the commit and ONLY on the issue \
-reported in the sanitizer output. If there are multiple vulnerabilities in the \
-commit, focus on the one which triggers the sanitizer
-- assume the "Vulnerable Code" and "Extra Context" sections have more up to date \
-content than the commit
+current project's code, a vulnerability description, and determine its root \
+cause. The vulnerability is introduced in the specified commit and it was not \
+present before that. Read the project's code and understand the issue.
 
 You must NOT:
 - provide generic recommendations
 - provide overly generic root causes
 - talk about possible issues that existed before the commit.
 - provide code suggestions on how to fix the vulnerability
+- make up code, contexts or information
+
+You MUST:
+- provide a detailed root cause analysis of the vulnerability, referencing actual code snippets
+- describe a concrete and specific root cause
+- focus ONLY on the issue introduced in the commit and ONLY on the issue \
+reported in the sanitizer output. If there are multiple vulnerabilities in the \
+commit, focus on the one which triggers the sanitizer
+- look at the actual code snippets and the code context to understand the root cause, \
+do not make up code, contexts or information and do not assume anything
+
+If you need more context to understand the code, ask for more code snippets. Try \
+to fully understand the issue by asking for more code snippets instead of \
+rushing through an answer.
+
+You can request multiple code snippets at once. Request code snippets in the
+following way:
+
+```
+# CODE SNIPPET REQUESTS:
+
+{root_cause_code_snippet_request_tmpl}
+
+[...]
+```
+
+You must use the above format to request code snippets.
 """
+ROOT_CAUSE_SYSTEM_TMPL = ROOT_CAUSE_SYSTEM_TMPL.format(
+    root_cause_code_snippet_request_tmpl="\n".join(
+        ROOT_CAUSE_CODE_SNIPPET_REQUEST_TMPL.format(i=i) for i in range(1, 3)
+    )
+)
 
 COMMIT_ANALYSIS_SYSTEM_TMPL = """You are a security engineer. Your job is to \
 analyze a commit of a project and determine the vulnerability it introduces. The \
@@ -68,27 +100,35 @@ You must NOT:
 - provide overly generic analyses
 - talk about possible issues that existed before the commit.
 - provide code suggestions on how to fix the vulnerability
+
+If you need more context to understand the code, you can ask for more code
+snippets. Try to fully understand the issue by asking for more code snippets
+instead of rushing through an answer.
+
+You can request multiple code snippets at once. Request code snippets in the
+following way:
+
+```
+# CODE SNIPPET REQUESTS:
+
+File path: <file_path1>
+Function name: <function_name1>
+
+File path: <file_path2>
+Function name: <function_name2>
+
+[...]
+```
 """
 
-FILTER_CODE_SNIPPET_SYSTEM_TMPL = """You are a Software Security Engineer. Your \
-job is to help fix a vulnerability in a project, by deciding whether a snippet \
-of code likely needs to be fixed or not. You should help another Software \
-Engineer by reducing the scope of changes she needs to analyze and understand.
+CONTEXT_RETRIEVER_SYSTEM_TMPL = """You are a software engineer. Your job is to retrieve the code snippets requested by the user.
+You must use the tools provided to you to retrieve the code snippets.
 
-You are given the details about the code snippet and the vulnerability/commit analysis. \
-You should consider the code snippet in the context of the vulnerability and \
-consider it in-scope only if it's useful to fix the vulnerability. \
-If not sure about a code snippet, lean towards considering it for a possible fix. \
-Provide a thorough explanation of your reasoning.
+Do not stop until you have retrieved the code definition of the function.
+Use `get_function_definition` as the last tool in your chain of calls to actually retrieve the code definition.
 """
 
-FILTER_CODE_SNIPPET_BOOL_SYSTEM_TMPL = """You are a Software Security Engineer. \
-You are given a detailed reasoning of whether a code snippet should be \
-considered fox fixing or not.
-
-Answer YES if the code snippet should be considered for fixing, NO otherwise. \
-Answer only with YES/NO.
-"""
+CONTEXT_RETRIEVER_RECURSION_LIMIT = 20
 
 ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -107,22 +147,6 @@ COMMIT_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
         ("user", "Provide a detailed and complete analysis"),
     ]
 )
-
-FILTER_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", FILTER_CODE_SNIPPET_SYSTEM_TMPL),
-        MessagesPlaceholder(variable_name="context"),
-        ("user", CONTEXT_CODE_SNIPPET_TMPL),
-    ]
-)
-
-FILTER_CODE_SNIPPET_BOOL_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", FILTER_CODE_SNIPPET_BOOL_SYSTEM_TMPL),
-        ("user", "Analysis:\n```\n{analysis}\n```\n"),
-    ]
-)
-
 
 OLD_COMMIT_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -201,18 +225,13 @@ BUILD_FAILURE_PROMPT = ChatPromptTemplate.from_messages(
 
 
 @dataclass
-class RootCauseAgent:
+class RootCauseAgent(PatcherAgentBase):
     """Software Engineer LLM agent, triaging a vulnerability."""
-
-    challenge: ChallengeTask
-    chain_call: Callable
 
     llm: Runnable = field(init=False)
     root_cause_chain: Runnable = field(init=False)
     commit_analysis_chain: Runnable = field(init=False)
     commit_analysis_one_chain: Runnable = field(init=False)
-    filter_code_snippet_chain: Runnable = field(init=False)
-    filter_code_snippet_bool_chain: Runnable = field(init=False)
     build_failure_analysis_chain: Runnable = field(init=False)
     encoding: tiktoken.Encoding = field(init=False)
 
@@ -239,13 +258,6 @@ class RootCauseAgent:
             ),
             self.commit_analysis_chain,
         )
-        self.filter_code_snippet_chain = FILTER_CODE_SNIPPET_PROMPT | self.llm | StrOutputParser()
-        self.filter_code_snippet_bool_chain = (
-            {"analysis": self.filter_code_snippet_chain}
-            | FILTER_CODE_SNIPPET_BOOL_PROMPT
-            | self.llm
-            | BooleanOutputParser()
-        )
         self.build_failure_analysis_chain = BUILD_FAILURE_PROMPT | self.llm | StrOutputParser()
 
         self.encoding = tiktoken.encoding_for_model("gpt-4o")
@@ -260,23 +272,23 @@ class RootCauseAgent:
         diff_content = next(iter(self.challenge.get_diffs())).read_text()
 
         messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
-        if state["context"].get("sanitizer") and state["context"].get("sanitizer_output"):
+        if state.context.sanitizer and state.context.sanitizer_output:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
-                    sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"],
+                    sanitizer=state.context.sanitizer,
+                    sanitizer_output=state.context.sanitizer_output,
                 )
             ]
-        if state["context"].get("vulnerable_functions"):
-            for code_snippet in state["context"]["vulnerable_functions"]:
-                code_context = code_snippet.get("code_context", "")
+        if state.context.vulnerable_functions:
+            for code_snippet in state.context.vulnerable_functions:
+                code_context = code_snippet.code_context
                 if code_context.strip():
                     n_tokens_extra = len(self.encoding.encode(code_context))
                     if n_tokens_extra > 5000:
                         logger.warning(
                             "Code snippet %s | %s context is too large (%d tokens), truncating it",
-                            code_snippet["file_path"],
-                            code_snippet["function_name"],
+                            code_snippet.file_path,
+                            code_snippet.function_name,
                             n_tokens_extra,
                         )
                         code_context = (
@@ -289,51 +301,34 @@ class RootCauseAgent:
 
         return messages
 
-    def get_filter_snippet_context(self, state: FilterSnippetState) -> list[BaseMessage | str]:
-        """Get the messages for the root cause analysis context."""
-
-        messages: list[BaseMessage | str] = []
-        messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
-
-        if state.get("commit_analysis"):
-            messages += [CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state["commit_analysis"])]
-
-        if state["context"].get("sanitizer") and state["context"].get("sanitizer_output"):
-            messages += [
-                CONTEXT_SANITIZER_TMPL.format(
-                    sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"],
-                )
-            ]
-
-        return messages
-
     def get_root_cause_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
         """Get the messages for the root cause analysis context."""
 
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        if state.get("commit_analysis"):
-            messages += [CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state["commit_analysis"])]
+        if state.commit_analysis:
+            messages += [CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state.commit_analysis)]
 
-        if state["context"].get("sanitizer") and state["context"].get("sanitizer_output"):
+        if state.context.sanitizer and state.context.sanitizer_output:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
-                    sanitizer=state["context"]["sanitizer"],
-                    sanitizer_output=state["context"]["sanitizer_output"],
+                    sanitizer=state.context.sanitizer,
+                    sanitizer_output=state.context.sanitizer_output,
                 )
             ]
 
-        messages += self._get_relevant_code_snippets_msgs(state["relevant_code_snippets"] or [])
+        messages += self._get_relevant_code_snippets_msgs(state.relevant_code_snippets)
         return messages
 
-    def commit_analysis(self, state: PatcherAgentState) -> dict:
+    def commit_analysis(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, PatcherAgentName.CONTEXT_RETRIEVER.value]]:
         """Analyze the commit diff to understand the vulnerability."""
         logger.info("Analyzing the commit diff in Challenge Task %s", self.challenge.name)
         messages = []
-        if state.get("commit_analysis"):
-            messages += OLD_COMMIT_ANALYSIS_PROMPT.format_messages(commit_analysis=state["commit_analysis"])
+        if state.commit_analysis:
+            messages += OLD_COMMIT_ANALYSIS_PROMPT.format_messages(commit_analysis=state.commit_analysis)
 
         commit_analysis = self.chain_call(
             lambda x, y: x + y,
@@ -341,7 +336,7 @@ class RootCauseAgent:
             {
                 "context": self.get_commit_analysis_context(state),
                 "messages": messages,
-                "commit_analysis": state.get("commit_analysis"),
+                "commit_analysis": state.commit_analysis,
             },
             default="",
         )
@@ -349,10 +344,132 @@ class RootCauseAgent:
             logger.error("Could not analyze the commit diff")
             raise ValueError("Could not analyze the commit diff")
 
-        return {
+        update_state = {
             "commit_analysis": commit_analysis,
             "root_cause": None,
         }
+        goto, requests_state = self.get_code_snippet_requests(
+            commit_analysis,
+            current_node=PatcherAgentName.COMMIT_ANALYSIS.value,
+            default_goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+        )
+        update_state.update(requests_state)
+        return Command(
+            update=update_state,
+            goto=goto,
+        )
+
+    def _parse_code_snippet_msg(self, msg: str) -> tuple[str, str, str]:
+        """Parse the code snippet message."""
+        # Extract code part from the message using regex
+        code_pattern = re.compile(r"File path:.*?\nFunction name:.*?\nCode:\n(.*?)$", re.DOTALL)
+        code_match = code_pattern.search(msg)
+        if code_match:
+            code_block_pattern = re.compile(r"```(?:[a-z]+)?\s*(.*?)\s*```", re.DOTALL)
+            code_block_match = code_block_pattern.search(code_match.group(1))
+            if code_block_match:
+                # Remove the code block markers
+                msg = code_block_match.group(1).strip()
+            else:
+                # If we can't find the code block, just return the whole part after "Code:"
+                msg = code_match.group(1).strip()
+
+        return msg
+
+    def context_retriever(self, state: PatcherAgentState) -> Command:
+        """Retrieve the context for the commit analysis."""
+        logger.info("Retrieving the context for the commit analysis in Challenge Task %s", self.challenge.name)
+        logger.debug("Code snippet requests: %s", state.code_snippet_requests)
+
+        code_ts = CodeTS(self.challenge)
+
+        @tool
+        def ls(path: str) -> str:
+            """List the files in the given path in the project's source directory."""
+            path = self.rebase_src_path(path)
+
+            logger.info("Listing files in %s", path)
+            return subprocess.check_output(["ls", "-l", path], cwd=self.challenge.get_source_path()).decode("utf-8")
+
+        @tool
+        def grep(path: str, pattern: str) -> str:
+            """Grep for a string in a file. Prefer using this tool over cat."""
+            path = self.rebase_src_path(path)
+
+            logger.info("Searching for %s in %s", pattern, path)
+            return subprocess.check_output(["grep", "-nr", pattern, path], cwd=self.challenge.get_source_path()).decode(
+                "utf-8"
+            )
+
+        @tool
+        def cat(path: str) -> str:
+            """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
+            path = self.rebase_src_path(path)
+
+            logger.info("Reading contents of %s", path)
+            return self.challenge.get_source_path().joinpath(path).read_text()
+
+        @tool
+        def get_lines(path: str, start: int, end: int) -> str:
+            """Get a range of lines from a file. Prefer using this tool over cat."""
+            path = self.rebase_src_path(path)
+
+            logger.info("Getting lines %d-%d of %s", start, end, path)
+            return "\n".join(self.challenge.get_source_path().joinpath(path).read_text().splitlines()[start:end])
+
+        @tool(return_direct=True)
+        def get_function_definition(path: str, function_name: str) -> str:
+            """Get the definition of a function in a file. You MUST use this tool as the last call in your chain of calls."""
+            path = self.rebase_src_path(path)
+
+            logger.info("Getting definition of %s in %s", function_name, path)
+            bodies = code_ts.get_function_code(path, function_name)
+            if not bodies:
+                return "No definition found for function"
+
+            # TODO: allow for multiple bodies
+            return bodies[0]
+
+        tools = [ls, grep, get_lines, cat, get_function_definition]
+        agent = create_react_agent(
+            self.llm,
+            tools,
+            prompt=CONTEXT_RETRIEVER_SYSTEM_TMPL,
+        )
+
+        res = []
+        for request in state.code_snippet_requests:
+            logger.info("Retrieving code snippet for %s | %s", request.file_path, request.function_name)
+            snippet = agent.invoke(
+                {
+                    "messages": [
+                        ("human", f"Please retrieve the code snippet for {request.file_path} | {request.function_name}")
+                    ]
+                },
+                {
+                    "recursion_limit": CONTEXT_RETRIEVER_RECURSION_LIMIT,
+                },
+            )
+            logger.info("Code snippet retrieved for %s | %s", request.file_path, request.function_name)
+            msg = snippet["messages"][-1].content
+            code = self._parse_code_snippet_msg(msg)
+
+            res.append(
+                ContextCodeSnippet(
+                    file_path=request.file_path,
+                    function_name=request.function_name,
+                    code=code,
+                    code_context="",
+                )
+            )
+
+        return Command(
+            update={
+                "relevant_code_snippets": res,
+                "code_snippet_requests": [],
+            },
+            goto=state.prev_node,
+        )
 
     def _get_relevant_code_snippets_msgs(
         self, relevant_code_snippets: list[ContextCodeSnippet]
@@ -361,22 +478,22 @@ class RootCauseAgent:
         for code_snippet in relevant_code_snippets:
             messages += [
                 CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet["file_path"],
-                    code=code_snippet.get("code", ""),
-                    function_name=code_snippet.get("function_name", ""),
-                    code_context=code_snippet.get("code_context", ""),
+                    file_path=code_snippet.file_path,
+                    code=code_snippet.code,
+                    function_name=code_snippet.function_name,
+                    code_context=code_snippet.code_context,
                 )
             ]
 
         return messages
 
-    def analyze_vulnerability(self, state: PatcherAgentState) -> dict:
+    def analyze_vulnerability(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:
         """Analyze the commit analysis and the code to understand the
         vulnerability in the current code."""
         logger.info("Analyzing the vulnerability in Challenge Task %s", self.challenge.name)
         messages = []
-        if state.get("root_cause"):
-            messages += OLD_ROOT_CAUSE_PROMPT.format_messages(root_cause=state["root_cause"])
+        if state.root_cause:
+            messages += OLD_ROOT_CAUSE_PROMPT.format_messages(root_cause=state.root_cause)
 
         root_cause = self.chain_call(
             lambda x, y: x + y,
@@ -391,128 +508,48 @@ class RootCauseAgent:
             logger.error("Could not find the root cause of the vulnerability")
             raise ValueError("Could not find the root cause of the vulnerability")
 
-        return {
+        update_state = {
             "root_cause": root_cause,
-            "patches": None,
-            "build_succeeded": None,
-            "pov_fixed": None,
-            "tests_passed": None,
+            "patches": [],
+            "build_succeeded": False,
+            "pov_fixed": False,
+            "tests_passed": False,
         }
-
-    def _do_filter_code_snippet(self, state: FilterSnippetState, vc: ContextCodeSnippet) -> bool:
-        try:
-            include_code_snippet = self.chain_call(
-                lambda _, y: y,
-                self.filter_code_snippet_bool_chain,
-                {
-                    "context": self.get_filter_snippet_context(state),
-                    "code": vc["code"],
-                    "code_context": vc["code_context"],
-                    "function_name": vc["function_name"],
-                    "file_path": vc["file_path"],
-                },
-                default=True,
-            )
-        except Exception:
-            logger.warning("Error while filtering code snippet")
-            if logger.getEffectiveLevel() == logging.DEBUG:
-                logger.exception("Error while filtering code snippet")
-
-            include_code_snippet = False
-
-        return include_code_snippet
-
-    def filter_code_snippet_node(self, state: FilterSnippetState) -> dict:
-        """Filter a code snippet to decide if it needs to be fixed."""
-        vc = state["code_snippet"]
-        if vc.get("function_name") is None or vc.get("code") is None:
-            logger.error("Code snippet is missing function name or code")
-            return {"relevant_code_snippets": []}
-
-        logger.info("Filtering code snippet in %s | %s", vc["file_path"], vc["function_name"])
-
-        code_context = vc.get("code_context", "")
-        code = vc["code"]
-
-        n_tokens_code = len(self.encoding.encode(vc["code"]))
-        n_tokens_extra = len(self.encoding.encode(code_context))
-
-        if n_tokens_extra > 5000:
-            logger.warning(
-                "Code snippet %s | %s context is too large (%d tokens), truncating it",
-                vc["file_path"],
-                vc["function_name"],
-                n_tokens_extra,
-            )
-            code_context = (
-                self.encoding.decode(self.encoding.encode(code_context)[:1000])
-                + "\n[...]\n"
-                + self.encoding.decode(self.encoding.encode(code_context)[-1000:])
-            )
-
-        if n_tokens_code > 5000:
-            logger.warning(
-                "Code snippet %s | %s is too large (%d tokens)",
-                vc["file_path"],
-                vc["function_name"],
-                n_tokens_code,
-            )
-            if not vc["file_path"].endswith(VALID_PATCH_EXTENSIONS):
-                logger.warning("Code snippet %s | %s is not a valid extension, removing...")
-                return {"relevant_code_snippets": []}
-
-            code = (
-                self.encoding.decode(self.encoding.encode(vc["code"])[:1000])
-                + "\n\n[...]\n\n"
-                + self.encoding.decode(self.encoding.encode(vc["code"])[-1000:])
-            )
-            logger.warning(
-                "Code snippet %s | %s is too large (%d tokens), truncating it",
-                vc["file_path"],
-                vc["function_name"],
-                n_tokens_code,
-            )
-
-        include_code_snippet = self._do_filter_code_snippet(
-            state,
-            {
-                "file_path": vc["file_path"],
-                "code": code,
-                "function_name": vc["function_name"],
-                "code_context": code_context,
-            },
+        goto, requests_state = self.get_code_snippet_requests(
+            root_cause,
+            current_node=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            default_goto=PatcherAgentName.CREATE_PATCH.value,
         )
-        if not include_code_snippet:
-            logger.info("Code snippet %s | %s filtered out", vc["file_path"], vc["function_name"])
-            return {"relevant_code_snippets": []}
+        update_state.update(requests_state)
+        return Command(
+            update=update_state,
+            goto=goto,
+        )
 
-        return {
-            "relevant_code_snippets": [
-                ContextCodeSnippet(
-                    file_path=vc["file_path"],
-                    code=vc["code"].rstrip("\n") + ("\n" if vc["code"].endswith("\n") else ""),
-                    function_name=vc["function_name"],
-                    code_context=code_context,
-                )
-            ]
-        }
-
-    def analyze_build_failure(self, state: PatcherAgentState) -> dict:
+    def analyze_build_failure(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:
         """Analyze the build failure to understand the issue and suggest a fix."""
         logger.info("Analyzing the build failure in Challenge Task %s", self.challenge.name)
-        code_snippets = self._get_relevant_code_snippets_msgs(state["relevant_code_snippets"] or [])
+        code_snippets = self._get_relevant_code_snippets_msgs(state.relevant_code_snippets)
+        last_patch = state.get_last_patch()
+        if not last_patch:
+            logger.fatal("No patch to analyze build failure")
+            raise RuntimeError("No patch to analyze build failure")
+
         build_analysis: str = self.chain_call(
             lambda x, y: x + y,
             self.build_failure_analysis_chain,
             {
                 "code_snippets": code_snippets,
-                "patch": state["patches"][-1].patch,
-                "build_stdout": decode_bytes(state.get("build_stdout")),
-                "build_stderr": decode_bytes(state.get("build_stderr")),
+                "patch": last_patch.patch,
+                "build_stdout": decode_bytes(state.build_stdout),
+                "build_stderr": decode_bytes(state.build_stderr),
             },
             default="",
         )
 
-        return {
-            "build_analysis": build_analysis,
-        }
+        return Command(
+            update={
+                "build_analysis": build_analysis,
+            },
+            goto=PatcherAgentName.CREATE_PATCH.value,
+        )
