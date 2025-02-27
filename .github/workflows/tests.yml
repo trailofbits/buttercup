@@ -13,6 +13,9 @@ jobs:
         component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
         python:
           - "3.12"
+        include:
+          - component: common
+            pytest_args: "--runintegration"
 
     runs-on: ubuntu-latest
     services:

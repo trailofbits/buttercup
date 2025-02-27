@@ -386,7 +386,7 @@ def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_
         fuzzer_name="libjpeg_turbo_fuzzer",
         crash_path=libjpeg_crash_testcase,
     )
-    assert result.success is False, "Reproduce POV failed"
+    assert result.did_crash(), "Reproduce POV failed"
 
 
 def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
