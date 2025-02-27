@@ -9,8 +9,7 @@ from vuln_discovery_base import TestConfig, VulnDiscoveryEvaluatorBase
 
 from buttercup.common.llm import create_llm, get_langfuse_callbacks
 from buttercup.seed_gen.mock_context.mock import get_diff, get_harness
-from buttercup.seed_gen.tasks import VULN_DISCOVERY_MAX_POV_COUNT
-from buttercup.seed_gen.vuln_discovery import VulnDiscovery
+from buttercup.seed_gen.vuln_discovery import VulnDiscoveryTask
 
 
 class VulnDiscoveryEvaluator(VulnDiscoveryEvaluatorBase):
@@ -18,15 +17,13 @@ class VulnDiscoveryEvaluator(VulnDiscoveryEvaluatorBase):
         """Generate PoV functions"""
         llm_callbacks = get_langfuse_callbacks()
         llm = create_llm(**config.llm_kwargs, callbacks=llm_callbacks)
-        vuln_discovery = VulnDiscovery(llm)
+        vuln_discovery = VulnDiscoveryTask(llm=llm)
 
         harness = get_harness(self.eval_config.package_name)
         diff = get_diff(self.eval_config.package_name)
         analysis = vuln_discovery.analyze_diff(diff, harness)
 
-        pov_funcs = vuln_discovery.write_pov_funcs(
-            analysis=analysis, harness=harness, diff=diff, max_povs=VULN_DISCOVERY_MAX_POV_COUNT
-        )
+        pov_funcs = vuln_discovery.write_pov_funcs(analysis, harness, diff)
         trace_id = llm_callbacks[0].trace.trace_id
         return pov_funcs, trace_id
 

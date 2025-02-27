@@ -14,7 +14,10 @@ from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
-from buttercup.seed_gen.tasks import Task, do_seed_init, do_vuln_discovery
+from buttercup.seed_gen.seed_explore import SeedExploreTask
+from buttercup.seed_gen.seed_init import SeedInitTask
+from buttercup.seed_gen.task import TaskName
+from buttercup.seed_gen.vuln_discovery import VulnDiscoveryTask
 
 logger = logging.getLogger(__name__)
 
@@ -83,17 +86,29 @@ class SeedGenBot(TaskLoop):
             out_dir.mkdir()
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
-            choices = [Task.SEED_INIT, Task.VULN_DISCOVERY]
-            if os.getenv("BUTTERCUP_TEST_VULN_DISCOVERY"):
-                logger.info("Only testing vuln discovery")
-                choices = [Task.VULN_DISCOVERY]
+            choices = [
+                TaskName.SEED_INIT.value,
+                TaskName.VULN_DISCOVERY.value,
+                TaskName.SEED_EXPLORE.value,
+            ]
+            test_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
+            if test_task is not None:
+                logger.info("Only testing task: %s", test_task)
+                choices = [test_task]
             task_choice = random.choices(choices, k=1)[0]
-            logger.info(f"Running seed-gen task: {task_choice.value}")
-            if task_choice == Task.SEED_INIT:
-                do_seed_init(task.package_name, out_dir)
-            elif task_choice == Task.VULN_DISCOVERY:
-                do_vuln_discovery(task.package_name, out_dir)
+            logger.info(f"Running seed-gen task: {task_choice}")
+
+            if task_choice == TaskName.SEED_INIT:
+                seed_init = SeedInitTask()
+                seed_init.do_task(task.package_name, out_dir)
+            elif task_choice == TaskName.VULN_DISCOVERY:
+                vuln_discovery = VulnDiscoveryTask()
+                vuln_discovery.do_task(task.package_name, out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
+            elif task_choice == TaskName.SEED_EXPLORE:
+                seed_explore = SeedExploreTask()
+                function_name = "png_handle_tRNS"
+                seed_explore.do_task(task.package_name, function_name, out_dir)
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 

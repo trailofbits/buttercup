@@ -4,6 +4,9 @@ LIBPNG_HARNESS_PATH = resolve_module_subpath("mock_context/libpng-exemplar/libpn
 LIBPNG_DIFF_PATH = resolve_module_subpath(
     "mock_context/libpng-exemplar/2c894c66108f0724331a9e5b4826e351bf2d094b.diff"
 )
+LIBPNG_FUNCTION_PATH_png_handle_tRNS = resolve_module_subpath(
+    "mock_context/libpng-exemplar/function_png_handle_tRNS.c"
+)
 
 
 def get_harness(challenge: str) -> str:
@@ -16,6 +19,12 @@ def get_additional_context(challenge: str) -> str:
     if challenge == "libpng":
         return ""
     raise ValueError(f"Unknown challenge: {challenge}")
+
+
+def get_function_def(function_name: str) -> str:
+    if function_name == "png_handle_tRNS":
+        return LIBPNG_FUNCTION_PATH_png_handle_tRNS.read_text()
+    raise ValueError(f"Unknown function: {function_name}")
 
 
 def get_diff(challenge: str) -> str:

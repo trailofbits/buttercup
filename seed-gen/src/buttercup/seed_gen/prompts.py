@@ -34,7 +34,7 @@ Remember:
 - Create inputs that trigger different functionality in the fuzzed program.
 - Each function has an identical signature.
 - Each function creates a different input.
-- There will be only one markdown block in the answer, containing all functions. Do not nest markdown blocks.
+- Put the functions in a single markdown block at the end of your response.
 - You can only use the python standard library.
 - Avoid creating very large seeds
 
@@ -142,6 +142,54 @@ The diff which introduced the vulnerability is:
 An analysis of the vulnerability:
 ```
 {analysis}
+```
+
+The python functions are:
+"""
+
+PYTHON_SEED_EXPLORE_SYSTEM_PROMPT = """
+Write python functions which create inputs that reach a target function from a test harness.
+"""
+
+PYTHON_SEED_EXPLORE_USER_PROMPT = """
+I am creating inputs for a program's fuzzing harness that reach a target function. I will provide the full harness and the target function.
+
+I will then ask you to write {count} deterministic Python functions that each create a valid input and exercise the target function from the harness.
+
+First reason about how to reach the target function from the harness. Then write the functions.
+
+Put the functions in ONE MARKDOWN BLOCK at the end of your response. The signature for each function will be identical although the names can vary:
+```
+def gen_test() -> bytes
+```
+
+Example output for an FTP server harness:
+```
+def gen_bytes_user() -> bytes:
+    # user command
+    username = "anonymous"
+    user_cmd = "USER %s\r\n" % (username)
+    return user_cmd.encode()
+```
+
+Remember:
+- The functions must create a deterministic sequence of bytes. Do not use things like `random`.
+- The test inputs created by the functions must reach the target function.
+- Each function has an identical signature.
+- Each function creates a different input.
+- Put the functions in a single markdown block at the end of your response.
+- You can only use the python standard library.
+- Avoid creating very large seeds
+
+
+The full harness is:
+```
+{harness}
+```
+
+The target function is:
+```
+{target_function}
 ```
 
 The python functions are:

@@ -87,7 +87,7 @@ class VulnDiscoveryEvaluatorBase(ABC):
         for pov in pov_dir.iterdir():
             try:
                 pov_output = rw_task.reproduce_pov(self.eval_config.harness_name, pov)
-                if not pov_output.did_crash():
+                if pov_output.did_crash():
                     valid_povs.append(pov)
                 else:
                     invalid_povs.append(pov)
