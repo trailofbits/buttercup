@@ -39,19 +39,19 @@ class SeedExploreTask(Task):
         )
         return funcs
 
-    def do_task(self, challenge: str, target_function_name: str, output_dir: Path) -> None:
-        """Do seed-init task"""
-        logger.info("Doing seed-explore for challenge %s", challenge)
-        harness = get_harness(challenge)
+    def do_task(self, target_function_name: str, output_dir: Path) -> None:
+        """Do seed-explore task"""
+        logger.info("Doing seed-explore for challenge %s", self.package_name)
+        harness = get_harness(self.package_name)
         target_function = get_function_def(target_function_name)
         try:
             logger.info(
                 "Generating seed functions for challenge %s and target function %s",
-                challenge,
+                self.package_name,
                 target_function_name,
             )
             funcs = self.generate_seed_funcs(harness, target_function)
-            logger.info("Executing seed functions for challenge %s", challenge)
+            logger.info("Executing seed functions for challenge %s", self.package_name)
             sandbox_exec_funcs(funcs, output_dir)
         except Exception as err:
-            logger.error("Failed seed-explore for challenge %s: %s", challenge, str(err))
+            logger.error("Failed seed-explore for challenge %s: %s", self.package_name, str(err))

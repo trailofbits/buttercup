@@ -23,7 +23,7 @@ class TaskLoop(ABC):
         return []
 
     @abstractmethod
-    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, list[BuildOutput]]):
         pass
 
     def serve_item(self) -> bool:

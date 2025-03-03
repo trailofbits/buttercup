@@ -47,3 +47,18 @@ def extract_md(msg: AIMessage) -> str:
         )
 
     return content.strip("`")
+
+
+def get_diff_content(diffs: list[Path]) -> str | None:
+    """Process diff files from ChallengeTask.get_diffs()
+
+    Note: currently returns the first diff's content
+    """
+    # TODO: add support for multiple diffs if necessary
+    if len(diffs) == 0:
+        logger.info("No diffs found")
+        return None
+    if len(diffs) > 1:
+        logger.warning("Multiple diffs found, using the first one")
+    diff_content = diffs[0].read_text()
+    return diff_content

@@ -2,7 +2,6 @@
 
 import argparse
 import os
-from pathlib import Path
 
 from redis import Redis
 
@@ -14,7 +13,7 @@ def command_server(args: argparse.Namespace) -> None:
     """Seed-gen worker server"""
     os.makedirs(args.wdir, exist_ok=True)
     redis = Redis.from_url(args.redis_url)
-    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir, args.python)
+    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir)
     seed_gen_bot.run()
 
 
@@ -29,7 +28,6 @@ def main() -> None:
     parser_server.add_argument(
         "--sleep", required=False, default=1, type=int, help="Sleep between runs (seconds)"
     )
-    parser_server.add_argument("--python", required=True, type=Path, help="Python path")
     args = parser.parse_args()
     setup_package_logger(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
     if args.command == "server":

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTaskError
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
@@ -23,9 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 class SeedGenBot(TaskLoop):
-    def __init__(self, redis: Redis, timer_seconds: int, wdir: str, python: str):
+    def __init__(self, redis: Redis, timer_seconds: int, wdir: str):
         self.wdir = wdir
-        self.python = python
         self.crash_set = CrashSet(redis)
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
         super().__init__(redis, timer_seconds)
@@ -75,7 +74,7 @@ class SeedGenBot(TaskLoop):
             except ChallengeTaskError as exc:
                 logger.error(f"Error reproducing PoV {pov}: {exc}")
 
-    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, list[BuildOutput]]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
             logger.info(
                 f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}"
@@ -84,6 +83,9 @@ class SeedGenBot(TaskLoop):
             logger.debug(f"Temp dir: {temp_dir}")
             out_dir = temp_dir / "seedgen-out"
             out_dir.mkdir()
+
+            build_dir = Path(builds[BUILD_TYPES.FUZZER][0].task_dir)
+            challenge_task = ChallengeTask(read_only_task_dir=build_dir)
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
             choices = [
@@ -99,16 +101,18 @@ class SeedGenBot(TaskLoop):
             logger.info(f"Running seed-gen task: {task_choice}")
 
             if task_choice == TaskName.SEED_INIT:
-                seed_init = SeedInitTask()
-                seed_init.do_task(task.package_name, out_dir)
+                seed_init = SeedInitTask(task.package_name, task.harness_name, challenge_task)
+                seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY:
-                vuln_discovery = VulnDiscoveryTask()
-                vuln_discovery.do_task(task.package_name, out_dir)
+                vuln_discovery = VulnDiscoveryTask(
+                    task.package_name, task.harness_name, challenge_task
+                )
+                vuln_discovery.do_task(out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
             elif task_choice == TaskName.SEED_EXPLORE:
-                seed_explore = SeedExploreTask()
+                seed_explore = SeedExploreTask(task.package_name, task.harness_name, challenge_task)
                 function_name = "png_handle_tRNS"
-                seed_explore.do_task(task.package_name, function_name, out_dir)
+                seed_explore.do_task(function_name, out_dir)
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 

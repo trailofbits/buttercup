@@ -36,15 +36,15 @@ class SeedInitTask(Task):
         )
         return funcs
 
-    def do_task(self, challenge: str, output_dir: Path) -> None:
+    def do_task(self, output_dir: Path) -> None:
         """Do seed-init task"""
-        logger.info("Doing seed-init for challenge %s", challenge)
-        harness = get_harness(challenge)
-        additional_context = get_additional_context(challenge)
+        logger.info("Doing seed-init for challenge %s", self.package_name)
+        harness = get_harness(self.package_name)
+        additional_context = get_additional_context(self.package_name)
         try:
-            logger.info("Generating seed functions for challenge %s", challenge)
+            logger.info("Generating seed functions for challenge %s", self.package_name)
             funcs = self.generate_seed_funcs(harness, additional_context)
-            logger.info("Executing seed functions for challenge %s", challenge)
+            logger.info("Executing seed functions for challenge %s", self.package_name)
             sandbox_exec_funcs(funcs, output_dir)
         except Exception as err:
-            logger.error("Failed seed-init for challenge %s: %s", challenge, str(err))
+            logger.error("Failed seed-init for challenge %s: %s", self.package_name, str(err))

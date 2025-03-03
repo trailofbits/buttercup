@@ -33,7 +33,11 @@ jobs:
         run: |
           cp env.template .env
           sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" .env
-          echo "BUTTERCUP_TEST_VULN_DISCOVERY=yes" >> .env # only test vuln discovery
+
+      - name: Configure env.dev.compose file
+        run: |
+          # only test vuln discovery
+          echo "BUTTERCUP_SEED_GEN_TEST_TASK=vuln-discovery" >> env.dev.compose
 
       - name: Run CRS
         run: docker compose up -d

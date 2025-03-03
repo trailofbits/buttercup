@@ -484,6 +484,11 @@ def test_get_diffs(challenge_task: ChallengeTask):
     assert diffs[1].name == "patch2.diff"
 
 
+def test_is_delta_mode(challenge_task: ChallengeTask):
+    """Test checking if the task is in diff mode."""
+    assert challenge_task.is_delta_mode() is True
+
+
 def test_apply_patch_diff(challenge_task: ChallengeTask):
     """Test applying a patch diff to the source code."""
     diff_path = challenge_task.get_diff_path() / "patch1.diff"

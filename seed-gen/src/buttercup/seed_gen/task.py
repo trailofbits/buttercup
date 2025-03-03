@@ -2,6 +2,7 @@ from enum import Enum
 
 from langchain_core.language_models import BaseChatModel
 
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 
 
@@ -12,7 +13,16 @@ class TaskName(str, Enum):
 
 
 class Task:
-    def __init__(self, llm: BaseChatModel | None = None):
+    def __init__(
+        self,
+        package_name: str,
+        harness_name: str,
+        challenge_task: ChallengeTask,
+        llm: BaseChatModel | None = None,
+    ):
+        self.package_name = package_name
+        self.harness_name = harness_name
+        self.challenge_task = challenge_task
         if llm is None:
             self.llm = self.get_default_llm()
         else:

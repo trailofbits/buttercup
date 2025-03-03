@@ -5,7 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.seed_gen.mock_context.mock import get_diff, get_harness
+from buttercup.seed_gen.mock_context.mock import get_harness
 from buttercup.seed_gen.prompts import (
     DIFF_ANALYSIS_SYSTEM_PROMPT,
     DIFF_ANALYSIS_USER_PROMPT,
@@ -14,7 +14,7 @@ from buttercup.seed_gen.prompts import (
 )
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import Task
-from buttercup.seed_gen.utils import extract_md
+from buttercup.seed_gen.utils import extract_md, get_diff_content
 
 logger = logging.getLogger(__name__)
 
@@ -64,16 +64,21 @@ class VulnDiscoveryTask(Task):
         )
         return pov_funcs
 
-    def do_task(self, challenge: str, output_dir: Path) -> None:
+    def do_task(self, output_dir: Path) -> None:
         """Do vuln-discovery task"""
-        logger.info("Doing vuln-discovery for challenge %s", challenge)
-        harness = get_harness(challenge)
-        diff = get_diff(challenge)
+        logger.info("Doing vuln-discovery for challenge %s", self.package_name)
+        harness = get_harness(self.package_name)
+        diffs = self.challenge_task.get_diffs()
+        diff_content = get_diff_content(diffs)
+        if diff_content is None:
+            # currently assumes diff mode
+            logger.error("No diff found for challenge %s", self.package_name)
+            return
         try:
-            logger.info("Analyzing the diff in challenge %s", challenge)
-            analysis = self.analyze_diff(diff, harness)
-            logger.info("Making PoVs for the challenge %s", challenge)
-            pov_funcs = self.write_pov_funcs(analysis, harness, diff)
+            logger.info("Analyzing the diff in challenge %s", self.package_name)
+            analysis = self.analyze_diff(diff_content, harness)
+            logger.info("Making PoVs for the challenge %s", self.package_name)
+            pov_funcs = self.write_pov_funcs(analysis, harness, diff_content)
             sandbox_exec_funcs(pov_funcs, output_dir)
         except Exception as err:
-            logger.error("Failed vuln-discovery for challenge %s: %s", challenge, str(err))
+            logger.error("Failed vuln-discovery for challenge %s: %s", self.package_name, str(err))

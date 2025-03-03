@@ -7,8 +7,10 @@ from pathlib import Path
 
 from vuln_discovery_base import TestConfig, VulnDiscoveryEvaluatorBase
 
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import create_llm, get_langfuse_callbacks
-from buttercup.seed_gen.mock_context.mock import get_diff, get_harness
+from buttercup.seed_gen.mock_context.mock import get_harness
+from buttercup.seed_gen.utils import get_diff_content
 from buttercup.seed_gen.vuln_discovery import VulnDiscoveryTask
 
 
@@ -17,13 +19,17 @@ class VulnDiscoveryEvaluator(VulnDiscoveryEvaluatorBase):
         """Generate PoV functions"""
         llm_callbacks = get_langfuse_callbacks()
         llm = create_llm(**config.llm_kwargs, callbacks=llm_callbacks)
-        vuln_discovery = VulnDiscoveryTask(llm=llm)
+        chall_task = ChallengeTask(read_only_task_dir=self.task_dir)
+        vuln_discovery = VulnDiscoveryTask(
+            self.eval_config.package_name, self.eval_config.harness_name, chall_task, llm=llm
+        )
 
         harness = get_harness(self.eval_config.package_name)
-        diff = get_diff(self.eval_config.package_name)
-        analysis = vuln_discovery.analyze_diff(diff, harness)
+        diffs = chall_task.get_diffs()
+        diff_content = get_diff_content(diffs)
+        analysis = vuln_discovery.analyze_diff(diff_content, harness)
 
-        pov_funcs = vuln_discovery.write_pov_funcs(analysis, harness, diff)
+        pov_funcs = vuln_discovery.write_pov_funcs(analysis, harness, diff_content)
         trace_id = llm_callbacks[0].trace.trace_id
         return pov_funcs, trace_id
 

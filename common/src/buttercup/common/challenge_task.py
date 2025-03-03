@@ -139,6 +139,9 @@ class ChallengeTask:
     def get_diffs(self) -> list[Path]:
         return get_diffs(self.get_diff_path())
 
+    def is_delta_mode(self) -> bool:
+        return len(self.get_diffs()) > 0
+
     def _check_python_path(self) -> None:
         """Check if the configured python_path is available in system PATH."""
         try:
