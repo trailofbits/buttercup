@@ -93,49 +93,67 @@ class ProgramModel:
                     logger.info(f"No diffs for {args.package_name} {args.task_id}")
 
                 # Index the task
-                indexer_conf = IndexConf(
-                    scriptdir=self.script_dir,
-                    python=self.python,
-                    allow_pull=self.allow_pull,
-                    base_image_url=self.base_image_url,
-                    wdir=td,
-                )
-                indexer = Indexer(indexer_conf)
-                output_dir = indexer.index_target(local_tsk)
+                try:
+                    indexer_conf = IndexConf(
+                        scriptdir=self.script_dir,
+                        python=self.python,
+                        allow_pull=self.allow_pull,
+                        base_image_url=self.base_image_url,
+                        wdir=td,
+                    )
+                    indexer = Indexer(indexer_conf)
+                    output_dir = indexer.index_target(local_tsk)
+                except Exception as e:
+                    logger.error(f"Failed to index task {args.task_id}: {e}")
+                    return False
                 if output_dir is None:
                     logger.error(f"Failed to index task {args.task_id}")
                     return False
                 logger.info(f"Successfully indexed task {args.task_id}")
 
                 # Merge index files
-                output_id = str(uuid.uuid4())
-                ktool = KytheTool(KytheConf(self.kythe_dir))
-                merged_kzip = Path(td) / f"kythe_output_merge_{output_id}.kzip"
-                ktool.merge_kythe_output(output_dir, merged_kzip)
+                try:
+                    output_id = str(uuid.uuid4())
+                    ktool = KytheTool(KytheConf(self.kythe_dir))
+                    merged_kzip = Path(td) / f"kythe_output_merge_{output_id}.kzip"
+                    ktool.merge_kythe_output(output_dir, merged_kzip)
+                except Exception as e:
+                    logger.error(f"Failed to merge index files for {args.task_id}: {e}")
+                    return False
 
                 # Convert the merged kzip file into a binary file
                 bin_file = Path(td) / f"kythe_output_cxx_{output_id}.bin"
                 try:
                     ktool.cxx_index(merged_kzip, bin_file)
                     logger.info(
-                        f"Successfully indexed program {args.package_name} to binary: {bin_file}"
+                        f"Successfully indexed program {args.task_id} to binary: {bin_file}"
                     )
                 except subprocess.CalledProcessError:
-                    # TODO(Evan): For now, if this errors just keep going
+                    # TODO(Evan): For now, if this errors just keep going. After fixing kythe issues, add "return False" or just remove this exception entirely
                     logger.error(
-                        f"Failed to index program {args.package_name} to binary: {bin_file}"
+                        f"Failed to index program {args.task_id} to binary: {bin_file}"
                     )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to index program {args.task_id} to binary {bin_file}: {e}"
+                    )
+                    return False
 
                 # Store the program into a graphml file
-                graphml = Path(td) / f"kythe_output_graphml_{output_id}.xml"
-                with open(graphml, "w") as fw, open(bin_file, "rb") as fr:
-                    gs = GraphStorage()
-                    gs.process_stream(fr)
-                    fw.write(gs.to_graphml())
-                logger.info(
-                    f"Successfully stored program {args.package_name} in graphml file: {graphml}"
-                )
-
+                try:
+                    graphml = Path(td) / f"kythe_output_graphml_{output_id}.xml"
+                    with open(graphml, "w") as fw, open(bin_file, "rb") as fr:
+                        gs = GraphStorage()
+                        gs.process_stream(fr)
+                        fw.write(gs.to_graphml())
+                        logger.info(
+                            f"Successfully stored program {args.task_id} in graphml file: {graphml}"
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to store program {args.task_id} in graphml file {graphml}: {e}"
+                    )
+                    return False
                 logger.debug("Loading graphml file into JanusGraph...")
 
                 # TODO(Evan): This needs to wait until JanusGraph is ready. For some reason, even if the container is running and healthy, it's not ready to accept connections.
@@ -146,11 +164,16 @@ class ProgramModel:
                     DriverRemoteConnection,
                 )
 
-                g = traversal().withRemote(
-                    DriverRemoteConnection(self.graphdb_url, "g")
-                )
-                g.io(str(graphml)).read().iterate()
-
+                try:
+                    g = traversal().withRemote(
+                        DriverRemoteConnection(self.graphdb_url, "g")
+                    )
+                    g.io(str(graphml)).read().iterate()
+                except Exception as e:
+                    logger.error(
+                        f"Failed to load graphml file {graphml} into JanusGraph: {e}"
+                    )
+                    return False
                 logger.debug("Successfully loaded graphml file into JanusGraph")
 
         return True
