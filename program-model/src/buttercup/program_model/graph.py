@@ -97,13 +97,14 @@ class Edge:
 class GraphStorage:
     """Class to interact between Kythe and an output file."""
 
-    def __init__(self):
+    def __init__(self, task_id: str):
+        self.task_id: str = task_id
         self.nodes: Dict[str, Node] = {}
         self.node_properties: Set[str] = set(
-            ["corpus", "language", "path", "root", "signature"]
+            ["corpus", "language", "path", "root", "signature", "task_id"]
         )
         self.edges: Dict[str, Edge] = {}
-        self.edge_properties: Set[str] = set()
+        self.edge_properties: Set[str] = set(["labelE", "task_id"])
 
     def is_edge(self, ent: Entry) -> bool:
         """Check if the entry is an edge."""
@@ -131,18 +132,20 @@ class GraphStorage:
         try:
             for entry in self.iterate_over_entries(fl):
                 source_node = self.convert_node(entry.source)
+                source_node.properties["task_id"] = self.task_id
                 key = entry.fact_name
                 value = encode_value(entry.fact_value)
 
                 if self.is_edge(entry):
                     target_node = self.convert_node(entry.target)
+                    target_node.properties["task_id"] = self.task_id
                     edge = Edge(
                         id=len(self.edges.keys()),
                         source_id=source_node.id,
                         target_id=target_node.id,
                     )
                     edge.properties["labelE"] = entry.edge_kind
-                    self.edge_properties.add("labelE")
+                    edge.properties["task_id"] = self.task_id
                     self.edges[edge.id] = edge
                 else:
                     source_node.properties[key] = value
