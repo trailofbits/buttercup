@@ -20,7 +20,7 @@ sudo mkdir /crs_scratch/ && sudo chown `whoami`:`whoami` /crs_scratch && sudo mo
 sudo mkdir /tasks_storage && sudo chown `whoami`:`whoami` /tasks_storage && sudo mount --bind ./tasks_storage /tasks_storage
 ```
 
-Set up a GitHub token.
+Set up Github token.
 
 ```shell
 gh auth login
@@ -29,12 +29,24 @@ SSH
 No
 Paste the authentication token
 
-gh auth token
+gh auth token | docker login ghcr.io -u USERNAME --password-stdin
 ```
 
-Put GitHub token in `.env`.
+Build the [Kythe](https://github.com/trailofbits/aixcc-kythe) docker image and push to `aixcc-finals`.
+Create your own personal PAT, and give it `write:packages` permissions -- do not configure SSO for any organization.
+Log into `ghcr.io` like above.
 
-See [REST API](https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#list-releases-assets) if you need to find the asset ID of a new release.
+```shell
+git clone git@github.com:trailofbits/aixcc-kythe.git
+cd aixcc-kythe/
+
+# Takes roughly 70 minutes to build and 15 minutes to copy the .tar.gz file.
+docker build -t aixcc-kythe -f aixcc.Dockerfile .
+docker tag aixcc-kythe ghcr.io/aixcc-finals/buttercup-kythe:main
+docker push ghcr.io/aixcc-finals/buttercup-kythe:main
+```
+
+You should see the `buttercup-kythe` package [here](https://github.com/orgs/aixcc-finals/packages?visibility=private).
 
 ## Usage
 
