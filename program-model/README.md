@@ -93,7 +93,9 @@ See [challenges.md](challenges.md).
 
 ## Development
 
-Sync, reformat, lint, and test before committing changes:
+See [dev.md](dev.md).
+
+Sync, reformat, lint, and test before committing changes to this directory:
 
 ```shell
 just all
