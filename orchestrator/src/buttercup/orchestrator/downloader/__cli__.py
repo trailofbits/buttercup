@@ -20,6 +20,8 @@ def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -
     task.message_id = command.message_id
     task.message_time = command.message_time
     task.task_id = command.task_id
+    task.project_name = command.project_name
+    task.focus = command.focus
     task.cancelled = False
     task.task_type = (
         Task.TaskType.TASK_TYPE_FULL if command.task_type == TaskType.FULL else Task.TaskType.TASK_TYPE_DELTA

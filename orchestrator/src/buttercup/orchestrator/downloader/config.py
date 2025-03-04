@@ -44,6 +44,8 @@ class DownloaderProcessCommand(BaseModel):
     diff_url: list[str] = Field(description="Diff URL", default_factory=list)
     message_id: str = Field(description="Message ID", default_factory=lambda: str(uuid.uuid4()))
     message_time: int = Field(description="Message time", default_factory=lambda: int(time.time()))
+    project_name: str = Field(description="Project name")
+    focus: str = Field(description="Focus")
 
     class Config:
         nested_model_default_partial_update = True
