@@ -4,6 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from buttercup.common.challenge_task import ChallengeTask
 import os
+from argparse import ArgumentParser
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +57,42 @@ class Indexer:
             "-v",
             f"{output_dir}:/kythe_out",
             "-e",
-            "LD=ld",
-            "-e",
             "KYTHE_OUTPUT_DIRECTORY=/kythe_out",
+            "-e",
+            # TODO(Ian): this should be the task_id
+            f"KYTHE_CORPUS={task.task_meta.task_id}",
             emitted_image,
-            "compile",
+            "compile_and_extract",
         ]
         subprocess.run(command, check=True)
         return output_dir
+
+
+def main():
+    prsr = ArgumentParser()
+    prsr.add_argument("--scriptdir", type=str, required=True)
+    prsr.add_argument("--python", default="python3")
+    prsr.add_argument("--allow_pull", type=bool, default=True)
+    prsr.add_argument("--base_image_url", type=str, default="gcr.io/oss-fuzz")
+    prsr.add_argument("--wdir", type=str, default="/tmp")
+    prsr.add_argument("--task_dir", type=str, required=True)
+    args = prsr.parse_args()
+
+    conf = IndexConf(
+        scriptdir=args.scriptdir,
+        python=args.python,
+        allow_pull=args.allow_pull,
+        base_image_url=args.base_image_url,
+        wdir=args.wdir,
+    )
+
+    task = ChallengeTask(
+        args.task_dir,
+    )
+    with task.get_rw_copy(work_dir=args.wdir) as local_task:
+        indexer = Indexer(conf)
+        print(indexer.index_target(local_task))
+
+
+if __name__ == "__main__":
+    main()

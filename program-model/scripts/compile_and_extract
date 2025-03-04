@@ -1,0 +1,12 @@
+#!/bin/bash -eu
+
+
+mkdir -p /tmp/compdbs
+export KYTHE_ROOT_DIRECTORY=$SRC
+export CFLAGS="$CFLAGS -gen-cdb-fragment-path /tmp/compdbs"
+compile
+echo "[" > /tmp/compdbs.json
+cat /tmp/compdbs/*.json >> /tmp/compdbs.json
+echo "{}]" >> /tmp/compdbs.json
+
+$KYTHE_RELEASE_DIR/tools/runextractor compdb -path /tmp/compdbs.json -extractor $KYTHE_RELEASE_DIR/extractors/cxx_extractor || true
