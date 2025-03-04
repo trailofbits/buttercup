@@ -185,7 +185,7 @@ class Downloader:
                 return False
 
             # Store the task meta in the tasks storage directory
-            task_meta = TaskMeta(task.project_name, task.focus)
+            task_meta = TaskMeta(task.project_name, task.focus, task.task_id)
             task_meta.save(tmp_task_dir)
 
             # Move to final location

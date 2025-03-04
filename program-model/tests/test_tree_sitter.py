@@ -44,7 +44,9 @@ void print_hello(void) {
     (source / "test.c").write_text(test_c_content)
 
     # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source").save(tmp_path)
+    TaskMeta(
+        project_name="example_project", focus="my-source", task_id="task-id-tree-sitter"
+    ).save(tmp_path)
 
     return tmp_path
 

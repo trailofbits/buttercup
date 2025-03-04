@@ -11,6 +11,7 @@ class TaskMeta:
     METADATA_FILENAME = "task_meta.json"  # Constant for the filename
     project_name: str
     focus: str
+    task_id: str
 
     @classmethod
     def load(cls, directory: PathLike) -> "TaskMeta":

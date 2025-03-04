@@ -31,7 +31,7 @@ def task_dir(tmp_path: Path) -> Path:
     (source / "test.txt").write_text("mock test content")
 
     # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source").save(tmp_path)
+    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(tmp_path)
 
     return tmp_path
 
@@ -236,7 +236,7 @@ def test_missing_required_dirs(tmp_path: Path):
     task_dir.mkdir()
 
     # Add TaskMeta even though directories are missing
-    TaskMeta(project_name="example_project", focus="my-source").save(task_dir)
+    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(task_dir)
 
     with pytest.raises(ChallengeTaskError, match=f"Missing required directory: {task_dir / 'src'}"):
         ChallengeTask(
@@ -313,7 +313,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
     )
 
     # Create task metadata
-    TaskMeta(project_name="libjpeg-turbo", focus="libjpeg-turbo").save(tmp_path)
+    TaskMeta(project_name="libjpeg-turbo", focus="libjpeg-turbo", task_id="task-id-libjpeg-turbo").save(tmp_path)
 
     return ChallengeTask(
         read_only_task_dir=tmp_path,
