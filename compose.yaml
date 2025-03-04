@@ -73,6 +73,8 @@ services:
       - janusgraph.storage.backend=cql
       - janusgraph.storage.hostname=jg-cassandra
       - janusgraph.storage.cql.keyspace=janusgraph
+      - janusgraph.schema.init.strategy=json
+      - janusgraph.schema.init.json.file=/opt/janusgraph/conf/schema.json
       - _JAVA_OPTIONS=-Xmx2g -Xms2g
     healthcheck:
       test: ["CMD-SHELL", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
@@ -84,6 +86,7 @@ services:
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
+      - ./program-model/conf/schema.json:/opt/janusgraph/conf/schema.json
     depends_on:
       graphdb-storage:
         condition: service_healthy

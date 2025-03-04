@@ -1,0 +1,54 @@
+{
+    "edgeLabels": [
+        {
+            "label": "/kythe/edge/defines",
+            "multiplicity": "MULTI",
+            "unidirected": false
+        }
+    ],
+    "propertyKeys": [
+        {
+            "key": "path",
+            "className": "java.lang.String",
+            "cardinality": "SINGLE"
+        },
+        {
+            "key": "/kythe/code",
+            "className": "java.lang.String",
+            "cardinality": "SINGLE"
+        },
+        {
+            "key": "/kythe/text",
+            "className": "java.lang.String",
+            "cardinality": "SINGLE"
+        },
+        {
+            "key": "/kythe/node/kind",
+            "className": "java.lang.String",
+            "cardinality": "SINGLE"
+        }
+    ],
+    "compositeIndexes": [
+        {
+            "name": "kindCompositeIndex",
+            "typeClass": "org.apache.tinkerpop.gremlin.structure.Vertex",
+            "keys": [
+                {
+                    "propertyKey": "/kythe/node/kind"
+                }
+            ]
+        }
+    ],
+    "mixedIndexes": [
+        {
+            "name": "codeMixedIndex",
+            "typeClass": "org.apache.tinkerpop.gremlin.structure.Vertex",
+            "indexBackend": "search",
+            "keys": [
+                {
+                    "propertyKey": "/kythe/code"
+                }
+            ]
+        }
+    ]
+}

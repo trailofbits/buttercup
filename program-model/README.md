@@ -93,13 +93,19 @@ See [challenges.md](challenges.md).
 
 ## Development
 
-See [dev.md](dev.md).
-
 Sync, reformat, lint, and test before committing changes to this directory:
 
 ```shell
 just all
 ```
+
+## JanusGraph Indexing References
+
+* <https://user3141592.medium.com/single-vs-composite-indexes-in-relational-databases-58d0eb045cbe>
+* <https://docs.janusgraph.org/schema/index-management/index-performance/>
+* <https://docs.janusgraph.org/schema/schema-init-strategies/>
+* <https://docs.janusgraph.org/configs/configuration-reference/#schema>
+* <https://docs.janusgraph.org/v0.3/basics/schema/#:~:text=.util.UUID%20)-,Property%20Key%20Cardinality,all%20elements%20in%20the%20graph.>
 
 ## FAQs
 
@@ -107,5 +113,3 @@ just all
   * Since Kythe uses OSS Fuzz to build and index the challenge source code, we have to use the same base image as ClusterFuzz.
 * Why does this use Python 3.10?
   * ClusterFuzz uses Python 3.10.
-* How do I build Kythe?
-  * Follow the instructions in [dev.md](dev.md).

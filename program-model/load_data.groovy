@@ -6,6 +6,11 @@
 // 1 hour in milliseconds
 :remote config timeout 3600000
 
+println("Printing schema...")
+
+mgmt = graph.openManagement()
+mgmt.printSchema()
+
 println("Starting graph creation...")
 
 g.io('/crs_scratch/graph.xml').read().iterate()
