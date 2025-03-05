@@ -143,7 +143,7 @@ class ProgramModel:
                 try:
                     graphml = Path(td) / f"kythe_output_graphml_{output_id}.xml"
                     with open(graphml, "w") as fw, open(bin_file, "rb") as fr:
-                        gs = GraphStorage()
+                        gs = GraphStorage(task_id=args.task_id)
                         gs.process_stream(fr)
                         fw.write(gs.to_graphml())
                         logger.info(

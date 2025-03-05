@@ -11,6 +11,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildRequest,
     BuildOutput,
     WeightedHarness,
+    IndexRequest,
 )
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
@@ -35,6 +36,8 @@ class Scheduler:
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
     build_output_queue: ReliableQueue | None = field(init=False, default=None)
+    index_queue: ReliableQueue | None = field(init=False, default=None)
+    index_output_queue: ReliableQueue | None = field(init=False, default=None)
     harness_map: HarnessWeights | None = field(init=False, default=None)
     build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
@@ -52,6 +55,10 @@ class Scheduler:
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
             self.build_output_queue = queue_factory.create(
                 QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR, block_time=None
+            )
+            self.index_queue = queue_factory.create(QueueNames.INDEX, block_time=None)
+            self.index_output_queue = queue_factory.create(
+                QueueNames.INDEX_OUTPUT, GroupNames.ORCHESTRATOR, block_time=None
             )
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
@@ -77,41 +84,37 @@ class Scheduler:
         logger.info(f"Processing ready task {task.task_id}")
 
         challenge_task = ChallengeTask(self.tasks_storage_dir / task.task_id)
-        if challenge_task.get_source_path().is_dir():
-            logger.info(f"Processing task {task.task_id} / {task.focus}")
+        logger.info(f"Processing task {task.task_id} / {task.focus}")
 
-            project_yaml = ProjectYaml(challenge_task, task.project_name)
+        project_yaml = ProjectYaml(challenge_task, task.project_name)
 
-            engine = self.select_preferred(project_yaml.fuzzing_engines, ["libfuzzer", "afl"])
-            sanitizers = project_yaml.sanitizers
-            logger.info(f"Selected engine={engine}, sanitizers={sanitizers} for task {task.task_id}")
+        engine = self.select_preferred(project_yaml.fuzzing_engines, ["libfuzzer", "afl"])
+        sanitizers = project_yaml.sanitizers
+        logger.info(f"Selected engine={engine}, sanitizers={sanitizers} for task {task.task_id}")
 
-            build_types = [
-                (BUILD_TYPES.COVERAGE, "coverage", True),
-            ]
+        build_types = [
+            (BUILD_TYPES.COVERAGE, "coverage", True),
+        ]
 
-            for san in sanitizers:
-                build_types.append((BUILD_TYPES.FUZZER, san, True))
-                if len(challenge_task.get_diffs()) > 0:
-                    build_types.append((BUILD_TYPES.TRACER_NO_DIFF, san, False))
+        for san in sanitizers:
+            build_types.append((BUILD_TYPES.FUZZER, san, True))
+            if len(challenge_task.get_diffs()) > 0:
+                build_types.append((BUILD_TYPES.TRACER_NO_DIFF, san, False))
 
-            build_requests = [
-                BuildRequest(
-                    package_name=task.project_name,
-                    engine=engine,
-                    task_dir=str(challenge_task.task_dir),
-                    task_id=task.task_id,
-                    build_type=build_type,
-                    sanitizer=san,
-                    apply_diff=apply_diff,
-                )
-                for build_type, san, apply_diff in build_types
-            ]
+        build_requests = [
+            BuildRequest(
+                package_name=task.project_name,
+                engine=engine,
+                task_dir=str(challenge_task.task_dir),
+                task_id=task.task_id,
+                build_type=build_type,
+                sanitizer=san,
+                apply_diff=apply_diff,
+            )
+            for build_type, san, apply_diff in build_types
+        ]
 
-            return build_requests
-        logger.info(f"{challenge_task.get_source_path()} does not exist")
-
-        raise RuntimeError(f"Couldn't handle task {task.task_id}")
+        return build_requests
 
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
@@ -146,6 +149,17 @@ class Scheduler:
         if task_ready_item is not None:
             task_ready: TaskReady = task_ready_item.deserialized
             try:
+                # Create and push index request
+                challenge_task = ChallengeTask(self.tasks_storage_dir / task_ready.task.task_id)
+                index_request = IndexRequest(
+                    task_id=task_ready.task.task_id,
+                    task_dir=str(challenge_task.task_dir),
+                    package_name=task_ready.task.project_name,
+                )
+                self.index_queue.push(index_request)
+                logger.info(f"Pushed index request for task {task_ready.task.task_id} to index queue")
+
+                # Process build requests
                 for build_req in self.process_ready_task(task_ready.task):
                     self.build_requests_queue.push(build_req)
                     logger.info(
@@ -182,11 +196,25 @@ class Scheduler:
 
         return False
 
+    def serve_index_output(self) -> bool:
+        """Handle an index output message"""
+        index_output_item = self.index_output_queue.pop()
+        if index_output_item is not None:
+            try:
+                logger.info(f"Received index output for task {index_output_item.deserialized.task_id}")
+                self.index_output_queue.ack_item(index_output_item.item_id)
+                return True
+            except Exception as e:
+                logger.error(f"Failed to process index output: {e}")
+                return False
+        return False
+
     def serve_item(self) -> bool:
         # Run all scheduler components and track if any did work
         components = [
             self.serve_ready_task,
             self.serve_build_output,
+            self.serve_index_output,
             self.cancellation.process_cancellations,
             self.vulnerabilities.process_traced_vulnerabilities,
             self.patches.process_patches,

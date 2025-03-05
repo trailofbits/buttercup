@@ -340,7 +340,7 @@ class QueueFactory:
                 QueueNames.INDEX_OUTPUT,
                 IndexOutput,
                 INDEX_OUTPUT_TASK_TIMEOUT_MS,
-                [GroupNames.INDEX],
+                [GroupNames.ORCHESTRATOR],
             ),
         }
     )
