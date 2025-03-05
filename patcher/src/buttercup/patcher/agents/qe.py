@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from langchain_core.runnables import Runnable
 from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
-    CONTEXT_COMMIT_TMPL,
+    CONTEXT_DIFF_TMPL,
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
     PatcherAgentState,
@@ -44,7 +44,7 @@ Guidelines:
 - The patch should not contain unrelated changes;
 - The patch should not introduce new vulnerabilities;
 - The patch should not fix other vulnerabilities not described in the root cause \
-analysis or not introduced in the vulnerable commit. Only consider the direct, \
+analysis or not introduced in the vulnerable diff. Only consider the direct, \
 root-cause vulnerability. No indirect or related vulnerabilities;
 - The patch should be as simple and as minimal as possible to fix the \
 vulnerability described in the root cause analysis;
@@ -118,7 +118,7 @@ class QEAgent(PatcherAgentBase):
         # TODO: add support for multiple diffs if necessary
         diff_content = next(iter(self.challenge.get_diffs())).read_text()
 
-        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
+        messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.root_cause:
             messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause)]
 
@@ -253,7 +253,7 @@ class QEAgent(PatcherAgentBase):
 
     def run_pov_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.COMMIT_ANALYSIS.value]]:
+    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.DIFF_ANALYSIS.value]]:
         """Node in the LangGraph that runs a PoV against a currently built patch"""
         logger.info("Testing PoV on Challenge Task %s rebuilt with patch", self.challenge.name)
         try:
@@ -275,7 +275,7 @@ class QEAgent(PatcherAgentBase):
                     "pov_stdout": exc.stdout,
                     "pov_stderr": exc.stderr,
                 },
-                goto=PatcherAgentName.COMMIT_ANALYSIS.value,
+                goto=PatcherAgentName.DIFF_ANALYSIS.value,
             )
 
         if not pov_output.command_result.success:
@@ -286,7 +286,7 @@ class QEAgent(PatcherAgentBase):
                     "pov_stdout": pov_output.command_result.output,
                     "pov_stderr": pov_output.command_result.error,
                 },
-                goto=PatcherAgentName.COMMIT_ANALYSIS.value,
+                goto=PatcherAgentName.DIFF_ANALYSIS.value,
             )
 
         logger.info(
@@ -307,7 +307,7 @@ class QEAgent(PatcherAgentBase):
             },
             goto=PatcherAgentName.RUN_TESTS.value
             if not pov_output.did_crash()
-            else PatcherAgentName.COMMIT_ANALYSIS.value,
+            else PatcherAgentName.DIFF_ANALYSIS.value,
         )
 
     def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:

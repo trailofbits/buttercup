@@ -17,7 +17,7 @@ import re
 
 
 class PatcherAgentName(Enum):
-    COMMIT_ANALYSIS = "commit_analysis_node"
+    DIFF_ANALYSIS = "diff_analysis_node"
     CONTEXT_RETRIEVER = "context_retriever_node"
     ROOT_CAUSE_ANALYSIS = "root_cause_analysis"
     CREATE_PATCH = "create_patch"
@@ -35,7 +35,7 @@ class PatcherAgentState(BaseModel):
     messages: Annotated[list[BaseMessage], add_messages]
 
     relevant_code_snippets: Annotated[list[ContextCodeSnippet], operator.add] = Field(default_factory=list)
-    commit_analysis: str | None = None
+    diff_analysis: str | None = None
     root_cause: str | None = None
 
     patches: list[PatchOutput] = Field(default_factory=list)
@@ -151,16 +151,15 @@ Function name: (.*?))+
 
 CONTEXT_PROJECT_TMPL = "Project name: {project_name}"
 
-CONTEXT_COMMIT_TMPL = """Commit introducing the vulnerability:
+CONTEXT_DIFF_TMPL = """Diff introducing the vulnerability:
 ```
-{commit_content}
+{diff_content}
 ```
 """
-CONTEXT_COMMIT_ANALYSIS_TMPL = """Analysis of the commit introducing the \
-vulnerability. This just describe the vulnerability at the time it was \
-introduced, but it may contain partially inaccurate information.
+CONTEXT_DIFF_ANALYSIS_TMPL = """Analysis of the diff introducing the \
+vulnerability.
 ```
-{commit_analysis}
+{diff_analysis}
 ```
 """
 CONTEXT_ROOT_CAUSE_TMPL = """Vulnerability Root cause analysis:

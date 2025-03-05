@@ -27,7 +27,7 @@ from langchain_core.runnables import (
 )
 from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
-    CONTEXT_COMMIT_TMPL,
+    CONTEXT_DIFF_TMPL,
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
     PatcherAgentState,
@@ -369,7 +369,7 @@ class SWEAgent(PatcherAgentBase):
         # TODO: add support for multiple diffs if necessary
         diff_content = next(iter(self.challenge.get_diffs())).read_text()
 
-        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
+        messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.root_cause:
             messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause)]
 

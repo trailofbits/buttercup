@@ -21,8 +21,8 @@ from langchain_core.prompts import (
 from langchain_core.runnables import Runnable, RunnableBranch
 from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
-    CONTEXT_COMMIT_ANALYSIS_TMPL,
-    CONTEXT_COMMIT_TMPL,
+    CONTEXT_DIFF_ANALYSIS_TMPL,
+    CONTEXT_DIFF_TMPL,
     CONTEXT_EXTRA_CODE_TMPL,
     CONTEXT_PROJECT_TMPL,
     CONTEXT_SANITIZER_TMPL,
@@ -41,22 +41,22 @@ Function name: <function_name{i}>
 """
 ROOT_CAUSE_SYSTEM_TMPL = """You are a security engineer. Your job is to analyze the \
 current project's code, a vulnerability description, and determine its root \
-cause. The vulnerability is introduced in the specified commit and it was not \
+cause. The vulnerability is introduced/enabled in the specified diff and it was not \
 present before that. Read the project's code and understand the issue.
 
 You must NOT:
 - provide generic recommendations
 - provide overly generic root causes
-- talk about possible issues that existed before the commit.
+- talk about possible issues that existed before the diff.
 - provide code suggestions on how to fix the vulnerability
 - make up code, contexts or information
 
 You MUST:
 - provide a detailed root cause analysis of the vulnerability, referencing actual code snippets
 - describe a concrete and specific root cause
-- focus ONLY on the issue introduced in the commit and ONLY on the issue \
+- focus ONLY on the issue introduced in the diff and ONLY on the issue \
 reported in the sanitizer output. If there are multiple vulnerabilities in the \
-commit, focus on the one which triggers the sanitizer
+diff, focus on the one which triggers the sanitizer
 - look at the actual code snippets and the code context to understand the root cause, \
 do not make up code, contexts or information and do not assume anything
 
@@ -83,22 +83,22 @@ ROOT_CAUSE_SYSTEM_TMPL = ROOT_CAUSE_SYSTEM_TMPL.format(
     )
 )
 
-COMMIT_ANALYSIS_SYSTEM_TMPL = """You are a security engineer. Your job is to \
-analyze a commit of a project and determine the vulnerability it introduces. The \
-vulnerability is introduced in the specified commit and it was not present \
+DIFF_ANALYSIS_SYSTEM_TMPL = """You are a security engineer. Your job is to \
+analyze a diff of a project and determine the vulnerability it introduces. The \
+vulnerability is introduced in the specified diff and it was not present \
 before that.
 
 You MUST:
-- provide a detailed analysis of the vulnerability introduced in the commit
+- provide a detailed analysis of the vulnerability introduced in the diff
 - describe a concrete and specific problem
-- focus ONLY on the issue introduced in the commit and ONLY on the issue \
+- focus ONLY on the issue introduced in the diff and ONLY on the issue \
 reported in the sanitizer output. If there are multiple vulnerabilities in the \
-commit, focus on the one which triggers the sanitizer
+diff, focus on the one which triggers the sanitizer
 
 You must NOT:
 - provide generic recommendations
 - provide overly generic analyses
-- talk about possible issues that existed before the commit.
+- talk about possible issues that existed before the diff.
 - provide code suggestions on how to fix the vulnerability
 
 If you need more context to understand the code, you can ask for more code
@@ -139,27 +139,27 @@ ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
-COMMIT_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
+DIFF_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", COMMIT_ANALYSIS_SYSTEM_TMPL),
+        ("system", DIFF_ANALYSIS_SYSTEM_TMPL),
         MessagesPlaceholder(variable_name="context"),
         MessagesPlaceholder(variable_name="messages", optional=True),
         ("user", "Provide a detailed and complete analysis"),
     ]
 )
 
-OLD_COMMIT_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
+OLD_DIFF_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "ai",
-            """Commit analysis:
+            """Diff analysis:
 ```
-{commit_analysis}
+{diff_analysis}
 ```""",
         ),
         (
             "user",
-            "I tried to fix the vulnerability according to the commit analysis you \
+            "I tried to fix the vulnerability according to the diff analysis you \
 provided, but the Proof of Vulnerability (PoV) was still triggered. Please \
 review your previous analysis and provide a new or an improved analysis to \
 help me correctly fix the vulnerability.",
@@ -230,8 +230,8 @@ class RootCauseAgent(PatcherAgentBase):
 
     llm: Runnable = field(init=False)
     root_cause_chain: Runnable = field(init=False)
-    commit_analysis_chain: Runnable = field(init=False)
-    commit_analysis_one_chain: Runnable = field(init=False)
+    diff_analysis_chain: Runnable = field(init=False)
+    diff_analysis_one_chain: Runnable = field(init=False)
     build_failure_analysis_chain: Runnable = field(init=False)
     encoding: tiktoken.Encoding = field(init=False)
 
@@ -244,26 +244,26 @@ class RootCauseAgent(PatcherAgentBase):
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
         self.root_cause_chain = ROOT_CAUSE_PROMPT | self.llm | StrOutputParser()
-        self.commit_analysis_chain = COMMIT_ANALYSIS_PROMPT | self.llm | StrOutputParser()
-        self.commit_analysis_one_chain = RunnableBranch(
+        self.diff_analysis_chain = DIFF_ANALYSIS_PROMPT | self.llm | StrOutputParser()
+        self.diff_analysis_one_chain = RunnableBranch(
             (
-                lambda x: x["commit_analysis"],
+                lambda x: x["diff_analysis"],
                 {
-                    "previous_analysis": itemgetter("commit_analysis"),
-                    "new_analysis": self.commit_analysis_chain,
+                    "previous_analysis": itemgetter("diff_analysis"),
+                    "new_analysis": self.diff_analysis_chain,
                 }
                 | REDUCE_ANALYSES
                 | self.llm
                 | StrOutputParser(),
             ),
-            self.commit_analysis_chain,
+            self.diff_analysis_chain,
         )
         self.build_failure_analysis_chain = BUILD_FAILURE_PROMPT | self.llm | StrOutputParser()
 
         self.encoding = tiktoken.encoding_for_model("gpt-4o")
 
-    def get_commit_analysis_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
-        """Get the messages for the commit analysis context."""
+    def get_diff_analysis_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
+        """Get the messages for the diff analysis context."""
 
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
@@ -271,7 +271,7 @@ class RootCauseAgent(PatcherAgentBase):
         # TODO: add support for multiple diffs if necessary
         diff_content = next(iter(self.challenge.get_diffs())).read_text()
 
-        messages += [CONTEXT_COMMIT_TMPL.format(commit_content=diff_content)]
+        messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.context.sanitizer and state.context.sanitizer_output:
             messages += [
                 CONTEXT_SANITIZER_TMPL.format(
@@ -307,8 +307,8 @@ class RootCauseAgent(PatcherAgentBase):
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        if state.commit_analysis:
-            messages += [CONTEXT_COMMIT_ANALYSIS_TMPL.format(commit_analysis=state.commit_analysis)]
+        if state.diff_analysis:
+            messages += [CONTEXT_DIFF_ANALYSIS_TMPL.format(diff_analysis=state.diff_analysis)]
 
         if state.context.sanitizer and state.context.sanitizer_output:
             messages += [
@@ -321,36 +321,36 @@ class RootCauseAgent(PatcherAgentBase):
         messages += self._get_relevant_code_snippets_msgs(state.relevant_code_snippets)
         return messages
 
-    def commit_analysis(
+    def diff_analysis(
         self, state: PatcherAgentState
     ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, PatcherAgentName.CONTEXT_RETRIEVER.value]]:
-        """Analyze the commit diff to understand the vulnerability."""
-        logger.info("Analyzing the commit diff in Challenge Task %s", self.challenge.name)
+        """Analyze the diff to understand the vulnerability."""
+        logger.info("Analyzing the diff in Challenge Task %s", self.challenge.name)
         messages = []
-        if state.commit_analysis:
-            messages += OLD_COMMIT_ANALYSIS_PROMPT.format_messages(commit_analysis=state.commit_analysis)
+        if state.diff_analysis:
+            messages += OLD_DIFF_ANALYSIS_PROMPT.format_messages(diff_analysis=state.diff_analysis)
 
-        commit_analysis = self.chain_call(
+        diff_analysis = self.chain_call(
             lambda x, y: x + y,
-            self.commit_analysis_one_chain,
+            self.diff_analysis_one_chain,
             {
-                "context": self.get_commit_analysis_context(state),
+                "context": self.get_diff_analysis_context(state),
                 "messages": messages,
-                "commit_analysis": state.commit_analysis,
+                "diff_analysis": state.diff_analysis,
             },
             default="",
         )
-        if not commit_analysis:
-            logger.error("Could not analyze the commit diff")
-            raise ValueError("Could not analyze the commit diff")
+        if not diff_analysis:
+            logger.error("Could not analyze the diff")
+            raise ValueError("Could not analyze the diff")
 
         update_state = {
-            "commit_analysis": commit_analysis,
+            "diff_analysis": diff_analysis,
             "root_cause": None,
         }
         goto, requests_state = self.get_code_snippet_requests(
-            commit_analysis,
-            current_node=PatcherAgentName.COMMIT_ANALYSIS.value,
+            diff_analysis,
+            current_node=PatcherAgentName.DIFF_ANALYSIS.value,
             default_goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
         )
         update_state.update(requests_state)
@@ -377,8 +377,8 @@ class RootCauseAgent(PatcherAgentBase):
         return msg
 
     def context_retriever(self, state: PatcherAgentState) -> Command:
-        """Retrieve the context for the commit analysis."""
-        logger.info("Retrieving the context for the commit analysis in Challenge Task %s", self.challenge.name)
+        """Retrieve the context for the diff analysis."""
+        logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
         logger.debug("Code snippet requests: %s", state.code_snippet_requests)
 
         code_ts = CodeTS(self.challenge)
@@ -488,7 +488,7 @@ class RootCauseAgent(PatcherAgentBase):
         return messages
 
     def analyze_vulnerability(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:
-        """Analyze the commit analysis and the code to understand the
+        """Analyze the diff analysis and the code to understand the
         vulnerability in the current code."""
         logger.info("Analyzing the vulnerability in Challenge Task %s", self.challenge.name)
         messages = []
