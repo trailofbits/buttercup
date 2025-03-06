@@ -112,7 +112,8 @@ class SeedGenBot(TaskLoop):
             elif task_choice == TaskName.SEED_EXPLORE:
                 seed_explore = SeedExploreTask(task.package_name, task.harness_name, challenge_task)
                 function_name = "png_handle_tRNS"
-                seed_explore.do_task(function_name, out_dir)
+                function_path = Path("pngrutil.c")
+                seed_explore.do_task(function_name, function_path, out_dir)
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 

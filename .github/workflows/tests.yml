@@ -53,6 +53,13 @@ jobs:
         if: ${{ matrix.component }} == 'seed-gen'
         working-directory: seed-gen
 
+      - name: Install ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+        if: ${{ matrix.component }} == 'seed-gen'
+        working-directory: seed-gen
+
       - name: Setup ${{ matrix.component }} component
         run: uv sync --all-extras
         working-directory: ${{ matrix.component }}

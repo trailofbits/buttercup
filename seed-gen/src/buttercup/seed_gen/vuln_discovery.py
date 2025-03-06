@@ -5,7 +5,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.seed_gen.mock_context.mock import get_harness
 from buttercup.seed_gen.prompts import (
     DIFF_ANALYSIS_SYSTEM_PROMPT,
     DIFF_ANALYSIS_USER_PROMPT,
@@ -67,7 +66,9 @@ class VulnDiscoveryTask(Task):
     def do_task(self, output_dir: Path) -> None:
         """Do vuln-discovery task"""
         logger.info("Doing vuln-discovery for challenge %s", self.package_name)
-        harness = get_harness(self.package_name)
+        harness = self.get_harness_source()
+        if harness is None:
+            return
         diffs = self.challenge_task.get_diffs()
         diff_content = get_diff_content(diffs)
         if diff_content is None:

@@ -2,7 +2,7 @@ ARG PYTHON_BASE=3.12-slim-bookworm
 
 FROM python:${PYTHON_BASE} AS runtime-base
 RUN apt-get update
-RUN apt-get install -y curl
+RUN apt-get install -y curl ripgrep
 RUN curl -fsSL https://get.docker.com | sh
 RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
 
@@ -22,11 +22,15 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
+    --mount=type=bind,source=program-model/uv.lock,target=program-model/uv.lock \
+    --mount=type=bind,source=program-model/pyproject.toml,target=program-model/pyproject.toml \
+    --mount=type=bind,source=program-model/README.md,target=program-model/README.md \
     --mount=type=bind,source=seed-gen/uv.lock,target=seed-gen/uv.lock \
     --mount=type=bind,source=seed-gen/pyproject.toml,target=seed-gen/pyproject.toml \
     cd seed-gen && uv sync --frozen --no-install-project --no-editable
 
 ADD common /app/common
+ADD program-model /app/program-model
 ADD seed-gen /app/seed-gen
 
 RUN --mount=type=cache,target=/root/.cache/uv \

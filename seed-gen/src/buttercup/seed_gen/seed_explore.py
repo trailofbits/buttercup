@@ -4,7 +4,6 @@ from pathlib import Path
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.seed_gen.mock_context.mock import get_function_def, get_harness
 from buttercup.seed_gen.prompts import (
     PYTHON_SEED_EXPLORE_SYSTEM_PROMPT,
     PYTHON_SEED_EXPLORE_USER_PROMPT,
@@ -39,11 +38,38 @@ class SeedExploreTask(Task):
         )
         return funcs
 
-    def do_task(self, target_function_name: str, output_dir: Path) -> None:
+    def do_task(
+        self, target_function_name: str, target_function_path: Path, output_dir: Path
+    ) -> None:
         """Do seed-explore task"""
-        logger.info("Doing seed-explore for challenge %s", self.package_name)
-        harness = get_harness(self.package_name)
-        target_function = get_function_def(target_function_name)
+        logger.info(
+            "Doing seed-explore for challenge %s and function %s:%s",
+            self.package_name,
+            target_function_path,
+            target_function_name,
+        )
+        # TODO: We should eventually get the function id/object off the coverage frontier
+        function_bodies = self.program_model.get_function_body(
+            target_function_name, target_function_path
+        )
+        if not function_bodies:
+            logger.error("No function definition found for %s", target_function_name)
+            return
+        if len(function_bodies) > 1:
+            logger.warning(
+                "Found multiple function definitions, using first for %s", target_function_name
+            )
+        # TODO: update this once the typing is fixed in the program model
+        target_function_raw = function_bodies[0]
+        target_function = (
+            target_function_raw.decode("utf-8")
+            if isinstance(target_function_raw, bytes)
+            else target_function_raw
+        )
+
+        harness = self.get_harness_source()
+        if harness is None:
+            return
         try:
             logger.info(
                 "Generating seed functions for challenge %s and target function %s",

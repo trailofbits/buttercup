@@ -7,6 +7,7 @@ from buttercup.common.challenge_task import ChallengeTask
 class ProjectYaml:
     challenge_task: ChallengeTask
     project_name: str
+    _language: str | None = field(init=False, default=None)
     _sanitizers: list[str] | None = field(init=False, default=None)
     _fuzzing_engines: list[str] | None = field(init=False, default=None)
 
@@ -18,8 +19,16 @@ class ProjectYaml:
 
         with open(project_yaml_path) as f:
             yaml_content = yaml.safe_load(f)
+        self._language = yaml_content.get("language")
         self._sanitizers = yaml_content.get("sanitizers", ["address"])
         self._fuzzing_engines = yaml_content.get("fuzzing_engines", ["libfuzzer"])
+
+    @property
+    def language(self) -> str:
+        # language is a required field in the project.yaml file
+        if self._language is None:
+            raise ValueError("Language not set")
+        return self._language
 
     @property
     def sanitizers(self) -> list[str]:

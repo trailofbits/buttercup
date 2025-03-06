@@ -10,11 +10,13 @@ dependencies = [
     "redis ~= 5.2.1",
     "common",
     "wasmtime ~= 29.0.0",
+    "program-model",
 ]
 requires-python = ">=3.12,<3.13"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
+program-model = { path = "../program-model", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/buttercup"]

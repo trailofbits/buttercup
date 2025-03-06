@@ -9,7 +9,6 @@ from vuln_discovery_base import TestConfig, VulnDiscoveryEvaluatorBase
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import create_llm, get_langfuse_callbacks
-from buttercup.seed_gen.mock_context.mock import get_harness
 from buttercup.seed_gen.utils import get_diff_content
 from buttercup.seed_gen.vuln_discovery import VulnDiscoveryTask
 
@@ -24,7 +23,9 @@ class VulnDiscoveryEvaluator(VulnDiscoveryEvaluatorBase):
             self.eval_config.package_name, self.eval_config.harness_name, chall_task, llm=llm
         )
 
-        harness = get_harness(self.eval_config.package_name)
+        harness = vuln_discovery.get_harness_source()
+        if harness is None:
+            return
         diffs = chall_task.get_diffs()
         diff_content = get_diff_content(diffs)
         analysis = vuln_discovery.analyze_diff(diff_content, harness)

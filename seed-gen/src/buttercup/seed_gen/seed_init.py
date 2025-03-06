@@ -4,7 +4,6 @@ from pathlib import Path
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
-from buttercup.seed_gen.mock_context.mock import get_additional_context, get_harness
 from buttercup.seed_gen.prompts import PYTHON_SEED_SYSTEM_PROMPT, PYTHON_SEED_USER_PROMPT
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import Task
@@ -39,8 +38,10 @@ class SeedInitTask(Task):
     def do_task(self, output_dir: Path) -> None:
         """Do seed-init task"""
         logger.info("Doing seed-init for challenge %s", self.package_name)
-        harness = get_harness(self.package_name)
-        additional_context = get_additional_context(self.package_name)
+        harness = self.get_harness_source()
+        if harness is None:
+            return
+        additional_context = ""
         try:
             logger.info("Generating seed functions for challenge %s", self.package_name)
             funcs = self.generate_seed_funcs(harness, additional_context)
