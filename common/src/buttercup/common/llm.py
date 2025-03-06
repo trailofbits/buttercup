@@ -26,6 +26,7 @@ class ButtercupLLM(Enum):
     OPENAI_O1 = "openai-o1"
     CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
     CLAUDE_3_5_HAIKU = "claude-3.5-haiku"
+    CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
 
 
 @functools.cache

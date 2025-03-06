@@ -63,5 +63,10 @@ model_list:
       model: anthropic/claude-3-5-haiku-20241022
       api_key: os.environ/ANTHROPIC_API_KEY
 
+  - model_name: claude-3.7-sonnet
+    litellm_params:
+      model: anthropic/claude-3-7-sonnet-20250219
+      api_key: os.environ/ANTHROPIC_API_KEY
+
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY
