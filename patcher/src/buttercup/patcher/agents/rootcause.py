@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from operator import itemgetter
 
 import tiktoken
-from buttercup.patcher.context import ContextCodeSnippet
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
@@ -19,12 +18,13 @@ from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
     CONTEXT_DIFF_ANALYSIS_TMPL,
     CONTEXT_DIFF_TMPL,
-    CONTEXT_EXTRA_CODE_TMPL,
     CONTEXT_PROJECT_TMPL,
     CONTEXT_SANITIZER_TMPL,
     PatcherAgentState,
     PatcherAgentName,
     PatcherAgentBase,
+    ContextCodeSnippet,
+    get_code_snippet_request_tmpl,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
 from buttercup.patcher.utils import decode_bytes
@@ -32,9 +32,6 @@ from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
 
-ROOT_CAUSE_CODE_SNIPPET_REQUEST_TMPL = """File path: <file_path{i}>
-Function name: <function_name{i}>
-"""
 ROOT_CAUSE_SYSTEM_TMPL = """You are a security engineer. Your job is to analyze the \
 current project's code, a vulnerability description, and determine its root \
 cause. The vulnerability is introduced/enabled in the specified diff and it was not \
@@ -63,20 +60,12 @@ rushing through an answer.
 You can request multiple code snippets at once. Request code snippets in the
 following way:
 
-```
-# CODE SNIPPET REQUESTS:
-
-{root_cause_code_snippet_request_tmpl}
-
-[...]
-```
+{code_snippet_request_tmpl}
 
 You must use the above format to request code snippets.
 """
 ROOT_CAUSE_SYSTEM_TMPL = ROOT_CAUSE_SYSTEM_TMPL.format(
-    root_cause_code_snippet_request_tmpl="\n".join(
-        ROOT_CAUSE_CODE_SNIPPET_REQUEST_TMPL.format(i=i) for i in range(1, 3)
-    )
+    code_snippet_request_tmpl=get_code_snippet_request_tmpl(2),
 )
 
 DIFF_ANALYSIS_SYSTEM_TMPL = """You are a security engineer. Your job is to \
@@ -104,18 +93,11 @@ instead of rushing through an answer.
 You can request multiple code snippets at once. Request code snippets in the
 following way:
 
-```
-# CODE SNIPPET REQUESTS:
-
-File path: <file_path1>
-Function name: <function_name1>
-
-File path: <file_path2>
-Function name: <function_name2>
-
-[...]
-```
+{code_snippet_request_tmpl}
 """
+DIFF_ANALYSIS_SYSTEM_TMPL = DIFF_ANALYSIS_SYSTEM_TMPL.format(
+    code_snippet_request_tmpl=get_code_snippet_request_tmpl(2),
+)
 
 ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -255,9 +237,7 @@ class RootCauseAgent(PatcherAgentBase):
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        # TODO: add support for multiple diffs if necessary
-        diff_content = next(iter(self.challenge.get_diffs())).read_text()
-
+        diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
         messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.context.sanitizer and state.context.sanitizer_output:
             messages += [
@@ -266,25 +246,6 @@ class RootCauseAgent(PatcherAgentBase):
                     sanitizer_output=state.context.sanitizer_output,
                 )
             ]
-        if state.context.vulnerable_functions:
-            for code_snippet in state.context.vulnerable_functions:
-                code_context = code_snippet.code_context
-                if code_context.strip():
-                    n_tokens_extra = len(self.encoding.encode(code_context))
-                    if n_tokens_extra > 5000:
-                        logger.warning(
-                            "Code snippet %s | %s context is too large (%d tokens), truncating it",
-                            code_snippet.file_path,
-                            code_snippet.function_name,
-                            n_tokens_extra,
-                        )
-                        code_context = (
-                            self.encoding.decode(self.encoding.encode(code_context)[:1000])
-                            + "\n\n[...]\n\n"
-                            + self.encoding.decode(self.encoding.encode(code_context)[-1000:])
-                        )
-
-                    messages += [CONTEXT_EXTRA_CODE_TMPL.format(code_context=code_context)]
 
         return messages
 
@@ -349,7 +310,7 @@ class RootCauseAgent(PatcherAgentBase):
     def _parse_code_snippet_msg(self, msg: str) -> tuple[str, str, str]:
         """Parse the code snippet message."""
         # Extract code part from the message using regex
-        code_pattern = re.compile(r"File path:.*?\nFunction name:.*?\nCode:\n(.*?)$", re.DOTALL)
+        code_pattern = re.compile(r"File path:.*?\nIdentifier:.*?\nCode:\n(.*?)$", re.DOTALL)
         code_match = code_pattern.search(msg)
         if code_match:
             code_block_pattern = re.compile(r"```(?:[a-z]+)?\s*(.*?)\s*```", re.DOTALL)
@@ -370,9 +331,9 @@ class RootCauseAgent(PatcherAgentBase):
         for code_snippet in relevant_code_snippets:
             messages += [
                 CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet.file_path,
+                    file_path=code_snippet.key.file_path,
+                    identifier=code_snippet.key.identifier,
                     code=code_snippet.code,
-                    function_name=code_snippet.function_name,
                     code_context=code_snippet.code_context,
                 )
             ]
@@ -403,9 +364,9 @@ class RootCauseAgent(PatcherAgentBase):
         update_state = {
             "root_cause": root_cause,
             "patches": [],
-            "build_succeeded": False,
-            "pov_fixed": False,
-            "tests_passed": False,
+            "build_succeeded": None,
+            "pov_fixed": None,
+            "tests_passed": None,
         }
         goto, update_state = self.get_code_snippet_requests(
             root_cause,

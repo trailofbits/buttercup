@@ -557,7 +557,7 @@ class ChallengeTask:
 
         if self.local_task_dir.exists():
             logger.debug(f"Removing local task directory {self.local_task_dir}")
-            shutil.rmtree(self.local_task_dir)
+            shutil.rmtree(self.local_task_dir, ignore_errors=True)
 
         copyanything(self.read_only_task_dir, self.local_task_dir, symlinks=True)
         logger.info(f"Restored task from {self.read_only_task_dir} to {self.local_task_dir}")

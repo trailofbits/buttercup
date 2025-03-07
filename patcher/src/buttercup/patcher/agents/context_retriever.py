@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from langchain_core.runnables import Runnable
 from langchain_core.prompts import ChatPromptTemplate
-from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverState
+from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverState, ContextCodeSnippet, CodeSnippetKey
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
 from langgraph.types import Command
 
@@ -15,7 +15,6 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 
 from buttercup.program_model.api.tree_sitter import CodeTS
-from buttercup.patcher.context import ContextCodeSnippet
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
     def _parse_code_snippet_msg(self, msg: str) -> tuple[str, str, str]:
         """Parse the code snippet message."""
         # Extract code part from the message using regex
-        code_pattern = re.compile(r"File path:.*?\nFunction name:.*?\nCode:\n(.*?)$", re.DOTALL)
+        code_pattern = re.compile(r"File path:.*?\nIdentifier:.*?\nCode:\n(.*?)$", re.DOTALL)
         code_match = code_pattern.search(msg)
         if code_match:
             code_block_pattern = re.compile(r"```(?:[a-z]+)?\s*(.*?)\s*```", re.DOTALL)
@@ -127,10 +126,10 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
         res = []
         for request in state.code_snippet_requests:
-            logger.info("Retrieving code snippet for %s | %s", request.file_path, request.function_name)
-            messages = MESSAGES.invoke({"file_path": request.file_path, "function_name": request.function_name})
+            logger.info("Retrieving code snippet for %s | %s", request.file_path, request.identifier)
+            messages = MESSAGES.invoke({"file_path": request.file_path, "function_name": request.identifier})
             snippet = agent.invoke({"messages": messages.to_messages()}, {"recursion_limit": RECURSION_LIMIT})
-            logger.info("Code snippet retrieved for %s | %s", request.file_path, request.function_name)
+            logger.info("Code snippet retrieved for %s | %s", request.file_path, request.identifier)
             if not snippet["messages"]:
                 raise RuntimeError("No messages returned from the agent")
 
@@ -139,8 +138,10 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
             res.append(
                 ContextCodeSnippet(
-                    file_path=self.rebase_src_path(request.file_path),
-                    function_name=request.function_name,
+                    key=CodeSnippetKey(
+                        file_path=self.rebase_src_path(request.file_path),
+                        identifier=request.identifier,
+                    ),
                     code=code,
                     code_context="",
                 )

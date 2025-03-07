@@ -8,8 +8,6 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
 from typing import Callable
 from pathlib import Path
-
-from buttercup.patcher.context import ContextCodeSnippet
 from pydantic import BaseModel
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
@@ -28,7 +26,6 @@ class PatchInput(BaseModel):
     sanitizer: str
     pov: bytes | Path
     sanitizer_output: str | None = None
-    vulnerable_functions: list[ContextCodeSnippet] | None = None
 
     def __getitem__(self, key: str) -> Any:
         return self.get(key)

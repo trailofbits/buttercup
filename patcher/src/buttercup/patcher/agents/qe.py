@@ -125,8 +125,8 @@ class QEAgent(PatcherAgentBase):
         for code_snippet in state.relevant_code_snippets:
             messages += [
                 CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet.file_path,
-                    function_name=code_snippet.function_name,
+                    file_path=code_snippet.key.file_path,
+                    identifier=code_snippet.key.identifier,
                     code=code_snippet.code,
                     code_context=code_snippet.code_context,
                 )

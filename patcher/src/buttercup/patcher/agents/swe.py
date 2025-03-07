@@ -4,7 +4,6 @@ import difflib
 import logging
 import re
 from dataclasses import dataclass, field
-from operator import itemgetter
 from pathlib import Path
 from typing import Literal
 
@@ -23,7 +22,6 @@ from langchain_core.runnables import (
     ConfigurableField,
     Runnable,
     RunnableConfig,
-    RunnableLambda,
 )
 from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
@@ -34,6 +32,7 @@ from buttercup.patcher.agents.common import (
     PatcherAgentName,
     PatcherAgentBase,
     CodeSnippetKey,
+    get_code_snippet_request_tmpl,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
 from buttercup.patcher.utils import decode_bytes, PatchOutput
@@ -55,10 +54,16 @@ whole code snippet, but make sure to write both the old part and the new part.
 Moreover, if you don't modify the whole code snippet, include AT LEAST 5 lines
 before and after the old part.
 
+If you need more context to create a patch, you can ask for more code snippets.
+You can request multiple code snippets at once. Request code snippets in the
+following way:
+
+{code_snippet_request_tmpl}
+
 Always follow the scheme:
 
 File path: <path-to-file>
-Function name: <function-name>
+Identifier: <identifier>
 Old code:
 ```<language>
 <old-code>
@@ -71,22 +76,22 @@ Code:
 For example, the output should look like this:
 
 File path: path/to/file.c
-Function name: my_function
+Identifier: my_function
 Old code:
 ```c
-int my_function(int a) {{
+int my_function(int a) {{{{
     return a;
-}}
+}}}}
 ```
 Code:
 ```c
-int my_function(int a) {{
+int my_function(int a) {{{{
     return a + 1;
-}}
+}}}}
 ```
 
 File path: path/to/file2.c
-Function name: my_function2
+Identifier: my_function2
 Old code:
 ```c
     
@@ -105,10 +110,12 @@ Code:
     printf("Hello, World!");
 ```
 """  # noqa: W293
+SYSTEM_TMPL = SYSTEM_TMPL.format(code_snippet_request_tmpl=get_code_snippet_request_tmpl(2))
+
 
 CODE_SNIPPET_REGEX = re.compile(
     r"""File path: (.*?)
-Function name: (.*?)
+Identifier: (.*?)
 Old code:
 ```.*?
 (.*?)
@@ -129,7 +136,8 @@ CREATE_PATCH_STR_PROMPT = ChatPromptTemplate.from_messages(
             "user",
             "As output, write the modified code snippets, as instructed, but "
             "with the bug fixed. Leave the extra context intact and do not "
-            "output it. Do not output a code snippet that does not require a change.",
+            "output it. Do not output a code snippet that does not require a change. "
+            "If necessary, request more code snippets.",
         ),
     ]
 )
@@ -250,7 +258,7 @@ class CodeSnippetChange(BaseModel):
 
     def is_valid(self) -> bool:
         """Check if the code snippet change is valid"""
-        return self.key.file_path and self.key.function_name and self.old_code and self.code
+        return self.key.file_path and self.key.identifier and self.old_code and self.code
 
 
 class CodeSnippetChanges(BaseModel):
@@ -299,11 +307,7 @@ class SWEAgent(PatcherAgentBase):
             )
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
-        code_snippets_chain = CREATE_PATCH_STR_PROMPT | self.llm | StrOutputParser() | self.parse_code_snippets
-        self.create_patch_chain = {
-            "code_snippets": code_snippets_chain,
-            "state": itemgetter("state"),
-        } | RunnableLambda(self.create_upatch)
+        self.code_snippets_chain = CREATE_PATCH_STR_PROMPT | self.llm | StrOutputParser()
 
     def parse_code_snippets(self, msg: str) -> CodeSnippetChanges:
         """Parse the code snippets from the string."""
@@ -313,7 +317,7 @@ class SWEAgent(PatcherAgentBase):
             file_path, function_name, old_code, code = match
             items.append(
                 CodeSnippetChange(
-                    key=CodeSnippetKey(file_path=file_path.strip(), function_name=function_name.strip()),
+                    key=CodeSnippetKey(file_path=file_path.strip(), identifier=function_name.strip()),
                     old_code=old_code,
                     code=code,
                 )
@@ -376,8 +380,8 @@ class SWEAgent(PatcherAgentBase):
         for code_snippet in state.relevant_code_snippets:
             messages += [
                 CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet.file_path,
-                    function_name=code_snippet.function_name,
+                    file_path=code_snippet.key.file_path,
+                    identifier=code_snippet.key.identifier,
                     code=code_snippet.code,
                     code_context=code_snippet.code_context,
                 )
@@ -388,22 +392,22 @@ class SWEAgent(PatcherAgentBase):
     def _find_closest_match(
         self, orig_code_snippets: dict[CodeSnippetKey, str], target_key: CodeSnippetKey
     ) -> CodeSnippetKey | None:
-        """Find the closest matching file path and function name in orig_code_snippets."""
+        """Find the closest matching CodeSnippetKey in orig_code_snippets."""
         if not orig_code_snippets:
             return None
 
-        # First try exact function name match with fuzzy file path
-        func_matches = [key for key in orig_code_snippets.keys() if key.function_name == target_key.function_name]
-        if func_matches:
-            # Find best file path match among function matches
+        # First try exact identifier match with fuzzy file path
+        matches = [key for key in orig_code_snippets.keys() if key.identifier == target_key.identifier]
+        if matches:
+            # Find best file path match among matches
             best_match = max(
-                func_matches, key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio()
+                matches, key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio()
             )
             match_ratio = difflib.SequenceMatcher(None, target_key.file_path, best_match.file_path).ratio()
             if match_ratio > self.MATCH_RATIO_THRESHOLD:
                 return best_match
 
-        # If no good match found with function name, try best overall match
+        # If no good match found with identifier, try best overall match
         best_match = max(
             orig_code_snippets.keys(),
             key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio(),
@@ -414,9 +418,7 @@ class SWEAgent(PatcherAgentBase):
     def _get_code_snippet_key(
         self, code_snippet: CodeSnippetChange, orig_code_snippets: dict[CodeSnippetKey, str]
     ) -> CodeSnippetKey | None:
-        code_snippet_key = CodeSnippetKey(
-            file_path=code_snippet.key.file_path, function_name=code_snippet.key.function_name
-        )
+        code_snippet_key = CodeSnippetKey(file_path=code_snippet.key.file_path, identifier=code_snippet.key.identifier)
         if code_snippet_key not in orig_code_snippets:
             closest_match = self._find_closest_match(orig_code_snippets, code_snippet_key)
             if closest_match:
@@ -449,7 +451,7 @@ class SWEAgent(PatcherAgentBase):
                     "Could not find a valid code snippet key for %s (%d)", code_snippet.key, code_snippet_idx
                 )
                 code_snippet_key = CodeSnippetKey(
-                    file_path=code_snippet.key.file_path, function_name=code_snippet.key.function_name
+                    file_path=code_snippet.key.file_path, identifier=code_snippet.key.identifier
                 )
 
             file_content = self._get_file_content(code_snippet_key.file_path)
@@ -512,9 +514,9 @@ class SWEAgent(PatcherAgentBase):
         code_snippets, state = inp.code_snippets, inp.state
 
         orig_code_snippets = {
-            CodeSnippetKey(file_path=cs.file_path, function_name=cs.function_name): cs.code
+            CodeSnippetKey(file_path=cs.key.file_path, identifier=cs.key.identifier): cs.code
             for cs in (state.relevant_code_snippets)
-            if cs.code and cs.function_name
+            if cs.code and cs.key.identifier
         }
 
         logger.debug("Creating patches for %d code snippets", len(code_snippets.items or []))
@@ -533,10 +535,19 @@ class SWEAgent(PatcherAgentBase):
         )
         return final_patch
 
-    def create_patch_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.REVIEW_PATCH.value]]:
+    def create_patch_node(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.REVIEW_PATCH.value, PatcherAgentName.CONTEXT_RETRIEVER.value]]:
         """Node in the LangGraph that generates a patch (in diff format)"""
         logger.info("Creating a patch for Challenge Task %s", self.challenge.name)
         self.challenge.restore()
+
+        update_state = {
+            "patch_review": None,
+            "build_succeeded": None,
+            "pov_fixed": None,
+            "tests_passed": None,
+        }
 
         messages = []
         last_patch = state.get_last_patch()
@@ -566,9 +577,9 @@ class SWEAgent(PatcherAgentBase):
         is_patch_generated = False
 
         for _ in range(3):
-            patch: PatchOutput = self.chain_call(
-                lambda _, y: y,
-                self.create_patch_chain,
+            patch_str: str = self.chain_call(
+                lambda x, y: x + y,
+                self.code_snippets_chain,
                 {
                     "context": self.get_context(state),
                     "state": state,
@@ -579,8 +590,25 @@ class SWEAgent(PatcherAgentBase):
                         "llm_temperature": temperature,
                     },
                 ),
-                default=PatchOutput(task_id="", vulnerability_id="", patch=""),
+                default="",
             )
+            goto, update_state = self.get_code_snippet_requests(
+                patch_str,
+                update_state,
+                current_node=PatcherAgentName.CREATE_PATCH.value,
+                default_goto=PatcherAgentName.REVIEW_PATCH.value,
+            )
+            if goto == PatcherAgentName.CONTEXT_RETRIEVER.value:
+                return Command(
+                    update=update_state,
+                    goto=goto,
+                )
+
+            create_upatch_input = CreateUPatchInput(
+                code_snippets=self.parse_code_snippets(patch_str),
+                state=state,
+            )
+            patch = self.create_upatch(create_upatch_input)
             if not patch or not patch.patch:
                 logger.error("Could not generate a patch")
                 temperature += 0.1
@@ -601,14 +629,13 @@ class SWEAgent(PatcherAgentBase):
         logger.debug("Patch: %s", patch.patch)
         patch_tries = state.patch_tries + 1
         patches = state.patches + [patch]
-        return Command(
-            update={
+        update_state.update(
+            {
                 "patches": patches,
                 "patch_tries": patch_tries,
-                "patch_review": None,
-                "build_succeeded": False,
-                "pov_fixed": False,
-                "tests_passed": False,
-            },
+            }
+        )
+        return Command(
+            update=update_state,
             goto=PatcherAgentName.REVIEW_PATCH.value,
         )

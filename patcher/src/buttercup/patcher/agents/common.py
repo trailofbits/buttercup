@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Annotated
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
-from buttercup.patcher.context import ContextCodeSnippet
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from buttercup.patcher.utils import PatchInput, PatchOutput, CHAIN_CALL_TYPE
@@ -44,16 +43,16 @@ class PatcherAgentState(BaseModel):
     patch_review: str | None = None
     patch_review_tries: int = Field(default=0)
 
-    build_succeeded: bool = Field(default=False)
+    build_succeeded: bool | None = None
     build_stdout: bytes | None = None
     build_stderr: bytes | None = None
     build_analysis: str | None = None
 
-    pov_fixed: bool = Field(default=False)
+    pov_fixed: bool | None = None
     pov_stdout: bytes | None = None
     pov_stderr: bytes | None = None
 
-    tests_passed: bool = Field(default=False)
+    tests_passed: bool | None = None
     tests_stdout: bytes | None = None
     tests_stderr: bytes | None = None
 
@@ -83,17 +82,31 @@ class CodeSnippetKey(BaseModel):
     """Code snippet key"""
 
     file_path: str | None = Field(description="The file path of the code snippet")
-    function_name: str | None = Field(description="The function name of the code snippet")
+    identifier: str | None = Field(description="The identifier of the code snippet")
 
     def __hash__(self) -> int:
         """Hash the code snippet key"""
-        return hash((self.file_path, self.function_name))
+        return hash((self.file_path, self.identifier))
 
     def __eq__(self, other: object) -> bool:
         """Check if the code snippet key is equal to another object"""
         if not isinstance(other, CodeSnippetKey):
             return False
-        return self.file_path == other.file_path and self.function_name == other.function_name
+        return self.file_path == other.file_path and self.identifier == other.identifier
+
+
+class ContextCodeSnippet(BaseModel):
+    """Code snippet from the Challenge Task. This is the base unit used by the
+    patcher to build patches. Changes are applied to this units."""
+
+    key: CodeSnippetKey
+    "Key of the code snippet, used to uniquely identify the code snippet"
+
+    code: str
+    "Code of the code snippet"
+
+    code_context: str | None = None
+    "Additional context around the code snippet, e.g. lines information, etc."
 
 
 @dataclass
@@ -121,7 +134,7 @@ class PatcherAgentBase:
         if path == "":
             path = "."
 
-        return path
+        return str(path)
 
     def get_code_snippet_requests(
         self, response: str, update_state: dict, *, current_node: str, default_goto: str
@@ -132,7 +145,7 @@ class PatcherAgentBase:
             r"""# CODE SNIPPET REQUESTS:
 .*?
 (File path: (.*?)
-Function name: (.*?))+
+Identifier: (.*?))+
 ```""",
             re.DOTALL | re.IGNORECASE,
         )
@@ -140,15 +153,15 @@ Function name: (.*?))+
         if not matches:
             return default_goto, update_state
 
-        # Extract all file path and function name pairs
-        pair_pattern = re.compile(r"File path: (.*?)\nFunction name: (.*?)(?:\n|$)", re.DOTALL)
+        # Extract all file path and identifier pairs
+        pair_pattern = re.compile(r"File path: (.*?)\nIdentifier: (.*?)(?:\n|$)", re.DOTALL)
         code_snippet_requests = pair_pattern.findall(matches.group(0))
 
         if len(code_snippet_requests) == 0:
             return default_goto, update_state
 
         code_snippet_requests = [
-            CodeSnippetKey(file_path=request[0], function_name=request[1]) for request in code_snippet_requests
+            CodeSnippetKey(file_path=request[0], identifier=request[1]) for request in code_snippet_requests
         ]
         return PatcherAgentName.CONTEXT_RETRIEVER.value, {
             "code_snippet_requests": code_snippet_requests,
@@ -200,7 +213,7 @@ CONTEXT_VULNERABLE_FILE_TMPL = """Vulnerable file: {vulnerable_file}"""
 
 CONTEXT_CODE_SNIPPET_TMPL = """# Relevant code snippet
 File path: {file_path}
-Function name: {function_name}
+Identifier: {identifier}
 Code:
 ```
 {code}
@@ -210,3 +223,21 @@ Extra context:
 {code_context}
 ```
 """
+
+CODE_SNIPPET_REQUEST_ITEM_TMPL = """File path: <file_path{i}>
+Identifier: <identifier{i}>
+"""
+
+CODE_SNIPPET_REQUEST_TMPL = """```
+# CODE SNIPPET REQUESTS:
+
+{code_snippet_request_tmpl}
+[...]
+```
+"""
+
+
+def get_code_snippet_request_tmpl(n: int) -> str:
+    """Get the code snippet request template."""
+    examples = [CODE_SNIPPET_REQUEST_ITEM_TMPL.format(i=i) for i in range(1, n + 1)]
+    return CODE_SNIPPET_REQUEST_TMPL.format(code_snippet_request_tmpl="\n".join(examples))
