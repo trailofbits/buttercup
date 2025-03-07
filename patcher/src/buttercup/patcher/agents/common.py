@@ -112,7 +112,10 @@ class PatcherAgentBase:
             path = path[len(f"src/{self.challenge.project_name}") :]
 
         if path.startswith("/"):
-            path = Path(path).relative_to("/")
+            path = str(Path(path).relative_to("/"))
+
+        if path == "":
+            path = "."
 
         return path
 
