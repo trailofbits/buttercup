@@ -57,9 +57,6 @@ class PatcherAgentState(BaseModel):
     tests_stdout: bytes | None = None
     tests_stderr: bytes | None = None
 
-    prev_node: str | None = None
-    code_snippet_requests: list[CodeSnippetKey] = Field(default_factory=list)
-
     def get_successful_patch(self) -> PatchOutput | None:
         """Get the successful patch."""
         if self.build_succeeded and self.pov_fixed and self.tests_passed and self.patches:
@@ -73,6 +70,13 @@ class PatcherAgentState(BaseModel):
             return self.patches[-1]
 
         return None
+
+
+class ContextRetrieverState(BaseModel):
+    """State for the Context Retriever Agent."""
+
+    code_snippet_requests: list[CodeSnippetKey] = Field(default_factory=list)
+    prev_node: str | None = None
 
 
 class CodeSnippetKey(BaseModel):
@@ -119,7 +123,9 @@ class PatcherAgentBase:
 
         return path
 
-    def get_code_snippet_requests(self, response: str, *, current_node: str, default_goto: str) -> tuple[str, dict]:
+    def get_code_snippet_requests(
+        self, response: str, update_state: dict, *, current_node: str, default_goto: str
+    ) -> tuple[str, dict]:
         """Get the code snippet request from the response."""
 
         CODE_SNIPPET_REQUEST = re.compile(
@@ -132,14 +138,14 @@ Function name: (.*?))+
         )
         matches = CODE_SNIPPET_REQUEST.search(response)
         if not matches:
-            return default_goto, {}
+            return default_goto, update_state
 
         # Extract all file path and function name pairs
         pair_pattern = re.compile(r"File path: (.*?)\nFunction name: (.*?)(?:\n|$)", re.DOTALL)
         code_snippet_requests = pair_pattern.findall(matches.group(0))
 
         if len(code_snippet_requests) == 0:
-            return default_goto, {}
+            return default_goto, update_state
 
         code_snippet_requests = [
             CodeSnippetKey(file_path=request[0], function_name=request[1]) for request in code_snippet_requests

@@ -1,16 +1,12 @@
 """Software Engineer LLM agent, analyzing the root cause of a vulnerability."""
 
 import logging
-import subprocess
 import re
 from typing import Literal
 from dataclasses import dataclass, field
 from operator import itemgetter
-from langchain_core.tools import tool
-from langgraph.prebuilt import create_react_agent
 
 import tiktoken
-from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.patcher.context import ContextCodeSnippet
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -120,15 +116,6 @@ Function name: <function_name2>
 [...]
 ```
 """
-
-CONTEXT_RETRIEVER_SYSTEM_TMPL = """You are a software engineer. Your job is to retrieve the code snippets requested by the user.
-You must use the tools provided to you to retrieve the code snippets.
-
-Do not stop until you have retrieved the code definition of the function.
-Use `get_function_definition` as the last tool in your chain of calls to actually retrieve the code definition.
-"""
-
-CONTEXT_RETRIEVER_RECURSION_LIMIT = 20
 
 ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -348,12 +335,12 @@ class RootCauseAgent(PatcherAgentBase):
             "diff_analysis": diff_analysis,
             "root_cause": None,
         }
-        goto, requests_state = self.get_code_snippet_requests(
+        goto, update_state = self.get_code_snippet_requests(
             diff_analysis,
+            update_state,
             current_node=PatcherAgentName.DIFF_ANALYSIS.value,
             default_goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
         )
-        update_state.update(requests_state)
         return Command(
             update=update_state,
             goto=goto,
@@ -375,101 +362,6 @@ class RootCauseAgent(PatcherAgentBase):
                 msg = code_match.group(1).strip()
 
         return msg
-
-    def context_retriever(self, state: PatcherAgentState) -> Command:
-        """Retrieve the context for the diff analysis."""
-        logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
-        logger.debug("Code snippet requests: %s", state.code_snippet_requests)
-
-        code_ts = CodeTS(self.challenge)
-
-        @tool
-        def ls(path: str) -> str:
-            """List the files in the given path in the project's source directory."""
-            path = self.rebase_src_path(path)
-
-            logger.info("Listing files in %s", path)
-            return subprocess.check_output(["ls", "-l", path], cwd=self.challenge.get_source_path()).decode("utf-8")
-
-        @tool
-        def grep(path: str, pattern: str) -> str:
-            """Grep for a string in a file. Prefer using this tool over cat."""
-            path = self.rebase_src_path(path)
-
-            logger.info("Searching for %s in %s", pattern, path)
-            return subprocess.check_output(["grep", "-nr", pattern, path], cwd=self.challenge.get_source_path()).decode(
-                "utf-8"
-            )
-
-        @tool
-        def cat(path: str) -> str:
-            """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
-            path = self.rebase_src_path(path)
-
-            logger.info("Reading contents of %s", path)
-            return self.challenge.get_source_path().joinpath(path).read_text()
-
-        @tool
-        def get_lines(path: str, start: int, end: int) -> str:
-            """Get a range of lines from a file. Prefer using this tool over cat."""
-            path = self.rebase_src_path(path)
-
-            logger.info("Getting lines %d-%d of %s", start, end, path)
-            return "\n".join(self.challenge.get_source_path().joinpath(path).read_text().splitlines()[start:end])
-
-        @tool(return_direct=True)
-        def get_function_definition(path: str, function_name: str) -> str:
-            """Get the definition of a function in a file. You MUST use this tool as the last call in your chain of calls."""
-            path = self.rebase_src_path(path)
-
-            logger.info("Getting definition of %s in %s", function_name, path)
-            bodies = code_ts.get_function_code(path, function_name)
-            if not bodies:
-                return "No definition found for function"
-
-            # TODO: allow for multiple bodies
-            return bodies[0]
-
-        tools = [ls, grep, get_lines, cat, get_function_definition]
-        agent = create_react_agent(
-            self.llm,
-            tools,
-            prompt=CONTEXT_RETRIEVER_SYSTEM_TMPL,
-        )
-
-        res = []
-        for request in state.code_snippet_requests:
-            logger.info("Retrieving code snippet for %s | %s", request.file_path, request.function_name)
-            snippet = agent.invoke(
-                {
-                    "messages": [
-                        ("human", f"Please retrieve the code snippet for {request.file_path} | {request.function_name}")
-                    ]
-                },
-                {
-                    "recursion_limit": CONTEXT_RETRIEVER_RECURSION_LIMIT,
-                },
-            )
-            logger.info("Code snippet retrieved for %s | %s", request.file_path, request.function_name)
-            msg = snippet["messages"][-1].content
-            code = self._parse_code_snippet_msg(msg)
-
-            res.append(
-                ContextCodeSnippet(
-                    file_path=request.file_path,
-                    function_name=request.function_name,
-                    code=code,
-                    code_context="",
-                )
-            )
-
-        return Command(
-            update={
-                "relevant_code_snippets": res,
-                "code_snippet_requests": [],
-            },
-            goto=state.prev_node,
-        )
 
     def _get_relevant_code_snippets_msgs(
         self, relevant_code_snippets: list[ContextCodeSnippet]
@@ -515,12 +407,12 @@ class RootCauseAgent(PatcherAgentBase):
             "pov_fixed": False,
             "tests_passed": False,
         }
-        goto, requests_state = self.get_code_snippet_requests(
+        goto, update_state = self.get_code_snippet_requests(
             root_cause,
+            update_state,
             current_node=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             default_goto=PatcherAgentName.CREATE_PATCH.value,
         )
-        update_state.update(requests_state)
         return Command(
             update=update_state,
             goto=goto,

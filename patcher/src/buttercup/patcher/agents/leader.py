@@ -13,6 +13,7 @@ from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName
 from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
+from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
 from buttercup.patcher.utils import PatchInput, PatchOutput
 from buttercup.common.llm import get_langfuse_callbacks
 
@@ -36,10 +37,11 @@ class PatcherLeaderAgent:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
+        context_retriever_agent = ContextRetrieverAgent(self.challenge, self.input, chain_call=self.chain_call)
 
         workflow = StateGraph(PatcherAgentState)
         workflow.add_node(PatcherAgentName.DIFF_ANALYSIS.value, rootcause_agent.diff_analysis)
-        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, rootcause_agent.context_retriever)
+        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)
         workflow.add_node(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, rootcause_agent.analyze_vulnerability)
         workflow.add_node(PatcherAgentName.CREATE_PATCH.value, swe_agent.create_patch_node)
         workflow.add_node(PatcherAgentName.REVIEW_PATCH.value, qe_agent.review_patch_node)
