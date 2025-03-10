@@ -22,7 +22,6 @@ from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
 import random
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +32,9 @@ class Scheduler:
     redis: Redis | None = None
     sleep_time: float = 1.0
     competition_api_url: str = "http://competition-api:8080"
+    competition_api_key_id: str = "api_key_id"
+    competition_api_key_token: str = "api_key_token"
+
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
     build_output_queue: ReliableQueue | None = field(init=False, default=None)
@@ -47,7 +49,9 @@ class Scheduler:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            api_client = create_api_client(self.competition_api_url)
+            api_client = create_api_client(
+                self.competition_api_url, self.competition_api_key_id, self.competition_api_key_token
+            )
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
             self.vulnerabilities = Vulnerabilities(redis=self.redis, api_client=api_client)

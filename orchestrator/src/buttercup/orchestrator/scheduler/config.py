@@ -5,10 +5,12 @@ from pydantic import Field
 from pathlib import Path
 
 
-class ServeCommand(BaseModel):
+class ServeCommand(BaseSettings):
     sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     competition_api_url: Annotated[str, Field(default="http://competition-api:8080", description="Competition API URL")]
+    competition_api_key_id: Annotated[str, Field(default="api_key_id", description="Competition API username")]
+    competition_api_key_token: Annotated[str, Field(default="api_key_token", description="Competition API password")]
 
     class Config:
         nested_model_default_partial_update = True
@@ -41,6 +43,7 @@ class Settings(BaseSettings):
     tasks_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for Tasks storage")]
     scratch_dir: Annotated[Path, Field(default="/tmp/crs_scratch", description="Directory for CRS scratch")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
+
     serve: CliSubCommand[ServeCommand]
     process_ready_task: CliSubCommand[ProcessReadyTaskCommand]
     process_build_output: CliSubCommand[ProcessBuildOutputCommand]

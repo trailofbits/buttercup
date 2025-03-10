@@ -5,7 +5,9 @@ from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 logger = logging.getLogger(__name__)
 
 
-def create_api_client(competition_api_url: str) -> ApiClient:
+def create_api_client(
+    competition_api_url: str, competition_api_username: str, competition_api_password: str
+) -> ApiClient:
     """Initialize the competition API client with common configuration.
 
     Args:
@@ -16,8 +18,8 @@ def create_api_client(competition_api_url: str) -> ApiClient:
     """
     configuration = Configuration(
         host=competition_api_url,
-        username="api_key_id",  # TODO: Make configurable
-        password="api_key_token",  # TODO: Make configurable
+        username=competition_api_username,
+        password=competition_api_password,
     )
     logger.info(f"Initializing API client with URL: {competition_api_url}")
     return ApiClient(configuration=configuration)

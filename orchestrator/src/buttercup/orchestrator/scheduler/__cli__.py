@@ -9,6 +9,9 @@ from buttercup.common.logger import setup_package_logger
 from pydantic_settings import get_subcommand
 from redis import Redis
 from buttercup.orchestrator.scheduler.scheduler import Task, BuildOutput
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _prepare_ready_task(command: ProcessReadyTaskCommand) -> Task:
@@ -32,6 +35,7 @@ def _prepare_build_output(command: ProcessBuildOutputCommand) -> BuildOutput:
 def main():
     settings = Settings()
     setup_package_logger(__name__, settings.log_level)
+    logger.debug(f"Settings: {settings}")
     command = get_subcommand(settings)
     if isinstance(command, ServeCommand):
         redis = Redis.from_url(command.redis_url, decode_responses=False)
@@ -41,6 +45,8 @@ def main():
             redis,
             sleep_time=command.sleep_time,
             competition_api_url=command.competition_api_url,
+            competition_api_key_id=command.competition_api_key_id,
+            competition_api_key_token=command.competition_api_key_token,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):
