@@ -6,6 +6,7 @@ readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "argon2-cffi>=21.0.0",
     "clusterfuzz>=2.6.0",
     "common",
     "fastapi>=0.115.6",
@@ -15,6 +16,7 @@ dependencies = [
     "pyyaml>=6.0.1",
     "requests>=2.32.3",
     "requests-file>=2.1.0",
+    "rich>=13.9.4",
     "typing-extensions>=4.12.2",
     "urllib3>=2.3.0",
     "uvicorn>=0.34.0",
@@ -25,6 +27,7 @@ buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
 buttercup-task-downloader = "buttercup.orchestrator.downloader.__cli__:main"
 buttercup-task-registry = "buttercup.orchestrator.registry:task_registry_cli"
 buttercup-scheduler = "buttercup.orchestrator.scheduler.__cli__:main"
+buttercup-auth-tool = "buttercup.orchestrator.task_server.auth_tool:main"
 
 
 [project.optional-dependencies]

@@ -4,17 +4,20 @@
 
 from __future__ import annotations
 
-import secrets
 from typing import Annotated, Optional
 from uuid import UUID
 
+from argon2 import PasswordHasher, Type
+from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel, Field
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast
 from buttercup.orchestrator.task_server.backend import delete_task, new_task
 from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
+from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue
 
 settings = get_settings()
@@ -32,29 +35,87 @@ app = FastAPI(
 # Credentials will be composed of an API key and token which will be used as the username
 # and password in HTTP Basic Auth.
 # API keys will be UUIds, tokens will be random alphanumeric strings of at least 32 chars.
-# Tokens should be stored using Argon2ID.
+# Tokens are stored using Argon2ID.
 security = HTTPBasic()
 
+# Create password hasher with Argon2id
+ph = PasswordHasher(
+    time_cost=3,  # Number of iterations
+    memory_cost=65536,  # 64MB
+    parallelism=4,  # Number of parallel threads
+    hash_len=32,  # Length of the hash in bytes
+    salt_len=16,  # Length of the salt in bytes
+    encoding="utf-8",  # Encoding of the password
+    type=Type.ID,  # Argon2id
+)
 
-def check_auth(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+# Authentication settings are accessed through the settings object
+
+
+class ApiToken(BaseModel):
+    """Model representing an API token entry with its hashed value"""
+
+    key_id: UUID = Field(..., description="UUID identifier for the API key")
+    token_hash: str = Field(..., description="Argon2id hash of the token")
+
+
+def check_auth(
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+    settings: Annotated[TaskServerSettings, Depends(get_settings)],
+):
     """
-    Reference: https://fastapi.tiangolo.com/advanced/security/http-basic-auth/
+    Authenticate user with Argon2id-hashed token.
+
+    Args:
+        credentials: HTTP Basic authentication credentials
+        settings: Application settings containing authentication config
+
+    Returns:
+        The authenticated key_id on success
+
+    Raises:
+        HTTPException: If authentication fails
     """
-    current_username_bytes = credentials.username.encode("utf8")
-    correct_username_bytes = b"api_key_id"  # FIXME: Change username as desired
-    is_correct_username = secrets.compare_digest(current_username_bytes, correct_username_bytes)
+    # Get expected key ID and token hash from settings
+    expected_key_id = settings.api_key_id
+    token_hash = settings.api_token_hash
 
-    current_password_bytes = credentials.password.encode("utf8")
-    correct_password_bytes = b"api_key_token"  # FIXME: Change password as desired and use hash
-    is_correct_password = secrets.compare_digest(current_password_bytes, correct_password_bytes)
-
-    if not (is_correct_username and is_correct_password):
+    # If either setting is missing, authentication fails
+    if not expected_key_id or not token_hash:
+        logger.error(
+            "Authentication configuration is missing. Configure BUTTERCUP_TASK_SERVER_API_KEY_ID and "
+            "BUTTERCUP_TASK_SERVER_API_TOKEN_HASH environment variables."
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Authentication configuration error",
             headers={"WWW-Authenticate": "Basic"},
         )
-    return credentials.username
+
+    # Get credentials from request
+    key_id = credentials.username
+    token = credentials.password
+
+    # Check if key ID matches
+    if key_id != expected_key_id:
+        logger.warning(f"Key ID from request ({key_id}) doesn't match expected key ID")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    # Verify token using Argon2id
+    try:
+        ph.verify(token_hash, token)
+        return key_id
+    except VerifyMismatchError:
+        logger.warning(f"Invalid token provided for key ID {key_id}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 
 @app.get("/status/", response_model=Status, tags=["status"])
