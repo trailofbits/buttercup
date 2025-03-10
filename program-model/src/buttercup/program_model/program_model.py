@@ -170,11 +170,12 @@ class ProgramModel:
                         DriverRemoteConnection(self.graphdb_url, "g")
                     )
                     g.io(str(graphml)).read().iterate()
-                except Exception as e:
-                    logger.error(
-                        f"Failed to load graphml file {graphml} into JanusGraph: {e}"
+                except Exception:
+                    logger.exception(
+                        f"Failed to load graphml file {graphml} into JanusGraph"
                     )
                     return False
+
                 logger.debug("Successfully loaded graphml file into JanusGraph")
 
         return True

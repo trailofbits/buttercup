@@ -51,9 +51,12 @@ class Indexer:
         indexuid = str(uuid.uuid4())
         output_dir = f"{self.conf.wdir}/output_{indexuid}"
         os.makedirs(output_dir, exist_ok=True)
+        workdir = task.workdir_from_dockerfile().absolute().as_posix()
         command = [
             "docker",
             "run",
+            "-v",
+            f"{task.get_source_path().absolute()}:{workdir}",
             "-v",
             f"{output_dir}:/kythe_out",
             "-e",

@@ -534,3 +534,14 @@ def test_restore_task_same_dir(challenge_task: ChallengeTask):
                 ChallengeTaskError, match="Task cannot be restored, it doesn't have a local task directory"
             ):
                 local_task.restore()
+
+
+def test_workdir_from_dockerfile(challenge_task_readonly: ChallengeTask):
+    """Test getting the workdir from the dockerfile."""
+    assert challenge_task_readonly.workdir_from_dockerfile() == Path("/src/example_project")
+
+
+@pytest.mark.integration
+def test_workdir_from_dockerfile_libjpeg(libjpeg_oss_fuzz_task: ChallengeTask):
+    """Test getting the workdir from the dockerfile."""
+    assert libjpeg_oss_fuzz_task.workdir_from_dockerfile() == Path("/src/libjpeg-turbo")

@@ -7,6 +7,7 @@ import logging
 import shutil
 import uuid
 import subprocess
+import re
 from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
 from contextlib import contextmanager
@@ -64,6 +65,8 @@ class ChallengeTask:
     OSS_FUZZ_DIR = "fuzz-tooling"
 
     MAX_COMMIT_RETRIES = 3
+
+    WORKDIR_REGEX = re.compile(r"\s*WORKDIR\s*([^\s]+)")
 
     _helper_path: Path = field(init=False)
 
@@ -148,6 +151,34 @@ class ChallengeTask:
             subprocess.run([self.python_path, "--version"], check=False, capture_output=True, text=True)
         except Exception as e:
             raise ChallengeTaskError(f"Python executable couldn't be run: {self.python_path}") from e
+
+    def _workdir_from_lines(self, lines: list[str], default=Path("/src")) -> Path:
+        """Gets the WORKDIR from the given lines."""
+        for line in reversed(lines):  # reversed to get last WORKDIR.
+            match = re.match(self.WORKDIR_REGEX, line)
+            if match:
+                workdir = match.group(1)
+                workdir = workdir.replace("$SRC", "/src")
+
+                if not Path(workdir).is_absolute():
+                    workdir = Path("/src") / workdir
+
+                return workdir
+
+        return default
+
+    def workdir_from_dockerfile(self) -> Path:
+        """Parses WORKDIR from the Dockerfile for the given project."""
+        # NOTE: This is extracted and adapted from the OSS-Fuzz repository
+        # https://github.com/google/oss-fuzz/blob/3beb664440843f159e38ef66eb68a7cbd2704dad/infra/helper.py#L704
+        default_workdir = Path("/src") / self.project_name
+        try:
+            with open(self.get_oss_fuzz_path() / "projects" / self.project_name / "Dockerfile") as file_handle:
+                lines = file_handle.readlines()
+
+            return self._workdir_from_lines(lines, default=default_workdir)
+        except FileNotFoundError:
+            return default_workdir
 
     @property
     def task_dir(self) -> Path:
