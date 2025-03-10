@@ -1,0 +1,37 @@
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FunctionBody:
+    """Class to store function body information."""
+
+    body: str
+    """Body of the function."""
+
+    start_line: int
+    """Start line of the function in the file (0-based)."""
+
+    end_line: int
+    """End line of the function in the file (0-based)."""
+
+
+@dataclass
+class Function:
+    """Class to store function information. This class collects all the bodies
+    of a function in a single file. There might be multiple bodies for a single
+    function if the function is defined in multiple places in the file (e.g.
+    under #ifdef or overloaded methods)."""
+
+    name: str
+    """Name of the function."""
+
+    file_path: Path
+    """Path to the file containing the function."""
+
+    bodies: list[FunctionBody] = field(default_factory=list)
+    """List of function bodies."""

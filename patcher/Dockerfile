@@ -40,6 +40,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM runtime-base AS runtime
 
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y codequery && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
 WORKDIR /app/patcher
 ENV PATH=/app/patcher/.venv/bin:$PATH

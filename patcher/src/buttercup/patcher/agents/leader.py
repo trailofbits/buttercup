@@ -3,6 +3,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 import openai
 from buttercup.patcher.utils import CHAIN_CALL_TYPE
 
@@ -29,6 +30,7 @@ class PatcherLeaderAgent:
     challenge: ChallengeTask
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
+    work_dir: Path
 
     max_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCHES_PER_RUN", 15))
     max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 3))
@@ -37,7 +39,9 @@ class PatcherLeaderAgent:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
-        context_retriever_agent = ContextRetrieverAgent(self.challenge, self.input, chain_call=self.chain_call)
+        context_retriever_agent = ContextRetrieverAgent(
+            self.challenge, self.input, chain_call=self.chain_call, work_dir=self.work_dir
+        )
 
         workflow = StateGraph(PatcherAgentState)
         workflow.add_node(PatcherAgentName.DIFF_ANALYSIS.value, rootcause_agent.diff_analysis)

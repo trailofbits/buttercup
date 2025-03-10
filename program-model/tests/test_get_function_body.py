@@ -180,6 +180,7 @@ void print_hello(void) {
     return pretty_xml
 
 
+@pytest.mark.skip("Skipping test as we switch to using codequery until Kythe is ready")
 def test_get_function_body(get_graphml_content: str):
     """Test getting function body from graph database."""
 

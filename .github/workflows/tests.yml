@@ -16,6 +16,8 @@ jobs:
         include:
           - component: common
             pytest_args: "--runintegration"
+          - component: program-model
+            pytest_args: "--runintegration"
 
     runs-on: ubuntu-latest
     services:
@@ -28,17 +30,18 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-      janusgraph:
-        image: janusgraph/janusgraph:latest
-        options: >-
-          --health-cmd "bin/gremlin.sh -e scripts/remote-connect.groovy"
-          --health-interval 10s
-          --health-timeout 60s
-          --health-retries 4
-        volumes:
-          - /tmp:/tmp
-        ports:
-          - 8182:8182
+      # NOTE: Commenting this out for now as we switch to using codequery until Kythe is ready
+      # janusgraph:
+      #   image: janusgraph/janusgraph:latest
+      #   options: >-
+      #     --health-cmd "bin/gremlin.sh -e scripts/remote-connect.groovy"
+      #     --health-interval 10s
+      #     --health-timeout 60s
+      #     --health-retries 4
+      #   volumes:
+      #     - /tmp:/tmp
+      #   ports:
+      #     - 8182:8182
 
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +55,14 @@ jobs:
         run: wget https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
         if: ${{ matrix.component }} == 'seed-gen'
         working-directory: seed-gen
+
+      - name: Install codequery
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y codequery
+        if: ${{ matrix.component }} == 'program-model'
+        working-directory: program-model
 
       - name: Install ripgrep
         run: |

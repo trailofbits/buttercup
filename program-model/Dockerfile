@@ -34,12 +34,18 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM base AS runtime
 WORKDIR /app
 
-COPY ./program-model/scripts /app/scripts
+# NOTE: Commenting this out for now as we switch to using codequery until Kythe is ready
+#
+# COPY ./program-model/scripts /app/scripts
 
-RUN mkdir -p /app/scripts/gzs/kythe/
-COPY --from=ghcr.io/aixcc-finals/buttercup-kythe:main /kythe-v0.0.67.tar.gz /app/scripts/gzs/
-RUN tar xvzf /app/scripts/gzs/kythe-v0.0.67.tar.gz -C /app/scripts/gzs/kythe/ --strip-components=1
-RUN rm /app/scripts/gzs/kythe-v0.0.67.tar.gz
+# RUN mkdir -p /app/scripts/gzs/kythe/
+# COPY --from=ghcr.io/aixcc-finals/buttercup-kythe:main /kythe-v0.0.67.tar.gz /app/scripts/gzs/
+# RUN tar xvzf /app/scripts/gzs/kythe-v0.0.67.tar.gz -C /app/scripts/gzs/kythe/ --strip-components=1
+# RUN rm /app/scripts/gzs/kythe-v0.0.67.tar.gz
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y codequery && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH

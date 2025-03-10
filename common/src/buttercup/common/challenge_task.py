@@ -530,8 +530,8 @@ class ChallengeTask:
         new_local_task_dir = None
         max_retries = self.MAX_COMMIT_RETRIES if suffix is None else 1
         for i in range(max_retries):
-            suffix = suffix if suffix is not None else str(uuid.uuid4())[:16]
-            new_name = f"{self.read_only_task_dir.name}-{suffix}"
+            suffix = suffix if suffix is not None else "-" + str(uuid.uuid4())[:16]
+            new_name = f"{self.task_meta.task_id}{suffix}"
             try:
                 logger.info(f"Committing task {self.local_task_dir} to {new_name}")
                 new_local_task_dir = self.local_task_dir.rename(self.local_task_dir.parent / new_name)

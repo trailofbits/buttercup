@@ -3,8 +3,10 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from functools import lru_cache
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.utils.common import Function, FunctionBody
 from tree_sitter_language_pack import get_language, get_parser
 
 logger = logging.getLogger(__name__)
@@ -31,26 +33,6 @@ QUERY_STR_JAVA = """
 
 
 @dataclass
-class FunctionBody:
-    """Class to store function body information."""
-
-    name: str
-    body: str
-    start_line: int
-    "Start line of the function in the file (0-based)"
-    end_line: int
-    "End line of the function in the file (0-based)"
-
-
-@dataclass
-class Function:
-    """Class to store function information."""
-
-    name: str
-    bodies: list[FunctionBody]
-
-
-@dataclass
 class CodeTS:
     """Class to extract information about functions in a challenge project using TreeSitter."""
 
@@ -63,17 +45,22 @@ class CodeTS:
         self.language = get_language("c")
         query_str = QUERY_STR_C  # TODO: use the correct query based on language
 
+        self.get_functions_in_code = lru_cache(maxsize=1000)(self.get_functions_in_code)
+        self.get_function = lru_cache(maxsize=1000)(self.get_function)
+
         try:
             self.query = self.language.query(query_str)
         except Exception:
             raise ValueError("Query string is invalid")
 
-    def parse_functions(self, file_path: Path) -> dict[str, Function]:
+    def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
-        code = self.challenge_task.get_source_path().joinpath(file_path).read_bytes()
-        return self.parse_functions_in_code(code)
+        code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
+        return self.get_functions_in_code(code, file_path)
 
-    def parse_functions_in_code(self, code: bytes) -> dict[str, Function]:
+    def get_functions_in_code(
+        self, code: bytes, file_path: Path
+    ) -> dict[str, Function]:
         """Parse the functions in a piece of code and return a dictionary of function names/body"""
         tree = self.parser.parse(code)
         root_node = tree.root_node
@@ -115,24 +102,18 @@ class CodeTS:
 
             function_code = code[function_body_start:function_body_end]
             function_body = FunctionBody(
-                function_name.decode(),
                 function_code.decode(),
                 start_body.start_point[0],
                 function_definition.end_point[0],
             )
             function = functions.setdefault(
-                function_name.decode(), Function(function_name.decode(), [])
+                function_name.decode(), Function(function_name.decode(), file_path)
             )
             function.bodies.append(function_body)
 
         return functions
 
-    def get_function_code(
-        self, file_path: Path, function_name: str
-    ) -> list[str] | None:
+    def get_function(self, function_name: str, file_path: Path) -> Function | None:
         """Get the code of a function in a file."""
-        functions = self.parse_functions(file_path)
-        if function_name in functions:
-            return [body.body for body in functions[function_name].bodies]
-
-        return None
+        functions = self.get_functions(file_path)
+        return functions.get(function_name)

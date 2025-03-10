@@ -6,6 +6,10 @@ Indexes a program into a graph database.
 
 `n2-highmem-8` [instance](https://cloud.google.com/compute/docs/general-purpose-machines#n2-high-mem).
 
+```shell
+sudo apt-get install -y codequery
+```
+
 ## Setup
 
 Set up working directory and tasks directory.

@@ -11,6 +11,7 @@ from buttercup.common.queues import (
 from buttercup.program_model.indexer import Indexer, IndexConf
 from buttercup.program_model.kythe import KytheTool, KytheConf
 from buttercup.program_model.graph import GraphStorage
+from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.utils import serve_loop
@@ -59,7 +60,7 @@ class ProgramModel:
         """Cleanup resources used by the program model"""
         pass
 
-    def process_task(self, args: IndexRequest) -> bool:
+    def process_task_kythe(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         # Convert path strings to Path objects
         logger.debug(f"Kythe dir: {self.kythe_dir}")
@@ -177,6 +178,25 @@ class ProgramModel:
                 logger.debug("Successfully loaded graphml file into JanusGraph")
 
         return True
+
+    def process_task_codequery(self, args: IndexRequest) -> bool:
+        """Process a single task for indexing a program"""
+        try:
+            challenge = ChallengeTask(
+                read_only_task_dir=args.task_dir,
+                python_path=self.python,
+            )
+            CodeQueryPersistent(challenge, work_dir=self.wdir)
+
+            return True
+        except Exception:
+            return False
+
+    def process_task(self, args: IndexRequest) -> bool:
+        """Process a single task for indexing a program"""
+        # TODO: Switch once we have kythe working well
+        # self.process_task_kythe(args)
+        return self.process_task_codequery(args)
 
     def serve_item(self) -> bool:
         rq_item = self.task_queue.pop()

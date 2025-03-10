@@ -3,6 +3,7 @@
 import logging
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from langchain_core.runnables import Runnable
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,7 +15,7 @@ import subprocess
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 
-from buttercup.program_model.api.tree_sitter import CodeTS
+from buttercup.program_model.codequery import CodeQueryPersistent
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ MESSAGES = ChatPromptTemplate.from_messages(
 class ContextRetrieverAgent(PatcherAgentBase):
     """Agent that retrieves code snippets from the project."""
 
+    work_dir: Path
     llm: Runnable = field(init=False)
 
     def __post_init__(self) -> None:
@@ -68,7 +70,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
         logger.debug("Code snippet requests: %s", state.code_snippet_requests)
 
-        code_ts = CodeTS(self.challenge)
+        codequery = CodeQueryPersistent(self.challenge, work_dir=self.work_dir)
 
         @tool
         def ls(path: str) -> str:
@@ -110,12 +112,12 @@ class ContextRetrieverAgent(PatcherAgentBase):
             path = self.rebase_src_path(path)
 
             logger.info("Getting definition of %s in %s", function_name, path)
-            bodies = code_ts.get_function_code(path, function_name)
-            if not bodies:
+            functions = codequery.get_functions(function_name, Path(path))
+            if not functions:
                 return "No definition found for function"
 
             # TODO: allow for multiple bodies
-            return bodies[0]
+            return functions[0].bodies[0].body
 
         tools = [ls, grep, get_lines, cat, get_function_definition]
         agent = create_react_agent(
