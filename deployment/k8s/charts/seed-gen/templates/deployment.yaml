@@ -1,0 +1,48 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-seed-gen
+  labels:
+    app: seed-gen
+spec:
+  selector:
+    matchLabels:
+      app: seed-gen
+  template:
+    metadata:
+      labels:
+        app: seed-gen
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
+      containers:
+      - name: seed-gen
+        image: "{{ .Values.global.seedGenImage.repository }}:{{ .Values.global.seedGenImage.tag }}"
+        imagePullPolicy: {{ .Values.global.seedGenImage.pullPolicy }}
+        command: ["seed-gen", "server"]
+        args:
+          - "--redis_url"
+          - "{{ include "buttercup.core.redisUrl" . }}"
+          - "--wdir"
+          - "{{ include "buttercup.dirs.crs_scratch" . }}"
+          - "--sleep"
+          - "{{ .Values.sleepTime }}"
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+        {{- include "buttercup.env.langfuse" . | nindent 8 }}
+        - name: LOG_LEVEL
+          value: "{{ include "buttercup.core.logLevel" . }}"
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
+      volumes:
+      {{- include "buttercup.volumes.scratch" . | nindent 6 }}
+      {{- include "buttercup.dindVolume" . | nindent 6 }}
+{{- end }}

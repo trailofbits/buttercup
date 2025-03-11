@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-scheduler
+  labels:
+    app: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler
+  template:
+    metadata:
+      labels:
+        app: scheduler
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      volumes:
+        {{- include "buttercup.volumes.scratch" . | nindent 8 }}
+        {{- include "buttercup.volumes.tasks" . | nindent 8 }}
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      containers:
+      - name: scheduler
+        image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+        imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+        command: ["buttercup-scheduler", "serve"]
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.schedulerEnv" . | nindent 8 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+          {{- include "buttercup.volumeMounts.scratch" . | nindent 10 }}
+          {{- include "buttercup.volumeMounts.tasks" . | nindent 10 }}

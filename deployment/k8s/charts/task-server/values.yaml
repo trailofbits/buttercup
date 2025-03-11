@@ -1,0 +1,12 @@
+# Basic configuration
+port: 8000
+
+# Service configuration
+service:
+  type: LoadBalancer
+  port: 8000
+  annotations: {}  # Can be used for cloud-specific LB configurations
+  # Optional configurations:
+  # loadBalancerIP: ""        # Specify static IP if needed
+  # loadBalancerSourceRanges: # Restrict source IPs if needed
+  #   - 10.0.0.0/8 

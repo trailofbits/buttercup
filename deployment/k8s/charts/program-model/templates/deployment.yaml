@@ -1,0 +1,39 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-program-model
+  labels:
+    app: program-model
+spec:
+  selector:
+    matchLabels:
+      app: program-model
+  template:
+    metadata:
+      labels:
+        app: program-model
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      containers:
+      - name: program-model
+        image: "{{ .Values.global.programModelImage.repository }}:{{ .Values.global.programModelImage.tag }}"
+        imagePullPolicy: {{ .Values.global.programModelImage.pullPolicy }}
+        command: ["buttercup-program-model", "--log_level", "{{ include "buttercup.core.logLevel" . }}", "serve", "--wdir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--sleep_time", "5", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}"]
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.programModelEnv" . | nindent 8 }}
+        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+        volumeMounts:
+        {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
+      volumes:
+      {{- include "buttercup.volumes.scratch" . | nindent 6 }}
+      {{- include "buttercup.volumes.tasks" . | nindent 6 }}
+      {{- include "buttercup.dindVolume" . | nindent 6 }}
+{{- end }}

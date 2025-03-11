@@ -1,0 +1,6 @@
+apiVersion: v2
+name: task-server
+description: A custom task server service
+type: application
+version: 0.0.1
+appVersion: "0.0.1"

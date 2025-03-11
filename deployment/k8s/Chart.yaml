@@ -1,0 +1,49 @@
+apiVersion: v2
+name: buttercup
+description: A minimal Redis deployment
+version: 0.0.1
+appVersion: "0.0.1"
+dependencies:
+  - name: redis
+    version: "17.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+  - name: litellm-helm
+    version: "0.1.615"
+    repository: "oci://ghcr.io/berriai"
+  - name: postgresql
+    version: "16.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    alias: litellm-db
+  - name: task-server
+    version: "0.0.1"
+    repository: "file://charts/task-server"
+  - name: task-downloader
+    version: "0.0.1"
+    repository: "file://charts/task-downloader"
+  - name: scheduler
+    version: "0.0.1"
+    repository: "file://charts/scheduler"
+  - name: program-model
+    version: "0.0.1"
+    repository: "file://charts/program-model"
+  - name: build-bot
+    version: "0.0.1"
+    repository: "file://charts/build-bot"
+  - name: fuzzer-bot
+    version: "0.0.1"
+    repository: "file://charts/fuzzer-bot"
+  - name: coverage-bot
+    version: "0.0.1"
+    repository: "file://charts/coverage-bot"
+  - name: tracer-bot
+    version: "0.0.1"
+    repository: "file://charts/tracer-bot"
+  - name: seed-gen
+    version: "0.0.1"
+    repository: "file://charts/seed-gen"
+  - name: patcher
+    version: "0.0.1"
+    repository: "file://charts/patcher"
+  - name: competition-api
+    version: "0.0.1"
+    repository: "file://charts/competition-api"

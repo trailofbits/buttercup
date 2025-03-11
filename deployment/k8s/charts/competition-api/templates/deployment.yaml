@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-competition-api
+  labels:
+    app: competition-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: competition-api
+  template:
+    metadata:
+      labels:
+        app: competition-api
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: competition-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 1323
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

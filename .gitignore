@@ -10,6 +10,7 @@ errored.tfstate
 
 ## Generated Kubernetes Resources
 .k8s
+deployment/k8s/values-override.yaml
 
 ## Python
 __pycache__/

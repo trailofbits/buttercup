@@ -194,7 +194,6 @@ class Downloader:
                 logger.error(f"Failed to move task directory to final location for task {task.task_id}")
                 return False
 
-        logger.info(f"Successfully processed task {task.task_id}")
         return True
 
     def serve_item(self) -> bool:

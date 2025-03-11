@@ -1,0 +1,45 @@
+dependencies:
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 17.17.1
+- name: litellm-helm
+  repository: oci://ghcr.io/berriai
+  version: 0.1.615
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 16.5.0
+- name: task-server
+  repository: file://charts/task-server
+  version: 0.1.0
+- name: task-downloader
+  repository: file://charts/task-downloader
+  version: 0.1.0
+- name: scheduler
+  repository: file://charts/scheduler
+  version: 0.1.0
+- name: program-model
+  repository: file://charts/program-model
+  version: 0.1.0
+- name: build-bot
+  repository: file://charts/build-bot
+  version: 0.1.0
+- name: fuzzer-bot
+  repository: file://charts/fuzzer-bot
+  version: 0.1.0
+- name: coverage-bot
+  repository: file://charts/coverage-bot
+  version: 0.1.0
+- name: tracer-bot
+  repository: file://charts/tracer-bot
+  version: 0.1.0
+- name: seed-gen
+  repository: file://charts/seed-gen
+  version: 0.1.0
+- name: patcher
+  repository: file://charts/patcher
+  version: 0.1.0
+- name: competition-api
+  repository: file://charts/competition-api
+  version: 0.1.0
+digest: sha256:805a7a1d3ab4cbc8552bf0e70a0132d68a0f81dcf22a041145c81d6b013eb0d4
+generated: "2025-03-11T07:31:19.873167489Z"

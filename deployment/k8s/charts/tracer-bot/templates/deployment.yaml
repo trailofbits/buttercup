@@ -1,0 +1,42 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-tracer-bot
+  labels:
+    app: tracer-bot
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: tracer-bot
+  template:
+    metadata:
+      labels:
+        app: tracer-bot
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      containers:
+      - name: tracer-bot
+        image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
+        imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
+        command: ["buttercup-tracer-bot", "--wdir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}"]
+        resources:
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+        volumeMounts:
+        {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
+        env:
+        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
+      volumes:
+      {{- include "buttercup.volumes.scratch" . | nindent 6 }}
+      {{- include "buttercup.volumes.tasks" . | nindent 6 }}
+      {{- include "buttercup.dindVolume" . | nindent 6 }}
+{{- end }}

@@ -1,0 +1,43 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-patcher
+  labels:
+    app: patcher
+spec:
+  selector:
+    matchLabels:
+      app: patcher
+  template:
+    metadata:
+      labels:
+        app: patcher
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
+      containers:
+      - name: patcher
+        image: "{{ .Values.global.patcherImage.repository | default "patcher" }}:{{ .Values.global.patcherImage.tag | default "latest" }}"
+        imagePullPolicy: {{ .Values.global.patcherImage.pullPolicy | default "IfNotPresent" }}
+        command: ["buttercup-patcher", "serve"]
+        # No args needed - using environment variables
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        {{- include "buttercup.volumeMounts.scratch" . | nindent 8 }}
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.patcherEnv" . | nindent 8 }}
+        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+        {{- include "buttercup.env.langfuse" . | nindent 8 }}
+        - name: LOG_LEVEL
+          value: "{{ .Values.logLevel }}"
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
+      volumes:
+      {{- include "buttercup.volumes.scratch" . | nindent 6 }}
+      {{- include "buttercup.dindVolume" . | nindent 6 }}
+{{- end }}

@@ -1,0 +1,319 @@
+# Global values available to all charts
+global:
+  # Set environment: "minikube" or "aks"
+  environment: "minikube"
+  orchestratorImage:
+    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-orchestrator
+    tag: "main"
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
+  fuzzerImage:
+    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-fuzzer
+    tag: "main"
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
+  seedGenImage:
+    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-seed-gen
+    tag: "main"
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
+  patcherImage:
+    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-patcher
+    tag: "main"
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
+  programModelImage:
+    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-program-model
+    tag: "main"
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
+  # Langfuse global configuration for all subcharts
+  langfuse:
+    enabled: false
+    host: "https://cloud.langfuse.com"
+    publicKey: "pk-lf-..."  # Replace with your actual public key
+    secretKey: "sk-lf-..."  # Replace with your actual secret key
+
+
+
+# Volume configurations
+volumes:
+  tasks_storage:
+    enabled: true
+    # When using AKS, specify the appropriate storage class for ReadWriteMany support
+    # For example: "azurefile" or "azurefile-premium"
+    storageClass: ""  # Empty string will use cluster default
+    size: "5Gi"
+    accessMode: ReadWriteMany
+  crs_scratch:
+    enabled: true
+    # When using AKS, specify the appropriate storage class for ReadWriteMany support
+    storageClass: ""  # Empty string will use cluster default
+    size: "10Gi"
+    accessMode: ReadWriteMany
+
+# Service-specific configurations
+redis:
+  auth:
+    enabled: false  # Disable authentication for simplicity
+  architecture: standalone  # Use single instance instead of cluster
+  master:
+    persistence:
+      enabled: false  # Disable persistence to prevent data from being retained between deployments
+    resources:
+      limits:
+        cpu: 250m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+task-server:
+  enabled: true
+  port: 8000
+  service:
+    # Service type will be overridden based on environment in the template
+    type: LoadBalancer 
+    port: 8000
+    nodePort: 30080    # Used when type is NodePort (minikube)
+  # API authentication is configured with the following credentials:
+  # API Key ID: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
+  # API Token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB (for client usage)
+  # These values are set in the deployment via common-env.yaml
+
+task-downloader:
+  enabled: true
+  resources:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  
+scheduler:
+  enabled: true
+  competitionApi:
+    port: 1323
+  resources:
+    limits:
+      cpu: 300m
+      memory: 512Mi
+    requests:
+      cpu: 150m
+      memory: 256Mi
+
+program-model:
+  enabled: true
+  sleepTime: 5
+  resources:
+    limits:
+      cpu: 300m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+
+build-bot:
+  replicaCount: 4
+  enabled: true
+  timer: 5000
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+fuzzer-bot:
+  enabled: true
+  timeout: 900
+  timer: 5000
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+coverage-bot:
+  enabled: true
+  timer: 5000
+  resources:
+    limits:
+      cpu: 400m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+tracer-bot:
+  enabled: true
+  resources:
+    limits:
+      cpu: 400m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+seed-gen:
+  enabled: true
+  sleepTime: 60
+  pythonPath: "/app/seed-gen/.venv/bin/python"
+  logLevel: "DEBUG"
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+patcher:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# PostgreSQL configuration for LiteLLM
+litellm-db:
+  enabled: true
+  image:
+    tag: "17.2.0"  # Use major.minor.patch format without specific OS details
+  auth:
+    username: litellm_user
+    password: litellm_password11
+    database: litellm
+    enablePostgresUser: true
+    postgresPassword: litellm_password11  # Set a postgres admin password
+  primary:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  readReplicas:
+    replicaCount: 0  # No read replicas needed for this simple setup
+
+# LiteLLM configuration
+litellm-helm:
+  # Override the name to ensure it matches our references
+  nameOverride: "litellm"
+  
+  # Number of workers for the LiteLLM service
+  replicaCount: 1
+  
+  # Set the service port
+  service:
+    port: 4000
+  
+  # Environment variables
+  envVars:
+    DATABASE_URL: "postgresql://litellm_user:litellm_password11@buttercup-litellm-db-postgresql:5432/litellm"
+    # API keys are now provided through Kubernetes secrets
+  
+  # Use environment secrets for API keys
+  # For subcharts, we need to use a static name that will be templated at the parent level
+  environmentSecrets:
+    - "buttercup-litellm-api-secrets"
+  
+  # Direct inclusion of the litellm_config.yaml content
+  proxy_config:
+    model_list:
+      - model_name: azure-gpt-4o
+        litellm_params:
+          model: azure/gpt-4o
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          tpm: 30000
+          rpm: 1800
+
+      - model_name: azure-gpt-4o-mini
+        litellm_params:
+          model: azure/gpt-4o-mini
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          tpm: 50000
+          rpm: 5000
+
+      - model_name: azure-o3-mini
+        litellm_params:
+          model: azure/o3-mini
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: 2024-12-01-preview
+          tpm: 50000
+          rpm: 50
+
+      - model_name: azure-o1
+        litellm_params:
+          model: azure/o1
+          api_base: os.environ/AZURE_API_BASE
+          api_key: os.environ/AZURE_API_KEY
+          api_version: 2024-12-01-preview
+          tpm: 30000
+          rpm: 50
+
+      - model_name: openai-gpt-4o
+        litellm_params:
+          model: openai/gpt-4o
+          api_key: os.environ/OPENAI_API_KEY
+
+      - model_name: openai-gpt-4o-mini
+        litellm_params:
+          model: openai/gpt-4o-mini
+          api_key: os.environ/OPENAI_API_KEY
+
+      - model_name: openai-o3-mini
+        litellm_params:
+          model: openai/o3-mini
+          api_key: os.environ/OPENAI_API_KEY
+
+      - model_name: openai-o1
+        litellm_params:
+          model: openai/o1
+          api_key: os.environ/OPENAI_API_KEY
+
+      - model_name: claude-3.5-sonnet
+        litellm_params:
+          model: anthropic/claude-3-5-sonnet-20241022
+          api_key: os.environ/ANTHROPIC_API_KEY
+
+      - model_name: claude-3.5-haiku
+        litellm_params:
+          model: anthropic/claude-3-5-haiku-20241022
+          api_key: os.environ/ANTHROPIC_API_KEY
+
+    general_settings:
+      master_key: os.environ/BUTTERCUP_LITELLM_KEY
+
+
+
+# Competition API configuration
+competition-api:
+  enabled: true
+  image:
+    repository: ghcr.io/aixcc-finals/example-crs-architecture/example-competition-api
+    tag: v0.1
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
+  service:
+    port: 1323
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+

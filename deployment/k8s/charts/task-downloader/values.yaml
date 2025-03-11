@@ -1,0 +1,8 @@
+# Service specific configuration
+
+persistence:
+  tasks_storage:
+    enabled: true
+    storageClass: ""  # Empty string means use cluster default
+    size: 1Gi
+    accessMode: ReadWriteMany 

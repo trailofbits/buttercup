@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-task-server
+  labels:
+    app: task-server
+spec:
+  selector:
+    matchLabels:
+      app: task-server
+  template:
+    metadata:
+      labels:
+        app: task-server
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      containers:
+      - name: task-server
+        image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+        imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+        command: ["buttercup-task-server"]
+        # No args needed - using environment variables
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.taskServerEnv" . | nindent 8 }}
+        ports:
+        - containerPort: {{ .Values.port }} 

@@ -1,0 +1,29 @@
+# Default values for tracer-bot.
+enabled: true
+
+# Image configuration
+image:
+  repository: fuzzer
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Resource configurations
+resources:
+  limits:
+    cpu: 300m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+dind:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# Number of replicas
+replicaCount: 1

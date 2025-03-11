@@ -1,0 +1,21 @@
+enabled: true
+sleepTime: 60
+pythonPath: "/app/seed-gen/.venv/bin/python"
+logLevel: "DEBUG"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+dind:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi

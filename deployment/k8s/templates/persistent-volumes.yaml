@@ -1,0 +1,98 @@
+{{- if eq .Values.environment "aks" }}
+# For AKS environment, create a storage class for Azure Files CSI driver
+# TODO: Consider if premium storage is needed
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azurefile-csi
+provisioner: file.csi.azure.com
+parameters:
+  skuName: Standard_LRS
+mountOptions:
+  - dir_mode=0777
+  - file_mode=0777
+  - uid=0
+  - gid=0
+  - mfsymlinks
+  - cache=strict
+  - actimeo=30
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+{{- end }}
+---
+
+{{- if .Values.volumes.tasks_storage.enabled }}
+{{- if eq .Values.environment "minikube" }}
+# For Minikube environment, create a hostPath PersistentVolume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-tasks-storage
+spec:
+  capacity:
+    storage: {{ .Values.volumes.tasks_storage.size }}
+  accessModes:
+    - {{ .Values.volumes.tasks_storage.accessMode }}
+  {{- if .Values.volumes.tasks_storage.storageClass }}
+  storageClassName: {{ .Values.volumes.tasks_storage.storageClass }}
+  {{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/{{ .Release.Name }}-tasks-storage
+    type: DirectoryOrCreate
+{{- end }}
+---
+# PVC will be used in both Minikube and AKS environments
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-tasks-storage
+spec:
+  accessModes:
+    - {{ .Values.volumes.tasks_storage.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.volumes.tasks_storage.size }}
+  {{- if .Values.volumes.tasks_storage.storageClass }}
+  storageClassName: {{ .Values.volumes.tasks_storage.storageClass }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.volumes.crs_scratch.enabled }}
+{{- if eq .Values.environment "minikube" }}
+# For Minikube environment, create a hostPath PersistentVolume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-crs-scratch
+spec:
+  capacity:
+    storage: {{ .Values.volumes.crs_scratch.size }}
+  accessModes:
+    - {{ .Values.volumes.crs_scratch.accessMode }}
+  {{- if .Values.volumes.crs_scratch.storageClass }}
+  storageClassName: {{ .Values.volumes.crs_scratch.storageClass }}
+  {{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/{{ .Release.Name }}-crs-scratch
+    type: DirectoryOrCreate
+{{- end }}
+---
+# PVC will be used in both Minikube and AKS environments
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-crs-scratch
+spec:
+  accessModes:
+    - {{ .Values.volumes.crs_scratch.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.volumes.crs_scratch.size }}
+  {{- if .Values.volumes.crs_scratch.storageClass }}
+  storageClassName: {{ .Values.volumes.crs_scratch.storageClass }}
+  {{- end }}
+{{- end }}
+---

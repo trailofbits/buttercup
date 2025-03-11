@@ -1,0 +1,6 @@
+apiVersion: v2
+name: coverage-bot
+description: A Helm chart for Buttercup coverage-bot
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
