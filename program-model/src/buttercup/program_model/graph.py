@@ -132,13 +132,17 @@ class GraphStorage:
         try:
             for entry in self.iterate_over_entries(fl):
                 source_node = self.convert_node(entry.source)
-                source_node.properties["task_id"] = self.task_id
+                source_node.properties["task_id"] = encode_value(
+                    self.task_id.encode("utf-8")
+                )
                 key = entry.fact_name
                 value = encode_value(entry.fact_value)
 
                 if self.is_edge(entry):
                     target_node = self.convert_node(entry.target)
-                    target_node.properties["task_id"] = self.task_id
+                    target_node.properties["task_id"] = encode_value(
+                        self.task_id.encode("utf-8")
+                    )
                     edge = Edge(
                         id=len(self.edges.keys()),
                         source_id=source_node.id,

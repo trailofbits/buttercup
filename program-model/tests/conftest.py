@@ -1,4 +1,24 @@
 import pytest
+from buttercup.program_model.api import Graph
+from buttercup.program_model.graph import encode_value
+
+
+def is_cleanup_enabled(request) -> bool:
+    """Check if the --no-cleanup flag was passed to pytest."""
+    return not request.config.getoption("--no-cleanup")
+
+
+def cleanup_graphdb(request, task_id: str):
+    """Clean up the JanusGraph database by dropping vertices and edges associated with a specific task ID."""
+    if not is_cleanup_enabled(request):
+        return
+
+    with Graph(url="ws://localhost:8182/gremlin") as graph:
+        # Drop vertices and edges associated with the task ID
+        graph.g.V().has(
+            "task_id", encode_value(task_id.encode("utf-8"))
+        ).drop().iterate()
+        graph.g.E().has("task_id", task_id).drop().iterate()
 
 
 def pytest_addoption(parser):
@@ -7,6 +27,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="run integration tests",
+    )
+    parser.addoption(
+        "--no-cleanup",
+        action="store_true",
+        default=False,
+        help="do not clean up database before and after tests",
     )
 
 

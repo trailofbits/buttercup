@@ -30,18 +30,17 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-      # NOTE: Commenting this out for now as we switch to using codequery until Kythe is ready
-      # janusgraph:
-      #   image: janusgraph/janusgraph:latest
-      #   options: >-
-      #     --health-cmd "bin/gremlin.sh -e scripts/remote-connect.groovy"
-      #     --health-interval 10s
-      #     --health-timeout 60s
-      #     --health-retries 4
-      #   volumes:
-      #     - /tmp:/tmp
-      #   ports:
-      #     - 8182:8182
+      janusgraph:
+        image: janusgraph/janusgraph:latest
+        options: >-
+          --health-cmd "bin/gremlin.sh -e scripts/remote-connect.groovy"
+          --health-interval 10s
+          --health-timeout 60s
+          --health-retries 4
+        volumes:
+          - /tmp:/tmp
+        ports:
+          - 8182:8182
 
     steps:
       - uses: actions/checkout@v4

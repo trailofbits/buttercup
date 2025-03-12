@@ -76,8 +76,6 @@ services:
       - janusgraph.schema.init.strategy=json
       - janusgraph.schema.init.json.file=/opt/janusgraph/conf/schema.json
       - _JAVA_OPTIONS=-Xmx2g -Xms1g
-    profiles:
-      - program-model-test
     healthcheck:
       test: ["CMD-SHELL", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
       interval: 10s
@@ -102,8 +100,6 @@ services:
       - "127.0.0.1:9160:9160"
     volumes:
       - graphdb_data:/var/lib/cassandra/data
-    profiles:
-      - program-model-test
     healthcheck:
       test: ["CMD-SHELL", "nodetool", "status"]
       interval: 10s
@@ -131,8 +127,8 @@ services:
         condition: service_healthy
       dind:
         condition: service_started
-      # graphdb:
-      #   condition: service_healthy
+      graphdb:
+        condition: service_healthy
 
   coverage-bot:
     command: ["buttercup-coverage-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]

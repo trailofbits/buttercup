@@ -12,4 +12,4 @@ lint:
     uv run ruff check
 
 test:
-    uv run pytest -svv
+    uv run pytest -svv --runintegration

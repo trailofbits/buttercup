@@ -23,6 +23,7 @@ class Indexer:
         self.conf = conf
 
     def build_image(self, task: ChallengeTask):
+        logger.debug(f"Building image for {task.task_meta.task_id}")
         res = task.build_image(pull_latest_base_image=self.conf.allow_pull)
         if not res.success:
             return None
@@ -41,9 +42,11 @@ class Indexer:
             ".",
         ]
         subprocess.run(command, check=True, cwd=wdir)
+        logger.debug(f"Finished building image for {task.task_meta.task_id}")
         return emitted_image
 
     def index_target(self, task: ChallengeTask):
+        logger.debug(f"Started indexing target {task.task_meta.task_id}")
         emitted_image = self.build_image(task)
         if emitted_image is None:
             return None
@@ -68,6 +71,7 @@ class Indexer:
             "compile_and_extract",
         ]
         subprocess.run(command, check=True)
+        logger.debug(f"Finished indexing target {task.task_meta.task_id}")
         return output_dir
 
 

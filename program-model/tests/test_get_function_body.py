@@ -3,62 +3,25 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from xml.dom import minidom
 import pytest
+import subprocess
+from typing import Iterator
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.api import Graph
 from buttercup.program_model.graph import encode_value
+from buttercup.program_model.program_model import ProgramModel
+from buttercup.common.datastructures.msg_pb2 import IndexRequest
+from gremlin_python.process.anonymous_traversal import traversal
+from gremlin_python.driver.driver_remote_connection import (
+    DriverRemoteConnection,
+)
 
 
-@pytest.fixture
-def task_dir(tmp_path: Path) -> Path:
-    """Create a mock challenge task directory structure."""
-    # Create the main directories
-    oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
-    source = tmp_path / "src" / "my-source"
-    diffs = tmp_path / "diff" / "my-diff"
+def cleanup_graphdb(request, task_id: str):
+    """Clean up the JanusGraph database by dropping vertices and edges associated with a specific task ID."""
+    from .conftest import cleanup_graphdb as conftest_cleanup
 
-    oss_fuzz.mkdir(parents=True, exist_ok=True)
-    source.mkdir(parents=True, exist_ok=True)
-    diffs.mkdir(parents=True, exist_ok=True)
-
-    # Create some mock patch files
-    (diffs / "patch1.diff").write_text("mock patch 1")
-    (diffs / "patch2.diff").write_text("mock patch 2")
-
-    # Create a mock helper.py file
-    helper_path = oss_fuzz / "infra/helper.py"
-    helper_path.parent.mkdir(parents=True, exist_ok=True)
-    helper_path.write_text("import sys;\nsys.exit(0)\n")
-
-    # Create a mock test.txt file
-    (source / "test.txt").write_text("mock test content")
-
-    # Create a test C file with two functions
-    test_c_content = """
-#include <stdio.h>
-
-int add(int a, int b) {
-    return a + b;
-}
-
-void print_hello(void) {
-    printf("Hello, World!\\n");
-}
-"""
-    (source / "test.c").write_text(test_c_content)
-
-    # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source").save(tmp_path)
-
-    return tmp_path
-
-
-@pytest.fixture
-def challenge_task_readonly(task_dir: Path) -> ChallengeTask:
-    """Create a mock challenge task for testing."""
-    return ChallengeTask(
-        read_only_task_dir=task_dir,
-    )
+    conftest_cleanup(request, task_id)
 
 
 @pytest.fixture
@@ -180,25 +143,38 @@ void print_hello(void) {
     return pretty_xml
 
 
-@pytest.mark.skip("Skipping test as we switch to using codequery until Kythe is ready")
-def test_get_function_body(get_graphml_content: str):
+@pytest.fixture
+def graphml_db(get_graphml_content: str, request) -> Iterator[bool]:
+    cleanup_graphdb(request, "unit_test")
+
+    data_exists = False
+    with Graph(url="ws://localhost:8182/gremlin") as graph:
+        # Check if the task is already in the database
+        if graph.g.V().has("task_id", encode_value(b"unit_test")).count().next():
+            data_exists = True
+            yield True
+
+    if not data_exists:
+        # Create a mock graph database
+        with TemporaryDirectory(dir="/crs_scratch") as td:
+            # Make the temporary directory readable by the gremlin user
+            os.chmod(td, 0o777)
+            graphml_path = Path(td) / "graph.xml"
+            graphml_path.write_text(data=get_graphml_content)
+            g = traversal().withRemote(
+                DriverRemoteConnection("ws://localhost:8182/gremlin", "g")
+            )
+            g.io(str(graphml_path)).read().iterate()
+            yield True
+
+    # Clean up the graph database
+    cleanup_graphdb(request, "unit_test")
+
+
+@pytest.fixture
+def test_get_function_body(graphml_db: bool):
     """Test getting function body from graph database."""
-
-    from gremlin_python.process.anonymous_traversal import traversal
-    from gremlin_python.driver.driver_remote_connection import (
-        DriverRemoteConnection,
-    )
-
-    # Create a mock graph database
-    with TemporaryDirectory() as td:
-        # Make the temporary directory readable by the gremlin user
-        os.chmod(td, 0o777)
-        graphml_path = Path(td) / "graph.xml"
-        graphml_path.write_text(data=get_graphml_content)
-        g = traversal().withRemote(
-            DriverRemoteConnection("ws://localhost:8182/gremlin", "g")
-        )
-        g.io(str(graphml_path)).read().iterate()
+    assert graphml_db is True
 
     # Test querying the graph database
     with Graph(url="ws://localhost:8182/gremlin") as graph:
@@ -223,3 +199,117 @@ def test_get_function_body(get_graphml_content: str):
         assert len(bodies) == 1
         assert b"void print_hello(void)" in bodies[0]
         assert b'printf("Hello, World!\\n");' in bodies[0]
+
+
+@pytest.fixture
+def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
+    """Create a challenge task using a real OSS-Fuzz repository."""
+    # Clone real oss-fuzz repo into temp dir
+    oss_fuzz_dir = tmp_path / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = tmp_path / "src"
+    source_dir.mkdir(parents=True)
+
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir),
+            "clone",
+            "https://github.com/google/oss-fuzz.git",
+        ],
+        check=True,
+    )
+    # Restore libpng project directory to specific commit
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir / "oss-fuzz"),
+            "checkout",
+            "7e664533834b558a859b0f8eb1f2c2caf676c12a",
+            "--",
+            "projects/libpng",
+        ],
+        check=True,
+    )
+
+    # Download libpng source code
+    libpng_url = "https://github.com/pnggroup/libpng"
+    # Checkout specific libpng commit for reproducibility
+    subprocess.run(["git", "-C", str(source_dir), "clone", libpng_url], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(source_dir / "libpng"),
+            "checkout",
+            "44f97f08d729fcc77ea5d08e02cd538523dd7157",
+        ],
+        check=True,
+    )
+
+    # Create task metadata
+    TaskMeta(project_name="libpng", focus="libpng", task_id="test-task-id-libpng").save(
+        tmp_path
+    )
+
+    return ChallengeTask(
+        read_only_task_dir=tmp_path,
+        local_task_dir=tmp_path,
+    )
+
+
+@pytest.fixture
+def libpng_oss_fuzz_graphml_content(
+    libpng_oss_fuzz_task: ChallengeTask, request
+) -> Iterator[bool]:
+    """Create a graphml file for libpng task."""
+
+    cleanup_graphdb(request, libpng_oss_fuzz_task.task_meta.task_id)
+
+    data_exists = False
+    with Graph(url="ws://localhost:8182/gremlin") as graph:
+        # Check if the task is already in the database
+        if (
+            graph.g.V()
+            .has(
+                "task_id",
+                encode_value(libpng_oss_fuzz_task.task_meta.task_id.encode("utf-8")),
+            )
+            .count()
+            .next()
+        ):
+            data_exists = True
+            yield True
+
+    if not data_exists:
+        index_request = IndexRequest(
+            build_type="",
+            package_name=libpng_oss_fuzz_task.project_name,
+            sanitizer="",
+            task_dir=libpng_oss_fuzz_task.task_dir.as_posix(),
+            task_id=libpng_oss_fuzz_task.task_meta.task_id,
+        )
+        with ProgramModel(
+            wdir=Path("/crs_scratch"),
+            script_dir=Path("scripts"),
+            kythe_dir=Path("scripts/gzs/kythe"),
+            graphdb_url="ws://localhost:8182/gremlin",
+            python="python",
+        ) as program_model:
+            yield program_model.process_task(index_request)
+
+    cleanup_graphdb(request, libpng_oss_fuzz_task.task_meta.task_id)
+
+
+@pytest.mark.skip("Skipping test as we switch to using codequery until Kythe is ready")
+def test_libpng_get_function_body(libpng_oss_fuzz_graphml_content: bool):
+    """Test getting function body from libpng."""
+    assert libpng_oss_fuzz_graphml_content is True
+
+
+#   with Graph(url="ws://localhost:8182/gremlin") as graph:
+#       bodies = graph.get_function_body(function_name="png_read_info")
+#       assert len(bodies) == 1
+#       assert b"png_read_info" in bodies[0]
