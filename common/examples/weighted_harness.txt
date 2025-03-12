@@ -1,0 +1,4 @@
+weight: 1.0
+package_name: "libpng"
+harness_name: "libpng_read_fuzzer"
+task_id: "my-task-id"

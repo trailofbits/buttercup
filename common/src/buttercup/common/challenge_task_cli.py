@@ -118,7 +118,7 @@ def main():
         )
 
     subcommand = get_subcommand(settings)
-    with task.get_rw_copy(delete=False) as rw_task:
+    with task.get_rw_copy(None, delete=False) as rw_task:
         result = handle_subcommand(rw_task, subcommand)
 
     print("Command result:", result.success)

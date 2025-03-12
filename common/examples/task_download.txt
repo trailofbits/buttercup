@@ -1,0 +1,22 @@
+task {
+	message_time: 1739917788000
+	task_id: "my-task-id"
+	task_type: TASK_TYPE_DELTA
+	sources {
+	  sha256: "c516e2b73f58fe163be48f5bc0ca36995ee100c752e30883f9acaa0a95ca2bb6"
+	  url: "https://challengesact.blob.core.windows.net/challenges/c516e2b73f58fe163be48f5bc0ca36995ee100c752e30883f9acaa0a95ca2bb6.tar.gz?se=2025-08-18T22%3A29%3A44Z&sp=r&sv=2022-11-02&sr=b&sig=7lj49Z6vXsFuKp4DqVrVVMwHU4xEAQJ%2BSCZ7BAQnbvY%3D"
+	}
+	sources {
+	  sha256: "910913fd13eb2e7cb7ca9a39fce4cc753d54579c938a5c60d478788101fdde3e"
+	  source_type: SOURCE_TYPE_FUZZ_TOOLING
+	  url: "https://challengesact.blob.core.windows.net/challenges/910913fd13eb2e7cb7ca9a39fce4cc753d54579c938a5c60d478788101fdde3e.tar.gz?se=2025-08-18T22%3A29%3A47Z&sp=r&sv=2022-11-02&sr=b&sig=M6JoI0pGccbSARTqVLm23yQZUbUwsQsFyBpRMoADnYc%3D"
+	}
+	sources {
+	  sha256: "04ffd1402d868846d6812112c4bc2ec50722aa1adfaf02aab7233ad20bd1b495"
+	  source_type: SOURCE_TYPE_DIFF
+	  url: "https://challengesact.blob.core.windows.net/challenges/04ffd1402d868846d6812112c4bc2ec50722aa1adfaf02aab7233ad20bd1b495.tar.gz?se=2025-08-18T22%3A29%3A42Z&sp=r&sv=2022-11-02&sr=b&sig=M63mfyTls1CJhxelj%2BdtGmmO9fIVimybM6yqOMCkRac%3D"
+	}
+	deadline: 1739932188000
+	project_name: "libpng"
+	focus: "example-libpng"
+}

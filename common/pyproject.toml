@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-buttercup-msg-publisher = "buttercup.common.msg_publisher:main"
+buttercup-util = "buttercup.common.util_cli:main"
 buttercup-challenge-task = "buttercup.common.challenge_task_cli:main"
 
 
