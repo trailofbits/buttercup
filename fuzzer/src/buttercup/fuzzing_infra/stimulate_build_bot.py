@@ -20,7 +20,6 @@ def main():
     redis = Redis.from_url(args.redis_url)
     queue = QueueFactory(redis).create(QueueNames.BUILD)
     req = BuildRequest(
-        package_name=args.target_package,
         engine=args.engine,
         sanitizer=args.sanitizer,
         ossfuzz=args.ossfuzz,
@@ -30,7 +29,6 @@ def main():
     )
 
     coverage_req = BuildRequest(
-        package_name=args.target_package,
         engine=args.engine,
         sanitizer="coverage",
         ossfuzz=args.ossfuzz,

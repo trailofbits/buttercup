@@ -66,7 +66,7 @@ class Vulnerabilities:
 
             if self.task_registry.is_cancelled(crash.crash.target.task_id):
                 logger.info(
-                    f"[{crash.crash.target.task_id}] Skipping cancelled task for {crash.crash.target.package_name} (harness: {crash.crash.harness_name})"
+                    f"[{crash.crash.target.task_id}] Skipping cancelled task for harness: {crash.crash.harness_name}"
                 )
             else:
                 confirmed_vuln = self.submit_vulnerability(crash)
@@ -99,9 +99,7 @@ class Vulnerabilities:
         Raises:
             Exception: If there is an error communicating with the API
         """
-        logger.info(
-            f"[{crash.crash.target.task_id}] Submitting vulnerability for {crash.crash.target.package_name} (harness: {crash.crash.harness_name})"
-        )
+        logger.info(f"[{crash.crash.target.task_id}] Submitting vulnerability for harness: {crash.crash.harness_name}")
         try:
             # Read crash input file contents and encode as base64
             with open(crash.crash.crash_input_path, "rb") as f:
@@ -128,14 +126,14 @@ class Vulnerabilities:
             # If we don't acknowledge the PASSED status, we may miss a successful submission.
             if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(
-                    f"[{crash.crash.target.task_id}] Vulnerability submission rejected (status: {response.status}) for {crash.crash.target.package_name} (harness: {crash.crash.harness_name})"
+                    f"[{crash.crash.target.task_id}] Vulnerability submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}"
                 )
                 return None
 
             # TODO: Could a successful response be PASSED?
 
             logger.info(
-                f"[{crash.crash.target.task_id}] Vulnerability {response.vuln_id} accepted for {crash.crash.target.package_name} (harness: {crash.crash.harness_name})"
+                f"[{crash.crash.target.task_id}] Vulnerability {response.vuln_id} accepted for harness: {crash.crash.harness_name}"
             )
 
             # Create confirmed vulnerability with API-provided ID
@@ -147,6 +145,6 @@ class Vulnerabilities:
 
         except Exception as e:
             logger.error(
-                f"[{crash.crash.target.task_id}] Failed to submit vulnerability: {str(e)} ({crash.crash.target.package_name}, harness: {crash.crash.harness_name})"
+                f"[{crash.crash.target.task_id}] Failed to submit vulnerability: {str(e)} (harness: {crash.crash.harness_name})"
             )
             raise

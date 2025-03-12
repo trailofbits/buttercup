@@ -53,9 +53,9 @@ class CoverageBot(TaskLoop):
                 local_tsk,
                 self.llvm_cov_tool,
             )
-            runner.run(task.harness_name, corpus.path, coverage_build.package_name)
+            runner.run(task.harness_name, corpus.path, local_tsk.project_name)
             logger.info(
-                f"Coverage for {task.harness_name} | {coverage_build.package_name} | {task.task_id} | {corpus.path} | {coverage_build.task_dir}"
+                f"Coverage for {task.harness_name} | {local_tsk.project_name} | {task.task_id} | {corpus.path} | {coverage_build.task_dir}"
             )
 
 

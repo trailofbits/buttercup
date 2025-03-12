@@ -31,7 +31,6 @@ def test_process_ready_task(scheduler):
 
     build_request = scheduler.process_ready_task(task)
 
-    assert build_request.package_name == "libpng"
     assert build_request.engine == "libfuzzer"
     assert build_request.sanitizer == "address"
     assert build_request.task_dir == "/tasks_storage/test-task-1"
@@ -63,7 +62,6 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         task_meta.save(task_dir)
 
         build_output = BuildOutput(
-            package_name="test-package",
             engine="libfuzzer",
             sanitizer="address",
             task_dir=str(task_dir),

@@ -44,7 +44,6 @@ def mock_queues():
 def sample_crash():
     crash = Crash()
     target = BuildOutput()
-    target.package_name = "test_package"
     target.sanitizer = "test_sanitizer"
     target.task_id = str(uuid.uuid4())
     crash.target.CopyFrom(target)

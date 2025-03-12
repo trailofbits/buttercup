@@ -24,7 +24,6 @@ def _prepare_ready_task(command: ProcessReadyTaskCommand) -> Task:
 
 def _prepare_build_output(command: ProcessBuildOutputCommand) -> BuildOutput:
     return BuildOutput(
-        package_name=command.package_name,
         engine=command.engine,
         sanitizer=command.sanitizer,
         output_ossfuzz_path=command.output_ossfuzz_path,

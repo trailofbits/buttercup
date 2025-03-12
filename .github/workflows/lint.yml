@@ -28,3 +28,26 @@ jobs:
       - name: Run ruff on ${{ matrix.component }}
         run: uv run ruff format --check && uv run ruff check
         working-directory: ${{ matrix.component }}
+
+  check-protobuf:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Generate protobufs
+        run: |
+          # Generate fresh protobufs
+          ./protoc.sh
+
+          # Check if any files were modified
+          if ! git diff --quiet common/src/buttercup/common/datastructures; then
+            echo "Error: Generated protobufs differ from committed files"
+            exit 1
+          fi

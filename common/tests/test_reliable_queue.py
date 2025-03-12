@@ -206,7 +206,6 @@ def test_queue_factory(redis_client):
 
     queue.push(
         BuildRequest(
-            package_name="test_package",
             engine="test_engine",
             sanitizer="test_sanitizer",
             task_dir="test_task_dir",
@@ -216,7 +215,6 @@ def test_queue_factory(redis_client):
 
     item = queue.pop()
     assert item is not None
-    assert item.deserialized.package_name == "test_package"
     assert item.deserialized.engine == "test_engine"
     assert item.deserialized.sanitizer == "test_sanitizer"
     assert item.deserialized.task_dir == "test_task_dir"

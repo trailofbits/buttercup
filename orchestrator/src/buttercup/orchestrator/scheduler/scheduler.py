@@ -107,7 +107,6 @@ class Scheduler:
 
         build_requests = [
             BuildRequest(
-                package_name=task.project_name,
                 engine=engine,
                 task_dir=str(challenge_task.task_dir),
                 task_id=task.task_id,
@@ -123,7 +122,7 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"Processing build output for {build_output.package_name}|{build_output.engine}|{build_output.sanitizer}|{build_output.task_dir}"
+            f"Processing build output for {build_output.task_id}|{build_output.engine}|{build_output.sanitizer}|{build_output.task_dir}"
         )
 
         if build_output.build_type != BUILD_TYPES.FUZZER.value:
@@ -140,7 +139,7 @@ class Scheduler:
             WeightedHarness(
                 weight=1.0,
                 harness_name=Path(tgt).name,
-                package_name=build_output.package_name,
+                package_name=tsk.task_meta.project_name,
                 task_id=build_output.task_id,
             )
             for tgt in targets
@@ -189,12 +188,12 @@ class Scheduler:
                     self.harness_map.push_harness(target)
                 self.build_output_queue.ack_item(build_output_item.item_id)
                 logger.info(
-                    f"Pushed {len(targets)} targets to fuzzer map for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}"
+                    f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}"
                 )
                 return True
             except Exception as e:
                 logger.error(
-                    f"Failed to process build output for {build_output.package_name} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}"
+                    f"Failed to process build output for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}"
                 )
                 return False
 

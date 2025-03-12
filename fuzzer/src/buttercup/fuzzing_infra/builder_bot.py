@@ -31,7 +31,9 @@ def main():
             return False
 
         msg = rqit.deserialized
-        logger.info(f"Received build request for {msg.package_name}")
+        logger.info(
+            f"Received build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+        )
         task_dir = Path(msg.task_dir)
         if args.allow_caching:
             origin_task = ChallengeTask(
@@ -47,22 +49,29 @@ def main():
 
         with origin_task.get_rw_copy(work_dir=args.wdir) as task:
             if msg.apply_diff:
-                logger.info(f"Applying diff for {msg.package_name} {msg.task_id}")
+                logger.info(
+                    f"Applying diff for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                )
                 res = task.apply_patch_diff()
                 if not res:
-                    logger.info(f"No diffs for {msg.package_name} {msg.task_id}")
+                    logger.info(
+                        f"No diffs for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                    )
             res = task.build_fuzzers_with_cache(
                 engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=args.allow_pull
             )
             if not res.success:
-                logger.error(f"Could not build fuzzer {msg.package_name}")
+                logger.error(
+                    f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                )
                 return True
 
             task.commit()
-            logger.info(f"Pushing build output for {msg.package_name}")
+            logger.info(
+                f"Pushing build output for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+            )
             output_q.push(
                 BuildOutput(
-                    package_name=msg.package_name,
                     engine=msg.engine,
                     sanitizer=msg.sanitizer,
                     task_dir=str(task.task_dir),
@@ -71,7 +80,9 @@ def main():
                     apply_diff=msg.apply_diff,
                 )
             )
-            logger.info(f"Acked build request for {msg.package_name}")
+            logger.info(
+                f"Acked build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+            )
             queue.ack_item(rqit.item_id)
             return True
 

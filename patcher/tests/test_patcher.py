@@ -48,7 +48,6 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
             crash=Crash(
                 target=BuildOutput(
                     task_id="test-task-id-1",
-                    package_name="libpng",
                     engine="test-engine-1",
                     sanitizer="test-sanitizer-1",
                     task_dir=str(tasks_dir / "test-task-id-1"),
