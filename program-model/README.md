@@ -82,7 +82,7 @@ cd afc-crs-trail-of-bits/program-model/
 uv run mock/trigger_pm.py \
   --build_type full \
   --package_name libpng \
-  --sanitizer AddressSanitizer \
+  --sanitizer address \
   --task_dir ../tasks_storage/5cea8f59-a7ab-4c77-97a9-f92fcfeb33d8 \
   --task_id libpng
 ```

@@ -95,9 +95,8 @@ class CodeQuery:
 
         if missing_commands:
             logger.fatal(
-                "Missing commands: ",
-                ", ".join(missing_commands)
-                + ". Please install the 'codequery' package.",
+                "Missing commands: %s. Please install the 'codequery' package.",
+                ", ".join(missing_commands),
             )
             raise RuntimeError("No code query package")
 
