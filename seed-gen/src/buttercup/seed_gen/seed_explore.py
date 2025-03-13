@@ -39,33 +39,20 @@ class SeedExploreTask(Task):
         return funcs
 
     def do_task(
-        self, target_function_name: str, target_function_path: Path, output_dir: Path
+        self, target_function_name: str, target_function_paths: list[Path], output_dir: Path
     ) -> None:
         """Do seed-explore task"""
         logger.info(
-            "Doing seed-explore for challenge %s and function %s:%s",
+            "Doing seed-explore for challenge %s and function %s (paths: %s)",
             self.package_name,
-            target_function_path,
             target_function_name,
+            target_function_paths,
         )
-        # TODO: We should eventually get the function id/object off the coverage frontier
-        function_bodies = self.program_model.get_function_body(
-            target_function_name, target_function_path
-        )
-        if not function_bodies:
+        function_def = self.get_function_def(target_function_name, target_function_paths)
+        if not function_def:
             logger.error("No function definition found for %s", target_function_name)
             return
-        if len(function_bodies) > 1:
-            logger.warning(
-                "Found multiple function definitions, using first for %s", target_function_name
-            )
-        # TODO: update this once the typing is fixed in the program model
-        target_function_raw = function_bodies[0]
-        target_function = (
-            target_function_raw.decode("utf-8")
-            if isinstance(target_function_raw, bytes)
-            else target_function_raw
-        )
+        function_def_body = function_def.bodies[0].body
 
         harness = self.get_harness_source()
         if harness is None:
@@ -76,7 +63,7 @@ class SeedExploreTask(Task):
                 self.package_name,
                 target_function_name,
             )
-            funcs = self.generate_seed_funcs(harness, target_function)
+            funcs = self.generate_seed_funcs(harness, function_def_body)
             logger.info("Executing seed functions for challenge %s", self.package_name)
             sandbox_exec_funcs(funcs, output_dir)
         except Exception as err:

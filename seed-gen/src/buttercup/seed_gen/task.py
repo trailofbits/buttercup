@@ -1,11 +1,14 @@
 import logging
 from enum import Enum
+from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 from buttercup.program_model.api import Graph
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.utils.common import Function
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
 
 logger = logging.getLogger(__name__)
@@ -23,11 +26,13 @@ class Task:
         package_name: str,
         harness_name: str,
         challenge_task: ChallengeTask,
+        codequery: CodeQueryPersistent,
         llm: BaseChatModel | None = None,
     ):
         self.package_name = package_name
         self.harness_name = harness_name
         self.challenge_task = challenge_task
+        self.codequery = codequery
         if llm is None:
             self.llm = self.get_default_llm()
         else:
@@ -61,3 +66,26 @@ class Task:
             )
 
         return harnesses[0].read_text()
+
+    def get_function_def(self, function_name: str, function_paths: list[Path]) -> Function | None:
+        logger.info("Getting function definition for %s (paths: %s)", function_name, function_paths)
+        for function_path in function_paths:
+            function_defs = self.codequery.get_functions(function_name, function_path)
+            if len(function_defs) == 0:
+                logger.debug(
+                    "No function definition found for %s in %s", function_name, function_path
+                )
+                continue
+            if len(function_defs) > 1:
+                logger.warning(
+                    "Multiple function definitions found for %s in %s. using first one.",
+                    function_name,
+                    function_path,
+                )
+            else:
+                logger.info("Found function definition for %s in %s", function_name, function_path)
+            return function_defs[0]
+        logger.warning(
+            "No function definition found for %s (paths: %s)", function_name, function_paths
+        )
+        return None

@@ -14,6 +14,7 @@ from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
+from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
@@ -86,6 +87,8 @@ class SeedGenBot(TaskLoop):
 
             build_dir = Path(builds[BUILD_TYPES.FUZZER][0].task_dir)
             challenge_task = ChallengeTask(read_only_task_dir=build_dir)
+            logger.info("Initializing codequery")
+            codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
             choices = [
@@ -101,19 +104,23 @@ class SeedGenBot(TaskLoop):
             logger.info(f"Running seed-gen task: {task_choice}")
 
             if task_choice == TaskName.SEED_INIT:
-                seed_init = SeedInitTask(task.package_name, task.harness_name, challenge_task)
+                seed_init = SeedInitTask(
+                    task.package_name, task.harness_name, challenge_task, codequery
+                )
                 seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY:
                 vuln_discovery = VulnDiscoveryTask(
-                    task.package_name, task.harness_name, challenge_task
+                    task.package_name, task.harness_name, challenge_task, codequery
                 )
                 vuln_discovery.do_task(out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
             elif task_choice == TaskName.SEED_EXPLORE:
-                seed_explore = SeedExploreTask(task.package_name, task.harness_name, challenge_task)
+                seed_explore = SeedExploreTask(
+                    task.package_name, task.harness_name, challenge_task, codequery
+                )
                 function_name = "png_handle_tRNS"
-                function_path = Path("pngrutil.c")
-                seed_explore.do_task(function_name, function_path, out_dir)
+                function_paths = [Path("pngrutil.c")]
+                seed_explore.do_task(function_name, function_paths, out_dir)
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 

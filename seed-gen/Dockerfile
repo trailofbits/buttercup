@@ -1,8 +1,8 @@
 ARG PYTHON_BASE=3.12-slim-bookworm
 
 FROM python:${PYTHON_BASE} AS runtime-base
-RUN apt-get update
-RUN apt-get install -y curl ripgrep
+RUN apt-get update \
+    && apt-get install -y curl ripgrep codequery
 RUN curl -fsSL https://get.docker.com | sh
 RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
 
