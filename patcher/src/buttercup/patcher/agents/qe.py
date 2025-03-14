@@ -9,7 +9,7 @@ from typing import Literal
 from langgraph.types import Command
 from langgraph.constants import END
 
-from buttercup.common.challenge_task import ChallengeTaskError
+from buttercup.common.challenge_task import ChallengeTaskError, CommandResult
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import (
@@ -26,6 +26,7 @@ from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
     PatcherAgentBase,
+    PatchOutput,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
 from pydantic import ValidationError
@@ -92,6 +93,7 @@ class QEAgent(PatcherAgentBase):
     llm: Runnable = field(init=False)
     review_patch_chain: Runnable = field(init=False)
     review_patch_structured_chain: Runnable = field(init=False)
+    max_review_retries: int = 3
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -138,6 +140,10 @@ class QEAgent(PatcherAgentBase):
         self, state: PatcherAgentState
     ) -> Command[Literal[PatcherAgentName.BUILD_PATCH.value, PatcherAgentName.CREATE_PATCH.value]]:
         """Node in the LangGraph that reviews a patch"""
+        if state.patch_review_tries >= self.max_review_retries:
+            logger.warning("Reached max review retries, skipping review")
+            return Command(goto=PatcherAgentName.BUILD_PATCH.value)
+
         logger.info("Reviewing the last patch to ensure it follows the guidelines")
         default_review_result = ReviewPatchOutput(suggestions=[], approved=True)
         last_patch = state.get_last_patch()
@@ -175,79 +181,86 @@ class QEAgent(PatcherAgentBase):
             goto=PatcherAgentName.BUILD_PATCH.value if review_result.approved else PatcherAgentName.CREATE_PATCH.value,
         )
 
-    def build_patch_node(
-        self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.BUILD_FAILURE_ANALYSIS.value]]:
-        """Node in the LangGraph that builds a patch"""
-        logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
+    def _patch_challenge(self, patch: PatchOutput) -> bool:
         with tempfile.NamedTemporaryFile(mode="w+") as patch_file:
-            last_patch = state.get_last_patch()
-            if not last_patch:
-                logger.fatal("No patch to build")
-                raise RuntimeError("No patch to build")
-
-            patch_file.write(last_patch.patch)
+            patch_file.write(patch.patch)
             patch_file.flush()
             logger.debug("Patch written to %s", patch_file.name)
 
             logger.info("Applying patch to task %s / vulnerability %s", self.input.task_id, self.input.vulnerability_id)
             try:
-                is_patched = self.challenge.apply_patch_diff(Path(patch_file.name))
+                return self.challenge.apply_patch_diff(Path(patch_file.name))
             except ChallengeTaskError:
                 if logger.getEffectiveLevel() == logging.DEBUG:
                     logger.exception("Failed to apply patch to Challenge Task %s", self.challenge.name)
-                is_patched = False
 
-            if not is_patched:
-                logger.error("Failed to apply patch to Challenge Task %s", self.challenge.name)
-                return Command(
-                    update={
-                        "build_succeeded": False,
-                        "build_stdout": None,
-                        "build_stderr": None,
-                        "patch_review_tries": 0,
-                    },
-                    goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
-                )
+                return False
 
-            try:
-                cp_output = self.challenge.build_fuzzers(
-                    engine=self.input.engine,
-                    sanitizer=self.input.sanitizer,
-                )
-            except ChallengeTaskError as exc:
-                logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
-                return Command(
-                    update={
-                        "build_succeeded": False,
-                        "build_stdout": exc.stdout,
-                        "build_stderr": exc.stderr,
-                        "patch_review_tries": 0,
-                    },
-                    goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
-                )
+    def _rebuild_challenge(self) -> CommandResult:
+        try:
+            cp_output = self.challenge.build_fuzzers(
+                engine=self.input.engine,
+                sanitizer=self.input.sanitizer,
+            )
+        except ChallengeTaskError as exc:
+            logger.error("Failed to run build_fuzzers on Challenge Task %s with patch", self.challenge.name)
+            return CommandResult(
+                success=False,
+                output=exc.stdout,
+                error=exc.stderr,
+            )
 
-            if not cp_output.success:
-                logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
-                return Command(
-                    update={
-                        "build_succeeded": False,
-                        "build_stdout": cp_output.output,
-                        "build_stderr": cp_output.error,
-                        "patch_review_tries": 0,
-                    },
-                    goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
-                )
+        if not cp_output.success:
+            logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
+            return CommandResult(
+                success=False,
+                output=cp_output.output,
+                error=cp_output.error,
+            )
 
-            logger.info("Challenge Task %s rebuilt with patch", self.challenge.name)
+        return CommandResult(
+            success=True,
+            output=cp_output.output,
+            error=cp_output.error,
+        )
 
+    def build_patch_node(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.BUILD_FAILURE_ANALYSIS.value]]:
+        """Node in the LangGraph that builds a patch"""
+        logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
+        last_patch = state.get_last_patch()
+        if not last_patch:
+            logger.fatal("No patch to build, this should never happen")
+            raise RuntimeError("No patch to build, this should never happen")
+
+        update_state = {
+            "build_succeeded": False,
+            "build_stdout": None,
+            "build_stderr": None,
+            "patch_review_tries": 0,
+        }
+        if not self._patch_challenge(last_patch):
+            logger.error("Failed to apply patch to Challenge Task %s", self.challenge.name)
+            return Command(
+                update=update_state,
+                goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
+            )
+
+        cp_output = self._rebuild_challenge()
+        update_state["build_stdout"] = cp_output.output
+        update_state["build_stderr"] = cp_output.error
+        if not cp_output.success:
+            logger.error("Failed to rebuild Challenge Task %s with patch", self.challenge.name)
+            return Command(
+                update=update_state,
+                goto=PatcherAgentName.BUILD_FAILURE_ANALYSIS.value,
+            )
+
+        logger.info("Challenge Task %s rebuilt with patch", self.challenge.name)
+        update_state["build_succeeded"] = True
         return Command(
-            update={
-                "build_succeeded": True,
-                "build_stdout": cp_output.output,
-                "build_stderr": cp_output.error,
-                "patch_review_tries": 0,
-            },
+            update=update_state,
             goto=PatcherAgentName.RUN_POV.value,
         )
 

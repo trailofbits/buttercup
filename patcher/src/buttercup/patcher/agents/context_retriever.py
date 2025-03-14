@@ -39,6 +39,8 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
     work_dir: Path
     llm: Runnable = field(init=False)
+    max_retries: int = 30
+    current_retries: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -67,6 +69,12 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
     def retrieve_context(self, state: ContextRetrieverState) -> Command:
         """Retrieve the context for the diff analysis."""
+        if self.current_retries >= self.max_retries:
+            logger.warning("Reached max context retrieval retries, skipping")
+            return Command(
+                goto=state.prev_node,
+            )
+
         logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
         logger.debug("Code snippet requests: %s", state.code_snippet_requests)
 
@@ -149,6 +157,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 )
             )
 
+        self.current_retries += 1
         return Command(
             update={
                 "relevant_code_snippets": res,

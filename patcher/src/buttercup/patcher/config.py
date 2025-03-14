@@ -21,6 +21,11 @@ class ProcessCommand(BaseModel):
     stacktrace_path: CliPositionalArg[str] = Field(description="Stacktrace Path")
 
 
+class ProcessMsgCommand(BaseModel):
+    msg_path: CliPositionalArg[Path] = Field(description="Path to the confirmed vulnerability proto file")
+    redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
+
+
 class Settings(BaseSettings):
     task_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for task storage")]
     scratch_dir: Annotated[Path, Field(default="/tmp/scratch", description="Directory for scratch space")]
@@ -29,6 +34,7 @@ class Settings(BaseSettings):
 
     serve: CliSubCommand[ServeCommand]
     process: CliSubCommand[ProcessCommand]
+    process_msg: CliSubCommand[ProcessMsgCommand]
 
     model_config = SettingsConfigDict(
         env_prefix="BUTTERCUP_PATCHER_",

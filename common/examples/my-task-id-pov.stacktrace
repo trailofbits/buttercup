@@ -1,0 +1,70 @@
++ FUZZER=libpng_read_fuzzer
++ shift
++ '[' '!' -v TESTCASE ']'
++ TESTCASE=/testcase
++ '[' '!' -f /testcase ']'
++ export RUN_FUZZER_MODE=interactive
++ RUN_FUZZER_MODE=interactive
++ export FUZZING_ENGINE=libfuzzer
++ FUZZING_ENGINE=libfuzzer
++ export SKIP_SEED_CORPUS=1
++ SKIP_SEED_CORPUS=1
++ run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+vm.mmap_rnd_bits = 28
+/out/libpng_read_fuzzer -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict < /dev/null
+Dictionary: 28 entries
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 4117878429
+INFO: Loaded 1 modules   (5641 inline 8-bit counters): 5641 [0x561561195928, 0x561561196f31), 
+INFO: Loaded 1 PC tables (5641 PCs): 5641 [0x561561196f38,0x5615611acfc8), 
+/out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+Running: /testcase
+=================================================================
+==18==ERROR: AddressSanitizer: dynamic-stack-buffer-overflow on address 0x7ffce0754432 at pc 0x5615610dfa9b bp 0x7ffce07543b0 sp 0x7ffce07543a8
+READ of size 2 at 0x7ffce0754432 thread T0
+SCARINESS: 29 (2-byte-read-dynamic-stack-buffer-overflow)
+    #0 0x5615610dfa9a in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+    #1 0x5615610b3dcd in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+    #2 0x5615610074ae in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+    #3 0x561561025520 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:614:13
+    #4 0x561561010795 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:327:6
+    #5 0x56156101622f in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:862:9
+    #6 0x5615610414d2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+    #7 0x7fedae19f082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 0323ab4806bee6f846d9ad4bccfc29afdca49a58)
+    #8 0x561560f2e83d in _start (/out/libpng_read_fuzzer+0x6c83d)
+
+DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+Address 0x7ffce0754432 is located in stack of thread T0
+SUMMARY: AddressSanitizer: dynamic-stack-buffer-overflow /src/libpng/pngrutil.c:1447:10 in OSS_FUZZ_png_handle_iCCP
+Shadow bytes around the buggy address:
+  0x7ffce0754180: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754380: 00 00 00 00 00 00 00 00 ca ca ca ca 00 00 00 00
+=>0x7ffce0754400: 00 00 00 00 00 00[02]cb cb cb cb cb 00 00 00 00
+  0x7ffce0754480: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754500: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754580: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7ffce0754600: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 00 00 00 f2
+  0x7ffce0754680: f2 f2 f2 f2 00 00 00 00 00 f2 f2 f2 f2 f2 f8 f2
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==18==ABORTING

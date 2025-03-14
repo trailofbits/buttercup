@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 from langgraph.types import Command
+from langgraph.constants import END
 
 
 from langchain_core.messages import BaseMessage
@@ -280,6 +281,7 @@ class SWEAgent(PatcherAgentBase):
 
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
+    max_patch_retries: int = 10
 
     MATCH_RATIO_THRESHOLD: float = 0.8
 
@@ -537,8 +539,15 @@ class SWEAgent(PatcherAgentBase):
 
     def create_patch_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.REVIEW_PATCH.value, PatcherAgentName.CONTEXT_RETRIEVER.value]]:
+    ) -> Command[Literal[PatcherAgentName.REVIEW_PATCH.value, PatcherAgentName.CONTEXT_RETRIEVER.value, END]]:
         """Node in the LangGraph that generates a patch (in diff format)"""
+        if state.patch_tries >= self.max_patch_retries:
+            logger.warning("Reached max patch tries, terminating the patching process")
+            return Command(
+                update=state,
+                goto=END,
+            )
+
         logger.info("Creating a patch for Challenge Task %s", self.challenge.name)
         self.challenge.restore()
 

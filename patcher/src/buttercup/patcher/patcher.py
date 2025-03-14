@@ -6,7 +6,7 @@ from buttercup.patcher.utils import PatchInput, PatchOutput
 from langchain_core.runnables import Runnable, RunnableConfig
 from redis import Redis
 from typing import Callable, Any
-from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames, GroupNames
+from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames, GroupNames, RQItem
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
 from langchain_core.globals import set_llm_cache
@@ -69,7 +69,7 @@ class Patcher:
             logger.debug(f"Patch: {patch}")
             return patch
 
-    def process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
+    def process_patch_input(self, input: PatchInput) -> PatchOutput | None:
         logger.info(f"Processing vulnerability {input.task_id}/{input.vulnerability_id}")
         logger.debug(f"Patch Input: {input}")
 
@@ -91,21 +91,18 @@ class Patcher:
             vulnerability_id=vuln.vuln_id,
             harness_name=vuln.crash.crash.harness_name,
             pov=Path(vuln.crash.crash.crash_input_path),
-            sanitizer_output=vuln.crash.tracer_stacktrace,
+            sanitizer_output=vuln.crash.tracer_stacktrace
+            if vuln.crash.tracer_stacktrace
+            else vuln.crash.crash.stacktrace,
             engine=vuln.crash.crash.target.engine,
             sanitizer=vuln.crash.crash.target.sanitizer,
         )
 
-    def serve_item(self) -> bool:
-        rq_item = self.vulnerability_queue.pop()
-
-        if rq_item is None:
-            return False
-
+    def process_item(self, rq_item: RQItem[ConfirmedVulnerability]) -> None:
         vuln = rq_item.deserialized
         patch_input = self._create_patch_input(vuln)
         try:
-            patch = self.process_vulnerability(patch_input)
+            patch = self.process_patch_input(patch_input)
             if patch is not None:
                 patch_msg = Patch(
                     task_id=patch.task_id,
@@ -126,6 +123,13 @@ class Patcher:
                 f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}: {e}"
             )
 
+    def serve_item(self) -> bool:
+        rq_item = self.vulnerability_queue.pop()
+
+        if rq_item is None:
+            return False
+
+        self.process_item(rq_item)
         return True
 
     def serve(self) -> None:

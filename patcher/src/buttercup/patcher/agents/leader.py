@@ -32,15 +32,32 @@ class PatcherLeaderAgent:
     chain_call: CHAIN_CALL_TYPE
     work_dir: Path
 
-    max_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCHES_PER_RUN", 15))
-    max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 3))
+    # Default to a low number as the patcher will be run multiple times and it
+    # will eventually retry this many times.
+    max_patch_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCH_RETRIES", 3))
+    max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 5))
+    max_context_retriever_retries: int = int(os.getenv("TOB_PATCHER_MAX_CONTEXT_RETRIEVER_RETRIES", 30))
 
     def _init_patch_team(self) -> StateGraph:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
-        swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
-        qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
+        swe_agent = SWEAgent(
+            self.challenge,
+            self.input,
+            chain_call=self.chain_call,
+            max_patch_retries=self.max_patch_retries,
+        )
+        qe_agent = QEAgent(
+            self.challenge,
+            self.input,
+            chain_call=self.chain_call,
+            max_review_retries=self.max_review_retries,
+        )
         context_retriever_agent = ContextRetrieverAgent(
-            self.challenge, self.input, chain_call=self.chain_call, work_dir=self.work_dir
+            self.challenge,
+            self.input,
+            chain_call=self.chain_call,
+            work_dir=self.work_dir,
+            max_retries=self.max_context_retriever_retries,
         )
 
         workflow = StateGraph(PatcherAgentState)
