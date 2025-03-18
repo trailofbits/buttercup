@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.1
+
+- add ping endpoint to test network connectivity and credentials
+- crs status endpoint requires authentication
+
+## v1.0
+
+- add freeform submission
+- add freeform submission to bundle
+- add `harnesses_included` boolean to task broadcasts
+- **BREAKING CHANGE**: add new required `engine` field to pov submission. valid values are found in the `project.yaml`
+
+## v0.4
+
+- added bundle workflow
+- removed SARIF Broadcast ID, Vuln ID, and description from patch submission
+- renamed vuln submissions to pov submissions
+- renamed sarif assessments to broadcast-sarif-assessments
+- removed sarif submissions from vuln
+- added new endpoint for sarif submissions
+- added new errored state to possible statuses for server-side testing errors
+
+For more information, see:
+
+- [The v0.4 readme](./api-v0.4-readme.md)
+- [The v0.4 OpenAPI specification](./competition-swagger-v0.4.yaml)
+
 ## v0.3
 
 - Change invalid / valid in SARIF assessment to correct / incorrect

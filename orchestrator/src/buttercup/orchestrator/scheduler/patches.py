@@ -52,7 +52,6 @@ class Patches:
             # Create submission payload from patch data
             submission = TypesPatchSubmission(
                 patch=encoded_patch,
-                vuln_id=patch.vulnerability_id,
             )
 
             # Submit patch and get response

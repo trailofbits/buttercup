@@ -5,10 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**description** | **str** | Optional plain text reasoning for the assessment  128KiB max size | [optional] 
 **patch** | **str** | Base64 encoded patch in unified diff format  100KiB max size before Base64 encoding | 
-**sarif_id** | **str** | Optional ID of SARIF Broadcast this patch is associated with | [optional] 
-**vuln_id** | **str** | Optional ID of Vuln this patch is associated with | [optional] 
 
 ## Example
 

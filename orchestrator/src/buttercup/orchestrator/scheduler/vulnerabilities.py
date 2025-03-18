@@ -11,9 +11,9 @@ from buttercup.common.queues import (
     GroupNames,
 )
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, TracedCrash
-from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
+from buttercup.orchestrator.competition_api_client.api.pov_api import PovApi
 from buttercup.orchestrator.competition_api_client.api_client import ApiClient
-from buttercup.orchestrator.competition_api_client.models.types_vuln_submission import TypesVulnSubmission
+from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.registry import TaskRegistry
 
@@ -29,7 +29,7 @@ class Vulnerabilities:
     unique_vulnerabilities_queue: ReliableQueue = field(init=False)
     confirmed_vulnerabilities_queue: ReliableQueue = field(init=False)
     task_registry: TaskRegistry = field(init=False)
-    vulnerability_api: VulnerabilityApi = field(init=False)
+    pov_api: PovApi = field(init=False)
 
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
@@ -40,8 +40,8 @@ class Vulnerabilities:
             QueueNames.CONFIRMED_VULNERABILITIES, block_time=None
         )
         self.task_registry = TaskRegistry(self.redis)
-        self.vulnerability_api = VulnerabilityApi(api_client=self.api_client)
-        logger.info(f"Competition vulnerability API initialized: {self.vulnerability_api is not None}")
+        self.pov_api = PovApi(api_client=self.api_client)
+        logger.info(f"Competition Pov API initialized: {self.pov_api is not None}")
 
     def process_traced_vulnerabilities(self) -> bool:
         """Process traced vulnerabilities from the traced vulnerabilities queue.
@@ -69,7 +69,7 @@ class Vulnerabilities:
                     f"[{crash.crash.target.task_id}] Skipping cancelled task for harness: {crash.crash.harness_name}"
                 )
             else:
-                confirmed_vuln = self.submit_vulnerability(crash)
+                confirmed_vuln = self.submit_pov(crash)
                 if confirmed_vuln is not None:
                     self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
 
@@ -88,9 +88,9 @@ class Vulnerabilities:
         # For now, treating all crashes as unique
         return crash
 
-    def submit_vulnerability(self, crash: TracedCrash) -> ConfirmedVulnerability | None:
+    def submit_pov(self, crash: TracedCrash) -> ConfirmedVulnerability | None:
         """
-        Submit the vulnerability to the competition API
+        Submit the Pov to the competition API
 
         Returns:
             ConfirmedVulnerability | None: The confirmed vulnerability with API-provided ID if successful,
@@ -106,16 +106,16 @@ class Vulnerabilities:
                 crash_data = base64.b64encode(f.read()).decode()
 
             # Create submission payload from crash data
-            submission = TypesVulnSubmission(
+            submission = TypesPOVSubmission(
                 architecture=ARCHITECTURE,
-                data_file=crash_data,
-                harness_name=crash.crash.harness_name,
+                engine=crash.crash.target.engine,
+                fuzzer_name=crash.crash.harness_name,
                 sanitizer=crash.crash.target.sanitizer,
-                sarif=None,  # Optional, not provided in crash data
+                testcase=crash_data,
             )
 
-            # Submit vulnerability and get response
-            response = self.vulnerability_api.v1_task_task_id_vuln_post(
+            # Submit Pov and get response
+            response = self.pov_api.v1_task_task_id_pov_post(
                 task_id=crash.crash.target.task_id,
                 payload=submission,
             )
@@ -126,25 +126,25 @@ class Vulnerabilities:
             # If we don't acknowledge the PASSED status, we may miss a successful submission.
             if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(
-                    f"[{crash.crash.target.task_id}] Vulnerability submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}"
+                    f"[{crash.crash.target.task_id}] POV submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}"
                 )
                 return None
 
             # TODO: Could a successful response be PASSED?
 
             logger.info(
-                f"[{crash.crash.target.task_id}] Vulnerability {response.vuln_id} accepted for harness: {crash.crash.harness_name}"
+                f"[{crash.crash.target.task_id}] POV {response.pov_id} accepted for harness: {crash.crash.harness_name}"
             )
 
             # Create confirmed vulnerability with API-provided ID
             confirmed_vuln = ConfirmedVulnerability()
             confirmed_vuln.crash.CopyFrom(crash)
-            confirmed_vuln.vuln_id = response.vuln_id
+            confirmed_vuln.vuln_id = response.pov_id
 
             return confirmed_vuln
 
         except Exception as e:
             logger.error(
-                f"[{crash.crash.target.task_id}] Failed to submit vulnerability: {str(e)} (harness: {crash.crash.harness_name})"
+                f"[{crash.crash.target.task_id}] Failed to submit POV: {str(e)} (harness: {crash.crash.harness_name})"
             )
             raise

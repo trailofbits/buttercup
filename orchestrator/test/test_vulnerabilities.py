@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from buttercup.common.queues import RQItem, QueueFactory
 from buttercup.common.datastructures.msg_pb2 import Crash, BuildOutput, TracedCrash
-from buttercup.orchestrator.competition_api_client.models.types_vuln_submission_response import (
-    TypesVulnSubmissionResponse,
+from buttercup.orchestrator.competition_api_client.models.types_pov_submission_response import (
+    TypesPOVSubmissionResponse,
 )
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 
@@ -73,7 +73,7 @@ def vulnerabilities(mock_redis, mock_api_client, mock_queues):
     vuln.task_registry.is_cancelled = Mock(return_value=False)
 
     # Mock the vulnerability API method we use
-    vuln.vulnerability_api.v1_task_task_id_vuln_post = Mock()
+    vuln.pov_api.v1_task_task_id_pov_post = Mock()
 
     return vuln
 
@@ -95,8 +95,8 @@ class TestProcessTracedVulnerabilities:
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["traced"].pop.return_value = mock_item
 
-        mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, vuln_id="test-vuln-123")
-        vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.return_value = mock_response
+        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, pov_id="test-pov-123")
+        vulnerabilities.pov_api.v1_task_task_id_pov_post.return_value = mock_response
 
         assert vulnerabilities.process_traced_vulnerabilities() is True
         mock_queues["traced"].pop.assert_called_once()
@@ -113,8 +113,8 @@ class TestProcessTracedVulnerabilities:
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["traced"].pop.return_value = mock_item
 
-        mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.INVALID, vuln_id="rejected-123")
-        vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.return_value = mock_response
+        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.ERRORED, pov_id="rejected-123")
+        vulnerabilities.pov_api.v1_task_task_id_pov_post.return_value = mock_response
 
         assert vulnerabilities.process_traced_vulnerabilities() is True
         mock_queues["traced"].pop.assert_called_once()
@@ -131,7 +131,7 @@ class TestProcessTracedVulnerabilities:
         mock_item = RQItem(item_id="test_id", deserialized=sample_crash)
         mock_queues["traced"].pop.return_value = mock_item
 
-        vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.side_effect = Exception("API Error")
+        vulnerabilities.pov_api.v1_task_task_id_pov_post.side_effect = Exception("API Error")
 
         assert vulnerabilities.process_traced_vulnerabilities() is True
         mock_queues["traced"].pop.assert_called_once()
@@ -158,24 +158,24 @@ class TestSubmitVulnerability:
         mock_file.read.return_value = b"test crash data"
         mock_open.return_value.__enter__.return_value = mock_file
 
-        mock_response = TypesVulnSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, vuln_id="test-vuln-123")
-        vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.return_value = mock_response
+        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, pov_id="test-pov-123")
+        vulnerabilities.pov_api.v1_task_task_id_pov_post.return_value = mock_response
 
-        result = vulnerabilities.submit_vulnerability(sample_crash)
+        result = vulnerabilities.submit_pov(sample_crash)
 
         # Verify file was read correctly
         mock_open.assert_called_once_with(sample_crash.crash.crash_input_path, "rb")
 
         # Verify API was called with correct data
-        vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.assert_called_once()
-        call_args = vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.call_args
+        vulnerabilities.pov_api.v1_task_task_id_pov_post.assert_called_once()
+        call_args = vulnerabilities.pov_api.v1_task_task_id_pov_post.call_args
         assert call_args[1]["task_id"] == sample_crash.crash.target.task_id
-        assert call_args[1]["payload"].data_file == "dGVzdCBjcmFzaCBkYXRh"  # base64 encoded "test crash data"
+        assert call_args[1]["payload"].testcase == "dGVzdCBjcmFzaCBkYXRh"  # base64 encoded "test crash data"
 
         # Verify returned vulnerability object
         assert result is not None
         assert result.crash == sample_crash
-        assert result.vuln_id == "test-vuln-123"
+        assert result.vuln_id == "test-pov-123"
 
     @patch("builtins.open")
     def test_api_error_raises_exception(self, mock_open, vulnerabilities, sample_crash):
@@ -184,10 +184,10 @@ class TestSubmitVulnerability:
         mock_file.read.return_value = b"test crash data"
         mock_open.return_value.__enter__.return_value = mock_file
 
-        vulnerabilities.vulnerability_api.v1_task_task_id_vuln_post.side_effect = Exception("API Error")
+        vulnerabilities.pov_api.v1_task_task_id_pov_post.side_effect = Exception("API Error")
 
         with pytest.raises(Exception) as exc_info:
-            vulnerabilities.submit_vulnerability(sample_crash)
+            vulnerabilities.submit_pov(sample_crash)
         assert "API Error" in str(exc_info.value)
 
     @patch("builtins.open")
@@ -196,7 +196,7 @@ class TestSubmitVulnerability:
         mock_open.side_effect = FileNotFoundError("File not found")
 
         with pytest.raises(Exception) as exc_info:
-            vulnerabilities.submit_vulnerability(sample_crash)
+            vulnerabilities.submit_pov(sample_crash)
         assert "File not found" in str(exc_info.value)
 
 

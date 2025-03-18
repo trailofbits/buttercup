@@ -1,0 +1,39 @@
+---
+# Example Config File
+
+teams:
+  # This is the API key your CRS uses to get access
+  # to the submission endpoints
+  - id: 11111111-1111-1111-1111-111111111111
+    note: Test Key for Local Auth
+    api_key:
+      token: secret
+      active: true
+      permissions:
+        crs: true
+        competition_management: true
+
+    crs:
+      # The url of your CRS. If you are running your CRS on localhost, keep the
+      # url as host.docker.internal
+      # url: http://host.docker.internal:1324 # This should stay the same, so the scantron docker container can communicate with the outside world
+      url: http://task-server:8000
+      api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
+      api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
+
+logging:
+  gorm:
+    level: 0
+    trace_queries: true
+  app:
+    level: -4
+
+round_id: testing
+
+# Listen address outside the container
+listen_address: "scantron:1323"
+
+github:
+  # github Personal Access token. This is used by the server to download the
+  # appropriate fuzz tooling if not using public repositories
+  pat: ghp_XXXXXXXXXXXXXXXXXXXXX

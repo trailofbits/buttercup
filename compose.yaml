@@ -1,3 +1,6 @@
+include:
+ - ./competition-server/compose.yaml
+
 services:
   # ugh the only solution i can come up with is a dind instance paired with every single build-bot we will need like k8s groups or something
   dind:
@@ -293,9 +296,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  competition-api:
-    image: ghcr.io/aixcc-finals/example-crs-architecture/example-competition-api:v0.1
 
 configs:
   litellm_config:

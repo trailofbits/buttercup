@@ -1,7 +1,9 @@
 # API
 
-- Competitors will consume the API described by `competition-swagger-v0.3.yaml`
-- Competitors will provide the API described by `crs-swagger-v0.3.yaml`
+See the [API Changelog](./docs/api/CHANGELOG.md) for information on recent API changes.
+
+- Competitors will consume the API described by `competition-swagger-v1.1.yaml`
+- Competitors will provide the API described by `crs-swagger-v1.1.yaml`
 
 NOTE: The JSON and YAML documents contain the same information and are generated from the same source.
 
@@ -51,17 +53,17 @@ The competition-time workflows for interacting with the Competition API are docu
 
 ```mermaid
 sequenceDiagram
-    accTitle: CRS Vuln Submission Workflow
+    accTitle: CRS POV Submission Workflow
 
     API->>CRS: Task(s)
-    CRS->>API: Vuln Submission
-    API->>CRS: Vuln ID, Vuln Status "accepted"
-    API->>API: Vuln Testing
-    CRS->>API: Vuln Status Polling
-    API->>CRS: Current Vuln Status ("accepted")
-    API->>API: Vuln Testing Complete, update status to "passed" or "failed"
-    CRS->>API: Vuln Status Polling
-    API->>CRS: Current Vuln Status ("passed" or "failed")
+    CRS->>API: POV Submission
+    API->>CRS: POV ID, Vuln Status "accepted"
+    API->>API: POV Testing
+    CRS->>API: POV Status Polling
+    API->>CRS: Current POV Status ("accepted")
+    API->>API: POV Testing Complete, update status to "passed", "failed", or "errored"
+    CRS->>API: POV Status Polling
+    API->>CRS: Current POV Status ("passed", "failed", or "errored")
 ```
 
 ### Submitting a SARIF assessment
@@ -81,15 +83,27 @@ sequenceDiagram
 sequenceDiagram
     accTitle: CRS Patch Submission Workflow
 
-    API->>CRS: Task(s) and/or SARIF Broadcast
-    CRS->>API: Patch Submission (optionally against an existing vuln or SARIF broadcast)
+    API->>CRS: Task(s)
+    CRS->>API: Patch Submission
     API->>CRS: Patch ID, Patch Status "accepted"
     API->>API: Patch Testing
     CRS->>API: Patch Status Polling
     API->>CRS: Current Patch Status ("accepted")
-    API->>API: Patch Testing Complete, update status to "passed" or "failed"
+    API->>API: Patch Testing Complete, update status to "passed", "failed", or "errored"
     CRS->>API: Patch Status Polling
-    API->>CRS: Current Patch Status ("passed" or "failed")
+    API->>CRS: Current Patch Status ("passed", "failed", "errored")
+```
+
+### Submitting a bundle
+
+```mermaid
+sequenceDiagram
+  accTitle: CRS Bundle Submission Workflow
+
+API->>CRS: Task(s)
+CRS->>API: POV Submission, Patch Submission, SARIF Assessment, SARIF Submission, ...
+CRS->>API: Create Bundle "accepted"
+CRS->>API: Modify Bundle
 ```
 
 ## CRS API Task Statuses

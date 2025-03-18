@@ -1,0 +1,692 @@
+definitions:
+  types.Architecture:
+    enum:
+      - x86_64
+    type: string
+    x-enum-varnames:
+      - ArchitectureX864
+  types.Assessment:
+    enum:
+      - correct
+      - incorrect
+    type: string
+    x-enum-varnames:
+      - AssessmentCorrect
+      - AssessmentIncorrect
+  types.BundleSubmission:
+    properties:
+      broadcast_sarif_id:
+        format: uuid
+        type: string
+      description:
+        description:
+          optional plaintext description of the components of the bundle,
+          such as would be found in a pull request description or bug report
+        type: string
+      patch_id:
+        format: uuid
+        type: string
+      pov_id:
+        format: uuid
+        type: string
+      submitted_sarif_id:
+        format: uuid
+        type: string
+    type: object
+  types.BundleSubmissionResponse:
+    properties:
+      bundle_id:
+        format: uuid
+        type: string
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+    required:
+      - bundle_id
+      - status
+    type: object
+  types.BundleSubmissionResponseVerbose:
+    properties:
+      broadcast_sarif_id:
+        format: uuid
+        type: string
+      bundle_id:
+        format: uuid
+        type: string
+      description:
+        type: string
+      patch_id:
+        format: uuid
+        type: string
+      pov_id:
+        format: uuid
+        type: string
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+      submitted_sarif_id:
+        format: uuid
+        type: string
+    required:
+      - bundle_id
+      - status
+    type: object
+  types.Error:
+    properties:
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      message:
+        type: string
+    required:
+      - message
+    type: object
+  types.POVSubmission:
+    properties:
+      architecture:
+        $ref: "#/definitions/types.Architecture"
+      fuzzer_name:
+        description: |-
+          Fuzz Tooling Harness Name that exercises this vuln
+
+          4KiB max size
+        maxLength: 4096
+        type: string
+      sanitizer:
+        description: |-
+          Fuzz Tooling Sanitizer that exercises this vuln
+
+          4KiB max size
+        maxLength: 4096
+        type: string
+      testcase:
+        description: |-
+          Base64 encoded vuln trigger
+
+          2MiB max size before Base64 encoding
+        format: base64
+        type: string
+    required:
+      - architecture
+      - fuzzer_name
+      - sanitizer
+      - testcase
+    type: object
+  types.POVSubmissionResponse:
+    properties:
+      pov_id:
+        format: uuid
+        type: string
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+    required:
+      - pov_id
+      - status
+    type: object
+  types.PatchSubmission:
+    properties:
+      patch:
+        description: |-
+          Base64 encoded patch in unified diff format
+
+          100KiB max size before Base64 encoding
+        format: base64
+        type: string
+    required:
+      - patch
+    type: object
+  types.PatchSubmissionResponse:
+    properties:
+      functionality_tests_passing:
+        description: null indicates the tests have not been run
+        type: boolean
+      patch_id:
+        format: uuid
+        type: string
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+    required:
+      - patch_id
+      - status
+    type: object
+  types.SARIFSubmission:
+    properties:
+      sarif:
+        description: SARIF object compliant with the provided schema
+        type: object
+    required:
+      - sarif
+    type: object
+  types.SARIFSubmissionResponse:
+    properties:
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+      submitted_sarif_id:
+        format: uuid
+        type: string
+    required:
+      - status
+      - submitted_sarif_id
+    type: object
+  types.SarifAssessmentResponse:
+    properties:
+      status:
+        $ref: "#/definitions/types.SubmissionStatus"
+    required:
+      - status
+    type: object
+  types.SarifAssessmentSubmission:
+    properties:
+      assessment:
+        $ref: "#/definitions/types.Assessment"
+      description:
+        description: |-
+          Plain text reasoning for the assessment
+
+          128KiB max size
+        maxLength: 131072
+        type: string
+    required:
+      - assessment
+      - description
+    type: object
+  types.SubmissionStatus:
+    enum:
+      - accepted
+      - passed
+      - failed
+      - deadline_exceeded
+      - errored
+    type: string
+    x-enum-comments:
+      SubmissionStatusAccepted: Successfully submitted
+      SubmissionStatusDeadlineExceeded:
+        Task deadline exceeded. All submissions marked
+        accepted before the deadline will be evaluated.
+      SubmissionStatusErrored: Server side error when testing submission
+      SubmissionStatusFailed: Submission failed testing
+      SubmissionStatusPassed: Successfully evaluated submission
+    x-enum-varnames:
+      - SubmissionStatusAccepted
+      - SubmissionStatusPassed
+      - SubmissionStatusFailed
+      - SubmissionStatusDeadlineExceeded
+      - SubmissionStatusErrored
+info:
+  contact: {}
+  title: Example Competition API
+  version: "0.4"
+paths:
+  /v1/task/{task_id}/broadcast-sarif-assessment/{broadcast_sarif_id}/:
+    post:
+      consumes:
+        - application/json
+      description: Submit a SARIF assessment
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Broadcast SARIF ID
+          format: uuid
+          in: path
+          name: broadcast_sarif_id
+          required: true
+          type: string
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.SarifAssessmentSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.SarifAssessmentResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit a SARIF Assessment
+      tags:
+        - broadcast-sarif-assessment
+  /v1/task/{task_id}/bundle/:
+    post:
+      consumes:
+        - application/json
+      description: submits a bundle
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Submission Body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.BundleSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.BundleSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit Bundle
+      tags:
+        - bundle
+  /v1/task/{task_id}/bundle/{bundle_id}/:
+    delete:
+      consumes:
+        - application/json
+      description: delete a bundle
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Bundle ID
+          format: uuid
+          in: path
+          name: bundle_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Delete Bundle
+      tags:
+        - bundle
+    get:
+      consumes:
+        - application/json
+      description: get a bundle
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Bundle ID
+          format: uuid
+          in: path
+          name: bundle_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.BundleSubmissionResponseVerbose"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Get Bundle
+      tags:
+        - bundle
+    patch:
+      consumes:
+        - application/json
+      description: updates a bundle
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Bundle ID
+          format: uuid
+          in: path
+          name: bundle_id
+          required: true
+          type: string
+        - description: Submission Body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.BundleSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.BundleSubmissionResponseVerbose"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Update Bundle
+      tags:
+        - bundle
+  /v1/task/{task_id}/patch/:
+    post:
+      consumes:
+        - application/json
+      description: submit a patch for testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Payload
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.PatchSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.PatchSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit Patch
+      tags:
+        - patch
+  /v1/task/{task_id}/patch/{patch_id}/:
+    get:
+      consumes:
+        - application/json
+      description: yield the status of patch testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Patch ID
+          format: uuid
+          in: path
+          name: patch_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.PatchSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Patch Status
+      tags:
+        - patch
+  /v1/task/{task_id}/pov/:
+    post:
+      consumes:
+        - application/json
+      description: submit a vulnerability for testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.POVSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.POVSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit Vulnerability
+      tags:
+        - pov
+  /v1/task/{task_id}/pov/{pov_id}/:
+    get:
+      consumes:
+        - application/json
+      description: yield the status of vuln testing
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: POV ID
+          format: uuid
+          in: path
+          name: pov_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.POVSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Vulnerability Status
+      tags:
+        - pov
+  /v1/task/{task_id}/submitted-sarif/:
+    post:
+      consumes:
+        - application/json
+      description: Submit a CRS generated SARIF
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.SARIFSubmission"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: "#/definitions/types.SARIFSubmissionResponse"
+        "400":
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/types.Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/types.Error"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/types.Error"
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/types.Error"
+      security:
+        - BasicAuth: []
+      summary: Submit a CRS generated SARIF
+      tags:
+        - submitted-sarif
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

@@ -5,6 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**functionality_tests_passing** | **bool** | null indicates the tests have not been run | [optional] 
 **patch_id** | **str** |  | 
 **status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  | 
 

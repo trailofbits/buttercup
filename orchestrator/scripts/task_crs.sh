@@ -1,2 +1,10 @@
 #!/bin/bash
-curl -s -X POST "127.0.0.1:8000/v1/task/" -H "Content-Type: application/json"         --user "515cc8a0-3019-4c9f-8c1c-72d0b54ae561":"VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB" -d '{"message_id":"a70e802a-e3ae-4abf-ab06-3fbc428768e3","message_time":1739917788000,"tasks":[{"task_id":"5cea8f59-a7ab-4c77-97a9-f92fcfeb33d8","type":"delta","metadata":{"round_id":"local-dev","task_id":"5cea8f59-a7ab-4c77-97a9-f92fcfeb33d8"},"deadline":1739932188000,"focus":"example-libpng","project_name":"libpng","source":[{"type":"repo","url":"https://challengesact.blob.core.windows.net/challenges/c516e2b73f58fe163be48f5bc0ca36995ee100c752e30883f9acaa0a95ca2bb6.tar.gz?se=2025-08-18T22%3A29%3A44Z&sp=r&sv=2022-11-02&sr=b&sig=7lj49Z6vXsFuKp4DqVrVVMwHU4xEAQJ%2BSCZ7BAQnbvY%3D","sha256":"c516e2b73f58fe163be48f5bc0ca36995ee100c752e30883f9acaa0a95ca2bb6"},{"type":"fuzz-tooling","url":"https://challengesact.blob.core.windows.net/challenges/910913fd13eb2e7cb7ca9a39fce4cc753d54579c938a5c60d478788101fdde3e.tar.gz?se=2025-08-18T22%3A29%3A47Z&sp=r&sv=2022-11-02&sr=b&sig=M6JoI0pGccbSARTqVLm23yQZUbUwsQsFyBpRMoADnYc%3D","sha256":"910913fd13eb2e7cb7ca9a39fce4cc753d54579c938a5c60d478788101fdde3e"},{"type":"diff","url":"https://challengesact.blob.core.windows.net/challenges/04ffd1402d868846d6812112c4bc2ec50722aa1adfaf02aab7233ad20bd1b495.tar.gz?se=2025-08-18T22%3A29%3A42Z&sp=r&sv=2022-11-02&sr=b&sig=M63mfyTls1CJhxelj%2BdtGmmO9fIVimybM6yqOMCkRac%3D","sha256":"04ffd1402d868846d6812112c4bc2ec50722aa1adfaf02aab7233ad20bd1b495"}]}]}'
+curl -X 'POST' 'http://localhost:1323/webhook/trigger_task' -H 'Content-Type: application/json' -d '{
+    "challenge_repo_url": "git@github.com:aixcc-finals/example-libpng.git",
+    "challenge_repo_base_ref": "0cc367aaeaac3f888f255cee5d394968996f736e",
+    "challenge_repo_head_ref": "2c894c66108f0724331a9e5b4826e351bf2d094b",
+    "fuzz_tooling_url": "git@github.com:aixcc-finals/oss-fuzz-aixcc.git",
+    "fuzz_tooling_ref": "d5fbd68fca66e6fa4f05899170d24e572b01853d",
+    "fuzz_tooling_project_name": "libpng",
+    "duration": 3600
+}'

@@ -1,0 +1,65 @@
+name: "competitor-test-server"
+
+x-default-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+    tag: "{{.Name}}|{{.ImageName}}|{{.ID}}"
+
+# include:
+#  - ./signoz/compose.yaml
+
+services:
+  # dind:
+  #   image: docker:28-dind
+  #   command:
+  #     [
+  #       "dockerd",
+  #       "-H",
+  #       "tcp://0.0.0.0:2375",
+  #       "--tls=false",
+  #       "--storage-driver=overlay2",
+  #     ]
+  #   restart: always
+  #   privileged: true
+  #   networks:
+  #     - dind-internal
+  #     - internet
+  #   expose:
+  #     - "2375"
+  #   environment:
+  #     - DOCKER_TLS_CERTDIR= # Ensure this is correctly formatted (empty value)
+  #     - DOCKER_DEFAULT_PLATFORM=linux/amd64
+  #   volumes:
+  #     - shared-tmp:/tmp
+
+  scantron:
+    image: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api:v1.1-rc2
+    platform: linux/amd64
+    privileged: true
+    volumes:
+      - "./scantron.yaml:/etc/scantron/scantron.yaml"
+      - ../crs_scratch:/tmp
+    depends_on:
+      - dind
+    ports:
+      - "1323:1323"
+    command: server
+    # networks:
+    #   - dind-internal
+    #   - internet
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - "DOCKER_HOST=tcp://dind:2375"
+      - DOCKER_DEFAULT_PLATFORM=linux/amd64
+    logging: *logging
+
+# networks:
+#   dind-internal:
+#     internal: true
+#   internet: {}
+
+# volumes:
+#   shared-tmp:

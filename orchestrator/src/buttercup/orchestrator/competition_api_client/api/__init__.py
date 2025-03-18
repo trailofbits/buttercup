@@ -1,7 +1,11 @@
 # flake8: noqa
 
 # import apis into api package
+from buttercup.orchestrator.competition_api_client.api.broadcast_sarif_assessment_api import BroadcastSarifAssessmentApi
+from buttercup.orchestrator.competition_api_client.api.bundle_api import BundleApi
+from buttercup.orchestrator.competition_api_client.api.feeform_api import FeeformApi
 from buttercup.orchestrator.competition_api_client.api.patch_api import PatchApi
-from buttercup.orchestrator.competition_api_client.api.sarif_api import SarifApi
-from buttercup.orchestrator.competition_api_client.api.vulnerability_api import VulnerabilityApi
+from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
+from buttercup.orchestrator.competition_api_client.api.pov_api import PovApi
+from buttercup.orchestrator.competition_api_client.api.submitted_sarif_api import SubmittedSarifApi
 

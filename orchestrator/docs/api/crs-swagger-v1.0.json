@@ -1,0 +1,394 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Example CRS API",
+    "contact": {},
+    "version": "1.0"
+  },
+  "paths": {
+    "/status/": {
+      "get": {
+        "description": "UNAUTHENTICATED! report the status of the CRS",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["status"],
+        "summary": "CRS Status",
+        "responses": {
+          "200": {
+            "description": "Status Obect",
+            "schema": {
+              "$ref": "#/definitions/types.Status"
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "Reset all stats in the status endpoint.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["status"],
+        "summary": "Reset status stats",
+        "responses": {
+          "200": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/v1/sarif/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submit a sarif broadcast",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["sarif"],
+        "summary": "Submit Sarif Broadcast",
+        "parameters": [
+          {
+            "description": "Vulnerability Broadcast",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.SARIFBroadcast"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submit a task for work",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["task"],
+        "summary": "Submit Task",
+        "parameters": [
+          {
+            "description": "Submission body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.Task"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "Cancel all previously submitted tasks. This is meant for edge case recovery in case something goes wrong.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["task"],
+        "summary": "Cancel Tasks",
+        "responses": {
+          "200": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/": {
+      "delete": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "Cancel a task by id. This is meant for edge case recovery in case something goes wrong.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["task"],
+        "summary": "Cancel Task",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "types.SARIFBroadcast": {
+      "type": "object",
+      "required": ["broadcasts", "message_id", "message_time"],
+      "properties": {
+        "broadcasts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/types.SARIFBroadcastDetail"
+          }
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "message_time": {
+          "type": "integer"
+        }
+      }
+    },
+    "types.SARIFBroadcastDetail": {
+      "type": "object",
+      "required": ["metadata", "sarif", "sarif_id", "task_id"],
+      "properties": {
+        "metadata": {
+          "description": "String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability",
+          "type": "object"
+        },
+        "sarif": {
+          "description": "SARIF Report compliant with provided schema",
+          "type": "object"
+        },
+        "sarif_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "types.SourceDetail": {
+      "type": "object",
+      "required": ["sha256", "type", "url"],
+      "properties": {
+        "sha256": {
+          "description": "Integrity hash of the gzipped tarball",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/types.SourceType"
+        },
+        "url": {
+          "description": "URL to fetch the source gzipped tarball",
+          "type": "string"
+        }
+      }
+    },
+    "types.SourceType": {
+      "type": "string",
+      "enum": ["repo", "fuzz-tooling", "diff"],
+      "x-enum-varnames": [
+        "SourceTypeRepo",
+        "SourceTypeFuzzTooling",
+        "SourceTypeDiff"
+      ]
+    },
+    "types.Status": {
+      "type": "object",
+      "required": ["ready", "since", "state", "version"],
+      "properties": {
+        "details": {
+          "description": "This is optional arbitrary content that may be logged in error cases, but is mainly for interactive troubleshooting.\n\nKeep in mind this endpoint is unauthenticated. Do not place sensitive details in this object.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "ready": {
+          "type": "boolean"
+        },
+        "since": {
+          "description": "Last time task and submission stats were reset",
+          "type": "integer"
+        },
+        "state": {
+          "description": "State of the currently running tasks and submissions",
+          "allOf": [
+            {
+              "$ref": "#/definitions/types.StatusState"
+            }
+          ]
+        },
+        "version": {
+          "description": "Version string for verification and reproducibility\n\n- git commit\n\n- SemVer\n\n- etc",
+          "type": "string"
+        }
+      }
+    },
+    "types.StatusState": {
+      "type": "object",
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "$ref": "#/definitions/types.StatusTasksState"
+        }
+      }
+    },
+    "types.StatusTasksState": {
+      "type": "object",
+      "required": [
+        "canceled",
+        "errored",
+        "failed",
+        "pending",
+        "processing",
+        "succeeded",
+        "waiting"
+      ],
+      "properties": {
+        "canceled": {
+          "description": "Number of tasks that competition infrastructure has cancelled",
+          "type": "integer"
+        },
+        "errored": {
+          "description": "Number of tasks that the CRS encountered an unrecoverable issue for",
+          "type": "integer"
+        },
+        "failed": {
+          "description": "Number of submissions that the competition infrastructure marked failed",
+          "type": "integer"
+        },
+        "pending": {
+          "description": "Number of tasks that the CRS has not started work on",
+          "type": "integer"
+        },
+        "processing": {
+          "description": "Number of tasks that the CRS is currently processing",
+          "type": "integer"
+        },
+        "succeeded": {
+          "description": "Number of submissions that the competition infrastructure marked passed",
+          "type": "integer"
+        },
+        "waiting": {
+          "description": "Number of submissions that the competition infrastructure is currently testing",
+          "type": "integer"
+        }
+      }
+    },
+    "types.Task": {
+      "type": "object",
+      "required": ["message_id", "message_time", "tasks"],
+      "properties": {
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "message_time": {
+          "type": "integer"
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/types.TaskDetail"
+          }
+        }
+      }
+    },
+    "types.TaskDetail": {
+      "type": "object",
+      "required": [
+        "deadline",
+        "focus",
+        "harnesses_included",
+        "metadata",
+        "project_name",
+        "source",
+        "task_id",
+        "type"
+      ],
+      "properties": {
+        "deadline": {
+          "description": "UNIX timestamp by which any submissions for this task must be in",
+          "type": "integer"
+        },
+        "focus": {
+          "description": "Because the challenge task may contain multiple repositories, the folder in the type repo source tarball containing the main project.\nIt is still set when there is only one repository.\n\nThis is the project the CRS is meant to submit vulns, patches, and SARIF assessments against.",
+          "type": "string"
+        },
+        "harnesses_included": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "description": "String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability",
+          "type": "object"
+        },
+        "project_name": {
+          "description": "OSS Fuzz project name",
+          "type": "string"
+        },
+        "source": {
+          "description": "List of sources needed to evaluate a task",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/types.SourceDetail"
+          }
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "$ref": "#/definitions/types.TaskType"
+        }
+      }
+    },
+    "types.TaskType": {
+      "type": "string",
+      "enum": ["full", "delta"],
+      "x-enum-varnames": ["TaskTypeFull", "TaskTypeDelta"]
+    }
+  },
+  "securityDefinitions": {
+    "BasicAuth": {
+      "type": "basic"
+    }
+  }
+}

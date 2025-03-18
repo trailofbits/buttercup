@@ -119,7 +119,9 @@ def check_auth(
 
 
 @app.get("/status/", response_model=Status, tags=["status"])
-def get_status_() -> Status:
+def get_status_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+) -> Status:
     """
     CRS Status
     """
@@ -127,7 +129,9 @@ def get_status_() -> Status:
 
 
 @app.delete("/status/", response_model=str, tags=["status"])
-def delete_status_() -> str:
+def delete_status_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+) -> str:
     """
     Reset status stats
     """

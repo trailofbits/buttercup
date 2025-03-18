@@ -1,0 +1,1006 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Example Competition API",
+    "contact": {},
+    "version": "1.0"
+  },
+  "paths": {
+    "/v1/task/{task_id}/broadcast-sarif-assessment/{broadcast_sarif_id}/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "Submit a SARIF assessment",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["broadcast-sarif-assessment"],
+        "summary": "Submit a SARIF Assessment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Broadcast SARIF ID",
+            "name": "broadcast_sarif_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Submission body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.SarifAssessmentSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.SarifAssessmentResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/bundle/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submits a bundle",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["bundle"],
+        "summary": "Submit Bundle",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Submission Body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.BundleSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.BundleSubmissionResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/bundle/{bundle_id}/": {
+      "get": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "get a bundle",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["bundle"],
+        "summary": "Get Bundle",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Bundle ID",
+            "name": "bundle_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.BundleSubmissionResponseVerbose"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "delete a bundle",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["bundle"],
+        "summary": "Delete Bundle",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Bundle ID",
+            "name": "bundle_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      },
+      "patch": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "updates a bundle",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["bundle"],
+        "summary": "Update Bundle",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Bundle ID",
+            "name": "bundle_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Submission Body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.BundleSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.BundleSubmissionResponseVerbose"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/freeform/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submits a freeform pov",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["feeform"],
+        "summary": "Submit Freeform",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Submission Body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.FreeformSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.FreeformResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/patch/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submit a patch for testing",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["patch"],
+        "summary": "Submit Patch",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Payload",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.PatchSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.PatchSubmissionResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/patch/{patch_id}/": {
+      "get": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "yield the status of patch testing",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["patch"],
+        "summary": "Patch Status",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Patch ID",
+            "name": "patch_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.PatchSubmissionResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/pov/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "submit a vulnerability for testing",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pov"],
+        "summary": "Submit Vulnerability",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Submission body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.POVSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.POVSubmissionResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/pov/{pov_id}/": {
+      "get": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "yield the status of vuln testing",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pov"],
+        "summary": "Vulnerability Status",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "POV ID",
+            "name": "pov_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.POVSubmissionResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    },
+    "/v1/task/{task_id}/submitted-sarif/": {
+      "post": {
+        "security": [
+          {
+            "BasicAuth": []
+          }
+        ],
+        "description": "Submit a CRS generated SARIF",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["submitted-sarif"],
+        "summary": "Submit a CRS generated SARIF",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "Task ID",
+            "name": "task_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Submission body",
+            "name": "payload",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/types.SARIFSubmission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/types.SARIFSubmissionResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/types.Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "types.Architecture": {
+      "type": "string",
+      "enum": ["x86_64"],
+      "x-enum-varnames": ["ArchitectureX8664"]
+    },
+    "types.Assessment": {
+      "type": "string",
+      "enum": ["correct", "incorrect"],
+      "x-enum-varnames": ["AssessmentCorrect", "AssessmentIncorrect"]
+    },
+    "types.BundleSubmission": {
+      "type": "object",
+      "properties": {
+        "broadcast_sarif_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": {
+          "description": "optional plaintext description of the components of the bundle, such as would be found in a pull request description or bug report",
+          "type": "string"
+        },
+        "freeform_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "patch_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "pov_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "submitted_sarif_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "types.BundleSubmissionResponse": {
+      "type": "object",
+      "required": ["bundle_id", "status"],
+      "properties": {
+        "bundle_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        }
+      }
+    },
+    "types.BundleSubmissionResponseVerbose": {
+      "type": "object",
+      "required": ["bundle_id", "status"],
+      "properties": {
+        "broadcast_sarif_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bundle_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": {
+          "type": "string"
+        },
+        "freeform_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "patch_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "pov_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        },
+        "submitted_sarif_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "types.Error": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "types.FreeformResponse": {
+      "type": "object",
+      "required": ["freeform_id", "status"],
+      "properties": {
+        "freeform_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        }
+      }
+    },
+    "types.FreeformSubmission": {
+      "type": "object",
+      "required": ["submission"],
+      "properties": {
+        "submission": {
+          "description": "Base64 encoded arbitrary data\n\n2MiB max size before Base64 encoding",
+          "type": "string"
+        }
+      }
+    },
+    "types.POVSubmission": {
+      "type": "object",
+      "required": [
+        "architecture",
+        "engine",
+        "fuzzer_name",
+        "sanitizer",
+        "testcase"
+      ],
+      "properties": {
+        "architecture": {
+          "$ref": "#/definitions/types.Architecture"
+        },
+        "engine": {
+          "description": "Fuzz Tooling Engine that exercises this vuln\n\n4KiB max size",
+          "type": "string",
+          "maxLength": 4096
+        },
+        "fuzzer_name": {
+          "description": "Fuzz Tooling fuzzer that exercises this vuln\n\n4KiB max size",
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sanitizer": {
+          "description": "Fuzz Tooling Sanitizer that exercises this vuln\n\n4KiB max size",
+          "type": "string",
+          "maxLength": 4096
+        },
+        "testcase": {
+          "description": "Base64 encoded vuln trigger\n\n2MiB max size before Base64 encoding",
+          "type": "string",
+          "format": "base64"
+        }
+      }
+    },
+    "types.POVSubmissionResponse": {
+      "type": "object",
+      "required": ["pov_id", "status"],
+      "properties": {
+        "pov_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        }
+      }
+    },
+    "types.PatchSubmission": {
+      "type": "object",
+      "required": ["patch"],
+      "properties": {
+        "patch": {
+          "description": "Base64 encoded patch in unified diff format\n\n100KiB max size before Base64 encoding",
+          "type": "string",
+          "format": "base64"
+        }
+      }
+    },
+    "types.PatchSubmissionResponse": {
+      "type": "object",
+      "required": ["patch_id", "status"],
+      "properties": {
+        "functionality_tests_passing": {
+          "description": "null indicates the tests have not been run",
+          "type": "boolean"
+        },
+        "patch_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        }
+      }
+    },
+    "types.SARIFSubmission": {
+      "type": "object",
+      "required": ["sarif"],
+      "properties": {
+        "sarif": {
+          "description": "SARIF object compliant with the provided schema",
+          "type": "object"
+        }
+      }
+    },
+    "types.SARIFSubmissionResponse": {
+      "type": "object",
+      "required": ["status", "submitted_sarif_id"],
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        },
+        "submitted_sarif_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "types.SarifAssessmentResponse": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/types.SubmissionStatus"
+        }
+      }
+    },
+    "types.SarifAssessmentSubmission": {
+      "type": "object",
+      "required": ["assessment", "description"],
+      "properties": {
+        "assessment": {
+          "$ref": "#/definitions/types.Assessment"
+        },
+        "description": {
+          "description": "Plain text reasoning for the assessment\n\n128KiB max size",
+          "type": "string",
+          "maxLength": 131072
+        }
+      }
+    },
+    "types.SubmissionStatus": {
+      "type": "string",
+      "enum": ["accepted", "passed", "failed", "deadline_exceeded", "errored"],
+      "x-enum-comments": {
+        "SubmissionStatusAccepted": "Successfully submitted",
+        "SubmissionStatusDeadlineExceeded": "Task deadline exceeded. All submissions marked accepted before the deadline will be evaluated.",
+        "SubmissionStatusErrored": "Server side error when testing submission",
+        "SubmissionStatusFailed": "Submission failed testing",
+        "SubmissionStatusPassed": "Successfully evaluated submission"
+      },
+      "x-enum-varnames": [
+        "SubmissionStatusAccepted",
+        "SubmissionStatusPassed",
+        "SubmissionStatusFailed",
+        "SubmissionStatusDeadlineExceeded",
+        "SubmissionStatusErrored"
+      ]
+    }
+  },
+  "securityDefinitions": {
+    "BasicAuth": {
+      "type": "basic"
+    }
+  }
+}

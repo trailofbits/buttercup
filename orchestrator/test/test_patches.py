@@ -74,7 +74,6 @@ class TestSubmitPatch:
         # Verify the patch content is base64 encoded
         expected_encoded_patch = base64.b64encode(sample_patch.patch.encode()).decode()
         assert call_args[1]["payload"].patch == expected_encoded_patch
-        assert call_args[1]["payload"].vuln_id == sample_patch.vulnerability_id
 
         # Verify returned response
         assert result == mock_response
@@ -125,7 +124,7 @@ class TestProcessPatches:
         mock_item = RQItem(item_id="test_id", deserialized=sample_patch)
         mock_queues["patches"].pop.return_value = mock_item
 
-        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.INVALID, patch_id="rejected-789")
+        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.ERRORED, patch_id="rejected-789")
         patches.patch_api.v1_task_task_id_patch_post.return_value = mock_response
 
         assert patches.process_patches() is True

@@ -1,0 +1,346 @@
+definitions:
+  types.SARIFBroadcast:
+    properties:
+      broadcasts:
+        items:
+          $ref: "#/definitions/types.SARIFBroadcastDetail"
+        type: array
+      message_id:
+        format: uuid
+        type: string
+      message_time:
+        type: integer
+    required:
+      - broadcasts
+      - message_id
+      - message_time
+    type: object
+  types.SARIFBroadcastDetail:
+    properties:
+      metadata:
+        description:
+          String to string map containing data that should be attached
+          to outputs like log messages and OpenTelemetry trace attributes for traceability
+        type: object
+      sarif:
+        description: SARIF Report compliant with provided schema
+        type: object
+      sarif_id:
+        format: uuid
+        type: string
+      task_id:
+        format: uuid
+        type: string
+    required:
+      - metadata
+      - sarif
+      - sarif_id
+      - task_id
+    type: object
+  types.SourceDetail:
+    properties:
+      sha256:
+        description: Integrity hash of the gzipped tarball
+        type: string
+      type:
+        $ref: "#/definitions/types.SourceType"
+      url:
+        description: URL to fetch the source gzipped tarball
+        type: string
+    required:
+      - sha256
+      - type
+      - url
+    type: object
+  types.SourceType:
+    enum:
+      - repo
+      - fuzz-tooling
+      - diff
+    type: string
+    x-enum-varnames:
+      - SourceTypeRepo
+      - SourceTypeFuzzTooling
+      - SourceTypeDiff
+  types.Status:
+    properties:
+      details:
+        additionalProperties:
+          type: string
+        description: |-
+          This is optional arbitrary content that may be logged in error cases, but is mainly for interactive troubleshooting.
+
+          Keep in mind this endpoint is unauthenticated. Do not place sensitive details in this object.
+        type: object
+      ready:
+        type: boolean
+      since:
+        description: Last time task and submission stats were reset
+        type: integer
+      state:
+        allOf:
+          - $ref: "#/definitions/types.StatusState"
+        description: State of the currently running tasks and submissions
+      version:
+        description: |-
+          Version string for verification and reproducibility
+
+          - git commit
+
+          - SemVer
+
+          - etc
+        type: string
+    required:
+      - ready
+      - since
+      - state
+      - version
+    type: object
+  types.StatusState:
+    properties:
+      tasks:
+        $ref: "#/definitions/types.StatusTasksState"
+    required:
+      - tasks
+    type: object
+  types.StatusTasksState:
+    properties:
+      canceled:
+        description: Number of tasks that competition infrastructure has cancelled
+        type: integer
+      errored:
+        description:
+          Number of tasks that the CRS encountered an unrecoverable issue
+          for
+        type: integer
+      failed:
+        description:
+          Number of submissions that the competition infrastructure marked
+          failed
+        type: integer
+      pending:
+        description: Number of tasks that the CRS has not started work on
+        type: integer
+      processing:
+        description: Number of tasks that the CRS is currently processing
+        type: integer
+      succeeded:
+        description:
+          Number of submissions that the competition infrastructure marked
+          passed
+        type: integer
+      waiting:
+        description:
+          Number of submissions that the competition infrastructure is
+          currently testing
+        type: integer
+    required:
+      - canceled
+      - errored
+      - failed
+      - pending
+      - processing
+      - succeeded
+      - waiting
+    type: object
+  types.Task:
+    properties:
+      message_id:
+        format: uuid
+        type: string
+      message_time:
+        type: integer
+      tasks:
+        items:
+          $ref: "#/definitions/types.TaskDetail"
+        type: array
+    required:
+      - message_id
+      - message_time
+      - tasks
+    type: object
+  types.TaskDetail:
+    properties:
+      deadline:
+        description:
+          UNIX timestamp by which any submissions for this task must be
+          in
+        type: integer
+      focus:
+        description: |-
+          Because the challenge task may contain multiple repositories, the folder in the type repo source tarball containing the main project.
+          It is still set when there is only one repository.
+
+          This is the project the CRS is meant to submit vulns, patches, and SARIF assessments against.
+        type: string
+      harnesses_included:
+        type: boolean
+      metadata:
+        description:
+          String to string map containing data that should be attached
+          to outputs like log messages and OpenTelemetry trace attributes for traceability
+        type: object
+      project_name:
+        description: OSS Fuzz project name
+        type: string
+      source:
+        description: List of sources needed to evaluate a task
+        items:
+          $ref: "#/definitions/types.SourceDetail"
+        type: array
+      task_id:
+        format: uuid
+        type: string
+      type:
+        $ref: "#/definitions/types.TaskType"
+    required:
+      - deadline
+      - focus
+      - harnesses_included
+      - metadata
+      - project_name
+      - source
+      - task_id
+      - type
+    type: object
+  types.TaskType:
+    enum:
+      - full
+      - delta
+    type: string
+    x-enum-varnames:
+      - TaskTypeFull
+      - TaskTypeDelta
+info:
+  contact: {}
+  title: Example CRS API
+  version: "1.0"
+paths:
+  /status/:
+    delete:
+      consumes:
+        - application/json
+      description: Reset all stats in the status endpoint.
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Reset status stats
+      tags:
+        - status
+    get:
+      consumes:
+        - application/json
+      description: UNAUTHENTICATED! report the status of the CRS
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Status Obect
+          schema:
+            $ref: "#/definitions/types.Status"
+      summary: CRS Status
+      tags:
+        - status
+  /v1/sarif/:
+    post:
+      consumes:
+        - application/json
+      description: submit a sarif broadcast
+      parameters:
+        - description: Vulnerability Broadcast
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.SARIFBroadcast"
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Submit Sarif Broadcast
+      tags:
+        - sarif
+  /v1/task/:
+    delete:
+      consumes:
+        - application/json
+      description:
+        Cancel all previously submitted tasks. This is meant for edge case
+        recovery in case something goes wrong.
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Cancel Tasks
+      tags:
+        - task
+    post:
+      consumes:
+        - application/json
+      description: submit a task for work
+      parameters:
+        - description: Submission body
+          in: body
+          name: payload
+          required: true
+          schema:
+            $ref: "#/definitions/types.Task"
+      produces:
+        - application/json
+      responses:
+        "202":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Submit Task
+      tags:
+        - task
+  /v1/task/{task_id}/:
+    delete:
+      consumes:
+        - application/json
+      description:
+        Cancel a task by id. This is meant for edge case recovery in case
+        something goes wrong.
+      parameters:
+        - description: Task ID
+          format: uuid
+          in: path
+          name: task_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: No Content
+          schema:
+            type: string
+      security:
+        - BasicAuth: []
+      summary: Cancel Task
+      tags:
+        - task
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
