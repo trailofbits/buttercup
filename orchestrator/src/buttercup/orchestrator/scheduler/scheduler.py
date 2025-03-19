@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Set, Union
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
 from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
@@ -20,6 +21,7 @@ from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
+from buttercup.orchestrator.registry import TaskRegistry
 import random
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,44 @@ class Scheduler:
     cancellation: Cancellation | None = field(init=False, default=None)
     vulnerabilities: Vulnerabilities | None = field(init=False, default=None)
     patches: Patches = field(init=False)
+    task_registry: TaskRegistry | None = field(init=False, default=None)
+    cached_cancelled_ids: Set[str] = field(init=False, default_factory=set)
+
+    def update_cached_cancelled_ids(self) -> bool:
+        """Update the cached set of cancelled task IDs.
+
+        Retrieves all cancelled task IDs from the registry and stores them in the cached_cancelled_ids set.
+
+        Returns:
+            bool: True if there were any cancelled task IDs, False otherwise
+        """
+        if self.task_registry is None:
+            return False
+
+        # Get cancelled task IDs from registry
+        cancelled_ids = set(self.task_registry.get_cancelled_task_ids())
+
+        # Update the cached set
+        self.cached_cancelled_ids = cancelled_ids
+
+        return len(self.cached_cancelled_ids) > 0
+
+    def should_stop_processing(self, task_or_id: Union[str, Task]) -> bool:
+        """Check if a task should no longer be processed due to cancellation or expiration.
+
+        Wrapper around the registry.should_stop_processing method that uses the cached
+        cancelled IDs instead of querying the registry each time.
+
+        Args:
+            task_or_id: Either a Task object or a string task ID to check
+
+        Returns:
+            bool: True if the task should not be processed (is cancelled or expired),
+                 False otherwise
+        """
+        if self.task_registry is None:
+            return False
+        return self.task_registry.should_stop_processing(task_or_id, self.cached_cancelled_ids)
 
     def __post_init__(self):
         if self.redis is not None:
@@ -67,6 +107,7 @@ class Scheduler:
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
             self.patches = Patches(redis=self.redis, api_client=api_client)
+            self.task_registry = TaskRegistry(self.redis)
 
     def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
         """Select from preferred options if available, otherwise random choice.
@@ -151,6 +192,15 @@ class Scheduler:
 
         if task_ready_item is not None:
             task_ready: TaskReady = task_ready_item.deserialized
+
+            # Check if the task should be stopped (cancelled or expired)
+            if self.should_stop_processing(task_ready.task):
+                logger.info(
+                    f"Skipping ready task processing for task {task_ready.task.task_id} as it is cancelled or expired"
+                )
+                self.ready_queue.ack_item(task_ready_item.item_id)
+                return True
+
             try:
                 # Create and push index request
                 challenge_task = ChallengeTask(self.tasks_storage_dir / task_ready.task.task_id)
@@ -181,6 +231,15 @@ class Scheduler:
         build_output_item: RQItem[BuildOutput] | None = self.build_output_queue.pop()
         if build_output_item is not None:
             build_output: BuildOutput = build_output_item.deserialized
+
+            # Check if the task should be stopped (cancelled or expired)
+            if self.should_stop_processing(build_output.task_id):
+                logger.info(
+                    f"Skipping build output processing for task {build_output.task_id} as it is cancelled or expired"
+                )
+                self.build_output_queue.ack_item(build_output_item.item_id)
+                return True
+
             self.build_map.add_build(build_output)
             try:
                 targets = self.process_build_output(build_output)
@@ -212,17 +271,70 @@ class Scheduler:
                 return False
         return False
 
+    def update_expired_task_weights(self) -> bool:
+        """Update weights for expired or cancelled tasks.
+
+        Checks each harness using should_stop_processing to determine if its task is:
+        1. In the cached cancelled task IDs, or
+        2. Has expired according to its deadline
+
+        If either condition is true, sets the harness weight to zero.
+        This ensures that expired or cancelled tasks won't be selected for fuzzing.
+
+        Returns:
+            bool: True if any weights were updated, False otherwise
+        """
+        if not self.task_registry or not self.harness_map:
+            return False
+
+        # Get all harnesses and check if they should be updated
+        harnesses = self.harness_map.list_harnesses()
+        any_updated = False
+
+        for harness in harnesses:
+            # Skip harnesses that already have zero weight
+            if harness.weight <= 0:
+                continue
+
+            # Check if task should be stopped using the same function as other components
+            if self.should_stop_processing(harness.task_id):
+                # Create a new harness with zero weight
+                zero_weight_harness = WeightedHarness(
+                    weight=0.0,
+                    harness_name=harness.harness_name,
+                    package_name=harness.package_name,
+                    task_id=harness.task_id,
+                )
+
+                # Update the harness in the map
+                self.harness_map.push_harness(zero_weight_harness)
+
+                logger.info(
+                    f"Updated weight to 0 for cancelled/expired task {harness.task_id}, harness {harness.harness_name}"
+                )
+                any_updated = True
+
+        return any_updated
+
     def serve_item(self) -> bool:
         # Run all scheduler components and track if any did work
+        # Order is important: process_cancellations should be run first,
+        # followed by update_cached_cancelled_ids
         components = [
+            self.cancellation.process_cancellations,
+            self.update_cached_cancelled_ids,
             self.serve_ready_task,
             self.serve_build_output,
             self.serve_index_output,
-            self.cancellation.process_cancellations,
             self.vulnerabilities.process_traced_vulnerabilities,
             self.patches.process_patches,
+            self.update_expired_task_weights,
         ]
-        return any(component() for component in components)
+
+        # Execute each component and collect results
+        # This avoids short-circuiting in any() to ensure all components are executed
+        results = [component() for component in components]
+        return any(results)
 
     def serve(self):
         """Main orchestrator loop that drives task progress forward.

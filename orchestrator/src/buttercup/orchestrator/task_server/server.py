@@ -14,7 +14,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast
-from buttercup.orchestrator.task_server.backend import delete_task, new_task
+from buttercup.orchestrator.task_server.backend import delete_task, new_task, delete_all_tasks
 from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
 from buttercup.orchestrator.task_server.config import TaskServerSettings
@@ -168,11 +168,26 @@ def post_v1_task_(
 
 
 @app.delete("/v1/task/", response_model=str, tags=["task"])
-def delete_v1_task_() -> str:
+def delete_v1_task_(
+    credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
+    delete_task_queue: Annotated[ReliableQueue, Depends(get_delete_task_queue)],
+) -> str:
     """
-    Cancel Tasks
+    Cancel All Tasks
+
+    This endpoint allows canceling all existing tasks in the system. All tasks will be marked for deletion.
+
+    Args:
+        credentials: HTTP Basic authentication credentials required to access this endpoint
+        delete_task_queue: Queue for processing task deletion requests
+
+    Returns:
+        str: Empty string on successful deletion request
+
+    Raises:
+        HTTPException: If authentication fails
     """
-    pass
+    return delete_all_tasks(delete_task_queue)
 
 
 @app.delete("/v1/task/{task_id}/", response_model=str, tags=["task"])

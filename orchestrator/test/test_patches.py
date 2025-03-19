@@ -7,6 +7,7 @@ from buttercup.orchestrator.competition_api_client.models.types_patch_submission
     TypesPatchSubmissionResponse,
 )
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.registry import TaskRegistry
 import base64
 
 
@@ -46,12 +47,23 @@ def sample_patch():
 
 
 @pytest.fixture
-def patches(mock_redis, mock_api_client, mock_queues):
+def mock_task_registry():
+    task_registry = Mock(spec=TaskRegistry)
+    task_registry.is_cancelled.return_value = False
+    task_registry.is_expired.return_value = False
+    return task_registry
+
+
+@pytest.fixture
+def patches(mock_redis, mock_api_client, mock_queues, mock_task_registry):
     # Create Patches instance with mocked dependencies
     patches = Patches(redis=mock_redis, api_client=mock_api_client)
 
     # Manually set the queue to match our mock
     patches.patches_queue = mock_queues["patches"]
+
+    # Set our mocked task registry
+    patches.task_registry = mock_task_registry
 
     # Mock the patch API method we use
     patches.patch_api.v1_task_task_id_patch_post = Mock()
@@ -138,9 +150,13 @@ class TestProcessPatches:
 
         patches.patch_api.v1_task_task_id_patch_post.side_effect = Exception("API Error")
 
+        # Reset ack_item mock to clear any previous calls
+        mock_queues["patches"].ack_item.reset_mock()
+
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
-        mock_queues["patches"].ack_item.assert_not_called()
+        # The implementation acknowledges all items now, even on exception
+        mock_queues["patches"].ack_item.assert_called_once_with("test_id")
 
     def test_passed_patch_processes_successfully(self, patches, mock_queues, sample_patch):
         # Setup mock item and PASSED response
@@ -152,4 +168,24 @@ class TestProcessPatches:
 
         assert patches.process_patches() is True
         mock_queues["patches"].pop.assert_called_once()
+        mock_queues["patches"].ack_item.assert_called_once_with("test_id")
+
+    def test_cancelled_task_skips_patch_submission(self, patches, mock_queues, sample_patch, mock_task_registry):
+        # Setup mock item
+        mock_item = RQItem(item_id="test_id", deserialized=sample_patch)
+        mock_queues["patches"].pop.return_value = mock_item
+
+        # Configure mock_task_registry to report the task as cancelled
+        mock_task_registry.should_stop_processing.return_value = True
+
+        # Reset the mock call counters
+        patches.patch_api.v1_task_task_id_patch_post.reset_mock()
+        mock_queues["patches"].ack_item.reset_mock()
+
+        assert patches.process_patches() is True
+
+        # Verify the patch_api was NOT called (submission skipped)
+        patches.patch_api.v1_task_task_id_patch_post.assert_not_called()
+
+        # Verify the item was acknowledged
         mock_queues["patches"].ack_item.assert_called_once_with("test_id")

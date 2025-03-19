@@ -1,5 +1,4 @@
 import logging
-import time
 from dataclasses import dataclass, field
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
@@ -11,12 +10,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Cancellation:
-    """Handles task cancellation and timeout detection.
+    """Handles task cancellation.
 
     This class is responsible for:
     1. Processing task deletion requests from a queue
-    2. Checking for and handling timed out tasks
-    3. Maintaining the task registry state
+    2. Maintaining the task registry state by marking tasks as cancelled
+
+    Note: Task expiration (deadline checks) is handled separately through the registry's is_expired
+    method, used by the should_stop_processing utility function.
 
     Attributes:
         redis (Redis | None): Redis connection, will use default if None
@@ -39,52 +40,49 @@ class Cancellation:
         """Process a task deletion request by marking it as cancelled in the registry.
 
         Args:
-            delete_request: The TaskDelete request containing the task_id to cancel
+            delete_request: The TaskDelete request containing either a task_id to cancel
+                           or a boolean 'all' flag to cancel all tasks
 
         Returns:
-            bool: True if the task was successfully marked as cancelled, False otherwise
+            bool: True if any task was successfully marked as cancelled, False otherwise
         """
-        logger.info(f"Processing delete request for task {delete_request.task_id}")
-        task = self.registry.get(delete_request.task_id)
-        if task:
-            self.registry.mark_cancelled(task)
-            logger.info(
-                f"Task {delete_request.task_id}, cancel request received at {task.received_at}, marked as cancelled"
-            )
+        # Handle the case where 'all' is set to True
+        if delete_request.HasField("all") and delete_request.all:
+            logger.info(f"Processing delete request for ALL tasks, received at {delete_request.received_at}")
+            any_cancelled = False
+
+            # Iterate through all tasks and mark them as cancelled
+            for task in self.registry:
+                if not self.registry.is_cancelled(task):
+                    self.registry.mark_cancelled(task)
+                    logger.info(f"Task {task.task_id} marked as cancelled")
+                    any_cancelled = True
+
+            return any_cancelled
+
+        # Handle the case where a specific task_id is provided
+        elif delete_request.HasField("task_id"):
+            task_id = delete_request.task_id
+            logger.info(f"Processing delete request for task {task_id}")
+
+            # Mark task as cancelled directly by ID without fetching it first
+            self.registry.mark_cancelled(task_id)
+            logger.info(f"Task {task_id}, cancel request received at {delete_request.received_at}, marked as cancelled")
             return True
+
+        # Neither 'all' nor 'task_id' is set
         else:
-            logger.info(f"No task found for task_id {delete_request.task_id}")
+            logger.warning("Delete request missing both 'task_id' and 'all' fields, ignoring")
             return False
-
-    def check_timeouts(self) -> bool:
-        """Check for timed out tasks and mark them as cancelled in the registry.
-
-        Iterates through all tasks in the registry and marks any as cancelled that have passed
-        their deadline timestamp.
-
-        Returns:
-            bool: True if any task was cancelled, False otherwise
-        """
-        current_time = time.time()
-        any_cancelled = False
-
-        for task in self.registry:
-            if task.deadline < current_time:
-                logger.info(f"Task {task.task_id} has timed out, marking as cancelled")
-                self.registry.mark_cancelled(task)
-                any_cancelled = True
-
-        return any_cancelled
 
     def process_cancellations(self) -> bool:
         """Process one iteration of the cancellation loop.
 
-        Handles:
-        1. Processing any deletion requests from the queue
-        2. Checking for and handling any timed out tasks
+        Processes deletion requests from the queue and marks tasks as cancelled in the registry.
+        Task expiration is handled separately through the registry.is_expired method.
 
         Returns:
-            bool: True if any task was cancelled (via delete request or timeout), False otherwise
+            bool: True if any task was cancelled via delete request, False otherwise
         """
         any_cancellation = False
 
@@ -96,6 +94,4 @@ class Cancellation:
                 self.delete_queue.ack_item(delete_request.item_id)
                 any_cancellation = True
 
-        # Check for timed out tasks
-        any_cancellation |= self.check_timeouts()
         return any_cancellation

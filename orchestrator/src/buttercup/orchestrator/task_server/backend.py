@@ -76,3 +76,18 @@ def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
     task_delete = TaskDelete(task_id=str(task_id).lower(), received_at=time.time())
     delete_task_queue.push(task_delete)
     return ""
+
+
+def delete_all_tasks(delete_task_queue: ReliableQueue) -> str:
+    """
+    Delete all tasks by pushing a delete request with the 'all' flag to the task deletion queue.
+
+    Args:
+        delete_task_queue: Queue for processing task deletion requests
+
+    Returns:
+        Empty string on successful deletion request
+    """
+    task_delete = TaskDelete(all=True, received_at=time.time())
+    delete_task_queue.push(task_delete)
+    return ""

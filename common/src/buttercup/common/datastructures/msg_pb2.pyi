@@ -138,12 +138,14 @@ class Task(_message.Message):
     def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., cancelled: bool = ..., project_name: _Optional[str] = ..., focus: _Optional[str] = ...) -> None: ...
 
 class TaskDelete(_message.Message):
-    __slots__ = ["received_at", "task_id"]
+    __slots__ = ["all", "received_at", "task_id"]
+    ALL_FIELD_NUMBER: _ClassVar[int]
     RECEIVED_AT_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    all: bool
     received_at: float
     task_id: str
-    def __init__(self, task_id: _Optional[str] = ..., received_at: _Optional[float] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., all: bool = ..., received_at: _Optional[float] = ...) -> None: ...
 
 class TaskDownload(_message.Message):
     __slots__ = ["task"]

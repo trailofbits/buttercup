@@ -48,8 +48,8 @@ class Vulnerabilities:
 
         This method:
         1. Pops a vulnerability from the unique vulnerabilities queue
-        2. Checks if the associated task is cancelled
-        3. If not cancelled, submits the vulnerability to the competition API
+        2. Checks if the associated task is cancelled or expired
+        3. If not cancelled or expired, submits the vulnerability to the competition API
         4. If submission is successful, pushes to confirmed vulnerabilities queue
         5. Acknowledges the processed item
 
@@ -64,7 +64,8 @@ class Vulnerabilities:
         try:
             crash: TracedCrash = vuln_item.deserialized
 
-            if self.task_registry.is_cancelled(crash.crash.target.task_id):
+            # First check if we should stop processing this task (cancelled or expired)
+            if self.task_registry.should_stop_processing(crash.crash.target.task_id):
                 logger.info(
                     f"[{crash.crash.target.task_id}] Skipping cancelled task for harness: {crash.crash.harness_name}"
                 )

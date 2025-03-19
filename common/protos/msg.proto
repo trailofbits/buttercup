@@ -41,7 +41,10 @@ message TaskReady {
 }
 
 message TaskDelete {
-    string task_id = 1;
+    oneof delete_option {
+        string task_id = 1;
+        bool all = 3;
+    }
     float received_at = 2;
 }
 

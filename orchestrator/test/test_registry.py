@@ -1,7 +1,9 @@
 import pytest
-from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.orchestrator.registry import TaskRegistry, CANCELLED_TASKS_SET
 from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 from redis import Redis
+import time
+from typing import Set
 
 
 @pytest.fixture
@@ -104,7 +106,7 @@ def test_iter_tasks(task_registry, sample_task):
     assert task_ids == {"test123", "test456"}
 
 
-def test_iter_tasks_with_different_types(task_registry):
+def test_iter_tasks_with_different_types(task_registry, redis_client):
     # Create and add two different tasks
     full_task = Task(task_id="full123", task_type=Task.TaskType.TASK_TYPE_FULL, message_id="msg_full", cancelled=False)
     delta_task = Task(
@@ -114,6 +116,9 @@ def test_iter_tasks_with_different_types(task_registry):
     task_registry.set(full_task)
     task_registry.set(delta_task)
 
+    # Add to cancelled set - this is now the source of truth for cancellation
+    redis_client.sadd(CANCELLED_TASKS_SET, "delta456")
+
     assert len(task_registry) == 2
 
     # Verify we can get both types of tasks
@@ -121,15 +126,264 @@ def test_iter_tasks_with_different_types(task_registry):
     assert Task.TaskType.TASK_TYPE_FULL in task_types
     assert Task.TaskType.TASK_TYPE_DELTA in task_types
 
-    # Verify cancelled state is preserved
+    # Verify cancelled state - should match the cancelled set
     cancelled_states = {task.cancelled for task in task_registry}
     assert True in cancelled_states
     assert False in cancelled_states
 
+    # Verify specific tasks have correct cancelled state
+    tasks = {task.task_id: task.cancelled for task in task_registry}
+    assert tasks["full123"] is False
+    assert tasks["delta456"] is True
 
-def test_update_task(task_registry, sample_task):
+
+def test_update_task(task_registry, sample_task, redis_client):
+    # Set a task (cancelled flag doesn't matter)
     task_registry.set(sample_task)
-    assert not task_registry.get("test123").cancelled
-    sample_task.cancelled = True
-    task_registry.set(sample_task)
+    assert not task_registry.is_cancelled("test123")
+
+    # Add to cancelled set (this is what actually matters)
+    redis_client.sadd(CANCELLED_TASKS_SET, "test123")
+
+    # Now it should be reported as cancelled
+    assert task_registry.is_cancelled("test123")
     assert task_registry.get("test123").cancelled
+
+
+def test_mark_cancelled(task_registry, sample_task, redis_client):
+    # Add the task
+    task_registry.set(sample_task)
+    assert not task_registry.is_cancelled("test123")
+
+    # Mark as cancelled
+    task_registry.mark_cancelled(sample_task)
+
+    # Check that the task_id is in the cancelled tasks set
+    assert redis_client.sismember(CANCELLED_TASKS_SET, "test123")
+
+    # Check that is_cancelled reports the task as cancelled
+    assert task_registry.is_cancelled("test123")
+
+    # The original task object should be unchanged
+    assert not sample_task.cancelled
+
+    # But the retrieved task should reflect the cancelled state from the set
+    retrieved_task = task_registry.get("test123")
+    assert retrieved_task.cancelled
+
+
+def test_is_cancelled_with_set(task_registry, sample_task, redis_client):
+    # Add the task
+    task_registry.set(sample_task)
+
+    # Initially not cancelled
+    assert not task_registry.is_cancelled(sample_task)
+
+    # Add to the cancelled set directly
+    redis_client.sadd(CANCELLED_TASKS_SET, "test123")
+
+    # Should now report as cancelled because of the set
+    assert task_registry.is_cancelled(sample_task)
+
+    # Get the task directly - the set status should be reflected
+    retrieved_task = task_registry.get("test123")
+    assert retrieved_task.cancelled
+
+
+def test_delete_removes_from_set(task_registry, sample_task, redis_client):
+    # Add and cancel the task
+    task_registry.set(sample_task)
+    task_registry.mark_cancelled(sample_task)
+
+    # Verify it's in the set
+    assert redis_client.sismember(CANCELLED_TASKS_SET, "test123")
+
+    # Delete the task
+    task_registry.delete("test123")
+
+    # Verify it's removed from the set
+    assert not redis_client.sismember(CANCELLED_TASKS_SET, "test123")
+
+
+def test_is_expired(task_registry):
+    """Test the is_expired function with different cases"""
+    current_time = int(time.time())
+
+    # Create an expired task
+    expired_task = Task(
+        task_id="expired-task",
+        deadline=current_time - 1000,  # Deadline in the past
+    )
+
+    # Create a non-expired task
+    live_task = Task(
+        task_id="live-task",
+        deadline=current_time + 1000,  # Deadline in the future
+    )
+
+    # Add tasks to the registry
+    task_registry.set(expired_task)
+    task_registry.set(live_task)
+
+    # Test with task objects
+    assert task_registry.is_expired(expired_task) is True
+    assert task_registry.is_expired(live_task) is False
+
+    # Test with task IDs
+    assert task_registry.is_expired("expired-task") is True
+    assert task_registry.is_expired("live-task") is False
+
+    # Test with non-existent task ID
+    assert task_registry.is_expired("non-existent-task") is False
+
+
+def test_get_live_tasks(task_registry, redis_client):
+    # Create a variety of tasks
+    current_time = int(time.time())
+
+    # Active task (not cancelled, not expired)
+    live_task = Task(
+        task_id="live-task",
+        cancelled=False,  # cancelled flag doesn't matter, only the set
+        deadline=current_time + 1000,
+    )
+
+    # Task not in cancelled set but with cancelled=True (should be ignored)
+    ignored_cancelled_flag_task = Task(
+        task_id="ignored-cancelled-flag",
+        cancelled=True,  # This should be ignored since not in cancelled set
+        deadline=current_time + 1000,
+    )
+
+    # Expired task
+    expired_task = Task(task_id="expired-task", cancelled=False, deadline=current_time - 1000)
+
+    # Task in cancelled set
+    cancelled_task = Task(
+        task_id="cancelled-task",
+        cancelled=False,  # cancelled flag doesn't matter
+        deadline=current_time + 1000,
+    )
+
+    # Add all tasks to registry
+    task_registry.set(live_task)
+    task_registry.set(ignored_cancelled_flag_task)
+    task_registry.set(expired_task)
+    task_registry.set(cancelled_task)
+
+    # Add to cancelled set directly - only this matters for cancellation
+    redis_client.sadd(CANCELLED_TASKS_SET, "cancelled-task")
+
+    # Get live tasks
+    live_tasks = task_registry.get_live_tasks()
+
+    # Should include live_task and ignored_cancelled_flag_task
+    assert len(live_tasks) == 2
+    task_ids = {task.task_id for task in live_tasks}
+    assert "live-task" in task_ids
+    assert "ignored-cancelled-flag" in task_ids
+    assert "expired-task" not in task_ids
+    assert "cancelled-task" not in task_ids
+
+
+def test_get_cancelled_task_ids(task_registry, redis_client):
+    # Initially there are no cancelled tasks
+    assert task_registry.get_cancelled_task_ids() == []
+
+    # Add a few task IDs to the cancelled set
+    redis_client.sadd(CANCELLED_TASKS_SET, "task1")
+    redis_client.sadd(CANCELLED_TASKS_SET, "task2")
+    redis_client.sadd(CANCELLED_TASKS_SET, "task3")
+
+    # Get the cancelled task IDs
+    cancelled_ids = task_registry.get_cancelled_task_ids()
+
+    # Check that all expected IDs are in the result
+    assert len(cancelled_ids) == 3
+    assert set(cancelled_ids) == {"task1", "task2", "task3"}
+
+    # Remove one task ID from the cancelled set
+    redis_client.srem(CANCELLED_TASKS_SET, "task2")
+
+    # Check that the removed ID is no longer in the result
+    cancelled_ids = task_registry.get_cancelled_task_ids()
+    assert len(cancelled_ids) == 2
+    assert set(cancelled_ids) == {"task1", "task3"}
+
+
+# Tests for should_stop_processing utility function
+
+
+def test_should_stop_processing_with_cancelled_ids(task_registry):
+    """Test that should_stop_processing handles cancelled_ids correctly."""
+    # Create a set of cancelled IDs
+    cancelled_ids: Set[str] = {"cancelled-task-1", "cancelled-task-2"}
+
+    # Create tasks to test with
+    cancelled_task1 = Task(task_id="cancelled-task-1", deadline=int(time.time()) + 3600)
+    cancelled_task2 = Task(task_id="cancelled-task-2", deadline=int(time.time()) + 3600)
+    active_task = Task(task_id="active-task", deadline=int(time.time()) + 3600)
+
+    # Add tasks to registry
+    task_registry.set(cancelled_task1)
+    task_registry.set(cancelled_task2)
+    task_registry.set(active_task)
+
+    # Test with a task ID string that is in cancelled_ids
+    result = task_registry.should_stop_processing("cancelled-task-1", cancelled_ids)
+    assert result is True, "Should return True for task in cancelled_ids (string ID)"
+
+    # Test with a Task object that is in cancelled_ids
+    result = task_registry.should_stop_processing(cancelled_task2, cancelled_ids)
+    assert result is True, "Should return True for task in cancelled_ids (Task object)"
+
+    # Test with a task that is not in cancelled_ids
+    result = task_registry.should_stop_processing("active-task", cancelled_ids)
+    assert result is False, "Should return False for task not in cancelled_ids"
+
+
+def test_should_stop_processing_no_cancelled_ids(task_registry, redis_client):
+    """Test that should_stop_processing correctly uses is_cancelled when no cancelled_ids are provided."""
+    current_time = int(time.time())
+
+    # Create active task
+    active_task = Task(task_id="active-task", deadline=current_time + 3600)
+    task_registry.set(active_task)
+
+    # Create cancelled task and add to cancelled set
+    cancelled_task = Task(task_id="cancelled-task", deadline=current_time + 3600)
+    task_registry.set(cancelled_task)
+    redis_client.sadd(CANCELLED_TASKS_SET, "cancelled-task")
+
+    # Test with a task ID string (no cancelled_ids)
+    result = task_registry.should_stop_processing("active-task")
+    assert result is False, "Should return False for non-cancelled, non-expired task"
+
+    # Test with a Task object that is cancelled
+    result = task_registry.should_stop_processing(cancelled_task)
+    assert result is True, "Should return True for cancelled task"
+
+
+def test_should_stop_processing_expired_task(task_registry):
+    """Test that should_stop_processing returns True for expired tasks."""
+    current_time = int(time.time())
+
+    # Create an expired task (deadline in the past)
+    expired_task = Task(task_id="expired-task", deadline=current_time - 3600)
+    task_registry.set(expired_task)
+
+    # Create an active task (deadline in the future)
+    active_task = Task(task_id="active-task", deadline=current_time + 3600)
+    task_registry.set(active_task)
+
+    # Test with a task ID string that is expired
+    result = task_registry.should_stop_processing("expired-task")
+    assert result is True, "Should return True for expired task (string ID)"
+
+    # Test with a Task object that is expired
+    result = task_registry.should_stop_processing(expired_task)
+    assert result is True, "Should return True for expired task (Task object)"
+
+    # Test with a task that is not expired
+    result = task_registry.should_stop_processing("active-task")
+    assert result is False, "Should return False for non-expired task"
