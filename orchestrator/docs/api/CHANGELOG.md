@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.1
+
+- correct typo in swagger docs tags for freeform submission
+
 ## v1.1
 
 - add ping endpoint to test network connectivity and credentials

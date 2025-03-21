@@ -59,7 +59,7 @@ def new_task(task: Task, tasks_queue: ReliableQueue) -> str:
         tasks_queue.push(task_download)
         logger.info(f"New task: {task_proto}")
 
-    return task_proto.task_id
+    return "DONE"
 
 
 def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:

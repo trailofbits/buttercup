@@ -1,7 +1,6 @@
-#!/bin/bash -x
+#!/bin/bash -xe
 
 OUTPUT_DIR=$1
-TASK_SERVER_PATCH=$2
 
 # Ensure python3.12 is installed
 PYTHON_CMD="python3.12"
@@ -73,8 +72,6 @@ sed -i.bak 's/from .models/from buttercup.orchestrator.task_server.models/g' "$O
 sed -i.bak '/from uuid import UUID/d' "$OUTPUT_DIR/src/buttercup/orchestrator/task_server/models/types.py"
 sed -i.bak 's/UUID/str/g' "$OUTPUT_DIR/src/buttercup/orchestrator/task_server/models/types.py"
 
-# apply HTTP auth patch
-cd "$OUTPUT_DIR/src/buttercup/orchestrator/task_server" || exit 1
-patch < "$TASK_SERVER_PATCH"
+echo "Look at server.py and adjust as needed (HTTP auth, etc.)"
 
 rm -rf "$TEMPDIR"

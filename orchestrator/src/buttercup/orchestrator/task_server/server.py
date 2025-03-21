@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated, Optional
 from uuid import UUID
+import time
 
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerifyMismatchError
@@ -13,7 +14,7 @@ from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
-from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast
+from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast, StatusState, StatusTasksState
 from buttercup.orchestrator.task_server.backend import delete_task, new_task, delete_all_tasks
 from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
@@ -125,7 +126,22 @@ def get_status_(
     """
     CRS Status
     """
-    pass
+    return Status(
+        ready=False,
+        since=int(time.time()),
+        state=StatusState(
+            tasks=StatusTasksState(
+                canceled=0,
+                errored=0,
+                failed=0,
+                pending=0,
+                processing=0,
+                succeeded=0,
+                waiting=0,
+            ),
+        ),
+        version="0.3",
+    )
 
 
 @app.delete("/status/", response_model=str, tags=["status"])
@@ -163,8 +179,7 @@ def post_v1_task_(
     """
     Submit Task
     """
-    task_id = new_task(body, tasks_queue)
-    return task_id
+    return new_task(body, tasks_queue)
 
 
 @app.delete("/v1/task/", response_model=str, tags=["task"])
