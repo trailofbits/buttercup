@@ -17,6 +17,11 @@ class TaskServerSettings(BaseSettings):
     api_key_id: Annotated[str, Field(default="", description="API key ID for authentication")]
     api_token_hash: Annotated[str, Field(default="", description="Argon2id hash of the API token")]
 
+    # Competition API configuration
+    competition_api_url: Annotated[str, Field(default="http://localhost:1323", description="Competition API URL")]
+    competition_api_username: Annotated[str, Field(default="", description="Competition API username")]
+    competition_api_password: Annotated[str, Field(default="", description="Competition API password")]
+
     class Config:
         env_prefix = "BUTTERCUP_TASK_SERVER_"
         env_file = ".env"

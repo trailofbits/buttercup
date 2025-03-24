@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from typing import Annotated, Optional
 from uuid import UUID
-import time
 
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerifyMismatchError
@@ -20,6 +19,10 @@ from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue
+from urllib3.exceptions import MaxRetryError, NewConnectionError
+from buttercup.orchestrator.api_client_factory import create_api_client
+from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
+from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
 
 settings = get_settings()
 logger = setup_package_logger(__name__, settings.log_level)
@@ -126,22 +129,43 @@ def get_status_(
     """
     CRS Status
     """
-    return Status(
-        ready=False,
-        since=int(time.time()),
-        state=StatusState(
-            tasks=StatusTasksState(
-                canceled=0,
-                errored=0,
-                failed=0,
-                pending=0,
-                processing=0,
-                succeeded=0,
-                waiting=0,
-            ),
-        ),
-        version="0.3",
+
+    def is_competition_api_ready():
+        is_ready = False
+        api_client = create_api_client(
+            competition_api_url=settings.competition_api_url,
+            competition_api_username=settings.competition_api_username,
+            competition_api_password=settings.competition_api_password,
+        )
+        api = PingApi(api_client=api_client)
+
+        response = None
+        try:
+            response: TypesPingResponse = api.v1_ping_get()
+        except (MaxRetryError, NewConnectionError):
+            is_ready = False
+
+        if isinstance(response, TypesPingResponse):
+            if response.status:
+                is_ready = True
+
+        return is_ready
+
+    ready: bool = is_competition_api_ready()
+
+    details = {}
+    tasks = StatusTasksState(
+        canceled=0,
+        errored=0,
+        failed=0,
+        pending=0,
+        processing=0,
+        succeeded=0,
+        waiting=0,
     )
+    state = StatusState(tasks=tasks)
+    version = "0.3"
+    return Status(details=details, ready=ready, since=0, state=state, version=version)
 
 
 @app.delete("/status/", response_model=str, tags=["status"])

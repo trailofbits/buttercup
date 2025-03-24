@@ -3,7 +3,7 @@ from typing import Generator
 from uuid import uuid4
 import time
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from fastapi.encoders import jsonable_encoder
 from buttercup.orchestrator.task_server.models.types import (
     Task,
@@ -12,6 +12,7 @@ from buttercup.orchestrator.task_server.models.types import (
     SourceType,
     TaskType,
 )
+from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
 
 
 # Patch at module level before any other imports
@@ -29,6 +30,11 @@ class TestSettings:
     )
     log_level: str = "debug"
     redis_url: str = "redis://localhost:6379"
+
+    # Competition API configuration
+    competition_api_url: str = "http://localhost:1323"
+    competition_api_username: str = "11111111-1111-1111-1111-111111111111"
+    competition_api_password: str = "secret"
 
 
 settings = TestSettings()
@@ -58,13 +64,23 @@ def test_get_status_unauthorized(client: TestClient) -> None:
     assert "WWW-Authenticate" in response.headers
 
 
-def test_get_status_authorized(client: TestClient) -> None:
+@patch("buttercup.orchestrator.task_server.server.create_api_client")
+@patch("time.time")
+def test_get_status_authorized(mock_time, mock_create_api_client, client: TestClient) -> None:
     """Test that status endpoint works with valid credentials"""
+    # Mock time to return a fixed timestamp
+    mock_time.return_value = 1234567890
+
+    # Mock the API client and its response
+    mock_api = MagicMock()
+    mock_api.v1_ping_get.return_value = TypesPingResponse(status="false")
+    mock_create_api_client.return_value = mock_api
+
     response = client.get("/status/", auth=(settings.api_key_id, settings.api_token))
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
     assert not response.json()["ready"]
-    assert response.json()["since"] > 0
+    assert response.json()["since"] == 0
     assert response.json()["state"]["tasks"]["canceled"] == 0
     assert response.json()["state"]["tasks"]["errored"] == 0
     assert response.json()["state"]["tasks"]["failed"] == 0
