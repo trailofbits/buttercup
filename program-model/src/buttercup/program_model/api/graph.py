@@ -34,7 +34,7 @@ class Graph:
         properties = {}
         for k, v in obj.items():
             if k != T.id and k != T.label:
-                properties[k] = decode_value(v)
+                properties[k] = decode_value(v).decode("utf-8")
         return properties
 
     def _decode_node(self, node: dict) -> Node:
