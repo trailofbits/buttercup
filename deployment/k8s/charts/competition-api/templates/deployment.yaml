@@ -17,11 +17,38 @@ spec:
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: competition-api
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.global.competitionApiImage.repository }}:{{ .Values.global.competitionApiImage.tag }}"
+          imagePullPolicy: {{ .Values.global.competitionApiImage.pullPolicy }}
+          securityContext:
+            privileged: true
+          args: ["server"]
           ports:
             - name: http
-              containerPort: 1323
+              containerPort: {{ .Values.service.port }}
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            {{- include "buttercup.dockerHostEnv" . | nindent 12 }}
+            - name: SCANTRON_GITHUB_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: ghcr
+                  key: pat
+          volumeMounts:
+            - name: scantron-config
+              mountPath: /etc/scantron/scantron.yaml
+              subPath: scantron.yaml
+        {{- include "buttercup.dindSidecar" . | nindent 8 }}
+      volumes:
+        {{- include "buttercup.dindVolume" . | nindent 8 }}
+        {{- include "buttercup.volumes.scratch" . | nindent 8 }}
+        - name: scantron-config
+          configMap:
+            name: {{ .Release.Name }}-scantron-config
+        {{- if .Values.extraVolumeMounts }}
+        {{- range .Values.extraVolumeMounts }}
+        - name: {{ .name }}
+          emptyDir: {}
+        {{- end }}
+        {{- end }}

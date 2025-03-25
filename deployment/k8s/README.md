@@ -49,6 +49,15 @@ This is controlled via the `global.environment` setting in the values.yaml or va
        apiKey: "your-openai-api-key"
      anthropic: 
        apiKey: "your-anthropic-api-key"
+
+   crs:
+      api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
+      api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
+      api_key_token_hash: "$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A$wa/85ttk17bBsIASSwdR/uGz5UKN/bZuu4wu+JIy1iA"
+      # api_url: "https://api.tail7e9b4c.ts.net"
+      competition_api_key_id: 11111111-1111-1111-1111-111111111111
+      competition_api_key_token: secret
+      # competition_api_url: "https://api.tail7e9b4c.ts.net"
    ```
 
 3. **Install the Helm chart:**
@@ -90,11 +99,10 @@ If Langfuse integration is enabled:
 For pulling private container images, create a Kubernetes secret named `ghcr-auth`:
 
 ```bash
-kubectl create secret docker-registry ghcr-auth \
-  --docker-server=ghcr.io \
-  --docker-username=YOUR_GITHUB_USERNAME \
-  --docker-password=YOUR_GITHUB_PAT \
-  --docker-email=YOUR_EMAIL
+kubectl create secret generic ghcr \
+  --from-literal=pat=YOUR_GITHUB_PAT \
+  --from-literal=username=YOUR_GITHUB_USERNAME \
+  --from-literal=email=YOUR_EMAIL
 ```
 
 ## System Architecture

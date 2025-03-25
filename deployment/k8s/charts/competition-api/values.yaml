@@ -1,22 +1,31 @@
 # Default values for competition-api chart
 replicaCount: 1
 
-image:
-  repository: ghcr.io/aixcc-finals/example-crs-architecture/example-competition-api
-  tag: v0.1
-  pullPolicy: IfNotPresent
-
 service:
-  type: ClusterIP
+  type: NodePort
   port: 1323
+  nodePort: 31323
 
 resources:
-  limits:
-    cpu: 200m
-    memory: 256Mi
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+dind:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 2Gi
+
+extraVolumeMounts:
+  - name: tmp-storage
+    mountPath: /tmp
 
 nodeSelector: {}
 tolerations: []

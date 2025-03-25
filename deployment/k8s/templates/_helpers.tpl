@@ -58,6 +58,12 @@ Define Docker-in-Docker sidecar container
       mountPath: {{ include "buttercup.dirs.crs_scratch" . }}
     - name: dind-storage
       mountPath: /var/lib/docker
+    {{- if .Values.extraVolumeMounts }}
+    {{- range .Values.extraVolumeMounts }}
+    - name: {{ .name }}
+      mountPath: {{ .mountPath }}
+    {{- end }}
+    {{- end }}
 {{- end -}}
 
 {{/*

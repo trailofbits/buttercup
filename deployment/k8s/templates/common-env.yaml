@@ -147,9 +147,15 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_TASK_SERVER_WORKERS
   value: "1"
 - name: BUTTERCUP_TASK_SERVER_API_KEY_ID
-  value: "515cc8a0-3019-4c9f-8c1c-72d0b54ae561"
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: CRS_API_KEY_ID
 - name: BUTTERCUP_TASK_SERVER_API_TOKEN_HASH
-  value: '$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A$wa/85ttk17bBsIASSwdR/uGz5UKN/bZuu4wu+JIy1iA'
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: CRS_API_KEY_TOKEN_HASH
 {{- end }}
 
 {{- define "buttercup.schedulerEnv" }}
@@ -164,7 +170,20 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_SCHEDULER_SERVE__REDIS_URL
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_SCHEDULER_SERVE__COMPETITION_API_URL
-  value: "http://{{ .Release.Name }}-competition-api:{{ .Values.competitionApi.port | default 1323 }}"
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: COMPETITION_API_URL
+- name: COMPETITION_API_KEY_ID
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: COMPETITION_API_KEY_ID
+- name: COMPETITION_API_KEY_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: COMPETITION_API_KEY_TOKEN
 {{- end }}
 
 {{- define "buttercup.patcherEnv" }}
@@ -180,4 +199,9 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_PATCHER_DEV_MODE
   value: "false"
+{{- end }}
+
+{{- define "buttercup.buildBotEnv" }}
+- name: BUTTERCUP_FUZZER_LOG_LEVEL
+  value: {{ include "buttercup.core.logLevel" . }}
 {{- end }}

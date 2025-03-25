@@ -27,14 +27,25 @@ global:
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
+  competitionApiImage:
+    repository: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api
+    tag: v1.1-rc4
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
   # Langfuse global configuration for all subcharts
   langfuse:
     enabled: false
     host: "https://cloud.langfuse.com"
     publicKey: "pk-lf-..."  # Replace with your actual public key
     secretKey: "sk-lf-..."  # Replace with your actual secret key
-
-
+  crs:
+    api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
+    api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
+    api_key_token_hash: "$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A$wa/85ttk17bBsIASSwdR/uGz5UKN/bZuu4wu+JIy1iA"
+    # api_url: "https://api.tail7e9b4c.ts.net"
+    competition_api_key_id: 11111111-1111-1111-1111-111111111111
+    competition_api_key_token: secret
+    # competition_api_url: "https://api.tail7e9b4c.ts.net"
 
 # Volume configurations
 volumes:
@@ -93,8 +104,6 @@ task-downloader:
   
 scheduler:
   enabled: true
-  competitionApi:
-    port: 1323
   resources:
     limits:
       cpu: 300m
@@ -118,6 +127,7 @@ build-bot:
   replicaCount: 4
   enabled: true
   timer: 5000
+  logLevel: "DEBUG"
   resources:
     limits:
       cpu: 200m
@@ -301,19 +311,12 @@ litellm-helm:
 # Competition API configuration
 competition-api:
   enabled: true
-  image:
-    repository: ghcr.io/aixcc-finals/example-crs-architecture/example-competition-api
-    tag: v0.1
-    pullPolicy: Always
-    pullSecrets: ["ghcr-auth"]
   service:
     port: 1323
   resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
     requests:
-      cpu: 100m
-      memory: 128Mi
-
-
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi

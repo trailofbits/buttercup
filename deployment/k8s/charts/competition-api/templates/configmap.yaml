@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-scantron-config
+data:
+  scantron.yaml: |
+    {{- $competition_api_key_id := .Values.global.crs.competition_api_key_id | quote }}
+    {{- $competition_api_key_token := .Values.global.crs.competition_api_key_token | default "" }}
+    {{- $crs_api_url := .Values.global.crs.api_url | default (printf "http://%s-task-server.%s.svc.cluster.local:8000" .Release.Name .Release.Namespace) | quote }}
+    {{- $crs_api_key_id := .Values.global.crs.api_key_id | quote }}
+    {{- $crs_api_key_token := .Values.global.crs.api_key_token | default "" }}
+    teams:
+      - id: {{ $competition_api_key_id }}
+        note: Test Key for Local Auth
+        api_key:
+          token: {{ $competition_api_key_token }}
+          active: true
+          permissions:
+            crs: true
+            competition_management: true
+        crs:
+          taskme: true
+          url: {{ $crs_api_url }}
+          api_key_id: {{ $crs_api_key_id }}
+          api_key_token: {{ $crs_api_key_token }}
+
+    logging:
+      gorm:
+        level: 0
+        trace_queries: true
+      app:
+        level: -4
+
+    round_id: testing
+
+    listen_address: "[::]:1323"
+    api_host_and_port: "{{ .Release.Name }}-competition-api.{{ .Release.Namespace }}.svc.cluster.local:1323"

@@ -1,5 +1,5 @@
 #!/bin/bash
-curl -X 'POST' 'http://localhost:1323/webhook/trigger_task' -H 'Content-Type: application/json' -d '{
+curl -X 'POST' 'http://127.0.0.1:31323/webhook/trigger_task' -H 'Content-Type: application/json' -d '{
     "challenge_repo_url": "git@github.com:aixcc-finals/example-libpng.git",
     "challenge_repo_base_ref": "0cc367aaeaac3f888f255cee5d394968996f736e",
     "challenge_repo_head_ref": "2c894c66108f0724331a9e5b4826e351bf2d094b",

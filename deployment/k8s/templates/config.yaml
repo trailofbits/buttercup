@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-crs-config
+type: Opaque
+stringData:
+  CRS_API_KEY_TOKEN: "{{ .Values.global.crs.api_key_token }}"
+  CRS_API_KEY_TOKEN_HASH: "{{ .Values.global.crs.api_key_token_hash }}"
+  COMPETITION_API_KEY_TOKEN: "{{ .Values.global.crs.competition_api_key_token }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-crs-config
+data:
+  CRS_API_KEY_ID: "{{ .Values.global.crs.api_key_id }}"
+  CRS_API_URL: "{{ .Values.global.crs.api_url | default (printf "http://%s-task-server.%s.svc.cluster.local:8000" .Release.Name .Release.Namespace) }}"
+  COMPETITION_API_URL: "{{ .Values.global.crs.competition_api_url | default (printf "http://%s-competition-api.%s.svc.cluster.local:1323" .Release.Name .Release.Namespace) }}"
+  COMPETITION_API_KEY_ID: "{{ .Values.global.crs.competition_api_key_id }}"
