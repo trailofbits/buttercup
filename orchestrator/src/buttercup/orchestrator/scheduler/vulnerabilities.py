@@ -73,6 +73,9 @@ class Vulnerabilities:
                 confirmed_vuln = self.submit_pov(crash)
                 if confirmed_vuln is not None:
                     self.confirmed_vulnerabilities_queue.push(confirmed_vuln)
+                    logger.info(
+                        f"[{crash.crash.target.task_id}] Pushed Confirmed POV {confirmed_vuln.vuln_id} for harness: {crash.crash.harness_name}"
+                    )
 
             self.traced_vulnerabilities_queue.ack_item(vuln_item.item_id)
         except Exception as e:

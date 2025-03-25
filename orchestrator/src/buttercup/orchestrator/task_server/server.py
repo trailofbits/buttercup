@@ -26,6 +26,11 @@ from buttercup.orchestrator.competition_api_client.models.types_ping_response im
 
 settings = get_settings()
 logger = setup_package_logger(__name__, settings.log_level)
+logger.info("Redis URL: %s", settings.redis_url)
+logger.info("Competition API URL: %s", settings.competition_api_url)
+logger.info("Competition API Key ID: %s", settings.competition_api_username)
+logger.info("API Key ID: %s", settings.api_key_id)
+
 
 app = FastAPI(
     title="Buttercup CRS API",

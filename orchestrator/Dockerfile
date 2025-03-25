@@ -29,7 +29,7 @@ FROM python:${PYTHON_BASE} AS runtime
 
 # Install required system packages
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y patch && \
+    apt-get install -y patch curl && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/orchestrator/.venv /app/orchestrator/.venv
