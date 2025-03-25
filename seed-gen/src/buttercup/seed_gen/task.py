@@ -47,7 +47,10 @@ class Task:
         llm = create_default_llm(
             model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value, callbacks=llm_callbacks
         )
-        return llm
+        fallback_llm = create_default_llm(
+            model_name=ButtercupLLM.OPENAI_GPT_4O.value, callbacks=llm_callbacks
+        )
+        return llm.with_fallbacks([fallback_llm])
 
     def get_harness_source(self) -> str | None:
         logger.info("Getting harness source for %s | %s", self.package_name, self.harness_name)
