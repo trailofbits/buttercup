@@ -1,5 +1,5 @@
 from typing import Generic, TypeVar, Type, Iterator
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, FunctionCoverage
 from redis import Redis
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from google.protobuf.message import Message
@@ -36,6 +36,7 @@ class RedisMap(Generic[MsgType]):
 HARNESS_WEIGHTS_MAP_NAME = "harness_weights"
 BUILD_MAP_NAME = "build_list"
 BUILD_SAN_MAP_NAME = "build_san_list"
+COVERAGE_MAP_PREFIX = "coverage_map"
 
 
 class BUILD_TYPES(str, Enum):
@@ -101,3 +102,40 @@ class HarnessWeights:
         ]
         key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
         self.mp.set(key_str, harness)
+
+
+class CoverageMap:
+    def __init__(self, redis: Redis, harness_name: str, package_name: str, task_id: str):
+        self.redis = redis
+        self.harness_name = harness_name
+        self.package_name = package_name
+        self.task_id = task_id
+        hash_name = [
+            COVERAGE_MAP_PREFIX,
+            harness_name,
+            package_name,
+            task_id,
+        ]
+        hash_name_str = dumps(hash_name, json_options=CANONICAL_JSON_OPTIONS)
+        self.mp: RedisMap[FunctionCoverage] = RedisMap(redis, hash_name_str, FunctionCoverage)
+
+    def set_function_coverage(self, function_coverage: FunctionCoverage) -> None:
+        # function paths should be sorted and unique
+        key = [
+            function_coverage.function_name,
+            function_coverage.function_paths,
+        ]
+        key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
+        self.mp.set(key_str, function_coverage)
+
+    def get_function_coverage(self, function_name: str, function_paths: list[str]) -> FunctionCoverage | None:
+        # function paths should be sorted and unique
+        key = [
+            function_name,
+            function_paths,
+        ]
+        key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
+        return self.mp.get(key_str)
+
+    def list_function_coverage(self) -> list[FunctionCoverage]:
+        return list(iter(self.mp))

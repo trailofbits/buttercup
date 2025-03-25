@@ -1499,6 +1499,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "common" },
+    { name = "numpy" },
     { name = "program-model" },
     { name = "redis" },
     { name = "wasmtime" },
@@ -1516,6 +1517,7 @@ dev = [
 requires-dist = [
     { name = "common", editable = "../common" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "~=1.15.0" },
+    { name = "numpy", specifier = "~=2.2.3" },
     { name = "program-model", editable = "../program-model" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "~=8.3.4" },
     { name = "redis", specifier = "~=5.2.1" },

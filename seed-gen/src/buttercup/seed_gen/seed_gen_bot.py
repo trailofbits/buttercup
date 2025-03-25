@@ -15,6 +15,7 @@ from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.seed_gen.function_selector import FunctionSelector
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 class SeedGenBot(TaskLoop):
     def __init__(self, redis: Redis, timer_seconds: int, wdir: str):
         self.wdir = wdir
+        self.redis = redis
         self.crash_set = CrashSet(redis)
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
         super().__init__(redis, timer_seconds)
@@ -118,8 +120,17 @@ class SeedGenBot(TaskLoop):
                 seed_explore = SeedExploreTask(
                     task.package_name, task.harness_name, challenge_task, codequery
                 )
-                function_name = "png_handle_tRNS"
-                function_paths = [Path("pngrutil.c")]
+
+                function_selector = FunctionSelector(self.redis)
+                selected_function = function_selector.sample_function(task)
+
+                if selected_function is None:
+                    logger.error("No function selected from coverage data, canceling seed-explore")
+                    return
+
+                function_name = selected_function.function_name
+                function_paths = [Path(path_str) for path_str in selected_function.function_paths]
+
                 seed_explore.do_task(function_name, function_paths, out_dir)
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")

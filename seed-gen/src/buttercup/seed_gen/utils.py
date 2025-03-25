@@ -62,3 +62,11 @@ def get_diff_content(diffs: list[Path]) -> str | None:
         logger.warning("Multiple diffs found, using the first one")
     diff_content = diffs[0].read_text()
     return diff_content
+
+
+def rebase_src_path(path: Path, project_name: str) -> Path:
+    """Rebase the src path to be relative for codequery"""
+    src_path = Path(f"/src/{project_name}/")
+    if path.is_relative_to(src_path):
+        return path.relative_to(src_path)
+    return path

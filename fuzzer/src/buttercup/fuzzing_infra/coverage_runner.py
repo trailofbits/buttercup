@@ -41,7 +41,7 @@ class CoverageRunner:
         # load the coverage file
         coverage = ret.stdout.decode("utf-8")
         coverage = json.loads(coverage)
-        logging.info(f"Coverage for {harness_name} | {corpus_dir} | {package_name} | in {len(coverage)}")
+        logger.info(f"Coverage for {harness_name} | {corpus_dir} | {package_name} | in {len(coverage)}")
 
         return coverage
 

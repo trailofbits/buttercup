@@ -58,6 +58,18 @@ class Crash(_message.Message):
     target: BuildOutput
     def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_name: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ...) -> None: ...
 
+class FunctionCoverage(_message.Message):
+    __slots__ = ["covered_lines", "function_name", "function_paths", "total_lines"]
+    COVERED_LINES_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_PATHS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_LINES_FIELD_NUMBER: _ClassVar[int]
+    covered_lines: int
+    function_name: str
+    function_paths: _containers.RepeatedScalarFieldContainer[str]
+    total_lines: int
+    def __init__(self, function_name: _Optional[str] = ..., function_paths: _Optional[_Iterable[str]] = ..., total_lines: _Optional[int] = ..., covered_lines: _Optional[int] = ...) -> None: ...
+
 class IndexOutput(_message.Message):
     __slots__ = ["build_type", "package_name", "sanitizer", "task_dir", "task_id"]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
