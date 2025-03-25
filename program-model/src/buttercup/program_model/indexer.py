@@ -41,7 +41,12 @@ class Indexer:
             f"BASE_IMAGE={base_image_name}",
             ".",
         ]
-        subprocess.run(command, check=True, cwd=wdir)
+        result = subprocess.run(command, check=True, cwd=wdir)
+        if result.returncode != 0:
+            logger.error(
+                f"Failed to build image for {task.task_meta.task_id}. Return code: {result.returncode}"
+            )
+            return None
         logger.debug(f"Finished building image for {task.task_meta.task_id}")
         return emitted_image
 
@@ -55,6 +60,19 @@ class Indexer:
         output_dir = f"{self.conf.wdir}/output_{indexuid}"
         os.makedirs(output_dir, exist_ok=True)
         workdir = task.workdir_from_dockerfile().absolute().as_posix()
+
+        # Log directory information
+        logger.debug(f"Task source path: {task.get_source_path().absolute()}")
+        logger.debug(f"Work directory: {workdir}")
+        logger.debug(f"Output directory: {output_dir}")
+
+        # Verify directories exist
+        if not task.get_source_path().exists():
+            logger.error(
+                f"Source path does not exist: {task.get_source_path().absolute()}"
+            )
+            return None
+
         command = [
             "docker",
             "run",
@@ -65,12 +83,16 @@ class Indexer:
             "-e",
             "KYTHE_OUTPUT_DIRECTORY=/kythe_out",
             "-e",
-            # TODO(Ian): this should be the task_id
             f"KYTHE_CORPUS={task.task_meta.task_id}",
             emitted_image,
             "compile_and_extract",
         ]
-        subprocess.run(command, check=True)
+        result = subprocess.run(command, check=True)
+        if result.returncode != 0:
+            logger.error(
+                f"Failed to index target {task.task_meta.task_id}. Return code: {result.returncode}"
+            )
+            return None
         logger.debug(f"Finished indexing target {task.task_meta.task_id}")
         return output_dir
 

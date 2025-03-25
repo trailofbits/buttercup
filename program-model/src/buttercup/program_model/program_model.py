@@ -1,6 +1,7 @@
 import logging
 import os
 import stat
+import uuid
 from dataclasses import dataclass, field
 from buttercup.common.queues import (
     QueueFactory,
@@ -18,7 +19,6 @@ from buttercup.common.utils import serve_loop
 from pathlib import Path
 from redis import Redis
 import subprocess
-import uuid
 import tempfile
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,46 @@ class ProgramModel:
     def cleanup(self):
         """Cleanup resources used by the program model"""
         pass
+
+    def index_kythe(
+        self, task_id: str, output_id: str, output_dir: Path, td: Path
+    ) -> Path:
+        """Index using kythe. Returns path to the index binary file."""
+        ktool = KytheTool(KytheConf(self.kythe_dir))
+        merged_kzip = Path(td) / f"kythe_output_merge_{output_id}.kzip"
+        ktool.merge_kythe_output(output_dir, merged_kzip)
+
+        # Convert the merged kzip file into a binary file
+        bin_file = Path(td) / f"kythe_output_cxx_{output_id}.bin"
+        try:
+            ktool.cxx_index(merged_kzip, bin_file)
+        except Exception as e:
+            logger.error(f"Failed to index program {task_id} to binary: {bin_file}")
+            raise e
+
+        return bin_file
+
+    def store_graphml(
+        self, task_id: str, output_id: str, bin_file: Path, td: Path
+    ) -> Path:
+        """Store the program into a graphml file. Returns path to the graphml file."""
+        graphml_file = Path(td) / f"kythe_output_graphml_{output_id}.xml"
+        with open(graphml_file, "w") as fw, open(bin_file, "rb") as fr:
+            gs = GraphStorage(task_id=task_id)
+            gs.process_stream(fr)
+            fw.write(gs.to_graphml())
+        return graphml_file
+
+    def load_graphml(self, graphml_file: Path) -> None:
+        """Load graphml file into graph database."""
+        # TODO(Evan): This needs to wait until JanusGraph is ready. For some reason, even if the container is running and healthy, it's not ready to accept connections.
+        from gremlin_python.process.anonymous_traversal import traversal
+        from gremlin_python.driver.driver_remote_connection import (
+            DriverRemoteConnection,
+        )
+
+        g = traversal().withRemote(DriverRemoteConnection(self.graphdb_url, "g"))
+        g.io(str(graphml_file)).read().iterate()
 
     def process_task_kythe(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
@@ -104,6 +144,18 @@ class ProgramModel:
                     )
                     indexer = Indexer(indexer_conf)
                     output_dir = indexer.index_target(local_tsk)
+
+                    # Because docker is running as root, we need to chown the output directory to the current user
+                    subprocess.run(
+                        [
+                            "sudo",
+                            "chown",
+                            "-R",
+                            f"{os.getuid()}:{os.getgid()}",
+                            local_tsk.local_task_dir,
+                        ],
+                        check=True,
+                    )
                 except Exception as e:
                     logger.error(f"Failed to index task {args.task_id}: {e}")
                     return False
@@ -112,71 +164,41 @@ class ProgramModel:
                     return False
                 logger.info(f"Successfully indexed task {args.task_id}")
 
-                # Merge index files
-                try:
-                    output_id = str(uuid.uuid4())
-                    ktool = KytheTool(KytheConf(self.kythe_dir))
-                    merged_kzip = Path(td) / f"kythe_output_merge_{output_id}.kzip"
-                    ktool.merge_kythe_output(output_dir, merged_kzip)
-                except Exception as e:
-                    logger.error(f"Failed to merge index files for {args.task_id}: {e}")
-                    return False
+                output_id = str(uuid.uuid4())
 
-                # Convert the merged kzip file into a binary file
-                bin_file = Path(td) / f"kythe_output_cxx_{output_id}.bin"
                 try:
-                    ktool.cxx_index(merged_kzip, bin_file)
-                    logger.info(
-                        f"Successfully indexed program {args.task_id} to binary: {bin_file}"
-                    )
-                except subprocess.CalledProcessError:
-                    # TODO(Evan): For now, if this errors just keep going. After fixing kythe issues, add "return False" or just remove this exception entirely
-                    logger.error(
-                        f"Failed to index program {args.task_id} to binary: {bin_file}"
-                    )
+                    bin_file = self.index_kythe(args.task_id, output_id, output_dir, td)
                 except Exception as e:
-                    logger.error(
-                        f"Failed to index program {args.task_id} to binary {bin_file}: {e}"
-                    )
+                    logger.error(f"Failed to index files for {args.task_id}: {e}")
                     return False
+                logger.info(
+                    f"Successfully indexed and merged kythe output for {args.task_id} to {bin_file}"
+                )
 
                 # Store the program into a graphml file
                 try:
-                    graphml = Path(td) / f"kythe_output_graphml_{output_id}.xml"
-                    with open(graphml, "w") as fw, open(bin_file, "rb") as fr:
-                        gs = GraphStorage(task_id=args.task_id)
-                        gs.process_stream(fr)
-                        fw.write(gs.to_graphml())
-                        logger.info(
-                            f"Successfully stored program {args.task_id} in graphml file: {graphml}"
-                        )
+                    graphml_file = self.store_graphml(
+                        args.task_id, output_id, bin_file, td
+                    )
                 except Exception as e:
                     logger.error(
-                        f"Failed to store program {args.task_id} in graphml file {graphml}: {e}"
+                        f"Failed to store program {args.task_id} in graphml file {graphml_file}: {e}"
                     )
                     return False
-                logger.debug("Loading graphml file into JanusGraph...")
-
-                # TODO(Evan): This needs to wait until JanusGraph is ready. For some reason, even if the container is running and healthy, it's not ready to accept connections.
-
-                # Load graphml file into JanusGraph
-                from gremlin_python.process.anonymous_traversal import traversal
-                from gremlin_python.driver.driver_remote_connection import (
-                    DriverRemoteConnection,
+                logger.info(
+                    f"Successfully stored program {args.task_id} in graphml file: {graphml_file}"
                 )
 
+                # Load graphml file into graph database
                 try:
-                    g = traversal().withRemote(
-                        DriverRemoteConnection(self.graphdb_url, "g")
-                    )
-                    g.io(str(graphml)).read().iterate()
+                    logger.debug("Loading graphml file into JanusGraph...")
+                    self.load_graphml(graphml_file)
                 except Exception:
                     logger.exception(
-                        f"Failed to load graphml file {graphml} into JanusGraph"
+                        f"Failed to load graphml file {graphml_file} into JanusGraph"
                     )
                     return False
-
-                logger.debug("Successfully loaded graphml file into JanusGraph")
+                logger.info("Successfully loaded graphml file into JanusGraph")
 
         return True
 
@@ -195,9 +217,10 @@ class ProgramModel:
 
     def process_task(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
-        # TODO: Switch once we have kythe working well
-        # self.process_task_kythe(args)
-        return self.process_task_codequery(args)
+        # If at least one of the two methods succeeds, return True
+        rv_kythe: bool = self.process_task_kythe(args)
+        rv_code_query: bool = self.process_task_codequery(args)
+        return rv_kythe or rv_code_query
 
     def serve_item(self) -> bool:
         rq_item = self.task_queue.pop()

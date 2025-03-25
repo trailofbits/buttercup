@@ -67,6 +67,12 @@ jobs:
           while ! docker compose logs seed-gen | grep "Valid PoV found:"; do
             sleep 10
           done
+      - name: Wait for graph to be created
+        timeout-minutes: 5
+        run: |
+          while ! docker compose logs program-model | grep "Successfully loaded graphml file into JanusGraph"; do
+            sleep 10
+          done
 
       - name: Collect Docker logs
         run: |

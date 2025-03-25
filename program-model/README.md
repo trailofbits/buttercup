@@ -83,7 +83,7 @@ uv run mock/trigger_pm.py \
   --build_type full \
   --package_name libpng \
   --sanitizer address \
-  --task_dir ../tasks_storage/5cea8f59-a7ab-4c77-97a9-f92fcfeb33d8 \
+  --task_dir ../tasks_storage/bc42429a-3095-4f29-b541-6d601e976d45 \
   --task_id libpng
 ```
 
@@ -101,6 +101,13 @@ Sync, reformat, lint, and test before committing changes to this directory:
 
 ```shell
 just all
+```
+
+Note: To run tests locally, you may need to run this beforehand
+
+```shell
+sudo mount --bind ./crs_scratch /crs_scratch
+just download-kythe
 ```
 
 ## JanusGraph Indexing References

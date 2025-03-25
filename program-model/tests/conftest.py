@@ -18,7 +18,9 @@ def cleanup_graphdb(request, task_id: str):
         graph.g.V().has(
             "task_id", encode_value(task_id.encode("utf-8"))
         ).drop().iterate()
-        graph.g.E().has("task_id", task_id).drop().iterate()
+        graph.g.E().has(
+            "task_id", encode_value(task_id.encode("utf-8"))
+        ).drop().iterate()
 
 
 def pytest_addoption(parser):

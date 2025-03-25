@@ -149,7 +149,9 @@ class GraphStorage:
                         target_id=target_node.id,
                     )
                     edge.properties["labelE"] = entry.edge_kind
-                    edge.properties["task_id"] = self.task_id
+                    edge.properties["task_id"] = encode_value(
+                        self.task_id.encode("utf-8")
+                    )
                     self.edges[edge.id] = edge
                 else:
                     source_node.properties[key] = value
