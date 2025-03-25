@@ -16,6 +16,7 @@ services:
       - type: bind
         source: ./crs_scratch
         target: /crs_scratch
+      - shared-tmp:/tmp
 
   redis:
     image: redis:7.4.2
@@ -306,3 +307,4 @@ volumes:
     driver: local
   graphdb_data:
     driver: local
+  shared-tmp:

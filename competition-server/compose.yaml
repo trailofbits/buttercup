@@ -35,12 +35,12 @@ services:
   #     - shared-tmp:/tmp
 
   scantron:
-    image: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api:v1.1-rc2
+    image: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api:v1.1-rc4
     platform: linux/amd64
     privileged: true
     volumes:
       - "./scantron.yaml:/etc/scantron/scantron.yaml"
-      - ../crs_scratch:/tmp
+      - shared-tmp:/tmp
     depends_on:
       - dind
     ports:

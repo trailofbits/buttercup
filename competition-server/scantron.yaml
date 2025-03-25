@@ -20,6 +20,7 @@ teams:
       url: http://task-server:8000
       api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
       api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
+      taskme: true
 
 logging:
   gorm:
@@ -32,6 +33,7 @@ round_id: testing
 
 # Listen address outside the container
 listen_address: "scantron:1323"
+api_host_and_port: "scantron:1323"
 
 github:
   # github Personal Access token. This is used by the server to download the
