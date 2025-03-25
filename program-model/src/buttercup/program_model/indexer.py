@@ -29,7 +29,7 @@ class Indexer:
             return None
         base_image_name = f"{self.conf.base_image_url}/{task.project_name}"
 
-        buildid = str(uuid.uuid4())
+        buildid = task.task_meta.task_id
         emitted_image = f"kyther_indexer_image_{task.project_name}_{buildid}"
         wdir = f"{self.conf.scriptdir}"
         command = [
