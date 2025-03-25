@@ -118,7 +118,7 @@ def main():
     task = ChallengeTask(
         args.task_dir,
     )
-    with task.get_rw_copy(work_dir=args.wdir) as local_task:
+    with task.get_rw_copy(work_dir=args.wdir, delete=False) as local_task:
         indexer = Indexer(conf)
         print(indexer.index_target(local_task))
 

@@ -177,9 +177,13 @@ class ProgramModel:
 
                 # Store the program into a graphml file
                 try:
-                    graphml_file = self.store_graphml(
-                        args.task_id, output_id, bin_file, td
-                    )
+                    graphml_file = Path(td) / f"kythe_output_graphml_{output_id}.xml"
+                    with open(graphml_file, "w") as fw, open(bin_file, "rb") as fr:
+                        gs = GraphStorage(task_id=args.task_id)
+                        gs.process_stream(fr, fw)
+                        logger.info(
+                            f"Successfully stored program {args.task_id} in graphml file: {graphml_file}"
+                        )
                 except Exception as e:
                     logger.error(
                         f"Failed to store program {args.task_id} in graphml file {graphml_file}: {e}"
