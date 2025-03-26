@@ -54,37 +54,30 @@ You should see the `buttercup-kythe` package [here](https://github.com/orgs/aixc
 
 ## Usage
 
-Prepare example challenge project.
-
-```shell
-cd afc-crs-trail-of-bits/
-
-./orchestrator/scripts/task_crs.sh
-```
-
 Start up CRS.
 
 ```shell
 cd afc-crs-trail-of-bits/
 
 docker compose up -d --build --remove-orphans
-```
 
-Send task to Program Model via Redis queue.
-
-```shell
 docker compose logs -f program-model
 ```
 
-```shell
-cd afc-crs-trail-of-bits/program-model/
+Send task to CRS.
 
-uv run mock/trigger_pm.py \
-  --build_type full \
-  --package_name libpng \
-  --sanitizer address \
-  --task_dir ../tasks_storage/bc42429a-3095-4f29-b541-6d601e976d45 \
-  --task_id libpng
+```shell
+git clone git@github.com:aixcc-finals/generate-challenge-task.git
+
+cd generate-challenge-task/
+
+# Libpng Challenge (c language)
+./generate-challenge-task.sh -p libpng -c 127.0.0.1:8000 -t "https://github.com/aixcc-finals/example-libpng.git" -b 0cc367aaeaac3f888f255cee5d394968996f736e -r 2c894c66108f0724331a9e5b4826e351bf2d094b
+./task_crs.sh
+
+# Antlr4 Challenge (java language)
+./generate-challenge-task.sh -p antlr4-java -c 127.0.0.1:8000 -t "https://github.com/antlr/antlr4.git" -b master
+./task_crs.sh
 ```
 
 ## API

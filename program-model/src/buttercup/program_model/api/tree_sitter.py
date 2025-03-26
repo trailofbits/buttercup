@@ -117,7 +117,7 @@ class CodeTS:
             self.language = get_language("c")
             query_str = QUERY_STR_C
             types_query_str = QUERY_STR_TYPES_C
-        elif project_yaml.language == "java":
+        elif project_yaml.language == "jvm":
             self.parser = get_parser("java")
             self.language = get_language("java")
             query_str = QUERY_STR_JAVA

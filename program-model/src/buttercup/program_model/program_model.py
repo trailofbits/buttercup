@@ -217,7 +217,8 @@ class ProgramModel:
             CodeQueryPersistent(challenge, work_dir=self.wdir)
 
             return True
-        except Exception:
+        except Exception as e:
+            logger.exception(f"Failed to process task {args.task_id}: {e}")
             return False
 
     def process_task(self, args: IndexRequest) -> bool:
