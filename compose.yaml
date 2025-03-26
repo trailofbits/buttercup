@@ -73,6 +73,8 @@ services:
 
   graphdb:
     image: janusgraph/janusgraph:latest
+    profiles:
+      - graphdb
     environment:
       - janusgraph.storage.backend=cql
       - janusgraph.storage.hostname=graphdb-storage
@@ -99,6 +101,8 @@ services:
 
   graphdb-storage:
     image: cassandra:4.0.6
+    profiles:
+      - graphdb
     environment:
       - CASSANDRA_START_RPC=true
     ports:
@@ -116,14 +120,7 @@ services:
     build:
       context: ./
       dockerfile: ./program-model/Dockerfile
-    command: [
-      "buttercup-program-model",
-      "--log_level", "debug",
-      "serve",
-      "--wdir", "/crs_scratch",
-      "--sleep_time", "5",
-      "--redis_url", "redis://redis:6379",
-    ]
+    command: ["buttercup-program-model", "serve"]
     env_file: env.dev.compose
     volumes:
       - ./crs_scratch:/crs_scratch
@@ -133,8 +130,8 @@ services:
         condition: service_healthy
       dind:
         condition: service_started
-      graphdb:
-        condition: service_healthy
+      # graphdb:
+      #   condition: service_healthy
 
   coverage-bot:
     command: ["buttercup-coverage-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]

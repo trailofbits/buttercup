@@ -34,6 +34,7 @@ class ProgramModel:
     script_dir: Path | None = None
     kythe_dir: Path | None = None
     graphdb_url: str = "ws://graphdb:8182/gremlin"
+    graphdb_enabled: bool = True
     python: str | None = None
     allow_pull: bool = True
     base_image_url: str = "gcr.io/oss-fuzz"
@@ -222,9 +223,11 @@ class ProgramModel:
     def process_task(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         # If at least one of the two methods succeeds, return True
-        rv_kythe: bool = self.process_task_kythe(args)
         rv_code_query: bool = self.process_task_codequery(args)
-        return rv_kythe or rv_code_query
+        rv_kythe: bool = False
+        if self.graphdb_enabled:
+            rv_kythe = self.process_task_kythe(args)
+        return rv_code_query or rv_kythe
 
     def serve_item(self) -> bool:
         rq_item = self.task_queue.pop()

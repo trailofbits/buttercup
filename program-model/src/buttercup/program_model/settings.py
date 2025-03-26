@@ -1,22 +1,11 @@
-from pydantic_settings import BaseSettings, CliSubCommand
+from pydantic_settings import (
+    BaseSettings,
+    CliSubCommand,
+    SettingsConfigDict,
+)
 from pydantic import BaseModel, Field
 from typing import Annotated
-
-
-class Config:
-    cli_parse_args = True
-    nested_model_default_partial_update = True
-    env_nested_delimiter = "__"
-    extra = "allow"
-    env_prefix = "BUTTERCUP_PROGRAM_MODEL_"
-
-
-class ButtercupBaseSettings(BaseSettings):
-    class Config:
-        cli_parse_args = True
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-        extra = "allow"
+from pathlib import Path
 
 
 class BuilderSettings(BaseModel):
@@ -28,12 +17,11 @@ class BuilderSettings(BaseModel):
 
 class WorkerSettings(BaseModel):
     redis_url: Annotated[
-        str, Field(default="redis://127.0.0.1:6379", description="Redis URL")
+        str, Field(default="redis://localhost:6379", description="Redis URL")
     ]
     sleep_time: Annotated[
         float, Field(default=1.0, description="Sleep time between checks in seconds")
     ]
-    wdir: Annotated[str, Field(default=..., description="Working directory")]
     python: Annotated[str, Field(default="python", description="Python path")]
 
 
@@ -44,11 +32,11 @@ class IndexerSettings(BaseModel):
     script_dir: Annotated[str, Field(default="scripts", description="Script directory")]
 
 
-class ProgramModelServeCommand(WorkerSettings, IndexerSettings, BuilderSettings):
+class ServeCommand(WorkerSettings, IndexerSettings, BuilderSettings):
     pass
 
 
-class ProgramModelProcessCommand(WorkerSettings, IndexerSettings, BuilderSettings):
+class ProcessCommand(WorkerSettings, IndexerSettings, BuilderSettings):
     build_type: Annotated[str, Field(description="Build type", default=...)]
     package_name: Annotated[str, Field(description="Package name", default=...)]
     sanitizer: Annotated[str, Field(description="Sanitizer", default=...)]
@@ -56,11 +44,26 @@ class ProgramModelProcessCommand(WorkerSettings, IndexerSettings, BuilderSetting
     task_id: Annotated[str, Field(description="Task ID", default=...)]
 
 
-class ProgramModelSettings(ButtercupBaseSettings):
+class Settings(BaseSettings):
+    scratch_dir: Annotated[
+        Path, Field(default="/tmp/scratch", description="Directory for scratch space")
+    ]
     log_level: Annotated[str, Field(default="info", description="Log level")]
-    serve: CliSubCommand[ProgramModelServeCommand]
-    process: CliSubCommand[ProgramModelProcessCommand]
     graphdb_url: Annotated[
         str,
         Field(description="Graph database URL", default="ws://graphdb:8182/gremlin"),
     ]
+    graphdb_enabled: Annotated[
+        bool, Field(description="Enable graph database", default=True)
+    ]
+
+    serve: CliSubCommand[ServeCommand]
+    process: CliSubCommand[ProcessCommand]
+
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_PROGRAM_MODEL_",
+        env_file=".env",
+        cli_parse_args=True,
+        nested_model_default_partial_update=True,
+        env_nested_delimiter="__",
+    )

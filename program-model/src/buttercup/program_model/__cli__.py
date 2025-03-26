@@ -1,9 +1,9 @@
 import logging
 from buttercup.program_model.program_model import ProgramModel
 from buttercup.program_model.settings import (
-    ProgramModelSettings,
-    ProgramModelServeCommand,
-    ProgramModelProcessCommand,
+    Settings,
+    ServeCommand,
+    ProcessCommand,
 )
 from buttercup.common.logger import setup_package_logger
 from pydantic_settings import get_subcommand
@@ -13,7 +13,7 @@ from redis import Redis
 logger = logging.getLogger(__name__)
 
 
-def prepare_task(command: ProgramModelProcessCommand) -> IndexRequest:
+def prepare_task(command: ProcessCommand) -> IndexRequest:
     """Prepares task for indexing."""
 
     return IndexRequest(
@@ -26,33 +26,35 @@ def prepare_task(command: ProgramModelProcessCommand) -> IndexRequest:
 
 
 def main():
-    settings = ProgramModelSettings()
-    setup_package_logger(__name__, settings.log_level)
+    settings = Settings()
     command = get_subcommand(settings)
-    if isinstance(command, ProgramModelServeCommand):
+    setup_package_logger(__name__, settings.log_level)
+    if isinstance(command, ServeCommand):
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         with ProgramModel(
             sleep_time=command.sleep_time,
             redis=redis,
-            wdir=command.wdir,
+            wdir=settings.scratch_dir,
             script_dir=command.script_dir,
             kythe_dir=command.kythe_dir,
             python=command.python,
             allow_pull=command.allow_pull,
             base_image_url=command.base_image_url,
             graphdb_url=settings.graphdb_url,
+            graphdb_enabled=settings.graphdb_enabled,
         ) as program_model:
             program_model.serve()
-    elif isinstance(command, ProgramModelProcessCommand):
+    elif isinstance(command, ProcessCommand):
         task = prepare_task(command)
         with ProgramModel(
-            wdir=command.wdir,
+            wdir=settings.scratch_dir,
             script_dir=command.script_dir,
             kythe_dir=command.kythe_dir,
             python=command.python,
             allow_pull=command.allow_pull,
             base_image_url=command.base_image_url,
             graphdb_url=settings.graphdb_url,
+            graphdb_enabled=settings.graphdb_enabled,
         ) as program_model:
             program_model.process_task(task)
 
