@@ -1,12 +1,29 @@
-# Deployment of the Trail of Bits AIxCC Finals CRS
+# Example AKS Cluster
 
-## Pre-requisites
+## Overview
+
+The following is an example on how to deploy an Azure Kubernetes Service cluster within an Azure subscription.
+
+This configuration deploys an AKS cluster (`primary`) with two node pools:
+
+- The default node pool (`sys`) - contains 2 system mode nodes
+- A User node pool (`usr`) - contains 3 user mode nodes
+
+The resource group name is generated with the `"random_pet"` resource from the `hashicorp/random` provider; and are prefixed with `example`
+
+The VM Size for both pools are using `Standard_D5_v2` in this example. You can change this to suit your needs by editing the `vm_size` values in `main.tf`.
+
+The standard `azure` networking profile is used.
+
+## Prerequisites
 
 - Azure CLI installed: [az cli install instructions](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 - Terraform installed: [terraform install instructions](https://developer.hashicorp.com/terraform/tutorials/azure-get-started/install-cli)
 - Kubernetes CLI installed: [kubectl install instructions](https://kubernetes.io/docs/tasks/tools/#kubectl)
+- `gettext` package
 - An active Azure subscription.
 - An account in Azure Entra ID.
+- Access credentials to the competition Tailscale tailnet.
 
 ### Azure
 
@@ -30,14 +47,15 @@ SubscriptionID                        Tenant
 
 A service principal account (SPA) is required to automate the creation of resources and objects within your subscription.
 
-You can create a SPA several ways, the following describes using azure cli.
+- You can create a SPA several ways, the following describes using Azure cli.
 
 ```bash
 az ad sp create-for-rbac --name "ExampleSPA" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
 ```
 
-> Replace "ExampleSPA" with the name of the SPA you wish to create. Replace `<YOUR-SUBSCRIPTION-ID>` with your azure subscription ID.
-> If using resource group locks, additional configuration may be neccessary which is out of scope of this example; e.g. adding the role `Microsoft.Authorization/locks/` for write, read and delete to the SPA.
+> Replace "ExampleSPA" with the name of the SPA you wish to create.  
+> Replace `<YOUR-SUBSCRIPTION-ID>` with your Azure subscription ID.  
+> If using resource group locks, additional configuration may be necessary which is out of scope of this example; e.g. adding the role `Microsoft.Authorization/locks/` for write, read and delete to the SPA.
 
 On successful SPA creation, you will receive output similar to the following:
 
@@ -50,39 +68,84 @@ On successful SPA creation, you will receive output similar to the following:
 }
 ```
 
-Make note of these values, they will be used in the AKS deployment as the following environment variables:
+Make note of these values, they will be needed in the AKS deployment as the following environment variables:
 
 ```bash
-ARM_TENANT_ID="<tenant-value>"
-ARM_CLIENT_ID="<appID-value>"
-ARM_CLIENT_SECRET="<password-value>"
-ARM_SUBSCRIPTION_ID="<YOUR-SUBSCRIPTION-ID>"
+TF_ARM_TENANT_ID="<tenant-value>"
+TF_ARM_CLIENT_ID="<appID-value>"
+TF_ARM_CLIENT_SECRET="<password-value>"
+TF_ARM_SUBSCRIPTION_ID="<YOUR-SUBSCRIPTION-ID>"
 ```
 
-You can export these as environment variables from the host you're deploying from.
+### Environment Variables
+
+The following environment variables are required to be passed into the terraform and kubernetes configurations:
+
+| Variable Name                | Description                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `TF_VAR_ARM_SUBSCRIPTION_ID` | Azure subscription ID                                                         |
+| `TF_VAR_ARM_TENANT_ID`       | Azure tenant ID                                                               |
+| `TF_VAR_ARM_CLIENT_ID`       | Azure client ID (service principal account)                                   |
+| `TF_VAR_ARM_CLIENT_SECRET`   | Azure client ID secret                                                        |
+| `CRS_API_HOSTNAME`           | The hostname you want to assign to your API. Exmaple: `teamX-api`             |
+| `TS_CLIENT_ID`               | Tailscale oauth client ID (provided by the Organizers)                        |
+| `TS_CLIENT_SECRET`           | Tailscale oauth client secret (provided by the Organizers)                    |
+| `TS_OP_TAG`                  | Tailscale operator tag (provided by the Organizers)                           |
+| `COMPETITION_API_KEY_ID`     | HTTP basic auth username for the competition API (provided by the Organizers) |
+| `COMPETITION_API_KEY_TOKEN`  | HTTP basic auth password for the competition API (provided by the Organizers) |
+| `CRS_KEY_ID`                 | HTTP basic auth username for the CRS API                                      |
+| `CRS_KEY_TOKEN`              | HTTP basic auth password for the CRS API                                      |
+| `GHCR_AUTH`                  | Base64 encoded credentials for GHCR                                           |
+
+**These variables are stored in `./env` , and must be updated with accurate values.**
+
+### CRS HTTP basic auth
+
+_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_  
+The crs-webapp image expects the following environment variables to be passed to it for HTTP basic authentication:
+
+- `CRS_KEY_ID` - The CRS's username/ID
+- `CRS_KEY_TOKEN` - The CRS's password
+- `COMPETITION_API_KEY_ID` - The competition APIs username/ID
+- `COMPETITION_API_KEY_TOKEN` - The competition APIs password
+
+These values can be generated with the following python calls:
 
 ```bash
-export ARM_CLIENT_ID="00000000-0000-0000-0000-000000000000"
-export ARM_CLIENT_SECRET="12345678-0000-0000-0000-000000000000"
-export ARM_TENANT_ID="10000000-0000-0000-0000-000000000000"
-export ARM_SUBSCRIPTION_ID="20000000-0000-0000-0000-000000000000"
+key_id:
+python3 -c 'import uuid; print(str(uuid.uuid4()))'
+
+key_token:
+python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(32)))'
 ```
+
+### GitHub personal access token
+
+_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_  
+You will need to have a GitHub personal access token (PAT) scoped to at least `read:packages`.
+
+To create the PAT, go to your account, `Settings` > `Developer settings` > `Personal access tokens`, and generate a Token (classic) with the scopes needed for your use case.
+
+For this example, the `read:packages` scope is required.
+
+Once you have your PAT, you will need to base64 encode it for use within `secrets.tf`:
+
+```bash
+echo -n "ghcr_username:ghcr_token" | base64
+```
+
+> replace `ghcr_username` and `ghcr_token` with your GitHub username and your PAT respectively.
+
+Add your base64 encoded credentials to `GHCR_AUTH`
 
 ## Remote Terraform State Storage
 
-By default the terraform state for the CRS is saved on Azure in the following resource:
-```
-    resource_group_name  = "tfstate-rg"
-    storage_account_name = "tfstateserviceact"
-    container_name       = "tfstate"
-    key                  = "terraform.tfstate"
-```
-
-If you want to change the resources used to save the Terraform state, you may need to create other resources.
+By default, terraform stores its state locally. It is best practice to store terraform state in a remote location.  
+This can help with collaboration, security, recovery and scalability. To do this within Azure, you need to create resources to do so.
 
 ### Azure CLI
 
-The following is an example of how to create the resources needed for remote state configuration.
+The following is an example of how to create the resources needed for remote state configuration.  
 These resources will be used in the `backend.tf` configuration file.
 
 - Create remote state resource group.
@@ -94,13 +157,13 @@ az group create --name example-tfstate-rg --location eastus
 - Create storage account for remote state.
 
 ```bash
-az storage account create --resource-group example-tfstate-rg --name exampleserviceaccountname --sku Standard_LRS --encryption-services blob
+az storage account create --resource-group example-tfstate-rg --name examplestorageaccountname --sku Standard_LRS --encryption-services blob
 ```
 
 - Create storage container for remote state
 
 ```bash
-az storage container create --name tfstate --account-name exampleserviceaccountname --auth-mode login
+az storage container create --name tfstate --account-name examplestorageaccountname --auth-mode login
 ```
 
 ### backend.tf
@@ -111,25 +174,39 @@ Replace the values for `resource_group_name`, `storage_account_name`, `container
 terraform {
   backend "azurerm" {
     resource_group_name  = "example-tfstate-rg"
-    storage_account_name = "exampleserviceaccountname"
+    storage_account_name = "examplestorageaccountname"
     container_name       = "tfstate"
     key                  = "terraform.tfstate"
   }
 }
 ```
 
+## Makefile
+
+The deployment of the AKS cluster and its resources are performed by the `Makefile`, which leverages `crs-architecture.sh`. This wrapper utilizes several mechanisms to properly configure both the teraform and kubernetes environments.
+
 ## Deploy
 
 - Log into your Azure tenant with `az login --tenant aixcc.tech`
-- Export the environment variables for your [SPA Configuration](#service-principal-account) if needed.
-- Initialize terraform: `terraform init`
-- Run plan: `terraform plan` - review output
-- Deploy: `terraform apply`
-  - type `yes` when prompted to apply
+- Clone this repository if needed: `git clone git@github.com:aixcc-finals/example-crs-architecture.git /<local_dir>`
+- Make required changes to `backend.tf`
+- Make any wanted changes to `main.tf`, `outputs.tf`, `providers.tf`, and `variables.tf`
+- Update `./env` with accurate values for each variable
+- Run `make up` from within the `example-crs-architecture` directory
+  This will execute a deployment of your cluster via a combination of terraform and kubectl based on your unique values in `./env`
 
-A handful of outputs will be provided based on `outputs.tf` when the apply completes.
+## Useful Cluster Commands
 
-You can see the outputs values with `terraform output` or `terraform output <output-name>`.
+- `az aks get-credentials --name <your-cluster-name> --resource-group <your-resource-group>` - retrieves access credentials and updates kubeconfig for the current cluster
+- `kubectl get namespaces` - lists all namespaces
+- `kubectl get -n crs-webservice all` - lists all resources within the crs-webservice namespace
+- `kubectl get -n tailscale all` - lists all resources within the tailscale namespace
+- `kubectl get pods -A` - lists all pods in all namespaces
+- `kubectl config get-contexts` - lists the current contexts in your kubeconfig
+- `kubectl describe deployment -n crs-webservice crs-webapp` - print detailed information about the deployment, crs-webapp
+- `kubectl logs <podName>` - retrieves the stdout and stderr streams from the containers within the specified pod
+- `kubectl get svc -A` - lists status of all services
+- `kubectl get -n crs-webservice ingress` - lists the tailscale ingress address of your API
 
 ## State
 
@@ -138,61 +215,16 @@ You can see the outputs values with `terraform output` or `terraform output <out
 
 ## Destroy
 
-To teardown your AKS cluster run the following:
+To tear down your AKS cluster run the following:
 
-- `terraform destroy`
-- Review the output on what is to be destroyed
-- Type `yes` at the prompt
+- Run `make down` from within the `example-crs-architecture` directory
 
-## Kubernetes interactions
+## Reset / Redeploy CRS
 
-Save the kube config file and make it available through `KUBECONFIG` env var:
-```shell
-terraform output --raw  kube_config >! kube.config
-export KUBECONFIG=$(pwd)/kube.config
-```
+To reset or redeploy a running CRS cluster:
 
-```shell
-kubectl get namespaces
-```
+- Run `make down && make up` from within the `example-crs-architecture` directory
 
-## Access kubernetes cluster nodes / services
-```shell
-kubectl port-forward service/orchestrator -n crs 18000:8000
-```
+## Clean
 
-Then access `127.0.0.1:18000`.
-
-
-## Troubleshooting
-
-### Error acquiring the state lock
-```
-Error: Error acquiring the state lock
-│
-│ Error message: state blob is already locked
-│ Lock Info:
-│   ID:        7a304f3a-6b83-34a1-6773-b70ec456e6cc
-│   Path:      tfstate/terraform.tfstate
-│   Operation: OperationTypeApply
-│   Who:       ret2libc@macbookpro.lan
-│   Version:   1.10.4
-│   Created:   2025-01-14 12:56:49.352199 +0000 UTC
-│   Info:
-│
-│
-│ Terraform acquires a state lock to protect the state from being written
-│ by multiple users at the same time. Please resolve the issue above and try
-│ again. For most commands, you can disable locking with the "-lock=false"
-│ flag, but this is not recommended.
-╵
-```
-
-First, ensure that someone else is not really running some `terraform` command
-concurrently. If that's not the case, the state file might have not been
-unlocked (e.g. you CTRL-C terraform at some point and it did not unlocked the
-file before exiting), you can try adding the `-lock=false` as specified, or, if
-that does not work, go to the [Azure portal](https://portal.azure.com), open the
-`tfstate-rg` Resource Group, `tfstateserviceact`, then in Data Storage >
-Containers select `tfstate`. Select the `terraform.tfstate` blob and click
-`Break lease.
+Optionally, you can run `make clean` to remove any generated files create from the included templates at runtime. This action is executed during `make up`.

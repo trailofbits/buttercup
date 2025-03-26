@@ -1,0 +1,10 @@
+apiVersion: tailscale.com/v1alpha1
+kind: DNSConfig
+metadata:
+  namespace: tailscale
+  name: tailscale-dns
+spec:
+  nameserver:
+    image:
+      repo: tailscale/k8s-nameserver
+      tag: unstable

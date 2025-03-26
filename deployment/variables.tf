@@ -1,16 +1,3 @@
-variable "github_username" {
-  type        = string
-  description = "The username for the GitHub account."
-  default     = "USERNAME"
-  sensitive   = true
-}
-
-variable "github_pat" {
-  type        = string
-  description = "The personal access token (PAT) for the GitHub account."
-  sensitive   = true
-}
-
 variable "resource_group_location" {
   type        = string
   default     = "eastus"
@@ -39,4 +26,25 @@ variable "username" {
   type        = string
   description = "The admin username for the new cluster."
   default     = "azureadmin"
+}
+
+variable "ARM_SUBSCRIPTION_ID" {
+  type        = string
+  description = "Azure subscription ID"
+}
+
+variable "ARM_TENANT_ID" {
+  type        = string
+  description = "Azure tenant ID"
+}
+
+variable "ARM_CLIENT_ID" {
+  type        = string
+  description = "Azure client ID"
+}
+
+variable "ARM_CLIENT_SECRET" {
+  type        = string
+  sensitive   = true
+  description = "Azure client secret"
 }

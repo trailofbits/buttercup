@@ -1,4 +1,5 @@
 # Default values for competition-api chart
+enabled: true
 replicaCount: 1
 
 service:

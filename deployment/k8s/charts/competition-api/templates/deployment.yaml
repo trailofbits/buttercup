@@ -1,3 +1,4 @@
+{{- if .Values.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,7 +35,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: ghcr
-                  key: pat
+                  key: {{ if (lookup "v1" "Secret" .Release.Namespace "ghcr").data.scantron_github_pat }}scantron_github_pat{{ else }}pat{{ end }}
           volumeMounts:
             - name: scantron-config
               mountPath: /etc/scantron/scantron.yaml
@@ -52,3 +53,4 @@ spec:
           emptyDir: {}
         {{- end }}
         {{- end }}
+{{- end }}

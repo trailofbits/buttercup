@@ -81,116 +81,43 @@ redis:
 
 task-server:
   enabled: true
-  port: 8000
-  service:
-    # Service type will be overridden based on environment in the template
-    type: LoadBalancer 
-    port: 8000
-    nodePort: 30080    # Used when type is NodePort (minikube)
   # API authentication is configured with the following credentials:
   # API Key ID: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
   # API Token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB (for client usage)
-  # These values are set in the deployment via common-env.yaml
+  # These values are set in the secret/config-map in config.yaml
 
 task-downloader:
   enabled: true
-  resources:
-    limits:
-      cpu: 300m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
   
 scheduler:
   enabled: true
-  resources:
-    limits:
-      cpu: 300m
-      memory: 512Mi
-    requests:
-      cpu: 150m
-      memory: 256Mi
 
 program-model:
   enabled: true
-  sleepTime: 5
-  resources:
-    limits:
-      cpu: 300m
-      memory: 1Gi
-    requests:
-      cpu: 100m
-      memory: 512Mi
 
 build-bot:
   replicaCount: 4
   enabled: true
   timer: 5000
   logLevel: "DEBUG"
-  resources:
-    limits:
-      cpu: 200m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
 
 fuzzer-bot:
   enabled: true
-  timeout: 900
-  timer: 5000
-  resources:
-    limits:
-      cpu: 200m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
 
 coverage-bot:
   enabled: true
-  timer: 5000
-  resources:
-    limits:
-      cpu: 400m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
 
 tracer-bot:
   enabled: true
-  resources:
-    limits:
-      cpu: 400m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
 
 seed-gen:
   enabled: true
-  sleepTime: 60
-  pythonPath: "/app/seed-gen/.venv/bin/python"
-  logLevel: "DEBUG"
-  resources:
-    limits:
-      cpu: 200m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
 
 patcher:
   enabled: true
-  resources:
-    limits:
-      cpu: 200m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 256Mi
+
+competition-api:
+  enabled: true
 
 # PostgreSQL configuration for LiteLLM
 litellm-db:
@@ -305,18 +232,3 @@ litellm-helm:
 
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
-
-
-
-# Competition API configuration
-competition-api:
-  enabled: true
-  service:
-    port: 1323
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 500m
-      memory: 1Gi

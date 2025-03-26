@@ -143,9 +143,24 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_TASK_SERVER_HOST
   value: "0.0.0.0"
 - name: BUTTERCUP_TASK_SERVER_PORT
-  value: "8000"
+  value: "{{ .Values.port | default 8000 }}"
 - name: BUTTERCUP_TASK_SERVER_WORKERS
-  value: "1"
+  value: "{{ .Values.workers | default 1 }}"
+- name: BUTTERCUP_TASK_SERVER_COMPETITION_API_URL
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: COMPETITION_API_URL
+- name: BUTTERCUP_TASK_SERVER_COMPETITION_API_USERNAME
+  valueFrom:
+    configMapKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: COMPETITION_API_KEY_ID
+- name: BUTTERCUP_TASK_SERVER_COMPETITION_API_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Release.Name }}-crs-config
+      key: COMPETITION_API_KEY_TOKEN
 - name: BUTTERCUP_TASK_SERVER_API_KEY_ID
   valueFrom:
     configMapKeyRef:

@@ -10,20 +10,12 @@ metadata:
   {{- end }}
 spec:
   # Set type based on environment
-  type: {{ if eq $.Values.global.environment "aks" }}LoadBalancer{{ else }}NodePort{{ end }}
+  type: NodePort
   ports:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.port }}
       protocol: TCP
       name: http
-      # Add nodePort only for NodePort service type (minikube)
-      {{- if and (ne $.Values.global.environment "aks") .Values.service.nodePort }}
       nodePort: {{ .Values.service.nodePort }}
-      {{- end }}
   selector:
     app: task-server
-  # Add loadBalancerSourceRanges only for LoadBalancer service type (AKS)
-  {{- if and (eq $.Values.global.environment "aks") .Values.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges:
-    {{- toYaml .Values.service.loadBalancerSourceRanges | nindent 4 }}
-  {{- end }} 

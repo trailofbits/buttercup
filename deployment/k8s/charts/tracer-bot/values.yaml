@@ -1,12 +1,6 @@
 # Default values for tracer-bot.
 enabled: true
 
-# Image configuration
-image:
-  repository: fuzzer
-  tag: latest
-  pullPolicy: IfNotPresent
-
 # Resource configurations
 resources:
   limits:

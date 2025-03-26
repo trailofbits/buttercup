@@ -1,4 +1,5 @@
-# Scheduler service configuration
+enabled: true
+
 resources:
   limits:
     cpu: 500m
@@ -6,16 +7,3 @@ resources:
   requests:
     cpu: 250m
     memory: 256Mi
-
-# Persistence settings
-persistence:
-  crs_scratch:
-    enabled: true
-    storageClass: ""  # Empty string means use cluster default
-    size: 1Gi
-    accessMode: ReadWriteMany
-  tasks_storage:
-    enabled: true
-    storageClass: ""  # Empty string means use cluster default
-    size: 1Gi
-    accessMode: ReadWriteMany

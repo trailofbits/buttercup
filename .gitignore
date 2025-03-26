@@ -10,7 +10,9 @@ errored.tfstate
 
 ## Generated Kubernetes Resources
 .k8s
-deployment/k8s/values-override.yaml
+deployment/k8s/values-*.yaml
+deployment/k8s/base/tailscale-coredns/coredns-custom.yaml
+deployment/k8s/base/tailscale-operator/operator.yaml
 
 ## Python
 __pycache__/
@@ -45,4 +47,4 @@ pdm.lock
 common/common/datastructures/fuzzer_msg*
 
 crs_scratch/*
-tasks_storage/
+tasks_storage/*

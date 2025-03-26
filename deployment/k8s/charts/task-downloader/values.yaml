@@ -1,8 +1,9 @@
-# Service specific configuration
+enabled: true
 
-persistence:
-  tasks_storage:
-    enabled: true
-    storageClass: ""  # Empty string means use cluster default
-    size: 1Gi
-    accessMode: ReadWriteMany 
+resources:
+  limits:
+    cpu: 300m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
