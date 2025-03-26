@@ -12,6 +12,7 @@ dependencies = [
     "wasmtime ~= 29.0.0",
     "program-model",
     "numpy ~= 2.2.3",
+    "rapidfuzz ~= 3.12.2",
 ]
 requires-python = ">=3.12,<3.13"
 

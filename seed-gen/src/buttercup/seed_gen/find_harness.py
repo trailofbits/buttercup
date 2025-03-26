@@ -4,6 +4,8 @@ import logging
 import subprocess
 from pathlib import Path
 
+import rapidfuzz
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import ProjectYaml
 
@@ -94,10 +96,8 @@ def find_jazzer_harnesses(task: ChallengeTask) -> list[Path]:
 def get_harness_source_candidates(
     task: ChallengeTask, project_name: str, harness_name: str
 ) -> list[Path]:
-    """Get the list of candidate source files for a harness.
-
-    If multiple harnesses are found, attempts to filter to ones where the harness name
-    appears in the filename.
+    """Get the list of candidate source files for a harness, in descending order
+    of fuzzy similarity to the harness name.
     """
     project_yaml = ProjectYaml(task, project_name)
     language = project_yaml.language
@@ -106,14 +106,11 @@ def get_harness_source_candidates(
         harnesses = find_jazzer_harnesses(task)
     else:
         harnesses = find_libfuzzer_harnesses(task)
-    harnesses.sort(key=lambda x: x.name)
 
-    # Filter harnesses by name if multiple found
-    matching_harnesses = [h for h in harnesses if harness_name in h.name]
-    if not matching_harnesses:
-        matching_harnesses = [h for h in harnesses if harness_name.lower() in h.name.lower()]
+    # Sort harnesses by fuzzy similarity to harness_name
+    harnesses.sort(
+        key=lambda x: rapidfuzz.fuzz.ratio(x.name.lower(), harness_name.lower()),
+        reverse=True,
+    )
 
-    if not matching_harnesses:
-        return harnesses
-
-    return matching_harnesses
+    return harnesses

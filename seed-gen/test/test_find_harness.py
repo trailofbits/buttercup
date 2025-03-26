@@ -228,20 +228,21 @@ def test_get_harness_source_candidates_cpp(challenge_task: ChallengeTask):
     (source_path / "normal.cpp").write_text(NORMAL_CPP)
     (source_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
-    # Test exact match
+    # Test one candidate is similar
     candidates = get_harness_source_candidates(challenge_task, "my-project", "fuzz_target")
-    assert len(candidates) == 1
-    assert candidates[0].name == "fuzz_target.cpp"
+    candidate_names = [c.name for c in candidates]
+    assert candidate_names == ["fuzz_target.cpp", "another_fuzzer.c"]
 
-    # Test case-insensitive match
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "FUZZ_TARGET")
-    assert len(candidates) == 1
-    assert candidates[0].name == "fuzz_target.cpp"
+    # Test case-insensitive candidate is similar
+    candidates = get_harness_source_candidates(challenge_task, "my-project", "AnotherFuzzer")
+    candidate_names = [c.name for c in candidates]
+    assert candidate_names == ["another_fuzzer.c", "fuzz_target.cpp"]
 
     # Test no match
     candidates = get_harness_source_candidates(challenge_task, "my-project", "nonexistent")
-    candidate_names = [c.name for c in candidates]
-    assert candidate_names == ["another_fuzzer.c", "fuzz_target.cpp"]
+    assert len(candidates) == 2
+    assert "another_fuzzer.c" in candidate_names
+    assert "fuzz_target.cpp" in candidate_names
 
 
 def test_get_harness_source_candidates_java(challenge_task: ChallengeTask):
@@ -258,20 +259,21 @@ def test_get_harness_source_candidates_java(challenge_task: ChallengeTask):
     (source_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
     (source_path / "FuzzTarget1.java").write_text(FUZZ_TARGET_JAVA)
 
-    # Test exact match
+    # Test one candidate is similar
     candidates = get_harness_source_candidates(challenge_task, "my-project", "FuzzTarget")
-    assert len(candidates) == 2
-    assert candidates[0].name == "FuzzTarget.java"
+    candidate_names = [c.name for c in candidates]
+    assert candidate_names == ["FuzzTarget.java", "FuzzTarget1.java"]
 
-    # Test case-insensitive match
+    # Test case-insensitive candidate is similar
     candidates = get_harness_source_candidates(challenge_task, "my-project", "fuzztarget1")
-    assert len(candidates) == 1
-    assert candidates[0].name == "FuzzTarget1.java"
+    candidate_names = [c.name for c in candidates]
+    assert candidate_names == ["FuzzTarget1.java", "FuzzTarget.java"]
 
     # Test no match
     candidates = get_harness_source_candidates(challenge_task, "my-project", "nonexistent")
-    candidate_names = [c.name for c in candidates]
-    assert candidate_names == ["FuzzTarget.java", "FuzzTarget1.java"]
+    assert len(candidates) == 2
+    assert "FuzzTarget.java" in candidate_names
+    assert "FuzzTarget1.java" in candidate_names
 
 
 def test_weird_libfuzzer_harnesses(challenge_task: ChallengeTask):
