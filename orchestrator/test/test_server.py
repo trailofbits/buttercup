@@ -32,7 +32,7 @@ class TestSettings:
     redis_url: str = "redis://localhost:6379"
 
     # Competition API configuration
-    competition_api_url: str = "http://localhost:1323"
+    competition_api_url: str = "http://localhost:31323"
     competition_api_username: str = "11111111-1111-1111-1111-111111111111"
     competition_api_password: str = "secret"
 

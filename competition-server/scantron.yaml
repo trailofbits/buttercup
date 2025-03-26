@@ -32,8 +32,8 @@ logging:
 round_id: testing
 
 # Listen address outside the container
-listen_address: "scantron:1323"
-api_host_and_port: "scantron:1323"
+listen_address: "scantron:31323"
+api_host_and_port: "scantron:31323"
 
 github:
   # github Personal Access token. This is used by the server to download the

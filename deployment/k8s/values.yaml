@@ -29,7 +29,7 @@ global:
     pullSecrets: ["ghcr-auth"]
   competitionApiImage:
     repository: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api
-    tag: v1.1-rc4
+    tag: v1.1-rc5
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   # Langfuse global configuration for all subcharts
