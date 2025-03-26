@@ -17,6 +17,7 @@ class ButtercupBaseSettings(BaseSettings):
         nested_model_default_partial_update = True
         env_nested_delimiter = "__"
         extra = "allow"
+        env_prefix = "BUTTERCUP_FUZZER_"
 
 
 class BuilderSettings(ButtercupBaseSettings):
