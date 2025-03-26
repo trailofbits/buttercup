@@ -10,6 +10,8 @@ dependencies = [
     "clusterfuzz==2.6.0",
     "common",
     "pydantic-settings>=2.7.1",
+    "beautifulsoup4>=4.13.3",
+    "lxml>=5.3.1",
 ]
 
 [project.scripts]
