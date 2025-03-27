@@ -17,7 +17,7 @@ from buttercup.common.datastructures.msg_pb2 import (
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
-from clusterfuzz.fuzz import get_fuzz_targets
+from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
 from buttercup.orchestrator.scheduler.bundles import Bundles
 from buttercup.orchestrator.api_client_factory import create_api_client

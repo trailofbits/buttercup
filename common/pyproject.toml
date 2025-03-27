@@ -13,7 +13,7 @@ dependencies = [
     "langchain-openai~=0.3.2",
     "langfuse ~= 2.59.2",
     "langchain ~= 0.3.18",
-    "clusterfuzz==2.6.0",
+    "six>=1.17.0",
 ]
 
 [project.scripts]
@@ -33,4 +33,5 @@ dev = ["pytest>=8.3.4", "ruff>=0.9.2"]
 
 [tool.ruff]
 line-length = 120
-exclude = ["./src/buttercup/common/datastructures"]
+exclude = ["./src/buttercup/common/datastructures", "./src/buttercup/common/clusterfuzz_env", "./src/buttercup/common/clusterfuzz_parser", "src/buttercup/common/clusterfuzz_utils.py"]
+

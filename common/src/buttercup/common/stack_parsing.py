@@ -1,4 +1,4 @@
-from clusterfuzz.stacktraces import StackParser
+from buttercup.common.clusterfuzz_parser import StackParser
 import logging
 from buttercup.common.sets import RedisSet
 from redis import Redis

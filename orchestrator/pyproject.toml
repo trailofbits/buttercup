@@ -7,7 +7,6 @@ authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "argon2-cffi>=21.0.0",
-    "clusterfuzz>=2.6.0",
     "common",
     "fastapi>=0.115.6",
     "pydantic>=2.10.5",

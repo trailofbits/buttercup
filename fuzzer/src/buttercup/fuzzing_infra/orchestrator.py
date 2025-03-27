@@ -11,7 +11,7 @@ import argparse
 from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
 import time
-from clusterfuzz.fuzz import get_fuzz_targets
+from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 import os
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.maps import BUILD_TYPES

@@ -145,7 +145,7 @@ def main():
         logger.info("Done")
     elif isinstance(command, ListSettings):
         print("Available queues:")
-        print("\n".join([f"- {name.value}" for name in get_queue_names()]))
+        print("\n".join([f"- {name}" for name in get_queue_names()]))
 
 
 if __name__ == "__main__":
