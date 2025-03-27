@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 
 
@@ -35,3 +36,31 @@ class Function:
 
     bodies: list[FunctionBody] = field(default_factory=list)
     """List of function bodies."""
+
+
+@dataclass
+class TypeDefinitionType(str, Enum):
+    """Enum to store type definition type."""
+
+    STRUCT = "struct"
+    UNION = "union"
+    ENUM = "enum"
+    TYPEDEF = "typedef"
+    PREPROC_TYPE = "preproc_type"
+
+
+@dataclass
+class TypeDefinition:
+    """Class to store type definition information."""
+
+    name: str
+    """Name of the type."""
+
+    type: TypeDefinitionType
+    """Type of the type."""
+
+    definition: str
+    """Definition of the type."""
+
+    definition_line: int
+    """Line number of the definition of the type."""

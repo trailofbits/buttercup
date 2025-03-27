@@ -4,10 +4,13 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 from functools import lru_cache
-from enum import Enum
-
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.program_model.utils.common import Function, FunctionBody
+from buttercup.program_model.utils.common import (
+    Function,
+    FunctionBody,
+    TypeDefinition,
+    TypeDefinitionType,
+)
 from tree_sitter_language_pack import get_language, get_parser
 from buttercup.common.project_yaml import ProjectYaml
 
@@ -79,26 +82,6 @@ QUERY_STR_TYPES_JAVA = """
 ]
 )
 """
-
-
-@dataclass
-class TypeDefinitionType(str, Enum):
-    """Enum to store type definition type."""
-
-    STRUCT = "struct"
-    UNION = "union"
-    ENUM = "enum"
-    TYPEDEF = "typedef"
-    PREPROC_TYPE = "preproc_type"
-
-
-@dataclass
-class TypeDefinition:
-    """Class to store type definition information."""
-
-    name: str
-    type: TypeDefinitionType
-    definition: str
 
 
 @dataclass
@@ -199,7 +182,9 @@ class CodeTS:
         functions = self.get_functions(file_path)
         return functions.get(function_name)
 
-    def parse_types_in_code(self, file_path: Path) -> dict[str, TypeDefinition]:
+    def parse_types_in_code(
+        self, file_path: Path, typename: str | None = None, fuzzy: bool | None = False
+    ) -> dict[str, TypeDefinition]:
         """Parse the definition of a type in a piece of code."""
         logger.debug("Parsing types in code")
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
@@ -233,6 +218,10 @@ class CodeTS:
 
             type_definition = code[start_byte : definition_node.end_byte].decode()
             name = name_node.text.decode()
+            if typename and not fuzzy and name != typename:
+                continue
+            if typename and fuzzy and typename not in name:
+                continue
             logger.debug("Type name: %s", name)
             logger.debug("Type definition: %s", type_definition)
 
@@ -255,6 +244,7 @@ class CodeTS:
                 name=name,
                 type=type_def_type,
                 definition=type_definition,
+                definition_line=definition_node.start_point[0],
             )
 
         return res

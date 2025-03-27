@@ -8,11 +8,15 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from itertools import groupby
-from typing import ClassVar
+from typing import ClassVar, Union
+
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.api.tree_sitter import CodeTS
-from buttercup.program_model.utils.common import Function
+from buttercup.program_model.utils.common import (
+    Function,
+    TypeDefinition,
+)
 from buttercup.common.project_yaml import ProjectYaml
 
 logger = logging.getLogger(__name__)
@@ -215,7 +219,10 @@ class CodeQuery:
         return [result for result in results if result is not None]
 
     def get_functions(
-        self, function_name: str, file_path: Path | None = None
+        self,
+        function_name: str,
+        file_path: Path | None = None,
+        fuzzy: bool | None = False,
     ) -> list[Function]:
         """Get the definition(s) of a function in the codebase or in a specific file."""
         cqsearch_args = [
@@ -225,31 +232,117 @@ class CodeQuery:
             "2",
             "-t",
             function_name,
-            "-e",
+            "-f" if fuzzy else "-e",
             "-u",
         ]
         if file_path:
             cqsearch_args += ["-b", file_path.as_posix()]
 
         results = self._run_cqsearch(*cqsearch_args)
+        logger.debug("cqsearch output: %s", results)
 
-        res = []
+        res: list[Function] = []
         results_by_file = groupby(results, key=lambda x: x.file)
         for file, results in results_by_file:
-            if not all(result.value == function_name for result in results):
+            functions_found = [result.value for result in results]
+
+            if not fuzzy and not all(function_name == f for f in functions_found):
                 logger.warning(
-                    "Function name mismatch, this should not happen: %s != %s",
-                    results[0].value,
+                    "Function name mismatch, this should not happen: %s",
+                    function_name,
+                )
+                continue
+            if fuzzy and not all(function_name in f for f in functions_found):
+                logger.warning(
+                    "Function name mismatch, this should not happen: %s",
                     function_name,
                 )
                 continue
 
-            function = self.ts.get_function(function_name, file)
-            if function is None:
-                logger.warning("Function not found in tree-sitter: %s", function_name)
+            for function in functions_found:
+                f = self.ts.get_function(function, file)
+                if f is None:
+                    logger.warning("Function not found in tree-sitter: %s", function)
+                    continue
+                res.append(f)
+
+        return res
+
+    def get_types(
+        self,
+        type_name: Union[bytes, str],
+        file_path: Path | None = None,
+        function_name: str | None = None,
+        fuzzy: bool | None = False,
+    ) -> list[TypeDefinition]:
+        """Finds and return the definition of type named `typename`."""
+        # Build the cqsearch command to find occurences of the typename in the code
+        cqsearch_args = [
+            "-s",
+            self.CODEQUERY_DB,  # Specify the database file path
+            "-p",
+            "1",  # '1' for symbol
+            "-t",
+            type_name,  # The name of the type
+            "-f" if fuzzy else "-e",
+            "-u",  # use full paths
+        ]
+        if file_path:
+            cqsearch_args += ["-b", file_path.as_posix()]
+
+        results = self._run_cqsearch(*cqsearch_args)
+        logger.debug("cqsearch output: %s", results)
+
+        res: list[TypeDefinition] = []
+        results_by_file = groupby(results, key=lambda x: x.file)
+        for file, results in results_by_file:
+            types_found = [result.value for result in results]
+
+            if not fuzzy and not all(type_name == t for t in types_found):
+                logger.warning(
+                    "Type name mismatch, this should not happen: %s",
+                    type_name,
+                )
+                continue
+            if fuzzy and not all(type_name in t for t in types_found):
+                logger.warning(
+                    "Type name mismatch, this should not happen: %s",
+                    type_name,
+                )
                 continue
 
-            res.append(function)
+            typedefs: dict[str, TypeDefinition] = {}
+
+            for typename in types_found:
+                t = self.ts.parse_types_in_code(file, typename, fuzzy)
+                if not t:
+                    logger.warning(
+                        "Type definition not found in tree-sitter: %s", typename
+                    )
+                    continue
+                typedefs.update(t)
+
+            if function_name:
+                # Get the function definition to find its scope
+                function = self.ts.get_function(function_name, file)
+                if function:
+                    # Filter type definitions to only include those within the function's scope
+                    filtered_typedefs = {}
+                    for name, typedef in typedefs.items():
+                        # Check if the type definition is within the function's scope
+                        for body in function.bodies:
+                            if (
+                                body.start_line
+                                <= typedef.definition_line
+                                <= body.end_line
+                            ):
+                                filtered_typedefs[name] = typedef
+                                break
+                    typedefs = filtered_typedefs
+                else:
+                    typedefs = {}
+
+            res.extend(typedefs.values())
 
         return res
 

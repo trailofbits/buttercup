@@ -7,6 +7,7 @@ from pathlib import Path
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
 from buttercup.common.task_meta import TaskMeta
+from buttercup.program_model.utils.common import TypeDefinitionType
 
 
 def setup_dirs(tmp_path: Path) -> Path:
@@ -48,6 +49,13 @@ def setup_dirs(tmp_path: Path) -> Path:
 
 int function4(char *s) {
     return strlen(s);
+}
+""")
+    (source / "test4.c").write_text("""typedef int myInt;
+myInt function5(myInt a, myInt b) {
+    typedef int myOtherInt;
+    myOtherInt c = a + b;
+    return a + b + c;
 }
 """)
 
@@ -123,6 +131,17 @@ def test_get_functions_multiple(mock_challenge_task: ChallengeTask):
     )
 
 
+def test_get_functions_fuzzy(mock_challenge_task: ChallengeTask):
+    """Test that we can get functions (fuzzy search) in codebase"""
+    codequery = CodeQuery(mock_challenge_task)
+    functions = codequery.get_functions("function", fuzzy=True)
+    assert len(functions) == 4
+    functions = codequery.get_functions("function", Path("test3.c"), fuzzy=True)
+    assert len(functions) == 2
+    functions = codequery.get_functions("function3", Path("test3.c"), fuzzy=True)
+    assert len(functions) == 1
+
+
 def test_keep_status(
     mock_challenge_task: ChallengeTask,
     mock_challenge_task_ro: ChallengeTask,
@@ -159,6 +178,46 @@ def test_keep_status(
         assert codequery4.challenge.task_dir == codequery.challenge.task_dir
         assert mock_challenge_task.task_dir.exists()
         assert mock_challenge_task_ro.task_dir.exists()
+
+
+def test_get_types(mock_challenge_task: ChallengeTask):
+    """Test that we can get types in codebase"""
+    codequery = CodeQuery(mock_challenge_task)
+    types = codequery.get_types("myInt", Path("test3.c"))
+    assert len(types) == 0
+    types = codequery.get_types("myInt")
+    assert len(types) == 1
+    types = codequery.get_types("myInt", Path("test4.c"))
+    assert len(types) == 1
+    assert types[0].name == "myInt"
+    assert types[0].type == TypeDefinitionType.TYPEDEF
+    assert types[0].definition == "typedef int myInt;"
+    assert types[0].definition_line == 0
+    types = codequery.get_types("myInt", Path("test4.c"), function_name="function5")
+    assert len(types) == 0
+    types = codequery.get_types(
+        "myOtherInt", Path("test4.c"), function_name="function5"
+    )
+    assert len(types) == 1
+    assert types[0].name == "myOtherInt"
+    assert types[0].type == TypeDefinitionType.TYPEDEF
+    assert types[0].definition == "    typedef int myOtherInt;"
+    assert types[0].definition_line == 2
+
+
+def test_get_types_fuzzy(mock_challenge_task: ChallengeTask):
+    """Test that we can get types (fuzzy search) in codebase"""
+    codequery = CodeQuery(mock_challenge_task)
+    types = codequery.get_types("my", Path("test4.c"), fuzzy=True)
+    assert len(types) == 2
+    types = codequery.get_types("myInt", Path("test4.c"), fuzzy=True)
+    assert len(types) == 1
+    types = codequery.get_types("myOtherInt", Path("test4.c"), fuzzy=True)
+    assert len(types) == 1
+    types = codequery.get_types("my", fuzzy=True)
+    assert len(types) == 2
+    types = codequery.get_types("myOtherInt", Path("test4.c"), "function5", fuzzy=True)
+    assert len(types) == 1
 
 
 @pytest.fixture
