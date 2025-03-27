@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class SeedInitTask(Task):
-    SEED_INIT_SEED_COUNT = 10
+    SEED_INIT_SEED_COUNT = 8
 
     def generate_seed_funcs(self, harness: str, additional_context: str) -> str:
         """Generate a python file of seed-generation functions"""

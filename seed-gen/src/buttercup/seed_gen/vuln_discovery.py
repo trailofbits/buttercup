@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class VulnDiscoveryTask(Task):
-    VULN_DISCOVERY_MAX_POV_COUNT = 10
+    VULN_DISCOVERY_MAX_POV_COUNT = 8
 
     def analyze_diff(self, diff: str, harness: str) -> str:
         """

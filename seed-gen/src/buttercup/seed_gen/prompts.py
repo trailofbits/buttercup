@@ -192,5 +192,60 @@ The target function is:
 {target_function}
 ```
 
+Additional function definitions that may be helpful:
+```
+{additional_functions}
+```
+
 The python functions are:
+"""
+
+PYTHON_FUNCTION_LOOKUP_SYSTEM_PROMPT = """
+Identify functions that would be most helpful to create test inputs that reach a target function.
+"""
+
+PYTHON_FUNCTION_LOOKUP_USER_PROMPT = """
+I am trying to generate test inputs that reach a target function from a harness. I will provide:
+1. The target function definition
+2. The harness code
+3. Any additional function definitions I have already looked up
+
+Please identify 1-{max_lookup_functions} functions based on the provided code which would be most helpful for generating reaching test inputs.
+I will look up the definition of each function you identify and reference them when generating test inputs.
+
+Provide:
+1. The function name
+2. A VERY BRIEF explanation of why having this function's code would be helpful for creating reaching inputs
+
+Format your response as a JSON array of objects with "name" and "reason" fields. For example:
+```
+[
+    {{"name": "parse_command", "reason": "Handles command parsing which is crucial for reaching the target function"}},
+    {{"name": "validate_input", "reason": "Validates inputs before they reach the target function"}}
+]
+```
+Do not specify functions which the provided code already defines.
+
+The target function is:
+```
+{target_function}
+```
+
+The harness is:
+```
+{harness}
+```
+
+Additional function definitions:
+```
+{additional_functions}
+```
+
+Remember:
+- Select no more than {max_lookup_functions} functions
+- My goal is to create test inputs that reach the target function
+- Answer only with the JSON array of functions, in the format specified above
+- Do not select a function where the definition is already provided (the target function, in the harness, or in the additional functions)
+
+Your response:
 """

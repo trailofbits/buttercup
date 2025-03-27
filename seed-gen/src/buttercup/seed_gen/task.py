@@ -45,7 +45,8 @@ class Task:
     def get_default_llm() -> BaseChatModel:
         llm_callbacks = get_langfuse_callbacks()
         llm = create_default_llm(
-            model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value, callbacks=llm_callbacks
+            model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value,
+            callbacks=llm_callbacks,
         )
         fallback_llm = create_default_llm(
             model_name=ButtercupLLM.OPENAI_GPT_4O.value, callbacks=llm_callbacks
