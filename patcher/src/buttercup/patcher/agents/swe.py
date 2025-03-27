@@ -35,7 +35,7 @@ from buttercup.patcher.agents.common import (
     CodeSnippetKey,
     get_code_snippet_request_tmpl,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
+from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.utils import decode_bytes, PatchOutput
 
 logger = logging.getLogger(__name__)
@@ -287,7 +287,9 @@ class SWEAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm(temperature=0.1).configurable_fields(
+        default_llm = create_default_llm(
+            model_name=ButtercupLLM.OPENAI_GPT_4O.value, temperature=0.1
+        ).configurable_fields(
             temperature=ConfigurableField(
                 id="llm_temperature",
                 name="LLM temperature",
@@ -296,10 +298,10 @@ class SWEAgent(PatcherAgentBase):
         )
         fallback_llms: list[Runnable] = []
         for fb_model in [
-            ButtercupLLM.OPENAI_GPT_4O_MINI,
+            ButtercupLLM.CLAUDE_3_5_SONNET,
         ]:
             fallback_llms.append(
-                create_llm(model_name=fb_model.value, temperature=0.1).configurable_fields(
+                create_default_llm(model_name=fb_model.value, temperature=0.1).configurable_fields(
                     temperature=ConfigurableField(
                         id="llm_temperature",
                         name="LLM temperature",

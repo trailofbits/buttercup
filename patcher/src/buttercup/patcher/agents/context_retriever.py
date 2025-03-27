@@ -8,7 +8,7 @@ from pathlib import Path
 from langchain_core.runnables import Runnable
 from langchain_core.prompts import ChatPromptTemplate
 from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverState, ContextCodeSnippet, CodeSnippetKey
-from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
+from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langgraph.types import Command
 
 import subprocess
@@ -44,9 +44,9 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm()
+        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms = [
-            create_llm(model_name=ButtercupLLM.OPENAI_GPT_4O_MINI.value),
+            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
         ]
         self.llm = default_llm.with_fallbacks(fallback_llms)
 

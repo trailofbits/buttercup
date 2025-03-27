@@ -26,7 +26,7 @@ from buttercup.patcher.agents.common import (
     ContextCodeSnippet,
     get_code_snippet_request_tmpl,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm, create_llm
+from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.utils import decode_bytes
 from langgraph.types import Command
 
@@ -206,9 +206,9 @@ class RootCauseAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm()
+        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms = [
-            create_llm(model_name=ButtercupLLM.OPENAI_GPT_4O_MINI.value),
+            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
         ]
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
