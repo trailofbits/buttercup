@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated, Optional
 from uuid import UUID
+import importlib.metadata
 
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerifyMismatchError
@@ -31,11 +32,15 @@ logger.info("Competition API URL: %s", settings.competition_api_url)
 logger.info("Competition API Key ID: %s", settings.competition_api_username)
 logger.info("API Key ID: %s", settings.api_key_id)
 
+try:
+    __version__ = importlib.metadata.version("orchestrator")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "0.0.0"
 
 app = FastAPI(
     title="Buttercup CRS API",
     contact={},
-    version="0.3",
+    version=__version__,
     servers=[{"url": "/"}],
     log_config=None,
 )
@@ -169,8 +174,7 @@ def get_status_(
         waiting=0,
     )
     state = StatusState(tasks=tasks)
-    version = "0.3"
-    return Status(details=details, ready=ready, since=0, state=state, version=version)
+    return Status(details=details, ready=ready, since=0, state=state, version=__version__)
 
 
 @app.delete("/status/", response_model=str, tags=["status"])
