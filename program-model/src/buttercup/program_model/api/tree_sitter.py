@@ -224,6 +224,7 @@ class CodeTS:
                 continue
             logger.debug("Type name: %s", name)
             logger.debug("Type definition: %s", type_definition)
+            logger.debug("Definition node type: %s", definition_node.type)
 
             # Determine the type based on the node type
             type_def_type = TypeDefinitionType.STRUCT  # default
@@ -237,6 +238,8 @@ class CodeTS:
                 type_def_type = TypeDefinitionType.TYPEDEF
             elif definition_node.type == "preproc_def":
                 type_def_type = TypeDefinitionType.PREPROC_TYPE
+            elif definition_node.type == "class_declaration":
+                type_def_type = TypeDefinitionType.CLASS
             else:
                 continue  # Skip this define as it doesn't look like a type
 

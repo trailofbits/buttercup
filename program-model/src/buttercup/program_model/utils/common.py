@@ -47,6 +47,7 @@ class TypeDefinitionType(str, Enum):
     ENUM = "enum"
     TYPEDEF = "typedef"
     PREPROC_TYPE = "preproc_type"
+    CLASS = "class"
 
 
 @dataclass

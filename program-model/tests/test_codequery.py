@@ -10,8 +10,8 @@ from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.utils.common import TypeDefinitionType
 
 
-def setup_dirs(tmp_path: Path) -> Path:
-    """Create a mock challenge task directory structure."""
+def setup_c_dirs(tmp_path: Path) -> Path:
+    """Create a mock c challenge task directory structure."""
     # Create the main directories
     oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
     source = tmp_path / "src" / "my-source"
@@ -22,7 +22,7 @@ def setup_dirs(tmp_path: Path) -> Path:
     diffs.mkdir(parents=True, exist_ok=True)
 
     # Create a mock project.yaml file
-    project_yaml_path = oss_fuzz / "projects" / "example_project" / "project.yaml"
+    project_yaml_path = oss_fuzz / "projects" / "example_c_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: c\n")
 
@@ -61,7 +61,7 @@ myInt function5(myInt a, myInt b) {
 
     # Create task metadata
     TaskMeta(
-        project_name="example_project",
+        project_name="example_c_project",
         focus="my-source",
         task_id="task-id-challenge-task",
     ).save(tmp_path)
@@ -70,30 +70,30 @@ myInt function5(myInt a, myInt b) {
 
 
 @pytest.fixture
-def task_dir(tmp_path: Path) -> Path:
-    return setup_dirs(tmp_path / "task_rw")
+def task_c_dir(tmp_path: Path) -> Path:
+    return setup_c_dirs(tmp_path / "task_rw")
 
 
 @pytest.fixture
-def task_dir_ro(tmp_path: Path) -> Path:
-    return setup_dirs(tmp_path / "task_ro")
+def task_c_dir_ro(tmp_path: Path) -> Path:
+    return setup_c_dirs(tmp_path / "task_ro")
 
 
 @pytest.fixture
-def mock_challenge_task(task_dir: Path) -> ChallengeTask:
+def mock_c_challenge_task(task_c_dir: Path) -> ChallengeTask:
     """Create a mock challenge task"""
-    return ChallengeTask(task_dir, local_task_dir=task_dir)
+    return ChallengeTask(task_c_dir, local_task_dir=task_c_dir)
 
 
 @pytest.fixture
-def mock_challenge_task_ro(task_dir_ro: Path) -> ChallengeTask:
+def mock_c_challenge_task_ro(task_c_dir_ro: Path) -> ChallengeTask:
     """Create a mock challenge task"""
-    return ChallengeTask(task_dir_ro, local_task_dir=task_dir_ro)
+    return ChallengeTask(task_c_dir_ro, local_task_dir=task_c_dir_ro)
 
 
-def test_get_functions_simple(mock_challenge_task: ChallengeTask):
+def test_get_functions_simple(mock_c_challenge_task: ChallengeTask):
     """Test that we can get the main function"""
-    codequery = CodeQuery(mock_challenge_task)
+    codequery = CodeQuery(mock_c_challenge_task)
     main_functions = codequery.get_functions("main")
     assert len(main_functions) == 1
     assert main_functions[0].name == "main"
@@ -101,9 +101,9 @@ def test_get_functions_simple(mock_challenge_task: ChallengeTask):
     assert main_functions[0].bodies[0].body == "int main() { return 0; }"
 
 
-def test_get_functions_file(mock_challenge_task: ChallengeTask):
+def test_get_functions_file(mock_c_challenge_task: ChallengeTask):
     """Test that we can get the main function from a specific file"""
-    codequery = CodeQuery(mock_challenge_task)
+    codequery = CodeQuery(mock_c_challenge_task)
     main_functions = codequery.get_functions("main", Path("test.c"))
     assert len(main_functions) == 1
     assert main_functions[0].name == "main"
@@ -111,9 +111,9 @@ def test_get_functions_file(mock_challenge_task: ChallengeTask):
     assert main_functions[0].bodies[0].body == "int main() { return 0; }"
 
 
-def test_get_functions_multiple(mock_challenge_task: ChallengeTask):
+def test_get_functions_multiple(mock_c_challenge_task: ChallengeTask):
     """Test that we can get multiple functions from a file"""
-    codequery = CodeQuery(mock_challenge_task)
+    codequery = CodeQuery(mock_c_challenge_task)
     function3 = codequery.get_functions("function3", Path("test3.c"))
     assert len(function3) == 1
     assert function3[0].name == "function3"
@@ -131,9 +131,9 @@ def test_get_functions_multiple(mock_challenge_task: ChallengeTask):
     )
 
 
-def test_get_functions_fuzzy(mock_challenge_task: ChallengeTask):
+def test_get_functions_fuzzy(mock_c_challenge_task: ChallengeTask):
     """Test that we can get functions (fuzzy search) in codebase"""
-    codequery = CodeQuery(mock_challenge_task)
+    codequery = CodeQuery(mock_c_challenge_task)
     functions = codequery.get_functions("function", fuzzy=True)
     assert len(functions) == 4
     functions = codequery.get_functions("function", Path("test3.c"), fuzzy=True)
@@ -143,46 +143,46 @@ def test_get_functions_fuzzy(mock_challenge_task: ChallengeTask):
 
 
 def test_keep_status(
-    mock_challenge_task: ChallengeTask,
-    mock_challenge_task_ro: ChallengeTask,
+    mock_c_challenge_task: ChallengeTask,
+    mock_c_challenge_task_ro: ChallengeTask,
     tmp_path: Path,
 ):
     """Test that we can access the same db from different instances"""
     wdir = tmp_path
     wdir.mkdir(parents=True, exist_ok=True)
 
-    codequery = CodeQueryPersistent(mock_challenge_task, work_dir=wdir)
+    codequery = CodeQueryPersistent(mock_c_challenge_task, work_dir=wdir)
     assert codequery.get_functions("main")
-    assert mock_challenge_task.task_dir.exists()
+    assert mock_c_challenge_task.task_dir.exists()
 
-    codequery2 = CodeQueryPersistent(mock_challenge_task_ro, work_dir=wdir)
+    codequery2 = CodeQueryPersistent(mock_c_challenge_task_ro, work_dir=wdir)
     assert codequery2.get_functions("main")
     assert codequery2.challenge.task_dir == codequery.challenge.task_dir
-    assert mock_challenge_task.task_dir.exists()
-    assert mock_challenge_task_ro.task_dir.exists()
+    assert mock_c_challenge_task.task_dir.exists()
+    assert mock_c_challenge_task_ro.task_dir.exists()
 
-    with mock_challenge_task_ro.get_rw_copy(
-        mock_challenge_task_ro.task_dir.parent
+    with mock_c_challenge_task_ro.get_rw_copy(
+        mock_c_challenge_task_ro.task_dir.parent
     ) as nd_challenge:
         codequery3 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery3.get_functions("main")
         assert codequery3.challenge.task_dir == codequery.challenge.task_dir
-        assert mock_challenge_task.task_dir.exists()
-        assert mock_challenge_task_ro.task_dir.exists()
+        assert mock_c_challenge_task.task_dir.exists()
+        assert mock_c_challenge_task_ro.task_dir.exists()
 
-    with mock_challenge_task.get_rw_copy(
-        mock_challenge_task.task_dir.parent
+    with mock_c_challenge_task.get_rw_copy(
+        mock_c_challenge_task.task_dir.parent
     ) as nd_challenge:
         codequery4 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery4.get_functions("main")
         assert codequery4.challenge.task_dir == codequery.challenge.task_dir
-        assert mock_challenge_task.task_dir.exists()
-        assert mock_challenge_task_ro.task_dir.exists()
+        assert mock_c_challenge_task.task_dir.exists()
+        assert mock_c_challenge_task_ro.task_dir.exists()
 
 
-def test_get_types(mock_challenge_task: ChallengeTask):
+def test_get_types(mock_c_challenge_task: ChallengeTask):
     """Test that we can get types in codebase"""
-    codequery = CodeQuery(mock_challenge_task)
+    codequery = CodeQuery(mock_c_challenge_task)
     types = codequery.get_types("myInt", Path("test3.c"))
     assert len(types) == 0
     types = codequery.get_types("myInt")
@@ -205,9 +205,9 @@ def test_get_types(mock_challenge_task: ChallengeTask):
     assert types[0].definition_line == 2
 
 
-def test_get_types_fuzzy(mock_challenge_task: ChallengeTask):
+def test_get_types_fuzzy(mock_c_challenge_task: ChallengeTask):
     """Test that we can get types (fuzzy search) in codebase"""
-    codequery = CodeQuery(mock_challenge_task)
+    codequery = CodeQuery(mock_c_challenge_task)
     types = codequery.get_types("my", Path("test4.c"), fuzzy=True)
     assert len(types) == 2
     types = codequery.get_types("myInt", Path("test4.c"), fuzzy=True)
@@ -399,4 +399,214 @@ def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     assert len(functions[0].bodies) == 1
     assert (
         "if (sepol_policydb_optimize(pdb) != SEPOL_OK)" in functions[0].bodies[0].body
+    )
+
+
+def setup_java_dirs(tmp_path: Path) -> Path:
+    """Create a mock java challenge task directory structure."""
+    # Create the main directories
+    oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
+    source = tmp_path / "src" / "my-source"
+    diffs = tmp_path / "diff" / "my-diff"
+
+    oss_fuzz.mkdir(parents=True, exist_ok=True)
+    source.mkdir(parents=True, exist_ok=True)
+    diffs.mkdir(parents=True, exist_ok=True)
+
+    # Create a mock project.yaml file
+    project_yaml_path = oss_fuzz / "projects" / "example_java_project" / "project.yaml"
+    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.write_text("language: jvm\n")
+
+    # Create some mock patch files
+    (diffs / "patch1.diff").write_text("mock patch 1")
+    (diffs / "patch2.diff").write_text("mock patch 2")
+
+    # Create a mock helper.py file
+    helper_path = oss_fuzz / "infra/helper.py"
+    helper_path.parent.mkdir(parents=True, exist_ok=True)
+    helper_path.write_text("import sys;\nsys.exit(0)\n")
+
+    # Create a mock test.txt file
+    (source / "test.java").write_text("""public class Test {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}
+""")
+    (source / "test2.java").write_text("""public class Test2 {
+    public static int add(int a, int b) {
+        return a + b;
+    }
+
+    public static void main(String[] args) {
+        int sum = add(5, 3);
+        System.out.println("The sum is: " + sum);
+    }
+}
+""")
+    (source / "test3.java").write_text("""class MyStruct {
+    public int id;
+    public String name;
+    public double value;
+
+    public MyStruct(int id, String name, double value) {
+        this.id = id;
+        this.name = name;
+        this.value = value;
+    }
+}
+
+public class Test3 {
+    public static void main(String[] args) {
+        MyStruct data = new MyStruct(1, "Example", 3.14);
+        System.out.println("MyStruct: " + data.id + ", " + data.name + ", " + data.value);
+    }
+}
+""")
+
+    # Create task metadata
+    TaskMeta(
+        project_name="example_java_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+    ).save(tmp_path)
+
+    return tmp_path
+
+
+@pytest.fixture
+def task_java_dir(tmp_path: Path) -> Path:
+    return setup_java_dirs(tmp_path / "task_rw")
+
+
+@pytest.fixture
+def task_java_dir_ro(tmp_path: Path) -> Path:
+    return setup_java_dirs(tmp_path / "task_ro")
+
+
+@pytest.fixture
+def mock_java_challenge_task(task_java_dir: Path) -> ChallengeTask:
+    """Create a mock challenge task"""
+    return ChallengeTask(task_java_dir, local_task_dir=task_java_dir)
+
+
+@pytest.fixture
+def mock_java_challenge_task_ro(task_java_dir_ro: Path) -> ChallengeTask:
+    """Create a mock challenge task"""
+    return ChallengeTask(task_java_dir_ro, local_task_dir=task_java_dir_ro)
+
+
+def test_get_functions_java(mock_java_challenge_task: ChallengeTask):
+    """Test that we can get the main function"""
+    codequery = CodeQuery(mock_java_challenge_task)
+    main_functions = codequery.get_functions("main")
+    assert len(main_functions) == 3
+    assert main_functions[0].name == "main"
+    assert len(main_functions[0].bodies) == 1
+    assert (
+        main_functions[0].bodies[0].body
+        == '    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }'
+    )
+    assert main_functions[1].name == "main"
+    assert len(main_functions[1].bodies) == 1
+    assert (
+        main_functions[1].bodies[0].body
+        == '    public static void main(String[] args) {\n        int sum = add(5, 3);\n        System.out.println("The sum is: " + sum);\n    }'
+    )
+    assert main_functions[2].name == "main"
+    assert len(main_functions[2].bodies) == 1
+    assert (
+        main_functions[2].bodies[0].body
+        == '    public static void main(String[] args) {\n        MyStruct data = new MyStruct(1, "Example", 3.14);\n        System.out.println("MyStruct: " + data.id + ", " + data.name + ", " + data.value);\n    }'
+    )
+
+
+def test_get_types_java(mock_java_challenge_task: ChallengeTask):
+    """Test that we can get types in codebase"""
+    codequery = CodeQuery(mock_java_challenge_task)
+    types = codequery.get_types("MyStruct", Path("test2.java"))
+    assert len(types) == 0
+    types = codequery.get_types("MyStruct", Path("test3.java"))
+    assert len(types) == 1
+    assert types[0].name == "MyStruct"
+    assert types[0].type == TypeDefinitionType.CLASS
+    assert (
+        types[0].definition
+        == "class MyStruct {\n    public int id;\n    public String name;\n    public double value;\n\n    public MyStruct(int id, String name, double value) {\n        this.id = id;\n        this.name = name;\n        this.value = value;\n    }\n}"
+    )
+    assert types[0].definition_line == 0
+
+
+@pytest.fixture
+def antlr4_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
+    """Create a challenge task using a real OSS-Fuzz repository."""
+    oss_fuzz_dir = tmp_path / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = tmp_path / "src"
+    source_dir.mkdir(parents=True)
+
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir),
+            "clone",
+            "https://github.com/google/oss-fuzz.git",
+        ],
+        check=True,
+    )
+    # Restore antlr4 project directory to specific commit
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir / "oss-fuzz"),
+            "checkout",
+            "5379395b4afaece1edcef2ba9b4818227168f4db",
+            "--",
+            "projects/antlr4-java",
+        ],
+        check=True,
+    )
+
+    # Download antlr4 source code
+    url = "https://github.com/antlr/antlr4"
+    subprocess.run(["git", "-C", str(source_dir), "clone", url], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(source_dir / "antlr4"),
+            "checkout",
+            "7b53e13ba005b978e2603f3ff81a0cb7cc98f689",
+        ],
+        check=True,
+    )
+
+    # Create task metadata
+    TaskMeta(
+        project_name="antlr4-java", focus="antlr4-java", task_id="task-id-antlr4-java"
+    ).save(tmp_path)
+
+    return ChallengeTask(
+        read_only_task_dir=tmp_path,
+        local_task_dir=tmp_path,
+    )
+
+
+@pytest.mark.integration
+def test_antlr4_indexing(antlr4_oss_fuzz_task: ChallengeTask):
+    """Test that we can index antlr4 and files inside oss-fuzz repo"""
+    codequery = CodeQuery(antlr4_oss_fuzz_task)
+    functions = codequery.get_functions("fuzzerTestOneInput")
+    assert len(functions) == 1
+    assert functions[0].name == "fuzzerTestOneInput"
+    assert functions[0].file_path == Path(
+        "fuzz-tooling/oss-fuzz/projects/antlr4-java/GrammarFuzzer.java"
+    )
+    assert len(functions[0].bodies) == 1
+    assert (
+        "LexerInterpreter lexEngine = lg.createLexerInterpreter(CharStreams.fromString(data.consumeRemainingAsString()));"
+        in functions[0].bodies[0].body
     )
