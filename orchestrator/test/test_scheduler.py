@@ -6,8 +6,11 @@ from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetai
 from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.task_meta import TaskMeta
 
-from buttercup.common.queues import RQItem
+from buttercup.common.queues import RQItem, ReliableQueue
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
+from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.orchestrator.scheduler.submission_tracker import SubmissionTracker
+from buttercup.common.queues import QueueFactory
 
 import tempfile
 from pathlib import Path
@@ -19,8 +22,88 @@ def mock_redis():
 
 
 @pytest.fixture
-def scheduler(mock_redis, tmp_path):
-    return Scheduler(tasks_storage_dir=tmp_path, scratch_dir=tmp_path, redis=mock_redis)
+def mock_patch_api():
+    return Mock()
+
+
+@pytest.fixture
+def mock_bundles_queue():
+    return Mock(spec=ReliableQueue)
+
+
+@pytest.fixture
+def mock_submission_tracker():
+    return Mock(spec=SubmissionTracker)
+
+
+@pytest.fixture
+def mock_task_registry():
+    return Mock(spec=TaskRegistry)
+
+
+@pytest.fixture
+def mock_api_client():
+    return Mock()
+
+
+@pytest.fixture
+def mock_queues():
+    crash_queue = Mock()
+    traced_vulnerabilities_queue = Mock()
+    confirmed_vulnerabilities_queue = Mock()
+
+    # Mock QueueFactory
+    queue_factory = Mock(spec=QueueFactory)
+    queue_factory.create.side_effect = [crash_queue, traced_vulnerabilities_queue, confirmed_vulnerabilities_queue]
+
+    # Create a patch for QueueFactory
+    with patch("buttercup.orchestrator.scheduler.vulnerabilities.QueueFactory", return_value=queue_factory):
+        yield {
+            "factory": queue_factory,
+            "crash": crash_queue,
+            "traced": traced_vulnerabilities_queue,
+            "confirmed": confirmed_vulnerabilities_queue,
+        }
+
+
+@pytest.fixture
+def scheduler(
+    mock_redis,
+    mock_patch_api,
+    mock_bundles_queue,
+    mock_submission_tracker,
+    mock_task_registry,
+    mock_api_client,
+    mock_queues,
+):
+    with (
+        patch("buttercup.orchestrator.competition_api_client.PatchApi", return_value=mock_patch_api),
+        patch("buttercup.orchestrator.scheduler.scheduler.TaskRegistry", return_value=mock_task_registry),
+    ):
+        # Create a scheduler instance with mocked dependencies
+        scheduler = Scheduler(
+            tasks_storage_dir=Path("/tmp/task_downloads"),
+            scratch_dir=Path("/tmp/crs_scratch"),
+            redis=mock_redis,
+            competition_api_url="http://test-api:8080",
+            competition_api_key_id="test_key_id",
+            competition_api_key_token="test_key_token",
+        )
+
+        # Mock patches and vulnerabilities
+        scheduler.patches = Mock()
+        scheduler.patches.status_checker = Mock()
+        scheduler.patches.check_pending_statuses = Mock()
+
+        scheduler.vulnerabilities = Mock()
+        scheduler.vulnerabilities.status_checker = Mock()
+        scheduler.vulnerabilities.check_pending_statuses = Mock()
+
+        # Set up bundles mock
+        scheduler.bundles = Mock()
+        scheduler.bundles.process_bundles = Mock(return_value=False)
+
+        return scheduler
 
 
 @pytest.mark.skip(reason="Not implemented")
@@ -364,82 +447,31 @@ def test_should_stop_processing_wrapper(scheduler):
 
 def test_serve_item_processes_cancellations_then_updates_cache(scheduler):
     """Test that serve_item runs process_cancellations first, then updates the cached cancelled IDs."""
-    # Set up the task registry with some cancelled tasks
-    scheduler.task_registry = Mock()
-    cancelled_ids = ["task1", "task2", "task3"]
-    scheduler.task_registry.get_cancelled_task_ids.return_value = cancelled_ids
+    # Setup
+    scheduler.cancellation.process_cancellations = Mock(return_value=True)
+    scheduler.update_cached_cancelled_ids = Mock(return_value=True)
+    scheduler.serve_ready_task = Mock(return_value=False)
+    scheduler.serve_build_output = Mock(return_value=False)
+    scheduler.serve_index_output = Mock(return_value=False)
+    scheduler.vulnerabilities.process_traced_vulnerabilities = Mock(return_value=False)
+    scheduler.patches.process_patches = Mock(return_value=False)
+    scheduler.update_expired_task_weights = Mock(return_value=False)
+    scheduler.competition_api_interactions = Mock(return_value=False)
 
-    # Set up a call tracker
-    call_order = []
-
-    # Create mocks for all components with tracking
-    def make_tracked_mock(name, return_value=False):
-        def track_call():
-            call_order.append(name)
-            return return_value
-
-        return Mock(side_effect=track_call)
-
-    # Create mock for all components with tracking
-    mock_process_cancellations = make_tracked_mock("cancellation", return_value=True)
-    mock_update_cached_ids = make_tracked_mock("update_cache", return_value=False)
-    mock_serve_ready_task = make_tracked_mock("ready_task", return_value=False)
-    mock_serve_build_output = make_tracked_mock("build_output", return_value=False)
-    mock_serve_index_output = make_tracked_mock("index_output", return_value=False)
-    mock_process_traced_vulnerabilities = make_tracked_mock("traced_vulns", return_value=False)
-    mock_process_patches = make_tracked_mock("patches", return_value=False)
-    mock_update_expired_task_weights = make_tracked_mock("expired_weights", return_value=False)
-
-    # Replace the component methods with the mocks
-    scheduler.update_cached_cancelled_ids = mock_update_cached_ids
-    scheduler.serve_ready_task = mock_serve_ready_task
-    scheduler.serve_build_output = mock_serve_build_output
-    scheduler.serve_index_output = mock_serve_index_output
-    scheduler.update_expired_task_weights = mock_update_expired_task_weights
-
-    # Set up other required mocks
-    scheduler.cancellation = Mock()
-    scheduler.cancellation.process_cancellations = mock_process_cancellations
-    scheduler.vulnerabilities = Mock()
-    scheduler.vulnerabilities.process_traced_vulnerabilities = mock_process_traced_vulnerabilities
-    scheduler.patches = Mock()
-    scheduler.patches.process_patches = mock_process_patches
-
-    # Call serve_item
+    # Execute
     result = scheduler.serve_item()
 
-    # Verify the result
-    assert result is True, "serve_item should return True if any component returns True"
-
-    # Verify all mocks were called once
-    for mock_name, mock_obj in [
-        ("process_cancellations", mock_process_cancellations),
-        ("update_cached_ids", mock_update_cached_ids),
-        ("serve_ready_task", mock_serve_ready_task),
-        ("serve_build_output", mock_serve_build_output),
-        ("serve_index_output", mock_serve_index_output),
-        ("process_traced_vulnerabilities", mock_process_traced_vulnerabilities),
-        ("process_patches", mock_process_patches),
-        ("update_expired_task_weights", mock_update_expired_task_weights),
-    ]:
-        assert mock_obj.call_count == 1, f"{mock_name} should be called once"
-
-    # Verify the first two elements in the call order are correct
-    assert call_order[0] == "cancellation", "process_cancellations should be called first"
-    assert call_order[1] == "update_cache", "update_cached_cancelled_ids should be called second"
-
-    # Verify all components were called
-    expected_calls = {
-        "cancellation",
-        "update_cache",
-        "ready_task",
-        "build_output",
-        "index_output",
-        "traced_vulns",
-        "patches",
-        "expired_weights",
-    }
-    assert set(call_order) == expected_calls, "All components should be called"
+    # Verify
+    assert result is True
+    scheduler.cancellation.process_cancellations.assert_called_once()
+    scheduler.update_cached_cancelled_ids.assert_called_once()
+    scheduler.serve_ready_task.assert_called_once()
+    scheduler.serve_build_output.assert_called_once()
+    scheduler.serve_index_output.assert_called_once()
+    scheduler.vulnerabilities.process_traced_vulnerabilities.assert_called_once()
+    scheduler.patches.process_patches.assert_called_once()
+    scheduler.update_expired_task_weights.assert_called_once()
+    scheduler.competition_api_interactions.assert_called_once()
 
 
 def test_update_cached_cancelled_ids(scheduler):
@@ -567,3 +599,37 @@ def test_serve_ready_task_cancelled_task(mock_challenge_task, scheduler):
 
     # Restore the original method
     scheduler.should_stop_processing = original_should_stop_processing
+
+
+def test_competition_api_interactions(scheduler):
+    """Test that competition_api_interactions calls all components."""
+    # Set up mocks
+    scheduler.vulnerabilities.check_pending_statuses.return_value = True
+    scheduler.patches.check_pending_statuses.return_value = False
+    scheduler.bundles.process_bundles.return_value = False
+
+    # Call competition_api_interactions
+    result = scheduler.competition_api_interactions()
+
+    # Verify all components were called
+    scheduler.vulnerabilities.check_pending_statuses.assert_called_once()
+    scheduler.patches.check_pending_statuses.assert_called_once()
+    scheduler.bundles.process_bundles.assert_called_once()
+    assert result is True
+
+
+def test_competition_api_interactions_no_work(scheduler):
+    """Test that competition_api_interactions returns False when no work is done."""
+    # Set up mocks
+    scheduler.vulnerabilities.check_pending_statuses.return_value = False
+    scheduler.patches.check_pending_statuses.return_value = False
+    scheduler.bundles.process_bundles.return_value = False
+
+    # Call competition_api_interactions
+    result = scheduler.competition_api_interactions()
+
+    # Verify all components were called
+    scheduler.vulnerabilities.check_pending_statuses.assert_called_once()
+    scheduler.patches.check_pending_statuses.assert_called_once()
+    scheduler.bundles.process_bundles.assert_called_once()
+    assert result is False

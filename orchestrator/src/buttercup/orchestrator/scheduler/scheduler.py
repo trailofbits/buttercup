@@ -19,9 +19,11 @@ from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
 from clusterfuzz.fuzz import get_fuzz_targets
 from buttercup.orchestrator.scheduler.patches import Patches
+from buttercup.orchestrator.scheduler.bundles import Bundles
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
 from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.orchestrator.scheduler.status_checker import StatusChecker
 import random
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ class Scheduler:
     competition_api_url: str = "http://competition-api:8080"
     competition_api_key_id: str = "api_key_id"
     competition_api_key_token: str = "api_key_token"
+    competition_api_cycle_time: float = 10.0  # Min seconds between competition api interactions
 
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
@@ -47,8 +50,10 @@ class Scheduler:
     cancellation: Cancellation | None = field(init=False, default=None)
     vulnerabilities: Vulnerabilities | None = field(init=False, default=None)
     patches: Patches = field(init=False)
+    bundles: Bundles = field(init=False)
     task_registry: TaskRegistry | None = field(init=False, default=None)
     cached_cancelled_ids: Set[str] = field(init=False, default_factory=set)
+    status_checker: StatusChecker | None = field(init=False, default=None)
 
     def update_cached_cancelled_ids(self) -> bool:
         """Update the cached set of cancelled task IDs.
@@ -107,7 +112,9 @@ class Scheduler:
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
             self.patches = Patches(redis=self.redis, api_client=api_client)
+            self.bundles = Bundles(redis=self.redis, api_client=api_client)
             self.task_registry = TaskRegistry(self.redis)
+            self.status_checker = StatusChecker(self.competition_api_cycle_time)
 
     def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
         """Select from preferred options if available, otherwise random choice.
@@ -316,6 +323,23 @@ class Scheduler:
 
         return any_updated
 
+    def competition_api_interactions(self) -> bool:
+        """Check statuses and process bundles if needed.
+        Will also submit patches if they were previously pending due to
+        the associated PoV not having passed status checks.
+        The interation is limited by the status_checker as there isn't much
+        value in checking several times per second.
+        """
+
+        def do_checks():
+            did_work = self.vulnerabilities.check_pending_statuses()
+            did_work = self.patches.check_pending_statuses() or did_work
+            did_work = self.bundles.process_bundles() or did_work
+            return did_work
+
+        did_work = self.status_checker.check_statuses(do_checks)
+        return did_work
+
     def serve_item(self) -> bool:
         # Run all scheduler components and track if any did work
         # Order is important: process_cancellations should be run first,
@@ -329,6 +353,7 @@ class Scheduler:
             self.vulnerabilities.process_traced_vulnerabilities,
             self.patches.process_patches,
             self.update_expired_task_weights,
+            self.competition_api_interactions,
         ]
 
         # Execute each component and collect results
@@ -345,6 +370,8 @@ class Scheduler:
         1. Ready tasks are processed and converted to build requests
         2. Cancellation service checks for timed out or cancelled tasks
         3. Process crashes and vulnerabilities from queues
+        4. Process patches and bundles from queues
+        5. Check status of submitted PoVs and patches, create bundles when possible
         """
         if self.redis is None:
             raise ValueError("Redis is not initialized")

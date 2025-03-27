@@ -11,6 +11,9 @@ class ServeCommand(BaseSettings):
     competition_api_url: Annotated[str, Field(default="http://competition-api:8080", description="Competition API URL")]
     competition_api_key_id: Annotated[str, Field(default="api_key_id", description="Competition API username")]
     competition_api_key_token: Annotated[str, Field(default="api_key_token", description="Competition API password")]
+    competition_api_cycle_time: Annotated[
+        float, Field(default=10.0, description="Min seconds between competition api interactions")
+    ]
 
     class Config:
         nested_model_default_partial_update = True

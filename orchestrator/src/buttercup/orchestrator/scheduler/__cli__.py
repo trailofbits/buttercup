@@ -46,6 +46,7 @@ def main():
             competition_api_url=command.competition_api_url,
             competition_api_key_id=command.competition_api_key_id,
             competition_api_key_token=command.competition_api_key_token,
+            competition_api_cycle_time=command.competition_api_cycle_time,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):

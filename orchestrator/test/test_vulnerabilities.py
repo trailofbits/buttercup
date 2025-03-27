@@ -8,6 +8,7 @@ from buttercup.orchestrator.competition_api_client.models.types_pov_submission_r
     TypesPOVSubmissionResponse,
 )
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.scheduler.submission_tracker import SubmissionTracker
 
 
 @pytest.fixture
@@ -41,6 +42,14 @@ def mock_queues():
 
 
 @pytest.fixture
+def mock_submission_tracker():
+    mock = Mock(spec=SubmissionTracker)
+    mock.get_pending_pov_submissions = Mock()
+    mock.update_pov_status = Mock()
+    return mock
+
+
+@pytest.fixture
 def sample_crash():
     crash = Crash()
     target = BuildOutput()
@@ -56,7 +65,7 @@ def sample_crash():
 
 
 @pytest.fixture
-def vulnerabilities(mock_redis, mock_api_client, mock_queues):
+def vulnerabilities(mock_redis, mock_api_client, mock_queues, mock_submission_tracker):
     # Mock Redis operations for TaskRegistry
     mock_redis.hexists.return_value = False
     mock_redis.hget.return_value = None
@@ -74,6 +83,10 @@ def vulnerabilities(mock_redis, mock_api_client, mock_queues):
 
     # Mock the vulnerability API method we use
     vuln.pov_api.v1_task_task_id_pov_post = Mock()
+    vuln.pov_api.v1_task_task_id_pov_pov_id_get = Mock()
+
+    # Set the submission tracker
+    vuln.submission_tracker = mock_submission_tracker
 
     return vuln
 
@@ -203,3 +216,67 @@ class TestSubmitVulnerability:
 class TestDedupCrash:
     def test_returns_crash_as_unique(self, vulnerabilities, sample_crash):
         assert vulnerabilities.dedup_crash(sample_crash) == sample_crash
+
+
+class TestCheckPendingStatuses:
+    def test_check_pending_statuses_no_pending(self, vulnerabilities, mock_submission_tracker):
+        # Setup
+        mock_submission_tracker.get_pending_pov_submissions.return_value = []
+
+        # Execute
+        result = vulnerabilities.check_pending_statuses()
+
+        # Verify
+        assert result is False
+        mock_submission_tracker.get_pending_pov_submissions.assert_called_once()
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.assert_not_called()
+
+    def test_check_pending_statuses_success(self, vulnerabilities, mock_submission_tracker):
+        # Setup
+        task_id = "test_task"
+        pov_id = "test_pov"
+        mock_submission_tracker.get_pending_pov_submissions.return_value = [(task_id, pov_id)]
+        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.PASSED, pov_id=pov_id)
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.return_value = mock_response
+
+        # Execute
+        result = vulnerabilities.check_pending_statuses()
+
+        # Verify
+        assert result is True
+        mock_submission_tracker.get_pending_pov_submissions.assert_called_once()
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.assert_called_once_with(task_id=task_id, pov_id=pov_id)
+        mock_submission_tracker.update_pov_status.assert_called_once_with(task_id, pov_id, TypesSubmissionStatus.PASSED)
+
+    def test_check_pending_statuses_api_error(self, vulnerabilities, mock_submission_tracker):
+        # Setup
+        task_id = "test_task"
+        pov_id = "test_pov"
+        mock_submission_tracker.get_pending_pov_submissions.return_value = [(task_id, pov_id)]
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.side_effect = Exception("API Error")
+
+        # Execute
+        result = vulnerabilities.check_pending_statuses()
+
+        # Verify
+        assert result is False
+        mock_submission_tracker.get_pending_pov_submissions.assert_called_once()
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.assert_called_once_with(task_id=task_id, pov_id=pov_id)
+        mock_submission_tracker.update_pov_status.assert_not_called()
+
+    def test_check_pending_statuses_accepted_status(self, vulnerabilities, mock_submission_tracker):
+        # Setup
+        task_id = "test_task"
+        pov_id = "test_pov"
+        mock_submission_tracker.get_pending_pov_submissions.return_value = [(task_id, pov_id)]
+        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, pov_id=pov_id)
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.return_value = mock_response
+
+        # Execute
+        result = vulnerabilities.check_pending_statuses()
+
+        # Verify
+        assert result is True
+        mock_submission_tracker.get_pending_pov_submissions.assert_called_once()
+        vulnerabilities.pov_api.v1_task_task_id_pov_pov_id_get.assert_called_once_with(task_id=task_id, pov_id=pov_id)
+        mock_submission_tracker.update_pov_status.assert_not_called()
