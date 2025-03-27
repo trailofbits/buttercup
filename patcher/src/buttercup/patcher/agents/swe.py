@@ -327,6 +327,7 @@ class SWEAgent(PatcherAgentBase):
                 )
             )
 
+        logger.debug("Parsed %d code snippets", len(items))
         return CodeSnippetChanges(items=items)
 
     def _get_file_content(self, file_path: str) -> str | None:
@@ -584,7 +585,7 @@ class SWEAgent(PatcherAgentBase):
                 tests_stderr=decode_bytes(state.tests_stderr),
             )
 
-        temperature = 0.0
+        temperature = 0.1
         is_patch_generated = False
 
         for _ in range(3):

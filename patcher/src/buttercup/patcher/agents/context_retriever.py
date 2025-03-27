@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 SYSTEM_TMPL = """You are a software engineer. Your job is to retrieve the code snippets requested by the user.
 You must use the tools provided to you to retrieve the code snippets.
 
-Do not stop until you have retrieved the code definition of the function.
-Use `get_function_definition` as the last tool in your chain of calls to actually retrieve the code definition.
+Do not stop until you have retrieved the code definition of the function/type/class/etc. requested by the user.
+Use `get_function_definition`/`get_type_definition` as the last tool in your chain of calls to actually retrieve the code definition.
 """
 
 RECURSION_LIMIT = 20
@@ -115,19 +115,34 @@ class ContextRetrieverAgent(PatcherAgentBase):
             return "\n".join(self.challenge.get_source_path().joinpath(path).read_text().splitlines()[start:end])
 
         @tool(return_direct=True)
-        def get_function_definition(path: str, function_name: str) -> str:
-            """Get the definition of a function in a file. You MUST use this tool as the last call in your chain of calls."""
-            path = self.rebase_src_path(path)
+        def get_function_definition(function_name: str, path: str | None = None) -> str:
+            """Get the definition of a function. This tool, when called, is the last call in your chain of calls."""
+            if path:
+                path = Path(self.rebase_src_path(path))
 
-            logger.info("Getting definition of %s in %s", function_name, path)
-            functions = codequery.get_functions(function_name, Path(path))
+            logger.info("Getting function definition of %s in %s", function_name, path)
+            functions = codequery.get_functions(function_name, path)
             if not functions:
-                return "No definition found for function"
+                return f"No definition found for function {function_name} in {path}"
 
             # TODO: allow for multiple bodies
             return functions[0].bodies[0].body
 
-        tools = [ls, grep, get_lines, cat, get_function_definition]
+        @tool(return_direct=True)
+        def get_type_definition(type_name: str, path: str | None = None) -> str:
+            """Get the definition of a type. This tool, when called, is the last call in your chain of calls."""
+            if path:
+                path = Path(self.rebase_src_path(path))
+
+            logger.info("Getting type definition of %s in %s", type_name, path)
+            types = codequery.get_types(type_name, path)
+            if not types:
+                return f"No definition found for type {type_name} in {path}"
+
+            # TODO: allow for multiple definitions
+            return types[0].definition
+
+        tools = [ls, grep, get_lines, cat, get_function_definition, get_type_definition]
         agent = create_react_agent(
             self.llm,
             tools,
