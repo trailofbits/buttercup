@@ -122,6 +122,8 @@ Service-specific environment variables that utilize the standardized variables
   value: "ws://{{ .Release.Name }}-janusgraph:8182/gremlin"
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__PYTHON
   value: "python"
+- name: BUTTERCUP_PROGRAM_MODEL_GRAPHDB_ENABLED
+  value: "false"
 {{- end }}
 
 {{- define "buttercup.downloaderEnv" }}
