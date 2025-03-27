@@ -19,21 +19,57 @@ from buttercup.seed_gen.function_selector import FunctionSelector
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
+from buttercup.seed_gen.task_counter import TaskCounter
 from buttercup.seed_gen.vuln_discovery import VulnDiscoveryTask
 
 logger = logging.getLogger(__name__)
 
 
 class SeedGenBot(TaskLoop):
+    TASK_SEED_INIT_PROB = 0.1
+    TASK_VULN_DISCOVERY_PROB = 0.3
+    TASK_SEED_EXPLORE_PROB = 0.6
+    MIN_SEED_INIT_RUNS = 3
+
     def __init__(self, redis: Redis, timer_seconds: int, wdir: str):
         self.wdir = wdir
         self.redis = redis
         self.crash_set = CrashSet(redis)
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
+        self.task_counter = TaskCounter(redis)
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BUILD_TYPES]:
         return [BUILD_TYPES.FUZZER]
+
+    def sample_task(self, task: WeightedHarness) -> str:
+        """Sample a task to run, prioritizing SEED_INIT if it hasn't been run enough times.
+
+        Args:
+            task: The WeightedHarness task to sample for
+
+        Returns:
+            The selected task name
+        """
+        # Check if SEED_INIT has been run enough times
+        seed_init_count = self.task_counter.get_count(
+            task.harness_name, task.package_name, task.task_id, TaskName.SEED_INIT.value
+        )
+
+        if seed_init_count < self.MIN_SEED_INIT_RUNS:
+            logger.info(
+                f"SEED_INIT has only been run {seed_init_count} times, forcing SEED_INIT task"
+            )
+            return TaskName.SEED_INIT.value
+
+        # If SEED_INIT has been run enough times, use normal probability distribution
+        task_distribution = [
+            (TaskName.SEED_INIT.value, self.TASK_SEED_INIT_PROB),
+            (TaskName.VULN_DISCOVERY.value, self.TASK_VULN_DISCOVERY_PROB),
+            (TaskName.SEED_EXPLORE.value, self.TASK_SEED_EXPLORE_PROB),
+        ]
+        tasks, weights = zip(*task_distribution)
+        return random.choices(tasks, weights=weights, k=1)[0]
 
     def submit_valid_povs(
         self,
@@ -93,30 +129,31 @@ class SeedGenBot(TaskLoop):
             codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
-            choices = [
-                TaskName.SEED_INIT.value,
-                TaskName.VULN_DISCOVERY.value,
-                TaskName.SEED_EXPLORE.value,
-            ]
-            test_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
-            if test_task is not None:
-                logger.info("Only testing task: %s", test_task)
-                choices = [test_task]
-            task_choice = random.choices(choices, k=1)[0]
+
+            override_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
+            if override_task:
+                logger.info("Only testing task: %s", override_task)
+            task_choice = override_task if override_task else self.sample_task(task)
+
             logger.info(f"Running seed-gen task: {task_choice}")
 
-            if task_choice == TaskName.SEED_INIT:
+            # Increment the counter for this task run
+            self.task_counter.increment(
+                task.harness_name, task.package_name, task.task_id, task_choice
+            )
+
+            if task_choice == TaskName.SEED_INIT.value:
                 seed_init = SeedInitTask(
                     task.package_name, task.harness_name, challenge_task, codequery
                 )
                 seed_init.do_task(out_dir)
-            elif task_choice == TaskName.VULN_DISCOVERY:
+            elif task_choice == TaskName.VULN_DISCOVERY.value:
                 vuln_discovery = VulnDiscoveryTask(
                     task.package_name, task.harness_name, challenge_task, codequery
                 )
                 vuln_discovery.do_task(out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
-            elif task_choice == TaskName.SEED_EXPLORE:
+            elif task_choice == TaskName.SEED_EXPLORE.value:
                 seed_explore = SeedExploreTask(
                     task.package_name, task.harness_name, challenge_task, codequery
                 )
