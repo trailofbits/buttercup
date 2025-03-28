@@ -40,6 +40,12 @@ spec:
             - name: scantron-config
               mountPath: /etc/scantron/scantron.yaml
               subPath: scantron.yaml
+            {{- if .Values.extraVolumeMounts }}
+            {{- range .Values.extraVolumeMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+            {{- end }}
+            {{- end }}
         {{- include "buttercup.dindSidecar" . | nindent 8 }}
       volumes:
         {{- include "buttercup.dindVolume" . | nindent 8 }}
