@@ -83,35 +83,36 @@ class SeedGenBot(TaskLoop):
 
         crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
 
-        for pov in out_dir.iterdir():
-            try:
-                pov_output = reproduce_multiple.get_first_crash(pov, task.harness_name)
-                if pov_output is not None:
-                    build, result = pov_output
-                    logger.info(f"Valid PoV found: {pov}")
-                    stacktrace = result.stacktrace()
-                    if self.crash_set.add(
-                        task.package_name,
-                        task.harness_name,
-                        task.task_id,
-                        stacktrace,
-                    ):
-                        logger.info(f"PoV with crash {stacktrace} already in crash set")
-                        continue
-                    logger.info("Submitting PoV to crash queue")
-                    dst = crash_dir.copy_file(pov)
-                    crash = Crash(
-                        target=build,
-                        harness_name=task.harness_name,
-                        crash_input_path=dst,
-                        stacktrace=stacktrace,
-                    )
-                    self.crash_queue.push(crash)
+        with reproduce_multiple.open() as mult:
+            for pov in out_dir.iterdir():
+                try:
+                    pov_output = mult.get_first_crash(pov, task.harness_name)
+                    if pov_output is not None:
+                        build, result = pov_output
+                        logger.info(f"Valid PoV found: {pov}")
+                        stacktrace = result.stacktrace()
+                        if self.crash_set.add(
+                            task.package_name,
+                            task.harness_name,
+                            task.task_id,
+                            stacktrace,
+                        ):
+                            logger.info(f"PoV with crash {stacktrace} already in crash set")
+                            continue
+                        logger.info("Submitting PoV to crash queue")
+                        dst = crash_dir.copy_file(pov)
+                        crash = Crash(
+                            target=build,
+                            harness_name=task.harness_name,
+                            crash_input_path=dst,
+                            stacktrace=stacktrace,
+                        )
+                        self.crash_queue.push(crash)
 
-                    logger.debug("PoV stdout: %s", result.command_result.output)
-                    logger.debug("PoV stderr: %s", result.command_result.error)
-            except ChallengeTaskError as exc:
-                logger.error(f"Error reproducing PoV {pov}: {exc}")
+                        logger.debug("PoV stdout: %s", result.command_result.output)
+                        logger.debug("PoV stderr: %s", result.command_result.error)
+                except ChallengeTaskError as exc:
+                    logger.error(f"Error reproducing PoV {pov}: {exc}")
 
     def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, list[BuildOutput]]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
