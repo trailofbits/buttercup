@@ -48,6 +48,11 @@ def _api_task_to_proto(task: Task) -> list[TaskProto]:
             source_detail.url = source.url
 
         task_proto.deadline = task_detail.deadline
+
+        # Populate metadata field
+        for key, value in task_detail.metadata.items():
+            task_proto.metadata[key] = str(value)
+
         res.append(task_proto)
 
     return res

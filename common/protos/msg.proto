@@ -18,6 +18,7 @@ message Task {
     bool cancelled = 7;
     string project_name = 8;
     string focus = 9;
+    map<string, string> metadata = 10;  // String to string map for traceability data
 }
 
 message SourceDetail {

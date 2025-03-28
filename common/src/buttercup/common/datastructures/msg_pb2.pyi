@@ -124,14 +124,22 @@ class SourceDetail(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
 
 class Task(_message.Message):
-    __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "project_name", "sources", "task_id", "task_type"]
+    __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "metadata", "project_name", "sources", "task_id", "task_type"]
     class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
+    class MetadataEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     CANCELLED_FIELD_NUMBER: _ClassVar[int]
     DEADLINE_FIELD_NUMBER: _ClassVar[int]
     FOCUS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_TIME_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
     PROJECT_NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
@@ -143,11 +151,12 @@ class Task(_message.Message):
     focus: str
     message_id: str
     message_time: int
+    metadata: _containers.ScalarMap[str, str]
     project_name: str
     sources: _containers.RepeatedCompositeFieldContainer[SourceDetail]
     task_id: str
     task_type: Task.TaskType
-    def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., cancelled: bool = ..., project_name: _Optional[str] = ..., focus: _Optional[str] = ...) -> None: ...
+    def __init__(self, message_id: _Optional[str] = ..., message_time: _Optional[int] = ..., task_id: _Optional[str] = ..., task_type: _Optional[_Union[Task.TaskType, str]] = ..., sources: _Optional[_Iterable[_Union[SourceDetail, _Mapping]]] = ..., deadline: _Optional[int] = ..., cancelled: bool = ..., project_name: _Optional[str] = ..., focus: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class TaskDelete(_message.Message):
     __slots__ = ["all", "received_at", "task_id"]

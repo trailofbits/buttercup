@@ -120,7 +120,7 @@ def test_post_task_authorized(client: TestClient) -> None:
                 deadline=int(time.time() + 1000),
                 focus="test_focus",
                 harnesses_included=True,
-                metadata={},
+                metadata={"key1": "value1", "key2": "123", "key3": "true", "key4": "1.23"},
                 project_name="test_project",
                 source=[
                     SourceDetail(
@@ -145,6 +145,17 @@ def test_post_task_authorized(client: TestClient) -> None:
 
     # Verify the task was pushed to the queue
     mock_tasks_queue.push.assert_called_once()
+
+    # Get the task that was pushed to the queue
+    task_download = mock_tasks_queue.push.call_args[0][0]
+    task_proto = task_download.task
+
+    # Verify metadata was properly converted
+    assert len(task_proto.metadata) == 4
+    assert task_proto.metadata["key1"] == "value1"
+    assert task_proto.metadata["key2"] == "123"
+    assert task_proto.metadata["key3"] == "true"
+    assert task_proto.metadata["key4"] == "1.23"
 
 
 def test_delete_task_unauthorized(client: TestClient) -> None:

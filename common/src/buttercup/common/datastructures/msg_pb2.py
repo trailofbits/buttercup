@@ -13,45 +13,49 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tmsg.proto\x12\x06msgpb2\"\x91\x02\n\x04Task\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cmessage_time\x18\x02 \x01(\x03\x12\x0f\n\x07task_id\x18\x03 \x01(\t\x12(\n\ttask_type\x18\x04 \x01(\x0e\x32\x15.msgpb2.Task.TaskType\x12%\n\x07sources\x18\x05 \x03(\x0b\x32\x14.msgpb2.SourceDetail\x12\x10\n\x08\x64\x65\x61\x64line\x18\x06 \x01(\x03\x12\x11\n\tcancelled\x18\x07 \x01(\x08\x12\x14\n\x0cproject_name\x18\x08 \x01(\t\x12\r\n\x05\x66ocus\x18\t \x01(\t\"3\n\x08TaskType\x12\x12\n\x0eTASK_TYPE_FULL\x10\x00\x12\x13\n\x0fTASK_TYPE_DELTA\x10\x01\"\xb9\x01\n\x0cSourceDetail\x12\x0e\n\x06sha256\x18\x01 \x01(\t\x12\x34\n\x0bsource_type\x18\x02 \x01(\x0e\x32\x1f.msgpb2.SourceDetail.SourceType\x12\x0b\n\x03url\x18\x03 \x01(\t\"V\n\nSourceType\x12\x14\n\x10SOURCE_TYPE_REPO\x10\x00\x12\x1c\n\x18SOURCE_TYPE_FUZZ_TOOLING\x10\x01\x12\x14\n\x10SOURCE_TYPE_DIFF\x10\x02\"*\n\x0cTaskDownload\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"\'\n\tTaskReady\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"T\n\nTaskDelete\x12\x11\n\x07task_id\x18\x01 \x01(\tH\x00\x12\r\n\x03\x61ll\x18\x03 \x01(\x08H\x00\x12\x13\n\x0breceived_at\x18\x02 \x01(\x02\x42\x0f\n\rdelete_option\"|\n\x0c\x42uildRequest\x12\x0e\n\x06\x65ngine\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x10\n\x08task_dir\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\x12\x12\n\nbuild_type\x18\x05 \x01(\t\x12\x12\n\napply_diff\x18\x06 \x01(\x08\"{\n\x0b\x42uildOutput\x12\x0e\n\x06\x65ngine\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x10\n\x08task_dir\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\x12\x12\n\nbuild_type\x18\x05 \x01(\t\x12\x12\n\napply_diff\x18\x06 \x01(\x08\"^\n\x0fWeightedHarness\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x14\n\x0charness_name\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\"p\n\x05\x43rash\x12#\n\x06target\x18\x01 \x01(\x0b\x32\x13.msgpb2.BuildOutput\x12\x14\n\x0charness_name\x18\x02 \x01(\t\x12\x18\n\x10\x63rash_input_path\x18\x03 \x01(\t\x12\x12\n\nstacktrace\x18\x04 \x01(\t\"F\n\x0bTracedCrash\x12\x1c\n\x05\x63rash\x18\x01 \x01(\x0b\x32\r.msgpb2.Crash\x12\x19\n\x11tracer_stacktrace\x18\x02 \x01(\t\"M\n\x16\x43onfirmedVulnerability\x12\"\n\x05\x63rash\x18\x01 \x01(\x0b\x32\x13.msgpb2.TracedCrash\x12\x0f\n\x07vuln_id\x18\x02 \x01(\t\"A\n\x05Patch\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x18\n\x10vulnerability_id\x18\x02 \x01(\t\x12\r\n\x05patch\x18\x03 \x01(\t\"n\n\x0cIndexRequest\x12\x12\n\nbuild_type\x18\x01 \x01(\t\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\"m\n\x0bIndexOutput\x12\x12\n\nbuild_type\x18\x01 \x01(\t\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\"m\n\x10\x46unctionCoverage\x12\x15\n\rfunction_name\x18\x01 \x01(\t\x12\x16\n\x0e\x66unction_paths\x18\x02 \x03(\t\x12\x13\n\x0btotal_lines\x18\x03 \x01(\x05\x12\x15\n\rcovered_lines\x18\x04 \x01(\x05\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tmsg.proto\x12\x06msgpb2\"\xf0\x02\n\x04Task\x12\x12\n\nmessage_id\x18\x01 \x01(\t\x12\x14\n\x0cmessage_time\x18\x02 \x01(\x03\x12\x0f\n\x07task_id\x18\x03 \x01(\t\x12(\n\ttask_type\x18\x04 \x01(\x0e\x32\x15.msgpb2.Task.TaskType\x12%\n\x07sources\x18\x05 \x03(\x0b\x32\x14.msgpb2.SourceDetail\x12\x10\n\x08\x64\x65\x61\x64line\x18\x06 \x01(\x03\x12\x11\n\tcancelled\x18\x07 \x01(\x08\x12\x14\n\x0cproject_name\x18\x08 \x01(\t\x12\r\n\x05\x66ocus\x18\t \x01(\t\x12,\n\x08metadata\x18\n \x03(\x0b\x32\x1a.msgpb2.Task.MetadataEntry\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"3\n\x08TaskType\x12\x12\n\x0eTASK_TYPE_FULL\x10\x00\x12\x13\n\x0fTASK_TYPE_DELTA\x10\x01\"\xb9\x01\n\x0cSourceDetail\x12\x0e\n\x06sha256\x18\x01 \x01(\t\x12\x34\n\x0bsource_type\x18\x02 \x01(\x0e\x32\x1f.msgpb2.SourceDetail.SourceType\x12\x0b\n\x03url\x18\x03 \x01(\t\"V\n\nSourceType\x12\x14\n\x10SOURCE_TYPE_REPO\x10\x00\x12\x1c\n\x18SOURCE_TYPE_FUZZ_TOOLING\x10\x01\x12\x14\n\x10SOURCE_TYPE_DIFF\x10\x02\"*\n\x0cTaskDownload\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"\'\n\tTaskReady\x12\x1a\n\x04task\x18\x01 \x01(\x0b\x32\x0c.msgpb2.Task\"T\n\nTaskDelete\x12\x11\n\x07task_id\x18\x01 \x01(\tH\x00\x12\r\n\x03\x61ll\x18\x03 \x01(\x08H\x00\x12\x13\n\x0breceived_at\x18\x02 \x01(\x02\x42\x0f\n\rdelete_option\"|\n\x0c\x42uildRequest\x12\x0e\n\x06\x65ngine\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x10\n\x08task_dir\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\x12\x12\n\nbuild_type\x18\x05 \x01(\t\x12\x12\n\napply_diff\x18\x06 \x01(\x08\"{\n\x0b\x42uildOutput\x12\x0e\n\x06\x65ngine\x18\x01 \x01(\t\x12\x11\n\tsanitizer\x18\x02 \x01(\t\x12\x10\n\x08task_dir\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\x12\x12\n\nbuild_type\x18\x05 \x01(\t\x12\x12\n\napply_diff\x18\x06 \x01(\x08\"^\n\x0fWeightedHarness\x12\x0e\n\x06weight\x18\x01 \x01(\x02\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x14\n\x0charness_name\x18\x03 \x01(\t\x12\x0f\n\x07task_id\x18\x04 \x01(\t\"p\n\x05\x43rash\x12#\n\x06target\x18\x01 \x01(\x0b\x32\x13.msgpb2.BuildOutput\x12\x14\n\x0charness_name\x18\x02 \x01(\t\x12\x18\n\x10\x63rash_input_path\x18\x03 \x01(\t\x12\x12\n\nstacktrace\x18\x04 \x01(\t\"F\n\x0bTracedCrash\x12\x1c\n\x05\x63rash\x18\x01 \x01(\x0b\x32\r.msgpb2.Crash\x12\x19\n\x11tracer_stacktrace\x18\x02 \x01(\t\"M\n\x16\x43onfirmedVulnerability\x12\"\n\x05\x63rash\x18\x01 \x01(\x0b\x32\x13.msgpb2.TracedCrash\x12\x0f\n\x07vuln_id\x18\x02 \x01(\t\"A\n\x05Patch\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x18\n\x10vulnerability_id\x18\x02 \x01(\t\x12\r\n\x05patch\x18\x03 \x01(\t\"n\n\x0cIndexRequest\x12\x12\n\nbuild_type\x18\x01 \x01(\t\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\"m\n\x0bIndexOutput\x12\x12\n\nbuild_type\x18\x01 \x01(\t\x12\x14\n\x0cpackage_name\x18\x02 \x01(\t\x12\x11\n\tsanitizer\x18\x03 \x01(\t\x12\x10\n\x08task_dir\x18\x04 \x01(\t\x12\x0f\n\x07task_id\x18\x05 \x01(\t\"m\n\x10\x46unctionCoverage\x12\x15\n\rfunction_name\x18\x01 \x01(\t\x12\x16\n\x0e\x66unction_paths\x18\x02 \x03(\t\x12\x13\n\x0btotal_lines\x18\x03 \x01(\x05\x12\x15\n\rcovered_lines\x18\x04 \x01(\x05\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'msg_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
+  _TASK_METADATAENTRY._options = None
+  _TASK_METADATAENTRY._serialized_options = b'8\001'
   _TASK._serialized_start=22
-  _TASK._serialized_end=295
-  _TASK_TASKTYPE._serialized_start=244
-  _TASK_TASKTYPE._serialized_end=295
-  _SOURCEDETAIL._serialized_start=298
-  _SOURCEDETAIL._serialized_end=483
-  _SOURCEDETAIL_SOURCETYPE._serialized_start=397
-  _SOURCEDETAIL_SOURCETYPE._serialized_end=483
-  _TASKDOWNLOAD._serialized_start=485
-  _TASKDOWNLOAD._serialized_end=527
-  _TASKREADY._serialized_start=529
-  _TASKREADY._serialized_end=568
-  _TASKDELETE._serialized_start=570
-  _TASKDELETE._serialized_end=654
-  _BUILDREQUEST._serialized_start=656
-  _BUILDREQUEST._serialized_end=780
-  _BUILDOUTPUT._serialized_start=782
-  _BUILDOUTPUT._serialized_end=905
-  _WEIGHTEDHARNESS._serialized_start=907
-  _WEIGHTEDHARNESS._serialized_end=1001
-  _CRASH._serialized_start=1003
-  _CRASH._serialized_end=1115
-  _TRACEDCRASH._serialized_start=1117
-  _TRACEDCRASH._serialized_end=1187
-  _CONFIRMEDVULNERABILITY._serialized_start=1189
-  _CONFIRMEDVULNERABILITY._serialized_end=1266
-  _PATCH._serialized_start=1268
-  _PATCH._serialized_end=1333
-  _INDEXREQUEST._serialized_start=1335
-  _INDEXREQUEST._serialized_end=1445
-  _INDEXOUTPUT._serialized_start=1447
-  _INDEXOUTPUT._serialized_end=1556
-  _FUNCTIONCOVERAGE._serialized_start=1558
-  _FUNCTIONCOVERAGE._serialized_end=1667
+  _TASK._serialized_end=390
+  _TASK_METADATAENTRY._serialized_start=290
+  _TASK_METADATAENTRY._serialized_end=337
+  _TASK_TASKTYPE._serialized_start=339
+  _TASK_TASKTYPE._serialized_end=390
+  _SOURCEDETAIL._serialized_start=393
+  _SOURCEDETAIL._serialized_end=578
+  _SOURCEDETAIL_SOURCETYPE._serialized_start=492
+  _SOURCEDETAIL_SOURCETYPE._serialized_end=578
+  _TASKDOWNLOAD._serialized_start=580
+  _TASKDOWNLOAD._serialized_end=622
+  _TASKREADY._serialized_start=624
+  _TASKREADY._serialized_end=663
+  _TASKDELETE._serialized_start=665
+  _TASKDELETE._serialized_end=749
+  _BUILDREQUEST._serialized_start=751
+  _BUILDREQUEST._serialized_end=875
+  _BUILDOUTPUT._serialized_start=877
+  _BUILDOUTPUT._serialized_end=1000
+  _WEIGHTEDHARNESS._serialized_start=1002
+  _WEIGHTEDHARNESS._serialized_end=1096
+  _CRASH._serialized_start=1098
+  _CRASH._serialized_end=1210
+  _TRACEDCRASH._serialized_start=1212
+  _TRACEDCRASH._serialized_end=1282
+  _CONFIRMEDVULNERABILITY._serialized_start=1284
+  _CONFIRMEDVULNERABILITY._serialized_end=1361
+  _PATCH._serialized_start=1363
+  _PATCH._serialized_end=1428
+  _INDEXREQUEST._serialized_start=1430
+  _INDEXREQUEST._serialized_end=1540
+  _INDEXOUTPUT._serialized_start=1542
+  _INDEXOUTPUT._serialized_end=1651
+  _FUNCTIONCOVERAGE._serialized_start=1653
+  _FUNCTIONCOVERAGE._serialized_end=1762
 # @@protoc_insertion_point(module_scope)
