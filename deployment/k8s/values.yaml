@@ -70,7 +70,16 @@ redis:
   architecture: standalone  # Use single instance instead of cluster
   master:
     persistence:
-      enabled: false  # Disable persistence to prevent data from being retained between deployments
+      enabled: true
+      size: 8Gi # 8GB of storage for redis, how much is needed?
+      storageClass: managed-premium
+
+    configuration: |-
+      appendonly yes
+      appendfsync everysec
+      no-appendfsync-on-rewrite no
+      auto-aof-rewrite-percentage 100
+      auto-aof-rewrite-min-size 64mb
     resources:
       limits:
         cpu: 250m
