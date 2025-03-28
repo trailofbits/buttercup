@@ -4,6 +4,7 @@ from enum import Enum
 from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
+from pydantic import BaseModel, Field
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
@@ -14,6 +15,21 @@ from buttercup.seed_gen.find_harness import get_harness_source_candidates
 from buttercup.seed_gen.utils import rebase_src_path
 
 logger = logging.getLogger(__name__)
+
+
+class FunctionRequest(BaseModel):
+    """Requested function to look up."""
+
+    name: str = Field(description="The name of the function to look up")
+    reason: str = Field(
+        description="A brief explanation of why understanding this function would be helpful"
+    )
+
+
+class FunctionRequestList(BaseModel):
+    """List of requested functions to look up."""
+
+    functions: list[FunctionRequest] = Field(description="List of functions to look up")
 
 
 class TaskName(str, Enum):

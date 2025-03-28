@@ -15,25 +15,10 @@ from buttercup.seed_gen.prompts import (
     PYTHON_SEED_EXPLORE_USER_PROMPT,
 )
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
-from buttercup.seed_gen.task import Task
+from buttercup.seed_gen.task import FunctionRequestList, Task
 from buttercup.seed_gen.utils import extract_md
 
 logger = logging.getLogger(__name__)
-
-
-class FunctionRequest(BaseModel):
-    """Requested function to look up."""
-
-    name: str = Field(description="The name of the function to look up")
-    reason: str = Field(
-        description="A brief explanation of why understanding this function would be helpful"
-    )
-
-
-class FunctionRequestList(BaseModel):
-    """List of requested functions to look up."""
-
-    functions: list[FunctionRequest] = Field(description="List of functions to look up")
 
 
 class SeedExploreState(BaseModel):

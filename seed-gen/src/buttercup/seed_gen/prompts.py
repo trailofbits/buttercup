@@ -63,7 +63,7 @@ The vulnerability will have the following properties:
 - It can cause a crash or trigger a sanitizer.
 - It must be in a .c, .h, .cpp, or .java file.
 
-I will provide the diff and the harness.
+I will provide the diff and the harness. I will also provide additional function definitions which may be helpful for analyzing the vulnerability.
 
 You will then identify the vulnerability and analyze it.
 
@@ -78,6 +78,11 @@ The commit diff is:
 The harness is:
 ```
 {harness}
+```
+
+Additional function definitions:
+```
+{additional_functions}
 ```
 
 Your analysis is:
@@ -142,6 +147,11 @@ The diff which introduced the vulnerability is:
 An analysis of the vulnerability:
 ```
 {analysis}
+```
+
+Additional function definitions which may be helpful:
+```
+{additional_functions}
 ```
 
 The python functions are:
@@ -246,6 +256,57 @@ Remember:
 - My goal is to create test inputs that reach the target function
 - Answer only with the JSON array of functions, in the format specified above
 - Do not select a function where the definition is already provided (the target function, in the harness, or in the additional functions)
+
+Your response:
+"""
+
+VULN_DISCOVERY_FUNCTION_LOOKUP_SYSTEM_PROMPT = """
+Identify functions that would be most helpful to analyze a vulnerability introduced by a git diff.
+"""
+
+VULN_DISCOVERY_FUNCTION_LOOKUP_USER_PROMPT = """
+I am trying to analyze a vulnerability introduced by a git diff and write test cases that reach it from the harness. I will provide:
+1. The diff
+2. The harness code
+3. Any additional function definitions I have already looked up
+
+Please identify 1-{max_lookup_functions} functions based on the provided code which would be most helpful for analyzing the vulnerability and writing test cases that reach it.
+I will look up the definition of each function you identify and reference them when analyzing the vulnerability and writing test cases for it.
+
+Provide:
+1. The function name
+2. A VERY BRIEF explanation of why having this function's code would be helpful for analyzing the vulnerability
+
+Format your response as a JSON array of objects with "name" and "reason" fields. For example:
+```
+[
+    {{"name": "parse_command", "reason": "Handles command parsing which is crucial for reaching the target function"}},
+    {{"name": "validate_input", "reason": "Validates inputs before they reach the target function"}}
+]
+```
+Do not specify functions which the provided code already defines in full (functions which are partially cut off are allowed).
+
+The diff which introduced the vulnerability is:
+```
+{diff}
+```
+
+The harness is:
+```
+{harness}
+```
+
+Additional function definitions:
+```
+{additional_functions}
+```
+
+Remember:
+- Select no more than {max_lookup_functions} functions
+- You can select functions that are in the diff but not included in full. These may be especially helpful.
+- My goal is to understand the vulnerability and write test cases that reach it
+- Answer only with the JSON array of functions, in the format specified above
+- Do not select a function where the definition is already provided in full (in the diff, in the harness, or in the additional functions)
 
 Your response:
 """
