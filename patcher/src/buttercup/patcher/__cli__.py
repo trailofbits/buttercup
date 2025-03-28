@@ -10,6 +10,7 @@ from redis import Redis
 from buttercup.patcher.utils import PatchInput
 from pathlib import Path
 from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
+from buttercup.common.telemetry import init_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ def main():
 
     logger.info("Starting patcher")
     logger.debug("Settings: %s", settings)
+    init_telemetry("patcher")
     if isinstance(command, ServeCommand):
         logger.info("Serving...")
         redis = Redis.from_url(command.redis_url, decode_responses=False)

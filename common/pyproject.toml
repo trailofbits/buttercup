@@ -14,6 +14,9 @@ dependencies = [
     "langfuse ~= 2.59.2",
     "langchain ~= 0.3.18",
     "six>=1.17.0",
+    "openlit == 1.32.12", # 1.33 currently fails to import opentelemetry.sdk._events
+    "langchain-community ~= 0.3.20", # implicit dep of openlit if you instrument langchain
+    "langchain-text-splitters ~= 0.3.7", # implicit dep of openlit if you instrument langchain
 ]
 
 [project.scripts]

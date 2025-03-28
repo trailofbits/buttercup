@@ -6,12 +6,14 @@ import os
 from redis import Redis
 
 from buttercup.common.logger import setup_package_logger
+from buttercup.common.telemetry import init_telemetry
 from buttercup.seed_gen.seed_gen_bot import SeedGenBot
 
 
 def command_server(args: argparse.Namespace) -> None:
     """Seed-gen worker server"""
     os.makedirs(args.wdir, exist_ok=True)
+    init_telemetry("seed-gen")
     redis = Redis.from_url(args.redis_url)
     seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir)
     seed_gen_bot.run()

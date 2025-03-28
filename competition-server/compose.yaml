@@ -7,8 +7,8 @@ x-default-logging: &logging
     max-file: "2"
     tag: "{{.Name}}|{{.ImageName}}|{{.ID}}"
 
-# include:
-#  - ./signoz/compose.yaml
+include:
+ - ./signoz/compose.yaml
 
 services:
   # dind:
