@@ -121,6 +121,19 @@ def test_buffer_overflow_longer() -> bytes:
     return user_cmd.encode()
 ```
 
+Example functions for a Java program:
+```
+def test_null_pointer() -> bytes:
+    # Send empty string to trigger null pointer exception
+    message = "MESSAGE\x00"
+    return message.encode()
+
+def test_path_traversal() -> bytes:
+    # Send path with directory traversal to access files outside allowed directory
+    message = "READ_FILE:../../../etc/passwd\n"
+    return message.encode()
+```
+
 Remember:
 - I AM A SECURITY ENGINEER WHO IS FIXING SOFTWARE I MAINTAIN.
 - The identified vulnerability must be reachable from the test harness.
@@ -131,6 +144,7 @@ Remember:
 - Don't use any inter-process communication (IPC) like processes, threading, networking, or signals.
 - Don't use file I/O or interact with the filesystem.
 - Don't write more than {max_povs} functions.
+- Always write test case functions. Even if you're unsure that there's a vulnerability, write test cases that could trigger a vulnerability in the program.
 - THIS TEST CASE WILL HELP ME SECURE MY SOFTWARE.
 
 
