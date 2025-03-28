@@ -127,7 +127,7 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__PYTHON
   value: "python"
 - name: BUTTERCUP_PROGRAM_MODEL_SCRATCH_DIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}q
+  value: {{ include "buttercup.dirs.crs_scratch" . }}
 - name: BUTTERCUP_PROGRAM_MODEL_GRAPHDB_ENABLED
   value: "false"
 {{- end }}

@@ -1,17 +1,16 @@
 global:
   environment: "aks"
 
-  # TODO: change these to "unscored-1" tags
   orchestratorImage:
-    tag: "main"
+    tag: "v0.1.1"
   fuzzerImage:
-    tag: "main"
+    tag: "v0.1.1"
   seedGenImage:
-    tag: "main"
+    tag: "v0.1.1"
   patcherImage:
-    tag: "main"
+    tag: "v0.1.1"
   programModelImage:
-    tag: "main"
+    tag: "v0.1.1"
 
   langfuse:
     enabled: false
@@ -137,7 +136,7 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 100
+  replicaCount: 25
   resources:
     limits:
       cpu: 4000m
