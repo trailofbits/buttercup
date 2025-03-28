@@ -22,7 +22,7 @@ spec:
       - name: fuzzer-bot
         image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
-        command: ["buttercup-fuzzer", "--wdir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}"]
+        command: ["buttercup-fuzzer", "--wdir", "/tmp", "--crs_scratch_dir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}"]
         resources:
           limits:
             cpu: {{ .Values.resources.limits.cpu }}

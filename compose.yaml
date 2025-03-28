@@ -182,7 +182,7 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: ["buttercup-fuzzer", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000"]
+    command: ["buttercup-fuzzer", "--wdir", "/tmp", --crs_scratch_dir, "/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000"]
     env_file: env.dev.compose
     volumes:
       - ./crs_scratch:/crs_scratch

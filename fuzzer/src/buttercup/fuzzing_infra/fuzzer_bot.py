@@ -22,11 +22,14 @@ logger = logging.getLogger(__name__)
 
 
 class FuzzerBot(TaskLoop):
-    def __init__(self, redis: Redis, timer_seconds: int, timeout_seconds: int, wdir: str, python: str):
+    def __init__(
+        self, redis: Redis, timer_seconds: int, timeout_seconds: int, wdir: str, python: str, crs_scratch_dir: str
+    ):
         self.wdir = wdir
         self.runner = Runner(Conf(timeout_seconds))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
+        self.crs_scratch_dir = crs_scratch_dir
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> List[BUILD_TYPES]:
@@ -43,7 +46,7 @@ class FuzzerBot(TaskLoop):
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 logger.info(f"Build dir: {local_tsk.get_build_dir()}")
 
-                corp = Corpus(self.wdir, task.task_id, task.harness_name)
+                corp = Corpus(self.crs_scratch_dir, task.task_id, task.harness_name)
 
                 copied_corp_dir = os.path.join(td, corp.basename())
                 utils.copyanything(corp.path, copied_corp_dir)
@@ -58,7 +61,7 @@ class FuzzerBot(TaskLoop):
                 logger.info(f"Starting fuzzer {build.engine} | {build.sanitizer} | {task.harness_name}")
                 result = self.runner.run_fuzzer(fuzz_conf)
                 crash_set = CrashSet(self.redis)
-                crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
+                crash_dir = CrashDir(self.crs_scratch_dir, task.task_id, task.harness_name)
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
                     if crash_set.add(
@@ -91,10 +94,12 @@ def main():
     setup_package_logger(__name__, args.log_level)
 
     os.makedirs(args.wdir, exist_ok=True)
-    logger.info(f"Starting fuzzer (wdir: {args.wdir})")
+    logger.info(f"Starting fuzzer (wdir: {args.wdir} crs_scratch_dir: {args.crs_scratch_dir})")
 
     seconds_sleep = args.timer // 1000
-    fuzzer = FuzzerBot(Redis.from_url(args.redis_url), seconds_sleep, args.timeout, args.wdir, args.python)
+    fuzzer = FuzzerBot(
+        Redis.from_url(args.redis_url), seconds_sleep, args.timeout, args.wdir, args.python, args.crs_scratch_dir
+    )
     fuzzer.run()
 
 

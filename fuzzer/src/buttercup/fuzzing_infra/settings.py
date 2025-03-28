@@ -38,6 +38,7 @@ class TracerSettings(WorkerSettings):
 
 
 class FuzzerBotSettings(WorkerSettings):
+    crs_scratch_dir: Annotated[str, Field(default="/crs_scratch")]
     timeout: Annotated[int, Field(default="")]
 
 
