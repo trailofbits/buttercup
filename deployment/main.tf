@@ -65,7 +65,7 @@ resource "azurerm_kubernetes_cluster" "primary" {
 
   default_node_pool {
     name                         = "sys"
-    vm_size                      = "Standard_D5_v2"
+    vm_size                      = "Standard_L16s"
     max_pods                     = 100
     temporary_name_for_rotation  = "tempnodepool"
     only_critical_addons_enabled = true
@@ -97,7 +97,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   name                  = "usr"
   mode                  = "User"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.primary.id
-  vm_size               = "Standard_D5_v2"
+  vm_size               = "Standard_L16s"
   max_pods              = 100
   node_count            = var.usr_node_count
   upgrade_settings {

@@ -24,18 +24,9 @@ spec:
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
         command: ["buttercup-fuzzer", "--wdir", "/tmp", "--crs_scratch_dir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}"]
         resources:
-          limits:
-            cpu: {{ .Values.resources.limits.cpu }}
-            memory: {{ .Values.resources.limits.memory }}
-          requests:
-            cpu: {{ .Values.resources.requests.cpu }}
-            memory: {{ .Values.resources.requests.memory }}
+          {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
-        env:
-        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
-      {{- include "buttercup.dindVolume" . | nindent 6 }}
 {{- end }}

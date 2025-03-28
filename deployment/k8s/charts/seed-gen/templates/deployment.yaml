@@ -6,6 +6,7 @@ metadata:
   labels:
     app: seed-gen
 spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
   selector:
     matchLabels:
       app: seed-gen

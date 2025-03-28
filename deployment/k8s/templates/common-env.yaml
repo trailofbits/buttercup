@@ -46,31 +46,37 @@ Define common variables by categories
       key: BUTTERCUP_LITELLM_KEY
 - name: BUTTERCUP_LITELLM_HOSTNAME
   value: {{ include "buttercup.core.litellmEndpoint" . }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "{{ .Values.global.otel.endpoint }}"
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: "Authorization=Basic {{ .Values.global.otel.token }}"
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: "{{ .Values.global.otel.protocol | default "grpc" }}"
 {{- end }}
 
 {{- define "buttercup.env.timeouts" }}
 - name: BUILD_TASK_TIMEOUT_MS
-  value: "120000" 
+  value: "{{ int .Values.global.queueTimeouts.buildTaskTimeoutMs | default 120000 }}"
 - name: BUILD_OUTPUT_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.buildOutputTaskTimeoutMs | default 120000 }}"
 - name: DOWNLOAD_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.downloadTaskTimeoutMs | default 120000 }}"
 - name: READY_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.readyTaskTimeoutMs | default 120000 }}"
 - name: DELETE_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.deleteTaskTimeoutMs | default 120000 }}"
 - name: CRASH_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.crashTaskTimeoutMs | default 120000 }}"
 - name: PATCH_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.patchTaskTimeoutMs | default 120000 }}"
 - name: CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.confirmedVulnerabilitiesTaskTimeoutMs | default 120000 }}"
 - name: INDEX_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.indexTaskTimeoutMs | default 120000 }}"
 - name: INDEX_OUTPUT_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.indexOutputTaskTimeoutMs | default 120000 }}"
 - name: TRACED_VULNERABILITIES_TASK_TIMEOUT_MS
-  value: "120000"
+  value: "{{ int .Values.global.queueTimeouts.tracedVulnerabilitiesTaskTimeoutMs | default 120000 }}"
 {{- end }}
 
 {{/*
@@ -116,12 +122,12 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__SLEEP_TIME
   value: "5"
-- name: BUTTERCUP_PROGRAM_MODEL_SERVE__WDIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}
 - name: BUTTERCUP_PROGRAM_MODEL_GRAPHDB_URL
   value: "ws://{{ .Release.Name }}-janusgraph:8182/gremlin"
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__PYTHON
   value: "python"
+- name: BUTTERCUP_PROGRAM_MODEL_SCRATCH_DIR
+  value: {{ include "buttercup.dirs.crs_scratch" . }}q
 - name: BUTTERCUP_PROGRAM_MODEL_GRAPHDB_ENABLED
   value: "false"
 {{- end }}

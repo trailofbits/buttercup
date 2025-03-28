@@ -1,24 +1,19 @@
-{{- if eq .Values.environment "aks" }}
-# For AKS environment, create a storage class for Azure Files CSI driver
-# TODO: Consider if premium storage is needed
+{{- if eq .Values.global.environment "aks" }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: azurefile-csi
+  name: azurefile-csi-nfs
 provisioner: file.csi.azure.com
-parameters:
-  skuName: Standard_LRS
-mountOptions:
-  - dir_mode=0777
-  - file_mode=0777
-  - uid=0
-  - gid=0
-  - mfsymlinks
-  - cache=strict
-  - actimeo=30
 allowVolumeExpansion: true
-reclaimPolicy: Delete
-volumeBindingMode: Immediate
+parameters:
+  protocol: nfs
+  skuName: Premium_LRS
+
+reclaimPolicy: Retain
+mountOptions:
+  - nconnect=4
+  - noresvport
+  - actimeo=30
 {{- end }}
 ---
 

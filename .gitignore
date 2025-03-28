@@ -6,6 +6,7 @@ errored.tfstate
 ## Localized environment variables
 **/.env
 **/env
+**/env.*
 **/venv
 
 ## Generated Kubernetes Resources

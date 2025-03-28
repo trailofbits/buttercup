@@ -22,7 +22,7 @@ spec:
       - name: program-model
         image: "{{ .Values.global.programModelImage.repository }}:{{ .Values.global.programModelImage.tag }}"
         imagePullPolicy: {{ .Values.global.programModelImage.pullPolicy }}
-        command: ["buttercup-program-model", "--log_level", "{{ include "buttercup.core.logLevel" . }}", "serve", "--wdir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--sleep_time", "5", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}"]
+        command: ["buttercup-program-model", "serve"]
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         env:

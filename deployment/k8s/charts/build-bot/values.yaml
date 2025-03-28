@@ -17,4 +17,6 @@ dind:
       cpu: 500m
       memory: 1Gi
 
+replicaCount: 4
 timer: 5000
+logLevel: "DEBUG"

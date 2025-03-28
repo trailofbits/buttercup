@@ -24,12 +24,7 @@ spec:
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
         command: ["buttercup-tracer-bot", "--wdir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}"]
         resources:
-          limits:
-            cpu: {{ .Values.resources.limits.cpu }}
-            memory: {{ .Values.resources.limits.memory }}
-          requests:
-            cpu: {{ .Values.resources.requests.cpu }}
-            memory: {{ .Values.resources.requests.memory }}
+          {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
         env:

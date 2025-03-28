@@ -43,16 +43,33 @@ global:
     api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
     api_key_token_hash: "$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A$wa/85ttk17bBsIASSwdR/uGz5UKN/bZuu4wu+JIy1iA"
     # api_url: "https://api.tail7e9b4c.ts.net"
+    hostname: "buttercup-crs"
     competition_api_key_id: 11111111-1111-1111-1111-111111111111
     competition_api_key_token: secret
     # competition_api_url: "https://api.tail7e9b4c.ts.net"
+  otel:
+    endpoint: "https://127.0.0.1:4318" # TODO: Change to the actual endpoint
+    token: "token"
+    protocol: "grpc"
+  queueTimeouts:
+    buildTaskTimeoutMs: 120000
+    buildOutputTaskTimeoutMs: 120000
+    downloadTaskTimeoutMs: 120000
+    readyTaskTimeoutMs: 120000
+    deleteTaskTimeoutMs: 120000
+    crashTaskTimeoutMs: 120000
+    patchTaskTimeoutMs: 120000
+    confirmedVulnerabilitiesTaskTimeoutMs: 120000
+    indexTaskTimeoutMs: 120000
+    indexOutputTaskTimeoutMs: 120000
+    tracedVulnerabilitiesTaskTimeoutMs: 120000
 
 # Volume configurations
 volumes:
   tasks_storage:
     enabled: true
     # When using AKS, specify the appropriate storage class for ReadWriteMany support
-    # For example: "azurefile" or "azurefile-premium"
+    # For example: "azurefile-csi-nfs"
     storageClass: ""  # Empty string will use cluster default
     size: "5Gi"
     accessMode: ReadWriteMany
@@ -241,3 +258,4 @@ litellm-helm:
 
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
+

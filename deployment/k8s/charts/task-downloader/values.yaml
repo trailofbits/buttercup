@@ -1,4 +1,5 @@
 enabled: true
+replicaCount: 1
 
 resources:
   limits:

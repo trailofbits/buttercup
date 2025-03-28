@@ -4,15 +4,13 @@ apiVersion: networking.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-task-server
   annotations:
-    # TODO: make this configurable
-    tailscale.com/hostname: "ethereal-logic"
+    tailscale.com/hostname: "{{ .Values.global.crs.hostname }}"
     tailscale.com/experimental-forward-cluster-traffic-via-ingress: "true"
 spec:
   ingressClassName: tailscale
   tls:
     - hosts:
-      # TODO: make this configurable
-      - "ethereal-logic"
+      - "{{ .Values.global.crs.hostname }}"
   rules:
     - http:
         paths:

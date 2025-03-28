@@ -1,0 +1,12 @@
+charts/build-bot-*.tgz
+charts/competition-api-*.tgz
+charts/coverage-bot-*.tgz
+charts/fuzzer-bot-*.tgz
+charts/patcher-*.tgz
+charts/program-model-*.tgz
+charts/scheduler-*.tgz
+charts/seed-gen-*.tgz
+charts/task-downloader-*.tgz
+charts/task-server-*.tgz
+charts/tracer-bot-*.tgz
+

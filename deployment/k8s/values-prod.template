@@ -1,0 +1,236 @@
+global:
+  environment: "aks"
+
+  # TODO: change these to "unscored-1" tags
+  orchestratorImage:
+    tag: "main"
+  fuzzerImage:
+    tag: "main"
+  seedGenImage:
+    tag: "main"
+  patcherImage:
+    tag: "main"
+  programModelImage:
+    tag: "main"
+
+  langfuse:
+    enabled: false
+  
+  crs:
+    api_key_id: ${CRS_KEY_ID}
+    api_key_token: ${CRS_KEY_TOKEN}
+    api_key_token_hash: "${CRS_KEY_TOKEN_HASH}"
+    api_url: "${CRS_URL}"
+    hostname: "${CRS_API_HOSTNAME}"
+    competition_api_key_id: ${COMPETITION_API_KEY_ID}
+    competition_api_key_token: ${COMPETITION_API_KEY_TOKEN}
+    competition_api_url: "${COMPETITION_API_URL}"
+
+  otel:
+    endpoint: "${OTEL_ENDPOINT}"
+    token: "${OTEL_TOKEN}"
+
+  queueTimeouts:
+    buildTaskTimeoutMs: 1200000
+    buildOutputTaskTimeoutMs: 120000
+    downloadTaskTimeoutMs: 720000
+    readyTaskTimeoutMs: 120000
+    deleteTaskTimeoutMs: 120000
+    crashTaskTimeoutMs: 900000
+    patchTaskTimeoutMs: 120000
+    confirmedVulnerabilitiesTaskTimeoutMs: 1200000
+    indexTaskTimeoutMs: 800000
+    indexOutputTaskTimeoutMs: 120000
+    tracedVulnerabilitiesTaskTimeoutMs: 120000
+
+
+volumes:
+  tasks_storage:
+    storageClass: "azurefile-csi-nfs"
+    size: "100Gi"
+  crs_scratch:
+    storageClass: "azurefile-csi-nfs"
+    size: "500Gi"
+
+redis:
+  master:
+    persistence:
+      enabled: true
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 32Gi
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+
+task-server:
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+task-downloader:
+  enabled: true
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  
+scheduler:
+  enabled: true
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+program-model:
+  enabled: true
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  dind:
+    # program-model uses DinD only with Kythe, but this is disabled for unscored-1
+    # so let's give it a small amount of resources
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+
+build-bot:
+  enabled: true
+  replicaCount: 8
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  dind:
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 16Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+fuzzer-bot:
+  enabled: true
+  replicaCount: 100
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 16Gi
+    requests:
+      cpu: 2000m
+      memory: 8Gi
+
+coverage-bot:
+  enabled: true
+  replicaCount: 4
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  dind:
+    resources:
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+tracer-bot:
+  enabled: true
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  dind:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 8Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+seed-gen:
+  enabled: true
+  replicaCount: 4
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  dind:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 8Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+patcher:
+  enabled: true
+  replicaCount: 3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  dind:
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 16Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+competition-api:
+  enabled: ${COMPETITION_API_ENABLED:-false}
+
+litellm:
+  masterKey: "${LITELLM_MASTER_KEY}"
+  azure:
+    apiBase: "${AZURE_API_BASE}"
+    apiKey: "${AZURE_API_KEY}"
+  openai:
+    apiKey: "${OPENAI_API_KEY}"
+  anthropic:
+    apiKey: "${ANTHROPIC_API_KEY}"

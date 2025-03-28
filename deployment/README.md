@@ -97,7 +97,7 @@ The following environment variables are required to be passed into the terraform
 | `CRS_KEY_TOKEN`              | HTTP basic auth password for the CRS API                                      |
 | `GHCR_AUTH`                  | Base64 encoded credentials for GHCR                                           |
 
-**These variables are stored in `./env` , and must be updated with accurate values.**
+**There are other mandatory values required, see `./env.template` and copy that to `./env`, and must be updated with accurate values.**
 
 ### CRS HTTP basic auth
 
@@ -207,6 +207,7 @@ The deployment of the AKS cluster and its resources are performed by the `Makefi
 - `kubectl logs <podName>` - retrieves the stdout and stderr streams from the containers within the specified pod
 - `kubectl get svc -A` - lists status of all services
 - `kubectl get -n crs-webservice ingress` - lists the tailscale ingress address of your API
+- `kubectl port-forward -n crs service/buttercup-competition-api 31323:1323` - make competition-api service available locally at port 31323
 
 ## State
 

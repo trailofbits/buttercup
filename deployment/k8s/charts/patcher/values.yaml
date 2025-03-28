@@ -1,4 +1,5 @@
 enabled: true
+replicaCount: 1
 logLevel: "DEBUG"
 
 resources:

@@ -1,4 +1,3 @@
-# Environment selection (minikube or aks)
 global:
   environment: "aks"
   langfuse:
@@ -12,15 +11,18 @@ global:
     api_key_token: ${CRS_KEY_TOKEN}
     api_key_token_hash: "${CRS_KEY_TOKEN_HASH}"
     api_url: "${CRS_URL}"
+    hostname: "${CRS_API_HOSTNAME}"
     competition_api_key_id: ${COMPETITION_API_KEY_ID}
     competition_api_key_token: ${COMPETITION_API_KEY_TOKEN}
     competition_api_url: "${COMPETITION_API_URL}"
 
 volumes:
   tasks_storage:
-    storageClass: "azurefile-premium"
+    storageClass: "azurefile-csi-nfs"
+    size: "500Gi"
   crs_scratch:
-    storageClass: "azurefile-premium"
+    storageClass: "azurefile-csi-nfs"
+    size: "500Gi"
 
 litellm:
   masterKey: "your-secure-master-key"  # Generate with: openssl rand -hex 16

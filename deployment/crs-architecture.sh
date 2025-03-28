@@ -72,11 +72,11 @@ up() {
 
 	kubectl apply -k k8s/base/tailscale-coredns/
 	# Install buttercup CRS
-	# TODO: allow for minikube environment as well
 	echo -e "${BLU}Installing buttercup CRS${NC}"
 	umask 077 # Ensure new files are created with permissions only for current user
-	envsubst <k8s/values-aks.template >k8s/values-aks.yaml
-	helm install buttercup --namespace crs ./k8s -f ./k8s/values-aks.yaml || helm upgrade buttercup --namespace crs ./k8s -f ./k8s/values-aks.yaml
+	VALUES_TEMPLATE=${BUTTERCUP_K8S_VALUES_TEMPLATE:-k8s/values-aks.template}
+	envsubst <"$VALUES_TEMPLATE" >k8s/values-overrides.crs-architecture.yaml
+	helm upgrade --install buttercup --namespace crs ./k8s -f ./k8s/values-overrides.crs-architecture.yaml --create-namespace
 	umask 022 # Reset umask to default value
 
 	kubectl apply -k k8s/base/tailscale-connections/
