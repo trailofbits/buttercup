@@ -214,12 +214,13 @@ class ProgramModel:
                 read_only_task_dir=args.task_dir,
                 python_path=self.python,
             )
-            # Apply the diff if it exists
-            logger.info(f"Applying diff for {args.package_name} {args.task_id}")
-            if not challenge.apply_patch_diff():
-                logger.info(f"No diffs for {args.package_name} {args.task_id}")
+            with challenge.get_rw_copy(work_dir=self.wdir) as local_challenge:
+                # Apply the diff if it exists
+                logger.info(f"Applying diff for {args.package_name} {args.task_id}")
+                if not local_challenge.apply_patch_diff():
+                    logger.info(f"No diffs for {args.package_name} {args.task_id}")
 
-            CodeQueryPersistent(challenge, work_dir=self.wdir)
+                CodeQueryPersistent(local_challenge, work_dir=self.wdir)
 
             return True
         except Exception as e:
