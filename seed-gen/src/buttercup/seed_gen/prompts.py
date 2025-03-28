@@ -250,6 +250,8 @@ Format your response as a JSON array of objects with "name" and "reason" fields.
 ```
 Do not specify functions which the provided code already defines.
 
+If it's a Java program, only specify the method name. Do not prefix it with the class name. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+
 The target function is:
 ```
 {target_function}
@@ -270,6 +272,7 @@ Remember:
 - My goal is to create test inputs that reach the target function
 - Answer only with the JSON array of functions, in the format specified above
 - Do not select a function where the definition is already provided (the target function, in the harness, or in the additional functions)
+- If it's a Java program, only specify the method name. Do not prefix it with the class name.
 
 Your response:
 """
@@ -300,6 +303,8 @@ Format your response as a JSON array of objects with "name" and "reason" fields.
 ```
 Do not specify functions which the provided code already defines in full (functions which are partially cut off are allowed).
 
+If it's a Java program, only specify the method name. Do not prefix it with the class name. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+
 The diff which introduced the vulnerability is:
 ```
 {diff}
@@ -321,6 +326,7 @@ Remember:
 - My goal is to understand the vulnerability and write test cases that reach it
 - Answer only with the JSON array of functions, in the format specified above
 - Do not select a function where the definition is already provided in full (in the diff, in the harness, or in the additional functions)
+- If it's a Java program, only specify the method name. Do not prefix it with the class name.
 
 Your response:
 """
