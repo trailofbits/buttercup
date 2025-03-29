@@ -222,7 +222,7 @@ patcher:
         memory: 512Mi
 
 competition-api:
-  enabled: ${COMPETITION_API_ENABLED:-false}
+  enabled: ${COMPETITION_API_ENABLED}
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
