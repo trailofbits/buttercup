@@ -71,9 +71,8 @@ class CoverageBot(TaskLoop):
         if not (function_coverage.total_lines > 0 and function_coverage.covered_lines > 0):
             return False
 
-        old_function_coverage = coverage_map.get_function_coverage(
-            function_coverage.function_name, function_coverage.function_paths
-        )
+        function_paths_list = list(function_coverage.function_paths)
+        old_function_coverage = coverage_map.get_function_coverage(function_coverage.function_name, function_paths_list)
         if old_function_coverage is None:
             return True
         return function_coverage.covered_lines > old_function_coverage.covered_lines

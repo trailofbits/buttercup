@@ -121,9 +121,10 @@ class CoverageMap:
 
     def set_function_coverage(self, function_coverage: FunctionCoverage) -> None:
         # function paths should be sorted and unique
+        function_paths_list = list(function_coverage.function_paths)
         key = [
             function_coverage.function_name,
-            function_coverage.function_paths,
+            function_paths_list,
         ]
         key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
         self.mp.set(key_str, function_coverage)
