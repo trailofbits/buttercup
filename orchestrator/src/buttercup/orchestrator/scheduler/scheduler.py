@@ -170,7 +170,7 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"Processing build output for {build_output.task_id}|{build_output.engine}|{build_output.sanitizer}|{build_output.task_dir}"
+            f"[{build_output.task_id}] Processing build output for type {build_output.build_type} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}"
         )
 
         if build_output.build_type != BUILD_TYPES.FUZZER.value:
@@ -223,7 +223,7 @@ class Scheduler:
                 for build_req in self.process_ready_task(task_ready.task):
                     self.build_requests_queue.push(build_req)
                     logger.info(
-                        f"Pushed build request of type {build_req.build_type} for task {task_ready.task.task_id} to build requests queue"
+                        f"[{task_ready.task.task_id}] Pushed build request of type {build_req.build_type} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff}"
                     )
                 self.ready_queue.ack_item(task_ready_item.item_id)
                 return True
