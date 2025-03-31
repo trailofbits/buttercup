@@ -27,7 +27,7 @@ class TaskLoop(ABC):
         pass
 
     def serve_item(self) -> bool:
-        weighted_items: list[WeightedHarness] = self.harness_weights.list_harnesses()
+        weighted_items: list[WeightedHarness] = [wh for wh in self.harness_weights.list_harnesses() if wh.weight > 0]
         if len(weighted_items) <= 0:
             return False
 

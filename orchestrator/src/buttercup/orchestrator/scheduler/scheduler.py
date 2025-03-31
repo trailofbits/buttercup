@@ -285,7 +285,7 @@ class Scheduler:
         1. In the cached cancelled task IDs, or
         2. Has expired according to its deadline
 
-        If either condition is true, sets the harness weight to zero.
+        If either condition is true, sets the harness weight to -1.0.
         This ensures that expired or cancelled tasks won't be selected for fuzzing.
 
         Returns:
@@ -305,9 +305,9 @@ class Scheduler:
 
             # Check if task should be stopped using the same function as other components
             if self.should_stop_processing(harness.task_id):
-                # Create a new harness with zero weight
+                # Create a new harness with negative weight
                 zero_weight_harness = WeightedHarness(
-                    weight=0.0,
+                    weight=-1.0,
                     harness_name=harness.harness_name,
                     package_name=harness.package_name,
                     task_id=harness.task_id,
@@ -317,7 +317,7 @@ class Scheduler:
                 self.harness_map.push_harness(zero_weight_harness)
 
                 logger.info(
-                    f"Updated weight to 0 for cancelled/expired task {harness.task_id}, harness {harness.harness_name}"
+                    f"Updated weight to -1.0 for cancelled/expired task {harness.task_id}, harness {harness.harness_name}"
                 )
                 any_updated = True
 

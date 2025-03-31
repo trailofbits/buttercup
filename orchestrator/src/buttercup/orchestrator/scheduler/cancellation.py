@@ -90,8 +90,7 @@ class Cancellation:
         delete_request: RQItem[TaskDelete] | None = self.delete_queue.pop()
         if delete_request:
             was_cancelled = self.process_delete_request(delete_request.deserialized)
-            if was_cancelled:
-                self.delete_queue.ack_item(delete_request.item_id)
-                any_cancellation = True
+            self.delete_queue.ack_item(delete_request.item_id)
+            any_cancellation = was_cancelled
 
         return any_cancellation

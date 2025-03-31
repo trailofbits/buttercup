@@ -237,7 +237,7 @@ def test_update_expired_task_weights(scheduler):
     # Check that weights were set to zero for both expired and cancelled tasks
     assert "expired-task-456" in updated_task_ids
     assert "cancelled-task-789" in updated_task_ids
-    assert all(h.weight == 0.0 for h in updated_harnesses)
+    assert all(h.weight == -1.0 for h in updated_harnesses)
 
     # The live task should not have been updated
     assert "live-task-123" not in updated_task_ids
