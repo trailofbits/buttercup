@@ -222,6 +222,14 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_PATCHER_DEV_MODE
   value: "false"
+- name: TOB_PATCHER_MAX_PATCH_RETRIES
+  value: {{ int .Values.maxPatchRetries | default 10 | quote }}
+- name: TOB_PATCHER_MAX_REVIEW_RETRIES
+  value: {{ int .Values.maxReviewRetries | default 5 | quote }}
+- name: TOB_PATCHER_MAX_CONTEXT_RETRIEVER_RETRIES
+  value: {{ int .Values.maxContextRetrieverRetries | default 30 | quote }}
+- name: TOB_PATCHER_CTX_RETRIEVER_RECURSION_LIMIT
+  value: {{ int .Values.maxContextRetrieverRecursionLimit | default 80 | quote }}
 {{- end }}
 
 {{- define "buttercup.buildBotEnv" }}

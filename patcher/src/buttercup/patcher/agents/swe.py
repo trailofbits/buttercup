@@ -36,7 +36,7 @@ from buttercup.patcher.agents.common import (
     get_code_snippet_request_tmpl,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes, PatchOutput
+from buttercup.patcher.utils import decode_bytes, PatchOutput, get_diff_content
 
 logger = logging.getLogger(__name__)
 
@@ -281,7 +281,7 @@ class SWEAgent(PatcherAgentBase):
 
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
-    max_patch_retries: int = 10
+    max_patch_retries: int = 30
 
     MATCH_RATIO_THRESHOLD: float = 0.8
 
@@ -330,20 +330,22 @@ class SWEAgent(PatcherAgentBase):
         logger.debug("Parsed %d code snippets", len(items))
         return CodeSnippetChanges(items=items)
 
-    def _get_file_content(self, file_path: str) -> str | None:
-        """Get the content of a file, trying multiple search strategies."""
+    def _get_file_content(self, file_path: str) -> tuple[str, str] | None:
+        """Get the content of a file, trying multiple search strategies. Returns
+        the content of the file and the relative path of the file (from the
+        source path)."""
         file_path = file_path.strip()
         file_path = self.rebase_src_path(file_path)
 
         search_paths = [
             # Strategy 1: Direct path from source
-            lambda: [self.challenge.get_source_path() / file_path],
+            lambda: [self.challenge.task_dir / file_path],
             # Strategy 2: Parent directory
-            lambda: [self.challenge.get_source_path().parent / file_path],
+            lambda: [self.challenge.task_dir.parent / file_path],
             # Strategy 3: Search recursively in source directory
-            lambda: list(self.challenge.get_source_path().rglob(Path(file_path))),
+            lambda: list(self.challenge.task_dir.rglob(file_path)),
             # Strategy 4: Search recursively in source directory for just the file name
-            lambda: list(self.challenge.get_source_path().rglob(Path(file_path).name)),
+            lambda: list(self.challenge.task_dir.rglob(file_path.name)),
         ]
 
         for path_fn in search_paths:
@@ -354,17 +356,24 @@ class SWEAgent(PatcherAgentBase):
                 continue
 
             for path in paths:
-                if path.exists() and path.is_file():
-                    try:
-                        res = path.read_text()
-                        if isinstance(res, str):
-                            logger.debug("Got file content for %s", file_path)
-                            return res
+                if not path.exists() or not path.is_file():
+                    logger.debug("File %s does not exist or is not a file", path)
+                    continue
 
-                        logger.error("read_text for %s did not return a string", path)
-                    except OSError as e:
-                        logger.debug("Could not read file %s: %s", path, e)
-                        continue
+                if not path.is_relative_to(self.challenge.get_source_path()):
+                    logger.debug("File %s is not relative to the source path", path)
+                    continue
+
+                try:
+                    res = path.read_text()
+                    if isinstance(res, str):
+                        logger.debug("Got file content for %s", file_path)
+                        return res, str(path.relative_to(self.challenge.get_source_path()))
+
+                    logger.error("read_text for %s did not return a string", path)
+                except OSError as e:
+                    logger.debug("Could not read file %s: %s", path, e)
+                    continue
 
         logger.error("Could not find file '%s' after trying multiple locations", file_path)
         return None
@@ -375,8 +384,7 @@ class SWEAgent(PatcherAgentBase):
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        # TODO: add support for multiple diffs if necessary
-        diff_content = next(iter(self.challenge.get_diffs())).read_text()
+        diff_content = get_diff_content(self.challenge)
 
         messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.root_cause:
@@ -459,10 +467,12 @@ class SWEAgent(PatcherAgentBase):
                     file_path=code_snippet.key.file_path, identifier=code_snippet.key.identifier
                 )
 
-            file_content = self._get_file_content(code_snippet_key.file_path)
-            if file_content is None:
+            get_file_content_result = self._get_file_content(code_snippet_key.file_path)
+            if get_file_content_result is None:
                 logger.warning("Could not read the file: %s", code_snippet_key.file_path)
                 continue
+
+            file_content, file_path = get_file_content_result
 
             orig_file_content = file_content
             if code_snippet_key in orig_code_snippets:
@@ -485,7 +495,7 @@ class SWEAgent(PatcherAgentBase):
                 continue
 
             file_content = file_content.replace(orig_code_snippet, new_code_snippet)
-            patched_file = Path(code_snippet_key.file_path)
+            patched_file = Path(file_path)
 
             patch = difflib.unified_diff(
                 orig_file_content.splitlines(),

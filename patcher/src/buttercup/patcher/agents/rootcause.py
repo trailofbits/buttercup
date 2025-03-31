@@ -27,7 +27,7 @@ from buttercup.patcher.agents.common import (
     get_code_snippet_request_tmpl,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes
+from buttercup.patcher.utils import decode_bytes, get_diff_content
 from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,8 @@ do not make up code, contexts or information and do not assume anything
 
 If you need more context to understand the code, ask for more code snippets. Try \
 to fully understand the issue by asking for more code snippets instead of \
-rushing through an answer.
+rushing through an answer. For example, before looking at the code, review the \
+fuzzer harness code to understand how the project's code is being used.
 
 You can request multiple code snippets at once. Request code snippets in the
 following way:
@@ -237,7 +238,7 @@ class RootCauseAgent(PatcherAgentBase):
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
+        diff_content = get_diff_content(self.challenge)
         messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.context.sanitizer and state.context.sanitizer_output:
             messages += [

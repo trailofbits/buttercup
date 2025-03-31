@@ -6,6 +6,7 @@ from typing import Any
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
+from buttercup.common.challenge_task import ChallengeTask
 from typing import Callable
 from pathlib import Path
 from pydantic import BaseModel
@@ -63,3 +64,8 @@ def decode_bytes(b: bytes | None) -> str | None:
         return None
 
     return b.decode("utf-8", errors="ignore")
+
+
+def get_diff_content(challenge: ChallengeTask) -> str:
+    """Get the diff content for the challenge."""
+    return "\n".join(diff.read_text() for diff in challenge.get_diffs())

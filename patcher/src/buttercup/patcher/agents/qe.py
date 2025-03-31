@@ -29,6 +29,7 @@ from buttercup.patcher.agents.common import (
     PatchOutput,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
+from buttercup.patcher.utils import get_diff_content
 from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -117,8 +118,7 @@ class QEAgent(PatcherAgentBase):
         messages: list[BaseMessage | str] = []
         messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
 
-        # TODO: add support for multiple diffs if necessary
-        diff_content = next(iter(self.challenge.get_diffs())).read_text()
+        diff_content = get_diff_content(self.challenge)
 
         messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
         if state.root_cause:

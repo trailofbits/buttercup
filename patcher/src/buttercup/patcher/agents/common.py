@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import operator
 from pathlib import Path
+from os import PathLike
 from typing import Annotated
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
@@ -117,24 +118,28 @@ class PatcherAgentBase:
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
 
-    def rebase_src_path(self, path: str) -> str:
-        """Rebase the src path to the project name."""
-        if path.startswith(f"/src/{self.challenge.project_name}/"):
-            path = path[len(f"/src/{self.challenge.project_name}/") :]
-        elif path == f"/src/{self.challenge.project_name}":
-            path = "."
-        elif path.startswith(f"src/{self.challenge.project_name}"):
-            path = path[len(f"src/{self.challenge.project_name}") :]
-        elif path.startswith(f"src/{self.challenge.project_name}"):
-            path = path[len(f"src/{self.challenge.project_name}") :]
+    def rebase_src_path(self, path: PathLike) -> Path:
+        """Rebase the /src paths to be relative to the task directory"""
+        path = Path(path)
+        if not path.is_absolute():
+            return path
 
-        if path.startswith("/"):
-            path = str(Path(path).relative_to("/"))
+        path = path.resolve()
+        src_repo_path = Path(f"/src/{self.challenge.project_name}/")
+        src_path = Path("/src")
 
-        if path == "":
-            path = "."
+        if path.is_relative_to(src_repo_path):
+            extra_path = path.relative_to(src_repo_path)
+            return self.challenge.get_source_subpath().joinpath(extra_path)
 
-        return str(path)
+        if path.is_relative_to(src_path):
+            extra_path = path.relative_to(src_path)
+            if self.challenge.get_oss_fuzz_path().joinpath(extra_path).exists():
+                return self.challenge.get_oss_fuzz_path().joinpath(extra_path)
+
+            path = extra_path
+
+        return path
 
     def get_code_snippet_requests(
         self, response: str, update_state: dict, *, current_node: str, default_goto: str

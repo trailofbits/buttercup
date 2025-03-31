@@ -34,9 +34,10 @@ class PatcherLeaderAgent:
 
     # Default to a low number as the patcher will be run multiple times and it
     # will eventually retry this many times.
-    max_patch_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCH_RETRIES", 3))
+    max_patch_retries: int = int(os.getenv("TOB_PATCHER_MAX_PATCH_RETRIES", 10))
     max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 5))
     max_context_retriever_retries: int = int(os.getenv("TOB_PATCHER_MAX_CONTEXT_RETRIEVER_RETRIES", 30))
+    max_context_retriever_recursion_limit: int = int(os.getenv("TOB_PATCHER_CTX_RETRIEVER_RECURSION_LIMIT", 80))
 
     def _init_patch_team(self) -> StateGraph:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
@@ -58,6 +59,7 @@ class PatcherLeaderAgent:
             chain_call=self.chain_call,
             work_dir=self.work_dir,
             max_retries=self.max_context_retriever_retries,
+            recursion_limit=self.max_context_retriever_recursion_limit,
         )
 
         workflow = StateGraph(PatcherAgentState)
