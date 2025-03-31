@@ -184,7 +184,8 @@ def delete_status_(
     """
     Reset status stats
     """
-    pass
+    logger.info("Resetting status")
+    return ""
 
 
 @app.post("/v1/sarif/", response_model=str, tags=["sarif"])
@@ -195,7 +196,8 @@ def post_v1_sarif_(
     """
     Submit Sarif Broadcast
     """
-    pass
+    logger.info("Accepting Sarif Broadcast: %s", body)
+    return ""
 
 
 @app.post(
@@ -212,6 +214,7 @@ def post_v1_task_(
     """
     Submit Task
     """
+    logger.debug("Accepting Task: %s", body)
     return new_task(body, tasks_queue)
 
 
@@ -235,6 +238,7 @@ def delete_v1_task_(
     Raises:
         HTTPException: If authentication fails
     """
+    logger.info("Deleting all tasks")
     return delete_all_tasks(delete_task_queue)
 
 
@@ -261,4 +265,5 @@ def delete_v1_task_task_id_(
     Raises:
         HTTPException: If authentication fails
     """
+    logger.info("Deleting task: %s", task_id)
     return delete_task(task_id, delete_task_queue)
