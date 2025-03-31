@@ -47,7 +47,8 @@ def _api_task_to_proto(task: Task) -> list[TaskProto]:
                     logger.warning(f"Unknown source type: {source.source_type}")
             source_detail.url = source.url
 
-        task_proto.deadline = task_detail.deadline
+        # Convert deadline from milliseconds to seconds (we don't need the precision)
+        task_proto.deadline = task_detail.deadline // 1000
 
         # Populate metadata field
         for key, value in task_detail.metadata.items():
