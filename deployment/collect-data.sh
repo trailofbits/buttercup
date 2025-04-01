@@ -40,12 +40,12 @@ echo "Collecting logs from pods"
 
 echo "Saving crs_scratch"
 SCHEDULER_POD=$(kubectl get pod -n crs -l app=scheduler -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -n crs -it $SCHEDULER_POD -- tar -cf /tmp/crs_scratch.tar /crs_scratch
-kubectl cp -n crs $SCHEDULER_POD:/tmp/crs_scratch.tar ./crs_scratch.tar
+kubectl exec -n crs -it "$SCHEDULER_POD" -- tar -cf /tmp/crs_scratch.tar /crs_scratch
+kubectl cp -n crs "$SCHEDULER_POD:/tmp/crs_scratch.tar" ./crs_scratch.tar
 
 echo "Saving tasks_storage"
 SCHEDULER_POD=$(kubectl get pod -n crs -l app=scheduler -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -n crs -it $SCHEDULER_POD -- tar -cf /tmp/tasks_storage.tar /tasks_storage
-kubectl cp -n crs $SCHEDULER_POD:/tmp/tasks_storage.tar ./tasks_storage.tar
+kubectl exec -n crs -it "$SCHEDULER_POD" -- tar -cf /tmp/tasks_storage.tar /tasks_storage
+kubectl cp -n crs "$SCHEDULER_POD:/tmp/tasks_storage.tar" ./tasks_storage.tar
 
 echo "All data collected in directory: ${RUN_DIR}"
