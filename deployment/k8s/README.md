@@ -20,13 +20,7 @@ This is controlled via the `global.environment` setting in the values.yaml or va
 
 ## Quick Start
 
-1. **Update Helm dependencies:**
-   ```bash
-   cd deployment/k8s
-   helm dependency update ./
-   ```
-
-2. **Create a values-override.yaml file with your secrets:**
+1. **Create a values-override.yaml file with your secrets:**
    ```yaml
    # Environment selection (minikube or aks)
    global:
@@ -60,12 +54,12 @@ This is controlled via the `global.environment` setting in the values.yaml or va
       # competition_api_url: "https://api.tail7e9b4c.ts.net"
    ```
 
-3. **Install the Helm chart:**
+2. **Install the Helm chart:**
    ```bash
    helm install buttercup ./ -f values-override.yaml
    ```
 
-4. **Verify deployment:**
+3. **Verify deployment:**
    ```bash
    kubectl get pods
    ```

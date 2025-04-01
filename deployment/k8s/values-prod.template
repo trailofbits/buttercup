@@ -117,7 +117,7 @@ program-model:
 
 build-bot:
   enabled: true
-  replicaCount: 8
+  replicaCount: 16
   resources:
     limits:
       cpu: 500m
@@ -136,7 +136,7 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 25
+  replicaCount: 40
   resources:
     limits:
       cpu: 4000m
@@ -166,7 +166,7 @@ coverage-bot:
 
 tracer-bot:
   enabled: true
-  replicaCount: 2
+  replicaCount: 4
   resources:
     limits:
       cpu: 1000m
@@ -185,7 +185,7 @@ tracer-bot:
 
 seed-gen:
   enabled: true
-  replicaCount: 4
+  replicaCount: 16
   resources:
     limits:
       cpu: 1000m
@@ -204,7 +204,7 @@ seed-gen:
 
 patcher:
   enabled: true
-  replicaCount: 3
+  replicaCount: 8
   maxPatchRetries: 25
   maxContextRetrieverRetries: 30
   maxContextRetrieverRecursionLimit: 100
