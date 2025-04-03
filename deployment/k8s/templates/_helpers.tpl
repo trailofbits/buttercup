@@ -11,6 +11,7 @@ Define imagePullSecrets for pod specs - using ghcr-auth to match Terraform
 {{- define "buttercup.imagePullSecrets" -}}
 imagePullSecrets:
   - name: ghcr-auth
+  - name: docker-auth
 {{- end -}}
 
 {{- define "buttercup.dirs.tasks_storage" -}}

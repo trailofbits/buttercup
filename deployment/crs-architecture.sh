@@ -59,6 +59,13 @@ up() {
 		--from-literal=username="$GHCR_USERNAME" \
 		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT" || echo -e "${GRN}ghcr secret already exists${NC}"
 
+
+	kubectl create secret docker-registry docker-auth \
+		--namespace crs \
+		--docker-server=docker.io \
+		--docker-username="$DOCKER_USERNAME" \
+		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
+
 	#deploy kubernetes resources in AKS cluster
 	kubectl apply -k k8s/base/tailscale-operator/
 	kubectl apply -k k8s/base/tailscale-dns/
