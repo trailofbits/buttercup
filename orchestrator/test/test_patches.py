@@ -167,6 +167,8 @@ def test_process_patches_success(patches, mock_submission_tracker, mock_patch_ap
     patch_item.item_id = "test_item_id"
     patches.patches_queue.pop.return_value = patch_item
     patches.task_registry.should_stop_processing.return_value = False
+    # Mock the _is_patched method to prevent calling the original method
+    patches._is_patched = Mock(return_value=False)
     mock_submission_tracker.get_pov_status.return_value = TypesSubmissionStatus.PASSED
 
     response = TypesPatchSubmissionResponse(
@@ -180,6 +182,7 @@ def test_process_patches_success(patches, mock_submission_tracker, mock_patch_ap
 
     # Assert
     assert result is True
+    patches._is_patched.assert_called_once_with(patch.vulnerability_id)
     mock_submission_tracker.get_pov_status.assert_called_once_with(patch.task_id, patch.vulnerability_id)
     mock_patch_api.v1_task_task_id_patch_post.assert_called_once()
     mock_submission_tracker.map_patch_to_vulnerability.assert_called_once_with(
@@ -196,6 +199,8 @@ def test_process_patches_error(patches, mock_patch_api):
     patch_item.item_id = "test_item_id"
     patches.patches_queue.pop.return_value = patch_item
     patches.task_registry.should_stop_processing.return_value = False
+    # Mock the _is_patched method to prevent calling the original method
+    patches._is_patched = Mock(return_value=False)
     mock_patch_api.v1_task_task_id_patch_post.side_effect = Exception("API Error")
 
     # Act
@@ -373,3 +378,55 @@ class TestCheckPendingStatuses:
         mock_submission_tracker.get_pending_patch_submissions.assert_called_once()
         patches.patch_api.v1_task_task_id_patch_patch_id_get.assert_called_once_with(task_id=task_id, patch_id=patch_id)
         mock_submission_tracker.update_patch_status.assert_not_called()
+
+
+def test_process_patches_duplicate_with_passed_vuln(patches, mock_submission_tracker, mock_patch_api):
+    """Test that a patch isn't processed twice when vulnerability status is PASSED."""
+    # Arrange
+    patch = Patch(task_id="test_task", vulnerability_id="test_vuln", patch="test_patch")
+    patch_item = Mock(spec=RQItem)
+    patch_item.deserialized = patch
+    patch_item.item_id = "test_item_id"
+    patches.patches_queue.pop.return_value = patch_item
+    patches.task_registry.should_stop_processing.return_value = False
+    # Mock _is_patched to return True (indicating patch was already processed)
+    patches._is_patched = Mock(return_value=True)
+    mock_submission_tracker.get_pov_status.return_value = TypesSubmissionStatus.PASSED
+
+    # Act
+    result = patches.process_patches()
+
+    # Assert
+    assert result is True
+    patches._is_patched.assert_called_once_with(patch.vulnerability_id)
+    # Since we already handled this vulnerability, we shouldn't submit the patch again
+    mock_patch_api.v1_task_task_id_patch_post.assert_not_called()
+    # The patch item should be acknowledged
+    patches.patches_queue.ack_item.assert_called_once_with(patch_item.item_id)
+
+
+def test_process_patches_duplicate_with_accepted_vuln(patches, mock_submission_tracker):
+    """Test that a patch isn't processed twice when vulnerability status is ACCEPTED."""
+    # Arrange
+    patch = Patch(task_id="test_task", vulnerability_id="test_vuln", patch="test_patch")
+    patch_item = Mock(spec=RQItem)
+    patch_item.deserialized = patch
+    patch_item.item_id = "test_item_id"
+    patches.patches_queue.pop.return_value = patch_item
+    patches.task_registry.should_stop_processing.return_value = False
+    # Mock _is_patched to return True (indicating patch was already processed)
+    patches._is_patched = Mock(return_value=True)
+    # Mock store_pending_patch to ensure we can assert it's not called
+    patches.store_pending_patch = Mock()
+    mock_submission_tracker.get_pov_status.return_value = TypesSubmissionStatus.ACCEPTED
+
+    # Act
+    result = patches.process_patches()
+
+    # Assert
+    assert result is True
+    patches._is_patched.assert_called_once_with(patch.vulnerability_id)
+    # Since we already handled this vulnerability, we shouldn't store the patch
+    patches.store_pending_patch.assert_not_called()
+    # The patch item should be acknowledged
+    patches.patches_queue.ack_item.assert_called_once_with(patch_item.item_id)

@@ -42,6 +42,9 @@ class Patches:
     # Redis key prefix for pending patches
     PENDING_PATCHES_PREFIX = "pending_patches:"
 
+    # Redis set of vulnerabilities that have seen a patch
+    SEEN_PATCHES_PREFIX = "seen_patches:"
+
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
         self.patches_queue = queue_factory.create(QueueNames.PATCHES, GroupNames.ORCHESTRATOR, block_time=None)
@@ -52,6 +55,14 @@ class Patches:
     def _get_pending_patch_key(self, task_id: str, vulnerability_id: str) -> str:
         """Get Redis key for pending patch."""
         return f"{self.PENDING_PATCHES_PREFIX}{task_id}:{vulnerability_id}"
+
+    def _is_patched(self, vulnerability_id: str) -> bool:
+        """Check if a vulnerability has seen a patch."""
+        return self.redis.sismember(self.SEEN_PATCHES_PREFIX, vulnerability_id)
+
+    def _set_patched(self, vulnerability_id: str) -> None:
+        """Set a vulnerability as patched."""
+        self.redis.sadd(self.SEEN_PATCHES_PREFIX, vulnerability_id)
 
     def store_pending_patch(self, patch: Patch) -> None:
         """Store a patch as pending until its vulnerability is ready.
@@ -140,12 +151,21 @@ class Patches:
                 self.patches_queue.ack_item(patch_item.item_id)
                 return True
 
+            # Check if there's already a submitted or pending patch for this vulnerability
+            if self._is_patched(patch.vulnerability_id):
+                logger.info(
+                    f"[{patch.task_id}] Already seen a patch for vulnerability {patch.vulnerability_id}, skipping"
+                )
+                self.patches_queue.ack_item(patch_item.item_id)
+                return True
+
             # Check vulnerability status
             vuln_status = self.submission_tracker.get_pov_status(patch.task_id, patch.vulnerability_id)
 
             if vuln_status == TypesSubmissionStatus.PASSED:
                 # Submit the patch
                 response = self.submit_patch(patch)
+                self._set_patched(patch.vulnerability_id)
                 if response.status in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                     logger.info(f"Successfully submitted patch: task={patch.task_id} vuln={patch.vulnerability_id}")
                     self.patches_queue.ack_item(patch_item.item_id)
@@ -156,6 +176,7 @@ class Patches:
             elif vuln_status == TypesSubmissionStatus.ACCEPTED:
                 # Store patch as pending
                 self.store_pending_patch(patch)
+                self._set_patched(patch.vulnerability_id)
                 logger.info(f"[{patch.task_id}] Stored patch as pending for vulnerability {patch.vulnerability_id}")
                 self.patches_queue.ack_item(patch_item.item_id)
             elif vuln_status in [TypesSubmissionStatus.FAILED, TypesSubmissionStatus.ERRORED]:
@@ -265,7 +286,7 @@ class Patches:
             )
 
             # Map the patch to the vulnerability and track its status
-            if response.status == TypesSubmissionStatus.ACCEPTED:
+            if response.status == TypesSubmissionStatus.ACCEPTED or response.status == TypesSubmissionStatus.PASSED:
                 self.submission_tracker.map_patch_to_vulnerability(
                     patch.task_id, response.patch_id, patch.vulnerability_id
                 )
