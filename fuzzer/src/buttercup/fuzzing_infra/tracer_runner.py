@@ -63,4 +63,5 @@ class TracerRunner:
             logger.info("Task %s crashed in diff mode but not in no diff mode", self.tsk_id)
             return self._create_tracer_info(info_with_diff)
 
+        logger.info("Task %s crashed both before and after the diff", self.tsk_id)
         return TracerInfo(is_valid=False, stacktrace=None)
