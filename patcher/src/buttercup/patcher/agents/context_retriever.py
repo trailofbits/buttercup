@@ -1,10 +1,27 @@
 """Agent that retrieves code snippets from the project."""
 
-import logging
-import re
-from dataclasses import dataclass, field
-from pathlib import Path
+from __future__ import annotations
 
+import logging
+import langgraph.errors
+import operator
+from dataclasses import dataclass, field
+from langchain_core.messages import ToolMessage
+from typing import Annotated, Sequence, Literal
+from langgraph.managed import IsLastStep, RemainingSteps
+from pydantic import BaseModel, Field
+from pathlib import Path
+from enum import Enum
+from langchain_core.tools import BaseTool
+from langgraph.graph import StateGraph, add_messages
+from langgraph.prebuilt import ToolNode
+from langgraph.constants import END
+from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
+from langchain_core.tools.base import InjectedToolCallId
+from buttercup.common.challenge_task import ChallengeTask
+
+from langchain_core.messages import AnyMessage, BaseMessage
 from langchain_core.runnables import Runnable
 from langchain_core.prompts import ChatPromptTemplate
 from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverState, ContextCodeSnippet, CodeSnippetKey
@@ -12,23 +29,236 @@ from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langgraph.types import Command
 
 import subprocess
-from langchain_core.tools import tool
-from langgraph.prebuilt import create_react_agent, ToolNode
 
 from buttercup.program_model.codequery import CodeQueryPersistent
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_TMPL = """You are a software engineer. Your job is to retrieve the code snippets requested by the user.
-You must use the tools provided to you to retrieve the code snippets.
+SYSTEM_TMPL = """You are an AI assistant tasked with helping a software engineer find and extract relevant code snippets from a project."""
 
-Do not stop until you have retrieved the code definition of the function/type/class/etc. requested by the user.
-Use `get_function_definition`/`get_type_definition` as the last tool in your chain of calls to actually retrieve the code definition.
+USER_MSG = """You have access to some tools to navigate the project and search for code.
+
+The project you will be working with is located at:
+<project_name>
+{PROJECT_NAME}
+</project_name>
+
+The software engineer has made the following request:
+<engineer_request>
+{REQUEST}
+</engineer_request>
+
+Throughout this process, maintain a <scratchpad> where you document your thought process, the commands you're using, and the results you're finding. This will help you keep track of your progress and make informed decisions about next steps.
+Do not make up any information, only use the provided tools and the information available in the project.
+Do not make up any file paths.
+Remember to use the provided tools only as defined, and do not attempt to modify or extend their functionality. If you encounter any errors or cannot find the requested information, explain the issue in your answer and suggest potential next steps or alternative approaches.
+Try to use `get_function_definition` and `get_type_definition` tools as much as possible and rely on others only if these tools fail or do not work as expected.
+Answer with <END> when you have found all the code snippets requested.
 """
 
-MESSAGES = ChatPromptTemplate.from_messages(
-    [("human", "Please retrieve the code snippet for {file_path} | {function_name}")]
-)
+RECURSION_LIMIT = 20
+
+MESSAGES = ChatPromptTemplate.from_messages([("human", "Please satisfy this request: {request}")])
+
+
+class State(BaseModel):
+    """State for the context retriever agent."""
+
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    is_last_step: IsLastStep | None = None
+    remaining_steps: RemainingSteps | None = None
+
+    challenge: ChallengeTask
+    context_retriever_agent: ContextRetrieverAgent
+    project_name: str
+    request: str
+    code_snippets: Annotated[list[ContextCodeSnippet], operator.add] = Field(default_factory=list)
+    tmp_code_snippets: TmpCodeSnippets | None = None
+
+
+class NodeNames(str, Enum):
+    """Names of the nodes in the state graph."""
+
+    AGENT = "agent"
+    TOOLS = "tools"
+
+
+@tool
+def ls(
+    path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
+) -> Command:
+    """List the files in the given path in the project's source directory."""
+    path = state.context_retriever_agent.rebase_src_path(path)
+    if not state.context_retriever_agent.challenge.task_dir.joinpath(path).exists():
+        raise ValueError(f"Path {path} does not exist in the project's directory")
+
+    logger.info("Listing files in %s", path)
+    args = ["ls", "-l"]
+    if path:
+        args.append(str(path))
+    ls_output = subprocess.check_output(args, cwd=state.challenge.task_dir).decode("utf-8")
+    return Command(update={"messages": [ToolMessage(ls_output, tool_call_id=tool_call_id)]})
+
+
+@tool
+def grep(
+    pattern: str,
+    path: str | None,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Grep for a string and return a 5-line context around the match, together with line numbers. If no path is provided, search the entire project. Prefer using this tool over cat."""
+    if path:
+        path = state.context_retriever_agent.rebase_src_path(path)
+        if not state.challenge.task_dir.joinpath(path).exists():
+            raise ValueError(f"Path {path} does not exist in the project's directory")
+
+    logger.info("Searching for %s in %s", pattern, path)
+    args = ["grep", "-C", "5", "-nr", pattern]
+    if path:
+        args.append(str(path))
+    grep_output = subprocess.check_output(args, cwd=state.challenge.task_dir).decode("utf-8")
+    return Command(update={"messages": [ToolMessage(grep_output, tool_call_id=tool_call_id)]})
+
+
+@tool
+def cat(
+    path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
+) -> Command:
+    """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
+    path = state.context_retriever_agent.rebase_src_path(path)
+    if not state.challenge.task_dir.joinpath(path).exists():
+        raise ValueError(f"Path {path} does not exist in the project's directory")
+
+    logger.info("Reading contents of %s", path)
+    cat_output = state.challenge.task_dir.joinpath(path).read_text()
+    return Command(update={"messages": [ToolMessage(cat_output, tool_call_id=tool_call_id)]})
+
+
+@tool
+def get_lines(
+    path: str,
+    start: int,
+    end: int,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Get a range of lines from a file. Prefer using this tool over cat."""
+    path = state.context_retriever_agent.rebase_src_path(path)
+    if not state.challenge.task_dir.joinpath(path).exists():
+        raise ValueError(f"Path {path} does not exist in the project's directory")
+
+    logger.info("Getting lines %d-%d of %s", start, end, path)
+    get_lines_output = "\n".join(state.challenge.task_dir.joinpath(path).read_text().splitlines()[start:end])
+    return Command(update={"messages": [ToolMessage(get_lines_output, tool_call_id=tool_call_id)]})
+
+
+@tool
+def get_function_definition(
+    function_name: str,
+    file_path: str | None,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Get the definition of a function. If available, pass a file_path, \
+    otherwise pass None. Use this when you want to get information about a \
+    function. If not sure about the file path, pass None. Prefer using this \
+    tool over any other and rely on others only if this tool fails or does \
+    not work. This tool is just going to return a message whether it found \
+    the function or not, but it won't provide the code snippet directly. The \
+    function should be considered as retrieved anyway."""
+    if file_path:
+        path = Path(state.context_retriever_agent.rebase_src_path(file_path))
+    else:
+        path = None
+
+    logger.info("Getting function definition of %s in %s", function_name, path)
+    functions = state.context_retriever_agent.codequery.get_functions(function_name, path)
+    if not functions:
+        functions = state.context_retriever_agent.codequery.get_functions(function_name, path, fuzzy=True)
+        if not functions:
+            return Command(
+                update={"messages": [ToolMessage("No definition found for function", tool_call_id=tool_call_id)]}
+            )
+
+    code_snippets = [
+        ContextCodeSnippet(
+            key=CodeSnippetKey(
+                file_path=function.file_path.as_posix(),
+                identifier=function.name,
+            ),
+            code=body.body,
+        )
+        for function in functions
+        for body in function.bodies
+    ]
+    state.tmp_code_snippets.code_snippets.extend(code_snippets)
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(
+                    f"Found {len(code_snippets)} code snippets for function {function_name}", tool_call_id=tool_call_id
+                )
+            ],
+            "code_snippets": code_snippets,
+        }
+    )
+
+
+@tool
+def get_type_definition(
+    type_name: str,
+    file_path: str | None,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Get the definition of a type. If available, pass a file_path, \
+    otherwise pass None. Use this when you want to get information about a type. \
+    If not sure about the file path, pass None. Prefer using this tool over any \
+    other and \
+    rely on others only if this tool fails or does not work. This tool is just \
+    going to return a message whether it found the type or not, but it won't \
+    provide the code snippet directly. The type should be considered as \
+    retrieved anyway."""
+    if file_path:
+        path = Path(state.context_retriever_agent.rebase_src_path(file_path))
+    else:
+        path = None
+
+    logger.info("Getting type definition of %s in %s", type_name, path)
+    types = state.context_retriever_agent.codequery.get_types(type_name, path)
+    if not types:
+        types = state.context_retriever_agent.codequery.get_types(type_name, path, fuzzy=True)
+        if not types:
+            return Command(
+                update={"messages": [ToolMessage("No definition found for type", tool_call_id=tool_call_id)]}
+            )
+
+    code_snippets = [
+        ContextCodeSnippet(
+            key=CodeSnippetKey(
+                file_path=path.as_posix() if path else "<type-path>",  # TODO: get this from the type definition
+                identifier=type_def.name,
+            ),
+            code=type_def.definition,
+        )
+        for type_def in types
+    ]
+    state.tmp_code_snippets.code_snippets.extend(code_snippets)
+    return Command(
+        update={
+            "messages": [
+                ToolMessage(f"Found {len(code_snippets)} code snippets for type {type_name}", tool_call_id=tool_call_id)
+            ],
+            "code_snippets": code_snippets,
+        }
+    )
+
+
+class TmpCodeSnippets(BaseModel):
+    """Temporary code snippets."""
+
+    code_snippets: list[ContextCodeSnippet] = Field(default_factory=list)
 
 
 @dataclass
@@ -39,7 +269,10 @@ class ContextRetrieverAgent(PatcherAgentBase):
     max_retries: int = 30
     recursion_limit: int = 80
     llm: Runnable = field(init=False)
+    max_retries: int = 30
     current_retries: int = field(init=False, default=0)
+    codequery: CodeQueryPersistent = field(init=False)
+    tools: list[BaseTool] = field(init=False)
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -47,114 +280,8 @@ class ContextRetrieverAgent(PatcherAgentBase):
         fallback_llms = [
             create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
         ]
-        self.llm = default_llm.with_fallbacks(fallback_llms)
 
-    def _parse_code_snippet_msg(self, msg: str) -> tuple[str, str, str]:
-        """Parse the code snippet message."""
-        # Extract code part from the message using regex
-        code_pattern = re.compile(r"File path:.*?\nIdentifier:.*?\nCode:\n(.*?)$", re.DOTALL)
-        code_match = code_pattern.search(msg)
-        if code_match:
-            msg = code_match.group(1).strip()
-
-        code_block_pattern = re.compile(r"```(?:[a-z]+)?\s*(.*?)\s*```", re.DOTALL)
-        code_block_match = code_block_pattern.search(msg)
-        if code_block_match:
-            # Remove the code block markers
-            msg = code_block_match.group(1).strip()
-
-        return msg
-
-    def retrieve_context(self, state: ContextRetrieverState) -> Command:
-        """Retrieve the context for the diff analysis."""
-        if self.current_retries >= self.max_retries:
-            logger.warning("Reached max context retrieval retries, skipping")
-            return Command(
-                goto=state.prev_node,
-            )
-
-        logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
-        logger.debug("Code snippet requests: %s", state.code_snippet_requests)
-
-        codequery = CodeQueryPersistent(self.challenge, work_dir=self.work_dir)
-
-        @tool
-        def ls(path: str) -> str:
-            """List the files in the given path in the project's source directory."""
-            path = self.rebase_src_path(path)
-            if not self.challenge.task_dir.joinpath(path).exists():
-                raise ValueError(f"File {path} does not exist")
-
-            logger.info("Listing files in %s", path)
-            return subprocess.check_output(["ls", "-l", str(path)], cwd=self.challenge.task_dir).decode("utf-8")
-
-        @tool
-        def grep(path: str, pattern: str) -> str:
-            """Grep for a string in a file. Prefer using this tool over cat."""
-            path = self.rebase_src_path(path)
-            if not self.challenge.task_dir.joinpath(path).exists():
-                raise ValueError(f"File {path} does not exist")
-
-            logger.info("Searching for %s in %s", pattern, path)
-            return subprocess.check_output(
-                ["grep", "-C", "10", "-nr", pattern, str(path)], cwd=self.challenge.task_dir
-            ).decode("utf-8")
-
-        @tool
-        def cat(path: str) -> str:
-            """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
-            path = self.rebase_src_path(path)
-            if not self.challenge.task_dir.joinpath(path).exists():
-                raise ValueError(f"File {path} does not exist")
-
-            logger.info("Reading contents of %s", path)
-            return self.challenge.task_dir.joinpath(path).read_text()
-
-        @tool
-        def get_lines(path: str, start: int, end: int) -> str:
-            """Get a range of lines from a file. Prefer using this tool over cat."""
-            path = self.rebase_src_path(path)
-
-            logger.info("Getting lines %d-%d of %s", start, end, path)
-            return "\n".join(self.challenge.task_dir.joinpath(path).read_text().splitlines()[start:end])
-
-        @tool
-        def get_function_definition(function_name: str, path: str | None = None) -> str:
-            """Get the definition of a function. This tool, when called, is the last call in your chain of calls."""
-            if path:
-                path = self.rebase_src_path(path)
-                if not self.challenge.task_dir.joinpath(path).exists():
-                    raise ValueError(f"File {path} does not exist")
-
-            logger.info("Getting function definition of %s in %s", function_name, path)
-            functions = codequery.get_functions(function_name, path)
-            if not functions:
-                functions = codequery.get_functions(function_name, path, fuzzy=True)
-                if not functions:
-                    raise ValueError(f"No definition found for function {function_name} in {path}")
-
-            # TODO: allow for multiple bodies
-            return functions[0].bodies[0].body
-
-        @tool
-        def get_type_definition(type_name: str, path: str | None = None) -> str:
-            """Get the definition of a type. This tool, when called, is the last call in your chain of calls."""
-            if path:
-                path = self.rebase_src_path(path)
-                if not self.challenge.task_dir.joinpath(path).exists():
-                    raise ValueError(f"File {path} does not exist")
-
-            logger.info("Getting type definition of %s in %s", type_name, path)
-            types = codequery.get_types(type_name, path)
-            if not types:
-                types = codequery.get_types(type_name, path, fuzzy=True)
-                if not types:
-                    raise ValueError(f"No definition found for type {type_name} in {path}")
-
-            # TODO: allow for multiple definitions
-            return types[0].definition
-
-        tools = [
+        self.tools = [
             ls,
             grep,
             get_lines,
@@ -162,40 +289,115 @@ class ContextRetrieverAgent(PatcherAgentBase):
             get_function_definition,
             get_type_definition,
         ]
-        tool_node = ToolNode(tools, handle_tool_errors=True)
-        agent = create_react_agent(
-            self.llm,
-            tool_node,
-            prompt=SYSTEM_TMPL,
+        self.llm = default_llm.with_fallbacks(fallback_llms)
+        self.llm_with_tools = self.llm.bind_tools(self.tools)
+        self.codequery = CodeQueryPersistent(self.challenge, work_dir=self.work_dir)
+
+    def _call_model(self, state: State) -> Command[Literal[NodeNames.TOOLS.value, END]]:
+        """Call the model."""
+        user_msg = USER_MSG.format(
+            REQUEST=state.request,
+            PROJECT_NAME=state.project_name,
         )
+        res = self.llm_with_tools.invoke(
+            [
+                {"role": "system", "content": SYSTEM_TMPL},
+                {"role": "user", "content": user_msg},
+                *state.messages,
+            ]
+        )
+        if "<END>" in res.content:
+            return Command(update={"messages": [res]}, goto=END)
+
+        return Command(update={"messages": [res]}, goto=NodeNames.TOOLS.value)
+
+    def _prompt(self, state: State) -> list[AnyMessage]:
+        return [
+            ("system", SYSTEM_TMPL),
+            (
+                "user",
+                USER_MSG.format(
+                    REQUEST=state.request,
+                    PROJECT_NAME=state.project_name,
+                ),
+            ),
+            *state.messages,
+        ]
+
+    def _create_agent(self) -> Runnable:
+        """Create the agent."""
+        workflow = StateGraph(State)
+        tool_node = ToolNode(self.tools, name=NodeNames.TOOLS.value)
+        workflow.add_node(NodeNames.AGENT.value, self._call_model)
+        workflow.add_node(NodeNames.TOOLS.value, tool_node)
+
+        workflow.set_entry_point(NodeNames.AGENT.value)
+        workflow.add_edge(NodeNames.TOOLS.value, NodeNames.AGENT.value)
+        return workflow.compile()
+
+    def retrieve_context(self, state: ContextRetrieverState) -> Command:
+        """Retrieve the context for the diff analysis."""
+        if self.current_retries >= self.max_retries:
+            logger.warning("Reached max context retrieval retries, skipping")
+            return Command(
+                update={
+                    "ctx_request_limit": True,
+                },
+                goto=state.prev_node,
+            )
+
+        logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
+        logger.debug("Code snippet requests: %s", state.code_snippet_requests)
+
+        agent = self._create_agent()
 
         res = []
         for request in state.code_snippet_requests:
-            logger.info("Retrieving code snippet for %s | %s", request.file_path, request.identifier)
-            messages = MESSAGES.invoke({"file_path": request.file_path, "function_name": request.identifier})
-            snippet = agent.invoke({"messages": messages.to_messages()}, {"recursion_limit": self.recursion_limit})
-            logger.info("Code snippet retrieved for %s | %s", request.file_path, request.identifier)
-            if not snippet["messages"]:
-                raise RuntimeError("No messages returned from the agent")
+            logger.info("Retrieving code snippet for request '%s'", request.request)
+            tmp_code_snippets = TmpCodeSnippets()
+            input_state = {
+                "request": request.request,
+                "project_name": self.challenge.project_name,
+                "challenge": self.challenge,
+                "context_retriever_agent": self,
+                "tmp_code_snippets": tmp_code_snippets,
+            }
+            config = {
+                "configurable": {
+                    "thread_id": hash(request.request),
+                },
+            }
+            try:
+                ctx_state_dict: dict = agent.invoke(input_state, {"recursion_limit": RECURSION_LIMIT, **config})
+            except langgraph.errors.GraphRecursionError:
+                logger.error("Reached recursion limit for request '%s'", request.request)
+                ctx_state_dict = {
+                    "messages": [],
+                    "challenge": self.challenge,
+                    "project_name": self.challenge.project_name,
+                    "context_retriever_agent": self,
+                    "request": request.request,
+                    "code_snippets": tmp_code_snippets.code_snippets,
+                }
 
-            msg = snippet["messages"][-1].content
-            code = self._parse_code_snippet_msg(msg)
+            if logger.level <= logging.DEBUG:
+                for message in ctx_state_dict["messages"]:
+                    string_representation = f"{message.type.upper()}: {message.content}"
+                    logger.debug(string_representation)
 
-            res.append(
-                ContextCodeSnippet(
-                    key=CodeSnippetKey(
-                        file_path=request.file_path,
-                        identifier=request.identifier,
-                    ),
-                    code=code,
-                    code_context="",
-                )
-            )
+            ctx_state = State(**ctx_state_dict)
+            if not ctx_state.code_snippets:
+                # TODO: pass back these errors to the caller so that it can retry in other ways
+                logger.warning("No code snippet returned from the agent for request '%s'", request.request)
+                continue
+
+            logger.info("Code snippets retrieved for request '%s'", request.request)
+            res.extend(ctx_state.code_snippets)
 
         self.current_retries += 1
         return Command(
             update={
-                "relevant_code_snippets": res,
+                "relevant_code_snippets": set(res),
             },
             goto=state.prev_node,
         )

@@ -1,0 +1,83 @@
+=================================================================
+[1m[31m==14==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7f013ccb77f0 at pc 0x555dcfad2fef bp 0x7ffd2207d630 sp 0x7ffd2207d628
+[1m[0m[1m[34mREAD of size 8 at 0x7f013ccb77f0 thread T0[1m[0m
+SCARINESS: 33 (8-byte-read-heap-buffer-overflow-far-from-bounds)
+    #0 0x555dcfad2fee in ebitmap_match_any /src/selinux/libsepol/src/ebitmap.c:235:27
+    #1 0x555dcfac0756 in check_assertion_avtab_match /src/selinux/libsepol/src/assertion.c:462:7
+    #2 0x555dcfac7cd7 in avtab_map /src/selinux/libsepol/src/avtab.c:346:10
+    #3 0x555dcfac0335 in check_assertion /src/selinux/libsepol/src/assertion.c:513:7
+    #4 0x555dcfa2dacf in cil_check_neverallow /src/selinux/libsepol/src/../cil/src/cil_binary.c:4686:8
+    #5 0x555dcfa2dacf in cil_check_neverallows /src/selinux/libsepol/src/../cil/src/cil_binary.c:4740:8
+    #6 0x555dcfa2c204 in cil_binary_create_allocated_pdb /src/selinux/libsepol/src/../cil/src/cil_binary.c:4999:8
+    #7 0x555dcfa2b7a9 in cil_binary_create /src/selinux/libsepol/src/../cil/src/cil_binary.c:4326:7
+    #8 0x555dcfa073c1 in cil_build_policydb /src/selinux/libsepol/src/../cil/src/cil.c:672:7
+    #9 0x555dcf9ed982 in LLVMFuzzerTestOneInput /src/secilc-fuzzer.c:62:6
+    #10 0x555dcf8a2330 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:614:13
+    #11 0x555dcf88d5a5 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:327:6
+    #12 0x555dcf89303f in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:862:9
+    #13 0x555dcf8be2e2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+    #14 0x7f0141a73082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 0702430aef5fa3dda43986563e9ffcc47efbd75e)
+    #15 0x555dcf88578d in _start (/out/secilc-fuzzer+0xcd78d)
+
+DEDUP_TOKEN: ebitmap_match_any--check_assertion_avtab_match--avtab_map
+[1m[32m0x7f013ccb77f0 is located 16 bytes before 1340512-byte region [0x7f013ccb7800,0x7f013cdfec60)
+[1m[0m[1m[35mallocated by thread T0 here:[1m[0m
+    #0 0x555dcf9ae0ff in malloc /src/llvm-project/compiler-rt/lib/asan/asan_malloc_linux.cpp:68:3
+    #1 0x555dcfa6e437 in cil_malloc /src/selinux/libsepol/src/../cil/src/cil_mem.c:40:14
+    #2 0x555dcfa12c4b in __cil_typeattr_bitmap_init /src/selinux/libsepol/src/../cil/src/cil_binary.c:599:23
+    #3 0x555dcfa130c9 in cil_typeattribute_to_bitmap /src/selinux/libsepol/src/../cil/src/cil_binary.c:636:8
+    #4 0x555dcfa28f8d in __cil_node_to_policydb /src/selinux/libsepol/src/../cil/src/cil_binary.c:3759:9
+    #5 0x555dcfab0bfb in cil_tree_walk_core /src/selinux/libsepol/src/../cil/src/cil_tree.c:263:9
+    #6 0x555dcfab0de1 in cil_tree_walk /src/selinux/libsepol/src/../cil/src/cil_tree.c:307:7
+    #7 0x555dcfab0de1 in cil_tree_walk_core /src/selinux/libsepol/src/../cil/src/cil_tree.c:275:9
+    #8 0x555dcfab0de1 in cil_tree_walk /src/selinux/libsepol/src/../cil/src/cil_tree.c:307:7
+    #9 0x555dcfab0de1 in cil_tree_walk_core /src/selinux/libsepol/src/../cil/src/cil_tree.c:275:9
+    #10 0x555dcfab0de1 in cil_tree_walk /src/selinux/libsepol/src/../cil/src/cil_tree.c:307:7
+    #11 0x555dcfab0de1 in cil_tree_walk_core /src/selinux/libsepol/src/../cil/src/cil_tree.c:275:9
+    #12 0x555dcfab0de1 in cil_tree_walk /src/selinux/libsepol/src/../cil/src/cil_tree.c:307:7
+    #13 0x555dcfab0de1 in cil_tree_walk_core /src/selinux/libsepol/src/../cil/src/cil_tree.c:275:9
+    #14 0x555dcfab0fee in cil_tree_walk /src/selinux/libsepol/src/../cil/src/cil_tree.c:307:7
+    #15 0x555dcfa2bf73 in cil_binary_create_allocated_pdb /src/selinux/libsepol/src/../cil/src/cil_binary.c:4951:8
+    #16 0x555dcfa2b7a9 in cil_binary_create /src/selinux/libsepol/src/../cil/src/cil_binary.c:4326:7
+    #17 0x555dcfa073c1 in cil_build_policydb /src/selinux/libsepol/src/../cil/src/cil.c:672:7
+    #18 0x555dcf9ed982 in LLVMFuzzerTestOneInput /src/secilc-fuzzer.c:62:6
+    #19 0x555dcf8a2330 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:614:13
+    #20 0x555dcf88d5a5 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:327:6
+    #21 0x555dcf89303f in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:862:9
+    #22 0x555dcf8be2e2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+    #23 0x7f0141a73082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 0702430aef5fa3dda43986563e9ffcc47efbd75e)
+
+DEDUP_TOKEN: __interceptor_malloc--cil_malloc--__cil_typeattr_bitmap_init
+SUMMARY: AddressSanitizer: heap-buffer-overflow /src/selinux/libsepol/src/ebitmap.c:235:27 in ebitmap_match_any
+Shadow bytes around the buggy address:
+  0x7f013ccb7500: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
+  0x7f013ccb7580: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
+  0x7f013ccb7600: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
+  0x7f013ccb7680: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
+  0x7f013ccb7700: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
+=>0x7f013ccb7780: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m[[1m[31mfa[1m[0m][1m[31mfa[1m[0m
+  0x7f013ccb7800: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+  0x7f013ccb7880: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+  0x7f013ccb7900: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+  0x7f013ccb7980: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+  0x7f013ccb7a00: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           [1m[0m00[1m[0m
+  Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m 
+  Heap left redzone:       [1m[31mfa[1m[0m
+  Freed heap region:       [1m[35mfd[1m[0m
+  Stack left redzone:      [1m[31mf1[1m[0m
+  Stack mid redzone:       [1m[31mf2[1m[0m
+  Stack right redzone:     [1m[31mf3[1m[0m
+  Stack after return:      [1m[35mf5[1m[0m
+  Stack use after scope:   [1m[35mf8[1m[0m
+  Global redzone:          [1m[31mf9[1m[0m
+  Global init order:       [1m[36mf6[1m[0m
+  Poisoned by user:        [1m[34mf7[1m[0m
+  Container overflow:      [1m[34mfc[1m[0m
+  Array cookie:            [1m[31mac[1m[0m
+  Intra object redzone:    [1m[33mbb[1m[0m
+  ASan internal:           [1m[33mfe[1m[0m
+  Left alloca redzone:     [1m[34mca[1m[0m
+  Right alloca redzone:    [1m[34mcb[1m[0m
+==14==ABORTING

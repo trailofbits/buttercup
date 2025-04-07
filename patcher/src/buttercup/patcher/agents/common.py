@@ -17,7 +17,6 @@ import re
 
 
 class PatcherAgentName(Enum):
-    DIFF_ANALYSIS = "diff_analysis_node"
     CONTEXT_RETRIEVER = "context_retriever_node"
     ROOT_CAUSE_ANALYSIS = "root_cause_analysis"
     CREATE_PATCH = "create_patch"
@@ -34,9 +33,11 @@ class PatcherAgentState(BaseModel):
     context: PatchInput
     messages: Annotated[list[BaseMessage], add_messages]
 
-    relevant_code_snippets: Annotated[list[ContextCodeSnippet], operator.add] = Field(default_factory=list)
+    relevant_code_snippets: Annotated[set[ContextCodeSnippet], operator.or_] = Field(default_factory=set)
     diff_analysis: str | None = None
     root_cause: str | None = None
+
+    ctx_request_limit: bool = Field(default=False)
 
     patches: list[PatchOutput] = Field(default_factory=list)
     patch_tries: int = Field(default=0)
@@ -75,7 +76,7 @@ class PatcherAgentState(BaseModel):
 class ContextRetrieverState(BaseModel):
     """State for the Context Retriever Agent."""
 
-    code_snippet_requests: list[CodeSnippetKey] = Field(default_factory=list)
+    code_snippet_requests: list[CodeSnippetRequest] = Field(default_factory=list)
     prev_node: str | None = None
 
 
@@ -96,6 +97,12 @@ class CodeSnippetKey(BaseModel):
         return self.file_path == other.file_path and self.identifier == other.identifier
 
 
+class CodeSnippetRequest(BaseModel):
+    """Code snippet request"""
+
+    request: str = Field(description="Detailed explanation of what code snippet is needed")
+
+
 class ContextCodeSnippet(BaseModel):
     """Code snippet from the Challenge Task. This is the base unit used by the
     patcher to build patches. Changes are applied to this units."""
@@ -108,6 +115,29 @@ class ContextCodeSnippet(BaseModel):
 
     code_context: str | None = None
     "Additional context around the code snippet, e.g. lines information, etc."
+
+    def __str__(self) -> str:
+        context = (
+            f"""
+    <code_context>
+    {self.code_context}
+    </code_context>
+"""
+            if self.code_context
+            else ""
+        )
+        return f"""<code_snippet>
+<file_path>{self.key.file_path}</file_path>
+<identifier>{self.key.identifier}</identifier>
+<code>
+{self.code}
+</code>{context}
+</code_snippet>
+"""
+
+    def __hash__(self) -> int:
+        """Hash the code snippet"""
+        return hash((type(self),) + tuple(self.__dict__.values()))
 
 
 @dataclass
@@ -142,31 +172,19 @@ class PatcherAgentBase:
         return path
 
     def get_code_snippet_requests(
-        self, response: str, update_state: dict, *, current_node: str, default_goto: str
+        self, response: str, update_state: dict, ctx_request_limit: bool, *, current_node: str, default_goto: str
     ) -> tuple[str, dict]:
         """Get the code snippet request from the response."""
-
-        CODE_SNIPPET_REQUEST = re.compile(
-            r"""# CODE SNIPPET REQUESTS:
-.*?
-(File path: (.*?)
-Identifier: (.*?))+
-```""",
-            re.DOTALL | re.IGNORECASE,
-        )
-        matches = CODE_SNIPPET_REQUEST.search(response)
-        if not matches:
+        if ctx_request_limit:
             return default_goto, update_state
 
-        # Extract all file path and identifier pairs
-        pair_pattern = re.compile(r"File path: (.*?)\nIdentifier: (.*?)(?:\n|$)", re.DOTALL)
-        code_snippet_requests = pair_pattern.findall(matches.group(0))
-
-        if len(code_snippet_requests) == 0:
+        CODE_SNIPPET_REQUEST_RE = re.compile("<code_request>(.*?)</code_request>", re.DOTALL | re.IGNORECASE)
+        code_snippet_requests_matches = CODE_SNIPPET_REQUEST_RE.findall(response)
+        if not code_snippet_requests_matches:
             return default_goto, update_state
 
         code_snippet_requests = [
-            CodeSnippetKey(file_path=request[0], identifier=request[1]) for request in code_snippet_requests
+            CodeSnippetRequest(request=request.strip()) for request in code_snippet_requests_matches
         ]
         return PatcherAgentName.CONTEXT_RETRIEVER.value, {
             "code_snippet_requests": code_snippet_requests,
@@ -181,12 +199,6 @@ CONTEXT_PROJECT_TMPL = "Project name: {project_name}"
 CONTEXT_DIFF_TMPL = """Diff introducing the vulnerability:
 ```
 {diff_content}
-```
-"""
-CONTEXT_DIFF_ANALYSIS_TMPL = """Analysis of the diff introducing the \
-vulnerability.
-```
-{diff_analysis}
 ```
 """
 CONTEXT_ROOT_CAUSE_TMPL = """Vulnerability Root cause analysis:

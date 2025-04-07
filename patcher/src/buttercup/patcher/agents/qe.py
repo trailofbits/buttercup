@@ -266,7 +266,7 @@ class QEAgent(PatcherAgentBase):
 
     def run_pov_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.DIFF_ANALYSIS.value]]:
+    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:
         """Node in the LangGraph that runs a PoV against a currently built patch"""
         logger.info("Testing PoV on Challenge Task %s rebuilt with patch", self.challenge.name)
         try:
@@ -288,7 +288,7 @@ class QEAgent(PatcherAgentBase):
                     "pov_stdout": exc.stdout,
                     "pov_stderr": exc.stderr,
                 },
-                goto=PatcherAgentName.DIFF_ANALYSIS.value,
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
 
         if not pov_output.command_result.success:
@@ -299,7 +299,7 @@ class QEAgent(PatcherAgentBase):
                     "pov_stdout": pov_output.command_result.output,
                     "pov_stderr": pov_output.command_result.error,
                 },
-                goto=PatcherAgentName.DIFF_ANALYSIS.value,
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
 
         logger.info(
@@ -320,7 +320,7 @@ class QEAgent(PatcherAgentBase):
             },
             goto=PatcherAgentName.RUN_TESTS.value
             if not pov_output.did_crash()
-            else PatcherAgentName.DIFF_ANALYSIS.value,
+            else PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
         )
 
     def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:

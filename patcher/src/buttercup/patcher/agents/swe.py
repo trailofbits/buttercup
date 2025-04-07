@@ -15,235 +15,173 @@ from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    FewShotChatMessagePromptTemplate,
-    MessagesPlaceholder,
 )
 from pydantic import BaseModel, Field
 from langchain_core.runnables import (
     ConfigurableField,
     Runnable,
-    RunnableConfig,
 )
 from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
     CONTEXT_DIFF_TMPL,
     CONTEXT_PROJECT_TMPL,
     CONTEXT_ROOT_CAUSE_TMPL,
+    ContextRetrieverState,
     PatcherAgentState,
     PatcherAgentName,
     PatcherAgentBase,
     CodeSnippetKey,
-    get_code_snippet_request_tmpl,
+    CodeSnippetRequest,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.utils import decode_bytes, PatchOutput, get_diff_content
 
 logger = logging.getLogger(__name__)
 
-
-SYSTEM_TMPL = """You are a security engineer tasked with fixing a bug in a \
-software project. Fix the bug. Modify only the "Code" section(s) and perform as \
-less changes as possible to *only* fix the bug explained in the root cause \
-analysis (not other bugs).
-
-You can modify one or more code snippets.
-You don't have to modify all the code snippets.
-You don't have to output a code snippet if you don't modify it.
-If you modify a code snippet, you must provide the "File path" and the "Function
-name", together with the old and new code parts. You don't need to rewrite the
-whole code snippet, but make sure to write both the old part and the new part.
-Moreover, if you don't modify the whole code snippet, include AT LEAST 5 lines
-before and after the old part.
-
-If you need more context to create a patch, you can ask for more code snippets.
-You can request multiple code snippets at once. Request code snippets in the
-following way:
-
-{code_snippet_request_tmpl}
-
-Always follow the scheme:
-
-File path: <path-to-file>
-Identifier: <identifier>
-Old code:
-```<language>
-<old-code>
-```
-Code:
-```<language>
-<new-code>
-```
-
-For example, the output should look like this:
-
-File path: path/to/file.c
-Identifier: my_function
-Old code:
-```c
-int my_function(int a) {{{{
-    return a;
-}}}}
-```
-Code:
-```c
-int my_function(int a) {{{{
-    return a + 1;
-}}}}
-```
-
-File path: path/to/file2.c
-Identifier: my_function2
-Old code:
-```c
-    
-    buf2 = get_buf_from_input();
-    printf(buf2);
-    // Existing comment
-    // Another existing comment
-    printf("Hello, World!");
-```
-Code:
-```c
-    buf2 = get_buf_from_input();
-    printf("%%s", buf2);
-    // Existing comment
-    // Another existing comment
-    printf("Hello, World!");
-```
-"""  # noqa: W293
-SYSTEM_TMPL = SYSTEM_TMPL.format(code_snippet_request_tmpl=get_code_snippet_request_tmpl(2))
-
-
-CODE_SNIPPET_REGEX = re.compile(
-    r"""File path: (.*?)
-Identifier: (.*?)
-Old code:
-```.*?
-(.*?)
-```
-Code:
-```.*?
-(.*?)
-```""",
-    re.DOTALL | re.IGNORECASE,
+SYSTEM_MSG = (
+    """You are a skilled software engineer tasked with generating a patch for a specific vulnerability in a project."""
 )
+USER_MSG = """Your primary goal is to fix only the described vulnerability.
 
-CREATE_PATCH_STR_PROMPT = ChatPromptTemplate.from_messages(
+First, review the following project information and vulnerability analysis:
+
+Project Name:
+<project_name>
+{PROJECT_NAME}
+</project_name>
+
+Root Cause Analysis:
+<root_cause_analysis>
+{ROOT_CAUSE_ANALYSIS}
+</root_cause_analysis>
+
+Code Snippets that may need modification:
+<code_snippets>
+{CODE_SNIPPETS}
+</code_snippets>
+{PREVIOUS_PATCH_PROMPT}{REVIEW_PROMPT}{BUILD_ANALYSIS_PROMPT}{POV_FAILED_PROMPT}{TESTS_FAILED_PROMPT}
+
+Instructions:
+
+1. Review the provided information carefully.
+
+2. Plan your patch approach. Wrap your analysis and solution planning inside <vulnerability_analysis_and_solution> tags. In this section:
+   a) List all vulnerable parts of the code
+   b) If available
+   b.1) consider the Quality Engineer review comments and focus on addressing them
+   b.2) consider the build failure analysis and focus on addressing it
+   b.3) consider the POV failure analysis and focus on addressing it
+   b.4) consider the tests failure analysis and focus on addressing it
+   c) Propose multiple potential solutions for the vulnerability
+   d) Evaluate each solution's pros and cons
+   e) If you need additional context to patch the project, request it using <code_requests> tags. Be specific about what code you need and why. For example:
+        <code_requests>
+        <code_request>
+        Full implementation of the function 'validate_input()' from the file 'input_validation.c', as it's referenced in the analysis but not fully visible.
+        </code_request>
+        <code_request>
+        ...
+        </code_request>
+        </code_requests>
+        If you make a code request, wait for a response before proceeding.
+   f) Choose the best solution:
+        Consider:
+        - The specific part(s) of the code that need modification
+        - Potential solutions and their pros/cons
+
+3. Explain the changes you intend to make and how they fix the vulnerability. Use <explanation> tags for this section.
+   - If you need other code snippets to fix the vulnerability, request them using <code_requests> tags.
+
+4. Generate the patch based on your planning and explanation. Remember:
+   - Only fix the described vulnerability
+   - You can modify one or more code snippets
+   - You don't have to modify all code snippets
+   - You don't need to output snippets you haven't modified
+
+5. Format your output as follows for each modified code snippet:
+
+<patch>
+<identifier>[Identifier of the code snippet]</identifier>
+<file_path>[File path of the code snippet]</file_path>
+<old_code>
+[Include at least 5 lines before the modified part, if available]
+[Old code that needs to be replaced]
+[Include at least 5 lines after the modified part, if available]
+</old_code>
+<new_code>
+[Include at least 5 lines before the modified part, if available]
+[New code that fixes the vulnerability]
+[Include at least 5 lines after the modified part, if available]
+</new_code>
+</patch>
+
+Remember to focus solely on fixing the described vulnerability. Do not make any unrelated changes or improvements to the code.
+Begin your vulnerability analysis and solution planning now. If you need to request additional code, do so before providing any patches.
+"""
+
+PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", SYSTEM_TMPL),
-        MessagesPlaceholder(variable_name="context"),
-        MessagesPlaceholder(variable_name="messages", optional=True),
-        (
-            "user",
-            "As output, write the modified code snippets, as instructed, but "
-            "with the bug fixed. Leave the extra context intact and do not "
-            "output it. Do not output a code snippet that does not require a change. "
-            "If necessary, request more code snippets.",
-        ),
+        ("system", SYSTEM_MSG),
+        ("user", USER_MSG),
+        ("ai", "<vulnerability_analysis_and_solution>"),
     ]
 )
 
-ADDRESS_REVIEW_PATCH_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "human",
-            """The last patch you have created does not follow the quality \
-assurance guidelines.
+ADDRESS_REVIEW_PATCH_PROMPT = """
+The last patch you have created does not pass the review process performed by the Quality Engineer. The Quality Engineer has provided the following review:
 
-The Quality Engineer review:
-```
-{review}
-```
+<quality_engineer_review>
+{PATCH_REVIEW}
+</quality_engineer_review>
 
-Please generate a patch that fixes the vulnerability and addresses the Quality \
-Engineer review. Do not generate an already existing patch.
-""",
-        ),
-    ]
-)
+Please generate a new patch that fixes the vulnerability and addresses the Quality Engineer review. Do not generate an already existing patch.
+When considering possible patch solutions, consider the review comments.
+"""
 
-FIX_BUILD_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "human",
-            """The last patch you have created does not build correctly.
-
-Build stdout:
-```
-{build_stdout}
-```
-
-Build stderr:
-```
-{build_stderr}
-```
-
-Please generate a patch that builds correctly and fixes the vulnerability. Do \
-not generate an already existing patch.""",
-        ),
-    ]
-)
-BUILD_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "human",
-            """The last patch you have created does not build correctly. Another \
+BUILD_ANALYSIS_PROMPT = """
+The last patch you have created does not build correctly. Another \
 software engineer has provided the following analysis about the build failures.
 Build failure analysis:
-```
+
+<build_failure_analysis>
 {build_failure_analysis}
-```
+</build_failure_analysis>
+
 Please generate a patch that builds correctly and fixes the vulnerability. Do \
-not generate an already existing patch.""",
-        )
-    ]
-)
+not generate an already existing patch.
+"""
 
-PATCH_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "ai",
-            """Patch:
-```
-{patch}
-```""",
-        ),
-        ("user", "This patch does not work (build, fix vulnerability, tests, etc.)."),
-    ]
-)
+PATCH_PROMPT = """
+You previously tried the following patch, but it was not good enough (it failed the review process, failed to build, failed to fix the vulnerability, failed the tests, etc.).
 
-POV_FAILED_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "human",
-            "The last patch you have created does not fix the vulnerability \
+<previous_patch>
+{PREVIOUS_PATCH}
+</previous_patch>
+"""
+
+POV_FAILED_PROMPT = """
+The last patch you have created does not fix the vulnerability \
 correctly. Please generate a patch that fixes the vulnerability. Do not generate \
-an already existing patch.",
-        ),
-    ]
-)
+an already existing patch.
+"""
 
-TESTS_FAILED_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "human",
-            """The last patch you have created does not pass some tests.
+
+TESTS_FAILED_PROMPT = """
+The last patch you have created does not pass some tests.
 
 Tests stdout:
-```
+<tests_stdout>
 {tests_stdout}
-```
+</tests_stdout>
 
 Tests stderr:
-```
+<tests_stderr>
 {tests_stderr}
-```
+</tests_stderr>
 
 Please generate a new patch that fixes the vulnerability but also makes the \
-tests work. Do not generate an already existing patch.""",
-        ),
-    ]
-)
+tests work. Do not generate an already existing patch.
+"""
 
 
 class CodeSnippetChange(BaseModel):
@@ -287,9 +225,7 @@ class SWEAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm(
-            model_name=ButtercupLLM.OPENAI_GPT_4O.value, temperature=0.1
-        ).configurable_fields(
+        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value).configurable_fields(
             temperature=ConfigurableField(
                 id="llm_temperature",
                 name="LLM temperature",
@@ -301,7 +237,7 @@ class SWEAgent(PatcherAgentBase):
             ButtercupLLM.CLAUDE_3_5_SONNET,
         ]:
             fallback_llms.append(
-                create_default_llm(model_name=fb_model.value, temperature=0.1).configurable_fields(
+                create_default_llm(model_name=fb_model.value).configurable_fields(
                     temperature=ConfigurableField(
                         id="llm_temperature",
                         name="LLM temperature",
@@ -311,19 +247,23 @@ class SWEAgent(PatcherAgentBase):
             )
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
-        self.code_snippets_chain = CREATE_PATCH_STR_PROMPT | self.llm | StrOutputParser()
+        self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
 
     def parse_code_snippets(self, msg: str) -> CodeSnippetChanges:
         """Parse the code snippets from the string."""
-        matches = CODE_SNIPPET_REGEX.findall(msg)
+        code_snippets_re = re.compile(
+            r"<patch>.*?<identifier>(.*?)</identifier>.*?<file_path>(.*?)</file_path>.*?<old_code>(.*?)</old_code>.*?<new_code>(.*?)</new_code>.*?</patch>",
+            re.DOTALL | re.IGNORECASE,
+        )
+        matches = code_snippets_re.findall(msg)
         items: list[CodeSnippetChange] = []
         for match in matches:
-            file_path, function_name, old_code, code = match
+            identifier, file_path, old_code, code = match
             items.append(
                 CodeSnippetChange(
-                    key=CodeSnippetKey(file_path=file_path.strip(), identifier=function_name.strip()),
-                    old_code=old_code,
-                    code=code,
+                    key=CodeSnippetKey(file_path=file_path.strip(), identifier=identifier.strip()),
+                    old_code=old_code.strip("\n"),
+                    code=code.strip("\n"),
                 )
             )
 
@@ -442,17 +382,15 @@ class SWEAgent(PatcherAgentBase):
                 )
                 code_snippet_key = closest_match
             else:
-                logger.warning(
-                    "Code snippet not found in the original context, trying to continue anyway: %s",
-                    code_snippet_key,
-                )
+                return None
 
         return code_snippet_key
 
     def _get_snippets_patches(
         self, code_snippets: CodeSnippetChanges, orig_code_snippets: dict[CodeSnippetKey, str]
-    ) -> list[PatchOutput]:
+    ) -> tuple[list[PatchOutput], list[CodeSnippetRequest]]:
         patches: list[PatchOutput] = []
+        code_snippet_requests: list[CodeSnippetRequest] = []
         for code_snippet_idx, code_snippet in enumerate(code_snippets.items or []):
             if not code_snippet.is_valid():
                 logger.warning("Invalid code snippet: %s (%d)", code_snippet.key, code_snippet_idx)
@@ -463,9 +401,13 @@ class SWEAgent(PatcherAgentBase):
                 logger.warning(
                     "Could not find a valid code snippet key for %s (%d)", code_snippet.key, code_snippet_idx
                 )
-                code_snippet_key = CodeSnippetKey(
-                    file_path=code_snippet.key.file_path, identifier=code_snippet.key.identifier
+                code_snippet_requests.append(
+                    CodeSnippetRequest(
+                        request="Provide code snippet %s / %s"
+                        % (code_snippet.key.file_path, code_snippet.key.identifier)
+                    )
                 )
+                continue
 
             get_file_content_result = self._get_file_content(code_snippet_key.file_path)
             if get_file_content_result is None:
@@ -521,24 +463,24 @@ class SWEAgent(PatcherAgentBase):
             )
             patches.append(patch)
 
-        return patches
+        return patches, code_snippet_requests
 
-    def create_upatch(self, inp: CreateUPatchInput | dict) -> PatchOutput:
+    def create_upatch(self, inp: CreateUPatchInput | dict) -> PatchOutput | list[CodeSnippetRequest]:
         """Extract the patch the new vulnerable code."""
         inp = inp if isinstance(inp, CreateUPatchInput) else CreateUPatchInput(**inp)
         code_snippets, state = inp.code_snippets, inp.state
 
         orig_code_snippets = {
             CodeSnippetKey(file_path=cs.key.file_path, identifier=cs.key.identifier): cs.code
-            for cs in (state.relevant_code_snippets)
+            for cs in state.relevant_code_snippets
             if cs.code and cs.key.identifier
         }
 
         logger.debug("Creating patches for %d code snippets", len(code_snippets.items or []))
-        patches: list[PatchOutput] = self._get_snippets_patches(code_snippets, orig_code_snippets)
-        if not patches:
+        patches, code_snippet_requests = self._get_snippets_patches(code_snippets, orig_code_snippets)
+        if not patches or code_snippet_requests:
             logger.warning("No valid patches generated")
-            return PatchOutput(task_id="", vulnerability_id="", patch="")
+            return code_snippet_requests
 
         # Concatenate all patches in one
         logger.debug("Concatenating %d patches", len(patches))
@@ -552,7 +494,14 @@ class SWEAgent(PatcherAgentBase):
 
     def create_patch_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.REVIEW_PATCH.value, PatcherAgentName.CONTEXT_RETRIEVER.value, END]]:
+    ) -> Command[
+        Literal[
+            PatcherAgentName.REVIEW_PATCH.value,
+            PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            PatcherAgentName.CONTEXT_RETRIEVER.value,
+            END,
+        ]
+    ]:
         """Node in the LangGraph that generates a patch (in diff format)"""
         if state.patch_tries >= self.max_patch_retries:
             logger.warning("Reached max patch tries, terminating the patching process")
@@ -571,81 +520,77 @@ class SWEAgent(PatcherAgentBase):
             "tests_passed": None,
         }
 
-        messages = []
+        previous_patch_prompt = ""
+        review_prompt = ""
+        build_analysis_prompt = ""
+        pov_failed_prompt = ""
+        tests_failed_prompt = ""
+
         last_patch = state.get_last_patch()
         if last_patch:
-            old_patches = FewShotChatMessagePromptTemplate(
-                input_variables=[],
-                examples=[{"patch": last_patch.patch}],
-                example_prompt=PATCH_PROMPT,
-            )
-            messages += old_patches.format_messages()
+            previous_patch_prompt = PATCH_PROMPT.format(PREVIOUS_PATCH=last_patch.patch)
 
         if state.patch_review is not None:
-            messages += ADDRESS_REVIEW_PATCH_PROMPT.format_messages(review=state.patch_review)
+            review_prompt = ADDRESS_REVIEW_PATCH_PROMPT.format(PATCH_REVIEW=state.patch_review)
         elif state.build_succeeded is False:
-            messages += BUILD_ANALYSIS_PROMPT.format_messages(
-                build_failure_analysis=state.build_analysis,
-            )
+            build_analysis_prompt = BUILD_ANALYSIS_PROMPT.format(build_failure_analysis=state.build_analysis)
         elif state.pov_fixed is False:
-            messages += POV_FAILED_PROMPT.format_messages()
+            pov_failed_prompt = POV_FAILED_PROMPT.format()
         elif state.tests_passed is False:
-            messages += TESTS_FAILED_PROMPT.format_messages(
+            tests_failed_prompt = TESTS_FAILED_PROMPT.format(
                 tests_stdout=decode_bytes(state.tests_stdout),
                 tests_stderr=decode_bytes(state.tests_stderr),
             )
 
-        temperature = 0.1
-        is_patch_generated = False
+        patch_str: str = self.chain_call(
+            lambda x, y: x + y,
+            self.code_snippets_chain,
+            {
+                "PROJECT_NAME": self.challenge.name,
+                "ROOT_CAUSE_ANALYSIS": state.root_cause,
+                "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
+                "PREVIOUS_PATCH_PROMPT": previous_patch_prompt,
+                "REVIEW_PROMPT": review_prompt,
+                "BUILD_ANALYSIS_PROMPT": build_analysis_prompt,
+                "POV_FAILED_PROMPT": pov_failed_prompt,
+                "TESTS_FAILED_PROMPT": tests_failed_prompt,
+            },
+            default="",
+        )
+        goto, update_state = self.get_code_snippet_requests(
+            patch_str,
+            update_state,
+            state.ctx_request_limit,
+            current_node=PatcherAgentName.CREATE_PATCH.value,
+            default_goto=PatcherAgentName.REVIEW_PATCH.value,
+        )
+        if goto == PatcherAgentName.CONTEXT_RETRIEVER.value:
+            return Command(
+                update=update_state,
+                goto=goto,
+            )
 
-        for _ in range(3):
-            patch_str: str = self.chain_call(
-                lambda x, y: x + y,
-                self.code_snippets_chain,
-                {
-                    "context": self.get_context(state),
-                    "state": state,
-                    "messages": messages,
-                },
-                config=RunnableConfig(
-                    configurable={
-                        "llm_temperature": temperature,
-                    },
+        create_upatch_input = CreateUPatchInput(
+            code_snippets=self.parse_code_snippets(patch_str),
+            state=state,
+        )
+        patch = self.create_upatch(create_upatch_input)
+        if isinstance(patch, list):
+            logger.info("Requesting new code snippets for patch generation")
+            return Command(
+                update=ContextRetrieverState(
+                    code_snippet_requests=patch,
+                    prev_node=PatcherAgentName.CREATE_PATCH.value,
                 ),
-                default="",
+                goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
             )
-            goto, update_state = self.get_code_snippet_requests(
-                patch_str,
-                update_state,
-                current_node=PatcherAgentName.CREATE_PATCH.value,
-                default_goto=PatcherAgentName.REVIEW_PATCH.value,
+
+        if not patch or not patch.patch:
+            logger.error("Could not generate a patch")
+            return Command(
+                update=update_state,
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
-            if goto == PatcherAgentName.CONTEXT_RETRIEVER.value:
-                return Command(
-                    update=update_state,
-                    goto=goto,
-                )
-
-            create_upatch_input = CreateUPatchInput(
-                code_snippets=self.parse_code_snippets(patch_str),
-                state=state,
-            )
-            patch = self.create_upatch(create_upatch_input)
-            if not patch or not patch.patch:
-                logger.error("Could not generate a patch")
-                temperature += 0.1
-                continue
-
-            if patch.patch in [p.patch for p in (state.patches)]:
-                logger.error("Generated patch already exists, try again with higher temperature...")
-                temperature += 0.2
-                continue
-
-            is_patch_generated = True
-            break
-
-        if not is_patch_generated:
-            raise ValueError("Could not generate a new different patch")
 
         logger.info("Generated a patch for Challenge Task %s", self.challenge.name)
         logger.debug("Patch: %s", patch.patch)
@@ -657,6 +602,13 @@ class SWEAgent(PatcherAgentBase):
                 "patch_tries": patch_tries,
             }
         )
+        if patch.patch in [p.patch for p in (state.patches)]:
+            logger.warning("Generated patch already exists, going back to root cause analysis")
+            return Command(
+                update=update_state,
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            )
+
         return Command(
             update=update_state,
             goto=PatcherAgentName.REVIEW_PATCH.value,

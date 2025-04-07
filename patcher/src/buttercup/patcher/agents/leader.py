@@ -63,7 +63,6 @@ class PatcherLeaderAgent:
         )
 
         workflow = StateGraph(PatcherAgentState)
-        workflow.add_node(PatcherAgentName.DIFF_ANALYSIS.value, rootcause_agent.diff_analysis)
         workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)
         workflow.add_node(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, rootcause_agent.analyze_vulnerability)
         workflow.add_node(PatcherAgentName.CREATE_PATCH.value, swe_agent.create_patch_node)
@@ -73,7 +72,7 @@ class PatcherLeaderAgent:
         workflow.add_node(PatcherAgentName.RUN_POV.value, qe_agent.run_pov_node)
         workflow.add_node(PatcherAgentName.RUN_TESTS.value, qe_agent.run_tests_node)
 
-        workflow.set_entry_point(PatcherAgentName.DIFF_ANALYSIS.value)
+        workflow.set_entry_point(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value)
         return workflow
 
     def run_patch_task(self) -> PatchOutput | None:

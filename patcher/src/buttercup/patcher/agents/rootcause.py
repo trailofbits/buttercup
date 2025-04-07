@@ -1,173 +1,152 @@
 """Software Engineer LLM agent, analyzing the root cause of a vulnerability."""
 
 import logging
-import re
 from typing import Literal
 from dataclasses import dataclass, field
-from operator import itemgetter
 
-import tiktoken
-from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    MessagesPlaceholder,
 )
-from langchain_core.runnables import Runnable, RunnableBranch
+from langchain_core.messages import BaseMessage
+from langchain_core.runnables import Runnable
 from buttercup.patcher.agents.common import (
-    CONTEXT_CODE_SNIPPET_TMPL,
-    CONTEXT_DIFF_ANALYSIS_TMPL,
-    CONTEXT_DIFF_TMPL,
-    CONTEXT_PROJECT_TMPL,
-    CONTEXT_SANITIZER_TMPL,
     PatcherAgentState,
     PatcherAgentName,
     PatcherAgentBase,
+    CONTEXT_CODE_SNIPPET_TMPL,
     ContextCodeSnippet,
-    get_code_snippet_request_tmpl,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes, get_diff_content
+from buttercup.patcher.utils import decode_bytes
 from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
 
-ROOT_CAUSE_SYSTEM_TMPL = """You are a security engineer. Your job is to analyze the \
-current project's code, a vulnerability description, and determine its root \
-cause. The vulnerability is introduced/enabled in the specified diff and it was not \
-present before that. Read the project's code and understand the issue.
+ROOT_CAUSE_SYSTEM_MSG = """You are an experienced security engineer tasked with determining the root cause of a specific vulnerability. Your analysis will be used to patch the vulnerability."""
+ROOT_CAUSE_USER_MSG = """Your goal is to provide a highly technical, detailed, and focused analysis of the vulnerability, going to the root cause of the issue.
 
-You must NOT:
-- provide generic recommendations
-- provide overly generic root causes
-- talk about possible issues that existed before the diff.
-- provide code suggestions on how to fix the vulnerability
-- make up code, contexts or information
+Here is the information you need to analyze:
 
-You MUST:
-- provide a detailed root cause analysis of the vulnerability, referencing actual code snippets
-- describe a concrete and specific root cause
-- focus ONLY on the issue introduced in the diff and ONLY on the issue \
-reported in the sanitizer output. If there are multiple vulnerabilities in the \
-diff, focus on the one which triggers the sanitizer
-- look at the actual code snippets and the code context to understand the root cause, \
-do not make up code, contexts or information and do not assume anything
+1. Diff introducing the vulnerability (if available):
+<diff>
+{DIFF}
+</diff>
 
-If you need more context to understand the code, ask for more code snippets. Try \
-to fully understand the issue by asking for more code snippets instead of \
-rushing through an answer. For example, before looking at the code, review the \
-fuzzer harness code to understand how the project's code is being used.
+2. Project Name:
+<project_name>
+{PROJECT_NAME}
+</project_name>
 
-You can request multiple code snippets at once. Request code snippets in the
-following way:
+3. Sanitizer used:
+<sanitizer>
+{SANITIZER}
+</sanitizer>
 
-{code_snippet_request_tmpl}
+4. Sanitizer output:
+<sanitizer_output>
+{SANITIZER_OUTPUT}
+</sanitizer_output>
 
-You must use the above format to request code snippets.
+5. Code snippets from the project:
+<code_snippets>
+{CODE_SNIPPETS}
+</code_snippets>{OLD_ROOT_CAUSE}
+
+Instructions:
+
+1. Review all the provided information carefully.
+
+2. Conduct a thorough analysis of the vulnerability. Focus solely on the issue reported in the sanitizer output (and introduced by the diff if available).
+
+3. Structure your response as follows:
+
+   <vulnerability_analysis_process>
+   [Break down your thought process using this structure:
+
+   1. Diff Analysis:
+      - Quote each specific change in the diff relevant to the vulnerability.
+      - Explain what each of those changes does to the code.
+
+   2. Sanitizer Output Analysis:
+      - Quote each relevant part of the sanitizer output.
+      - Interpret what each part means in terms of potential vulnerabilities.
+
+   3. Code Snippet Analysis:
+      - Quote the relevant parts of the provided code snippets.
+      - Explain how these parts relate to the changes in the diff and the sanitizer output.
+
+   4. Integrated Analysis:
+      - Connect the findings from the diff, sanitizer output, and code snippets.
+      - Explain how these components work together to introduce the vulnerability.
+      - Use the reference numbers from previous steps to clearly link your observations.
+
+   5. Previous Root Cause Analysis:
+      - If a previous root cause analysis is available, try to critically analyze it and see if it's still valid, and provide your own extended/improved analysis.
+
+   6. Vulnerability Identification:
+      - Based on the integrated analysis, explain how the changes introduced the vulnerability.
+      - Use technical details and security concepts to support your conclusion.
+
+   7. Determine if additional code snippets need to be requested:
+      - If you need additional context to understand the code, wrap your code request in <code_request> tags. Be specific about what code you need and why. If there is a previous root cause analysis, try to explore more parts of the code to better understand the vulnerability. Request example:
+    <code_requests>
+    <code_request>
+    Full implementation of the function 'validate_input()' from the file 'input_validation.c', as it's referenced in the diff but not fully visible.
+    </code_request>
+    <code_request>
+    ...
+    </code_request>
+    </code_requests>
+
+   Ensure that you reference and analyze all components (code snippets, diff, and sanitizer output) before drawing any conclusions. Request additional code snippets if necessary for a complete understanding. Remember to quote relevant parts of the code, diff, and sanitizer output throughout your analysis.]
+   </vulnerability_analysis_process>
+
+   <analysis>
+   [Provide a detailed, technical explanation of the vulnerability. Include:
+   - The exact nature of the vulnerability
+   - How it was introduced in the diff
+   - Relevant technical details about how the vulnerability could be exploited
+
+   Ground your explanation in the provided code snippets, diff, and sanitizer output.]
+   </analysis>
+
+   <summary>
+   [Provide a clear, concise description of the vulnerability introduced by the diff. Highlight the most critical aspects of the security issue.]
+   </summary>
+
+4. In your analysis:
+   - Provide a detailed, technical explanation of the vulnerability.
+   - Describe a concrete and specific problem.
+   - If there are multiple vulnerabilities in the diff, focus on the one which triggers the sanitizer.
+   - Base your analysis on the provided code snippets, diff, and sanitizer output.
+   - Request and analyze additional code snippets if necessary for a complete understanding.
+
+5. Do NOT:
+   - Provide generic recommendations.
+   - Offer overly generic analyses.
+   - Discuss possible issues that existed before the diff.
+   - Suggest code fixes for the vulnerability.
+   - Make up any information not present in the provided data.
+
+Maintain a highly technical approach throughout your analysis, focusing solely on the vulnerability introduced by the diff and avoiding any generic advice or recommendations for fixing the code.
 """
-ROOT_CAUSE_SYSTEM_TMPL = ROOT_CAUSE_SYSTEM_TMPL.format(
-    code_snippet_request_tmpl=get_code_snippet_request_tmpl(2),
-)
-
-DIFF_ANALYSIS_SYSTEM_TMPL = """You are a security engineer. Your job is to \
-analyze a diff of a project and determine the vulnerability it introduces. The \
-vulnerability is introduced in the specified diff and it was not present \
-before that.
-
-You MUST:
-- provide a detailed analysis of the vulnerability introduced in the diff
-- describe a concrete and specific problem
-- focus ONLY on the issue introduced in the diff and ONLY on the issue \
-reported in the sanitizer output. If there are multiple vulnerabilities in the \
-diff, focus on the one which triggers the sanitizer
-
-You must NOT:
-- provide generic recommendations
-- provide overly generic analyses
-- talk about possible issues that existed before the diff.
-- provide code suggestions on how to fix the vulnerability
-
-If you need more context to understand the code, you can ask for more code
-snippets. Try to fully understand the issue by asking for more code snippets
-instead of rushing through an answer.
-
-You can request multiple code snippets at once. Request code snippets in the
-following way:
-
-{code_snippet_request_tmpl}
-"""
-DIFF_ANALYSIS_SYSTEM_TMPL = DIFF_ANALYSIS_SYSTEM_TMPL.format(
-    code_snippet_request_tmpl=get_code_snippet_request_tmpl(2),
-)
 
 ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", ROOT_CAUSE_SYSTEM_TMPL),
-        MessagesPlaceholder(variable_name="context"),
-        MessagesPlaceholder(variable_name="messages", optional=True),
-        ("user", "Provide a detailed and complete analysis"),
+        ("system", ROOT_CAUSE_SYSTEM_MSG),
+        ("user", ROOT_CAUSE_USER_MSG),
+        ("ai", "<vulnerability_analysis_process>"),
     ]
 )
 
-DIFF_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", DIFF_ANALYSIS_SYSTEM_TMPL),
-        MessagesPlaceholder(variable_name="context"),
-        MessagesPlaceholder(variable_name="messages", optional=True),
-        ("user", "Provide a detailed and complete analysis"),
-    ]
-)
+OLD_ROOT_CAUSE_TMPL = """
 
-OLD_DIFF_ANALYSIS_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "ai",
-            """Diff analysis:
-```
-{diff_analysis}
-```""",
-        ),
-        (
-            "user",
-            "I tried to fix the vulnerability according to the diff analysis you \
-provided, but the Proof of Vulnerability (PoV) was still triggered. Please \
-review your previous analysis and provide a new or an improved analysis to \
-help me correctly fix the vulnerability.",
-        ),
-    ]
-)
+6. Existing root cause analysis (potentially outdated, wrong, or incomplete):
 
-OLD_ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "ai",
-            """Root cause analysis:
-```
+<old_root_cause>
 {root_cause}
-```""",
-        ),
-        (
-            "user",
-            "I tried to fix the vulnerability according to the root cause you \
-provided, but the Proof of Vulnerability (PoV) was still triggered. Please \
-review your previous analysis and provide a new or an improved analysis to \
-help me correctly fix the vulnerability.",
-        ),
-    ]
-)
-
-REDUCE_ANALYSES = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "Please reduce the analyses to a single, detailed and \
-complete, analysis that can be easily understood by another software \
-engineer without other context.",
-        ),
-        ("user", "Previous analysis:\n```\n{previous_analysis}\n```"),
-        ("user", "New analysis:\n```\n{new_analysis}\n```"),
-    ]
-)
+</old_root_cause>"""
 
 BUILD_FAILURE_SYSTEM_TMPL = """\
 You are a software engineer helping fixing a bug in a \
@@ -200,10 +179,7 @@ class RootCauseAgent(PatcherAgentBase):
 
     llm: Runnable = field(init=False)
     root_cause_chain: Runnable = field(init=False)
-    diff_analysis_chain: Runnable = field(init=False)
-    diff_analysis_one_chain: Runnable = field(init=False)
     build_failure_analysis_chain: Runnable = field(init=False)
-    encoding: tiktoken.Encoding = field(init=False)
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -214,119 +190,10 @@ class RootCauseAgent(PatcherAgentBase):
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
         self.root_cause_chain = ROOT_CAUSE_PROMPT | self.llm | StrOutputParser()
-        self.diff_analysis_chain = DIFF_ANALYSIS_PROMPT | self.llm | StrOutputParser()
-        self.diff_analysis_one_chain = RunnableBranch(
-            (
-                lambda x: x["diff_analysis"],
-                {
-                    "previous_analysis": itemgetter("diff_analysis"),
-                    "new_analysis": self.diff_analysis_chain,
-                }
-                | REDUCE_ANALYSES
-                | self.llm
-                | StrOutputParser(),
-            ),
-            self.diff_analysis_chain,
-        )
         self.build_failure_analysis_chain = BUILD_FAILURE_PROMPT | self.llm | StrOutputParser()
 
-        self.encoding = tiktoken.encoding_for_model("gpt-4o")
-
-    def get_diff_analysis_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
-        """Get the messages for the diff analysis context."""
-
-        messages: list[BaseMessage | str] = []
-        messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
-
-        diff_content = get_diff_content(self.challenge)
-        messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
-        if state.context.sanitizer and state.context.sanitizer_output:
-            messages += [
-                CONTEXT_SANITIZER_TMPL.format(
-                    sanitizer=state.context.sanitizer,
-                    sanitizer_output=state.context.sanitizer_output,
-                )
-            ]
-
-        return messages
-
-    def get_root_cause_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
-        """Get the messages for the root cause analysis context."""
-
-        messages: list[BaseMessage | str] = []
-        messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
-
-        if state.diff_analysis:
-            messages += [CONTEXT_DIFF_ANALYSIS_TMPL.format(diff_analysis=state.diff_analysis)]
-
-        if state.context.sanitizer and state.context.sanitizer_output:
-            messages += [
-                CONTEXT_SANITIZER_TMPL.format(
-                    sanitizer=state.context.sanitizer,
-                    sanitizer_output=state.context.sanitizer_output,
-                )
-            ]
-
-        messages += self._get_relevant_code_snippets_msgs(state.relevant_code_snippets)
-        return messages
-
-    def diff_analysis(
-        self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, PatcherAgentName.CONTEXT_RETRIEVER.value]]:
-        """Analyze the diff to understand the vulnerability."""
-        logger.info("Analyzing the diff in Challenge Task %s", self.challenge.name)
-        messages = []
-        if state.diff_analysis:
-            messages += OLD_DIFF_ANALYSIS_PROMPT.format_messages(diff_analysis=state.diff_analysis)
-
-        diff_analysis = self.chain_call(
-            lambda x, y: x + y,
-            self.diff_analysis_one_chain,
-            {
-                "context": self.get_diff_analysis_context(state),
-                "messages": messages,
-                "diff_analysis": state.diff_analysis,
-            },
-            default="",
-        )
-        if not diff_analysis:
-            logger.error("Could not analyze the diff")
-            raise ValueError("Could not analyze the diff")
-
-        update_state = {
-            "diff_analysis": diff_analysis,
-            "root_cause": None,
-        }
-        goto, update_state = self.get_code_snippet_requests(
-            diff_analysis,
-            update_state,
-            current_node=PatcherAgentName.DIFF_ANALYSIS.value,
-            default_goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-        )
-        return Command(
-            update=update_state,
-            goto=goto,
-        )
-
-    def _parse_code_snippet_msg(self, msg: str) -> tuple[str, str, str]:
-        """Parse the code snippet message."""
-        # Extract code part from the message using regex
-        code_pattern = re.compile(r"File path:.*?\nIdentifier:.*?\nCode:\n(.*?)$", re.DOTALL)
-        code_match = code_pattern.search(msg)
-        if code_match:
-            code_block_pattern = re.compile(r"```(?:[a-z]+)?\s*(.*?)\s*```", re.DOTALL)
-            code_block_match = code_block_pattern.search(code_match.group(1))
-            if code_block_match:
-                # Remove the code block markers
-                msg = code_block_match.group(1).strip()
-            else:
-                # If we can't find the code block, just return the whole part after "Code:"
-                msg = code_match.group(1).strip()
-
-        return msg
-
     def _get_relevant_code_snippets_msgs(
-        self, relevant_code_snippets: list[ContextCodeSnippet]
+        self, relevant_code_snippets: set[ContextCodeSnippet]
     ) -> list[BaseMessage | str]:
         messages: list[BaseMessage | str] = []
         for code_snippet in relevant_code_snippets:
@@ -341,20 +208,24 @@ class RootCauseAgent(PatcherAgentBase):
 
         return messages
 
-    def analyze_vulnerability(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:
+    def analyze_vulnerability(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.CONTEXT_RETRIEVER.value, PatcherAgentName.CREATE_PATCH.value]]:
         """Analyze the diff analysis and the code to understand the
         vulnerability in the current code."""
         logger.info("Analyzing the vulnerability in Challenge Task %s", self.challenge.name)
-        messages = []
-        if state.root_cause:
-            messages += OLD_ROOT_CAUSE_PROMPT.format_messages(root_cause=state.root_cause)
 
+        diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
         root_cause = self.chain_call(
             lambda x, y: x + y,
             self.root_cause_chain,
             {
-                "context": self.get_root_cause_context(state),
-                "messages": messages,
+                "DIFF": diff_content,
+                "PROJECT_NAME": self.challenge.project_name,
+                "SANITIZER": state.context.sanitizer,
+                "SANITIZER_OUTPUT": state.context.sanitizer_output,
+                "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
+                "OLD_ROOT_CAUSE": OLD_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause) if state.root_cause else "",
             },
             default="",
         )
@@ -364,7 +235,6 @@ class RootCauseAgent(PatcherAgentBase):
 
         update_state = {
             "root_cause": root_cause,
-            "patches": [],
             "build_succeeded": None,
             "pov_fixed": None,
             "tests_passed": None,
@@ -372,6 +242,7 @@ class RootCauseAgent(PatcherAgentBase):
         goto, update_state = self.get_code_snippet_requests(
             root_cause,
             update_state,
+            state.ctx_request_limit,
             current_node=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             default_goto=PatcherAgentName.CREATE_PATCH.value,
         )

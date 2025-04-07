@@ -1,0 +1,6 @@
+engine: "libfuzzer"
+sanitizer: "address"
+task_dir: "/crs_scratch/selinux-OSV-2021-902-delta-1/"
+task_id: "selinux-OSV-2021-902-delta-1"
+build_type: "fuzzer"
+apply_diff: true
