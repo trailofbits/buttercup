@@ -1,9 +1,8 @@
 from typing import Generic, TypeVar, Type, Iterator
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, FunctionCoverage
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, BuildType, FunctionCoverage
 from redis import Redis
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from google.protobuf.message import Message
-from enum import Enum
 from buttercup.common.sets import RedisSet
 
 MsgType = TypeVar("MsgType", bound=Message)
@@ -39,12 +38,6 @@ BUILD_SAN_MAP_NAME = "build_san_list"
 COVERAGE_MAP_PREFIX = "coverage_map"
 
 
-class BUILD_TYPES(str, Enum):
-    FUZZER = "fuzzer"
-    COVERAGE = "coverage"
-    TRACER_NO_DIFF = "tracer_no_diff"
-
-
 # A build map makes it effecient to find for a given task_id + harness a build type
 # we currently only support a single item of a given type
 # add a new type if you want to support different builds
@@ -52,10 +45,10 @@ class BuildMap:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-    def san_set_key(self, task_id: str, build_type: str) -> str:
+    def san_set_key(self, task_id: str, build_type: BuildType) -> str:
         return dumps([task_id, BUILD_MAP_NAME, build_type], json_options=CANONICAL_JSON_OPTIONS)
 
-    def build_output_key(self, task_id: str, build_type: str, san: str) -> str:
+    def build_output_key(self, task_id: str, build_type: BuildType, san: str) -> str:
         return dumps([task_id, BUILD_SAN_MAP_NAME, build_type, san], json_options=CANONICAL_JSON_OPTIONS)
 
     def add_build(self, build: BuildOutput) -> None:
@@ -68,7 +61,7 @@ class BuildMap:
         pipe.set(boutput_key, serialized)
         pipe.execute()
 
-    def get_builds(self, task_id: str, build_type: BUILD_TYPES) -> list[BuildOutput]:
+    def get_builds(self, task_id: str, build_type: BuildType) -> list[BuildOutput]:
         sanitizer_set = RedisSet(self.redis, self.san_set_key(task_id, build_type.value))
         builds = []
         for san in list(sanitizer_set):
@@ -77,7 +70,7 @@ class BuildMap:
                 builds.append(build)
         return builds
 
-    def get_build_from_san(self, task_id: str, build_type: BUILD_TYPES, san: str) -> BuildOutput | None:
+    def get_build_from_san(self, task_id: str, build_type: BuildType, san: str) -> BuildOutput | None:
         build_output_key = self.build_output_key(task_id, build_type.value, san)
         it = self.redis.get(build_output_key)
         if it is None:

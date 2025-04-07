@@ -100,7 +100,7 @@ engine: "libfuzzer"
 sanitizer: "address"
 task_dir: "/crs_scratch/my-task-id/"
 task_id: "my-task-id"
-build_type: "fuzzer"
+build_type: "FUZZER"
 apply_diff: true
 
 2025-03-12 10:55:20,298 - buttercup.common.util_cli - INFO - Done

@@ -1,7 +1,7 @@
 from buttercup.common.queues import QueueNames, GroupNames
 from redis import Redis
 from buttercup.common.queues import QueueFactory
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
+from buttercup.common.datastructures.msg_pb2 import BuildType, BuildOutput
 from buttercup.common.logger import setup_package_logger
 import logging
 from buttercup.common.utils import serve_loop
@@ -32,7 +32,7 @@ def main():
 
         msg = rqit.deserialized
         logger.info(
-            f"Received build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+            f"Received build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
         )
         task_dir = Path(msg.task_dir)
         if args.allow_caching:
@@ -50,25 +50,25 @@ def main():
         with origin_task.get_rw_copy(work_dir=args.wdir) as task:
             if msg.apply_diff:
                 logger.info(
-                    f"Applying diff for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                    f"Applying diff for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
                 )
                 res = task.apply_patch_diff()
                 if not res:
                     logger.info(
-                        f"No diffs for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                        f"No diffs for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
                     )
             res = task.build_fuzzers_with_cache(
                 engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=args.allow_pull
             )
             if not res.success:
                 logger.error(
-                    f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                    f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
                 )
                 return True
 
             task.commit()
             logger.info(
-                f"Pushing build output for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                f"Pushing build output for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
             )
             output_q.push(
                 BuildOutput(
@@ -81,7 +81,7 @@ def main():
                 )
             )
             logger.info(
-                f"Acked build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {msg.build_type} | diff {msg.apply_diff}"
+                f"Acked build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
             )
             queue.ack_item(rqit.item_id)
             return True

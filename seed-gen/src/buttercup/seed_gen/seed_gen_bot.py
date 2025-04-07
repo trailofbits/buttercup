@@ -8,9 +8,8 @@ from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
-from buttercup.common.maps import BUILD_TYPES
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
@@ -39,8 +38,8 @@ class SeedGenBot(TaskLoop):
         self.task_counter = TaskCounter(redis)
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> list[BUILD_TYPES]:
-        return [BUILD_TYPES.FUZZER]
+    def required_builds(self) -> list[BuildType]:
+        return [BuildType.FUZZER]
 
     def sample_task(self, task: WeightedHarness) -> str:
         """Sample a task to run, prioritizing SEED_INIT if it hasn't been run enough times.
@@ -74,11 +73,11 @@ class SeedGenBot(TaskLoop):
     def submit_valid_povs(
         self,
         task: WeightedHarness,
-        builds: dict[BUILD_TYPES, BuildOutput],
+        builds: dict[BuildType, BuildOutput],
         out_dir: Path,
         temp_dir: Path,
     ):
-        fbuilds = builds[BUILD_TYPES.FUZZER]
+        fbuilds = builds[BuildType.FUZZER]
         reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
 
         crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
@@ -114,7 +113,7 @@ class SeedGenBot(TaskLoop):
                 except ChallengeTaskError as exc:
                     logger.error(f"Error reproducing PoV {pov}: {exc}")
 
-    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, list[BuildOutput]]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildType, list[BuildOutput]]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
             logger.info(
                 f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}"
@@ -124,7 +123,7 @@ class SeedGenBot(TaskLoop):
             out_dir = temp_dir / "seedgen-out"
             out_dir.mkdir()
 
-            build_dir = Path(builds[BUILD_TYPES.FUZZER][0].task_dir)
+            build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
             challenge_task = ChallengeTask(read_only_task_dir=build_dir)
             logger.info("Initializing codequery")
             codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))

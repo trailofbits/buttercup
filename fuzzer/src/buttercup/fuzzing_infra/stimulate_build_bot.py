@@ -1,8 +1,7 @@
 import argparse
 from redis import Redis
 from buttercup.common.queues import QueueFactory, QueueNames
-from buttercup.common.datastructures.msg_pb2 import BuildRequest
-from buttercup.common.maps import BUILD_TYPES
+from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildType
 
 
 def main():
@@ -34,7 +33,7 @@ def main():
         ossfuzz=args.ossfuzz,
         source_path=args.source_path,
         task_id=args.task_id,
-        build_type=BUILD_TYPES.COVERAGE.value,
+        build_type=BuildType.COVERAGE,
     )
 
     queue.push(req)

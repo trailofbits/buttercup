@@ -1,6 +1,6 @@
 from buttercup.common.maps import BuildMap
 from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
-from buttercup.common.maps import BUILD_TYPES
+from buttercup.common.datastructures.msg_pb2 import BuildType
 from pathlib import Path
 from dataclasses import dataclass
 import logging
@@ -34,14 +34,14 @@ class TracerRunner:
 
     def run(self, harness_name: str, crash_path: Path, sanitizer: str) -> TracerInfo | None:
         builds = BuildMap(self.redis)
-        build_output_with_diff = builds.get_build_from_san(self.tsk_id, BUILD_TYPES.FUZZER, sanitizer)
+        build_output_with_diff = builds.get_build_from_san(self.tsk_id, BuildType.FUZZER, sanitizer)
         if build_output_with_diff is None:
             logger.warning("No tracer build output found for task %s", self.tsk_id)
             return None
 
         diff_task = ChallengeTask(read_only_task_dir=build_output_with_diff.task_dir)
         is_diff_mode = len(diff_task.get_diffs()) > 0
-        build_output_no_diffs = builds.get_build_from_san(self.tsk_id, BUILD_TYPES.TRACER_NO_DIFF, sanitizer)
+        build_output_no_diffs = builds.get_build_from_san(self.tsk_id, BuildType.TRACER_NO_DIFF, sanitizer)
         if is_diff_mode and build_output_no_diffs is None:
             logger.warning("No tracer no diff build output found for task %s", self.tsk_id)
             return None

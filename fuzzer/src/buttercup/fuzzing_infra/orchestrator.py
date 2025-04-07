@@ -9,12 +9,11 @@ from buttercup.common.maps import HarnessWeights, BuildMap
 
 import argparse
 from redis import Redis
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import BuildType, BuildOutput, WeightedHarness
 import time
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 import os
 from buttercup.common.logger import setup_package_logger
-from buttercup.common.maps import BUILD_TYPES
 
 logger = setup_package_logger(__name__)
 DEFAULT_WEIGHT = 1.0
@@ -36,7 +35,7 @@ def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: Bu
             print(f"Received build of package: {build_dir}")
             targets = get_fuzz_targets(build_dir)
             build_map.add_build(deser_output)
-            if deser_output.build_type == BUILD_TYPES.FUZZER.value:
+            if deser_output.build_type == BuildType.FUZZER:
                 for tgt in targets:
                     logger.info(f"Adding target: {tgt}")
                     print(f"Adding target: {tgt}")

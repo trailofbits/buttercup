@@ -2,8 +2,14 @@ import pytest
 from unittest.mock import Mock, patch
 from redis import Redis
 
-from buttercup.common.datastructures.msg_pb2 import Task, TaskReady, SourceDetail, BuildOutput, WeightedHarness
-from buttercup.common.maps import BUILD_TYPES
+from buttercup.common.datastructures.msg_pb2 import (
+    Task,
+    TaskReady,
+    SourceDetail,
+    BuildOutput,
+    WeightedHarness,
+    BuildType,
+)
 from buttercup.common.task_meta import TaskMeta
 
 from buttercup.common.queues import RQItem, ReliableQueue
@@ -149,7 +155,7 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
             sanitizer="address",
             task_dir=str(task_dir),
             task_id="blah",
-            build_type=BUILD_TYPES.FUZZER.value,
+            build_type=BuildType.FUZZER,
         )
 
         targets = scheduler.process_build_output(build_output)
@@ -518,7 +524,7 @@ def test_serve_build_output_cancelled_task(scheduler):
         sanitizer="address",
         task_dir="/path/to/task",
         task_id="cancelled-task-id",
-        build_type=BUILD_TYPES.FUZZER.value,
+        build_type=BuildType.FUZZER,
     )
 
     # Create a mock RQItem

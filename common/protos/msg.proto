@@ -21,6 +21,12 @@ message Task {
     map<string, string> metadata = 10;  // String to string map for traceability data
 }
 
+enum BuildType {
+    FUZZER = 0;
+    COVERAGE = 1;
+    TRACER_NO_DIFF = 2;
+}
+
 message SourceDetail {
     enum SourceType {
         SOURCE_TYPE_REPO = 0;
@@ -55,7 +61,7 @@ message BuildRequest {
     string sanitizer = 2;
     string task_dir = 3;
     string task_id = 4;
-    string build_type = 5;
+    BuildType build_type = 5;
     bool apply_diff = 6;
 }
 
@@ -64,7 +70,7 @@ message BuildOutput {
     string sanitizer = 2;
     string task_dir = 3;
     string task_id = 4;
-    string build_type = 5;
+    BuildType build_type = 5;
     bool apply_diff = 6;
 }
 
@@ -99,7 +105,7 @@ message Patch {
 }
 
 message IndexRequest {
-    string build_type = 1;
+    BuildType build_type = 1;
     string package_name = 2;
     string sanitizer = 3;
     string task_dir = 4;
@@ -107,7 +113,7 @@ message IndexRequest {
 }
 
 message IndexOutput {
-    string build_type = 1;
+    BuildType build_type = 1;
     string package_name = 2;
     string sanitizer = 3;
     string task_dir = 4;

@@ -22,3 +22,6 @@ build-indexer-image:
 
 run-indexer: download-kythe
     docker compose --profile=development up --build indexer-run
+
+lint-python COMPONENT:
+    cd {{ COMPONENT }} && uv sync --all-extras && uv run ruff format && uv run ruff check --fix

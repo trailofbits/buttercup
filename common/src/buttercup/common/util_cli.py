@@ -2,9 +2,8 @@ from buttercup.common.logger import setup_package_logger
 from buttercup.common.maps import (
     BuildMap,
     HarnessWeights,
-    BUILD_TYPES,
 )
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
 from buttercup.common.queues import QueueFactory, QueueNames, ReliableQueue
 from uuid import uuid4
 from redis import Redis
@@ -24,7 +23,7 @@ def get_queue_names():
 
 
 def get_build_types():
-    return [f"'{build_type.value}'" for build_type in BUILD_TYPES]
+    return [f"'{build_type.value} ({BuildType.Name(build_type)})'" for build_type in BuildType]
 
 
 class SendSettings(BaseModel):
@@ -134,13 +133,17 @@ def main():
     elif isinstance(command, AddBuildSettings):
         msg = Parse(command.msg_path.read_text(), BuildOutput())
         BuildMap(redis).add_build(msg)
-        logger.info(f"Added build for {msg.task_id} | {msg.build_type} | {msg.sanitizer}")
+        logger.info(f"Added build for {msg.task_id} | {BuildType.Name(msg.build_type)} | {msg.sanitizer}")
     elif isinstance(command, ReadHarnessWeightSettings):
         for harness in HarnessWeights(redis).list_harnesses():
             print(harness)
         logger.info("Done")
     elif isinstance(command, ReadBuildsSettings):
-        for build in BuildMap(redis).get_builds(command.task_id, BUILD_TYPES(command.build_type)):
+        # NOTE(boyan): we get the build type from the enum name and not value. This allows
+        # the CLI interface to use "FUZZER", "COVERAGE", etc, in the command line instead of
+        # the real int values that are meaningless.
+        build_type = BuildType[command.build_type]
+        for build in BuildMap(redis).get_builds(command.task_id, build_type):
             print(build)
         logger.info("Done")
     elif isinstance(command, ListSettings):

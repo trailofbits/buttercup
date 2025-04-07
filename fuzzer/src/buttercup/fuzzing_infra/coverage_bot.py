@@ -2,8 +2,8 @@ import logging
 import os
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.default_task_loop import TaskLoop
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, FunctionCoverage
-from buttercup.common.maps import BUILD_TYPES, CoverageMap
+from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, FunctionCoverage
+from buttercup.common.maps import CoverageMap
 from typing import List
 from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
@@ -33,11 +33,11 @@ class CoverageBot(TaskLoop):
         self.llvm_cov_tool = llvm_cov_tool
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BUILD_TYPES]:
-        return [BUILD_TYPES.COVERAGE]
+    def required_builds(self) -> List[BuildType]:
+        return [BuildType.COVERAGE]
 
-    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
-        coverage_builds = builds[BUILD_TYPES.COVERAGE]
+    def run_task(self, task: WeightedHarness, builds: dict[BuildType, BuildOutput]):
+        coverage_builds = builds[BuildType.COVERAGE]
         if len(coverage_builds) <= 0:
             logger.error(f"No coverage build found for {task.task_id}")
             return

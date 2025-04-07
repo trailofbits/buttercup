@@ -4,7 +4,10 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
+COVERAGE: BuildType
 DESCRIPTOR: _descriptor.FileDescriptor
+FUZZER: BuildType
+TRACER_NO_DIFF: BuildType
 
 class BuildOutput(_message.Message):
     __slots__ = ["apply_diff", "build_type", "engine", "sanitizer", "task_dir", "task_id"]
@@ -15,12 +18,12 @@ class BuildOutput(_message.Message):
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
-    build_type: str
+    build_type: BuildType
     engine: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ..., apply_diff: bool = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ...) -> None: ...
 
 class BuildRequest(_message.Message):
     __slots__ = ["apply_diff", "build_type", "engine", "sanitizer", "task_dir", "task_id"]
@@ -31,12 +34,12 @@ class BuildRequest(_message.Message):
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
-    build_type: str
+    build_type: BuildType
     engine: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[str] = ..., apply_diff: bool = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "vuln_id"]
@@ -77,12 +80,12 @@ class IndexOutput(_message.Message):
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    build_type: str
+    build_type: BuildType
     package_name: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, build_type: _Optional[str] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, build_type: _Optional[_Union[BuildType, str]] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
 class IndexRequest(_message.Message):
     __slots__ = ["build_type", "package_name", "sanitizer", "task_dir", "task_id"]
@@ -91,12 +94,12 @@ class IndexRequest(_message.Message):
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    build_type: str
+    build_type: BuildType
     package_name: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, build_type: _Optional[str] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, build_type: _Optional[_Union[BuildType, str]] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
 class Patch(_message.Message):
     __slots__ = ["patch", "task_id", "vulnerability_id"]
@@ -199,3 +202,6 @@ class WeightedHarness(_message.Message):
     task_id: str
     weight: float
     def __init__(self, weight: _Optional[float] = ..., package_name: _Optional[str] = ..., harness_name: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
+
+class BuildType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = []

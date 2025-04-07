@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from redis import Redis
 from buttercup.common.utils import serve_loop
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, BuildType
 from buttercup.common.maps import HarnessWeights, BuildMap
 from typing import List
-from buttercup.common.maps import BUILD_TYPES
+
 import random
 import logging
 
@@ -19,11 +19,11 @@ class TaskLoop(ABC):
         self.builds = BuildMap(redis)
 
     # Declare a set of builds that must be available before running the task
-    def required_builds(self) -> List[BUILD_TYPES]:
+    def required_builds(self) -> List[BuildType]:
         return []
 
     @abstractmethod
-    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, list[BuildOutput]]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildType, list[BuildOutput]]):
         pass
 
     def serve_item(self) -> bool:

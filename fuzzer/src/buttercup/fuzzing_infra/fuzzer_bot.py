@@ -1,7 +1,6 @@
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
 import os
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, Crash
-from buttercup.common.maps import BUILD_TYPES
+from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
@@ -32,14 +31,14 @@ class FuzzerBot(TaskLoop):
         self.crs_scratch_dir = crs_scratch_dir
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BUILD_TYPES]:
-        return [BUILD_TYPES.FUZZER]
+    def required_builds(self) -> List[BuildType]:
+        return [BuildType.FUZZER]
 
-    def run_task(self, task: WeightedHarness, builds: dict[BUILD_TYPES, BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildType, BuildOutput]):
         with tempfile.TemporaryDirectory(dir=self.wdir) as td:
             logger.info(f"Running fuzzer for {task.harness_name} | {task.package_name} | {task.task_id}")
 
-            build = random.choice(builds[BUILD_TYPES.FUZZER])
+            build = random.choice(builds[BuildType.FUZZER])
 
             tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
 

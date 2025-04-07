@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Set, Union
 from redis import Redis
 from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.maps import HarnessWeights, BuildMap, BUILD_TYPES
+from buttercup.common.maps import HarnessWeights, BuildMap
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import (
     TaskReady,
@@ -13,6 +13,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildOutput,
     WeightedHarness,
     IndexRequest,
+    BuildType,
 )
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
@@ -145,13 +146,13 @@ class Scheduler:
         logger.info(f"Selected engine={engine}, sanitizers={sanitizers} for task {task.task_id}")
 
         build_types = [
-            (BUILD_TYPES.COVERAGE, "coverage", True),
+            (BuildType.COVERAGE, "coverage", True),
         ]
 
         for san in sanitizers:
-            build_types.append((BUILD_TYPES.FUZZER, san, True))
+            build_types.append((BuildType.FUZZER, san, True))
             if len(challenge_task.get_diffs()) > 0:
-                build_types.append((BUILD_TYPES.TRACER_NO_DIFF, san, False))
+                build_types.append((BuildType.TRACER_NO_DIFF, san, False))
 
         build_requests = [
             BuildRequest(
@@ -170,10 +171,10 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"[{build_output.task_id}] Processing build output for type {build_output.build_type} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}"
+            f"[{build_output.task_id}] Processing build output for type {BuildType.Name(build_output.build_type)} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}"
         )
 
-        if build_output.build_type != BUILD_TYPES.FUZZER.value:
+        if build_output.build_type != BuildType.FUZZER:
             return []
 
         # TODO(Ian): what to do if a task dir doesnt need a python path?
@@ -223,7 +224,7 @@ class Scheduler:
                 for build_req in self.process_ready_task(task_ready.task):
                     self.build_requests_queue.push(build_req)
                     logger.info(
-                        f"[{task_ready.task.task_id}] Pushed build request of type {build_req.build_type} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff}"
+                        f"[{task_ready.task.task_id}] Pushed build request of type {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff}"
                     )
                 self.ready_queue.ack_item(task_ready_item.item_id)
                 return True
