@@ -24,6 +24,7 @@ The standard `azure` networking profile is used.
 - An active Azure subscription.
 - An account in Azure Entra ID.
 - Access credentials to the competition Tailscale tailnet.
+- Minikube installed, if you want to test the full CRS locally (linux/amd64 system recommended).
 
 ### Azure
 
@@ -79,25 +80,8 @@ TF_ARM_SUBSCRIPTION_ID="<YOUR-SUBSCRIPTION-ID>"
 
 ### Environment Variables
 
-The following environment variables are required to be passed into the terraform and kubernetes configurations:
-
-| Variable Name                | Description                                                                   |
-| ---------------------------- | ----------------------------------------------------------------------------- |
-| `TF_VAR_ARM_SUBSCRIPTION_ID` | Azure subscription ID                                                         |
-| `TF_VAR_ARM_TENANT_ID`       | Azure tenant ID                                                               |
-| `TF_VAR_ARM_CLIENT_ID`       | Azure client ID (service principal account)                                   |
-| `TF_VAR_ARM_CLIENT_SECRET`   | Azure client ID secret                                                        |
-| `CRS_API_HOSTNAME`           | The hostname you want to assign to your API. Exmaple: `teamX-api`             |
-| `TS_CLIENT_ID`               | Tailscale oauth client ID (provided by the Organizers)                        |
-| `TS_CLIENT_SECRET`           | Tailscale oauth client secret (provided by the Organizers)                    |
-| `TS_OP_TAG`                  | Tailscale operator tag (provided by the Organizers)                           |
-| `COMPETITION_API_KEY_ID`     | HTTP basic auth username for the competition API (provided by the Organizers) |
-| `COMPETITION_API_KEY_TOKEN`  | HTTP basic auth password for the competition API (provided by the Organizers) |
-| `CRS_KEY_ID`                 | HTTP basic auth username for the CRS API                                      |
-| `CRS_KEY_TOKEN`              | HTTP basic auth password for the CRS API                                      |
-| `GHCR_AUTH`                  | Base64 encoded credentials for GHCR                                           |
-
-**There are other mandatory values required, see `./env.template` and copy that to `./env`, and must be updated with accurate values.**
+Copy `env.template` to `env` and modify appropriately, following the comments there.
+Based on the environment variables specified, you can do different kind of deployments, such as production, staging, local with minikube, etc.
 
 ### CRS HTTP basic auth
 

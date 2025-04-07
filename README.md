@@ -1,6 +1,29 @@
 # Trail of Bits AIxCC Finals CRS
 
-# Local Development
+# Local Development (minikube, full system)
+```shell
+cd deployment
+cp env.template env
+# Modify `env` according to your needs
+# Make sure BUTTERCUP_K8S_VALUES_TEMPLATE is set to `k8s/values-minikube.template`
+# AZURE_ENABLED/TAILSCALE_ENABLED should be set to false for local development
+make up
+```
+
+```shell
+make down
+```
+
+## Send example-libpng task to the system
+```shell
+kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+```
+
+```shell
+./orchestrator/scripts/task_crs.sh
+```
+
+# Local Development (docker compose)
 We use `docker compose` to test CRS components locally during development.
 
 Copy `env.template` to `.env` and set variables.
