@@ -63,7 +63,7 @@ class BuildMap:
         pipe.execute()
 
     def get_builds(self, task_id: str, build_type: BuildType) -> list[BuildOutput]:
-        sanitizer_set = RedisSet(self.redis, self.san_set_key(task_id, build_type.value))
+        sanitizer_set = RedisSet(self.redis, self.san_set_key(task_id, build_type))
         builds = []
         for san in list(sanitizer_set):
             build = self.get_build_from_san(task_id, build_type, san)
@@ -72,7 +72,7 @@ class BuildMap:
         return builds
 
     def get_build_from_san(self, task_id: str, build_type: BuildType, san: str) -> BuildOutput | None:
-        build_output_key = self.build_output_key(task_id, build_type.value, san)
+        build_output_key = self.build_output_key(task_id, build_type, san)
         it = self.redis.get(build_output_key)
         if it is None:
             return None
