@@ -8,6 +8,7 @@ from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.queues import QueueFactory, QueueNames
@@ -38,7 +39,7 @@ class SeedGenBot(TaskLoop):
         self.task_counter = TaskCounter(redis)
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> list[BuildType]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER]
 
     def sample_task(self, task: WeightedHarness) -> str:
@@ -73,7 +74,7 @@ class SeedGenBot(TaskLoop):
     def submit_valid_povs(
         self,
         task: WeightedHarness,
-        builds: dict[BuildType, BuildOutput],
+        builds: dict[BuildTypeHint, BuildOutput],
         out_dir: Path,
         temp_dir: Path,
     ):
@@ -113,7 +114,7 @@ class SeedGenBot(TaskLoop):
                 except ChallengeTaskError as exc:
                     logger.error(f"Error reproducing PoV {pov}: {exc}")
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildType, list[BuildOutput]]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]):
         with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
             logger.info(
                 f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}"

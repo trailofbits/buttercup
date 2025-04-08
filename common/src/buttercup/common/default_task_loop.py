@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from redis import Redis
 from buttercup.common.utils import serve_loop
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, BuildType
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
+from buttercup.common.datastructures.aliases import BuildType
 from buttercup.common.maps import HarnessWeights, BuildMap
 from typing import List
 

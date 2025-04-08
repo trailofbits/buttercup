@@ -1,5 +1,6 @@
 from typing import Generic, TypeVar, Type, Iterator
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, BuildType, FunctionCoverage
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, FunctionCoverage
+from buttercup.common.datastructures.aliases import BuildType
 from redis import Redis
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from google.protobuf.message import Message

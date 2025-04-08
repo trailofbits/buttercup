@@ -142,7 +142,7 @@ def main():
         # NOTE(boyan): we get the build type from the enum name and not value. This allows
         # the CLI interface to use "FUZZER", "COVERAGE", etc, in the command line instead of
         # the real int values that are meaningless.
-        build_type = BuildType[command.build_type]
+        build_type = BuildType.Value(command.build_type)
         for build in BuildMap(redis).get_builds(command.task_id, build_type):
             print(build)
         logger.info("Done")
