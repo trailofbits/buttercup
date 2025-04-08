@@ -32,13 +32,13 @@ up() {
 	export TS_DNS_IP
 
 	# Normalize boolean variables
-	if [ "${TAILSCALE_ENABLED,,}" = "true" ]; then
+	if [ "$(echo "$TAILSCALE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
 		TAILSCALE_ENABLED="true"
 	else
 		unset TAILSCALE_ENABLED
 	fi
 
-	if [ "${AZURE_ENABLED,,}" = "true" ]; then
+	if [ "$(echo "$AZURE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
 		AZURE_ENABLED="true"
 	else
 		unset AZURE_ENABLED
