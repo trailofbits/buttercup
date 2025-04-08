@@ -23,6 +23,12 @@ kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 ./orchestrator/scripts/task_crs.sh
 ```
 
+Send a SARIF message
+
+```shell
+./orchestrator/scripts/send_sarif.sh <TASK-ID-FROM-TASK-CRS>
+```
+
 # Local Development (docker compose)
 We use `docker compose` to test CRS components locally during development.
 

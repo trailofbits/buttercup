@@ -35,7 +35,7 @@ services:
   #     - shared-tmp:/tmp
 
   scantron:
-    image: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api:v1.1-rc6
+    image: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api:v1.1-rc7
     platform: linux/amd64
     privileged: true
     volumes:
