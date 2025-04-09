@@ -154,7 +154,12 @@ class CoverageRunner:
         ret = subprocess.run(args, stdout=subprocess.PIPE)
         if ret.returncode != 0:
             logger.error(
-                f"Failed to convert profdata to json for {harness_name} | {corpus_dir} | {package_name} | in {coverage_file}"
+                "Failed to convert profdata to json for %s | %s | %s | in %s (return code: %s)",
+                harness_name,
+                corpus_dir,
+                package_name,
+                coverage_file,
+                ret.returncode,
             )
             return None
 
