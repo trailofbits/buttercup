@@ -156,7 +156,7 @@ class CoverageRunner:
             logger.error(
                 f"Failed to convert profdata to json for {harness_name} | {corpus_dir} | {package_name} | in {coverage_file}"
             )
-            return False
+            return None
 
         # load the coverage file
         coverage = ret.stdout.decode("utf-8")
