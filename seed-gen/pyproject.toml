@@ -45,8 +45,9 @@ dev = [
 omit = ["src/seed_gen/_cli.py"]
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 mypy_path = "src"
-packages = "seed_gen"
+packages = "buttercup"
 allow_redefinition = true
 check_untyped_defs = true
 disallow_incomplete_defs = true

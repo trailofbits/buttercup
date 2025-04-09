@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 
-CHAIN_CALL_TYPE = Callable[[Runnable, Callable, dict[str, Any], RunnableConfig | None, Any], Any]
+CHAIN_CALL_TYPE = Callable[[Callable, Runnable, dict[str, Any], RunnableConfig | None, Any], Any]
 
 
 class PatchInput(BaseModel):

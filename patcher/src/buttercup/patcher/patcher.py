@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from functools import reduce
@@ -28,11 +30,22 @@ class Patcher:
     vulnerability_queue: ReliableQueue[ConfirmedVulnerability] | None = field(init=False, default=None)
     patches_queue: ReliableQueue[Patch] | None = field(init=False, default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             self.vulnerability_queue = queue_factory.create(QueueNames.CONFIRMED_VULNERABILITIES, GroupNames.PATCHER)
             self.patches_queue = queue_factory.create(QueueNames.PATCHES)
+
+    @staticmethod
+    def _check_redis(func: Callable) -> Callable:
+        """Decorator to check if the task is read-only."""
+
+        def wrapper(self: Patcher, *args: Any, **kwargs: Any) -> Any:
+            if self.redis is None:
+                raise ValueError("Redis is not initialized, setup redis connection")
+            return func(self, *args, **kwargs)
+
+        return wrapper
 
     def _chain_call(
         self,
@@ -98,7 +111,11 @@ class Patcher:
             sanitizer=vuln.crash.crash.target.sanitizer,
         )
 
+    @_check_redis
     def process_item(self, rq_item: RQItem[ConfirmedVulnerability]) -> None:
+        assert self.patches_queue is not None
+        assert self.vulnerability_queue is not None
+
         vuln = rq_item.deserialized
         patch_input = self._create_patch_input(vuln)
         try:
@@ -123,7 +140,10 @@ class Patcher:
                 f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}: {e}"
             )
 
+    @_check_redis
     def serve_item(self) -> bool:
+        assert self.vulnerability_queue is not None
+
         rq_item = self.vulnerability_queue.pop()
 
         if rq_item is None:
@@ -132,10 +152,8 @@ class Patcher:
         self.process_item(rq_item)
         return True
 
+    @_check_redis
     def serve(self) -> None:
         """Main loop to process vulnerabilities from queue"""
-        if self.redis is None:
-            raise ValueError("Redis is not initialized, setup redis connection")
-
         logger.info("Starting patcher service")
         serve_loop(self.serve_item, self.sleep_time)

@@ -11,6 +11,9 @@ jobs:
     strategy:
       matrix:
         component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
+        include:
+          - component: patcher
+            continue-on-error: false
 
     runs-on: ubuntu-latest
     steps:
@@ -28,6 +31,11 @@ jobs:
       - name: Run ruff on ${{ matrix.component }}
         run: uv run ruff format --check && uv run ruff check
         working-directory: ${{ matrix.component }}
+
+      - name: Run mypy on ${{ matrix.component }}
+        run: uv run mypy
+        working-directory: ${{ matrix.component }}
+        continue-on-error: ${{ matrix.continue-on-error || true }}
 
   check-protobuf:
     runs-on: ubuntu-24.04

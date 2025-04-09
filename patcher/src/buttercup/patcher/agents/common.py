@@ -77,7 +77,7 @@ class ContextRetrieverState(BaseModel):
     """State for the Context Retriever Agent."""
 
     code_snippet_requests: list[CodeSnippetRequest] = Field(default_factory=list)
-    prev_node: str | None = None
+    prev_node: str
 
 
 class CodeSnippetKey(BaseModel):
@@ -148,7 +148,7 @@ class PatcherAgentBase:
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
 
-    def rebase_src_path(self, path: PathLike) -> Path:
+    def rebase_src_path(self, path: str | PathLike) -> Path:
         """Rebase the /src paths to be relative to the task directory"""
         path = Path(path)
         if not path.is_absolute():
@@ -160,12 +160,12 @@ class PatcherAgentBase:
 
         if path.is_relative_to(src_repo_path):
             extra_path = path.relative_to(src_repo_path)
-            return self.challenge.get_source_subpath().joinpath(extra_path)
+            return self.challenge.get_source_subpath().joinpath(extra_path)  # type: ignore[no-any-return]
 
         if path.is_relative_to(src_path):
             extra_path = path.relative_to(src_path)
             if self.challenge.get_oss_fuzz_path().joinpath(extra_path).exists():
-                return self.challenge.get_oss_fuzz_path().joinpath(extra_path)
+                return self.challenge.get_oss_fuzz_path().joinpath(extra_path)  # type: ignore[no-any-return]
 
             path = extra_path
 

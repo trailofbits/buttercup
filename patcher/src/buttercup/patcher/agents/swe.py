@@ -197,7 +197,7 @@ class CodeSnippetChange(BaseModel):
 
     def is_valid(self) -> bool:
         """Check if the code snippet change is valid"""
-        return self.key.file_path and self.key.identifier and self.old_code and self.code
+        return bool(self.key.file_path and self.key.identifier and self.old_code and self.code)
 
 
 class CodeSnippetChanges(BaseModel):
@@ -346,6 +346,10 @@ class SWEAgent(PatcherAgentBase):
         self, orig_code_snippets: dict[CodeSnippetKey, str], target_key: CodeSnippetKey
     ) -> CodeSnippetKey | None:
         """Find the closest matching CodeSnippetKey in orig_code_snippets."""
+
+        def sequence_ratio(x: CodeSnippetKey) -> float:
+            return difflib.SequenceMatcher(None, str(target_key.file_path), str(x.file_path)).ratio()
+
         if not orig_code_snippets:
             return None
 
@@ -353,19 +357,14 @@ class SWEAgent(PatcherAgentBase):
         matches = [key for key in orig_code_snippets.keys() if key.identifier == target_key.identifier]
         if matches:
             # Find best file path match among matches
-            best_match = max(
-                matches, key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio()
-            )
-            match_ratio = difflib.SequenceMatcher(None, target_key.file_path, best_match.file_path).ratio()
+            best_match = max(matches, key=sequence_ratio)
+            match_ratio = sequence_ratio(best_match)
             if match_ratio > self.MATCH_RATIO_THRESHOLD:
                 return best_match
 
         # If no good match found with identifier, try best overall match
-        best_match = max(
-            orig_code_snippets.keys(),
-            key=lambda x: difflib.SequenceMatcher(None, target_key.file_path, x.file_path).ratio(),
-        )
-        match_ratio = difflib.SequenceMatcher(None, target_key.file_path, best_match.file_path).ratio()
+        best_match = max(orig_code_snippets.keys(), key=sequence_ratio)
+        match_ratio = sequence_ratio(best_match)
         return best_match if match_ratio > self.MATCH_RATIO_THRESHOLD else None
 
     def _get_code_snippet_key(
@@ -409,6 +408,15 @@ class SWEAgent(PatcherAgentBase):
                 )
                 continue
 
+            assert code_snippet_key.file_path, "Code snippet key file path is empty"
+            if not code_snippet.old_code or not code_snippet.code:
+                logger.warning(
+                    "Code snippet %s (%d) has no old code or new code, skipping",
+                    code_snippet_key,
+                    code_snippet_idx,
+                )
+                continue
+
             get_file_content_result = self._get_file_content(code_snippet_key.file_path)
             if get_file_content_result is None:
                 logger.warning("Could not read the file: %s", code_snippet_key.file_path)
@@ -420,6 +428,7 @@ class SWEAgent(PatcherAgentBase):
             if code_snippet_key in orig_code_snippets:
                 logger.debug("Found code snippet in orig_code_snippets: %s (%d)", code_snippet_key, code_snippet_idx)
                 orig_code_snippet = orig_code_snippets[code_snippet_key]
+
                 new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
             else:
                 logger.debug(
@@ -456,12 +465,12 @@ class SWEAgent(PatcherAgentBase):
                 continue
 
             logger.debug("Generated patch for %s (%d)", code_snippet_key, code_snippet_idx)
-            patch = PatchOutput(
+            patch_output = PatchOutput(
                 task_id=self.input.task_id,
                 vulnerability_id=self.input.vulnerability_id,
                 patch=patch_str,
             )
-            patches.append(patch)
+            patches.append(patch_output)
 
         return patches, code_snippet_requests
 
@@ -494,7 +503,7 @@ class SWEAgent(PatcherAgentBase):
 
     def create_patch_node(
         self, state: PatcherAgentState
-    ) -> Command[
+    ) -> Command[  # type: ignore[name-defined]
         Literal[
             PatcherAgentName.REVIEW_PATCH.value,
             PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
@@ -555,7 +564,7 @@ class SWEAgent(PatcherAgentBase):
                 "POV_FAILED_PROMPT": pov_failed_prompt,
                 "TESTS_FAILED_PROMPT": tests_failed_prompt,
             },
-            default="",
+            default="",  # type: ignore[call-arg]
         )
         goto, update_state = self.get_code_snippet_requests(
             patch_str,

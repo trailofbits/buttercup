@@ -95,8 +95,8 @@ class PatcherLeaderAgent:
 
         state = PatcherAgentState(messages=[], context=self.input)
         try:
-            output_state: dict = chain.invoke(state)
-            output_state = PatcherAgentState(**output_state)
+            output_state_dict: dict = chain.invoke(state)
+            output_state = PatcherAgentState(**output_state_dict)
             return output_state.get_successful_patch()
         except openai.OpenAIError:
             logger.exception("OpenAI error")

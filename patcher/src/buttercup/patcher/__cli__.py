@@ -15,7 +15,7 @@ from buttercup.common.telemetry import init_telemetry
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     settings = Settings()
     command = get_subcommand(settings)
     setup_package_logger(__name__, settings.log_level)
@@ -24,7 +24,7 @@ def main():
     logger.debug("Settings: %s", settings)
     init_telemetry("patcher")
     if isinstance(command, ServeCommand):
-        logger.info("Serving...")
+        logger.info("Serving...")  # type: ignore[unreachable]
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
@@ -35,7 +35,7 @@ def main():
         )
         patcher.serve()
     elif isinstance(command, ProcessCommand):
-        logger.info("Processing task")
+        logger.info("Processing task")  # type: ignore[unreachable]
         patch_input = PatchInput(
             challenge_task_dir=command.challenge_task_dir,
             task_id=command.task_id,
@@ -55,7 +55,7 @@ def main():
         if patch is not None:
             print(patch)
     elif isinstance(command, ProcessMsgCommand):
-        logger.info("Processing message")
+        logger.info("Processing message")  # type: ignore[unreachable]
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,

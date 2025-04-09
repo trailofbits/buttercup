@@ -138,7 +138,7 @@ class QEAgent(PatcherAgentBase):
 
     def review_patch_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.BUILD_PATCH.value, PatcherAgentName.CREATE_PATCH.value]]:
+    ) -> Command[Literal[PatcherAgentName.BUILD_PATCH.value, PatcherAgentName.CREATE_PATCH.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that reviews a patch"""
         if state.patch_review_tries >= self.max_review_retries:
             logger.warning("Reached max review retries, skipping review")
@@ -161,7 +161,7 @@ class QEAgent(PatcherAgentBase):
             # If the reviewer fails for some unexpected reasons, assume the patch is
             # good, so the patching process does not stop and tries to build the
             # patch anyway.
-            default=default_review_result.dict(),
+            default=default_review_result.dict(),  # type: ignore[call-arg]
         )
         try:
             review_result = ReviewPatchOutput.validate(review_result_dict)
@@ -189,7 +189,7 @@ class QEAgent(PatcherAgentBase):
 
             logger.info("Applying patch to task %s / vulnerability %s", self.input.task_id, self.input.vulnerability_id)
             try:
-                return self.challenge.apply_patch_diff(Path(patch_file.name))
+                return self.challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
             except ChallengeTaskError:
                 if logger.getEffectiveLevel() == logging.DEBUG:
                     logger.exception("Failed to apply patch to Challenge Task %s", self.challenge.name)
@@ -226,7 +226,7 @@ class QEAgent(PatcherAgentBase):
 
     def build_patch_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.BUILD_FAILURE_ANALYSIS.value]]:
+    ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.BUILD_FAILURE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that builds a patch"""
         logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
         last_patch = state.get_last_patch()
@@ -266,7 +266,7 @@ class QEAgent(PatcherAgentBase):
 
     def run_pov_node(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:
+    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs a PoV against a currently built patch"""
         logger.info("Testing PoV on Challenge Task %s rebuilt with patch", self.challenge.name)
         try:
@@ -323,7 +323,7 @@ class QEAgent(PatcherAgentBase):
             else PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
         )
 
-    def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:
+    def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs tests against a currently built patch"""
         logger.info("Running tests on Challenge Task %s rebuilt with patch", self.challenge.name)
         # TODO: implement tests

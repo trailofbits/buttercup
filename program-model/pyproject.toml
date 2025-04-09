@@ -34,4 +34,25 @@ extend-exclude = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.9.2"]
+dev = ["pytest>=8.3.4", "ruff>=0.9.2", "mypy>=1.15.0"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = "buttercup"
+allow_redefinition = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+sqlite_cache = true
+strict_equality = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+exclude = []

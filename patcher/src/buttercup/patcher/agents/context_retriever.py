@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import langgraph.errors
 import operator
+from langchain_core.language_models import BaseChatModel
 from dataclasses import dataclass, field
 from langchain_core.messages import ToolMessage
 from typing import Annotated, Sequence, Literal
@@ -21,8 +22,8 @@ from langgraph.prebuilt import InjectedState
 from langchain_core.tools.base import InjectedToolCallId
 from buttercup.common.challenge_task import ChallengeTask
 
-from langchain_core.messages import AnyMessage, BaseMessage
-from langchain_core.runnables import Runnable
+from langchain_core.messages import BaseMessage
+from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate
 from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverState, ContextCodeSnippet, CodeSnippetKey
 from buttercup.common.llm import ButtercupLLM, create_default_llm
@@ -73,7 +74,7 @@ class State(BaseModel):
     project_name: str
     request: str
     code_snippets: Annotated[list[ContextCodeSnippet], operator.add] = Field(default_factory=list)
-    tmp_code_snippets: TmpCodeSnippets | None = None
+    tmp_code_snippets: TmpCodeSnippets
 
 
 class NodeNames(str, Enum):
@@ -85,10 +86,13 @@ class NodeNames(str, Enum):
 
 @tool
 def ls(
-    path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
+    file_path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
 ) -> Command:
-    """List the files in the given path in the project's source directory."""
-    path = state.context_retriever_agent.rebase_src_path(path)
+    """List the files in the given file_path in the project's source directory."""
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
+    path = state.context_retriever_agent.rebase_src_path(file_path)
     if not state.context_retriever_agent.challenge.task_dir.joinpath(path).exists():
         raise ValueError(f"Path {path} does not exist in the project's directory")
 
@@ -103,13 +107,16 @@ def ls(
 @tool
 def grep(
     pattern: str,
-    path: str | None,
+    file_path: str | None,
     state: Annotated[BaseModel, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
-    """Grep for a string and return a 5-line context around the match, together with line numbers. If no path is provided, search the entire project. Prefer using this tool over cat."""
-    if path:
-        path = state.context_retriever_agent.rebase_src_path(path)
+    """Grep for a string and return a 5-line context around the match, together with line numbers. If no file_path is provided, search the entire project. Prefer using this tool over cat."""
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
+    if file_path:
+        path = state.context_retriever_agent.rebase_src_path(file_path)
         if not state.challenge.task_dir.joinpath(path).exists():
             raise ValueError(f"Path {path} does not exist in the project's directory")
 
@@ -123,10 +130,13 @@ def grep(
 
 @tool
 def cat(
-    path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
+    file_path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
 ) -> Command:
     """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
-    path = state.context_retriever_agent.rebase_src_path(path)
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
+    path = state.context_retriever_agent.rebase_src_path(file_path)
     if not state.challenge.task_dir.joinpath(path).exists():
         raise ValueError(f"Path {path} does not exist in the project's directory")
 
@@ -137,14 +147,17 @@ def cat(
 
 @tool
 def get_lines(
-    path: str,
+    file_path: str,
     start: int,
     end: int,
     state: Annotated[BaseModel, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Get a range of lines from a file. Prefer using this tool over cat."""
-    path = state.context_retriever_agent.rebase_src_path(path)
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
+    path = state.context_retriever_agent.rebase_src_path(file_path)
     if not state.challenge.task_dir.joinpath(path).exists():
         raise ValueError(f"Path {path} does not exist in the project's directory")
 
@@ -167,6 +180,9 @@ def get_function_definition(
     not work. This tool is just going to return a message whether it found \
     the function or not, but it won't provide the code snippet directly. The \
     function should be considered as retrieved anyway."""
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
     if file_path:
         path = Path(state.context_retriever_agent.rebase_src_path(file_path))
     else:
@@ -220,6 +236,9 @@ def get_type_definition(
     going to return a message whether it found the type or not, but it won't \
     provide the code snippet directly. The type should be considered as \
     retrieved anyway."""
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
     if file_path:
         path = Path(state.context_retriever_agent.rebase_src_path(file_path))
     else:
@@ -268,8 +287,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
     work_dir: Path
     max_retries: int = 30
     recursion_limit: int = 80
-    llm: Runnable = field(init=False)
-    max_retries: int = 30
+    llm: BaseChatModel = field(init=False)
     current_retries: int = field(init=False, default=0)
     codequery: CodeQueryPersistent = field(init=False)
     tools: list[BaseTool] = field(init=False)
@@ -293,7 +311,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.codequery = CodeQueryPersistent(self.challenge, work_dir=self.work_dir)
 
-    def _call_model(self, state: State) -> Command[Literal[NodeNames.TOOLS.value, END]]:
+    def _call_model(self, state: State) -> Command[Literal[NodeNames.TOOLS.value, END]]:  # type: ignore[name-defined]
         """Call the model."""
         user_msg = USER_MSG.format(
             REQUEST=state.request,
@@ -310,19 +328,6 @@ class ContextRetrieverAgent(PatcherAgentBase):
             return Command(update={"messages": [res]}, goto=END)
 
         return Command(update={"messages": [res]}, goto=NodeNames.TOOLS.value)
-
-    def _prompt(self, state: State) -> list[AnyMessage]:
-        return [
-            ("system", SYSTEM_TMPL),
-            (
-                "user",
-                USER_MSG.format(
-                    REQUEST=state.request,
-                    PROJECT_NAME=state.project_name,
-                ),
-            ),
-            *state.messages,
-        ]
 
     def _create_agent(self) -> Runnable:
         """Create the agent."""
@@ -362,13 +367,16 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 "context_retriever_agent": self,
                 "tmp_code_snippets": tmp_code_snippets,
             }
-            config = {
-                "configurable": {
-                    "thread_id": hash(request.request),
-                },
-            }
             try:
-                ctx_state_dict: dict = agent.invoke(input_state, {"recursion_limit": RECURSION_LIMIT, **config})
+                ctx_state_dict: dict = agent.invoke(
+                    input_state,
+                    RunnableConfig(
+                        recursion_limit=RECURSION_LIMIT,
+                        configurable={
+                            "thread_id": hash(request.request),
+                        },
+                    ),
+                )
             except langgraph.errors.GraphRecursionError:
                 logger.error("Reached recursion limit for request '%s'", request.request)
                 ctx_state_dict = {
@@ -378,6 +386,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     "context_retriever_agent": self,
                     "request": request.request,
                     "code_snippets": tmp_code_snippets.code_snippets,
+                    "tmp_code_snippets": tmp_code_snippets,
                 }
 
             if logger.level <= logging.DEBUG:

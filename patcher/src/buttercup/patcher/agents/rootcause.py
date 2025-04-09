@@ -210,7 +210,7 @@ class RootCauseAgent(PatcherAgentBase):
 
     def analyze_vulnerability(
         self, state: PatcherAgentState
-    ) -> Command[Literal[PatcherAgentName.CONTEXT_RETRIEVER.value, PatcherAgentName.CREATE_PATCH.value]]:
+    ) -> Command[Literal[PatcherAgentName.CONTEXT_RETRIEVER.value, PatcherAgentName.CREATE_PATCH.value]]:  # type: ignore[name-defined]
         """Analyze the diff analysis and the code to understand the
         vulnerability in the current code."""
         logger.info("Analyzing the vulnerability in Challenge Task %s", self.challenge.name)
@@ -227,7 +227,7 @@ class RootCauseAgent(PatcherAgentBase):
                 "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
                 "OLD_ROOT_CAUSE": OLD_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause) if state.root_cause else "",
             },
-            default="",
+            default="",  # type: ignore[call-arg]
         )
         if not root_cause:
             logger.error("Could not find the root cause of the vulnerability")
@@ -251,7 +251,7 @@ class RootCauseAgent(PatcherAgentBase):
             goto=goto,
         )
 
-    def analyze_build_failure(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:
+    def analyze_build_failure(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:  # type: ignore[name-defined]
         """Analyze the build failure to understand the issue and suggest a fix."""
         logger.info("Analyzing the build failure in Challenge Task %s", self.challenge.name)
         code_snippets = self._get_relevant_code_snippets_msgs(state.relevant_code_snippets)
@@ -269,7 +269,7 @@ class RootCauseAgent(PatcherAgentBase):
                 "build_stdout": decode_bytes(state.build_stdout),
                 "build_stderr": decode_bytes(state.build_stderr),
             },
-            default="",
+            default="",  # type: ignore[call-arg]
         )
 
         return Command(
