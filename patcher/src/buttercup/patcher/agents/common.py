@@ -102,6 +102,16 @@ class CodeSnippetRequest(BaseModel):
 
     request: str = Field(description="Detailed explanation of what code snippet is needed")
 
+    @classmethod
+    def parse(cls, msg: str) -> list[CodeSnippetRequest]:
+        """Parse the code snippet request from the message"""
+        CODE_SNIPPET_REQUEST_RE = re.compile("<code_request>(.*?)</code_request>", re.DOTALL | re.IGNORECASE)
+        code_snippet_requests_matches = CODE_SNIPPET_REQUEST_RE.findall(msg)
+        if not code_snippet_requests_matches:
+            return []
+
+        return [cls(request=request.strip()) for request in code_snippet_requests_matches]
+
 
 class ContextCodeSnippet(BaseModel):
     """Code snippet from the Challenge Task. This is the base unit used by the
@@ -178,14 +188,10 @@ class PatcherAgentBase:
         if ctx_request_limit:
             return default_goto, update_state
 
-        CODE_SNIPPET_REQUEST_RE = re.compile("<code_request>(.*?)</code_request>", re.DOTALL | re.IGNORECASE)
-        code_snippet_requests_matches = CODE_SNIPPET_REQUEST_RE.findall(response)
-        if not code_snippet_requests_matches:
+        code_snippet_requests = CodeSnippetRequest.parse(response)
+        if not code_snippet_requests:
             return default_goto, update_state
 
-        code_snippet_requests = [
-            CodeSnippetRequest(request=request.strip()) for request in code_snippet_requests_matches
-        ]
         return PatcherAgentName.CONTEXT_RETRIEVER.value, {
             "code_snippet_requests": code_snippet_requests,
             "prev_node": current_node,

@@ -1,7 +1,9 @@
 from pathlib import Path
 from buttercup.patcher.patcher import Patcher
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash
+from buttercup.patcher.agents.common import CodeSnippetRequest
 import pytest
+import re
 
 
 @pytest.fixture
@@ -72,3 +74,124 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
     assert patch_input.sanitizer_output == "test-tracer-stacktrace-1"
     assert patch_input.engine == "test-engine-1"
     assert patch_input.sanitizer == "test-sanitizer-1"
+
+
+def test_code_snippet_request_parse_single_request():
+    """Test parsing a single code snippet request."""
+    msg = """
+    <code_request>
+    Please provide the implementation of the function 'validate_input' from file 'input_validation.c'.
+    </code_request>
+    """
+
+    result = CodeSnippetRequest.parse(msg)
+
+    assert len(result) == 1
+    assert (
+        result[0].request
+        == "Please provide the implementation of the function 'validate_input' from file 'input_validation.c'."
+    )
+
+
+def test_code_snippet_request_parse_multiple_requests():
+    """Test parsing multiple code snippet requests."""
+    msg = """
+    <code_request>
+    Please provide the implementation of the function 'validate_input' from file 'input_validation.c'.
+    </code_request>
+    <code_request>
+    Please provide the implementation of the function 'process_data' from file 'data_processor.c'.
+    </code_request>
+    <code_request>
+    Please provide the implementation of the function 'format_output' from file 'output_formatter.c'.
+    </code_request>
+    """
+
+    result = CodeSnippetRequest.parse(msg)
+
+    assert len(result) == 3
+    assert (
+        result[0].request
+        == "Please provide the implementation of the function 'validate_input' from file 'input_validation.c'."
+    )
+    assert (
+        result[1].request
+        == "Please provide the implementation of the function 'process_data' from file 'data_processor.c'."
+    )
+    assert (
+        result[2].request
+        == "Please provide the implementation of the function 'format_output' from file 'output_formatter.c'."
+    )
+
+
+def test_code_snippet_request_parse_empty_message():
+    """Test parsing an empty message."""
+    msg = ""
+
+    result = CodeSnippetRequest.parse(msg)
+
+    assert len(result) == 0
+
+
+def test_code_snippet_request_parse_no_requests():
+    """Test parsing a message with no code snippet requests."""
+    msg = "This is a message without any code snippet requests."
+
+    result = CodeSnippetRequest.parse(msg)
+
+    assert len(result) == 0
+
+
+def test_code_snippet_request_parse_with_whitespace():
+    """Test parsing code snippet requests with various whitespace patterns."""
+    msg = """
+    <code_request>
+    Request with leading and trailing whitespace
+    </code_request>
+    <code_request>Request on a single line</code_request>
+    <code_request>
+    Request with
+    multiple
+    lines
+    </code_request>
+    """
+
+    result = CodeSnippetRequest.parse(msg)
+
+    assert len(result) == 3
+    assert result[0].request == "Request with leading and trailing whitespace"
+    assert result[1].request == "Request on a single line"
+    assert re.match(r"Request with\s*\n\s*multiple\s*\n\s*lines", result[2].request)
+
+
+def test_code_snippet_request_parse_with_code_requests_wrapper():
+    """Test parsing code snippet requests wrapped inside a <code_requests> tag."""
+    msg = """
+    <code_requests>
+    <code_request>
+    Please provide the implementation of the function 'validate_input' from file 'input_validation.c'.
+    </code_request>
+    <code_request>
+    Please provide the implementation of the function 'process_data' from file 'data_processor.c'.
+    </code_request>
+    <code_request>
+    Please provide the implementation of the function 'format_output' from file 'output_formatter.c'.
+    </code_request>
+    </code_requests>
+    """
+
+    result = CodeSnippetRequest.parse(msg)
+
+    assert len(result) == 3
+    assert (
+        result[0].request
+        == "Please provide the implementation of the function 'validate_input' from file 'input_validation.c'."
+    )
+    assert (
+        result[1].request
+        == "Please provide the implementation of the function 'process_data' from file 'data_processor.c'."
+    )
+    assert (
+        result[2].request
+        == "Please provide the implementation of the function 'format_output' from file 'output_formatter.c'."
+    )
