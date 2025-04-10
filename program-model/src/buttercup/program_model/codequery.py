@@ -222,27 +222,33 @@ class CodeQuery:
         self,
         function_name: str,
         file_path: Path | None = None,
+        line_number: int | None = None,
         fuzzy: bool | None = False,
     ) -> list[Function]:
         """Get the definition(s) of a function in the codebase or in a specific file."""
-        cqsearch_args = [
-            "-s",
-            self.CODEQUERY_DB,
-            "-p",
-            "2",
-            "-t",
-            function_name,
-            "-f" if fuzzy else "-e",
-            "-u",
-        ]
-        if file_path:
-            cqsearch_args += ["-b", file_path.as_posix()]
+        # Get symbols and functions. Some functions are not found by cqsearching functions so we have to use symbols instead.
+        results_all = []
+        for search_type in ["1", "2"]:  # 1 for symbols, 2 for functions
+            cqsearch_args = [
+                "-s",
+                self.CODEQUERY_DB,
+                "-p",
+                search_type,
+                "-t",
+                function_name,
+                "-f" if fuzzy else "-e",
+                "-u",
+            ]
+            if file_path:
+                cqsearch_args += ["-b", file_path.as_posix()]
 
-        results = self._run_cqsearch(*cqsearch_args)
-        logger.debug("cqsearch output: %s", results)
+            results = self._run_cqsearch(*cqsearch_args)
+            logger.debug("cqsearch output: %s", results)
 
-        res: list[Function] = []
-        results_by_file = groupby(results, key=lambda x: x.file)
+            results_all.extend(results)
+
+        res: set[Function] = set()
+        results_by_file = groupby(results_all, key=lambda x: x.file)
         for file, results in results_by_file:
             functions_found = [result.value for result in results]
 
@@ -264,9 +270,72 @@ class CodeQuery:
                 if f is None:
                     logger.warning("Function not found in tree-sitter: %s", function)
                     continue
-                res.append(f)
+                if line_number:
+                    lines = [body.start_line for body in f.bodies]
+                    logger.debug(
+                        "Looking for function %s in file %s on lines %s",
+                        function,
+                        file,
+                        ",".join(map(str, lines)),
+                    )
+                    if line_number in lines:
+                        res.add(f)
+                    else:
+                        logger.warning(
+                            "Function (%s) not found using tree-sitter in file %s on line %d",
+                            function,
+                            file,
+                            line_number,
+                        )
+                else:
+                    res.add(f)
 
-        return res
+        return list(res)
+
+    def get_callers(self, function: Function) -> list[Function]:
+        """Get the callers of a function."""
+        cqsearch_args = [
+            "-s",
+            self.CODEQUERY_DB,  # Specify the database file path
+            "-p",
+            "6",
+            "-t",
+            function.name,
+            "-e",
+            "-u",  # use full paths
+        ]
+
+        results = self._run_cqsearch(*cqsearch_args)
+        logger.debug("cqsearch output: %s", results)
+
+        callers: set[Function] = set()
+        for result in results:
+            functions = self.get_functions(result.value, Path(result.file), result.line)
+            callers.update(functions)
+
+        return list(callers)
+
+    def get_callees(self, function: Function) -> list[Function]:
+        """Get the callees of a function."""
+        cqsearch_args = [
+            "-s",
+            self.CODEQUERY_DB,  # Specify the database file path
+            "-p",
+            "7",
+            "-t",
+            function.name,
+            "-e",
+            "-u",  # use full paths
+        ]
+
+        results = self._run_cqsearch(*cqsearch_args)
+        logger.debug("cqsearch output: %s", results)
+
+        callees: set[Function] = set()
+        for result in results:
+            functions = self.get_functions(result.value, Path(result.file))
+            callees.update(functions)
+        return list(callees)
 
     def get_types(
         self,
@@ -276,7 +345,6 @@ class CodeQuery:
         fuzzy: bool | None = False,
     ) -> list[TypeDefinition]:
         """Finds and return the definition of type named `typename`."""
-        # Build the cqsearch command to find occurences of the typename in the code
         cqsearch_args = [
             "-s",
             self.CODEQUERY_DB,  # Specify the database file path
@@ -345,6 +413,28 @@ class CodeQuery:
             res.extend(typedefs.values())
 
         return res
+
+    def get_type_calls(self, type_definition: TypeDefinition) -> list[tuple[Path, int]]:
+        """Get the calls to a type definition."""
+        cqsearch_args = [
+            "-s",
+            self.CODEQUERY_DB,  # Specify the database file path
+            "-p",
+            "8",
+            "-t",
+            type_definition.name,
+            "-e",
+            "-u",  # use full paths
+        ]
+
+        results = self._run_cqsearch(*cqsearch_args)
+        logger.debug("cqsearch output: %s", results)
+
+        calls: list[tuple[Path, int]] = []
+        for result in results:
+            calls.append((Path(result.file), result.line))
+
+        return calls
 
 
 @dataclass

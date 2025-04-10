@@ -1,13 +1,13 @@
 """CodeQuery primitives testing"""
 
 import pytest
-import subprocess
 from pathlib import Path
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.utils.common import TypeDefinitionType
+from .conftest import oss_fuzz_task
 
 
 def setup_c_dirs(tmp_path: Path) -> Path:
@@ -192,7 +192,7 @@ def test_get_types(mock_c_challenge_task: ChallengeTask):
     assert types[0].name == "myInt"
     assert types[0].type == TypeDefinitionType.TYPEDEF
     assert types[0].definition == "typedef int myInt;"
-    assert types[0].definition_line == 0
+    assert types[0].definition_line == 1
     types = codequery.get_types("myInt", Path("test4.c"), function_name="function5")
     assert len(types) == 0
     types = codequery.get_types(
@@ -202,7 +202,7 @@ def test_get_types(mock_c_challenge_task: ChallengeTask):
     assert types[0].name == "myOtherInt"
     assert types[0].type == TypeDefinitionType.TYPEDEF
     assert types[0].definition == "    typedef int myOtherInt;"
-    assert types[0].definition_line == 2
+    assert types[0].definition_line == 3
 
 
 def test_get_types_fuzzy(mock_c_challenge_task: ChallengeTask):
@@ -222,62 +222,12 @@ def test_get_types_fuzzy(mock_c_challenge_task: ChallengeTask):
 
 @pytest.fixture
 def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    """Create a challenge task using a real OSS-Fuzz repository."""
-    # Clone real oss-fuzz repo into temp dir
-    oss_fuzz_dir = tmp_path / "fuzz-tooling"
-    oss_fuzz_dir.mkdir(parents=True)
-    source_dir = tmp_path / "src"
-    source_dir.mkdir(parents=True)
-
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir),
-            "clone",
-            "https://github.com/google/oss-fuzz.git",
-        ],
-        check=True,
-    )
-    # Restore libjpeg-turbo project directory to specific commit
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir / "oss-fuzz"),
-            "checkout",
-            "7e664533834b558a859b0f8eb1f2c2caf676c12a",
-            "--",
-            "projects/libjpeg-turbo",
-        ],
-        check=True,
-    )
-
-    # Download libpng source code
-    libjpeg_url = "https://github.com/libjpeg-turbo/libjpeg-turbo"
-    # Checkout specific libjpeg commit for reproducibility
-    subprocess.run(["git", "-C", str(source_dir), "clone", libjpeg_url], check=True)
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(source_dir / "libjpeg-turbo"),
-            "checkout",
-            "6d91e950c871103a11bac2f10c63bf998796c719",
-        ],
-        check=True,
-    )
-
-    # Create task metadata
-    TaskMeta(
-        project_name="libjpeg-turbo",
-        focus="libjpeg-turbo",
-        task_id="task-id-libjpeg-turbo",
-    ).save(tmp_path)
-
-    return ChallengeTask(
-        read_only_task_dir=tmp_path,
-        local_task_dir=tmp_path,
+    return oss_fuzz_task(
+        tmp_path,
+        "libjpeg-turbo",
+        "libjpeg-turbo",
+        "https://github.com/libjpeg-turbo/libjpeg-turbo",
+        "6d91e950c871103a11bac2f10c63bf998796c719",
     )
 
 
@@ -331,58 +281,12 @@ parse_switches(j_decompress_ptr cinfo, int argc, char **argv,
 
 @pytest.fixture
 def selinux_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    """Create a challenge task using a real OSS-Fuzz repository."""
-    oss_fuzz_dir = tmp_path / "fuzz-tooling"
-    oss_fuzz_dir.mkdir(parents=True)
-    source_dir = tmp_path / "src"
-    source_dir.mkdir(parents=True)
-
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir),
-            "clone",
-            "https://github.com/google/oss-fuzz.git",
-        ],
-        check=True,
-    )
-    # Restore libjpeg-turbo project directory to specific commit
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir / "oss-fuzz"),
-            "checkout",
-            "ef2f42b3b10af381d3d55cc901fde0729e54573b",
-            "--",
-            "projects/selinux",
-        ],
-        check=True,
-    )
-
-    # Download selinux source code
-    url = "https://github.com/SELinuxProject/selinux"
-    subprocess.run(["git", "-C", str(source_dir), "clone", url], check=True)
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(source_dir / "selinux"),
-            "checkout",
-            "c35919a703302bd571476f245d856174a1fe1926",
-        ],
-        check=True,
-    )
-
-    # Create task metadata
-    TaskMeta(project_name="selinux", focus="selinux", task_id="task-id-selinux").save(
-        tmp_path
-    )
-
-    return ChallengeTask(
-        read_only_task_dir=tmp_path,
-        local_task_dir=tmp_path,
+    return oss_fuzz_task(
+        tmp_path,
+        "selinux",
+        "selinux",
+        "https://github.com/SELinuxProject/selinux",
+        "c35919a703302bd571476f245d856174a1fe1926",
     )
 
 
@@ -390,16 +294,12 @@ def selinux_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
 def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     """Test that we can index selinux and files inside oss-fuzz repo"""
     codequery = CodeQuery(selinux_oss_fuzz_task)
-    functions = codequery.get_functions("LLVMFuzzerTestOneInput")
+    functions = codequery.get_functions("mls_semantic_level_expand")
     assert len(functions) == 1
-    assert functions[0].name == "LLVMFuzzerTestOneInput"
-    assert functions[0].file_path == Path(
-        "fuzz-tooling/oss-fuzz/projects/selinux/secilc-fuzzer.c"
-    )
+    assert functions[0].name == "mls_semantic_level_expand"
+    assert functions[0].file_path == Path("src/selinux/libsepol/src/expand.c")
     assert len(functions[0].bodies) == 1
-    assert (
-        "if (sepol_policydb_optimize(pdb) != SEPOL_OK)" in functions[0].bodies[0].body
-    )
+    assert "p->p_cat_val_to_name[cat->low - 1]," in functions[0].bodies[0].body
 
 
 def setup_java_dirs(tmp_path: Path) -> Path:
@@ -502,6 +402,8 @@ def test_get_functions_java(mock_java_challenge_task: ChallengeTask):
     codequery = CodeQuery(mock_java_challenge_task)
     main_functions = codequery.get_functions("main")
     assert len(main_functions) == 3
+    main_functions.sort(key=lambda x: x.file_path)
+
     assert main_functions[0].name == "main"
     assert len(main_functions[0].bodies) == 1
     assert (
@@ -535,63 +437,17 @@ def test_get_types_java(mock_java_challenge_task: ChallengeTask):
         types[0].definition
         == "class MyStruct {\n    public int id;\n    public String name;\n    public double value;\n\n    public MyStruct(int id, String name, double value) {\n        this.id = id;\n        this.name = name;\n        this.value = value;\n    }\n}"
     )
-    assert types[0].definition_line == 0
+    assert types[0].definition_line == 1
 
 
 @pytest.fixture
 def antlr4_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    """Create a challenge task using a real OSS-Fuzz repository."""
-    oss_fuzz_dir = tmp_path / "fuzz-tooling"
-    oss_fuzz_dir.mkdir(parents=True)
-    source_dir = tmp_path / "src"
-    source_dir.mkdir(parents=True)
-
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir),
-            "clone",
-            "https://github.com/google/oss-fuzz.git",
-        ],
-        check=True,
-    )
-    # Restore antlr4 project directory to specific commit
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir / "oss-fuzz"),
-            "checkout",
-            "5379395b4afaece1edcef2ba9b4818227168f4db",
-            "--",
-            "projects/antlr4-java",
-        ],
-        check=True,
-    )
-
-    # Download antlr4 source code
-    url = "https://github.com/antlr/antlr4"
-    subprocess.run(["git", "-C", str(source_dir), "clone", url], check=True)
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(source_dir / "antlr4"),
-            "checkout",
-            "7b53e13ba005b978e2603f3ff81a0cb7cc98f689",
-        ],
-        check=True,
-    )
-
-    # Create task metadata
-    TaskMeta(
-        project_name="antlr4-java", focus="antlr4-java", task_id="task-id-antlr4-java"
-    ).save(tmp_path)
-
-    return ChallengeTask(
-        read_only_task_dir=tmp_path,
-        local_task_dir=tmp_path,
+    return oss_fuzz_task(
+        tmp_path,
+        "antlr4-java",
+        "antlr4",
+        "https://github.com/antlr/antlr4",
+        "7b53e13ba005b978e2603f3ff81a0cb7cc98f689",
     )
 
 
@@ -603,7 +459,7 @@ def test_antlr4_indexing(antlr4_oss_fuzz_task: ChallengeTask):
     assert len(functions) == 1
     assert functions[0].name == "fuzzerTestOneInput"
     assert functions[0].file_path == Path(
-        "fuzz-tooling/oss-fuzz/projects/antlr4-java/GrammarFuzzer.java"
+        "fuzz-tooling/oss-fuzz-aixcc/projects/antlr4-java/GrammarFuzzer.java"
     )
     assert len(functions[0].bodies) == 1
     assert (

@@ -10,6 +10,7 @@ reformat:
 lint:
     uv run ruff format --check
     uv run ruff check
+    # uv run mypy
 
 test:
     uv run pytest -svv --log-cli-level=DEBUG --runintegration

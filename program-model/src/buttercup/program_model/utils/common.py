@@ -15,10 +15,24 @@ class FunctionBody:
     """Body of the function."""
 
     start_line: int
-    """Start line of the function in the file (0-based)."""
+    """Start line of the function in the file (1-based)."""
 
     end_line: int
-    """End line of the function in the file (0-based)."""
+    """End line of the function in the file (1-based)."""
+
+    def __eq__(self, other):
+        """Two function bodies are equal if they have the same body and start and end lines."""
+        if not isinstance(other, FunctionBody):
+            return NotImplemented
+        return (
+            self.body == other.body
+            and self.start_line == other.start_line
+            and self.end_line == other.end_line
+        )
+
+    def __hash__(self):
+        """Hash based on body and start and end lines."""
+        return hash((self.body, self.start_line, self.end_line))
 
 
 @dataclass
@@ -36,6 +50,20 @@ class Function:
 
     bodies: list[FunctionBody] = field(default_factory=list)
     """List of function bodies."""
+
+    def __eq__(self, other):
+        """Two functions are equal if they have the same name and file path."""
+        if not isinstance(other, Function):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.file_path == other.file_path
+            and frozenset(self.bodies) == frozenset(other.bodies)
+        )
+
+    def __hash__(self):
+        """Hash based on name and file path."""
+        return hash((self.name, self.file_path, frozenset(self.bodies)))
 
 
 @dataclass
@@ -64,4 +92,4 @@ class TypeDefinition:
     """Definition of the type."""
 
     definition_line: int
-    """Line number of the definition of the type."""
+    """Line number of the definition of the type (1-based)."""

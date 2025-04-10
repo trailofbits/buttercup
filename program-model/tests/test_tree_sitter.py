@@ -134,8 +134,8 @@ def test_get_function_c(challenge_task_readonly: ChallengeTask):
     assert len(function.bodies) == 1
     assert "int add(int a, int b)" in function.bodies[0].body
     assert "return a + b;" in function.bodies[0].body
-    assert function.bodies[0].start_line == 16
-    assert function.bodies[0].end_line == 18
+    assert function.bodies[0].start_line == 17
+    assert function.bodies[0].end_line == 19
 
 
 def test_get_function_multiple_definitions_c(challenge_task_readonly: ChallengeTask):
@@ -148,10 +148,10 @@ def test_get_function_multiple_definitions_c(challenge_task_readonly: ChallengeT
     assert len(function.bodies) == 2
     assert "int add(int a, int b)" in function.bodies[0].body
     assert "double add(double a, double b)" in function.bodies[1].body
-    assert function.bodies[0].start_line == 3
-    assert function.bodies[0].end_line == 5
-    assert function.bodies[1].start_line == 7
-    assert function.bodies[1].end_line == 9
+    assert function.bodies[0].start_line == 4
+    assert function.bodies[0].end_line == 6
+    assert function.bodies[1].start_line == 8
+    assert function.bodies[1].end_line == 10
 
 
 def test_get_type_definition_types(challenge_task_readonly: ChallengeTask):

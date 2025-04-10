@@ -27,14 +27,40 @@ QUERY_STR_C = """
 ) @function.definition
 )
 """
+# This query matches C function definitions:
+# 1. Matches a function_definition node
+# 2. Looks for a declarator that can be either:
+#    - A nested _declarator with function_declarator and identifier (for complex declarations)
+#    - A direct function_declarator with identifier (for simple declarations)
+# 3. Captures the function name with @function.name
+# 4. Captures the function body (compound_statement) with @function.body
+# 5. Captures the entire function definition with @function.definition
 
 QUERY_STR_JAVA = """
-(
 (method_declaration
-    name: (identifier) @function.name
-    body: (block) @function.body) @function.definition
-)
+  (modifiers)*
+  (type_parameters)?
+  [
+    (type_identifier)
+    (void_type)
+  ]?
+  name: (identifier) @function.name
+  (formal_parameters)
+  (throws)?
+  body: (block) @function.body) @function.definition
 """
+# This query matches Java method declarations:
+# 1. Matches a method_declaration node
+# 2. (modifiers)* - Matches zero or more modifiers (public, private, static, etc.)
+# 3. (type_parameters)? - Optional generic type parameters (e.g., <T>)
+# 4. [ ... ]? - Optional return type which can be either:
+#    - type_identifier (e.g., String, int)
+#    - void_type (for void methods)
+# 5. name: (identifier) @function.name - Captures the method name
+# 6. (formal_parameters) - Matches the method parameters
+# 7. (throws)? - Optional throws clause
+# 8. body: (block) @function.body - Captures the method body
+# 9. @function.definition - Captures the entire method declaration
 
 QUERY_STR_TYPES_C = """
 (
@@ -61,6 +87,22 @@ QUERY_STR_TYPES_C = """
 ]
 )
 """
+# This query matches C type definitions:
+# 1. struct_specifier - Matches struct definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 2. union_specifier - Matches union definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 3. enum_specifier - Matches enum definitions with:
+#    - name captured with @type.name
+#    - body containing enumerator list
+# 4. type_definition - Matches typedef statements with:
+#    - original type captured with @type.original_type
+#    - new type name captured with @type.name
+# 5. preproc_def - Matches preprocessor type definitions with:
+#    - name captured with @type.name
+#    - value captured with @type.value
 
 QUERY_STR_TYPES_JAVA = """
 (
@@ -82,6 +124,19 @@ QUERY_STR_TYPES_JAVA = """
 ]
 )
 """
+# This query matches Java type definitions:
+# 1. class_declaration - Matches class definitions with:
+#    - name captured with @type.name
+# 2. interface_declaration - Matches interface definitions with:
+#    - name captured with @type.name
+# 3. enum_declaration - Matches enum definitions with:
+#    - name captured with @type.name
+# 4. record_declaration - Matches record definitions (Java 14+) with:
+#    - name captured with @type.name
+# 5. annotation_type_declaration - Matches annotation type definitions with:
+#    - name captured with @type.name
+# 6. type_parameter - Matches generic type parameters with:
+#    - name captured with @type.name
 
 
 @dataclass
@@ -136,17 +191,20 @@ class CodeTS:
             return functions
 
         for match in captures:
-            try:
-                name_node = match[1]["function.name"][0]
-                body_node = match[1]["function.body"][0]
-                definition_node = match[1]["function.definition"][0]
-            except Exception:
-                continue
+            node, capture_name = match
+            logger.debug("Match: %s, %s", node, capture_name)
+            if "function.name" in capture_name.keys():
+                name_node = capture_name["function.name"][0]
+            if "function.body" in capture_name.keys():
+                body_node = capture_name["function.body"][0]
+            if "function.definition" in capture_name.keys():
+                definition_node = capture_name["function.definition"][0]
 
             if not name_node or not body_node or not definition_node:
                 continue
 
             function_name = code[name_node.start_byte : name_node.end_byte]
+            logger.debug("Function name: %s", function_name)
             function_definition = definition_node
             start_body = function_definition
             if (
@@ -164,16 +222,25 @@ class CodeTS:
             while function_body_end < len(code) and code[function_body_end] != 10:
                 function_body_end += 1
 
+            # Convert start and end points to 1-based line numbers.
+            # We do this because the stacktrace will be 1-based, so it's best to keep everything consistent.
+            start_line = start_body.start_point[0] + 1
+            end_line = function_definition.end_point[0] + 1
+            logger.debug("Function body start: %d", start_line)
+            logger.debug("Function body end: %d", end_line)
+
             function_code = code[function_body_start:function_body_end]
             function_body = FunctionBody(
                 function_code.decode(),
-                start_body.start_point[0],
-                function_definition.end_point[0],
+                start_line,
+                end_line,
             )
             function = functions.setdefault(
                 function_name.decode(), Function(function_name.decode(), file_path)
             )
             function.bodies.append(function_body)
+
+            logger.debug("\n")
 
         return functions
 
@@ -247,7 +314,8 @@ class CodeTS:
                 name=name,
                 type=type_def_type,
                 definition=type_definition,
-                definition_line=definition_node.start_point[0],
+                definition_line=definition_node.start_point[0]
+                + 1,  # Convert to 1-based line number, since the stacktrace is 1-based
             )
 
         return res
