@@ -1,5 +1,7 @@
 """Software Engineer LLM agent, handling the creation of patches."""
 
+from __future__ import annotations
+
 import difflib
 import logging
 import re
@@ -199,11 +201,61 @@ class CodeSnippetChange(BaseModel):
         """Check if the code snippet change is valid"""
         return bool(self.key.file_path and self.key.identifier and self.old_code and self.code)
 
+    @classmethod
+    def parse(cls, msg: str) -> list[CodeSnippetChange]:
+        # Extract identifier and file_path from the patch block
+        identifier_match = re.search(r"<identifier>(.*?)</identifier>", msg, re.DOTALL | re.IGNORECASE)
+        file_path_match = re.search(r"<file_path>(.*?)</file_path>", msg, re.DOTALL | re.IGNORECASE)
+
+        if not identifier_match or not file_path_match:
+            logger.warning("Missing identifier or file_path in patch block")
+            return []
+
+        identifier = identifier_match.group(1).strip()
+        file_path = file_path_match.group(1).strip()
+
+        # Find all old_code/new_code pairs in this patch block
+        code_pairs_re = re.compile(
+            r"<old_code>(.*?)</old_code>.*?<new_code>(.*?)</new_code>",
+            re.DOTALL | re.IGNORECASE,
+        )
+        code_pairs = code_pairs_re.findall(msg)
+
+        result: list[CodeSnippetChange] = []
+        for old_code, new_code in code_pairs:
+            result.append(
+                cls(
+                    key=CodeSnippetKey(file_path=file_path, identifier=identifier),
+                    old_code=old_code.strip("\n"),
+                    code=new_code.strip("\n"),
+                )
+            )
+
+        return result
+
 
 class CodeSnippetChanges(BaseModel):
     """Code snippet changes"""
 
     items: list[CodeSnippetChange] | None = Field(description="List of code snippet changes")
+
+    @classmethod
+    def parse(cls, msg: str) -> CodeSnippetChanges:
+        """Parse the code snippet changes from the string."""
+        # First, find all patch blocks
+        patch_blocks_re = re.compile(
+            r"<patch>(.*?)</patch>",
+            re.DOTALL | re.IGNORECASE,
+        )
+        patch_blocks = patch_blocks_re.findall(msg)
+
+        items: list[CodeSnippetChange] = []
+
+        for patch_block in patch_blocks:
+            items.extend(CodeSnippetChange.parse(patch_block))
+
+        logger.debug("Parsed %d code snippets", len(items))
+        return CodeSnippetChanges(items=items)
 
 
 class CreateUPatchInput(BaseModel):
@@ -248,27 +300,6 @@ class SWEAgent(PatcherAgentBase):
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
-
-    def parse_code_snippets(self, msg: str) -> CodeSnippetChanges:
-        """Parse the code snippets from the string."""
-        code_snippets_re = re.compile(
-            r"<patch>.*?<identifier>(.*?)</identifier>.*?<file_path>(.*?)</file_path>.*?<old_code>(.*?)</old_code>.*?<new_code>(.*?)</new_code>.*?</patch>",
-            re.DOTALL | re.IGNORECASE,
-        )
-        matches = code_snippets_re.findall(msg)
-        items: list[CodeSnippetChange] = []
-        for match in matches:
-            identifier, file_path, old_code, code = match
-            items.append(
-                CodeSnippetChange(
-                    key=CodeSnippetKey(file_path=file_path.strip(), identifier=identifier.strip()),
-                    old_code=old_code.strip("\n"),
-                    code=code.strip("\n"),
-                )
-            )
-
-        logger.debug("Parsed %d code snippets", len(items))
-        return CodeSnippetChanges(items=items)
 
     def _get_file_content(self, file_path: str) -> tuple[str, str] | None:
         """Get the content of a file, trying multiple search strategies. Returns
@@ -580,7 +611,7 @@ class SWEAgent(PatcherAgentBase):
             )
 
         create_upatch_input = CreateUPatchInput(
-            code_snippets=self.parse_code_snippets(patch_str),
+            code_snippets=CodeSnippetChanges.parse(patch_str),
             state=state,
         )
         patch = self.create_upatch(create_upatch_input)
