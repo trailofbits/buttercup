@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from redis import Redis
 from buttercup.common.constants import ARCHITECTURE
+import buttercup.common.node_local as node_local
 from buttercup.common.queues import (
     ReliableQueue,
     QueueFactory,
@@ -127,7 +128,7 @@ class Vulnerabilities:
         logger.info(f"[{crash.crash.target.task_id}] Submitting vulnerability for harness: {crash.crash.harness_name}")
         try:
             # Read crash input file contents and encode as base64
-            with open(crash.crash.crash_input_path, "rb") as f:
+            with node_local.lopen(crash.crash.crash_input_path, "rb") as f:
                 crash_data = base64.b64encode(f.read()).decode()
 
             # Create submission payload from crash data

@@ -59,6 +59,7 @@ Define Docker-in-Docker sidecar container
       mountPath: {{ include "buttercup.dirs.crs_scratch" . }}
     - name: dind-storage
       mountPath: /var/lib/docker
+    {{- include "buttercup.nodeLocalVolumeMount" . | nindent 4 }}
     {{- if .Values.extraVolumeMounts }}
     {{- range .Values.extraVolumeMounts }}
     - name: {{ .name }}
@@ -92,4 +93,61 @@ Define standard container volumeMounts for bots
 - name: tasks-storage
   mountPath: {{ include "buttercup.dirs.tasks_storage" . }}
 {{- end }}
+{{- end -}}
+
+{{/*
+Node Local Volume Mount Helper
+Conditionally adds the volume mount for node-local storage if enabled globally.
+Expects the root context '.' to be passed.
+Usage: {{- include "buttercup.nodeLocalVolumeMount" . | nindent 10 }}
+*/}}
+{{- define "buttercup.nodeLocalVolumeMount" -}}
+{{- if .Values.global.volumes.nodeLocal.enabled }}
+- name: node-local-storage
+  mountPath: {{ .Values.global.volumes.nodeLocal.mountPath }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Node Local Volume Definition Helper
+Conditionally adds the volume definition for node-local storage if enabled globally.
+Expects the root context '.' to be passed.
+Usage: {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
+*/}}
+{{- define "buttercup.nodeLocalVolume" -}}
+{{- if .Values.global.volumes.nodeLocal.enabled }}
+- name: node-local-storage
+  hostPath:
+    path: {{ .Values.global.volumes.nodeLocal.hostPath }}
+    type: {{ .Values.global.volumes.nodeLocal.type }}
+{{- end }}
+{{- end -}}
+
+
+{{/*
+Node Local CRS Scratch Path Helper
+Constructs the path to CRS scratch directory, prepending the node-local mountPath if enabled.
+Properly handles path joining to avoid double slashes.
+Usage: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
+*/}}
+{{- define "buttercup.nodeLocalCrsScratchPath" -}}
+{{- if .Values.global.volumes.nodeLocal.enabled -}}
+{{- printf "%s%s" (trimSuffix "/" .Values.global.volumes.nodeLocal.mountPath) (include "buttercup.dirs.crs_scratch" .) -}}
+{{- else -}}
+{{- include "buttercup.dirs.crs_scratch" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Node Local Tasks Storage Path Helper
+Constructs the path to tasks storage directory, prepending the node-local mountPath if enabled.
+Properly handles path joining to avoid double slashes.
+Usage: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
+*/}}
+{{- define "buttercup.nodeLocalTasksStoragePath" -}}
+{{- if .Values.global.volumes.nodeLocal.enabled -}}
+{{- printf "%s%s" (trimSuffix "/" .Values.global.volumes.nodeLocal.mountPath) (include "buttercup.dirs.tasks_storage" .) -}}
+{{- else -}}
+{{- include "buttercup.dirs.tasks_storage" . -}}
+{{- end -}}
 {{- end -}}

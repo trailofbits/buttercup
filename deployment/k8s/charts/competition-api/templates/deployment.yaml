@@ -46,10 +46,12 @@ spec:
               mountPath: {{ .mountPath }}
             {{- end }}
             {{- end }}
+            {{- include "buttercup.nodeLocalVolumeMount" . | nindent 12 }}
         {{- include "buttercup.dindSidecar" . | nindent 8 }}
       volumes:
         {{- include "buttercup.dindVolume" . | nindent 8 }}
         {{- include "buttercup.volumes.scratch" . | nindent 8 }}
+
         - name: scantron-config
           configMap:
             name: {{ .Release.Name }}-scantron-config
@@ -59,4 +61,5 @@ spec:
           emptyDir: {}
         {{- end }}
         {{- end }}
+        {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
 {{- end }}

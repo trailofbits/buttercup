@@ -19,6 +19,7 @@ buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder_bot:main"
 buttercup-fuzzer = "buttercup.fuzzing_infra.fuzzer_bot:main"
 buttercup-coverage-bot = "buttercup.fuzzing_infra.coverage_bot:main"
 buttercup-tracer-bot = "buttercup.fuzzing_infra.tracer_bot:main"
+buttercup-corpus-sync = "buttercup.fuzzing_infra.corpus_sync:main"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }

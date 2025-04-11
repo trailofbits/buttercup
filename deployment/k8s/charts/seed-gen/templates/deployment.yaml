@@ -29,13 +29,14 @@ spec:
           - "--redis_url"
           - "{{ include "buttercup.core.redisUrl" . }}"
           - "--wdir"
-          - "{{ include "buttercup.dirs.crs_scratch" . }}"
+          - "{{ include "buttercup.nodeLocalCrsScratchPath" . }}"
           - "--sleep"
           - "{{ .Values.sleepTime }}"
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
         env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
@@ -46,4 +47,5 @@ spec:
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.dindVolume" . | nindent 6 }}
+      {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
 {{- end }}

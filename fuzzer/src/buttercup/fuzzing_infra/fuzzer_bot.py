@@ -3,7 +3,6 @@ import os
 from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.queues import QueueFactory, QueueNames
-from buttercup.common import utils
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.stack_parsing import CrashSet
 import tempfile
@@ -48,12 +47,9 @@ class FuzzerBot(TaskLoop):
 
                 corp = Corpus(self.crs_scratch_dir, task.task_id, task.harness_name)
 
-                copied_corp_dir = os.path.join(td, corp.basename())
-                utils.copyanything(corp.path, copied_corp_dir)
-
                 build_dir = local_tsk.get_build_dir()
                 fuzz_conf = FuzzConfiguration(
-                    copied_corp_dir,
+                    corp.path,
                     str(build_dir / task.harness_name),
                     build.engine,
                     build.sanitizer,
@@ -85,7 +81,6 @@ class FuzzerBot(TaskLoop):
                     )
                     self.output_q.push(crash)
 
-                corp.copy_corpus(copied_corp_dir)
                 logger.info(f"Fuzzer finished for {build.engine} | {build.sanitizer} | {task.harness_name}")
 
 

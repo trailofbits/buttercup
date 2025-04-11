@@ -50,6 +50,7 @@ class CoverageBot(TaskLoop):
         tsk = ChallengeTask(read_only_task_dir=coverage_build.task_dir)
         with tsk.get_rw_copy(work_dir=self.wdir) as local_tsk:
             corpus = Corpus(self.wdir, task.task_id, task.harness_name)
+            corpus.sync_from_remote()
             runner = CoverageRunner(
                 local_tsk,
                 self.llvm_cov_tool,

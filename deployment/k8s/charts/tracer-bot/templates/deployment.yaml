@@ -22,16 +22,19 @@ spec:
       - name: tracer-bot
         image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
-        command: ["buttercup-tracer-bot", "--wdir", "{{ include "buttercup.dirs.crs_scratch" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}"]
+        command: ["buttercup-tracer-bot", "--wdir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}"]
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
         env:
         {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+        {{- include "buttercup.env.nodeData" . | nindent 8 }}
       {{- include "buttercup.dindSidecar" . | nindent 6 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.volumes.tasks" . | nindent 6 }}
       {{- include "buttercup.dindVolume" . | nindent 6 }}
+      {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
 {{- end }}

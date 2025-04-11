@@ -23,9 +23,16 @@ Define common variables by categories
 */}}
 {{- define "buttercup.env.dirs" }}
 - name: CRS_SCRATCH_DIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
 - name: TASKS_STORAGE_DIR
-  value: {{ include "buttercup.dirs.tasks_storage" . }}
+  value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
+{{- end }}
+
+{{- define "buttercup.env.nodeData" }}
+{{- if .Values.global.volumes.nodeLocal.enabled }}
+- name: NODE_DATA_DIR
+  value: "{{ .Values.global.volumes.nodeLocal.mountPath }}"
+{{- end }}
 {{- end }}
 
 {{- define "buttercup.env.redis" }}
@@ -85,6 +92,8 @@ Define common environment for all services
 {{- define "buttercup.commonEnv" }}
 {{- include "buttercup.env.llm" . | nindent 0 }}
 {{- include "buttercup.env.timeouts" . | nindent 0 }}
+{{- include "buttercup.env.dirs" . | nindent 0 }}
+{{- include "buttercup.env.nodeData" . | nindent 0 }}
 {{- end }}
 
 {{/*
@@ -127,7 +136,7 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__PYTHON
   value: "python"
 - name: BUTTERCUP_PROGRAM_MODEL_SCRATCH_DIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
 - name: BUTTERCUP_PROGRAM_MODEL_GRAPHDB_ENABLED
   value: "false"
 {{- end }}
@@ -136,7 +145,7 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_DOWNLOADER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
 - name: BUTTERCUP_DOWNLOADER_DOWNLOAD_DIR
-  value: {{ include "buttercup.dirs.tasks_storage" . }}
+  value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 - name: BUTTERCUP_DOWNLOADER_SERVE__SLEEP_TIME
   value: "5"
 - name: BUTTERCUP_DOWNLOADER_SERVE__REDIS_URL
@@ -185,9 +194,9 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_SCHEDULER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
 - name: BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR
-  value: {{ include "buttercup.dirs.tasks_storage" . }}
+  value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 - name: BUTTERCUP_SCHEDULER_SCRATCH_DIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
 - name: BUTTERCUP_SCHEDULER_SERVE__SLEEP_TIME
   value: "5"
 - name: BUTTERCUP_SCHEDULER_SERVE__REDIS_URL
@@ -213,9 +222,9 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_PATCHER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
 - name: BUTTERCUP_PATCHER_TASK_STORAGE_DIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
 - name: BUTTERCUP_PATCHER_SCRATCH_DIR
-  value: {{ include "buttercup.dirs.crs_scratch" . }}
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
 - name: BUTTERCUP_PATCHER_SERVE__SLEEP_TIME
   value: "5"
 - name: BUTTERCUP_PATCHER_SERVE__REDIS_URL

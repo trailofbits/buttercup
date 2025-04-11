@@ -8,6 +8,7 @@ from buttercup.common.utils import serve_loop
 from buttercup.common.challenge_task import ChallengeTask
 from pathlib import Path
 from buttercup.fuzzing_infra.settings import BuilderBotSettings
+import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ def main():
             logger.info(
                 f"Pushing build output for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
             )
+            node_local.dir_to_remote_archive(task.task_dir)
             output_q.push(
                 BuildOutput(
                     engine=msg.engine,

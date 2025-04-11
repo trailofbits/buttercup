@@ -31,8 +31,9 @@ class SeedGenBot(TaskLoop):
     TASK_SEED_EXPLORE_PROB = 0.6
     MIN_SEED_INIT_RUNS = 3
 
-    def __init__(self, redis: Redis, timer_seconds: int, wdir: str):
+    def __init__(self, redis: Redis, timer_seconds: int, wdir: str, corpus_root: str | None = None):
         self.wdir = wdir
+        self.corpus_root = corpus_root
         self.redis = redis
         self.crash_set = CrashSet(redis)
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)

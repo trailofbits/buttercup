@@ -20,6 +20,8 @@ global:
     repository: localhost/program-model
     tag: "latest"
     pullPolicy: Never
+  competitionApiImage:
+    pullPolicy: Never
 
   langfuse:
     enabled: true

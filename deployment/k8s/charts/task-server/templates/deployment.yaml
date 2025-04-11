@@ -15,6 +15,8 @@ spec:
     spec:
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
       enableServiceLinks: false
+      volumes:
+        {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
       initContainers:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       containers:
@@ -27,4 +29,6 @@ spec:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.taskServerEnv" . | nindent 8 }}
         ports:
-        - containerPort: {{ .Values.port }} 
+        - containerPort: {{ .Values.port }}
+        volumeMounts:
+          {{- include "buttercup.nodeLocalVolumeMount" . | nindent 10 }} 

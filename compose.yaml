@@ -17,6 +17,7 @@ services:
         source: ./crs_scratch
         target: /crs_scratch
       - shared-tmp:/tmp
+      - ./node_data_storage/:/node_data
 
   redis:
     image: redis:7.4.2
@@ -125,6 +126,7 @@ services:
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
     depends_on:
       redis:
         condition: service_healthy
@@ -134,13 +136,14 @@ services:
       #   condition: service_healthy
 
   coverage-bot:
-    command: ["buttercup-coverage-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
+    command: ["buttercup-coverage-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -149,13 +152,14 @@ services:
         condition: service_started
 
   build-bot:
-    command: ["buttercup-fuzzer-builder", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379", "--timer", "5000"]
+    command: ["buttercup-fuzzer-builder", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timer", "5000"]
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -164,13 +168,14 @@ services:
         condition: service_started
 
   tracer-bot:
-    command: ["buttercup-tracer-bot", "--wdir", "/crs_scratch", "--redis_url", "redis://redis:6379"]
+    command: ["buttercup-tracer-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -182,10 +187,11 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: ["buttercup-fuzzer", "--wdir", "/tmp", --crs_scratch_dir, "/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000"]
+    command: ["buttercup-fuzzer", "--wdir", "/tmp", --crs_scratch_dir, "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000"]
     env_file: env.dev.compose
     volumes:
       - ./crs_scratch:/crs_scratch
+      - ./node_data_storage/:/node_data
     depends_on:
       redis:
         condition: service_healthy
@@ -197,6 +203,7 @@ services:
     command: ["buttercup-task-downloader", "serve"]
     volumes:
       - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -222,6 +229,7 @@ services:
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -232,9 +240,10 @@ services:
       context: .
       dockerfile: ./seed-gen/Dockerfile
     # TODO: Update seed-gen sleep once service is doing useful work
-    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/crs_scratch", "--sleep", "60"]
+    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/node_data/crs_scratch", "--sleep", "60"]
     volumes:
       - ./crs_scratch:/crs_scratch
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     environment:
       - LOG_LEVEL=DEBUG
@@ -256,6 +265,7 @@ services:
     command: ["buttercup-patcher", "serve"]
     volumes:
       - ./crs_scratch:/crs_scratch
+      - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     environment:
       - LANGFUSE_HOST=${LANGFUSE_HOST}

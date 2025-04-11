@@ -19,6 +19,7 @@ spec:
       volumes:
         {{- include "buttercup.volumes.scratch" . | nindent 8 }}
         {{- include "buttercup.volumes.tasks" . | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
       initContainers:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       containers:
@@ -34,3 +35,4 @@ spec:
         volumeMounts:
           {{- include "buttercup.volumeMounts.scratch" . | nindent 10 }}
           {{- include "buttercup.volumeMounts.tasks" . | nindent 10 }}
+          {{- include "buttercup.nodeLocalVolumeMount" . | nindent 10 }}

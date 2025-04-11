@@ -9,6 +9,7 @@ from buttercup.common.datastructures.msg_pb2 import TracedCrash
 from pathlib import Path
 from buttercup.common import stack_parsing
 from buttercup.common.utils import serve_loop
+import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,14 @@ class TracerBot:
 
         logger.info(f"Received tracer request for {item.deserialized.target.task_id}")
         runner = TracerRunner(item.deserialized.target.task_id, self.wdir, self.redis)
+
+        # Ensure the crash input is locally available
+        logger.info(f"Making locally available: {item.deserialized.crash_input_path}")
+        local_path = node_local.make_locally_available(Path(item.deserialized.crash_input_path))
+
         tinfo = runner.run(
             item.deserialized.harness_name,
-            Path(item.deserialized.crash_input_path),
+            local_path,
             item.deserialized.target.sanitizer,
         )
         if tinfo is None and self.queue.times_delivered(item.item_id) <= self.max_tries:

@@ -16,6 +16,7 @@ from buttercup.common.task_meta import TaskMeta
 from redis import Redis
 from buttercup.orchestrator.registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,7 @@ class Downloader:
 
     def get_task_dir(self, task_id: str) -> Path:
         """Creates and returns the directory path for a task"""
-        task_dir = self.download_dir / task_id
-        return task_dir.absolute()
+        return self.download_dir / task_id
 
     def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Optional[Path]:
         """Downloads a source file and verifies its SHA256"""
@@ -168,32 +168,41 @@ class Downloader:
         """Process a single task by downloading all its sources"""
         logger.info(f"Processing task {task.task_id} (message_id={task.message_id})")
 
-        # Check if task is already downloaded in final destination
-        final_task_dir = self.get_task_dir(task.task_id)
-        if final_task_dir.exists() and final_task_dir.is_dir() and len(list(final_task_dir.iterdir())) > 0:
-            logger.info(f"[task {task.task_id}] Task already downloaded at {final_task_dir}")
+        # Node local target directory for the task
+        download_path = self.get_task_dir(task.task_id)
+
+        if download_path.exists():
+            logger.warning(f"Remote path already exists: {download_path}. Skipping download.")
             return True
 
-        with tempfile.TemporaryDirectory(dir=self.download_dir) as tmp_task_dir:
-            tmp_task_dir = Path(tmp_task_dir)
-            logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
+        logger.info(f"Storing task {task.task_id} at {download_path}")
 
-            # Download and extract all sources
-            success = self._download_and_extract_sources(task.task_id, tmp_task_dir, task.sources)
-            if not success:
-                logger.error(f"Failed to download and extract sources for task {task.task_id}")
+        # Create a local temporary directory for the download, rename to the proper name and upload
+        # the dir as a .tgz file to the remote storage
+        with node_local.scratch_dir() as temp_dir:
+            if not self._do_download(temp_dir, task):
                 return False
 
-            # Store the task meta in the tasks storage directory
-            task_meta = TaskMeta(task.project_name, task.focus, task.task_id)
-            task_meta.save(tmp_task_dir)
+            renamed_dir = node_local.rename_atomically(temp_dir.path, download_path)
+            if renamed_dir is not None:
+                temp_dir.commit = True
+                node_local.dir_to_remote_archive(download_path)
 
-            # Move to final location
-            success = self._move_to_final_location(task.task_id, tmp_task_dir)
-            if not success:
-                logger.error(f"Failed to move task directory to final location for task {task.task_id}")
-                return False
+        return True
 
+    def _do_download(self, tmp_task_dir: tempfile.TemporaryDirectory, task: Task) -> bool:
+        tmp_task_dir = Path(tmp_task_dir)
+        logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
+
+        # Download and extract all sources
+        success = self._download_and_extract_sources(task.task_id, tmp_task_dir, task.sources)
+        if not success:
+            logger.error(f"Failed to download and extract sources for task {task.task_id}")
+            return False
+
+        # Store the task meta in the tasks storage directory
+        task_meta = TaskMeta(task.project_name, task.focus, task.task_id)
+        task_meta.save(tmp_task_dir)
         return True
 
     def serve_item(self) -> bool:

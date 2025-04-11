@@ -3,12 +3,16 @@ from buttercup.patcher.patcher import Patcher
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash
 from buttercup.patcher.agents.common import CodeSnippetRequest
 import pytest
+from unittest.mock import patch
 import re
 
 
 @pytest.fixture
 def tasks_dir(tmp_path: Path) -> Path:
     """Create a mock challenge task directory structure."""
+    # Ensure tmp_path is absolute
+    tmp_path = tmp_path.absolute()
+
     # Create the task directory
     task_dir = tmp_path / "test-task-id-1"
     task_dir.mkdir(parents=True, exist_ok=True)
@@ -37,7 +41,15 @@ def tasks_dir(tmp_path: Path) -> Path:
     yield tmp_path
 
 
-def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
+@patch("buttercup.common.node_local.make_locally_available")
+def test_vuln_to_patch_input(mock_make_locally_available, tasks_dir: Path, tmp_path: Path):
+    # Mock make_locally_available to return the path unchanged
+    mock_make_locally_available.side_effect = lambda path: path
+
+    # Ensure all paths are absolute
+    tasks_dir = tasks_dir.absolute()
+    tmp_path = tmp_path.absolute()
+
     patcher = Patcher(
         task_storage_dir=tasks_dir,
         scratch_dir=tmp_path,
@@ -55,7 +67,7 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
                     task_dir=str(tasks_dir / "test-task-id-1"),
                 ),
                 harness_name="test-harness-name-1",
-                crash_input_path="test-crash-input-path-1",
+                crash_input_path=str(tmp_path / "test-crash-input.txt"),
                 stacktrace="test-stacktrace-1",
             ),
             tracer_stacktrace="test-tracer-stacktrace-1",
@@ -70,7 +82,7 @@ def test_vuln_to_patch_input(tasks_dir: Path, tmp_path: Path):
     assert patch_input.task_id == "test-task-id-1"
     assert patch_input.vulnerability_id == "test-vuln-1"
     assert patch_input.harness_name == "test-harness-name-1"
-    assert patch_input.pov == Path("test-crash-input-path-1")
+    assert patch_input.pov == tmp_path / "test-crash-input.txt"
     assert patch_input.sanitizer_output == "test-tracer-stacktrace-1"
     assert patch_input.engine == "test-engine-1"
     assert patch_input.sanitizer == "test-sanitizer-1"

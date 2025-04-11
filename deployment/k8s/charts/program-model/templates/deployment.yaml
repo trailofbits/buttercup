@@ -31,9 +31,11 @@ spec:
         {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
       {{- include "buttercup.dindSidecar" . | nindent 6 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.volumes.tasks" . | nindent 6 }}
       {{- include "buttercup.dindVolume" . | nindent 6 }}
+      {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
 {{- end }}

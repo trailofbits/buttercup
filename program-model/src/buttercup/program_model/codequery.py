@@ -11,7 +11,7 @@ from itertools import groupby
 from typing import ClassVar, Union
 
 
-from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.program_model.utils.common import (
     Function,
@@ -453,7 +453,11 @@ class CodeQueryPersistent(CodeQuery):
         """Post init the persistent codequery db"""
         task_id = self.challenge.task_meta.task_id
         cqdb_path = self.work_dir.joinpath(task_id + ".cqdb")
-        if not cqdb_path.exists() or not cqdb_path.is_dir():
+        try:
+            self.challenge = ChallengeTask(cqdb_path, local_task_dir=cqdb_path)
+            super().__post_init__()
+        except ChallengeTaskError:
+            # This is the case where the cqdb is not yet created
             logger.debug("Creating new CodeQueryPersistent DB in %s", cqdb_path)
             with self.challenge.get_rw_copy(self.work_dir) as persistent_challenge:
                 self.challenge = persistent_challenge
@@ -461,9 +465,9 @@ class CodeQueryPersistent(CodeQuery):
 
                 try:
                     persistent_challenge.commit(".cqdb")
+                    logger.debug(
+                        f"Uploading cqdb {persistent_challenge.local_task_dir} to remote storage"
+                    )
                 except Exception as e:
                     logger.exception("Failed to commit the cqdb: %s", e)
                     raise e
-        else:
-            self.challenge = ChallengeTask(cqdb_path, local_task_dir=cqdb_path)
-            super().__post_init__()

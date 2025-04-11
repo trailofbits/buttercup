@@ -63,6 +63,13 @@ global:
     indexTaskTimeoutMs: 120000
     indexOutputTaskTimeoutMs: 120000
     tracedVulnerabilitiesTaskTimeoutMs: 120000
+  # Node-local storage configuration to be accessible by all subcharts
+  volumes:
+    nodeLocal:
+      enabled: true
+      hostPath: /node_data_storage
+      type: DirectoryOrCreate
+      mountPath: /node_data
 
 # Volume configurations
 volumes:

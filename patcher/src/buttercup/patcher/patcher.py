@@ -5,6 +5,7 @@ from pathlib import Path
 from functools import reduce
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from buttercup.patcher.utils import PatchInput, PatchOutput
+import buttercup.common.node_local as node_local
 from langchain_core.runnables import Runnable, RunnableConfig
 from redis import Redis
 from typing import Callable, Any
@@ -98,6 +99,7 @@ class Patcher:
         return res
 
     def _create_patch_input(self, vuln: ConfirmedVulnerability) -> PatchInput:
+        node_local.make_locally_available(vuln.crash.crash.crash_input_path)
         return PatchInput(
             challenge_task_dir=Path(vuln.crash.crash.target.task_dir),
             task_id=vuln.crash.crash.target.task_id,

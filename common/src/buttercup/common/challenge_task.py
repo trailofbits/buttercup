@@ -12,7 +12,7 @@ from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
 from contextlib import contextmanager
 from typing import Iterator
-
+import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,8 @@ class ChallengeTask:
     _helper_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
-        self.read_only_task_dir = Path(self.read_only_task_dir)
+        self.read_only_task_dir = self._local_ro_dir(self.read_only_task_dir)
+
         self.local_task_dir = Path(self.local_task_dir) if self.local_task_dir else None
         self.python_path = Path(self.python_path)
 
@@ -93,6 +94,18 @@ class ChallengeTask:
             raise ChallengeTaskError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
 
         self._check_python_path()
+
+    def _local_ro_dir(self, path: Path) -> Path:
+        """Return the local path to the read-only task directory.
+
+        If the path doesn't exist, it will be downloaded from the remote storage"""
+        lp = Path(path)
+        if not lp.exists():
+            try:
+                return node_local.remote_archive_to_dir(lp)
+            except Exception as e:
+                raise ChallengeTaskError(f"Failed to download task directory from remote storage: {e}") from e
+        return lp
 
     def _check_dir_exists(self, path: Path) -> None:
         if not path.exists():
@@ -531,6 +544,8 @@ class ChallengeTask:
             return
 
         work_dir = Path(work_dir) if work_dir else None
+        if work_dir:
+            work_dir.mkdir(parents=True, exist_ok=True)
         with create_tmp_dir(work_dir, delete, prefix=self.task_dir.name + "-") as tmp_dir:
             # Copy the entire task directory to the temporary location
             logger.info(f"Copying task directory {self.task_dir} to {tmp_dir}")

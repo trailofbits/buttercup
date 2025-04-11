@@ -1,8 +1,12 @@
 from pathlib import Path
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 import subprocess
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
+import os
+from buttercup.common.challenge_task import (
+    ChallengeTask,
+    ChallengeTaskError,
+)
 from buttercup.common.task_meta import TaskMeta
 
 
@@ -65,7 +69,7 @@ def challenge_task_custom_python(task_dir: Path) -> ChallengeTask:
 
 def get_mock_popen(returncode: int, stdout: list[bytes], stderr: list[bytes]):
     with patch("subprocess.Popen") as mock_popen:
-        mock_process = Mock()
+        mock_process = MagicMock()
         mock_process.returncode = returncode
 
         # Create mock pipe for stdout that handles multiple readline() calls gracefully
@@ -492,7 +496,7 @@ def test_is_delta_mode(challenge_task: ChallengeTask):
 def test_apply_patch_diff(challenge_task: ChallengeTask):
     """Test applying a patch diff to the source code."""
     diff_path = challenge_task.get_diff_path() / "patch1.diff"
-    challenge_task.get_diffs = Mock(return_value=[diff_path])
+    challenge_task.get_diffs = MagicMock(return_value=[diff_path])
     with diff_path.open("w") as f:
         f.write(r"""diff -ru a/test.txt b/test.txt
 --- a/test.txt        2025-02-18 14:27:44.815130716 +0000
@@ -545,3 +549,167 @@ def test_workdir_from_dockerfile(challenge_task_readonly: ChallengeTask):
 def test_workdir_from_dockerfile_libjpeg(libjpeg_oss_fuzz_task: ChallengeTask):
     """Test getting the workdir from the dockerfile."""
     assert libjpeg_oss_fuzz_task.workdir_from_dockerfile() == Path("/src/libjpeg-turbo")
+
+
+@pytest.fixture(autouse=True)
+def mock_node_data_dir():
+    """Set the NODE_DATA_DIR environment variable for all tests."""
+    with patch.dict(os.environ, {"NODE_DATA_DIR": "/test/node/data/dir"}):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_node_local(monkeypatch):
+    """Mock the node_local module functions used by ChallengeTask."""
+    # Create a patch for buttercup.common.node_local's _get_root_path to return a valid path
+    with patch("buttercup.common.node_local._get_root_path", return_value=Path("/test/node/data/dir")):
+        # Create a patch for remote_archive_to_dir that just returns the path
+        with patch("buttercup.common.node_local.remote_archive_to_dir") as mock_remote_archive:
+            # The remote_archive_to_dir function should just return the input path
+            mock_remote_archive.side_effect = lambda p: p
+            yield
+
+
+@patch("buttercup.common.node_local._get_root_path")
+@patch("buttercup.common.node_local.remote_archive_to_dir")
+def test_challenge_task_with_node_local_storage_existing(
+    mock_remote_archive_to_dir, mock_get_root_path, mock_node_local_storage, task_dir
+):
+    """Test ChallengeTask behavior when using node_local and path exists."""
+    mock_get_root_path.return_value = Path(mock_node_local_storage)
+    # When path already exists, remote_archive_to_dir should not be called
+    mock_remote_archive_to_dir.side_effect = Exception("Should not be called")
+
+    # Create a path that exists in the node local storage
+    existing_path = Path(mock_node_local_storage) / "existing-task"
+
+    # The original Path.exists method to use for paths we don't specifically handle
+    original_exists = Path.exists
+
+    # Patch Path.exists to return specific values based on what's being checked
+    def mock_exists(self):
+        # For the main task directory and helper.py, return True
+        if str(self) == str(existing_path) or str(self).endswith("helper.py"):
+            return True
+        # For checking required directories
+        if str(self).endswith("src") or str(self).endswith("fuzz-tooling"):
+            return True
+        # For test.txt
+        if str(self).endswith("test.txt"):
+            return True
+        # For all other cases, call the original method
+        return original_exists(self)
+
+    # Mock is_dir to always return True for directory checks
+    def mock_is_dir(self):
+        return True
+
+    with patch.object(Path, "exists", mock_exists):
+        with patch.object(Path, "is_dir", mock_is_dir):
+            # Create a challenge task with this path - it should use the local version
+            with patch.object(ChallengeTask, "_check_python_path"):
+                with patch.object(TaskMeta, "load"):
+                    task = ChallengeTask(read_only_task_dir=existing_path)
+
+                    # Verify it's using the local path
+                    assert task.read_only_task_dir == existing_path
+
+                    # Verify mock_remote_archive_to_dir wasn't called
+                    mock_remote_archive_to_dir.assert_not_called()
+
+                    # Verify content is from the local copy
+                    with patch.object(Path, "read_text", return_value="node local storage content"):
+                        source_file = task.get_source_path() / "test.txt"
+                        assert source_file.read_text() == "node local storage content"
+
+
+@patch("buttercup.common.node_local._get_root_path")
+@patch("buttercup.common.node_local.remote_archive_to_dir")
+def test_challenge_task_with_node_local_storage_download(
+    mock_remote_archive_to_dir, mock_get_root_path, mock_node_local_storage, task_dir
+):
+    """Test ChallengeTask behavior when using node_local and path doesn't exist."""
+    mock_get_root_path.return_value = Path(mock_node_local_storage)
+
+    # Create a path that doesn't exist in the node local storage
+    non_existing_path = Path(mock_node_local_storage) / "non-existing-task"
+    downloaded_path = Path(mock_node_local_storage) / "downloaded-task"
+
+    # Create the directory structure for the downloaded path
+    downloaded_path.mkdir(exist_ok=True)
+    oss_fuzz = downloaded_path / "fuzz-tooling" / "my-oss-fuzz"
+    source = downloaded_path / "src" / "my-source"
+    oss_fuzz.mkdir(parents=True, exist_ok=True)
+    source.mkdir(parents=True, exist_ok=True)
+
+    # Create a mock helper.py file
+    helper_path = oss_fuzz / "infra/helper.py"
+    helper_path.parent.mkdir(parents=True, exist_ok=True)
+    helper_path.write_text("import sys;\nsys.exit(0)\n")
+
+    # Create task metadata
+    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(downloaded_path)
+
+    # Setup mock to return a downloaded path
+    mock_remote_archive_to_dir.return_value = downloaded_path
+
+    # Patch Path.exists to return False for the original path
+    # but True for the downloaded path and its contents
+    original_exists = Path.exists
+
+    def mock_exists(self):
+        # Non-existing path returns False
+        if str(self) == str(non_existing_path):
+            return False
+        # For helper.py file, return True
+        if str(self).endswith("helper.py"):
+            return True
+        # For checking directories
+        if str(self).endswith("src") or str(self).endswith("fuzz-tooling"):
+            return True
+        # For all other cases, call the original method
+        return original_exists(self)
+
+    with patch.object(Path, "exists", mock_exists):
+        # Create a challenge task with this path - it should trigger download
+        with patch.object(ChallengeTask, "_check_python_path"):
+            with patch.object(ChallengeTask, "_check_dir_exists"):
+                task = ChallengeTask(read_only_task_dir=non_existing_path)
+
+                # Verify remote_archive_to_dir was called with correct path
+                mock_remote_archive_to_dir.assert_called_once_with(non_existing_path)
+
+                # Verify it's using the downloaded path
+                assert task.read_only_task_dir == downloaded_path
+
+
+@pytest.fixture
+def mock_node_local_storage(tmp_path: Path):
+    """Setup a mock NODE_DATA_DIR environment for testing node local storage."""
+    node_data_dir = tmp_path / "node_data_dir"
+    node_data_dir.mkdir(exist_ok=True)
+    scratch_dir = node_data_dir / "scratch"
+    scratch_dir.mkdir(exist_ok=True)
+
+    # Create a pre-existing local path to simulate already downloaded data
+    local_task_path = node_data_dir / "existing-task"
+    local_task_path.mkdir(exist_ok=True)
+
+    # Copy task structure to local task path
+    oss_fuzz = local_task_path / "fuzz-tooling" / "my-oss-fuzz"
+    source = local_task_path / "src" / "my-source"
+    oss_fuzz.mkdir(parents=True, exist_ok=True)
+    source.mkdir(parents=True, exist_ok=True)
+
+    # Create a mock helper.py file
+    helper_path = oss_fuzz / "infra/helper.py"
+    helper_path.parent.mkdir(parents=True, exist_ok=True)
+    helper_path.write_text("import sys;\nsys.exit(0)\n")
+
+    # Create a mock test.txt file with different content to verify which one is used
+    (source / "test.txt").write_text("node local storage content")
+
+    # Create task metadata
+    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(local_task_path)
+
+    yield node_data_dir

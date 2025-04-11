@@ -20,6 +20,7 @@ from pathlib import Path
 from redis import Redis
 import subprocess
 import tempfile
+import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +221,9 @@ class ProgramModel:
                 if not local_challenge.apply_patch_diff():
                     logger.info(f"No diffs for {args.package_name} {args.task_id}")
 
-                CodeQueryPersistent(local_challenge, work_dir=self.wdir)
+                cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
+                # Push it to the remote storage
+                node_local.dir_to_remote_archive(cqp.challenge.task_dir)
 
             return True
         except Exception as e:

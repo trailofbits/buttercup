@@ -37,6 +37,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
 FROM runtime-base AS runtime
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
 WORKDIR /app/seed-gen

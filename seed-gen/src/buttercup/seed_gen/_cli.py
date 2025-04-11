@@ -13,9 +13,11 @@ from buttercup.seed_gen.seed_gen_bot import SeedGenBot
 def command_server(args: argparse.Namespace) -> None:
     """Seed-gen worker server"""
     os.makedirs(args.wdir, exist_ok=True)
+    if args.corpus_root:
+        os.makedirs(args.corpus_root, exist_ok=True)
     init_telemetry("seed-gen")
     redis = Redis.from_url(args.redis_url)
-    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir)
+    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir, args.corpus_root)
     seed_gen_bot.run()
 
 
@@ -27,6 +29,9 @@ def main() -> None:
         "--redis_url", required=False, help="Redis URL", default="redis://127.0.0.1:6379"
     )
     parser_server.add_argument("--wdir", required=True, help="Working directory")
+    parser_server.add_argument(
+        "--corpus_root", required=False, help="Corpus root directory", default=None
+    )
     parser_server.add_argument(
         "--sleep", required=False, default=1, type=int, help="Sleep between runs (seconds)"
     )
