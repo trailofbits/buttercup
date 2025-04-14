@@ -66,7 +66,7 @@ up() {
 		az aks get-credentials --resource-group "$RESOURCE_GROUP_NAME" --name "$KUBERNETES_CLUSTER_NAME"
 	else
 		echo -e "${BLU}Deploying minikube cluster${NC}"
-		minikube status | grep -q "Running" || minikube start --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
+		minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
 		echo -e "${GRN}Minikube cluster status:${NC}"
 		minikube status
 
