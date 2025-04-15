@@ -39,7 +39,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path):
     [
         (
             "process_data_context_main",
-            "jdmainct.c",
+            "src/libjpeg-turbo/jdmainct.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -62,7 +62,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path):
         ),
         (
             "decompress_smooth_data",
-            "jdcoefct.c",
+            "src/libjpeg-turbo/jdcoefct.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -80,7 +80,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path):
         ),
         (
             "jpeg_read_scanlines",
-            "jdapistd.c",
+            "src/libjpeg-turbo/jdapistd.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -110,6 +110,85 @@ def test_libjpeg_indexing(
     functions = codequery.get_functions(function_name, file_path=Path(file_path))
     assert len(functions) == 1
     assert functions[0].name == function_name
+    assert str(functions[0].file_path) == file_path
     assert len(functions[0].bodies) == function_info.num_bodies
     for body in function_info.body_excerpts:
         assert any([body in x.body for x in functions[0].bodies])
+
+
+@dataclass(frozen=True)
+class TestCallerInfo:
+    name: str
+    file_path: Path
+    start_line: int
+
+
+# Prevent pytest from collecting this as a test
+TestCallerInfo.__test__ = False
+
+
+@pytest.mark.parametrize(
+    "function_name,file_path,line_number,fuzzy,expected_callers",
+    [
+        (
+            "jpeg_read_scanlines",
+            "src/libjpeg-turbo/jdapistd.c",
+            None,
+            False,
+            [
+                TestCallerInfo(
+                    name="tjDecompress2",
+                    file_path="src/libjpeg-turbo/turbojpeg.c",
+                    start_line=1241,
+                ),
+                TestCallerInfo(
+                    name="read_and_discard_scanlines",
+                    file_path="src/libjpeg-turbo/jdapistd.c",
+                    start_line=317,
+                ),
+                TestCallerInfo(
+                    name="main",
+                    file_path="src/libjpeg-turbo/djpeg.c",
+                    start_line=533,
+                ),
+            ],
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_libjpeg_get_callers(
+    libjpeg_oss_fuzz_task: ChallengeTask,
+    function_name,
+    file_path,
+    line_number,
+    fuzzy,
+    expected_callers,
+):
+    """Test that we can get function callers"""
+    codequery = CodeQuery(libjpeg_oss_fuzz_task)
+    function = codequery.get_functions(
+        function_name=function_name,
+        file_path=Path(file_path),
+        line_number=line_number,
+        fuzzy=fuzzy,
+    )[0]
+
+    callers = codequery.get_callers(function)
+    for expected_caller in expected_callers:
+        caller_info = [
+            c
+            for c in callers
+            if c.name == expected_caller.name
+            and c.file_path == Path(expected_caller.file_path)
+            and any(
+                True
+                for b in c.bodies
+                if b.start_line <= expected_caller.start_line <= b.end_line
+            )
+        ]
+        if len(caller_info) == 0:
+            pytest.fail(f"Couldn't find expected caller: {expected_caller}")
+        elif len(caller_info) > 1:
+            pytest.fail(f"Found multiple identical callers for: {expected_caller}")
+    # Make sure we don't get more callers than expected
+    assert len(expected_callers) == len(callers)

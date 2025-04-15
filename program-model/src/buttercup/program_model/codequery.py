@@ -250,7 +250,7 @@ class CodeQuery:
         res: set[Function] = set()
         results_by_file = groupby(results_all, key=lambda x: x.file)
         for file, results in results_by_file:
-            functions_found = [result.value for result in results]
+            functions_found = list(set(result.value for result in results))
 
             if not fuzzy and not all(function_name == f for f in functions_found):
                 logger.warning(
@@ -271,18 +271,31 @@ class CodeQuery:
                     logger.warning("Function not found in tree-sitter: %s", function)
                     continue
                 if line_number:
-                    lines = [body.start_line for body in f.bodies]
+                    lines = [
+                        (
+                            body.start_line,
+                            body.end_line,
+                        )
+                        for body in f.bodies
+                    ]
                     logger.debug(
                         "Looking for function %s in file %s on lines %s",
                         function,
                         file,
                         ",".join(map(str, lines)),
                     )
-                    if line_number in lines:
+                    # NOTE(boyan): We check whether the supplied line to look up for the function
+                    # is contained within at least one of the function bodies found by
+                    # tree-sitter
+                    if any(
+                        True
+                        for start_line, end_line in lines
+                        if start_line <= line_number <= end_line
+                    ):
                         res.add(f)
                     else:
                         logger.warning(
-                            "Function (%s) not found using tree-sitter in file %s on line %d",
+                            "Function (%s) not found using tree-sitter in file %s for line %d",
                             function,
                             file,
                             line_number,
