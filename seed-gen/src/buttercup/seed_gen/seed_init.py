@@ -1,39 +1,77 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
+from typing import override
 
-from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import Command
 
-from buttercup.seed_gen.prompts import PYTHON_SEED_SYSTEM_PROMPT, PYTHON_SEED_USER_PROMPT
+from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.seed_gen.prompts import (
+    PYTHON_SEED_INIT_SYSTEM_PROMPT,
+    PYTHON_SEED_INIT_USER_PROMPT,
+    SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT,
+    SEED_INIT_GET_CONTEXT_USER_PROMPT,
+)
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
-from buttercup.seed_gen.task import Task
-from buttercup.seed_gen.utils import extract_md
+from buttercup.seed_gen.seed_task import SeedBaseTask
+from buttercup.seed_gen.task import BaseTaskState
 
 logger = logging.getLogger(__name__)
 
 
-class SeedInitTask(Task):
+@dataclass
+class SeedInitTask(SeedBaseTask):
     SEED_INIT_SEED_COUNT = 8
+    MAX_CONTEXT_ITERATIONS = 2
+    MAX_TOOL_CALLS = 4
 
-    def generate_seed_funcs(self, harness: str, additional_context: str) -> str:
+    @override
+    def _generate_seeds(self, state: BaseTaskState) -> Command:
+        """Generate seed functions using collected function definitions"""
+        logger.info("Generating seeds")
+        prompt_vars = {
+            "count": self.SEED_INIT_SEED_COUNT,
+            "harness": state.harness,
+            "retrieved_context": state.format_retrieved_context(),
+        }
+        generated_functions = self._generate_python_funcs_base(
+            PYTHON_SEED_INIT_SYSTEM_PROMPT, PYTHON_SEED_INIT_USER_PROMPT, prompt_vars
+        )
+        return Command(update={"generated_functions": generated_functions})
+
+    @override
+    def _get_context(self, state: BaseTaskState) -> Command:
+        """Generate tool calls to retrieve context"""
+
+        logger.info("Getting context")
+        prompt_vars = {
+            "harness": state.harness,
+            "retrieved_code": state.format_retrieved_context(),
+            "max_calls": self.MAX_TOOL_CALLS,
+        }
+        res = self._get_context_base(
+            SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT,
+            SEED_INIT_GET_CONTEXT_USER_PROMPT,
+            state,
+            prompt_vars,
+        )
+        return res
+
+    def generate_seed_funcs(self, harness: str) -> str:
         """Generate a python file of seed-generation functions"""
-        logger.debug('Additional context (snippet): "%s"', additional_context[:250])
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", PYTHON_SEED_SYSTEM_PROMPT),
-                ("human", PYTHON_SEED_USER_PROMPT),
-            ]
+        state = BaseTaskState(
+            harness=harness,
+            task=self,
         )
-        chain = prompt | self.llm | extract_md
-        chain_config = chain.with_config(RunnableConfig(tags=["generate_seed_funcs"]))
-        funcs = chain_config.invoke(
-            {
-                "count": self.SEED_INIT_SEED_COUNT,
-                "harness": harness,
-                "additional_context": additional_context,
-            }
+        workflow = self._build_workflow(BaseTaskState)
+        llm_callbacks = get_langfuse_callbacks()
+        chain = workflow.compile().with_config(
+            RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks)
         )
-        return funcs
+        result = chain.invoke(state)
+
+        return result["generated_functions"]
 
     def do_task(self, output_dir: Path) -> None:
         """Do seed-init task"""
@@ -41,10 +79,9 @@ class SeedInitTask(Task):
         harness = self.get_harness_source()
         if harness is None:
             return
-        additional_context = ""
         try:
             logger.info("Generating seed functions for challenge %s", self.package_name)
-            funcs = self.generate_seed_funcs(harness, additional_context)
+            funcs = self.generate_seed_funcs(harness)
             logger.info("Executing seed functions for challenge %s", self.package_name)
             sandbox_exec_funcs(funcs, output_dir)
         except Exception as err:

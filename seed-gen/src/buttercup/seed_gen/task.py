@@ -1,9 +1,19 @@
 import logging
 import re
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Annotated, Any
 
+from langchain.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.tools import BaseTool, tool
+from langchain_core.tools.base import InjectedToolCallId
+from langgraph.graph import add_messages
+from langgraph.prebuilt import InjectedState
+from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 from buttercup.common.challenge_task import ChallengeTask
@@ -12,7 +22,7 @@ from buttercup.program_model.api import Graph
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
-from buttercup.seed_gen.utils import rebase_src_path
+from buttercup.seed_gen.utils import extract_md, rebase_src_path
 
 logger = logging.getLogger(__name__)
 
@@ -38,24 +48,22 @@ class TaskName(str, Enum):
     VULN_DISCOVERY = "vuln-discovery"
 
 
+@dataclass
 class Task:
-    def __init__(
-        self,
-        package_name: str,
-        harness_name: str,
-        challenge_task: ChallengeTask,
-        codequery: CodeQueryPersistent,
-        llm: BaseChatModel | None = None,
-    ):
-        self.package_name = package_name
-        self.harness_name = harness_name
-        self.challenge_task = challenge_task
-        self.codequery = codequery
-        if llm is None:
+    package_name: str
+    harness_name: str
+    challenge_task: ChallengeTask
+    codequery: CodeQueryPersistent
+    llm: BaseChatModel | None = None
+    program_model: Graph = field(init=False)
+    tools: list[BaseTool] = field(init=False)
+
+    def __post_init__(self) -> None:
+        if self.llm is None:
             self.llm = self.get_default_llm()
-        else:
-            self.llm = llm
         self.program_model = Graph()
+        self.tools = [Task.get_function_definition]
+        self.llm_with_tools = self.llm.bind_tools(self.tools)
 
     @staticmethod
     def get_default_llm() -> BaseChatModel:
@@ -175,3 +183,113 @@ class Task:
             "No function definition found for %s (paths: %s)", function_name, function_paths
         )
         return None
+
+    def _generate_python_funcs_base(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        prompt_vars: dict[str, Any],
+    ) -> str:
+        """Base method for generating python seed functions that can be used by different tasks"""
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("human", user_prompt),
+            ]
+        )
+        chain = prompt | self.llm | extract_md
+        generated_functions = ""
+        try:
+            generated_functions = chain.invoke(prompt_vars)
+        except Exception as e:
+            logger.error("Error generating python functions: %s", str(e))
+        return generated_functions
+
+    def _get_context_base(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        state: "BaseTaskState",
+        prompt_vars: dict[str, Any],
+    ) -> Command:
+        """Base method for getting context that can be used by different tasks"""
+
+        prompt = [
+            ("system", system_prompt),
+            ("human", user_prompt.format(**prompt_vars)),
+        ]
+        res = self.llm_with_tools.invoke([*prompt, *state.messages])
+        cmd = Command(
+            update={
+                "messages": [res],
+                "context_iteration": state.context_iteration + 1,
+            }
+        )
+        return cmd
+
+    @tool
+    def get_function_definition(
+        function_name: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Retrieves the source code definition of a function from the codebase."""
+        context_key = f"get_function_definition: {function_name}"
+        if context_key in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Definition for {function_name} already retrieved",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                }
+            )
+        function_def = state.task._do_get_function_def(function_name, [None])
+        if function_def:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Found definition for function {function_name}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                    "retrieved_context": {
+                        **state.retrieved_context,
+                        context_key: function_def.bodies[0].body,
+                    },
+                }
+            )
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        f"Could not find definition for function {function_name}",
+                        tool_call_id=tool_call_id,
+                    )
+                ]
+            }
+        )
+
+
+class BaseTaskState(BaseModel):
+    """Base state for all tasks."""
+
+    harness: str = Field(description="Harness code")
+    messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
+    retrieved_context: dict[str, str] = Field(
+        description="Context retrieved by tools, keyed by tool call", default_factory=dict
+    )
+    generated_functions: str = Field(description="The generated seed functions", default="")
+    context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
+    task: Task = Field(description="The task instance")
+
+    def format_retrieved_context(self) -> str:
+        """Format retrieved context for prompt"""
+        context = ""
+        if self.retrieved_context:
+            for key, content in self.retrieved_context.items():
+                context += f"\n--- Retrieved with {key} ---\n{content}\n"
+        return context

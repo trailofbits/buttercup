@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
@@ -20,6 +21,7 @@ from buttercup.seed_gen.utils import extract_md, get_diff_content
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class VulnDiscoveryTask(Task):
     VULN_DISCOVERY_MAX_POV_COUNT = 8
     MAX_LOOKUP_FUNCTIONS = 5

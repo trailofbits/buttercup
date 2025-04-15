@@ -1,12 +1,14 @@
 # ruff: noqa: E501
-PYTHON_SEED_SYSTEM_PROMPT = """
+PYTHON_SEED_INIT_SYSTEM_PROMPT = """
 Write python functions which create seeds for a program under test.
 """
 
-PYTHON_SEED_USER_PROMPT = """
-I am creating input seeds for a program's fuzzing harness. I will provide the full harness and additional project context.
+PYTHON_SEED_INIT_USER_PROMPT = """
+I am creating input seeds for a program's fuzzing harness. I will provide:
+1. The harness code
+2. Additional context from the program
 
-I will then ask you to write {count} deterministic Python functions that each create a valid input.
+Write {count} deterministic Python functions that each create a valid input.
 
 Put the functions in ONE MARKDOWN BLOCK. The signature for each function will be identical although the names can vary:
 ```
@@ -39,15 +41,54 @@ Remember:
 - Avoid creating very large seeds
 
 
-The full harness is:
+The harness is:
 ```
 {harness}
 ```
-Additional context from the project is:
+Additional context from the program:
 ```
-{additional_context}
+{retrieved_context}
 ```
 The python functions are:
+"""
+
+SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT = """
+Your task is to identify and retrieve relevant code that will help create initial test inputs for a test harness.
+
+You have access to tools that can retrieve code from the project. Use these tools to get additional context about the program.
+"""
+
+SEED_INIT_GET_CONTEXT_USER_PROMPT = """
+I am trying to generate initial test inputs for a harness. I will provide:
+1. The harness code
+2. The history of tool calls made so far
+3. The additional context retrieved from previous tool calls
+
+Your goal is to identify and retrieve additional code that will help create valid test inputs for the harness.
+
+When using the tools:
+1. Focus on code that processes or validates inputs
+2. Look for code that defines the expected input format or structure
+3. Make up to {max_calls} tool calls to gather context
+
+The harness is:
+```
+{harness}
+```
+
+Additional retrieved code:
+```
+{retrieved_code}
+```
+
+Remember:
+- Make up to {max_calls} tool calls to gather context. These calls are in addition to the ones already made.
+- My goal is to create valid test inputs for the harness
+- Focus on code that handles input processing or validation
+- Avoid retrieving code that is already provided in full (in the harness or the retrieved code)
+- If it's a Java program and you're retrieving a method, only specify the method name without the class prefix. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+
+Your response:
 """
 
 DIFF_ANALYSIS_SYSTEM_PROMPT = """
@@ -176,9 +217,12 @@ Write python functions which create inputs that reach a target function from a t
 """
 
 PYTHON_SEED_EXPLORE_USER_PROMPT = """
-I am creating inputs for a program's fuzzing harness that reach a target function. I will provide the full harness and the target function.
+I am creating test inputs for a program's fuzzing harness that reach a target function. I will provide:
+1. The target function definition
+2. The harness code
+3. Additional context from the program
 
-I will then ask you to write {count} deterministic Python functions that each create a valid input and exercise the target function from the harness.
+Write {count} deterministic Python functions that each create a valid input and reach the target function from the harness.
 
 First reason about how to reach the target function from the harness. Then write the functions.
 
@@ -205,52 +249,43 @@ Remember:
 - You can only use the python standard library.
 - Avoid creating very large seeds
 
-
-The full harness is:
-```
-{harness}
-```
-
 The target function is:
 ```
 {target_function}
 ```
 
-Additional function definitions that may be helpful:
+The harness is:
 ```
-{additional_functions}
+{harness}
+```
+
+Additional context from the program:
+```
+{retrieved_context}
 ```
 
 The python functions are:
 """
 
-PYTHON_FUNCTION_LOOKUP_SYSTEM_PROMPT = """
-Identify functions that would be most helpful to create test inputs that reach a target function.
+SEED_EXPLORE_GET_CONTEXT_SYSTEM_PROMPT = """
+Your task is to identify and retrieve relevant code that will help create test inputs that reach a target function from a test harness.
+
+You have access to tools that can retrieve code from the project. Use these tools to get additional context about the program.
 """
 
-PYTHON_FUNCTION_LOOKUP_USER_PROMPT = """
+SEED_EXPLORE_GET_CONTEXT_USER_PROMPT = """
 I am trying to generate test inputs that reach a target function from a harness. I will provide:
 1. The target function definition
 2. The harness code
-3. Any additional function definitions I have already looked up
+3. The history of tool calls made so far
+4. The additional context retrieved from previous tool calls
 
-Please identify 1-{max_lookup_functions} functions based on the provided code which would be most helpful for generating reaching test inputs.
-I will look up the definition of each function you identify and reference them when generating test inputs.
+Your goal is to identify and retrieve additional code that will help create test inputs that reach the target function.
 
-Provide:
-1. The function name
-2. A VERY BRIEF explanation of why having this function's code would be helpful for creating reaching inputs
-
-Format your response as a JSON array of objects with "name" and "reason" fields. For example:
-```
-[
-    {{"name": "parse_command", "reason": "Handles command parsing which is crucial for reaching the target function"}},
-    {{"name": "validate_input", "reason": "Validates inputs before they reach the target function"}}
-]
-```
-Do not specify functions which the provided code already defines.
-
-If it's a Java program, only specify the method name. Do not prefix it with the class name. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+When using the tools:
+1. Focus on code that is part of the execution path from the harness to the target function
+2. Look for code that handles input processing or validation
+3. Make up to {max_calls} tool calls to gather context
 
 The target function is:
 ```
@@ -262,17 +297,17 @@ The harness is:
 {harness}
 ```
 
-Additional function definitions:
+Additional retrieved code:
 ```
-{additional_functions}
+{retrieved_code}
 ```
 
 Remember:
-- Select no more than {max_lookup_functions} functions
+- Make up to {max_calls} tool calls to gather context. These calls are in addition to the ones already made.
 - My goal is to create test inputs that reach the target function
-- Answer only with the JSON array of functions, in the format specified above
-- Do not select a function where the definition is already provided (the target function, in the harness, or in the additional functions)
-- If it's a Java program, only specify the method name. Do not prefix it with the class name.
+- Focus on code that is part of the execution path from harness to target
+- Avoid retrieving code that is already provided in full (in the target function, the harness, or the retrieved code)
+- If it's a Java program and you're retrieving a method, only specify the method name without the class prefix. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
 
 Your response:
 """
