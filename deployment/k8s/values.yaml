@@ -76,7 +76,7 @@ volumes:
   tasks_storage:
     enabled: true
     # When using AKS, specify the appropriate storage class for ReadWriteMany support
-    # For example: "azurefile-csi-nfs"
+    # For example: "azurefile-csi-nfs-${BUTTERCUP_NAMESPACE}"
     storageClass: ""  # Empty string will use cluster default
     size: "5Gi"
     accessMode: ReadWriteMany

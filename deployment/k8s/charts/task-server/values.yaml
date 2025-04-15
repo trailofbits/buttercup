@@ -7,4 +7,3 @@ workers: 1
 service:
   port: 8000
   annotations: {}  # Can be used for cloud-specific LB configurations
-  nodePort: 30080

@@ -1,11 +1,22 @@
 global:
   environment: "aks"
+  orchestratorImage:
+    tag: "${BUTTERCUP_NAMESPACE}"
+  fuzzerImage:
+    tag: "${BUTTERCUP_NAMESPACE}"
+  seedGenImage:
+    tag: "${BUTTERCUP_NAMESPACE}"
+  patcherImage:
+    tag: "${BUTTERCUP_NAMESPACE}"
+  programModelImage:
+    tag: "${BUTTERCUP_NAMESPACE}"
+
   langfuse:
     enabled: true
     host: "${LANGFUSE_HOST}"
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"
-  
+
   crs:
     api_key_id: ${CRS_KEY_ID}
     api_key_token: ${CRS_KEY_TOKEN}
@@ -16,16 +27,23 @@ global:
     competition_api_key_token: ${COMPETITION_API_KEY_TOKEN}
     competition_api_url: "${COMPETITION_API_URL}"
 
+  otel:
+    endpoint: "${OTEL_ENDPOINT}"
+    token: "${OTEL_TOKEN}"
+
 volumes:
   tasks_storage:
-    storageClass: "azurefile-csi-nfs-crs"
-    size: "500Gi"
+    storageClass: "azurefile-csi-nfs-${BUTTERCUP_NAMESPACE}"
   crs_scratch:
-    storageClass: "azurefile-csi-nfs-crs"
-    size: "500Gi"
+    storageClass: "azurefile-csi-nfs-${BUTTERCUP_NAMESPACE}"
+
+redis:
+  master:
+    persistence:
+      enabled: false
 
 litellm:
-  masterKey: "your-secure-master-key"  # Generate with: openssl rand -hex 16
+  masterKey: "${LITELLM_MASTER_KEY}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"
@@ -35,4 +53,4 @@ litellm:
     apiKey: "${ANTHROPIC_API_KEY}"
 
 competition-api:
-  enabled: true
+  enabled: ${COMPETITION_API_ENABLED}

@@ -10,12 +10,11 @@ metadata:
   {{- end }}
 spec:
   # Set type based on environment
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.port }}
       protocol: TCP
       name: http
-      nodePort: {{ .Values.service.nodePort }}
   selector:
     app: task-server

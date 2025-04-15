@@ -17,7 +17,7 @@ mkdir -p "$LOG_DIR"
 echo "Creating log directory: $LOG_DIR"
 
 # Set namespace to crs
-namespace="crs"
+namespace="${BUTTERCUP_NAMESPACE:-crs}"
 echo "Processing namespace: $namespace"
 
 # Get all pods in the crs namespace

@@ -6,13 +6,12 @@ metadata:
   labels:
     app: competition-api
 spec:
-  type: {{ .Values.service.type }}
+  type: ClusterIP
   ports:
     - port: {{ .Values.service.port }}
       targetPort: http
       protocol: TCP
       name: http
-      nodePort: {{ .Values.service.nodePort }}
   selector:
     app: competition-api
 {{- end }}

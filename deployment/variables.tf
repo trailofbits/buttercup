@@ -28,6 +28,12 @@ variable "username" {
   default     = "azureadmin"
 }
 
+variable "vm_size" {
+  type        = string
+  description = "The size of the VM to use for the nodes."
+  default     = "Standard_L16s"
+}
+
 variable "ARM_SUBSCRIPTION_ID" {
   type        = string
   description = "Azure subscription ID"

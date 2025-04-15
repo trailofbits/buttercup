@@ -6,7 +6,8 @@ cd deployment
 cp env.template env
 # Modify `env` according to your needs
 # Make sure BUTTERCUP_K8S_VALUES_TEMPLATE is set to `k8s/values-minikube.template`
-# AZURE_ENABLED/TAILSCALE_ENABLED should be set to false for local development
+# TAILSCALE_ENABLED should be set to false for local development
+# CLUSTER_TYPE should be set to "minikube"
 make up
 ```
 

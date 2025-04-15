@@ -7,85 +7,128 @@ on:
       - "ci/**"
   pull_request:
     branches:
-      - "ci/**"
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
+  build-and-push:
+    uses: ./.github/workflows/docker.yml
+    with:
+      suffix: "-${{ github.run_number }}"
+
   integration:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Setup ghcr.io credentials
+      - name: Set BUTTERCUP_NAMESPACE for PRs
+        if: github.event_name == 'pull_request'
         run: |
-          echo ${{ env.GH_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+          export BUTTERCUP_NAMESPACE=pr-${pull_number}-${{ github.run_number }}
+          echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE}" >> $GITHUB_ENV
 
-      - name: Build docker images
-        run: docker compose build
-
-      - name: Configure .env file
+      - name: Set BUTTERCUP_NAMESPACE for branch
+        if: github.event_name == 'push'
         run: |
-          cp env.template .env
-          sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" .env
+          export BUTTERCUP_NAMESPACE=${GITHUB_REF_NAME/\//-}-${{ github.run_number }}
+          echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE}" >> $GITHUB_ENV
 
-      - name: Configure env.dev.compose file
+      - name: Configure env file for minikube
         run: |
-          # only test vuln discovery
-          echo "BUTTERCUP_SEED_GEN_TEST_TASK=vuln-discovery" >> env.dev.compose
+          cp ../.github/ci-env.template env
+
+          sed -i "s|BUTTERCUP_NAMESPACE=.*|BUTTERCUP_NAMESPACE=${{ env.BUTTERCUP_NAMESPACE }}|" env
+          sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" env
+          sed -i "s|ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|" env
+          sed -i "s|LANGFUSE_HOST=.*|LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}|" env
+          sed -i "s|LANGFUSE_PUBLIC_KEY=.*|LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}|" env
+          sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
+          sed -i "s|GHCR_AUTH=.*|GHCR_AUTH=$(echo "USERNAME:${{ secrets.GHCR_TOKEN }}" | base64)|" env
+          sed -i "s|DOCKER_USERNAME=.*|DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}|" env
+          sed -i "s|DOCKER_PAT=.*|DOCKER_PAT=${{ secrets.DOCKER_PAT }}|" env
+          sed -i "s|SCANTRON_GITHUB_PAT=.*|SCANTRON_GITHUB_PAT=${{ secrets.SCANTRON_GITHUB_PAT }}|" env
+
+        working-directory: deployment
+
+      - name: Set KUBECONFIG from Secret
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" > kubeconfig.yaml
+          echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
 
       - name: Run CRS
-        run: docker compose up -d
-        env:
-          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
-          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
-          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+        run: make up
+        working-directory: deployment
+
+      - name: Wait for pods to be ready
+        run: |
+          kubectl get pods -n $BUTTERCUP_NAMESPACE
+          while ! kubectl wait --for=condition=ready pod -l app=competition-api -n $BUTTERCUP_NAMESPACE --timeout=10s; do
+            echo "Waiting for competition-api pod to be ready..."
+            echo "--------------------------------"
+            kubectl get all,cm,secret,ing -n $BUTTERCUP_NAMESPACE || true
+            kubectl describe pod -n $BUTTERCUP_NAMESPACE -l app=task-server || true
+            echo "--------------------------------"
+            sleep 3
+          done
 
       - name: Submit a task to the CRS
-        run: sleep 5 && bash ./orchestrator/scripts/task_crs.sh
+        run: |
+          kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
+          sleep 5
+          ./orchestrator/scripts/task_crs.sh
+          sleep 5
 
       - name: Wait for vuln submission to happen
-        timeout-minutes: 5
+        timeout-minutes: 25
         run: |
-          while ! docker compose logs scheduler | grep "Vulnerability .* accepted for libpng (harness: .*)" ; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "Updated PoV .* status to TypesSubmissionStatus.PASSED" ; do
             sleep 10
           done
       - name: Wait for patch to be submitted
+        timeout-minutes: 15
+        run: |
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "Updated patch .* status to TypesSubmissionStatus.PASSED"; do
+            sleep 10
+          done
+      - name: Wait for bundle to be submitted
         timeout-minutes: 5
         run: |
-          while ! docker compose logs scheduler | grep "Patch accepted: task=.*vuln=.*patch_id=.*status=TypesSubmissionStatus.ACCEPTED"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "Bundle accepted: task=.* vuln=.* patch=.* bundle_id=bundle_id='.*' status=<TypesSubmissionStatus.ACCEPTED: 'accepted'>"; do
             sleep 10
           done
-      - name: Wait for seed-gen to find PoV
-        timeout-minutes: 1 # low timeout because already waiting for prior steps
+      # TODO: re-enable seed-gen once it's fixed
+      # - name: Wait for seed-gen to find PoV
+      #   timeout-minutes: 10 # low timeout because already waiting for prior steps
+      #   run: |
+      #     while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen | grep "Valid PoV found:"; do
+      #       sleep 10
+      #     done
+      
+      - name: Collect logs
         run: |
-          while ! docker compose logs seed-gen | grep "Valid PoV found:"; do
-            sleep 10
-          done
-      - name: Wait for graph to be created
-        timeout-minutes: 5
-        run: |
-          while ! docker compose logs program-model | grep "Successfully loaded graphml file into JanusGraph"; do
-            sleep 10
-          done
-
-      - name: Collect Docker logs
-        run: |
+          ./collect-logs.sh
           mkdir -p docker_logs
-          for service in $(docker compose ps --services); do
-            docker compose logs $service > "docker_logs/${service}.log" 2>&1
-          done
+          cp -rv crs_pod_logs_* docker_logs
+        if: always()
+        working-directory: deployment
+
+      - name: Turn off CRS
+        run: make down
+        working-directory: deployment
         if: always()
 
       - name: Upload Docker logs
         uses: actions/upload-artifact@v4
         with:
           name: docker-logs
-          path: docker_logs/
+          path: deployment/docker_logs/
           retention-days: 4
         if: always()

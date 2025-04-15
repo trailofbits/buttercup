@@ -45,10 +45,10 @@ global:
 
 volumes:
   tasks_storage:
-    storageClass: "azurefile-csi-nfs"
+    storageClass: "azurefile-csi-nfs-crs"
     size: "100Gi"
   crs_scratch:
-    storageClass: "azurefile-csi-nfs"
+    storageClass: "azurefile-csi-nfs-crs"
     size: "500Gi"
 
 redis:

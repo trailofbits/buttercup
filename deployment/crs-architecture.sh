@@ -14,7 +14,26 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo -e "${BLU}Applying environment variables from ./env${NC}"
 # shellcheck disable=SC1094
 source ./env
-if [ "$AZURE_ENABLED" = "true" ]; then
+
+# Normalize boolean variables
+if [ "$(echo "$DEPLOY_CLUSTER" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
+	DEPLOY_CLUSTER="true"
+else
+	DEPLOY_CLUSTER="false"
+fi
+if [ "$(echo "$TAILSCALE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
+	TAILSCALE_ENABLED="true"
+else
+	unset TAILSCALE_ENABLED
+fi
+if [ "$TAILSCALE_ENABLED" = "true" ]; then
+	envsubst <k8s/base/tailscale-operator/operator.template >k8s/base/tailscale-operator/operator.yaml
+fi
+BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE:-crs}
+DEPLOY_CLUSTER=${DEPLOY_CLUSTER:-true}
+CLUSTER_TYPE=${CLUSTER_TYPE:-minikube}
+
+if [ "$DEPLOY_CLUSTER" = "true" ] && [ "$CLUSTER_TYPE" = "aks" ]; then
 	echo -e "${GRN}Current azure account status:${NC}"
 	az account show --query "{SubscriptionID:id, Tenant:tenantId}" --output table || echo -e "${RED}Error: Failed to retrieve azure account status${NC}"
 fi
@@ -31,71 +50,59 @@ up() {
 	export COMPETITION_API_KEY_BASE64
 	export TS_DNS_IP
 
-	# Normalize boolean variables
-	if [ "$(echo "$TAILSCALE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
-		TAILSCALE_ENABLED="true"
-	else
-		unset TAILSCALE_ENABLED
-	fi
+	if [ "$DEPLOY_CLUSTER" = "true" ]; then
+		case "$CLUSTER_TYPE" in
+			"aks")
+				#deploy AKS resources in Azure
+				echo -e "${BLU}Deploying AKS cluster Resources${NC}"
+				terraform init
+				terraform apply -auto-approve
 
-	if [ "$(echo "$AZURE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
-		AZURE_ENABLED="true"
-	else
-		unset AZURE_ENABLED
-	fi
+				#set resource group name and kubernetes cluster name variables from terraform outputs
+				KUBERNETES_CLUSTER_NAME=$(terraform output -raw kubernetes_cluster_name)
+				RESOURCE_GROUP_NAME=$(terraform output -raw resource_group_name)
 
-	if [ "$TAILSCALE_ENABLED" = "true" ]; then
-		envsubst <k8s/base/tailscale-operator/operator.template >k8s/base/tailscale-operator/operator.yaml
-	fi
+				echo -e "${GRN}KUBERNETES_CLUSTER_NAME is $KUBERNETES_CLUSTER_NAME"
+				echo "RESOURCE_GROUP_NAME is $RESOURCE_GROUP_NAME${NC}"
+				echo -e "${BLU}Retrieving credentials to access AKS cluster${NC}"
+				#retrieve credentials to access AKS cluster
 
-	if [ "$AZURE_ENABLED" = "true" ]; then
-		#deploy AKS resources in Azure
-		echo -e "${BLU}Deploying AKS cluster Resources${NC}"
-		terraform init
-		terraform apply -auto-approve
+				az aks get-credentials --resource-group "$RESOURCE_GROUP_NAME" --name "$KUBERNETES_CLUSTER_NAME"
+				;;
+			*)
+				echo -e "${BLU}Deploying minikube cluster${NC}"
+				minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
+				echo -e "${GRN}Minikube cluster status:${NC}"
+				minikube status
 
-		#set resource group name and kubernetes cluster name variables from terraform outputs
-		KUBERNETES_CLUSTER_NAME=$(terraform output -raw kubernetes_cluster_name)
-		RESOURCE_GROUP_NAME=$(terraform output -raw resource_group_name)
-
-		echo -e "${GRN}KUBERNETES_CLUSTER_NAME is $KUBERNETES_CLUSTER_NAME"
-		echo "RESOURCE_GROUP_NAME is $RESOURCE_GROUP_NAME${NC}"
-		echo -e "${BLU}Retrieving credentials to access AKS cluster${NC}"
-		#retrieve credentials to access AKS cluster
-
-		az aks get-credentials --resource-group "$RESOURCE_GROUP_NAME" --name "$KUBERNETES_CLUSTER_NAME"
-	else
-		echo -e "${BLU}Deploying minikube cluster${NC}"
-		minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
-		echo -e "${GRN}Minikube cluster status:${NC}"
-		minikube status
-
-		echo -e "${BLU}Building local docker images${NC}"
-		eval $(minikube docker-env)
-		docker build -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
-		docker build -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
-		docker build -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
-		docker build -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
-		docker build -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
+				echo -e "${BLU}Building local docker images${NC}"
+				eval $(minikube docker-env)
+				docker build -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
+				docker build -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				docker build -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
+				docker build -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
+				docker build -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
+				;;
+		esac
 	fi
 
 	# Create namespace if it doesn't exist
-	kubectl create namespace crs || true
+	kubectl create namespace "$BUTTERCUP_NAMESPACE" || true
 
 	# Set secrets
 	GHCR_PAT=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f2)
 	GHCR_USERNAME=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f1)
 	echo -e "${BLU}Creating ghcr secret${NC}"
-	kubectl delete secret ghcr --namespace crs || true
+	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE" || true
 	kubectl create secret generic ghcr \
-		--namespace crs \
+		--namespace "$BUTTERCUP_NAMESPACE" \
 		--from-literal=pat="$GHCR_PAT" \
 		--from-literal=username="$GHCR_USERNAME" \
 		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT" || echo -e "${GRN}ghcr secret already exists${NC}"
 
 
 	kubectl create secret docker-registry docker-auth \
-		--namespace crs \
+		--namespace "$BUTTERCUP_NAMESPACE" \
 		--docker-server=docker.io \
 		--docker-username="$DOCKER_USERNAME" \
 		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
@@ -120,14 +127,14 @@ up() {
 	umask 077 # Ensure new files are created with permissions only for current user
 	VALUES_TEMPLATE=${BUTTERCUP_K8S_VALUES_TEMPLATE:-k8s/values-aks.template}
 	envsubst <"$VALUES_TEMPLATE" >k8s/values-overrides.crs-architecture.yaml
-	helm upgrade --install buttercup --namespace crs ./k8s -f ./k8s/values-overrides.crs-architecture.yaml --create-namespace
+	helm upgrade --install buttercup --namespace "$BUTTERCUP_NAMESPACE" ./k8s -f ./k8s/values-overrides.crs-architecture.yaml --create-namespace
 	umask 022 # Reset umask to default value
 
 	if [ "$TAILSCALE_ENABLED" = "true" ]; then
 		kubectl apply -k k8s/base/tailscale-connections/
 		echo -e "${BLU}Waiting for ingress hostname DNS registration${NC}"
-		timeout 5m bash -c "until kubectl get ingress -n crs buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' | grep -q '.'; do sleep 1; done" || echo -e "${BLU}Error: Ingress hostname failed to be to set within 5 minutes${NC}"
-		INGRESS_HOSTNAME=$(kubectl get ingress -n crs buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+		timeout 5m bash -c "until kubectl get ingress -n "$BUTTERCUP_NAMESPACE" buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' | grep -q '.'; do sleep 1; done" || echo -e "${BLU}Error: Ingress hostname failed to be to set within 5 minutes${NC}"
+		INGRESS_HOSTNAME=$(kubectl get ingress -n "$BUTTERCUP_NAMESPACE" buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 		echo -e "${GRN}Your ingress DNS hostname is $INGRESS_HOSTNAME${NC}"
 	fi
 
@@ -137,11 +144,16 @@ up() {
 #destroy the AKS cluster and kubernetes resources function
 down() {
 	down-k8s
-	if [ "$AZURE_ENABLED" = "true" ]; then
-		echo -e "${BLU}Destroying AKS cluster${NC}"
-		terraform apply -destroy -auto-approve
-	else
-		minikube stop
+	if [ "$DEPLOY_CLUSTER" = "true" ]; then
+		case "$CLUSTER_TYPE" in
+			"aks")
+				echo -e "${BLU}Destroying AKS cluster${NC}"
+				terraform apply -destroy -auto-approve
+				;;
+			*)
+				minikube stop
+				;;
+		esac
 	fi
 }
 
@@ -150,12 +162,12 @@ down-k8s() {
 	echo -e "${BLU}Deleting Kubernetes resource${NC}"
 	set +e
 	kubectl delete -k k8s/base/tailscale-connections/
-	helm uninstall --wait --namespace crs buttercup
+	helm uninstall --wait --namespace "$BUTTERCUP_NAMESPACE" buttercup
 	kubectl delete -k k8s/base/tailscale-coredns/
 	kubectl delete -k k8s/base/tailscale-dns/
 	kubectl delete -k k8s/base/tailscale-operator/
-	kubectl delete secret ghcr --namespace crs
-	kubectl delete namespace crs
+	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE"
+	kubectl delete namespace "$BUTTERCUP_NAMESPACE"
 	set -e
 }
 

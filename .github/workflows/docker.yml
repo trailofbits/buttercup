@@ -1,6 +1,12 @@
 name: Docker Build and Push
 
 on:
+  workflow_call:
+    inputs:
+      suffix:
+        required: false
+        type: string
+        default: ""
   release:
     types: [created]
   push:
@@ -52,11 +58,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.BASE_IMAGE_NAME }}-${{ matrix.component }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch,suffix=${{ inputs.suffix }}
+            type=ref,event=pr,suffix=${{ inputs.suffix }}
+            type=ref,event=tag,suffix=${{ inputs.suffix }}
+            type=semver,pattern={{version}},suffix=${{ inputs.suffix }}
+            type=semver,pattern={{major}}.{{minor}},suffix=${{ inputs.suffix }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
