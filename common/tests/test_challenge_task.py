@@ -8,6 +8,7 @@ from buttercup.common.challenge_task import (
     ChallengeTaskError,
 )
 from buttercup.common.task_meta import TaskMeta
+import tempfile
 
 
 @pytest.fixture
@@ -284,9 +285,12 @@ def test_build_fuzzers_custom_python(challenge_task_custom_python: ChallengeTask
 
 
 @pytest.fixture
-def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
+def libjpeg_oss_fuzz_task_dir(tmp_path: Path) -> Path:
     """Create a challenge task using a real OSS-Fuzz repository."""
     # Clone real oss-fuzz repo into temp dir
+    tmp_path = tmp_path / "libjpeg-turbo"
+    tmp_path.mkdir(parents=True)
+
     oss_fuzz_dir = tmp_path / "fuzz-tooling"
     oss_fuzz_dir.mkdir(parents=True)
     source_dir = tmp_path / "src"
@@ -319,10 +323,20 @@ def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
     # Create task metadata
     TaskMeta(project_name="libjpeg-turbo", focus="libjpeg-turbo", task_id="task-id-libjpeg-turbo").save(tmp_path)
 
+    yield tmp_path
+
+
+@pytest.fixture
+def libjpeg_oss_fuzz_task(libjpeg_oss_fuzz_task_dir: Path) -> ChallengeTask:
     return ChallengeTask(
-        read_only_task_dir=tmp_path,
-        local_task_dir=tmp_path,
+        read_only_task_dir=libjpeg_oss_fuzz_task_dir,
     )
+
+
+@pytest.fixture
+def libjpeg_oss_fuzz_task_rw(libjpeg_oss_fuzz_task: ChallengeTask) -> ChallengeTask:
+    with libjpeg_oss_fuzz_task.get_rw_copy(None) as local_task:
+        yield local_task
 
 
 @pytest.fixture
@@ -336,14 +350,14 @@ def libjpeg_crash_testcase() -> Path:
 
 
 @pytest.mark.integration
-def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
+def test_real_build_workflow(libjpeg_oss_fuzz_task_rw: ChallengeTask):
     """Test the full build workflow using actual OSS-Fuzz repository."""
     # Build the base image
-    result = libjpeg_oss_fuzz_task.build_image(pull_latest_base_image=False)
+    result = libjpeg_oss_fuzz_task_rw.build_image(pull_latest_base_image=False)
     assert result.success is True, f"Build image failed: {result.error}"
 
     # Build the fuzzers
-    result = libjpeg_oss_fuzz_task.build_fuzzers(
+    result = libjpeg_oss_fuzz_task_rw.build_fuzzers(
         engine="libfuzzer",
         sanitizer="address",
         architecture="x86_64",
@@ -351,7 +365,7 @@ def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
     assert result.success is True, f"Build fuzzers failed: {result.error}"
 
     # Check the build
-    result = libjpeg_oss_fuzz_task.check_build(
+    result = libjpeg_oss_fuzz_task_rw.check_build(
         engine="libfuzzer",
         sanitizer="address",
         architecture="x86_64",
@@ -360,9 +374,9 @@ def test_real_build_workflow(libjpeg_oss_fuzz_task: ChallengeTask):
 
 
 @pytest.mark.integration
-def test_build_fuzzers_with_cache(libjpeg_oss_fuzz_task: ChallengeTask):
+def test_build_fuzzers_with_cache(libjpeg_oss_fuzz_task_rw: ChallengeTask):
     """Test building fuzzers with cache."""
-    result = libjpeg_oss_fuzz_task.build_fuzzers_with_cache(
+    result = libjpeg_oss_fuzz_task_rw.build_fuzzers_with_cache(
         engine="libfuzzer",
         sanitizer="address",
     )
@@ -370,7 +384,7 @@ def test_build_fuzzers_with_cache(libjpeg_oss_fuzz_task: ChallengeTask):
     assert result.output is not None
     assert "cp /src/libjpeg_turbo_fuzzer_seed_corpus.zip /out/" in result.output.decode()
 
-    result = libjpeg_oss_fuzz_task.build_fuzzers_with_cache(
+    result = libjpeg_oss_fuzz_task_rw.build_fuzzers_with_cache(
         engine="libfuzzer",
         sanitizer="address",
     )
@@ -381,12 +395,12 @@ def test_build_fuzzers_with_cache(libjpeg_oss_fuzz_task: ChallengeTask):
 
 
 @pytest.mark.integration
-def test_real_reproduce_pov(libjpeg_oss_fuzz_task: ChallengeTask, libjpeg_crash_testcase: Path):
+def test_real_reproduce_pov(libjpeg_oss_fuzz_task_rw: ChallengeTask, libjpeg_crash_testcase: Path):
     """Test the reproduce POV workflow using actual OSS-Fuzz repository."""
     # Reproduce the POV
-    libjpeg_oss_fuzz_task.build_image(pull_latest_base_image=False)
-    libjpeg_oss_fuzz_task.build_fuzzers(engine="libfuzzer", sanitizer="address")
-    result = libjpeg_oss_fuzz_task.reproduce_pov(
+    libjpeg_oss_fuzz_task_rw.build_image(pull_latest_base_image=False)
+    libjpeg_oss_fuzz_task_rw.build_fuzzers(engine="libfuzzer", sanitizer="address")
+    result = libjpeg_oss_fuzz_task_rw.reproduce_pov(
         fuzzer_name="libjpeg_turbo_fuzzer",
         crash_path=libjpeg_crash_testcase,
     )
@@ -531,13 +545,10 @@ def test_restore_task_same_dir(challenge_task: ChallengeTask):
     """Test restoring a challenge task to the same directory."""
     with patch.object(ChallengeTask, "_check_python_path"):
         with challenge_task.get_rw_copy(None) as local_task:
-            assert local_task.task_dir == local_task.read_only_task_dir
+            assert local_task.task_dir != local_task.read_only_task_dir, "get_rw_copy should always create a copy"
             local_task.get_source_path().joinpath("b.txt").write_text("b")
 
-            with pytest.raises(
-                ChallengeTaskError, match="Task cannot be restored, it doesn't have a local task directory"
-            ):
-                local_task.restore()
+            local_task.restore()
 
 
 def test_workdir_from_dockerfile(challenge_task_readonly: ChallengeTask):
@@ -549,6 +560,85 @@ def test_workdir_from_dockerfile(challenge_task_readonly: ChallengeTask):
 def test_workdir_from_dockerfile_libjpeg(libjpeg_oss_fuzz_task: ChallengeTask):
     """Test getting the workdir from the dockerfile."""
     assert libjpeg_oss_fuzz_task.workdir_from_dockerfile() == Path("/src/libjpeg-turbo")
+
+
+@pytest.mark.integration
+def test_exec_docker_cmd(libjpeg_oss_fuzz_task_rw: ChallengeTask):
+    """Test executing a command inside the docker container."""
+    result = libjpeg_oss_fuzz_task_rw.exec_docker_cmd(["ls", "/"])
+    assert result.success is True
+    assert result.output is not None
+    assert "root" in result.output.decode()
+
+    result = libjpeg_oss_fuzz_task_rw.exec_docker_cmd(["ls", "/src"])
+    assert result.success is True
+    assert result.output is not None
+    assert "libjpeg-turbo" in result.output.decode()
+
+    # Test mounting directories
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+
+        # Create some test files
+        (tmp_path / "test1.txt").write_text("test1")
+        (tmp_path / "test2.txt").write_text("test2")
+
+        # Mount the temp dir to /mnt in container
+        mount_dirs = {tmp_path: Path("/mnt")}
+
+        result = libjpeg_oss_fuzz_task_rw.exec_docker_cmd(["ls", "/mnt"], mount_dirs=mount_dirs)
+        assert result.success is True
+        assert result.output is not None
+        assert "test1.txt" in result.output.decode()
+        assert "test2.txt" in result.output.decode()
+
+        # Verify we can read the file contents
+        result = libjpeg_oss_fuzz_task_rw.exec_docker_cmd(["cat", "/mnt/test1.txt"], mount_dirs=mount_dirs)
+        assert result.success is True
+        assert result.output is not None
+        assert result.output.decode() == "test1"
+
+
+@pytest.mark.integration
+def test_build_and_restore(libjpeg_oss_fuzz_task_rw: ChallengeTask):
+    """Test building and restoring a challenge task."""
+    libjpeg_oss_fuzz_task_rw.build_image()
+    libjpeg_oss_fuzz_task_rw.build_fuzzers()
+    libjpeg_oss_fuzz_task_rw.commit()
+
+    # Modify the source code
+    libjpeg_oss_fuzz_task_rw.get_source_path().joinpath("test.txt").write_text("modified content")
+
+    libjpeg_oss_fuzz_task_rw.restore()
+
+    assert not libjpeg_oss_fuzz_task_rw.get_source_path().joinpath("test.txt").exists()
+
+
+@pytest.mark.integration
+def test_tmp_dir(libjpeg_oss_fuzz_task: ChallengeTask):
+    """Test building fuzzers with cache."""
+    local_dir = None
+    with libjpeg_oss_fuzz_task.get_rw_copy(None) as local_task:
+        local_dir = local_task.task_dir
+        assert local_dir.exists()
+        assert local_dir.is_dir()
+        local_task.build_fuzzers()
+
+    assert not local_dir.exists()
+
+
+def test_container_image(libjpeg_oss_fuzz_task: ChallengeTask):
+    """Test getting the container image."""
+    assert libjpeg_oss_fuzz_task.container_image() == "gcr.io/oss-fuzz/libjpeg-turbo"
+
+
+def test_container_image_custom_org(libjpeg_oss_fuzz_task_dir: Path):
+    """Test getting the container image with a custom organization."""
+    with patch.dict(os.environ, {"OSS_FUZZ_CONTAINER_ORG": "myorg"}):
+        task = ChallengeTask(
+            read_only_task_dir=libjpeg_oss_fuzz_task_dir,
+        )
+        assert task.container_image() == "myorg/libjpeg-turbo"
 
 
 @pytest.fixture(autouse=True)

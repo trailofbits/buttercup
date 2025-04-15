@@ -3,18 +3,54 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, Callable
 from os import PathLike
+import contextlib
 import logging
+import shlex
+import os
+from contextlib import contextmanager
+import tempfile
 import shutil
 import uuid
 import subprocess
 import re
 from buttercup.common.task_meta import TaskMeta
-from buttercup.common.utils import create_tmp_dir, copyanything, get_diffs
-from contextlib import contextmanager
+from buttercup.common.utils import copyanything, get_diffs
 from typing import Iterator
 import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def create_tmp_dir(
+    challenge: ChallengeTask, work_dir: Path | None, delete: bool = True, prefix: str | None = None
+) -> Iterator[Path]:
+    """Create a temporary directory inside a working dir and either keep or
+    delete it after use."""
+    if work_dir:
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+    if delete:
+        global_tmp_dir = None
+        try:
+            with tempfile.TemporaryDirectory(dir=work_dir, prefix=prefix, ignore_cleanup_errors=True) as tmp_dir:
+                global_tmp_dir = Path(tmp_dir)
+                yield global_tmp_dir
+        except PermissionError as e:
+            logger.warning("Issues while creating/deleting a temporary directory, trying from docker...")
+            if global_tmp_dir:
+                res = challenge.exec_docker_cmd(
+                    ["rm", "-rf", f"/mnt/{global_tmp_dir.name}"],
+                    mount_dirs={global_tmp_dir.parent: Path("/mnt")},
+                    container_image="ubuntu:24.04",
+                )
+                if not res.success:
+                    logger.error("Failed to remove temporary directory from docker: %s", res.output)
+                    if logger.getEffectiveLevel() == logging.DEBUG:
+                        logger.exception(f"PermissionError: {e}")
+    else:
+        with contextlib.nullcontext(tempfile.mkdtemp(dir=work_dir, prefix=prefix)) as tmp_dir:
+            yield Path(tmp_dir)
 
 
 class ChallengeTaskError(Exception):
@@ -63,6 +99,8 @@ class ChallengeTask:
     SRC_DIR = "src"
     DIFF_DIR = "diff"
     OSS_FUZZ_DIR = "fuzz-tooling"
+
+    OSS_FUZZ_CONTAINER_ORG: str = field(default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz"))
 
     MAX_COMMIT_RETRIES = 3
 
@@ -259,14 +297,14 @@ class ChallengeTask:
 
         return current_line
 
-    def _run_helper_cmd(self, cmd: list[str]) -> CommandResult:
+    def _run_cmd(self, cmd: list[str], cwd: Path | None = None) -> CommandResult:
         try:
-            logger.debug(f"Running command (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
+            logger.debug(f"Running command (cwd={cwd}): {' '.join(cmd)}")
             process = subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                cwd=self.task_dir / self.get_oss_fuzz_subpath(),
+                cwd=cwd,
             )
 
             # Poll process for new output until finished
@@ -308,6 +346,38 @@ class ChallengeTask:
         except Exception as e:
             logger.exception(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(success=False, returncode=None, error=str(e), output=None)
+
+    def _run_helper_cmd(self, cmd: list[str]) -> CommandResult:
+        return self._run_cmd(cmd, cwd=self.task_dir / self.get_oss_fuzz_subpath())
+
+    def container_image(self) -> str:
+        return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
+
+    def exec_docker_cmd(
+        self,
+        cmd: list[str],
+        mount_dirs: dict[Path, Path] | None = None,
+        container_image: str | None = None,
+    ) -> CommandResult:
+        """Execute a command inside a docker container. If not specified, the
+        docker container is the oss-fuzz one."""
+        if container_image is None:
+            res = self.build_image(cache=True)
+            if not res.success:
+                raise ChallengeTaskError(f"Failed to build image: {res.error}")
+
+            container_image = self.container_image()
+            if mount_dirs is None:
+                mount_dirs = {}
+            mount_dirs.update({self.get_source_path(): self.workdir_from_dockerfile()})
+
+        docker_cmd = ["docker", "run", "--privileged", "--shm-size=2g", "--rm"]
+        if mount_dirs:
+            for src, dst in mount_dirs.items():
+                docker_cmd += ["-v", f"{src.resolve().as_posix()}:{dst.as_posix()}"]
+
+        docker_cmd += [container_image, "bash", "-c", shlex.join(cmd)]
+        return self._run_cmd(docker_cmd)
 
     @read_write_decorator
     def build_image(
@@ -539,14 +609,10 @@ class ChallengeTask:
             with task.get_rw_copy(work_dir) as local_task:
                 local_task.build_fuzzers()
         """
-        if self.local_task_dir is not None:
-            yield self
-            return
-
         work_dir = Path(work_dir) if work_dir else None
         if work_dir:
             work_dir.mkdir(parents=True, exist_ok=True)
-        with create_tmp_dir(work_dir, delete, prefix=self.task_dir.name + "-") as tmp_dir:
+        with create_tmp_dir(self, work_dir, delete, prefix=self.task_dir.name + "-") as tmp_dir:
             # Copy the entire task directory to the temporary location
             logger.info(f"Copying task directory {self.task_dir} to {tmp_dir}")
             copyanything(self.task_dir, tmp_dir, symlinks=True)
@@ -603,7 +669,21 @@ class ChallengeTask:
 
         if self.local_task_dir.exists():
             logger.debug(f"Removing local task directory {self.local_task_dir}")
-            shutil.rmtree(self.local_task_dir, ignore_errors=True)
+            self._remove_dir(self.local_task_dir)
 
         copyanything(self.read_only_task_dir, self.local_task_dir, symlinks=True)
         logger.info(f"Restored task from {self.read_only_task_dir} to {self.local_task_dir}")
+
+    def _remove_dir(self, path: Path) -> None:
+        try:
+            shutil.rmtree(path)
+        except Exception:
+            logger.warning("Error removing directory %s, trying from within the container...", path)
+            res = self.exec_docker_cmd(
+                ["rm", "-rf", f"/mnt/{path.name}"],
+                mount_dirs={path.parent: Path("/mnt")},
+                container_image="ubuntu:24.04",
+            )
+            if not res.success:
+                logger.error("Failed to remove directory from docker: %s", res.output)
+                raise ChallengeTaskError(f"Failed to remove directory from docker: {res.output}")

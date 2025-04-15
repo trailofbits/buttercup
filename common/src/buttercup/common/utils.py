@@ -1,11 +1,7 @@
 import shutil
 import errno
-import tempfile
-import contextlib
 import logging
-from contextlib import contextmanager
-from typing import Iterator, Any, Callable
-from tempfile import TemporaryDirectory
+from typing import Any, Callable
 from pathlib import Path
 from os import PathLike
 import time
@@ -28,26 +24,6 @@ def copyanything(src: PathLike, dst: PathLike, **kwargs: Any) -> None:
             shutil.copy(src, dst)
         else:
             raise
-
-
-@contextmanager
-def create_tmp_dir(work_dir: Path | None, delete: bool = True, prefix: str | None = None) -> Iterator[Path]:
-    """Create a temporary directory inside a working dir and either keep or
-    delete it after use."""
-    if work_dir:
-        work_dir.mkdir(parents=True, exist_ok=True)
-
-    if delete:
-        try:
-            with TemporaryDirectory(dir=work_dir, prefix=prefix, ignore_cleanup_errors=True) as tmp_dir:
-                yield Path(tmp_dir)
-        except PermissionError as e:
-            logger.warning("Issues while creating/deleting a temporary directory...")
-            if logger.getEffectiveLevel() == logging.DEBUG:
-                logger.exception(f"PermissionError: {e}")
-    else:
-        with contextlib.nullcontext(tempfile.mkdtemp(dir=work_dir, prefix=prefix)) as tmp_dir:
-            yield Path(tmp_dir)
 
 
 def get_diffs(path: Path | None) -> list[Path]:

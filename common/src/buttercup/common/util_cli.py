@@ -23,7 +23,7 @@ def get_queue_names():
 
 
 def get_build_types():
-    return [f"'{build_type} ({BuildType.Name(build_type)})'" for build_type in BuildType]
+    return [f"'{build_type} ({BuildType.Name(build_type)})'" for build_type in BuildType.values()]
 
 
 class SendSettings(BaseModel):
