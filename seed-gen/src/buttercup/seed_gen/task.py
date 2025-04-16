@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
@@ -27,21 +27,6 @@ from buttercup.seed_gen.utils import extract_md
 logger = logging.getLogger(__name__)
 
 
-class FunctionRequest(BaseModel):
-    """Requested function to look up."""
-
-    name: str = Field(description="The name of the function to look up")
-    reason: str = Field(
-        description="A brief explanation of why understanding this function would be helpful"
-    )
-
-
-class FunctionRequestList(BaseModel):
-    """List of requested functions to look up."""
-
-    functions: list[FunctionRequest] = Field(description="List of functions to look up")
-
-
 class TaskName(str, Enum):
     SEED_INIT = "seed-init"
     SEED_EXPLORE = "seed-explore"
@@ -57,6 +42,8 @@ class Task:
     llm: BaseChatModel | None = None
     program_model: Graph = field(init=False)
     tools: list[BaseTool] = field(init=False)
+
+    MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
     def __post_init__(self) -> None:
         if self.llm is None:
@@ -222,13 +209,25 @@ class Task:
         )
         return cmd
 
+    def _continue_context_retrieval(self, state: "BaseTaskState") -> bool:
+        """Determine if we should continue the context retrieval iteration"""
+        return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
+
     @tool
     def get_function_definition(
         function_name: str,
         state: Annotated[BaseModel, InjectedState],
         tool_call_id: Annotated[str, InjectedToolCallId],
     ) -> Command:
-        """Retrieves the source code definition of a function from the codebase."""
+        """Retrieves the source code definition of a function from the codebase.
+
+        Args:
+            function_name: The name of the function to retrieve
+
+        Notes:
+        - If looking up a method in a Java program, only specify the method name.
+          For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+        """
         context_key = f"get_function_definition: {function_name}"
         if context_key in state.retrieved_context:
             return Command(

@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import ClassVar
 
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
@@ -9,8 +8,6 @@ from buttercup.seed_gen.task import BaseTaskState, Task
 
 
 class SeedBaseTask(Task):
-    MAX_CONTEXT_ITERATIONS: ClassVar[int]
-
     @abstractmethod
     def _generate_seeds(self, state: BaseTaskState) -> Command:
         """Generate seeds"""
@@ -20,10 +17,6 @@ class SeedBaseTask(Task):
     def _get_context(self, state: BaseTaskState) -> Command:
         """Get context"""
         pass
-
-    def _continue_context_retrieval(self, state: BaseTaskState) -> bool:
-        """Determine if we should continue the context retrieval iteration"""
-        return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
 
     def _build_workflow(self, task_state_cls: type[BaseTaskState]) -> StateGraph:
         """Build the workflow for the SeedExplore task"""

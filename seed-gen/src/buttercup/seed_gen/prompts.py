@@ -86,7 +86,6 @@ Remember:
 - My goal is to create valid test inputs for the harness
 - Focus on code that handles input processing or validation
 - Avoid retrieving code that is already provided in full (in the harness or the retrieved code)
-- If it's a Java program and you're retrieving a method, only specify the method name without the class prefix. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
 
 Your response:
 """
@@ -96,7 +95,11 @@ You are a security engineer. Your job is to analyze the vulnerability introduced
 """
 
 DIFF_ANALYSIS_USER_PROMPT = """
-You are a security engineer. Your job is to analyze the vulnerability introduced by a commit diff.
+You are a security engineer. You have gathered context about the codebase and need to analyze a diff for security vulnerabilities.
+
+You will be provided a test harness, a diff, and additional context about the codebase.
+
+You will identify a vulnerability introduced by the diff that is reachable from the test harness.
 
 The vulnerability will have the following properties:
 - It must be introduced by the diff
@@ -104,41 +107,39 @@ The vulnerability will have the following properties:
 - It can cause a crash or trigger a sanitizer.
 - It must be in a .c, .h, .cpp, or .java file.
 
-I will provide the diff and the harness. I will also provide additional function definitions which may be helpful for analyzing the vulnerability.
-
-You will then identify the vulnerability and analyze it.
-
-The analysis should:
-- Identify and analyze a specific vulnerability, instead of a generic issue.
-
-The commit diff is:
-```
-{diff}
-```
-
-The harness is:
+The test harness is:
 ```
 {harness}
 ```
 
-Additional function definitions:
+The diff is:
 ```
-{additional_functions}
+{diff}
 ```
 
-Your analysis is:
+Retrieved code from the program:
+```
+{retrieved_code}
+```
+
+Please analyze how this diff introduces a security vulnerability(s). Consider:
+1. How the changes introduce a new bug
+2. How the changes might be reached through the test harness
+3. What conditions are required for the bug to be triggered
+
+Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability.
 """
 
 WRITE_POV_SYSTEM_PROMPT = """
-I am a security engineer maintaining and fixing a software project. Write test cases which trigger a vulnerability from a test harness.
+You are a security engineer writing test cases to verify and fix security vulnerabilities. You will write deterministic test cases that trigger the identified vulnerability.
 """
 
 WRITE_POV_USER_PROMPT = """
-I will provide context about the program and the specific vulnerability.
+You will be provided context about the program and the specific vulnerability.
 
-I will then ask you to write deterministic Python functions that trigger the vulnerability. Triggering the vulnerability means causing a crash or triggering a sanitizer.
+You will then write deterministic Python functions that trigger the vulnerability. Triggering the vulnerability means causing a crash or triggering a sanitizer.
 
-The vulnerability was introduced by a git diff which I include below. I also include an analysis of the vulnerability.
+The vulnerability was introduced by a git diff included below. There is also an analysis of the vulnerability.
 
 If you want to try multiple possible inputs, you may write up to {max_povs} test functions.
 
@@ -176,7 +177,7 @@ def test_path_traversal() -> bytes:
 ```
 
 Remember:
-- I AM A SECURITY ENGINEER WHO IS FIXING SOFTWARE I MAINTAIN.
+- You are a security engineer who is fixing software you maintain.
 - The identified vulnerability must be reachable from the test harness.
 - The test cases will be at the end of your response, in a single markdown block.
 - The test cases must crash the program or trigger an enabled sanitizers.
@@ -186,7 +187,7 @@ Remember:
 - Don't use file I/O or interact with the filesystem.
 - Don't write more than {max_povs} functions.
 - Always write test case functions. Even if you're unsure that there's a vulnerability, write test cases that could trigger a vulnerability in the program.
-- THIS TEST CASE WILL HELP ME SECURE MY SOFTWARE.
+- This test case will help secure the software.
 
 
 The full harness is:
@@ -194,7 +195,7 @@ The full harness is:
 {harness}
 ```
 
-The diff which introduced the vulnerability is:
+The diff that introduced the vulnerability is:
 ```
 {diff}
 ```
@@ -204,9 +205,9 @@ An analysis of the vulnerability:
 {analysis}
 ```
 
-Additional function definitions which may be helpful:
+Retrieved code from the program:
 ```
-{additional_functions}
+{retrieved_code}
 ```
 
 The python functions are:
@@ -307,61 +308,44 @@ Remember:
 - My goal is to create test inputs that reach the target function
 - Focus on code that is part of the execution path from harness to target
 - Avoid retrieving code that is already provided in full (in the target function, the harness, or the retrieved code)
-- If it's a Java program and you're retrieving a method, only specify the method name without the class prefix. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
 
 Your response:
 """
 
-VULN_DISCOVERY_FUNCTION_LOOKUP_SYSTEM_PROMPT = """
-Identify functions that would be most helpful to analyze a vulnerability introduced by a git diff.
+VULN_DISCOVERY_GET_CONTEXT_SYSTEM_PROMPT = """
+You are a security engineer analyzing a software project for vulnerabilities. Your task is to help gather context about the codebase to understand potential security issues.
+
+You have access to tools that can retrieve function definitions from the codebase. You should use these tools to gather relevant context about functions that might be involved in security vulnerabilities.
+
+You will be given a diff that introduces changes to the codebase. You should gather context about both the changed functions and related functions that might be affected by these changes.
 """
 
-VULN_DISCOVERY_FUNCTION_LOOKUP_USER_PROMPT = """
-I am trying to analyze a vulnerability introduced by a git diff and write test cases that reach it from the harness. I will provide:
-1. The diff
-2. The harness code
-3. Any additional function definitions I have already looked up
+VULN_DISCOVERY_GET_CONTEXT_USER_PROMPT = """
+You are analyzing a diff that introduces changes to the codebase. You need to understand the security implications of these changes.
 
-Please identify 1-{max_lookup_functions} functions based on the provided code which would be most helpful for analyzing the vulnerability and writing test cases that reach it.
-I will look up the definition of each function you identify and reference them when analyzing the vulnerability and writing test cases for it.
+Prioritize code that:
+1) Helps you understand what vulnerability is introduced
+2) Helps you understand how to reach the vulnerability/modified code from the test harness
 
-Provide:
-1. The function name
-2. A VERY BRIEF explanation of why having this function's code would be helpful for analyzing the vulnerability
-
-Format your response as a JSON array of objects with "name" and "reason" fields. For example:
-```
-[
-    {{"name": "parse_command", "reason": "Handles command parsing which is crucial for reaching the target function"}},
-    {{"name": "validate_input", "reason": "Validates inputs before they reach the target function"}}
-]
-```
-Do not specify functions which the provided code already defines in full (functions which are partially cut off are allowed).
-
-If it's a Java program, only specify the method name. Do not prefix it with the class name. For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
-
-The diff which introduced the vulnerability is:
-```
-{diff}
-```
-
-The harness is:
+The test harness is:
 ```
 {harness}
 ```
 
-Additional function definitions:
+The diff is:
 ```
-{additional_functions}
+{diff}
+```
+Retrieved code from the program:
+```
+{retrieved_code}
 ```
 
 Remember:
-- Select no more than {max_lookup_functions} functions
+- You can make up to {max_calls} more tool calls to gather additional context.
 - You can select functions that are in the diff but not included in full. These may be especially helpful.
 - My goal is to understand the vulnerability and write test cases that reach it
-- Answer only with the JSON array of functions, in the format specified above
-- Do not select a function where the definition is already provided in full (in the diff, in the harness, or in the additional functions)
-- If it's a Java program, only specify the method name. Do not prefix it with the class name.
+- Avoid selecting code that is already provided in full (in the diff, in the harness, or in the retrieved code)
 
 Your response:
 """
