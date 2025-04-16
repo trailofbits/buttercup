@@ -346,7 +346,11 @@ class CodeQuery:
 
         callees: set[Function] = set()
         for result in results:
-            functions = self.get_functions(result.value, Path(result.file))
+            functions = self.get_functions(result.value)
+            unique_functions = []
+            for f in functions:
+                if not any(x for x in unique_functions if x.has_same_source(f)):
+                    unique_functions.append(f)
             callees.update(functions)
         return list(callees)
 
@@ -377,7 +381,7 @@ class CodeQuery:
         res: list[TypeDefinition] = []
         results_by_file = groupby(results, key=lambda x: x.file)
         for file, results in results_by_file:
-            types_found = [result.value for result in results]
+            types_found = list(set(result.value for result in results))
 
             if not fuzzy and not all(type_name == t for t in types_found):
                 logger.warning(

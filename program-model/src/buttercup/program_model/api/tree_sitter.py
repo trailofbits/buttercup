@@ -253,7 +253,7 @@ class CodeTS:
         self, file_path: Path, typename: str | None = None, fuzzy: bool | None = False
     ) -> dict[str, TypeDefinition]:
         """Parse the definition of a type in a piece of code."""
-        logger.debug("Parsing types in code")
+        logger.debug(f"Parsing types in: {file_path}")
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
         tree = self.parser.parse(code)
         root_node = tree.root_node
@@ -285,6 +285,12 @@ class CodeTS:
 
             type_definition = code[start_byte : definition_node.end_byte].decode()
             name = name_node.text.decode()
+            # NOTE(boyan): here we strip any unexpected indirection that TS might leave.
+            # It is the case for example with the following from libjpeg-turbo:
+            # typedef struct jpeg_decompress_struct * j_decompress_ptr;
+            # Where the name is "*j_decompress_ptr" but the actual type name
+            # doesn't contain the star.
+            name = name.lstrip("*")
             if typename and not fuzzy and name != typename:
                 continue
             if typename and fuzzy and typename not in name:

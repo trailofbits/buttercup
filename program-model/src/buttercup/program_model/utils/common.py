@@ -65,6 +65,25 @@ class Function:
         """Hash based on name and file path."""
         return hash((self.name, self.file_path, frozenset(self.bodies)))
 
+    def has_same_source(self, other: "Function"):
+        """Return true if both functions have exactly the same
+        source code in their bodies. This doesn't check line numbers
+        or source files, just the plain source code for the functions
+        """
+        if not isinstance(other, Function):
+            raise NotImplementedError
+        if len(self.bodies) != len(other.bodies):
+            return False
+        # Compare body parts two by two
+        for b1, b2 in zip(
+            sorted(self.bodies, key=lambda x: x.start_line),
+            sorted(other.bodies, key=lambda x: x.start_line),
+        ):
+            # If any body differs, functions don't have the same source
+            if b1.body != b2.body:
+                return False
+        return True
+
 
 @dataclass
 class TypeDefinitionType(str, Enum):
