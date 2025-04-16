@@ -8,7 +8,7 @@ import re
 
 
 @pytest.fixture
-def tasks_dir(tmp_path: Path) -> Path:
+def task_dir(tmp_path: Path) -> Path:
     """Create a mock challenge task directory structure."""
     # Ensure tmp_path is absolute
     tmp_path = tmp_path.absolute()
@@ -38,20 +38,20 @@ def tasks_dir(tmp_path: Path) -> Path:
     # Create a mock test.txt file
     (source / "test.txt").write_text("mock test content")
 
-    yield tmp_path
+    yield task_dir
 
 
 @patch("buttercup.common.node_local.make_locally_available")
-def test_vuln_to_patch_input(mock_make_locally_available, tasks_dir: Path, tmp_path: Path):
+def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_path: Path):
     # Mock make_locally_available to return the path unchanged
     mock_make_locally_available.side_effect = lambda path: path
 
     # Ensure all paths are absolute
-    tasks_dir = tasks_dir.absolute()
+    task_dir = task_dir.absolute()
     tmp_path = tmp_path.absolute()
 
     patcher = Patcher(
-        task_storage_dir=tasks_dir,
+        task_storage_dir=tmp_path,
         scratch_dir=tmp_path,
         redis=None,
     )
@@ -64,7 +64,7 @@ def test_vuln_to_patch_input(mock_make_locally_available, tasks_dir: Path, tmp_p
                     task_id="test-task-id-1",
                     engine="test-engine-1",
                     sanitizer="test-sanitizer-1",
-                    task_dir=str(tasks_dir / "test-task-id-1"),
+                    task_dir=str(task_dir),
                 ),
                 harness_name="test-harness-name-1",
                 crash_input_path=str(tmp_path / "test-crash-input.txt"),

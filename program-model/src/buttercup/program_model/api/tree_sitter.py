@@ -236,7 +236,8 @@ class CodeTS:
                 end_line,
             )
             function = functions.setdefault(
-                function_name.decode(), Function(function_name.decode(), file_path)
+                function_name.decode(),
+                Function(function_name.decode(), file_path),
             )
             function.bodies.append(function_body)
 

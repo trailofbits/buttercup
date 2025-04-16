@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/docker.yml
     with:
       suffix: "-${{ github.run_number }}"
+      push: true
 
   integration:
     needs: build-and-push

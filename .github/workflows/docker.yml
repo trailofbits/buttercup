@@ -3,6 +3,10 @@ name: Docker Build and Push
 on:
   workflow_call:
     inputs:
+      push:
+        required: false
+        type: boolean
+        default: false
       suffix:
         required: false
         type: string
@@ -69,7 +73,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/') }}
+          push: ${{ (github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/') || inputs.push) && 'true' || 'false' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

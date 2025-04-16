@@ -40,7 +40,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path):
     [
         (
             "process_data_context_main",
-            "src/libjpeg-turbo/jdmainct.c",
+            "/src/libjpeg-turbo/jdmainct.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -63,7 +63,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path):
         ),
         (
             "decompress_smooth_data",
-            "src/libjpeg-turbo/jdcoefct.c",
+            "/src/libjpeg-turbo/jdcoefct.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -81,7 +81,7 @@ def libjpeg_oss_fuzz_task(tmp_path: Path):
         ),
         (
             "jpeg_read_scanlines",
-            "src/libjpeg-turbo/jdapistd.c",
+            "/src/libjpeg-turbo/jdapistd.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -109,6 +109,10 @@ def test_libjpeg_indexing(
     """Test that we can index libjpeg"""
     codequery = CodeQuery(libjpeg_oss_fuzz_task)
     functions = codequery.get_functions(function_name, file_path=Path(file_path))
+    # NOTE: libjpeg-turbo is cloning multiple repo versions in the container
+    # let's filter only the "main" path
+    functions = [f for f in functions if "/libjpeg-turbo/" in str(f.file_path)]
+
     assert len(functions) == 1
     assert functions[0].name == function_name
     assert str(functions[0].file_path) == file_path
@@ -133,23 +137,23 @@ TestCallerInfo.__test__ = False
     [
         (
             "jpeg_read_scanlines",
-            "src/libjpeg-turbo/jdapistd.c",
+            "/src/libjpeg-turbo/jdapistd.c",
             None,
             False,
             [
                 TestCallerInfo(
                     name="tjDecompress2",
-                    file_path="src/libjpeg-turbo/turbojpeg.c",
+                    file_path="/src/libjpeg-turbo/turbojpeg.c",
                     start_line=1241,
                 ),
                 TestCallerInfo(
                     name="read_and_discard_scanlines",
-                    file_path="src/libjpeg-turbo/jdapistd.c",
+                    file_path="/src/libjpeg-turbo/jdapistd.c",
                     start_line=317,
                 ),
                 TestCallerInfo(
                     name="main",
-                    file_path="src/libjpeg-turbo/djpeg.c",
+                    file_path="/src/libjpeg-turbo/djpeg.c",
                     start_line=533,
                 ),
             ],
@@ -167,14 +171,21 @@ def test_libjpeg_get_callers(
 ):
     """Test that we can get function callers"""
     codequery = CodeQuery(libjpeg_oss_fuzz_task)
-    function = codequery.get_functions(
+    functions = codequery.get_functions(
         function_name=function_name,
         file_path=Path(file_path),
         line_number=line_number,
         fuzzy=fuzzy,
-    )[0]
+    )
+    # NOTE: libjpeg-turbo is cloning multiple repo versions in the container
+    # let's filter only the "main" path
+    functions = [f for f in functions if "/libjpeg-turbo/" in str(f.file_path)]
+    function = functions[0]
 
     callers = codequery.get_callers(function)
+    # let's filter only the "main" path
+    callers = [c for c in callers if "/libjpeg-turbo/" in str(c.file_path)]
+
     for expected_caller in expected_callers:
         caller_info = [
             c

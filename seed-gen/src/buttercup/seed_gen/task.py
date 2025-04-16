@@ -22,7 +22,7 @@ from buttercup.program_model.api import Graph
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
-from buttercup.seed_gen.utils import extract_md, rebase_src_path
+from buttercup.seed_gen.utils import extract_md
 
 logger = logging.getLogger(__name__)
 
@@ -127,12 +127,7 @@ class Task:
         self, function_name: str, function_paths: list[Path]
     ) -> Function | None:
         for function_path in function_paths:
-            function_path_mod = (
-                function_path
-                if function_path is None
-                else rebase_src_path(function_path, self.challenge_task.project_name)
-            )
-            function_defs = self.codequery.get_functions(function_name, function_path_mod)
+            function_defs = self.codequery.get_functions(function_name, function_path)
             if len(function_defs) == 0:
                 continue
             if len(function_defs) > 1:

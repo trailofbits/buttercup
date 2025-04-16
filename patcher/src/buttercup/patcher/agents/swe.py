@@ -36,7 +36,7 @@ from buttercup.patcher.agents.common import (
     CodeSnippetRequest,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes, PatchOutput, get_diff_content
+from buttercup.patcher.utils import decode_bytes, PatchOutput, get_diff_content, find_file_in_source_dir
 
 logger = logging.getLogger(__name__)
 
@@ -306,48 +306,15 @@ class SWEAgent(PatcherAgentBase):
         the content of the file and the relative path of the file (from the
         source path)."""
         file_path = file_path.strip()
-        file_path = self.rebase_src_path(file_path)
+        relative_file_path = find_file_in_source_dir(self.challenge, Path(file_path))
+        if relative_file_path is None:
+            return None
 
-        search_paths = [
-            # Strategy 1: Direct path from source
-            lambda: [self.challenge.task_dir / file_path],
-            # Strategy 2: Parent directory
-            lambda: [self.challenge.task_dir.parent / file_path],
-            # Strategy 3: Search recursively in source directory
-            lambda: list(self.challenge.task_dir.rglob(file_path)),
-            # Strategy 4: Search recursively in source directory for just the file name
-            lambda: list(self.challenge.task_dir.rglob(file_path.name)),
-        ]
-
-        for path_fn in search_paths:
-            try:
-                paths = path_fn()
-            except Exception as e:
-                logger.debug("Error getting file content for %s: %s", file_path, e)
-                continue
-
-            for path in paths:
-                if not path.exists() or not path.is_file():
-                    logger.debug("File %s does not exist or is not a file", path)
-                    continue
-
-                if not path.is_relative_to(self.challenge.get_source_path()):
-                    logger.debug("File %s is not relative to the source path", path)
-                    continue
-
-                try:
-                    res = path.read_text()
-                    if isinstance(res, str):
-                        logger.debug("Got file content for %s", file_path)
-                        return res, str(path.relative_to(self.challenge.get_source_path()))
-
-                    logger.error("read_text for %s did not return a string", path)
-                except OSError as e:
-                    logger.debug("Could not read file %s: %s", path, e)
-                    continue
-
-        logger.error("Could not find file '%s' after trying multiple locations", file_path)
-        return None
+        try:
+            file_content = self.challenge.get_source_path().joinpath(relative_file_path).read_text()
+            return file_content, relative_file_path
+        except FileNotFoundError:
+            return None
 
     def get_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
         """Get the messages for the context."""

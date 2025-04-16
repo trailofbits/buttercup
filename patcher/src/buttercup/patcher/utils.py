@@ -69,3 +69,50 @@ def decode_bytes(b: bytes | None) -> str | None:
 def get_diff_content(challenge: ChallengeTask) -> str:
     """Get the diff content for the challenge."""
     return "\n".join(diff.read_text() for diff in challenge.get_diffs())
+
+
+def _map_container_path_to_local_path(challenge: ChallengeTask, file_path: Path) -> Path:
+    """Map a container path (e.g. /src/libjpeg-turbo/jcapimin.c) to a path
+    relative to the challenge source (e.g. jcapimin.c)."""
+    if not file_path.is_absolute():
+        file_path = challenge.workdir_from_dockerfile().joinpath(file_path).resolve()
+
+    if file_path.parts[1] != "src":
+        return None
+
+    if len(file_path.parts) < 3:
+        return None
+
+    rel_path = Path(*file_path.parts[3:])
+    rel_challenge_path = challenge.get_source_path().joinpath(rel_path)
+    if not rel_challenge_path.exists():
+        return None
+
+    return rel_path
+
+
+def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path | None:
+    """Find a file path in the challenge source directory."""
+
+    def _check_file_path(file_path: Path) -> Path | None:
+        rel_path = _map_container_path_to_local_path(challenge, file_path)
+        if rel_path:
+            return rel_path
+
+    # Strategy 1: Path as is
+    res = _check_file_path(file_path)
+    if res:
+        return res
+
+    # Strategy 2: Just prefix `/` to the path
+    if not file_path.is_absolute():
+        res = _check_file_path(Path("/" + file_path.as_posix()))
+        if res:
+            return res
+
+    # # Strategy 3: Search recursively in source directory
+    res = list(challenge.get_source_path().rglob(file_path.as_posix()))
+    if res:
+        return res[0].relative_to(challenge.get_source_path())
+
+    return None

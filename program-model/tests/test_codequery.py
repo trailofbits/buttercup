@@ -1,7 +1,10 @@
 """CodeQuery primitives testing"""
 
 import pytest
+from unittest.mock import patch
 from pathlib import Path
+import shutil
+import subprocess
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
@@ -91,29 +94,86 @@ def mock_c_challenge_task_ro(task_c_dir_ro: Path) -> ChallengeTask:
     return ChallengeTask(task_c_dir_ro, local_task_dir=task_c_dir_ro)
 
 
+original_subprocess_run = subprocess.run
+
+
+def mock_docker_run(challenge_task: ChallengeTask):
+    def wrapped(args, *rest, **kwargs):
+        if args[0] == "docker":
+            # Mock docker cp command by copying source path to container src dir
+            if args[1] == "cp":
+                container_dst_dir = Path(args[3]) / "src" / "my-source"
+                container_dst_dir.mkdir(parents=True, exist_ok=True)
+                # Copy source files to container src dir
+                src_path = challenge_task.get_source_path()
+                shutil.copytree(src_path, container_dst_dir, dirs_exist_ok=True)
+            elif args[1] == "create":
+                pass
+            elif args[1] == "rm":
+                pass
+
+            return subprocess.CompletedProcess(args, returncode=0)
+        return original_subprocess_run(args, *rest, **kwargs)
+
+    return wrapped
+
+
 def test_get_functions_simple(mock_c_challenge_task: ChallengeTask):
     """Test that we can get the main function"""
-    codequery = CodeQuery(mock_c_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQuery(mock_c_challenge_task)
+
     main_functions = codequery.get_functions("main")
     assert len(main_functions) == 1
     assert main_functions[0].name == "main"
     assert len(main_functions[0].bodies) == 1
     assert main_functions[0].bodies[0].body == "int main() { return 0; }"
+    assert main_functions[0].file_path == Path("/src/my-source/test.c")
 
 
-def test_get_functions_file(mock_c_challenge_task: ChallengeTask):
+@pytest.mark.parametrize(
+    "file_path,name,full_file_path,n_bodies,body",
+    [
+        (
+            Path("test.c"),
+            "main",
+            Path("/src/my-source/test.c"),
+            1,
+            "int main() { return 0; }",
+        ),
+        (
+            Path("test2.c"),
+            "function2",
+            Path("/src/my-source/test2.c"),
+            1,
+            "int function2(int a, int b) {\n    int c = a + b;\n    return c;\n}",
+        ),
+    ],
+)
+def test_get_functions_file(
+    mock_c_challenge_task: ChallengeTask,
+    file_path: Path,
+    name: str,
+    full_file_path: Path,
+    n_bodies: int,
+    body: str,
+):
     """Test that we can get the main function from a specific file"""
-    codequery = CodeQuery(mock_c_challenge_task)
-    main_functions = codequery.get_functions("main", Path("test.c"))
-    assert len(main_functions) == 1
-    assert main_functions[0].name == "main"
-    assert len(main_functions[0].bodies) == 1
-    assert main_functions[0].bodies[0].body == "int main() { return 0; }"
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQuery(mock_c_challenge_task)
+
+    functions = codequery.get_functions(name, file_path)
+    assert len(functions) == 1
+    assert functions[0].name == name
+    assert functions[0].file_path == full_file_path
+    assert len(functions[0].bodies) == n_bodies
+    assert functions[0].bodies[0].body == body
 
 
 def test_get_functions_multiple(mock_c_challenge_task: ChallengeTask):
     """Test that we can get multiple functions from a file"""
-    codequery = CodeQuery(mock_c_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQuery(mock_c_challenge_task)
     function3 = codequery.get_functions("function3", Path("test3.c"))
     assert len(function3) == 1
     assert function3[0].name == "function3"
@@ -133,7 +193,8 @@ def test_get_functions_multiple(mock_c_challenge_task: ChallengeTask):
 
 def test_get_functions_fuzzy(mock_c_challenge_task: ChallengeTask):
     """Test that we can get functions (fuzzy search) in codebase"""
-    codequery = CodeQuery(mock_c_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQuery(mock_c_challenge_task)
     functions = codequery.get_functions("function", fuzzy=True)
     assert len(functions) == 4
     functions = codequery.get_functions("function", Path("test3.c"), fuzzy=True)
@@ -151,11 +212,13 @@ def test_keep_status(
     wdir = tmp_path
     wdir.mkdir(parents=True, exist_ok=True)
 
-    codequery = CodeQueryPersistent(mock_c_challenge_task, work_dir=wdir)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQueryPersistent(mock_c_challenge_task, work_dir=wdir)
     assert codequery.get_functions("main")
     assert mock_c_challenge_task.task_dir.exists()
 
-    codequery2 = CodeQueryPersistent(mock_c_challenge_task_ro, work_dir=wdir)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task_ro)):
+        codequery2 = CodeQueryPersistent(mock_c_challenge_task_ro, work_dir=wdir)
     assert codequery2.get_functions("main")
     assert codequery2.challenge.task_dir == codequery.challenge.task_dir
     assert mock_c_challenge_task.task_dir.exists()
@@ -164,7 +227,8 @@ def test_keep_status(
     with mock_c_challenge_task_ro.get_rw_copy(
         mock_c_challenge_task_ro.task_dir.parent
     ) as nd_challenge:
-        codequery3 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
+        with patch("subprocess.run", side_effect=mock_docker_run(nd_challenge)):
+            codequery3 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery3.get_functions("main")
         assert codequery3.challenge.task_dir == codequery.challenge.task_dir
         assert mock_c_challenge_task.task_dir.exists()
@@ -173,7 +237,8 @@ def test_keep_status(
     with mock_c_challenge_task.get_rw_copy(
         mock_c_challenge_task.task_dir.parent
     ) as nd_challenge:
-        codequery4 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
+        with patch("subprocess.run", side_effect=mock_docker_run(nd_challenge)):
+            codequery4 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery4.get_functions("main")
         assert codequery4.challenge.task_dir == codequery.challenge.task_dir
         assert mock_c_challenge_task.task_dir.exists()
@@ -182,7 +247,8 @@ def test_keep_status(
 
 def test_get_types(mock_c_challenge_task: ChallengeTask):
     """Test that we can get types in codebase"""
-    codequery = CodeQuery(mock_c_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQuery(mock_c_challenge_task)
     types = codequery.get_types("myInt", Path("test3.c"))
     assert len(types) == 0
     types = codequery.get_types("myInt")
@@ -207,7 +273,8 @@ def test_get_types(mock_c_challenge_task: ChallengeTask):
 
 def test_get_types_fuzzy(mock_c_challenge_task: ChallengeTask):
     """Test that we can get types (fuzzy search) in codebase"""
-    codequery = CodeQuery(mock_c_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
+        codequery = CodeQuery(mock_c_challenge_task)
     types = codequery.get_types("my", Path("test4.c"), fuzzy=True)
     assert len(types) == 2
     types = codequery.get_types("myInt", Path("test4.c"), fuzzy=True)
@@ -232,6 +299,9 @@ def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
 
 
 @pytest.mark.integration
+@pytest.mark.skip(
+    reason="Skipping libjpeg-turbo because it clones multiple repo versions in the container"
+)
 def test_libjpeg_indexing(libjpeg_oss_fuzz_task: ChallengeTask):
     """Test that we can index libjpeg"""
     codequery = CodeQuery(libjpeg_oss_fuzz_task)
@@ -244,7 +314,7 @@ def test_libjpeg_indexing(libjpeg_oss_fuzz_task: ChallengeTask):
 
     parse_switches.sort(key=lambda x: x.file_path)
 
-    assert parse_switches[0].file_path == Path("src/libjpeg-turbo/cjpeg.c")
+    assert parse_switches[0].file_path == Path("/src/libjpeg-turbo/cjpeg.c")
     assert parse_switches[0].file_path.name == "cjpeg.c"
     assert len(parse_switches[0].bodies) == 1
     assert (
@@ -297,7 +367,7 @@ def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     functions = codequery.get_functions("mls_semantic_level_expand")
     assert len(functions) == 1
     assert functions[0].name == "mls_semantic_level_expand"
-    assert functions[0].file_path == Path("src/selinux/libsepol/src/expand.c")
+    assert functions[0].file_path == Path("/src/selinux/libsepol/src/expand.c")
     assert len(functions[0].bodies) == 1
     assert "p->p_cat_val_to_name[cat->low - 1]," in functions[0].bodies[0].body
 
@@ -399,11 +469,12 @@ def mock_java_challenge_task_ro(task_java_dir_ro: Path) -> ChallengeTask:
 
 def test_get_functions_java(mock_java_challenge_task: ChallengeTask):
     """Test that we can get the main function"""
-    codequery = CodeQuery(mock_java_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_java_challenge_task)):
+        codequery = CodeQuery(mock_java_challenge_task)
     main_functions = codequery.get_functions("main")
     assert len(main_functions) == 3
     main_functions.sort(key=lambda x: x.file_path)
-
+    assert main_functions[0].file_path == Path("/src/my-source/test.java")
     assert main_functions[0].name == "main"
     assert len(main_functions[0].bodies) == 1
     assert (
@@ -426,7 +497,8 @@ def test_get_functions_java(mock_java_challenge_task: ChallengeTask):
 
 def test_get_types_java(mock_java_challenge_task: ChallengeTask):
     """Test that we can get types in codebase"""
-    codequery = CodeQuery(mock_java_challenge_task)
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_java_challenge_task)):
+        codequery = CodeQuery(mock_java_challenge_task)
     types = codequery.get_types("MyStruct", Path("test2.java"))
     assert len(types) == 0
     types = codequery.get_types("MyStruct", Path("test3.java"))
@@ -458,9 +530,7 @@ def test_antlr4_indexing(antlr4_oss_fuzz_task: ChallengeTask):
     functions = codequery.get_functions("fuzzerTestOneInput")
     assert len(functions) == 1
     assert functions[0].name == "fuzzerTestOneInput"
-    assert functions[0].file_path == Path(
-        "fuzz-tooling/oss-fuzz-aixcc/projects/antlr4-java/GrammarFuzzer.java"
-    )
+    assert functions[0].file_path == Path("/src/GrammarFuzzer.java")
     assert len(functions[0].bodies) == 1
     assert (
         "LexerInterpreter lexEngine = lg.createLexerInterpreter(CharStreams.fromString(data.consumeRemainingAsString()));"

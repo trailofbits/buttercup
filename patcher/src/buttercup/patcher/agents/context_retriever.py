@@ -29,7 +29,6 @@ from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverSt
 from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langgraph.types import Command
 
-import subprocess
 
 from buttercup.program_model.codequery import CodeQueryPersistent
 
@@ -92,15 +91,16 @@ def ls(
     # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
     assert isinstance(state, State)
 
-    path = state.context_retriever_agent.rebase_src_path(file_path)
-    if not state.context_retriever_agent.challenge.task_dir.joinpath(path).exists():
-        raise ValueError(f"Path {path} does not exist in the project's directory")
-
+    path = Path(file_path)
     logger.info("Listing files in %s", path)
     args = ["ls", "-l"]
     if path:
         args.append(str(path))
-    ls_output = subprocess.check_output(args, cwd=state.challenge.task_dir).decode("utf-8")
+    ls_cmd_res = state.challenge.exec_docker_cmd(args)
+    if not ls_cmd_res.success:
+        raise ValueError(f"Failed to list files in {path}: {ls_cmd_res.error}")
+
+    ls_output = ls_cmd_res.output.decode("utf-8")
     return Command(update={"messages": [ToolMessage(ls_output, tool_call_id=tool_call_id)]})
 
 
@@ -115,16 +115,16 @@ def grep(
     # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
     assert isinstance(state, State)
 
-    if file_path:
-        path = state.context_retriever_agent.rebase_src_path(file_path)
-        if not state.challenge.task_dir.joinpath(path).exists():
-            raise ValueError(f"Path {path} does not exist in the project's directory")
-
+    path = Path(file_path) if file_path else None
     logger.info("Searching for %s in %s", pattern, path)
-    args = ["grep", "-C", "5", "-nr", pattern]
+    args = ["grep", "-C", "5", "-nHr", pattern]
     if path:
         args.append(str(path))
-    grep_output = subprocess.check_output(args, cwd=state.challenge.task_dir).decode("utf-8")
+    grep_cmd_res = state.challenge.exec_docker_cmd(args)
+    if not grep_cmd_res.success:
+        raise ValueError(f"Failed to grep for {pattern} in {path}: {grep_cmd_res.error}")
+
+    grep_output = grep_cmd_res.output.decode("utf-8")
     return Command(update={"messages": [ToolMessage(grep_output, tool_call_id=tool_call_id)]})
 
 
@@ -136,12 +136,13 @@ def cat(
     # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
     assert isinstance(state, State)
 
-    path = state.context_retriever_agent.rebase_src_path(file_path)
-    if not state.challenge.task_dir.joinpath(path).exists():
-        raise ValueError(f"Path {path} does not exist in the project's directory")
-
+    path = Path(file_path)
     logger.info("Reading contents of %s", path)
-    cat_output = state.challenge.task_dir.joinpath(path).read_text()
+    cat_cmd_res = state.challenge.exec_docker_cmd(["cat", str(path)])
+    if not cat_cmd_res.success:
+        raise ValueError(f"Failed to read contents of {path}: {cat_cmd_res.error}")
+
+    cat_output = cat_cmd_res.output.decode("utf-8")
     return Command(update={"messages": [ToolMessage(cat_output, tool_call_id=tool_call_id)]})
 
 
@@ -157,13 +158,14 @@ def get_lines(
     # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
     assert isinstance(state, State)
 
-    path = state.context_retriever_agent.rebase_src_path(file_path)
-    if not state.challenge.task_dir.joinpath(path).exists():
-        raise ValueError(f"Path {path} does not exist in the project's directory")
-
+    path = Path(file_path)
     logger.info("Getting lines %d-%d of %s", start, end, path)
-    get_lines_output = "\n".join(state.challenge.task_dir.joinpath(path).read_text().splitlines()[start:end])
-    return Command(update={"messages": [ToolMessage(get_lines_output, tool_call_id=tool_call_id)]})
+    get_lines_res_cmd = state.challenge.exec_docker_cmd(["cat", str(path)])
+    if not get_lines_res_cmd.success:
+        raise ValueError(f"Failed to get lines {start}-{end} of {path}: {get_lines_res_cmd.error}")
+
+    get_lines_output = get_lines_res_cmd.output.decode("utf-8").splitlines()[start:end]
+    return Command(update={"messages": [ToolMessage("\n".join(get_lines_output), tool_call_id=tool_call_id)]})
 
 
 @tool
@@ -183,10 +185,10 @@ def get_function_definition(
     # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
     assert isinstance(state, State)
 
-    if file_path:
-        path = Path(state.context_retriever_agent.rebase_src_path(file_path))
-    else:
-        path = None
+    path = Path(file_path) if file_path else None
+    if path and not path.is_absolute():
+        # If the path is not absolute, it is relative to the container workdir
+        path = state.challenge.workdir_from_dockerfile().joinpath(path)
 
     logger.info("Getting function definition of %s in %s", function_name, path)
     functions = state.context_retriever_agent.codequery.get_functions(function_name, path)
@@ -239,10 +241,7 @@ def get_type_definition(
     # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
     assert isinstance(state, State)
 
-    if file_path:
-        path = Path(state.context_retriever_agent.rebase_src_path(file_path))
-    else:
-        path = None
+    path = Path(file_path) if file_path else None
 
     logger.info("Getting type definition of %s in %s", type_name, path)
     types = state.context_retriever_agent.codequery.get_types(type_name, path)

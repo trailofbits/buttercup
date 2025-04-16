@@ -1,5 +1,7 @@
 import pytest
 import subprocess
+import os
+from unittest.mock import patch
 from buttercup.program_model.api import Graph
 from buttercup.program_model.graph import encode_value
 from buttercup.common.challenge_task import ChallengeTask
@@ -115,7 +117,8 @@ def oss_fuzz_task(
         task_id=f"task-id-{oss_fuzz_project}",
     ).save(tmp_path)
 
-    return ChallengeTask(
-        read_only_task_dir=tmp_path,
-        local_task_dir=tmp_path,
-    )
+    with patch.dict(os.environ, {"OSS_FUZZ_CONTAINER_ORG": "aixcc-afc"}):
+        return ChallengeTask(
+            read_only_task_dir=tmp_path,
+            local_task_dir=tmp_path,
+        )

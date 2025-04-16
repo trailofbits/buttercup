@@ -53,7 +53,7 @@ TestFunctionInfo.__test__ = False
         (
             "logMessages",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             None,
             False,
@@ -67,7 +67,7 @@ TestFunctionInfo.__test__ = False
         (
             "logMessages",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             103,
             False,
@@ -81,7 +81,7 @@ TestFunctionInfo.__test__ = False
         (
             "logMessages",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             102,
             False,
@@ -90,7 +90,7 @@ TestFunctionInfo.__test__ = False
         (
             "peekReceived",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             None,
             False,
@@ -147,14 +147,14 @@ TestCallerInfo.__test__ = False
         (
             "logMessages",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             103,
             False,
             TestCallerInfo(
                 name="dumpToLog",
                 file_path=Path(
-                    "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                    "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
                 ),
                 line_number=95,
             ),
@@ -203,14 +203,14 @@ TestCalleeInfo.__test__ = False
         (
             "dumpToLog",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             95,
             False,
             TestCalleeInfo(
                 name="logMessages",
                 file_path=Path(
-                    "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                    "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
                 ),
                 line_number=103,
             ),
@@ -271,7 +271,7 @@ TestTypeDefinitionInfo.__test__ = False
         (
             "MessageTracker",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             False,
             TestTypeDefinitionInfo(
@@ -322,43 +322,41 @@ TestTypeUsageInfo.__test__ = False
         (
             "MessageTracker",
             Path(
-                "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
+                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
             ),
             False,
             [
                 TestTypeUsageInfo(
-                    file_path=Path(
-                        "fuzz-tooling/oss-fuzz-aixcc/projects/zookeeper/MessageTrackerPeekReceivedFuzzer.java"
-                    ),
+                    file_path=Path("/src/MessageTrackerPeekReceivedFuzzer.java"),
                     line_number=29,
                 ),
                 TestTypeUsageInfo(
                     file_path=Path(
-                        "src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/LearnerHandler.java"
+                        "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/LearnerHandler.java"
                     ),
                     line_number=300,
                 ),
                 TestTypeUsageInfo(
                     file_path=Path(
-                        "src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
+                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
                     ),
                     line_number=46,
                 ),
                 TestTypeUsageInfo(
                     file_path=Path(
-                        "src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
+                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
                     ),
                     line_number=63,
                 ),
                 TestTypeUsageInfo(
                     file_path=Path(
-                        "src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
+                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
                     ),
                     line_number=79,
                 ),
                 TestTypeUsageInfo(
                     file_path=Path(
-                        "src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
+                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
                     ),
                     line_number=105,
                 ),

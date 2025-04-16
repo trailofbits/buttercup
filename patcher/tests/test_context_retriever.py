@@ -2,6 +2,7 @@
 
 import pytest
 from pathlib import Path
+import shutil
 import subprocess
 from unittest.mock import MagicMock, patch
 import os
@@ -27,6 +28,30 @@ def mock_chain(mock_llm: MagicMock):
     res.with_fallbacks.return_value = mock_llm
     res.with_fallbacks.return_value.bind_tools.return_value = mock_llm
     return res
+
+
+original_subprocess_run = subprocess.run
+
+
+def mock_docker_run(challenge_task: ChallengeTask):
+    def wrapped(args, *rest, **kwargs):
+        if args[0] == "docker":
+            # Mock docker cp command by copying source path to container src dir
+            if args[1] == "cp":
+                container_dst_dir = Path(args[3]) / "src" / challenge_task.task_meta.project_name
+                container_dst_dir.mkdir(parents=True, exist_ok=True)
+                # Copy source files to container src dir
+                src_path = challenge_task.get_source_path()
+                shutil.copytree(src_path, container_dst_dir, dirs_exist_ok=True)
+            elif args[1] == "create":
+                pass
+            elif args[1] == "rm":
+                pass
+
+            return subprocess.CompletedProcess(args, returncode=0)
+        return original_subprocess_run(args, *rest, **kwargs)
+
+    return wrapped
 
 
 @pytest.fixture(autouse=True)
@@ -185,12 +210,13 @@ def mock_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> ContextRetrieve
     )
     wdir = tmp_path / "work_dir"
     wdir.mkdir(parents=True)
-    return ContextRetrieverAgent(
-        input=patch_input,
-        chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
-        challenge=mock_challenge,
-        work_dir=wdir,
-    )
+    with patch("subprocess.run", side_effect=mock_docker_run(mock_challenge)):
+        return ContextRetrieverAgent(
+            input=patch_input,
+            chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
+            challenge=mock_challenge,
+            work_dir=wdir,
+        )
 
 
 @pytest.mark.integration
@@ -418,6 +444,29 @@ def test_dupped_code_snippets(mock_agent: ContextRetrieverAgent, mock_llm: Magic
             ],
         ),
         AIMessage(
+            content="I'm done <END>",
+        ),
+    ]
+    result = mock_agent.retrieve_context(state)
+    assert isinstance(result, Command)
+    assert result.goto == "test_node"
+    assert "relevant_code_snippets" in result.update
+    assert len(result.update["relevant_code_snippets"]) == 1
+    code_snippet = next(iter(result.update["relevant_code_snippets"]))
+    assert code_snippet.code == "int main() { return 0; }"
+
+    mock_llm.invoke.side_effect = [
+        AIMessage(
+            content="I'll get the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="get_function_definition_call",
+                    name="get_function_definition",
+                    args={"function_name": "main", "file_path": "test.c"},
+                )
+            ],
+        ),
+        AIMessage(
             content="I'll get the function definition.",
             tool_calls=[
                 ToolCall(
@@ -513,8 +562,8 @@ def test_get_definitions_no_paths(mock_agent: ContextRetrieverAgent, mock_llm: M
     assert len(result.update["relevant_code_snippets"]) == 2
     code_snippets = result.update["relevant_code_snippets"]
     assert any(
-        snippet.code == "int main() { return 0; }" and snippet.key.file_path == "src/my-source/test.c"
+        snippet.code == "int main() { return 0; }" and snippet.key.file_path == "/src/example_project/test.c"
         for snippet in code_snippets
     )
     # FIXME: this is not working as expected
-    # assert any(snippet.code == "struct ebitmap_t { int a; }" and snippet.key.file_path == "src/my-source/test.h" for snippet in code_snippets)
+    # assert any(snippet.code == "struct ebitmap_t { int a; }" and snippet.key.file_path == "src/example_project/test.h" for snippet in code_snippets)

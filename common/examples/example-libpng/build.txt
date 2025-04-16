@@ -2,5 +2,5 @@ engine: "libfuzzer"
 sanitizer: "address"
 task_dir: "/crs_scratch/my-task-id/"
 task_id: "my-task-id"
-build_type: "FUZZER"
+build_type: FUZZER
 apply_diff: true
