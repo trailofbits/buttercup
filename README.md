@@ -1,24 +1,100 @@
 # Trail of Bits AIxCC Finals CRS
 
-# Local Development (minikube, full system)
-```shell
-cd deployment
-cp env.template env
-# Modify `env` according to your needs
-# Make sure BUTTERCUP_K8S_VALUES_TEMPLATE is set to `k8s/values-minikube.template`
-# TAILSCALE_ENABLED should be set to false for local development
-# CLUSTER_TYPE should be set to "minikube"
-make up
-```
+## Dependencies
+
+Follow the install instructions for the required dependencies:
+
+ * [Docker install guide](https://docs.docker.com/engine/install/ubuntu/)
+ * [kubectl install guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+ * [helm install guide](https://helm.sh/docs/intro/install/):
+ * [minikube install guide](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fdebian+package)
+
+## Configuration
+
+Create a new configuration file, starting from the default template:
 
 ```shell
-make down
+cp \
+  deployment/env.template \
+  deployment/env
 ```
 
-## Send example-libpng task to the system
+Next, configure the following options. Follow the instructions in the comments when setting the `GHCR_AUTH` value.
+
+```
+SCANTRON_GITHUB_PAT
+GHCR_AUTH
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
+DOCKER_USERNAME
+DOCKER_PAT
+```
+
+### Settings specific to local development and testing
+
+Use the hardcoded test credentials found in the comments:
+
+```
+AZURE_ENABLED=false
+TAILSCALE_ENABLED=false
+COMPETITION_API_KEY_ID: `11111111-1111-1111-1111-111111111111`
+COMPETITION_API_KEY_TOKEN: `secret`
+CRS_KEY_ID="515cc8a0-3019-4c9f-8c1c-72d0b54ae561"
+CRS_KEY_TOKEN="VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB"
+CRS_API_HOSTNAME="<generated with: openssl rand -hex 16>"
+BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-minikube.template"
+```
+
+Keep empty:
+
+```
+AZURE_API_BASE=""
+AZURE_API_KEY=""
+```
+
+Commented out:
+
+```
+CRS_URL
+CRS_API_HOSTNAME
+LANGFUSE_HOST
+LANGFUSE_PUBLIC_KEY
+LANGFUSE_SECRET_KEY
+OTEL_ENDPOINT
+OTEL_TOKEN
+```
+
+## Authentication
+
+### Docker
+
+Log into ghcr.io:
+
+```shell
+docker login ghcr.io -u <username>
+```
+
+## Running the CRS
+
+### Starting the services
+
+```shell
+cd deployment && make up
+```
+
+### Stopping the services
+
+```shell
+cd deployment && make down
+```
+
+### Sending the example-libpng task to the system
+
+
 ```shell
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 ```
+
 
 ```shell
 ./orchestrator/scripts/task_crs.sh
@@ -29,35 +105,3 @@ Send a SARIF message
 ```shell
 ./orchestrator/scripts/send_sarif.sh <TASK-ID-FROM-TASK-CRS>
 ```
-
-# Local Development (docker compose)
-We use `docker compose` to test CRS components locally during development.
-
-Copy `env.template` to `.env` and set variables.
-Modify `competition-server/scantron.yaml` to use your own `github.pat` (make sure to create it with `repo` and `package:read` permissions).
-
-Start the services with
-```
-docker compose up -d
-```
-
-Stop the services with:
-```
-docker compose down
-```
-
-# Telemetry
-By default, LLM OTel telemetry is enabled and will be sent to a local SigNoz deployment.
-
-To disable the SigNoz deployment, comment out in `competition-server/compose.yaml`:
-```
-include:
- - ./signoz/compose.yaml
-```
-To disable sending OTel telemetry, remove these environment variables from `env.dev.compose`:
-```
-OTEL_EXPORTER_OTLP_ENDPOINT
-OTEL_EXPORTER_OTLP_HEADERS
-OTEL_EXPORTER_OTLP_PROTOCOL
-```
-You can also change the values for these environment variables if you want to send telemetry to a different OTel collector.
