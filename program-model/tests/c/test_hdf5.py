@@ -2,7 +2,7 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from ..conftest import oss_fuzz_task
-from .common import (
+from ..common import (
     common_test_get_type_definitions,
     common_test_get_functions,
     common_test_get_callers,

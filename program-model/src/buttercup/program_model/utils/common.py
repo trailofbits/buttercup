@@ -115,3 +115,17 @@ class TypeDefinition:
 
     file_path: Path
     """Path to the file containing the type definition."""
+
+
+@dataclass
+class TypeUsageInfo:
+    """Class to store type usage information."""
+
+    name: str
+    """Name of the type being used."""
+
+    file_path: Path
+    """Path to the file containing the type usage."""
+
+    line_number: int
+    """Line number of the type usage (1-based)."""

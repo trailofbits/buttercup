@@ -1,17 +1,22 @@
 """CodeQuery primitives testing"""
 
 import pytest
-from pathlib import Path
-from dataclasses import dataclass
 
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.program_model.codequery import CodeQuery
 from buttercup.program_model.utils.common import TypeDefinitionType
 from ..conftest import oss_fuzz_task
-
-import logging
-
-logger = logging.getLogger(__name__)
+from ..common import (
+    common_test_get_type_definitions,
+    common_test_get_functions,
+    common_test_get_callers,
+    common_test_get_callees,
+    common_test_get_type_usages,
+    TestCallerInfo,
+    TestFunctionInfo,
+    TestCalleeInfo,
+    TestTypeDefinitionInfo,
+    TestTypeUsageInfo,
+)
 
 
 @pytest.fixture(scope="module")
@@ -25,75 +30,22 @@ def zookeeper_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     )
 
 
-@dataclass(frozen=True)
-class TestFunctionInfo:
-    num_bodies: int
-    body_excerpts: list[str]
-
-
-# Prevent pytest from collecting this as a test
-TestFunctionInfo.__test__ = False
-
-
 @pytest.mark.parametrize(
-    "function_name,file_path,line_number,fuzzy,function_info",
+    "function_name,file_path,function_info",
     [
         (
             "logMessages",
-            None,
-            None,
-            False,
+            "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
                     """String sentOrReceivedText = direction == Direction.SENT ? "sentBuffer to" : "receivedBuffer from";""",
                 ],
             ),
-        ),
-        (
-            "logMessages",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
-            None,
-            False,
-            TestFunctionInfo(
-                num_bodies=1,
-                body_excerpts=[
-                    """String sentOrReceivedText = direction == Direction.SENT ? "sentBuffer to" : "receivedBuffer from";""",
-                ],
-            ),
-        ),
-        (
-            "logMessages",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
-            103,
-            False,
-            TestFunctionInfo(
-                num_bodies=1,
-                body_excerpts=[
-                    """String sentOrReceivedText = direction == Direction.SENT ? "sentBuffer to" : "receivedBuffer from";""",
-                ],
-            ),
-        ),
-        (
-            "logMessages",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
-            102,
-            False,
-            None,
         ),
         (
             "peekReceived",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
-            None,
-            False,
+            "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=["""return receivedBuffer.peek();"""],
@@ -103,117 +55,71 @@ TestFunctionInfo.__test__ = False
 )
 @pytest.mark.integration
 def test_zookeeper_get_functions(
-    zookeeper_oss_fuzz_task: ChallengeTask,
-    function_name,
-    file_path,
-    line_number,
-    fuzzy,
-    function_info,
+    zookeeper_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
 ):
-    """Test that we can get functions from zookeeper"""
-    codequery = CodeQuery(zookeeper_oss_fuzz_task)
-    functions = codequery.get_functions(
-        function_name=function_name,
-        file_path=file_path,
-        line_number=line_number,
-        fuzzy=fuzzy,
+    """Test that we can get functions in challenge task code"""
+    common_test_get_functions(
+        zookeeper_oss_fuzz_task, function_name, file_path, function_info
     )
-    if function_info is None:
-        assert len(functions) == 0
-    else:
-        assert len(functions) == 1
-        assert functions[0].name == function_name
-        assert len(functions[0].bodies) == function_info.num_bodies
-        for body in function_info.body_excerpts:
-            assert any([body in x.body for x in functions[0].bodies])
-        if line_number is not None:
-            assert functions[0].bodies[0].start_line == line_number
-
-
-@dataclass(frozen=True)
-class TestCallerInfo:
-    name: str
-    file_path: Path
-    line_number: int
-
-
-# Prevent pytest from collecting this as a test
-TestCallerInfo.__test__ = False
 
 
 @pytest.mark.parametrize(
-    "function_name,file_path,line_number,fuzzy,function_info",
+    "function_name,file_path,line_number,fuzzy,expected_callers,num_callers",
     [
         (
             "logMessages",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
-            103,
+            "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
+            None,
             False,
-            TestCallerInfo(
-                name="dumpToLog",
-                file_path=Path(
-                    "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-                ),
-                line_number=95,
-            ),
+            [
+                TestCallerInfo(
+                    name="dumpToLog",
+                    file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
+                    start_line=95,
+                )
+            ],
+            1,
         ),
     ],
 )
 @pytest.mark.integration
-def test_zookeeper_get_callers(
+def test_get_callers(
     zookeeper_oss_fuzz_task: ChallengeTask,
     function_name,
     file_path,
     line_number,
     fuzzy,
-    function_info,
+    expected_callers,
+    num_callers,
 ):
-    """Test that we can get function callers from zookeeper"""
-    codequery = CodeQuery(zookeeper_oss_fuzz_task)
-    function = codequery.get_functions(
-        function_name=function_name,
-        file_path=file_path,
-        line_number=line_number,
-        fuzzy=fuzzy,
-    )[0]
-
-    callers = codequery.get_callers(function)
-    assert len(callers) == 1
-    assert callers[0].name == function_info.name
-    assert callers[0].file_path == function_info.file_path
-    assert callers[0].bodies[0].start_line == function_info.line_number
-
-
-@dataclass(frozen=True)
-class TestCalleeInfo:
-    name: str
-    file_path: Path
-    line_number: int
-
-
-# Prevent pytest from collecting this as a test
-TestCalleeInfo.__test__ = False
+    """Test that we can get function callers"""
+    common_test_get_callers(
+        zookeeper_oss_fuzz_task,
+        function_name,
+        file_path,
+        line_number,
+        fuzzy,
+        expected_callers,
+        num_callers,
+    )
 
 
 @pytest.mark.parametrize(
-    "function_name,file_path,line_number,fuzzy,function_info",
+    "function_name,file_path,line_number,fuzzy,expected_callees,num_callees",
     [
         (
             "dumpToLog",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
+            "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
             95,
             False,
-            TestCalleeInfo(
-                name="logMessages",
-                file_path=Path(
-                    "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-                ),
-                line_number=103,
-            ),
+            [
+                TestCalleeInfo(
+                    name="logMessages",
+                    file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
+                    start_line=103,
+                )
+            ],
+            1,
         ),
     ],
 )
@@ -224,34 +130,19 @@ def test_zookeeper_get_callees(
     file_path,
     line_number,
     fuzzy,
-    function_info,
+    expected_callees,
+    num_callees,
 ):
-    """Test that we can get function callees from zookeeper"""
-    codequery = CodeQuery(zookeeper_oss_fuzz_task)
-    function = codequery.get_functions(
-        function_name=function_name,
-        file_path=file_path,
-        line_number=line_number,
-        fuzzy=fuzzy,
-    )[0]
-
-    callees = codequery.get_callees(function)
-    assert len(callees) == 1
-    assert callees[0].name == function_info.name
-    assert callees[0].file_path == function_info.file_path
-    assert callees[0].bodies[0].start_line == function_info.line_number
-
-
-@dataclass(frozen=True)
-class TestTypeDefinitionInfo:
-    name: str
-    type: TypeDefinitionType
-    definition: str
-    definition_line: int
-
-
-# Prevent pytest from collecting this as a test
-TestTypeDefinitionInfo.__test__ = False
+    """Test that we can get function callees."""
+    common_test_get_callees(
+        zookeeper_oss_fuzz_task,
+        function_name,
+        file_path,
+        line_number,
+        fuzzy,
+        expected_callees,
+        num_callees,
+    )
 
 
 @pytest.mark.parametrize(
@@ -266,101 +157,59 @@ TestTypeDefinitionInfo.__test__ = False
                 type=TypeDefinitionType.CLASS,
                 definition="public class MessageTracker {",
                 definition_line=34,
-            ),
-        ),
-        (
-            "MessageTracker",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
-            False,
-            TestTypeDefinitionInfo(
-                name="MessageTracker",
-                type=TypeDefinitionType.CLASS,
-                definition="public class MessageTracker {",
-                definition_line=34,
+                file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
             ),
         ),
     ],
 )
 @pytest.mark.integration
-def test_zookeeper_get_type_definitions(
+def test_get_type_definitions(
     zookeeper_oss_fuzz_task: ChallengeTask,
     type_name,
     file_path,
     fuzzy,
     type_definition_info,
 ):
-    """Test that we can get function callees from zookeeper"""
-    codequery = CodeQuery(zookeeper_oss_fuzz_task)
-    type_definitions = codequery.get_types(
-        type_name=type_name,
-        file_path=file_path,
-        fuzzy=fuzzy,
+    """Test that we can get type defs"""
+    common_test_get_type_definitions(
+        zookeeper_oss_fuzz_task,
+        type_name,
+        file_path,
+        fuzzy,
+        type_definition_info,
     )
-
-    assert len(type_definitions) == 1
-    assert type_definitions[0].name == type_definition_info.name
-    assert type_definitions[0].type == type_definition_info.type
-    assert type_definition_info.definition in type_definitions[0].definition
-    assert type_definitions[0].definition_line == type_definition_info.definition_line
-
-
-@dataclass(frozen=True)
-class TestTypeUsageInfo:
-    file_path: Path
-    line_number: int
-
-
-# Prevent pytest from collecting this as a test
-TestTypeUsageInfo.__test__ = False
 
 
 @pytest.mark.parametrize(
-    "type_name,file_path,fuzzy,type_usage_info",
+    "type_name,file_path,fuzzy,type_usage_infos,num_type_usages",
     [
         (
             "MessageTracker",
-            Path(
-                "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java"
-            ),
+            "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
             False,
             [
                 TestTypeUsageInfo(
-                    file_path=Path("/src/MessageTrackerPeekReceivedFuzzer.java"),
-                    line_number=29,
-                ),
-                TestTypeUsageInfo(
-                    file_path=Path(
-                        "/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/LearnerHandler.java"
-                    ),
+                    file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/LearnerHandler.java",
                     line_number=300,
                 ),
                 TestTypeUsageInfo(
-                    file_path=Path(
-                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
-                    ),
+                    file_path="/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java",
                     line_number=46,
                 ),
                 TestTypeUsageInfo(
-                    file_path=Path(
-                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
-                    ),
+                    file_path="/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java",
                     line_number=63,
                 ),
                 TestTypeUsageInfo(
-                    file_path=Path(
-                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
-                    ),
+                    file_path="/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java",
                     line_number=79,
                 ),
                 TestTypeUsageInfo(
-                    file_path=Path(
-                        "/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java"
-                    ),
+                    file_path="/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java",
                     line_number=105,
                 ),
             ],
+            5,
         ),
     ],
 )
@@ -370,19 +219,15 @@ def test_zookeeper_get_type_usages(
     type_name,
     file_path,
     fuzzy,
-    type_usage_info,
+    type_usage_infos,
+    num_type_usages,
 ):
     """Test that we can get function callees from zookeeper"""
-    codequery = CodeQuery(zookeeper_oss_fuzz_task)
-    type_definition = codequery.get_types(
-        type_name=type_name,
-        file_path=file_path,
-        fuzzy=fuzzy,
-    )[0]
-    call_sites = codequery.get_type_calls(type_definition)
-    assert len(call_sites) == len(type_usage_info)
-
-    for found, correct in zip(call_sites, type_usage_info):
-        file_path, line_number = found
-        assert file_path == correct.file_path
-        assert line_number == correct.line_number
+    common_test_get_type_usages(
+        zookeeper_oss_fuzz_task,
+        type_name,
+        file_path,
+        fuzzy,
+        type_usage_infos,
+        num_type_usages,
+    )

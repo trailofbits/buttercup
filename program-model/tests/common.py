@@ -7,10 +7,13 @@ from buttercup.program_model.utils.common import (
     TypeDefinitionType,
     TypeDefinition,
     Function,
+    TypeUsageInfo,
 )
 
 
-def filter_project_context(project_name, results: list[Function | TypeDefinition]):
+def filter_project_context(
+    project_name, results: list[Function | TypeDefinition | TypeUsageInfo]
+):
     """Some challenge tasks result in multiple instances of the target project to
     be built in the /src/ directory. This in turn causes Codequery to return multiple
     matches for queried context because it gets matches from parallel instances of the
@@ -191,3 +194,47 @@ def common_test_get_type_definitions(
     assert type_definition_info.definition in type_definitions[0].definition
     assert type_definitions[0].definition_line == type_definition_info.definition_line
     assert str(type_definitions[0].file_path) == type_definition_info.file_path
+
+
+@dataclass(frozen=True)
+class TestTypeUsageInfo:
+    file_path: Path
+    line_number: int
+
+
+# Prevent pytest from collecting this as a test
+TestTypeUsageInfo.__test__ = False
+
+
+def common_test_get_type_usages(
+    fuzz_task: ChallengeTask,
+    type_name,
+    file_path,
+    fuzzy,
+    type_usage_infos,
+    num_type_usages: int | None = None,
+):
+    """Test that we can get function callees from zookeeper"""
+    codequery = CodeQuery(fuzz_task)
+    type_definition = codequery.get_types(
+        type_name=type_name,
+        file_path=Path(file_path) if file_path else None,
+        fuzzy=fuzzy,
+    )[0]
+    call_sites = codequery.get_type_calls(type_definition)
+    call_sites = filter_project_context(fuzz_task.task_meta.project_name, call_sites)
+    if num_type_usages:
+        assert len(call_sites) == num_type_usages
+
+    for type_usage_info in type_usage_infos:
+        found = [
+            c
+            for c in call_sites
+            if c.name == type_name
+            and str(c.file_path) == type_usage_info.file_path
+            and c.line_number == type_usage_info.line_number
+        ]
+        if len(found) == 0:
+            pytest.fail(f"Couldn't find expected type usage: {type_usage_info}")
+        elif len(found) > 1:
+            pytest.fail(f"Found multiple identical type usages for: {type_usage_info}")

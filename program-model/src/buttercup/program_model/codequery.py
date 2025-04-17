@@ -16,6 +16,7 @@ from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.program_model.utils.common import (
     Function,
     TypeDefinition,
+    TypeUsageInfo,
 )
 from buttercup.common.project_yaml import ProjectYaml
 
@@ -292,6 +293,19 @@ class CodeQuery:
             for td in types
         ]
 
+    def _rebase_type_usages_file_paths(
+        self, type_usages: list[TypeUsageInfo]
+    ) -> list[TypeUsageInfo]:
+        """Rebase the file paths of the types to the challenge task container structure."""
+        return [
+            TypeUsageInfo(
+                name=tu.name,
+                file_path=self._rebase_path(tu.file_path),
+                line_number=tu.line_number,
+            )
+            for tu in type_usages
+        ]
+
     def get_functions(
         self,
         function_name: str,
@@ -514,7 +528,7 @@ class CodeQuery:
         res = self._rebase_types_file_paths(res)
         return res
 
-    def get_type_calls(self, type_definition: TypeDefinition) -> list[tuple[Path, int]]:
+    def get_type_calls(self, type_definition: TypeDefinition) -> list[TypeUsageInfo]:
         """Get the calls to a type definition. File paths are based on the challenge
         task container structure (e.g. /src)."""
         cqsearch_args = [
@@ -531,11 +545,17 @@ class CodeQuery:
         results = self._run_cqsearch(*cqsearch_args)
         logger.debug("cqsearch output: %s", results)
 
-        calls: list[tuple[Path, int]] = []
+        calls: list[TypeUsageInfo] = []
         for result in results:
-            calls.append((self._rebase_path(result.file), result.line))
+            calls.append(
+                TypeUsageInfo(
+                    name=type_definition.name,
+                    file_path=result.file,
+                    line_number=result.line,
+                )
+            )
 
-        return calls
+        return self._rebase_type_usages_file_paths(calls)
 
 
 @dataclass
