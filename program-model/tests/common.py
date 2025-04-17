@@ -214,7 +214,7 @@ def common_test_get_type_usages(
     type_usage_infos,
     num_type_usages: int | None = None,
 ):
-    """Test that we can get function callees from zookeeper"""
+    """Test that we can get type usages"""
     codequery = CodeQuery(fuzz_task)
     type_definition = codequery.get_types(
         type_name=type_name,
