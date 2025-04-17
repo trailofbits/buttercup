@@ -14,10 +14,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture
-def zookeeper_oss_fuzz_task(tmp_path: Path):
+@pytest.fixture(scope="module")
+def zookeeper_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     return oss_fuzz_task(
-        tmp_path,
+        tmp_path_factory.mktemp("task_dir"),
         "zookeeper",
         "zookeeper",
         "https://github.com/apache/zookeeper",

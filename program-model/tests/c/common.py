@@ -1,0 +1,193 @@
+from pathlib import Path
+from dataclasses import dataclass
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQuery
+import pytest
+from buttercup.program_model.utils.common import (
+    TypeDefinitionType,
+    TypeDefinition,
+    Function,
+)
+
+
+def filter_project_context(project_name, results: list[Function | TypeDefinition]):
+    """Some challenge tasks result in multiple instances of the target project to
+    be built in the /src/ directory. This in turn causes Codequery to return multiple
+    matches for queried context because it gets matches from parallel instances of the
+    project.
+
+    This function filters out found functions and types using the target project name.
+    It removes all matches that don't directly come from the target project. To identify these,
+    it checks whether matches belong to a file that as the proper project_name in their path."""
+    filtered = [x for x in results if f"/{project_name}/" in str(x.file_path)]
+    return filtered
+
+
+@dataclass(frozen=True)
+class TestFunctionInfo:
+    num_bodies: int
+    body_excerpts: list[str]
+
+
+# Prevent pytest from collecting this as a test
+TestFunctionInfo.__test__ = False
+
+
+def common_test_get_functions(
+    fuzz_task: ChallengeTask, function_name, file_path, function_info
+):
+    """Generic function for testing get_functions() in C codebases"""
+    codequery = CodeQuery(fuzz_task)
+    functions = codequery.get_functions(function_name, file_path=Path(file_path))
+    assert len(functions) == 1
+    assert functions[0].name == function_name
+    assert str(functions[0].file_path) == file_path
+    assert len(functions[0].bodies) == function_info.num_bodies
+    for body in function_info.body_excerpts:
+        assert any([body in x.body for x in functions[0].bodies])
+
+
+@dataclass(frozen=True)
+class TestCallerInfo:
+    name: str
+    file_path: Path
+    start_line: int
+
+
+# Prevent pytest from collecting this as a test
+TestCallerInfo.__test__ = False
+
+
+def common_test_get_callers(
+    fuzz_task: ChallengeTask,
+    function_name,
+    file_path,
+    line_number,
+    fuzzy,
+    expected_callers,
+    num_callers: int | None = None,
+):
+    """Test that we can get function callers"""
+    codequery = CodeQuery(fuzz_task)
+    function = codequery.get_functions(
+        function_name=function_name,
+        file_path=Path(file_path),
+        line_number=line_number,
+        fuzzy=fuzzy,
+    )[0]
+
+    callers = codequery.get_callers(function)
+    callers = filter_project_context(fuzz_task.task_meta.project_name, callers)
+    for expected_caller in expected_callers:
+        caller_info = [
+            c
+            for c in callers
+            if c.name == expected_caller.name
+            and c.file_path == Path(expected_caller.file_path)
+            and any(
+                True
+                for b in c.bodies
+                if b.start_line <= expected_caller.start_line <= b.end_line
+            )
+        ]
+        if len(caller_info) == 0:
+            pytest.fail(f"Couldn't find expected caller: {expected_caller}")
+        elif len(caller_info) > 1:
+            pytest.fail(f"Found multiple identical callers for: {expected_caller}")
+    # Make sure we get the right number of callers
+    if num_callers:
+        assert len(callers) == num_callers
+
+
+@dataclass(frozen=True)
+class TestCalleeInfo:
+    name: str
+    file_path: Path
+    start_line: int
+
+
+# Prevent pytest from collecting this as a test
+TestCalleeInfo.__test__ = False
+
+
+# NOTE(boyan): this is similar to the common_test_get_callers
+# but we don't factorize the code so far in case we need to
+# make the tests diverge in the future
+def common_test_get_callees(
+    fuzz_task: ChallengeTask,
+    function_name,
+    file_path,
+    line_number,
+    fuzzy,
+    expected_callees,
+    num_callees: int | None = None,
+):
+    """Test that we can get function callees."""
+    codequery = CodeQuery(fuzz_task)
+    function = codequery.get_functions(
+        function_name=function_name,
+        file_path=Path(file_path),
+        line_number=line_number,
+        fuzzy=fuzzy,
+    )[0]
+
+    callees = codequery.get_callees(function)
+    callees = filter_project_context(fuzz_task.task_meta.project_name, callees)
+    for expected_callee in expected_callees:
+        callee_info = [
+            c
+            for c in callees
+            if c.name == expected_callee.name
+            and str(c.file_path) == expected_callee.file_path
+            and any(
+                True
+                for b in c.bodies
+                if b.start_line <= expected_callee.start_line <= b.end_line
+            )
+        ]
+        if len(callee_info) == 0:
+            pytest.fail(f"Couldn't find expected callee: {expected_callee}")
+        elif len(callee_info) > 1:
+            pytest.fail(f"Found multiple identical callees for: {expected_callee}")
+
+    # Make sure we don't get more callees than expected
+    if num_callees:
+        assert num_callees == len(callees)
+
+
+@dataclass(frozen=True)
+class TestTypeDefinitionInfo:
+    name: str
+    type: TypeDefinitionType
+    definition: str
+    definition_line: int
+    file_path: str
+
+
+# Prevent pytest from collecting this as a test
+TestTypeDefinitionInfo.__test__ = False
+
+
+def common_test_get_type_definitions(
+    fuzz_task: ChallengeTask,
+    type_name,
+    file_path,
+    fuzzy,
+    type_definition_info,
+):
+    """Test that we can get type defs"""
+    codequery = CodeQuery(fuzz_task)
+    type_definitions = codequery.get_types(
+        type_name=type_name,
+        file_path=Path(file_path) if file_path else None,
+        fuzzy=fuzzy,
+    )
+    type_definitions = filter_project_context(
+        fuzz_task.task_meta.project_name, type_definitions
+    )
+    assert len(type_definitions) == 1
+    assert type_definitions[0].name == type_definition_info.name
+    assert type_definitions[0].type == type_definition_info.type
+    assert type_definition_info.definition in type_definitions[0].definition
+    assert type_definitions[0].definition_line == type_definition_info.definition_line
+    assert str(type_definitions[0].file_path) == type_definition_info.file_path

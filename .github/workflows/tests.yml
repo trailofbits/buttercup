@@ -32,7 +32,7 @@ jobs:
   #         ls -la /tmp_graphdb/
 
   test:
-    needs: prepare-config
+    # needs: prepare-config
     strategy:
       matrix:
         component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
@@ -124,6 +124,14 @@ jobs:
       #     just download-kythe
       #   if: ${{ matrix.component }} == 'program-model'
       #   working-directory: program-model
+
+      - name: Prepare environment
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y codequery
+          sudo mkdir -p /crs_scratch
+          sudo chmod -R 777 /crs_scratch
 
       - name: Setup ${{ matrix.component }} component
         run: |

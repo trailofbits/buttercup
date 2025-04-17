@@ -277,6 +277,21 @@ class CodeQuery:
             for function in functions
         ]
 
+    def _rebase_types_file_paths(
+        self, types: list[TypeDefinition]
+    ) -> list[TypeDefinition]:
+        """Rebase the file paths of the types to the challenge task container structure."""
+        return [
+            TypeDefinition(
+                name=td.name,
+                file_path=self._rebase_path(td.file_path),
+                definition=td.definition,
+                definition_line=td.definition_line,
+                type=td.type,
+            )
+            for td in types
+        ]
+
     def get_functions(
         self,
         function_name: str,
@@ -495,7 +510,8 @@ class CodeQuery:
 
             res.extend(typedefs.values())
 
-        # TODO: Rebase the file paths
+        # Rebase the file paths
+        res = self._rebase_types_file_paths(res)
         return res
 
     def get_type_calls(self, type_definition: TypeDefinition) -> list[tuple[Path, int]]:

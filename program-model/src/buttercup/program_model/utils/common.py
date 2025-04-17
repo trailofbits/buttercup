@@ -112,3 +112,6 @@ class TypeDefinition:
 
     definition_line: int
     """Line number of the definition of the type (1-based)."""
+
+    file_path: Path
+    """Path to the file containing the type definition."""

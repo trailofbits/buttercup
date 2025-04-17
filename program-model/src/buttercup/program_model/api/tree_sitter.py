@@ -323,6 +323,7 @@ class CodeTS:
                 definition=type_definition,
                 definition_line=definition_node.start_point[0]
                 + 1,  # Convert to 1-based line number, since the stacktrace is 1-based
+                file_path=file_path,
             )
 
         return res
