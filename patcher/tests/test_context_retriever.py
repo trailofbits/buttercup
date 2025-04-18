@@ -95,7 +95,7 @@ language: c
     helper_path.write_text("import sys;\nsys.exit(0)\n")
 
     # Create a mock test.c file
-    (source / "test.c").write_text("int main() { return 0; }")
+    (source / "test.c").write_text("int foo() { return 0; }\nint main() { int a = foo(); return a; }")
     (source / "test.h").write_text("struct ebitmap_t { int a; };")
 
     TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(tmp_path)
@@ -421,7 +421,7 @@ def test_recursion_limit_tmp_code_snippets(mock_agent: ContextRetrieverAgent, mo
     assert "relevant_code_snippets" in result.update
     assert len(result.update["relevant_code_snippets"]) == 1
     code_snippet = next(iter(result.update["relevant_code_snippets"]))
-    assert code_snippet.code == "int main() { return 0; }"
+    assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
 
 def test_dupped_code_snippets(mock_agent: ContextRetrieverAgent, mock_llm: MagicMock) -> None:
@@ -453,7 +453,7 @@ def test_dupped_code_snippets(mock_agent: ContextRetrieverAgent, mock_llm: Magic
     assert "relevant_code_snippets" in result.update
     assert len(result.update["relevant_code_snippets"]) == 1
     code_snippet = next(iter(result.update["relevant_code_snippets"]))
-    assert code_snippet.code == "int main() { return 0; }"
+    assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
     mock_llm.invoke.side_effect = [
         AIMessage(
@@ -486,7 +486,7 @@ def test_dupped_code_snippets(mock_agent: ContextRetrieverAgent, mock_llm: Magic
     assert "relevant_code_snippets" in result.update
     assert len(result.update["relevant_code_snippets"]) == 1
     code_snippet = next(iter(result.update["relevant_code_snippets"]))
-    assert code_snippet.code == "int main() { return 0; }"
+    assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
 
 def test_get_type_definition(mock_agent: ContextRetrieverAgent, mock_llm: MagicMock) -> None:
@@ -562,8 +562,75 @@ def test_get_definitions_no_paths(mock_agent: ContextRetrieverAgent, mock_llm: M
     assert len(result.update["relevant_code_snippets"]) == 2
     code_snippets = result.update["relevant_code_snippets"]
     assert any(
-        snippet.code == "int main() { return 0; }" and snippet.key.file_path == "/src/example_project/test.c"
+        snippet.code == "int main() { int a = foo(); return a; }"
+        and snippet.key.file_path == "/src/example_project/test.c"
         for snippet in code_snippets
     )
-    # FIXME: this is not working as expected
-    # assert any(snippet.code == "struct ebitmap_t { int a; }" and snippet.key.file_path == "src/example_project/test.h" for snippet in code_snippets)
+    assert any(
+        snippet.code == "struct ebitmap_t { int a; }" and snippet.key.file_path == "/src/example_project/test.h"
+        for snippet in code_snippets
+    )
+
+
+def test_get_callers(mock_agent: ContextRetrieverAgent, mock_llm: MagicMock) -> None:
+    """Test that we can get the callers of a function."""
+    state = ContextRetrieverState(
+        code_snippet_requests=[
+            CodeSnippetRequest(request="Find callers of foo"),
+        ],
+        prev_node="test_node",
+    )
+    mock_llm.invoke.side_effect = [
+        AIMessage(
+            content="I'll get the callers of the function foo.",
+            tool_calls=[
+                ToolCall(
+                    id="get_callers_call",
+                    name="get_callers",
+                    args={"function_name": "foo", "file_path": "test.c"},
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'm done <END>",
+        ),
+    ]
+    result = mock_agent.retrieve_context(state)
+    assert isinstance(result, Command)
+    assert result.goto == "test_node"
+    assert "relevant_code_snippets" in result.update
+    assert len(result.update["relevant_code_snippets"]) == 1
+    code_snippet = next(iter(result.update["relevant_code_snippets"]))
+    assert code_snippet.code == "int main() { int a = foo(); return a; }"
+
+
+def test_get_callees(mock_agent: ContextRetrieverAgent, mock_llm: MagicMock) -> None:
+    """Test that we can get the callees of a function."""
+    state = ContextRetrieverState(
+        code_snippet_requests=[
+            CodeSnippetRequest(request="Find callees of main"),
+        ],
+        prev_node="test_node",
+    )
+    mock_llm.invoke.side_effect = [
+        AIMessage(
+            content="I'll get the callees of the function main.",
+            tool_calls=[
+                ToolCall(
+                    id="get_callees_call",
+                    name="get_callees",
+                    args={"function_name": "main", "file_path": "test.c"},
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'm done <END>",
+        ),
+    ]
+    result = mock_agent.retrieve_context(state)
+    assert isinstance(result, Command)
+    assert result.goto == "test_node"
+    assert "relevant_code_snippets" in result.update
+    assert len(result.update["relevant_code_snippets"]) == 1
+    code_snippet = next(iter(result.update["relevant_code_snippets"]))
+    assert code_snippet.code == "int foo() { return 0; }"

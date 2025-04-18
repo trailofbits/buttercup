@@ -25,6 +25,7 @@ from buttercup.common.challenge_task import ChallengeTask
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.patcher.agents.common import PatcherAgentBase, ContextRetrieverState, ContextCodeSnippet, CodeSnippetKey
 from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langgraph.types import Command
@@ -83,6 +84,16 @@ class NodeNames(str, Enum):
     TOOLS = "tools"
 
 
+def _return_command_tool_message(
+    tool_call_id: str, message: str, code_snippets: list[ContextCodeSnippet] | None = None
+) -> Command:
+    update_state = {"messages": [ToolMessage(message, tool_call_id=tool_call_id)]}
+    if code_snippets:
+        update_state["code_snippets"] = code_snippets
+
+    return Command(update=update_state)
+
+
 @tool
 def ls(
     file_path: str, state: Annotated[BaseModel, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]
@@ -101,7 +112,7 @@ def ls(
         raise ValueError(f"Failed to list files in {path}: {ls_cmd_res.error}")
 
     ls_output = ls_cmd_res.output.decode("utf-8")
-    return Command(update={"messages": [ToolMessage(ls_output, tool_call_id=tool_call_id)]})
+    return _return_command_tool_message(tool_call_id, ls_output)
 
 
 @tool
@@ -125,7 +136,7 @@ def grep(
         raise ValueError(f"Failed to grep for {pattern} in {path}: {grep_cmd_res.error}")
 
     grep_output = grep_cmd_res.output.decode("utf-8")
-    return Command(update={"messages": [ToolMessage(grep_output, tool_call_id=tool_call_id)]})
+    return _return_command_tool_message(tool_call_id, grep_output)
 
 
 @tool
@@ -143,7 +154,7 @@ def cat(
         raise ValueError(f"Failed to read contents of {path}: {cat_cmd_res.error}")
 
     cat_output = cat_cmd_res.output.decode("utf-8")
-    return Command(update={"messages": [ToolMessage(cat_output, tool_call_id=tool_call_id)]})
+    return _return_command_tool_message(tool_call_id, cat_output)
 
 
 @tool
@@ -165,7 +176,52 @@ def get_lines(
         raise ValueError(f"Failed to get lines {start}-{end} of {path}: {get_lines_res_cmd.error}")
 
     get_lines_output = get_lines_res_cmd.output.decode("utf-8").splitlines()[start:end]
-    return Command(update={"messages": [ToolMessage("\n".join(get_lines_output), tool_call_id=tool_call_id)]})
+    return _return_command_tool_message(tool_call_id, "\n".join(get_lines_output))
+
+
+def _get_function(name: str, path: Path | None, state: State) -> Function:
+    functions = state.context_retriever_agent.codequery.get_functions(name, path)
+    if not functions:
+        raise ValueError(f"No definition found for function {name} in {path}")
+
+    return functions[0]
+
+
+def _add_functions_code_snippets(
+    functions: list[Function],
+    state: State,
+) -> list[ContextCodeSnippet]:
+    code_snippets = [
+        ContextCodeSnippet(
+            key=CodeSnippetKey(
+                file_path=function.file_path.as_posix(),
+                identifier=function.name,
+            ),
+            code=body.body,
+        )
+        for function in functions
+        for body in function.bodies
+    ]
+    state.tmp_code_snippets.code_snippets.extend(code_snippets)
+    return code_snippets
+
+
+def _add_type_definitions_code_snippets(
+    type_definitions: list[TypeDefinition],
+    state: State,
+) -> list[ContextCodeSnippet]:
+    code_snippets = [
+        ContextCodeSnippet(
+            key=CodeSnippetKey(
+                file_path=type_def.file_path.as_posix(),
+                identifier=type_def.name,
+            ),
+            code=type_def.definition,
+        )
+        for type_def in type_definitions
+    ]
+    state.tmp_code_snippets.code_snippets.extend(code_snippets)
+    return code_snippets
 
 
 @tool
@@ -195,31 +251,59 @@ def get_function_definition(
     if not functions:
         functions = state.context_retriever_agent.codequery.get_functions(function_name, path, fuzzy=True)
         if not functions:
-            return Command(
-                update={"messages": [ToolMessage("No definition found for function", tool_call_id=tool_call_id)]}
-            )
+            raise ValueError(f"No definition found for function {function_name} in {path}")
 
-    code_snippets = [
-        ContextCodeSnippet(
-            key=CodeSnippetKey(
-                file_path=function.file_path.as_posix(),
-                identifier=function.name,
-            ),
-            code=body.body,
-        )
-        for function in functions
-        for body in function.bodies
-    ]
-    state.tmp_code_snippets.code_snippets.extend(code_snippets)
-    return Command(
-        update={
-            "messages": [
-                ToolMessage(
-                    f"Found {len(code_snippets)} code snippets for function {function_name}", tool_call_id=tool_call_id
-                )
-            ],
-            "code_snippets": code_snippets,
-        }
+    code_snippets = _add_functions_code_snippets(functions, state)
+    return _return_command_tool_message(
+        tool_call_id, f"Found {len(code_snippets)} code snippets for function {function_name}", code_snippets
+    )
+
+
+@tool
+def get_callers(
+    function_name: str,
+    file_path: str | None,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Get the callers of a function."""
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
+    path = Path(file_path) if file_path else None
+    logger.info("Getting callers of %s in %s", function_name, path)
+    function = _get_function(function_name, path, state)
+    callers = state.context_retriever_agent.codequery.get_callers(function)
+    if not callers:
+        raise ValueError(f"No callers found for function {function_name} in {path}")
+
+    code_snippets = _add_functions_code_snippets(callers, state)
+    return _return_command_tool_message(
+        tool_call_id, f"Found {len(code_snippets)} code snippets for callers of function {function_name}", code_snippets
+    )
+
+
+@tool
+def get_callees(
+    function_name: str,
+    file_path: str | None,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Get the callees of a function."""
+    # NOTE: can't use `State` directly in the signature because langgraph would fail to inject the state
+    assert isinstance(state, State)
+
+    path = Path(file_path) if file_path else None
+    logger.info("Getting callees of %s in %s", function_name, path)
+    function = _get_function(function_name, path, state)
+    callees = state.context_retriever_agent.codequery.get_callees(function)
+    if not callees:
+        raise ValueError(f"No callees found for function {function_name} in {path}")
+
+    code_snippets = _add_functions_code_snippets(callees, state)
+    return _return_command_tool_message(
+        tool_call_id, f"Found {len(code_snippets)} code snippets for callees of function {function_name}", code_snippets
     )
 
 
@@ -248,28 +332,11 @@ def get_type_definition(
     if not types:
         types = state.context_retriever_agent.codequery.get_types(type_name, path, fuzzy=True)
         if not types:
-            return Command(
-                update={"messages": [ToolMessage("No definition found for type", tool_call_id=tool_call_id)]}
-            )
+            raise ValueError(f"No definition found for type {type_name} in {path}")
 
-    code_snippets = [
-        ContextCodeSnippet(
-            key=CodeSnippetKey(
-                file_path=path.as_posix() if path else "<type-path>",  # TODO: get this from the type definition
-                identifier=type_def.name,
-            ),
-            code=type_def.definition,
-        )
-        for type_def in types
-    ]
-    state.tmp_code_snippets.code_snippets.extend(code_snippets)
-    return Command(
-        update={
-            "messages": [
-                ToolMessage(f"Found {len(code_snippets)} code snippets for type {type_name}", tool_call_id=tool_call_id)
-            ],
-            "code_snippets": code_snippets,
-        }
+    code_snippets = _add_type_definitions_code_snippets(types, state)
+    return _return_command_tool_message(
+        tool_call_id, f"Found {len(code_snippets)} code snippets for type {type_name}", code_snippets
     )
 
 
@@ -305,6 +372,8 @@ class ContextRetrieverAgent(PatcherAgentBase):
             cat,
             get_function_definition,
             get_type_definition,
+            get_callers,
+            get_callees,
         ]
         self.llm = default_llm.with_fallbacks(fallback_llms)
         self.llm_with_tools = self.llm.bind_tools(self.tools)
