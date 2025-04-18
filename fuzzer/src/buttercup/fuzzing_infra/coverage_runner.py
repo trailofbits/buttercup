@@ -83,29 +83,29 @@ class CoverageRunner:
 
         return function_coverage
 
-    def run(self, harness_name: str, corpus_dir: str, package_name: str) -> list[CoveredFunction] | None:
-        lang = ProjectYaml(self.tool, package_name).language
+    def run(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
+        lang = ProjectYaml(self.tool, self.tool.project_name).language
         if lang == "c" or lang == "c++":
-            ret = self.run_c(harness_name, corpus_dir, package_name)
+            ret = self.run_c(harness_name, corpus_dir)
         elif lang == "jvm":
-            ret = self.run_java(harness_name, corpus_dir, package_name)
+            ret = self.run_java(harness_name, corpus_dir)
         else:
             logger.error(f"Unsupported language: {lang}")
             return None
 
         return ret
 
-    def run_java(self, harness_name: str, corpus_dir: str, package_name: str) -> list[CoveredFunction] | None:
-        ret = self.tool.run_coverage(harness_name, corpus_dir, package_name)
+    def run_java(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
+        ret = self.tool.run_coverage(harness_name, corpus_dir)
         if not ret:
-            logger.error(f"Failed to run coverage for {harness_name} | {corpus_dir} | {package_name}")
+            logger.error(f"Failed to run coverage for {harness_name} | {corpus_dir} | {self.tool.project_name}")
             return None
 
         build_dir = self.tool.get_build_dir()
         jacoco_path = build_dir / "dumps" / f"{harness_name}.xml"
         if not jacoco_path.exists():
             logger.error(
-                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {package_name} | in {jacoco_path}"
+                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}"
             )
             return None
 
@@ -132,10 +132,10 @@ class CoverageRunner:
 
         return covered_functions
 
-    def run_c(self, harness_name: str, corpus_dir: str, package_name: str) -> list[CoveredFunction] | None:
-        ret = self.tool.run_coverage(harness_name, corpus_dir, package_name)
+    def run_c(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
+        ret = self.tool.run_coverage(harness_name, corpus_dir)
         if not ret:
-            logger.error(f"Failed to run coverage for {harness_name} | {corpus_dir} | {package_name}")
+            logger.error(f"Failed to run coverage for {harness_name} | {corpus_dir} | {self.tool.project_name}")
             return None
 
         # after we run coverage we need to find the profdata report then convert it to json, and load it
@@ -143,7 +143,7 @@ class CoverageRunner:
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(
-                f"Failed to find profdata for {harness_name} | {corpus_dir} | {package_name} | in {profdata_path}"
+                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}"
             )
             return None
 
@@ -157,7 +157,7 @@ class CoverageRunner:
                 "Failed to convert profdata to json for %s | %s | %s | in %s (return code: %s)",
                 harness_name,
                 corpus_dir,
-                package_name,
+                self.tool.project_name,
                 coverage_file,
                 ret.returncode,
             )
@@ -166,7 +166,7 @@ class CoverageRunner:
         # load the coverage file
         coverage = ret.stdout.decode("utf-8")
         coverage = json.loads(coverage)
-        logger.info(f"Coverage for {harness_name} | {corpus_dir} | {package_name} | in {len(coverage)}")
+        logger.info(f"Coverage for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {len(coverage)}")
 
         return CoverageRunner._process_function_coverage(coverage)
 
@@ -187,7 +187,7 @@ def main():
     tool = ChallengeTask(read_only_task_dir=args.task_dir)
     with tool.get_rw_copy(work_dir=args.work_dir, delete=False) as local_tool:
         runner = CoverageRunner(local_tool, args.llvm_cov_path)
-        print(runner.run(args.harness_name, args.corpus_dir, args.package_name))
+        print(runner.run(args.harness_name, args.corpus_dir))
 
 
 if __name__ == "__main__":

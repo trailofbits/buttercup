@@ -55,7 +55,7 @@ class CoverageBot(TaskLoop):
                 local_tsk,
                 self.llvm_cov_tool,
             )
-            func_coverage = runner.run(task.harness_name, corpus.path, local_tsk.project_name)
+            func_coverage = runner.run(task.harness_name, corpus.path)
             if func_coverage is None:
                 logger.error(
                     f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"

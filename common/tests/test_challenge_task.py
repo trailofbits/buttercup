@@ -803,3 +803,20 @@ def mock_node_local_storage(tmp_path: Path):
     TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(local_task_path)
 
     yield node_data_dir
+
+
+@pytest.mark.integration
+def test_run_fuzzer_libjpeg(libjpeg_oss_fuzz_task_rw: ChallengeTask, tmp_path: Path):
+    """Test running a fuzzer on a challenge task for 10 seconds."""
+    corpus_dir = tmp_path / "test-corpus"
+    corpus_dir.mkdir(exist_ok=True)
+
+    libjpeg_oss_fuzz_task_rw.build_fuzzers()
+    result = libjpeg_oss_fuzz_task_rw.run_fuzzer(
+        harness_name="libjpeg_turbo_fuzzer",
+        corpus_dir=corpus_dir,
+        fuzzer_args=["\\-max_total_time=10"],
+    )
+    # Can't assert success because it will be False if the fuzzer finds a crash
+    # assert result.success is True
+    assert result.output is not None

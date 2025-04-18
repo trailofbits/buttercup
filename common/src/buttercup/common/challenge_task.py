@@ -525,33 +525,71 @@ class ChallengeTask:
         return ReproduceResult(self._run_helper_cmd(cmd))
 
     @read_write_decorator
+    def run_fuzzer(
+        self,
+        harness_name: str,
+        fuzzer_args: list[str] | None = None,
+        corpus_dir: Path | None = None,
+        architecture: str | None = None,
+        engine: str | None = None,
+        sanitizer: str | None = None,
+        env: Dict[str, str] | None = None,
+    ) -> CommandResult:
+        logger.info(
+            "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
+            self.project_name,
+            harness_name,
+            fuzzer_args,
+            corpus_dir,
+            architecture,
+            engine,
+            sanitizer,
+            env,
+        )
+        kwargs = {
+            "corpus-dir": corpus_dir,
+            "architecture": architecture,
+            "engine": engine,
+            "sanitizer": sanitizer,
+            "e": env,
+        }
+        cmd = self._get_helper_cmd(
+            "run_fuzzer",
+            self.project_name,
+            harness_name,
+            fuzzer_args,
+            **kwargs,
+        )
+        return self._run_helper_cmd(cmd)
+
+    @read_write_decorator
     def run_coverage(
         self,
         harness_name: str,
         corpus_dir: str,
-        package_name: str,
         architecture: str | None = None,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
-            "Running coverage for project %s | harness_name=%s | corpus_dir=%s | package_name=%s | architecture=%s | env=%s",
+            "Running coverage for project %s | harness_name=%s | corpus_dir=%s | architecture=%s | env=%s",
             self.project_name,
             harness_name,
             corpus_dir,
-            package_name,
             architecture,
             env,
         )
-        args = [
+        kwargs = {
+            "corpus-dir": corpus_dir,
+            "fuzz-target": harness_name,
+            "no-serve": True,
+            "architecture": architecture,
+            "e": env,
+        }
+        cmd = self._get_helper_cmd(
             "coverage",
-            "--corpus-dir",
-            corpus_dir,
-            "--fuzz-target",
-            harness_name,
-            "--no-serve",
-            package_name,
-        ]
-        cmd = self._get_helper_cmd(*args, e=env, architecture=architecture)
+            self.project_name,
+            **kwargs,
+        )
         return self._run_helper_cmd(cmd)
 
     @read_write_decorator
