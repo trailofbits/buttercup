@@ -40,6 +40,7 @@ class TracerSettings(WorkerSettings):
 class FuzzerBotSettings(WorkerSettings):
     crs_scratch_dir: Annotated[str, Field(default="/crs_scratch")]
     timeout: Annotated[int, Field(default="")]
+    crash_dir_size_limit: Annotated[int, Field(default=0)]
 
 
 class CoverageBotSettings(WorkerSettings, BuilderSettings):

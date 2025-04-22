@@ -1,5 +1,6 @@
 import re
 from typing import List
+import urllib.parse
 import buttercup.common.node_local as node_local
 from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
 import os
@@ -7,6 +8,8 @@ import hashlib
 import shutil
 import subprocess
 import uuid
+from pathlib import Path
+import urllib
 
 
 def hash_file(fl):
@@ -41,6 +44,13 @@ class InputDir:
     def copy_corpus(self, src_dir: str):
         for file in os.listdir(src_dir):
             self.copy_file(os.path.join(src_dir, file))
+
+    def local_corpus_size(self) -> int:
+        # this is only the local corpus size
+        tot = 0
+        for file in os.listdir(self.path):
+            tot += (Path(self.path) / file).lstat().st_size
+        return tot
 
     def hash_new_corpus(self):
         for file in os.listdir(self.path):
@@ -80,11 +90,35 @@ class InputDir:
         os.makedirs(self.remote_path, exist_ok=True)
         self._do_sync(self.remote_path, self.path)
 
+    def list_corpus(self) -> list[str]:
+        return [os.path.join(self.path, f) for f in self.path]
 
-class CrashDir(InputDir):
-    def __init__(self, wdir: str, task_id: str, harness_name: str):
+
+class CrashDir:
+    def __init__(self, wdir: str, task_id: str, harness_name: str, size_limit: int | None = None):
+        self.wdir = wdir
         self.crash_dir = os.path.join(task_id, f"{CRASH_DIR_NAME}_{harness_name}")
-        super().__init__(wdir, self.crash_dir)
+        self.size_limit = size_limit
+
+    def input_dir_for_token(self, token: str) -> InputDir:
+        return InputDir(self.wdir, os.path.join(self.crash_dir, urllib.parse.quote(token)))
+
+    def copy_file(self, src_file: str, crash_token: str) -> str:
+        idir = self.input_dir_for_token(crash_token)
+        first_elem = next(iter(idir.list_corpus()), None)
+        if (self.size_limit is not None) and (idir.local_corpus_size() > self.size_limit) and (first_elem is not None):
+            return first_elem
+        return idir.copy_file(src_file)
+
+    def sync_token(self, token: str):
+        idir = self.input_dir_for_token(token)
+        idir.sync_from_remote()
+
+    def list_crashes_for_token(self, token: str, get_remote: bool = True) -> list[str]:
+        idir = self.input_dir_for_token(token)
+        if get_remote:
+            idir.sync_from_remote()
+        return idir.list_corpus()
 
 
 class Corpus(InputDir):

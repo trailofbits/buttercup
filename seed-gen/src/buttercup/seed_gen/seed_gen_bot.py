@@ -6,6 +6,7 @@ from pathlib import Path
 
 from redis import Redis
 
+from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
@@ -31,13 +32,21 @@ class SeedGenBot(TaskLoop):
     TASK_SEED_EXPLORE_PROB = 0.6
     MIN_SEED_INIT_RUNS = 3
 
-    def __init__(self, redis: Redis, timer_seconds: int, wdir: str, corpus_root: str | None = None):
+    def __init__(
+        self,
+        redis: Redis,
+        timer_seconds: int,
+        wdir: str,
+        crash_dir_size_limit: int | None = None,
+        corpus_root: str | None = None,
+    ):
         self.wdir = wdir
         self.corpus_root = corpus_root
         self.redis = redis
         self.crash_set = CrashSet(redis)
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
         self.task_counter = TaskCounter(redis)
+        self.crash_dir_size_limit = crash_dir_size_limit
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
@@ -82,7 +91,9 @@ class SeedGenBot(TaskLoop):
         fbuilds = builds[BuildType.FUZZER]
         reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
 
-        crash_dir = CrashDir(self.wdir, task.task_id, task.harness_name)
+        crash_dir = CrashDir(
+            self.wdir, task.task_id, task.harness_name, size_limit=self.crash_dir_size_limit
+        )
 
         with reproduce_multiple.open() as mult:
             for pov in out_dir.iterdir():
@@ -92,6 +103,8 @@ class SeedGenBot(TaskLoop):
                         build, result = pov_output
                         logger.info(f"Valid PoV found: {pov}")
                         stacktrace = result.stacktrace()
+                        ctoken = stack_parsing.get_crash_data(stacktrace)
+                        dst = crash_dir.copy_file(pov, ctoken)
                         if self.crash_set.add(
                             task.package_name,
                             task.harness_name,
@@ -101,7 +114,7 @@ class SeedGenBot(TaskLoop):
                             logger.info(f"PoV with crash {stacktrace} already in crash set")
                             continue
                         logger.info("Submitting PoV to crash queue")
-                        dst = crash_dir.copy_file(pov)
+
                         crash = Crash(
                             target=build,
                             harness_name=task.harness_name,

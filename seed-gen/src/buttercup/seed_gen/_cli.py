@@ -17,7 +17,13 @@ def command_server(args: argparse.Namespace) -> None:
         os.makedirs(args.corpus_root, exist_ok=True)
     init_telemetry("seed-gen")
     redis = Redis.from_url(args.redis_url)
-    seed_gen_bot = SeedGenBot(redis, args.sleep, args.wdir, args.corpus_root)
+    seed_gen_bot = SeedGenBot(
+        redis,
+        args.sleep,
+        args.wdir,
+        corpus_root=args.corpus_root,
+        crash_dir_size_limit=args.crash_dir_size_limit,
+    )
     seed_gen_bot.run()
 
 
@@ -34,6 +40,13 @@ def main() -> None:
     )
     parser_server.add_argument(
         "--sleep", required=False, default=1, type=int, help="Sleep between runs (seconds)"
+    )
+    parser_server.add_argument(
+        "--crash_dir_size_limit",
+        required=False,
+        default=None,
+        type=int,
+        help="Byte size limit of the crash dir",
     )
     args = parser.parse_args()
     setup_package_logger(__name__, os.getenv("LOG_LEVEL", "INFO").upper())

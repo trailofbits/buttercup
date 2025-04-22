@@ -1,6 +1,11 @@
 {{/*
 Define core system variables that are consistent across services
 */}}
+
+{{- define "buttercup.core.crashDirSizeLimit" -}}
+1000000
+{{- end -}}
+
 {{- define "buttercup.core.redisUrl" -}}
 redis://{{ .Release.Name }}-redis-master:6379
 {{- end -}}

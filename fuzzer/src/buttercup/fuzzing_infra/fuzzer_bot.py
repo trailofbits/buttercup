@@ -4,6 +4,7 @@ from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, 
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.common import stack_parsing
 from buttercup.common.stack_parsing import CrashSet
 import tempfile
 from buttercup.common.logger import setup_package_logger
@@ -22,13 +23,21 @@ logger = logging.getLogger(__name__)
 
 class FuzzerBot(TaskLoop):
     def __init__(
-        self, redis: Redis, timer_seconds: int, timeout_seconds: int, wdir: str, python: str, crs_scratch_dir: str
+        self,
+        redis: Redis,
+        timer_seconds: int,
+        timeout_seconds: int,
+        wdir: str,
+        python: str,
+        crs_scratch_dir: str,
+        crash_dir_size_limit: int | None,
     ):
         self.wdir = wdir
         self.runner = Runner(Conf(timeout_seconds))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
+        self.crash_dir_size_limit = crash_dir_size_limit
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> List[BuildTypeHint]:
@@ -57,9 +66,13 @@ class FuzzerBot(TaskLoop):
                 logger.info(f"Starting fuzzer {build.engine} | {build.sanitizer} | {task.harness_name}")
                 result = self.runner.run_fuzzer(fuzz_conf)
                 crash_set = CrashSet(self.redis)
-                crash_dir = CrashDir(self.crs_scratch_dir, task.task_id, task.harness_name)
+                crash_dir = CrashDir(
+                    self.crs_scratch_dir, task.task_id, task.harness_name, size_limit=self.crash_dir_size_limit
+                )
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
+                    cdata = stack_parsing.get_crash_data(crash.stacktrace)
+                    dst = crash_dir.copy_file(crash.input_path, cdata)
                     if crash_set.add(
                         task.package_name,
                         task.harness_name,
@@ -71,7 +84,7 @@ class FuzzerBot(TaskLoop):
                         )
                         logger.debug(f"Crash stacktrace: {crash.stacktrace}")
                         continue
-                    dst = crash_dir.copy_file(crash.input_path)
+
                     logger.info(f"Found unique crash {dst}")
                     crash = Crash(
                         target=build,
@@ -93,7 +106,13 @@ def main():
 
     seconds_sleep = args.timer // 1000
     fuzzer = FuzzerBot(
-        Redis.from_url(args.redis_url), seconds_sleep, args.timeout, args.wdir, args.python, args.crs_scratch_dir
+        Redis.from_url(args.redis_url),
+        seconds_sleep,
+        args.timeout,
+        args.wdir,
+        args.python,
+        args.crs_scratch_dir,
+        crash_dir_size_limit=(args.crash_dir_size_limit if args.crash_dir_size_limit > 0 else None),
     )
     fuzzer.run()
 
