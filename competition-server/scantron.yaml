@@ -35,7 +35,7 @@ round_id: testing
 listen_address: "scantron:31323"
 api_host_and_port: "scantron:31323"
 
-github:
-  # github Personal Access token. This is used by the server to download the
-  # appropriate fuzz tooling if not using public repositories
-  pat: ghp_XXXXXXXXXXXXXXXXXXXXX
+# github:
+#   # github Personal Access token. This is used by the server to download the
+#   # appropriate fuzz tooling if not using public repositories
+#   pat: ghp_XXXXXXXXXXXXXXXXXXXXX

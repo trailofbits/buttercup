@@ -54,6 +54,7 @@ services:
     environment:
       - "DOCKER_HOST=tcp://dind:2375"
       - DOCKER_DEFAULT_PLATFORM=linux/amd64
+      - SCANTRON_GITHUB_PAT=${SCANTRON_GITHUB_PAT}
     logging: *logging
 
 # networks:
