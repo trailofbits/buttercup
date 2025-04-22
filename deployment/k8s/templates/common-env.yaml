@@ -87,6 +87,14 @@ Define common variables by categories
 {{- end }}
 
 {{/*
+Define OSS-Fuzz container organization environment variable
+*/}}
+{{- define "buttercup.env.ossFuzzContainerOrg" }}
+- name: OSS_FUZZ_CONTAINER_ORG
+  value: "{{ .Values.global.ossFuzzContainerOrg | default "aixcc-afc" }}"
+{{- end }}
+
+{{/*
 Define common environment for all services
 */}}
 {{- define "buttercup.commonEnv" }}
@@ -94,6 +102,7 @@ Define common environment for all services
 {{- include "buttercup.env.timeouts" . | nindent 0 }}
 {{- include "buttercup.env.dirs" . | nindent 0 }}
 {{- include "buttercup.env.nodeData" . | nindent 0 }}
+{{- include "buttercup.env.ossFuzzContainerOrg" . | nindent 0 }}
 {{- end }}
 
 {{/*

@@ -1,5 +1,6 @@
 global:
   environment: "minikube"
+  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   orchestratorImage:
     repository: localhost/orchestrator
     tag: "latest"
