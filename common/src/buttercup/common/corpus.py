@@ -94,7 +94,7 @@ class InputDir:
         self._do_sync(self.remote_path, self.path)
 
     def list_corpus(self) -> list[str]:
-        return [os.path.join(self.path, f) for f in self.path]
+        return [os.path.join(self.path, f) for f in os.listdir(self.path)]
 
 
 class CrashDir:
