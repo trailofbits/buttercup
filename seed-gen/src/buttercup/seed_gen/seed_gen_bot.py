@@ -37,7 +37,7 @@ class SeedGenBot(TaskLoop):
         redis: Redis,
         timer_seconds: int,
         wdir: str,
-        crash_dir_size_limit: int | None = None,
+        crash_dir_count_limit: int | None = None,
         corpus_root: str | None = None,
     ):
         self.wdir = wdir
@@ -46,7 +46,7 @@ class SeedGenBot(TaskLoop):
         self.crash_set = CrashSet(redis)
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
         self.task_counter = TaskCounter(redis)
-        self.crash_dir_size_limit = crash_dir_size_limit
+        self.crash_dir_count_limit = crash_dir_count_limit
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
@@ -92,7 +92,7 @@ class SeedGenBot(TaskLoop):
         reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
 
         crash_dir = CrashDir(
-            self.wdir, task.task_id, task.harness_name, size_limit=self.crash_dir_size_limit
+            self.wdir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
         )
 
         with reproduce_multiple.open() as mult:

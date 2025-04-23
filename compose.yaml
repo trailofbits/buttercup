@@ -187,7 +187,7 @@ services:
     build:
       context: ./
       dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: ["buttercup-fuzzer", "--wdir", "/tmp", --crs_scratch_dir, "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_size_limit", "1000000"]
+    command: ["buttercup-fuzzer", "--wdir", "/tmp", "--crs_scratch_dir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_count_limit", "100"]
     env_file: env.dev.compose
     volumes:
       - ./crs_scratch:/crs_scratch
@@ -240,7 +240,7 @@ services:
       context: .
       dockerfile: ./seed-gen/Dockerfile
     # TODO: Update seed-gen sleep once service is doing useful work
-    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/node_data/crs_scratch", "--sleep", "60", "--crash_dir_size_limit", "1000000"]
+    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/node_data/crs_scratch", "--sleep", "60", "--crash_dir_count_limit", "100"]
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./node_data_storage/:/node_data

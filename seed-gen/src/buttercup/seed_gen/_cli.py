@@ -22,7 +22,7 @@ def command_server(args: argparse.Namespace) -> None:
         args.sleep,
         args.wdir,
         corpus_root=args.corpus_root,
-        crash_dir_size_limit=args.crash_dir_size_limit,
+        crash_dir_count_limit=args.crash_dir_count_limit,
     )
     seed_gen_bot.run()
 
@@ -42,11 +42,11 @@ def main() -> None:
         "--sleep", required=False, default=1, type=int, help="Sleep between runs (seconds)"
     )
     parser_server.add_argument(
-        "--crash_dir_size_limit",
+        "--crash_dir_count_limit",
         required=False,
         default=None,
         type=int,
-        help="Byte size limit of the crash dir",
+        help="Maximum number of crashes in the crash dir for a single token",
     )
     args = parser.parse_args()
     setup_package_logger(__name__, os.getenv("LOG_LEVEL", "INFO").upper())

@@ -32,8 +32,8 @@ spec:
           - "{{ include "buttercup.nodeLocalCrsScratchPath" . }}"
           - "--sleep"
           - "{{ .Values.sleepTime }}"
-          - "--crash_dir_size_limit"
-          - "{{ include "buttercup.core.crashDirSizeLimit" . }}"
+          - "--crash_dir_count_limit"
+          - "{{ include "buttercup.core.crashDirCountLimit" . }}"
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:

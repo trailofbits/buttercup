@@ -30,14 +30,14 @@ class FuzzerBot(TaskLoop):
         wdir: str,
         python: str,
         crs_scratch_dir: str,
-        crash_dir_size_limit: int | None,
+        crash_dir_count_limit: int | None,
     ):
         self.wdir = wdir
         self.runner = Runner(Conf(timeout_seconds))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
-        self.crash_dir_size_limit = crash_dir_size_limit
+        self.crash_dir_count_limit = crash_dir_count_limit
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> List[BuildTypeHint]:
@@ -67,7 +67,7 @@ class FuzzerBot(TaskLoop):
                 result = self.runner.run_fuzzer(fuzz_conf)
                 crash_set = CrashSet(self.redis)
                 crash_dir = CrashDir(
-                    self.crs_scratch_dir, task.task_id, task.harness_name, size_limit=self.crash_dir_size_limit
+                    self.crs_scratch_dir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
                 )
                 for crash_ in result.crashes:
                     crash: engine.Crash = crash_
@@ -112,7 +112,7 @@ def main():
         args.wdir,
         args.python,
         args.crs_scratch_dir,
-        crash_dir_size_limit=(args.crash_dir_size_limit if args.crash_dir_size_limit > 0 else None),
+        crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),
     )
     fuzzer.run()
 

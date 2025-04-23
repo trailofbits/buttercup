@@ -52,6 +52,9 @@ class InputDir:
             tot += (Path(self.path) / file).lstat().st_size
         return tot
 
+    def local_corpus_count(self) -> int:
+        return len(os.listdir(self.path))
+
     def hash_new_corpus(self):
         for file in os.listdir(self.path):
             # If the file is already a hash, skip it
@@ -95,10 +98,10 @@ class InputDir:
 
 
 class CrashDir:
-    def __init__(self, wdir: str, task_id: str, harness_name: str, size_limit: int | None = None):
+    def __init__(self, wdir: str, task_id: str, harness_name: str, count_limit: int | None = None):
         self.wdir = wdir
         self.crash_dir = os.path.join(task_id, f"{CRASH_DIR_NAME}_{harness_name}")
-        self.size_limit = size_limit
+        self.count_limit = count_limit
 
     def input_dir_for_token(self, token: str) -> InputDir:
         return InputDir(self.wdir, os.path.join(self.crash_dir, urllib.parse.quote(token)))
@@ -106,7 +109,11 @@ class CrashDir:
     def copy_file(self, src_file: str, crash_token: str) -> str:
         idir = self.input_dir_for_token(crash_token)
         first_elem = next(iter(idir.list_corpus()), None)
-        if (self.size_limit is not None) and (idir.local_corpus_size() > self.size_limit) and (first_elem is not None):
+        if (
+            (self.count_limit is not None)
+            and (idir.local_corpus_count() > self.count_limit)
+            and (first_elem is not None)
+        ):
             return first_elem
         return idir.copy_file(src_file)
 
