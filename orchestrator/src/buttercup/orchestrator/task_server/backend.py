@@ -4,6 +4,7 @@ from buttercup.orchestrator.task_server.models.types import (
     Task,
     TaskType,
     SourceType,
+    SARIFBroadcast,
 )
 from buttercup.common.datastructures.msg_pb2 import (
     Task as TaskProto,
@@ -12,6 +13,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     TaskDownload,
 )
 from buttercup.common.queues import ReliableQueue
+from buttercup.common.sarif_store import SARIFStore
 import logging
 
 
@@ -96,4 +98,22 @@ def delete_all_tasks(delete_task_queue: ReliableQueue) -> str:
     """
     task_delete = TaskDelete(all=True, received_at=time.time())
     delete_task_queue.push(task_delete)
+    return ""
+
+
+def store_sarif_broadcast(broadcast: SARIFBroadcast, sarif_store: SARIFStore) -> str:
+    """
+    Store SARIF broadcast details in Redis.
+
+    Args:
+        broadcast: The SARIFBroadcast containing a list of SARIFBroadcastDetail
+        sarif_store: SARIFStore instance for storage
+
+    Returns:
+        Empty string on successful storage
+    """
+    for sarif_detail in broadcast.broadcasts:
+        logger.info(f"Storing SARIF detail for task {sarif_detail.task_id}, SARIF ID: {sarif_detail.sarif_id}")
+        sarif_store.store(sarif_detail)
+
     return ""

@@ -15,11 +15,17 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
 from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast, StatusState, StatusTasksState
-from buttercup.orchestrator.task_server.backend import delete_task, new_task, delete_all_tasks
+from buttercup.orchestrator.task_server.backend import delete_task, new_task, delete_all_tasks, store_sarif_broadcast
 from buttercup.common.logger import setup_package_logger
-from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue, get_settings
+from buttercup.orchestrator.task_server.dependencies import (
+    get_delete_task_queue,
+    get_task_queue,
+    get_settings,
+    get_sarif_store,
+)
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue
+from buttercup.common.sarif_store import SARIFStore
 from urllib3.exceptions import MaxRetryError, NewConnectionError
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
@@ -192,12 +198,13 @@ def delete_status_(
 def post_v1_sarif_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     body: SARIFBroadcast,
+    sarif_store: Annotated[SARIFStore, Depends(get_sarif_store)],
 ) -> str:
     """
     Submit Sarif Broadcast
     """
     logger.info("Accepting Sarif Broadcast: %s", body)
-    return ""
+    return store_sarif_broadcast(body, sarif_store)
 
 
 @app.post(
