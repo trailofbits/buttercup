@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, FunctionCoverage
@@ -12,6 +13,9 @@ from buttercup.common.corpus import Corpus
 from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
 from buttercup.fuzzing_infra.settings import CoverageBotSettings
 from buttercup.common.challenge_task import ChallengeTask
+import shutil
+import buttercup.common.node_local as node_local
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +30,63 @@ class CoverageBot(TaskLoop):
         allow_pull: bool,
         base_image_url: str,
         llvm_cov_tool: str,
+        sample_size: int,
     ):
         self.wdir = wdir
         self.python = python
         self.allow_pull = allow_pull
         self.base_image_url = base_image_url
         self.llvm_cov_tool = llvm_cov_tool
+        self.sample_size = sample_size
+        logger.info(f"Coverage bot initialized with sample_size: {sample_size}")
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> List[BuildTypeHint]:
         return [BuildType.COVERAGE]
+
+    @contextmanager
+    def _sample_corpus(self, corpus: Corpus):
+        """Sample the corpus to the given size and return a temporary directory
+        with symlinks to the sampled input files.
+
+        Args:
+            corpus: The corpus to sample
+
+        Returns:
+            A context manager yielding a temporary directory containing symlinks
+            to the sampled corpus files, or the original corpus path if sample_size is 0.
+        """
+        # If sample_size is 0, use the entire corpus directly without sampling
+        if self.sample_size == 0:
+            logger.info(f"Using entire corpus in {corpus.path} (sample_size=0)")
+            yield corpus.path
+            return
+
+        # Get list of input files from corpus
+        input_files = os.listdir(corpus.path)
+
+        # If there are fewer files than sample_size, use all of them
+        if len(input_files) <= self.sample_size:
+            sampled_inputs = input_files
+        else:
+            sampled_inputs = random.sample(input_files, self.sample_size)
+
+        # Create a temporary directory in node_local scratch space
+        with node_local.scratch_dir() as tmp_dir:
+            # Create symlinks to sampled input files
+            for input_file in sampled_inputs:
+                src_path = os.path.join(corpus.path, input_file)
+                dst_path = os.path.join(tmp_dir.path, input_file)
+                try:
+                    # If the file is not the sha256 hash of the content, it will be renamed to the hash
+                    # by another process. This can cause problems with the copying of the file. If there
+                    # is some other error, that's very unexpected and we should fail.
+                    shutil.copy2(src_path, dst_path)
+                except FileNotFoundError as e:
+                    logger.debug(f"Failed to copy {src_path} to {dst_path}: {e}.")
+
+            logger.info(f"Created temporary corpus with {len(sampled_inputs)} files in {tmp_dir.path}")
+            yield tmp_dir.path
 
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]):
         coverage_builds = builds[BuildType.COVERAGE]
@@ -51,11 +102,15 @@ class CoverageBot(TaskLoop):
         with tsk.get_rw_copy(work_dir=self.wdir) as local_tsk:
             corpus = Corpus(self.wdir, task.task_id, task.harness_name)
             corpus.sync_from_remote()
-            runner = CoverageRunner(
-                local_tsk,
-                self.llvm_cov_tool,
-            )
-            func_coverage = runner.run(task.harness_name, corpus.path)
+
+            # Use the sampled corpus for coverage analysis
+            with self._sample_corpus(corpus) as sampled_corpus_path:
+                runner = CoverageRunner(
+                    local_tsk,
+                    self.llvm_cov_tool,
+                )
+                func_coverage = runner.run(task.harness_name, sampled_corpus_path)
+
             if func_coverage is None:
                 logger.error(
                     f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"
@@ -128,6 +183,7 @@ def main():
         args.allow_pull,
         args.base_image_url,
         args.llvm_cov_tool,
+        args.sample_size,
     )
     fuzzer.run()
 

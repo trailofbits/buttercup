@@ -29,6 +29,8 @@ spec:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
         env:
+        - name: BUTTERCUP_FUZZER_SAMPLE_SIZE
+          value: "{{ .Values.global.coverageBot.sampleSize }}"
         {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
       {{- include "buttercup.dindSidecar" . | nindent 6 }}

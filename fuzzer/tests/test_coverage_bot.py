@@ -1,4 +1,7 @@
 import pytest
+import os
+import tempfile
+from unittest.mock import patch, MagicMock
 from redis import Redis
 from buttercup.fuzzing_infra.coverage_bot import CoverageBot
 from buttercup.fuzzing_infra.coverage_runner import CoveredFunction
@@ -23,7 +26,128 @@ def coverage_bot(redis_client):
         allow_pull=True,
         base_image_url="test_image",
         llvm_cov_tool="llvm-cov",
+        sample_size=10,
     )
+
+
+def test_sample_corpus_with_zero_sample_size(redis_client):
+    # Create a coverage bot with sample_size=0
+    bot = CoverageBot(
+        redis=redis_client,
+        timer_seconds=1,
+        wdir="/tmp",
+        python="python3",
+        allow_pull=True,
+        base_image_url="test_image",
+        llvm_cov_tool="llvm-cov",
+        sample_size=0,
+    )
+
+    # Create a mock corpus object instead of a real one
+    mock_corpus = MagicMock()
+
+    # Create a temporary directory to act as our corpus
+    with tempfile.TemporaryDirectory() as corpus_dir:
+        # Create a few test files in the corpus directory
+        for i in range(5):
+            with open(os.path.join(corpus_dir, f"test_file_{i}"), "w") as f:
+                f.write(f"test content {i}")
+
+        # Set the path property on our mock corpus
+        mock_corpus.path = corpus_dir
+
+        # Test the _sample_corpus method
+        with bot._sample_corpus(mock_corpus) as sampled_path:
+            assert sampled_path == corpus_dir
+
+
+def test_sample_corpus_with_positive_sample_size(redis_client):
+    # Create a coverage bot with sample_size=3
+    bot = CoverageBot(
+        redis=redis_client,
+        timer_seconds=1,
+        wdir="/tmp",
+        python="python3",
+        allow_pull=True,
+        base_image_url="test_image",
+        llvm_cov_tool="llvm-cov",
+        sample_size=3,
+    )
+
+    # Create a mock corpus object instead of a real one
+    mock_corpus = MagicMock()
+
+    # Create a temporary directory to act as our corpus
+    with tempfile.TemporaryDirectory() as corpus_dir:
+        # Create some test files in the corpus directory
+        for i in range(10):  # Create 10 files, but we'll sample only 3
+            with open(os.path.join(corpus_dir, f"test_file_{i}"), "w") as f:
+                f.write(f"test content {i}")
+
+        # Set the path property on our mock corpus
+        mock_corpus.path = corpus_dir
+
+        # Mock node_local.scratch_dir to return a temporary directory
+        with patch("buttercup.common.node_local.scratch_dir") as mock_scratch_dir:
+            # Create a temporary directory for the mock
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                # Create a mock TmpDir that returns our temporary directory
+                mock_tmp_dir = MagicMock()
+                mock_tmp_dir.path = tmp_dir
+                # Make the scratch_dir function return our mock
+                mock_scratch_dir.return_value.__enter__.return_value = mock_tmp_dir
+
+                # Test the _sample_corpus method
+                with bot._sample_corpus(mock_corpus) as sampled_path:
+                    # Verify the sampled path is not the original corpus path
+                    assert sampled_path != corpus_dir
+                    # Verify the sampled path is the temporary directory
+                    assert sampled_path == tmp_dir
+                    # Verify the correct number of files were copied
+                    assert len(os.listdir(sampled_path)) == 3
+
+
+def test_sample_corpus_with_fewer_files_than_sample_size(redis_client):
+    # Create a coverage bot with sample_size=10
+    bot = CoverageBot(
+        redis=redis_client,
+        timer_seconds=1,
+        wdir="/tmp",
+        python="python3",
+        allow_pull=True,
+        base_image_url="test_image",
+        llvm_cov_tool="llvm-cov",
+        sample_size=10,
+    )
+
+    # Create a mock corpus object
+    mock_corpus = MagicMock()
+
+    # Create a temporary directory to act as our corpus
+    with tempfile.TemporaryDirectory() as corpus_dir:
+        # Create fewer files than the sample_size
+        for i in range(5):  # Create only 5 files, but sample_size is 10
+            with open(os.path.join(corpus_dir, f"test_file_{i}"), "w") as f:
+                f.write(f"test content {i}")
+
+        mock_corpus.path = corpus_dir
+
+        # Mock node_local.scratch_dir to return a temporary directory
+        with patch("buttercup.common.node_local.scratch_dir") as mock_scratch_dir:
+            # Create a temporary directory for the mock
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                # Create a mock TmpDir that returns our temporary directory
+                mock_tmp_dir = MagicMock()
+                mock_tmp_dir.path = tmp_dir
+                # Make the scratch_dir function return our mock
+                mock_scratch_dir.return_value.__enter__.return_value = mock_tmp_dir
+
+                # Test the _sample_corpus method
+                with bot._sample_corpus(mock_corpus) as sampled_path:
+                    # Verify the sampled path is the temporary directory
+                    assert sampled_path == tmp_dir
+                    # Verify all 5 files were copied, not just a subset
+                    assert len(os.listdir(sampled_path)) == 5
 
 
 def test_should_update_function_coverage_zero_coverage(redis_client):
