@@ -211,7 +211,8 @@ class ChallengeTask:
                 workdir = match.group(1)
                 workdir = workdir.replace("$SRC", "/src")
 
-                if not Path(workdir).is_absolute():
+                workdir = Path(workdir)
+                if not workdir.is_absolute():
                     workdir = Path("/src") / workdir
 
                 return workdir
@@ -427,14 +428,25 @@ class ChallengeTask:
             env,
             use_source_dir,
         )
+        kwargs = {
+            "architecture": architecture,
+            "engine": engine,
+            "sanitizer": sanitizer,
+            "e": env,
+        }
+        if self.workdir_from_dockerfile() == Path("/src"):
+            # oss-fuzz cannot automatically mount the local src directory if the
+            # workdir is just /src, so in that case let's specify a mount point.
+            # This should happen only for upstream oss-fuzz projects because
+            # AIxCC guarantees `build_fuzzers <local-path>` to just work.
+            # https://github.com/google/oss-fuzz/blob/80a57ca6da03069afabb5116cae0b338d19f9f27/infra/helper.py#L870-L872
+            kwargs["mount_path"] = Path(f"/src/{self.focus}")
+
         cmd = self._get_helper_cmd(
             "build_fuzzers",
             self.project_name,
             str((self.task_dir / self.get_source_subpath()).absolute()) if use_source_dir else None,
-            architecture=architecture,
-            engine=engine,
-            sanitizer=sanitizer,
-            e=env,
+            **kwargs,
         )
 
         return self._run_helper_cmd(cmd)
