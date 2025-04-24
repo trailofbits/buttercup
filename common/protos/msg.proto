@@ -86,6 +86,7 @@ message Crash {
     string harness_name = 2;
     string crash_input_path = 3;
     string stacktrace = 4;
+    string crash_token = 5;
 } 
 
 message TracedCrash {

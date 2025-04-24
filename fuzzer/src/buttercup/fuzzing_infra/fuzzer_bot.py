@@ -91,6 +91,7 @@ class FuzzerBot(TaskLoop):
                         harness_name=task.harness_name,
                         crash_input_path=dst,
                         stacktrace=crash.stacktrace,
+                        crash_token=cdata,
                     )
                     self.output_q.push(crash)
 

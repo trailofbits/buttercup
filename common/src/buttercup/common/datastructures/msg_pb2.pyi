@@ -50,16 +50,18 @@ class ConfirmedVulnerability(_message.Message):
     def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
-    __slots__ = ["crash_input_path", "harness_name", "stacktrace", "target"]
+    __slots__ = ["crash_input_path", "crash_token", "harness_name", "stacktrace", "target"]
     CRASH_INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
+    CRASH_TOKEN_FIELD_NUMBER: _ClassVar[int]
     HARNESS_NAME_FIELD_NUMBER: _ClassVar[int]
     STACKTRACE_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     crash_input_path: str
+    crash_token: str
     harness_name: str
     stacktrace: str
     target: BuildOutput
-    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_name: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ...) -> None: ...
+    def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_name: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ..., crash_token: _Optional[str] = ...) -> None: ...
 
 class FunctionCoverage(_message.Message):
     __slots__ = ["covered_lines", "function_name", "function_paths", "total_lines"]
