@@ -1,3 +1,4 @@
+from functools import lru_cache
 import logging
 import os
 import random
@@ -18,6 +19,14 @@ import buttercup.common.node_local as node_local
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=10)
+def get_processed_coverage(corpus_path: str) -> set[str]:
+    """
+    Get the set of processed coverage files in the corpus.
+    """
+    return set()
 
 
 class CoverageBot(TaskLoop):
@@ -56,14 +65,20 @@ class CoverageBot(TaskLoop):
             A context manager yielding a temporary directory containing symlinks
             to the sampled corpus files, or the original corpus path if sample_size is 0.
         """
-        # If sample_size is 0, use the entire corpus directly without sampling
-        if self.sample_size == 0:
-            logger.info(f"Using entire corpus in {corpus.path} (sample_size=0)")
-            yield corpus.path
-            return
-
         # Get list of input files from corpus
         input_files = os.listdir(corpus.path)
+
+        already_processed = get_processed_coverage(corpus.path)
+        logger.info(f"Already processed: {len(already_processed)}")
+        input_files = [f for f in input_files if f not in already_processed]
+
+        # If sample_size is 0, use the entire corpus directly without sampling
+        if self.sample_size == 0:
+            logger.info(
+                f"Using entire non-processed corpus ({len(input_files)} files) in {corpus.path} (sample_size=0)"
+            )
+            yield (corpus.path, input_files)
+            return
 
         # If there are fewer files than sample_size, use all of them
         if len(input_files) <= self.sample_size:
@@ -72,6 +87,7 @@ class CoverageBot(TaskLoop):
             sampled_inputs = random.sample(input_files, self.sample_size)
 
         # Create a temporary directory in node_local scratch space
+        failed = set()
         with node_local.scratch_dir() as tmp_dir:
             # Create symlinks to sampled input files
             for input_file in sampled_inputs:
@@ -84,9 +100,11 @@ class CoverageBot(TaskLoop):
                     shutil.copy2(src_path, dst_path)
                 except FileNotFoundError as e:
                     logger.debug(f"Failed to copy {src_path} to {dst_path}: {e}.")
+                    failed.add(input_file)
+            remaining_files = [f for f in sampled_inputs if f not in failed]
+            logger.info(f"Created temporary corpus with {len(remaining_files)} files in {tmp_dir.path}")
 
-            logger.info(f"Created temporary corpus with {len(sampled_inputs)} files in {tmp_dir.path}")
-            yield tmp_dir.path
+            yield (tmp_dir.path, remaining_files)
 
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]):
         coverage_builds = builds[BuildType.COVERAGE]
@@ -104,7 +122,13 @@ class CoverageBot(TaskLoop):
             corpus.sync_from_remote()
 
             # Use the sampled corpus for coverage analysis
-            with self._sample_corpus(corpus) as sampled_corpus_path:
+            with self._sample_corpus(corpus) as (sampled_corpus_path, remaining_files):
+                if len(remaining_files) == 0:
+                    logger.info(
+                        f"No files to process for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"
+                    )
+                    return
+
                 runner = CoverageRunner(
                     local_tsk,
                     self.llvm_cov_tool,
@@ -117,6 +141,7 @@ class CoverageBot(TaskLoop):
                 )
                 return
 
+            get_processed_coverage(corpus.path).update(remaining_files)
             logger.info(
                 f"Coverage for {task.harness_name} | {corpus.path} | {local_tsk.project_name} | processed {len(func_coverage)} functions"
             )

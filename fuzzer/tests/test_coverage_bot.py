@@ -57,8 +57,11 @@ def test_sample_corpus_with_zero_sample_size(redis_client):
         mock_corpus.path = corpus_dir
 
         # Test the _sample_corpus method
-        with bot._sample_corpus(mock_corpus) as sampled_path:
+        with bot._sample_corpus(mock_corpus) as result:
+            # Now result is a tuple of (path, files)
+            sampled_path, files = result
             assert sampled_path == corpus_dir
+            assert len(files) > 0
 
 
 def test_sample_corpus_with_positive_sample_size(redis_client):
@@ -98,13 +101,17 @@ def test_sample_corpus_with_positive_sample_size(redis_client):
                 mock_scratch_dir.return_value.__enter__.return_value = mock_tmp_dir
 
                 # Test the _sample_corpus method
-                with bot._sample_corpus(mock_corpus) as sampled_path:
+                with bot._sample_corpus(mock_corpus) as result:
+                    # Now result is a tuple of (path, files)
+                    sampled_path, files = result
                     # Verify the sampled path is not the original corpus path
                     assert sampled_path != corpus_dir
                     # Verify the sampled path is the temporary directory
                     assert sampled_path == tmp_dir
                     # Verify the correct number of files were copied
                     assert len(os.listdir(sampled_path)) == 3
+                    # Verify we got the right number of files in the return value
+                    assert len(files) == 3
 
 
 def test_sample_corpus_with_fewer_files_than_sample_size(redis_client):
@@ -143,11 +150,15 @@ def test_sample_corpus_with_fewer_files_than_sample_size(redis_client):
                 mock_scratch_dir.return_value.__enter__.return_value = mock_tmp_dir
 
                 # Test the _sample_corpus method
-                with bot._sample_corpus(mock_corpus) as sampled_path:
+                with bot._sample_corpus(mock_corpus) as result:
+                    # Now result is a tuple of (path, files)
+                    sampled_path, files = result
                     # Verify the sampled path is the temporary directory
                     assert sampled_path == tmp_dir
                     # Verify all 5 files were copied, not just a subset
                     assert len(os.listdir(sampled_path)) == 5
+                    # Verify we got all files in the return value
+                    assert len(files) == 5
 
 
 def test_should_update_function_coverage_zero_coverage(redis_client):
