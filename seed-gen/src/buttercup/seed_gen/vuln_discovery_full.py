@@ -1,0 +1,82 @@
+import logging
+from dataclasses import dataclass
+from typing import override
+
+from langgraph.types import Command
+
+from buttercup.seed_gen.prompts import (
+    VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT,
+    VULN_FULL_ANALYZE_BUG_USER_PROMPT,
+    VULN_FULL_GET_CONTEXT_SYSTEM_PROMPT,
+    VULN_FULL_GET_CONTEXT_USER_PROMPT,
+    VULN_FULL_WRITE_POV_SYSTEM_PROMPT,
+    VULN_FULL_WRITE_POV_USER_PROMPT,
+)
+from buttercup.seed_gen.vuln_base_task import VulnBaseState, VulnBaseTask
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class VulnDiscoveryFullTask(VulnBaseTask):
+    TaskStateClass = VulnBaseState
+    VULN_DISCOVERY_MAX_POV_COUNT = 8
+    MAX_TOOL_CALLS = 4
+    MAX_CONTEXT_ITERATIONS = 2
+
+    @override
+    def _gather_context(self, state: VulnBaseState) -> Command:
+        """Gather context about the diff and harness"""
+        logger.info("Gathering context")
+        prompt_vars = {
+            "harness": state.harness,
+            "retrieved_code": state.format_retrieved_context(),
+            "max_calls": self.MAX_TOOL_CALLS,
+        }
+        res = self._get_context_base(
+            VULN_FULL_GET_CONTEXT_SYSTEM_PROMPT,
+            VULN_FULL_GET_CONTEXT_USER_PROMPT,
+            state,
+            prompt_vars,
+        )
+        return res
+
+    @override
+    def _analyze_bug(self, state: VulnBaseState) -> Command:
+        """Analyze the diff for vulnerabilities"""
+        prompt_vars = {
+            "harness": state.harness,
+            "retrieved_code": state.format_retrieved_context(),
+        }
+        res = self._analyze_bug_base(
+            VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT, VULN_FULL_ANALYZE_BUG_USER_PROMPT, prompt_vars
+        )
+        return res
+
+    @override
+    def _write_pov(self, state: VulnBaseState) -> Command:
+        """Write PoV functions for the vulnerability"""
+        prompt_vars = {
+            "analysis": state.analysis,
+            "harness": state.harness,
+            "max_povs": self.VULN_DISCOVERY_MAX_POV_COUNT,
+            "retrieved_code": state.format_retrieved_context(),
+        }
+        res = self._write_pov_base(
+            VULN_FULL_WRITE_POV_SYSTEM_PROMPT,
+            VULN_FULL_WRITE_POV_USER_PROMPT,
+            prompt_vars,
+        )
+        return res
+
+    @override
+    def _init_state(self) -> VulnBaseState:
+        harness = self.get_harness_source()
+        if harness is None:
+            raise ValueError("No harness found for challenge %s", self.package_name)
+
+        state = VulnBaseState(
+            harness=harness,
+            task=self,
+        )
+        return state

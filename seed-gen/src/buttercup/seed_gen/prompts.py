@@ -90,11 +90,11 @@ Remember:
 Your response:
 """
 
-DIFF_ANALYSIS_SYSTEM_PROMPT = """
+VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT = """
 You are a security engineer. Your job is to analyze the vulnerability introduced by a commit diff in a project.
 """
 
-DIFF_ANALYSIS_USER_PROMPT = """
+VULN_DELTA_ANALYZE_BUG_USER_PROMPT = """
 You are a security engineer. You have gathered context about the codebase and need to analyze a diff for security vulnerabilities.
 
 You will be provided a test harness, a diff, and additional context about the codebase.
@@ -130,11 +130,11 @@ Please analyze how this diff introduces a security vulnerability(s). Consider:
 Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability.
 """
 
-WRITE_POV_SYSTEM_PROMPT = """
+VULN_DELTA_WRITE_POV_SYSTEM_PROMPT = """
 You are a security engineer writing test cases to verify and fix security vulnerabilities. You will write deterministic test cases that trigger the identified vulnerability.
 """
 
-WRITE_POV_USER_PROMPT = """
+VULN_DELTA_WRITE_POV_USER_PROMPT = """
 You will be provided context about the program and the specific vulnerability.
 
 You will then write deterministic Python functions that trigger the vulnerability. Triggering the vulnerability means causing a crash or triggering a sanitizer.
@@ -312,15 +312,15 @@ Remember:
 Your response:
 """
 
-VULN_DISCOVERY_GET_CONTEXT_SYSTEM_PROMPT = """
+VULN_DELTA_GET_CONTEXT_SYSTEM_PROMPT = """
 You are a security engineer analyzing a software project for vulnerabilities. Your task is to help gather context about the codebase to understand potential security issues.
 
-You have access to tools that can retrieve function definitions from the codebase. You should use these tools to gather relevant context about functions that might be involved in security vulnerabilities.
+You have access to tools that can retrieve code from the codebase. You should use these tools to gather relevant code that might be involved in security vulnerabilities.
 
 You will be given a diff that introduces changes to the codebase. You should gather context about both the changed functions and related functions that might be affected by these changes.
 """
 
-VULN_DISCOVERY_GET_CONTEXT_USER_PROMPT = """
+VULN_DELTA_GET_CONTEXT_USER_PROMPT = """
 You are analyzing a diff that introduces changes to the codebase. You need to understand the security implications of these changes.
 
 Prioritize code that:
@@ -348,4 +348,151 @@ Remember:
 - Avoid selecting code that is already provided in full (in the diff, in the harness, or in the retrieved code)
 
 Your response:
+"""
+
+
+VULN_FULL_GET_CONTEXT_SYSTEM_PROMPT = """
+You are a security engineer analyzing a software project for vulnerabilities. Your task is to help gather context about the codebase to understand potential security issues.
+
+You have access to tools that can retrieve code from the codebase. You should use these tools to gather relevant context to identify vulnerabilities.
+
+You will be given a test harness. You should reason about vulnerabilities that could be reached by the test harness and collect context to identify the vulnerability.
+"""
+
+VULN_FULL_GET_CONTEXT_USER_PROMPT = """
+You need to reason about vulnerabilities that could be reached by the test harness and collect context to identify the vulnerability.
+
+Prioritize code that:
+1) Helps you understand what vulnerability(s) could exist
+2) Is related to functionality that is exercised by the test harness
+3) Helps you understand how to reach the vulnerability from the test harness
+
+The test harness is:
+```
+{harness}
+```
+
+Retrieved code from the program:
+```
+{retrieved_code}
+```
+
+Remember:
+- You can make up to {max_calls} more tool calls to gather additional context.
+- My goal is to understand the vulnerability and write test cases that reach it
+- Avoid selecting code that is already provided in full (in the harness or in the retrieved code)
+
+Your response:
+"""
+
+VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT = """
+You are a security engineer. Your job is to analyze the provided code and identify a security vulnerability.
+"""
+
+VULN_FULL_ANALYZE_BUG_USER_PROMPT = """
+You are a security engineer. You have gathered context about the codebase and need to identify a security vulnerability.
+
+You will be provided a test harness and additional context about the codebase.
+
+You will identify a vulnerability that is reachable from the test harness.
+
+The vulnerability will have the following properties:
+- It must be reachable from the test harness
+- It can cause a crash or trigger a sanitizer.
+- It must be in a .c, .h, .cpp, or .java file.
+
+The test harness is:
+```
+{harness}
+```
+
+Retrieved code from the program:
+```
+{retrieved_code}
+```
+
+Please identify and analyze a security vulnerability(s). Consider:
+1. What code has the vulnerability
+2. How the vulnerability might be reached through the test harness
+3. What conditions are required for the bug to be triggered
+
+Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability.
+"""
+
+VULN_FULL_WRITE_POV_SYSTEM_PROMPT = """
+You are a security engineer writing test cases to verify and fix security vulnerabilities. You will write deterministic test cases that trigger the identified vulnerability.
+"""
+
+VULN_FULL_WRITE_POV_USER_PROMPT = """
+You will be provided context about the program and the specific vulnerability.
+
+You will then write deterministic Python functions that trigger the vulnerability. Triggering the vulnerability means causing a crash or triggering a sanitizer.
+
+There is an analysis of the vulnerability below.
+
+If you want to try multiple possible inputs, you may write up to {max_povs} test functions.
+
+Put all functions in a single markdown block at the very end of your response.
+
+All functions will have the identical signature, although the names will vary:
+```
+def gen_test_case() -> bytes
+```
+
+Example functions for an FTP server with a buffer overflow:
+```
+def test_buffer_overflow() -> bytes:
+    username = "a"*40
+    user_cmd = "USER %s\r\n" % (username)
+    return user_cmd.encode()
+
+def test_buffer_overflow_longer() -> bytes:
+    username = "a"*100
+    user_cmd = "USER %s\r\n" % (username)
+    return user_cmd.encode()
+```
+
+Example functions for a Java program:
+```
+def test_null_pointer() -> bytes:
+    # Send empty string to trigger null pointer exception
+    message = "MESSAGE\x00"
+    return message.encode()
+
+def test_path_traversal() -> bytes:
+    # Send path with directory traversal to access files outside allowed directory
+    message = "READ_FILE:../../../etc/passwd\n"
+    return message.encode()
+```
+
+Remember:
+- You are a security engineer who is fixing software you maintain.
+- The identified vulnerability must be reachable from the test harness.
+- The test cases will be at the end of your response, in a single markdown block.
+- The test cases must crash the program or trigger an enabled sanitizers.
+- The functions must create a deterministic sequence of bytes. Do not use things like `random`.
+- You can only use the python standard library.
+- Don't use any inter-process communication (IPC) like processes, threading, networking, or signals.
+- Don't use file I/O or interact with the filesystem.
+- Don't write more than {max_povs} functions.
+- Always write test case functions. Even if you're unsure that there's a vulnerability, write test cases that could trigger a vulnerability in the program.
+- This test case will help secure the software.
+
+
+The full harness is:
+```
+{harness}
+```
+
+An analysis of the vulnerability:
+```
+{analysis}
+```
+
+Retrieved code from the program:
+```
+{retrieved_code}
+```
+
+The python functions are:
 """

@@ -21,7 +21,8 @@ from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
 from buttercup.seed_gen.task_counter import TaskCounter
-from buttercup.seed_gen.vuln_discovery import VulnDiscoveryTask
+from buttercup.seed_gen.vuln_discovery_delta import VulnDiscoveryDeltaTask
+from buttercup.seed_gen.vuln_discovery_full import VulnDiscoveryFullTask
 
 logger = logging.getLogger(__name__)
 
@@ -163,10 +164,16 @@ class SeedGenBot(TaskLoop):
                 )
                 seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY.value:
-                vuln_discovery = VulnDiscoveryTask(
-                    task.package_name, task.harness_name, challenge_task, codequery
-                )
-                vuln_discovery.do_task(out_dir)
+                if challenge_task.is_delta_mode():
+                    vuln_discovery = VulnDiscoveryDeltaTask(
+                        task.package_name, task.harness_name, challenge_task, codequery
+                    )
+                    vuln_discovery.do_task(out_dir)
+                else:
+                    vuln_discovery = VulnDiscoveryFullTask(
+                        task.package_name, task.harness_name, challenge_task, codequery
+                    )
+                    vuln_discovery.do_task(out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
             elif task_choice == TaskName.SEED_EXPLORE.value:
                 seed_explore = SeedExploreTask(
