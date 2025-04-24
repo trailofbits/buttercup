@@ -1,5 +1,8 @@
+import json
 import logging
+import random
 from abc import abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -12,6 +15,7 @@ from langgraph.types import Command
 from pydantic import Field
 
 from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_md
@@ -21,10 +25,27 @@ logger = logging.getLogger(__name__)
 
 class VulnBaseState(BaseTaskState):
     analysis: str = Field(description="The analysis of the vulnerability", default="")
+    sarifs: list[SARIFBroadcastDetail] = Field(
+        description="SARIF broadcasts for the task", default_factory=list
+    )
+
+    def format_sarif_hints(self) -> str:
+        """Format SARIF hints for prompts"""
+        if not self.sarifs:
+            return ""
+
+        hints = []
+        for sarif in self.sarifs:
+            hints.append(json.dumps(sarif.sarif, indent=2))
+
+        return "\n\n".join(hints)
 
 
+@dataclass
 class VulnBaseTask(Task):
+    sarifs: list[SARIFBroadcastDetail]
     TaskStateClass: ClassVar[type[BaseTaskState]]
+    SARIF_PROBABILITY: ClassVar[float] = 0.5
 
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
@@ -103,7 +124,7 @@ class VulnBaseTask(Task):
         return workflow
 
     @abstractmethod
-    def _init_state() -> BaseTaskState:
+    def _init_state(self) -> BaseTaskState:
         """Set up State"""
         pass
 
@@ -125,3 +146,10 @@ class VulnBaseTask(Task):
 
         except Exception as err:
             logger.error("Failed vuln-discovery for challenge %s: %s", self.package_name, str(err))
+
+    def sample_sarifs(self) -> bool:
+        """Sample SARIFs for the task"""
+        if random.random() <= VulnBaseTask.SARIF_PROBABILITY:
+            logger.info("Using %d SARIFs for challenge %s", len(self.sarifs), self.package_name)
+            return self.sarifs
+        return []

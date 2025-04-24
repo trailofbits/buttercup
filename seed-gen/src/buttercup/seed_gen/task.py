@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
-from buttercup.program_model.api import Graph
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
@@ -39,16 +38,13 @@ class Task:
     harness_name: str
     challenge_task: ChallengeTask
     codequery: CodeQueryPersistent
-    llm: BaseChatModel | None = None
-    program_model: Graph = field(init=False)
+    llm: BaseChatModel = field(init=False)
     tools: list[BaseTool] = field(init=False)
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
     def __post_init__(self) -> None:
-        if self.llm is None:
-            self.llm = self.get_default_llm()
-        self.program_model = Graph()
+        self.llm = self.get_default_llm()
         self.tools = [Task.get_function_definition]
         self.llm_with_tools = self.llm.bind_tools(self.tools)
 

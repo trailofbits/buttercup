@@ -99,6 +99,8 @@ You are a security engineer. You have gathered context about the codebase and ne
 
 You will be provided a test harness, a diff, and additional context about the codebase.
 
+You may also be provided SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+
 You will identify a vulnerability introduced by the diff that is reachable from the test harness.
 
 The vulnerability will have the following properties:
@@ -115,6 +117,11 @@ The test harness is:
 The diff is:
 ```
 {diff}
+```
+
+Optional, potentially incorrect SARIF hints:
+```
+{sarif_hints}
 ```
 
 Retrieved code from the program:
@@ -316,16 +323,19 @@ VULN_DELTA_GET_CONTEXT_SYSTEM_PROMPT = """
 You are a security engineer analyzing a software project for vulnerabilities. Your task is to help gather context about the codebase to understand potential security issues.
 
 You have access to tools that can retrieve code from the codebase. You should use these tools to gather relevant code that might be involved in security vulnerabilities.
-
-You will be given a diff that introduces changes to the codebase. You should gather context about both the changed functions and related functions that might be affected by these changes.
 """
 
 VULN_DELTA_GET_CONTEXT_USER_PROMPT = """
 You are analyzing a diff that introduces changes to the codebase. You need to understand the security implications of these changes.
 
+You will be provided a test harness, a diff, and previously retrieved context about the codebase.
+
+You may also be provided SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+
 Prioritize code that:
 1) Helps you understand what vulnerability is introduced
 2) Helps you understand how to reach the vulnerability/modified code from the test harness
+3) Helps you assess whether any provided SARIF hints describe real vulnerabilities
 
 The test harness is:
 ```
@@ -336,6 +346,12 @@ The diff is:
 ```
 {diff}
 ```
+
+Optional, potentially incorrect SARIF hints:
+```
+{sarif_hints}
+```
+
 Retrieved code from the program:
 ```
 {retrieved_code}
@@ -355,21 +371,29 @@ VULN_FULL_GET_CONTEXT_SYSTEM_PROMPT = """
 You are a security engineer analyzing a software project for vulnerabilities. Your task is to help gather context about the codebase to understand potential security issues.
 
 You have access to tools that can retrieve code from the codebase. You should use these tools to gather relevant context to identify vulnerabilities.
-
-You will be given a test harness. You should reason about vulnerabilities that could be reached by the test harness and collect context to identify the vulnerability.
 """
 
 VULN_FULL_GET_CONTEXT_USER_PROMPT = """
 You need to reason about vulnerabilities that could be reached by the test harness and collect context to identify the vulnerability.
 
+You will be provided a test harness and previously retrieved context about the codebase.
+
+You may also be provided SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+
 Prioritize code that:
 1) Helps you understand what vulnerability(s) could exist
 2) Is related to functionality that is exercised by the test harness
 3) Helps you understand how to reach the vulnerability from the test harness
+4) Helps you assess whether any provided SARIF hints describe real vulnerabilities
 
 The test harness is:
 ```
 {harness}
+```
+
+Optional, potentially incorrect SARIF hints:
+```
+{sarif_hints}
 ```
 
 Retrieved code from the program:
@@ -394,6 +418,8 @@ You are a security engineer. You have gathered context about the codebase and ne
 
 You will be provided a test harness and additional context about the codebase.
 
+You may also be provided SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+
 You will identify a vulnerability that is reachable from the test harness.
 
 The vulnerability will have the following properties:
@@ -404,6 +430,11 @@ The vulnerability will have the following properties:
 The test harness is:
 ```
 {harness}
+```
+
+Optional, potentially incorrect SARIF hints:
+```
+{sarif_hints}
 ```
 
 Retrieved code from the program:

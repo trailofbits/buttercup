@@ -14,6 +14,7 @@ from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Cras
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
+from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.seed_gen.function_selector import FunctionSelector
@@ -164,14 +165,24 @@ class SeedGenBot(TaskLoop):
                 )
                 seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY.value:
+                sarif_store = SARIFStore(self.redis)
+                sarifs = sarif_store.get_by_task_id(challenge_task.task_meta.task_id)
                 if challenge_task.is_delta_mode():
                     vuln_discovery = VulnDiscoveryDeltaTask(
-                        task.package_name, task.harness_name, challenge_task, codequery
+                        task.package_name,
+                        task.harness_name,
+                        challenge_task,
+                        codequery,
+                        sarifs,
                     )
                     vuln_discovery.do_task(out_dir)
                 else:
                     vuln_discovery = VulnDiscoveryFullTask(
-                        task.package_name, task.harness_name, challenge_task, codequery
+                        task.package_name,
+                        task.harness_name,
+                        challenge_task,
+                        codequery,
+                        sarifs,
                     )
                     vuln_discovery.do_task(out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
