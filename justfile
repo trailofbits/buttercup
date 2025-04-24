@@ -24,7 +24,7 @@ run-indexer: download-kythe
     docker compose --profile=development up --build indexer-run
 
 lint-python COMPONENT:
-    cd {{ COMPONENT }} && uv sync --all-extras && uv run ruff format && uv run ruff check --fix && mypy
+    cd {{ COMPONENT }} && uv sync --all-extras && uv run ruff format && uv run ruff check --fix && uv run mypy
 
 lint-python-all:
     just lint-python common
