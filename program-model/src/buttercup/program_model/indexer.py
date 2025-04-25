@@ -5,24 +5,25 @@ from dataclasses import dataclass
 from buttercup.common.challenge_task import ChallengeTask
 import os
 from argparse import ArgumentParser
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class IndexConf:
-    scriptdir: str
+    scriptdir: Path
     python: str
     allow_pull: bool
     base_image_url: str
-    wdir: str
+    wdir: Path
 
 
 class Indexer:
     def __init__(self, conf: IndexConf):
         self.conf = conf
 
-    def build_image(self, task: ChallengeTask):
+    def build_image(self, task: ChallengeTask) -> str | None:
         logger.debug(f"Building image for {task.task_meta.task_id}")
         res = task.build_image(pull_latest_base_image=self.conf.allow_pull)
         if not res.success:
@@ -50,7 +51,7 @@ class Indexer:
         logger.debug(f"Finished building image for {task.task_meta.task_id}")
         return emitted_image
 
-    def index_target(self, task: ChallengeTask):
+    def index_target(self, task: ChallengeTask) -> str | None:
         logger.debug(f"Started indexing target {task.task_meta.task_id}")
         emitted_image = self.build_image(task)
         if emitted_image is None:
@@ -97,7 +98,7 @@ class Indexer:
         return output_dir
 
 
-def main():
+def main() -> None:
     prsr = ArgumentParser()
     prsr.add_argument("--scriptdir", type=str, required=True)
     prsr.add_argument("--python", default="python3")

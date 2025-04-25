@@ -1,7 +1,7 @@
 from buttercup.program_model.graph import Node, Edge, decode_value, encode_value
 import logging
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Any
 from pathlib import Path
 from gremlin_python.structure.graph import Graph as GremlinGraph
 from gremlin_python.process.traversal import T, TextP
@@ -18,15 +18,15 @@ class Graph:
 
     url: str = "ws://graphdb:8182/gremlin"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.graph = GremlinGraph()
         self.connection = DriverRemoteConnection(self.url, "g")
         self.g = self.graph.traversal().withRemote(self.connection)
 
-    def __enter__(self):
+    def __enter__(self):  # type: ignore[no-untyped-def]
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.connection.close()
 
     def _decode_properties(self, obj: dict) -> dict:
@@ -76,7 +76,7 @@ class Graph:
 
     def _get_function_nodes(
         self, function_name: str, source_path: str | None = None
-    ) -> List[Dict]:
+    ) -> Any:
         """Retrieves all function nodes matching the given function name and optionally source path."""
         if source_path is None:
             return (
@@ -102,7 +102,7 @@ class Graph:
                 .toList()
             )
 
-    def _get_node_anchors(self, node_id: str) -> List[Dict]:
+    def _get_node_anchors(self, node_id: str) -> Any:
         """Get all anchors for a given node."""
         return self.g.V(node_id).in_("/kythe/edge/defines").elementMap().toList()
 

@@ -2,6 +2,7 @@ import logging
 import os
 import stat
 import uuid
+from typing import Any
 from dataclasses import dataclass, field
 from buttercup.common.queues import (
     QueueFactory,
@@ -40,11 +41,14 @@ class ProgramModel:
     allow_pull: bool = True
     base_image_url: str = "gcr.io/oss-fuzz"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post-initialization setup."""
-        self.wdir = Path(self.wdir).resolve()
-        self.script_dir = Path(self.script_dir).resolve()
-        self.kythe_dir = Path(self.kythe_dir).resolve()
+        if self.wdir is not None:
+            self.wdir = Path(self.wdir).resolve()
+        if self.script_dir is not None:
+            self.script_dir = Path(self.script_dir).resolve()
+        if self.kythe_dir is not None:
+            self.kythe_dir = Path(self.kythe_dir).resolve()
 
         if self.redis is not None:
             logger.debug("Using Redis for task queues")
@@ -52,13 +56,13 @@ class ProgramModel:
             self.task_queue = queue_factory.create(QueueNames.INDEX, GroupNames.INDEX)
             self.output_queue = queue_factory.create(QueueNames.INDEX_OUTPUT)
 
-    def __enter__(self):
+    def __enter__(self):  # type: ignore[no-untyped-def]
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources used by the program model"""
         pass
 
@@ -66,6 +70,8 @@ class ProgramModel:
         self, task_id: str, output_id: str, output_dir: Path, td: Path
     ) -> Path:
         """Index using kythe. Returns path to the index binary file."""
+        if self.kythe_dir is None:
+            raise ValueError("Kythe directory is not initialized")
         ktool = KytheTool(KytheConf(self.kythe_dir))
         merged_kzip = Path(td) / f"kythe_output_merge_{output_id}.kzip"
         ktool.merge_kythe_output(output_dir, merged_kzip)
@@ -128,12 +134,18 @@ class ProgramModel:
 
                 # Index the task
                 try:
+                    if self.script_dir is None:
+                        raise ValueError("Script directory is not initialized")
+                    if self.python is None:
+                        raise ValueError("Python is not initialized")
+                    if self.kythe_dir is None:
+                        raise ValueError("Kythe directory is not initialized")
                     indexer_conf = IndexConf(
                         scriptdir=self.script_dir,
                         python=self.python,
                         allow_pull=self.allow_pull,
                         base_image_url=self.base_image_url,
-                        wdir=td,
+                        wdir=Path(td),
                     )
                     indexer = Indexer(indexer_conf)
                     output_dir = indexer.index_target(local_tsk)
@@ -161,7 +173,9 @@ class ProgramModel:
                 output_id = str(uuid.uuid4())
 
                 try:
-                    bin_file = self.index_kythe(args.task_id, output_id, output_dir, td)
+                    bin_file = self.index_kythe(
+                        args.task_id, output_id, Path(output_dir), Path(td)
+                    )
                 except Exception as e:
                     logger.error(f"Failed to index files for {args.task_id}: {e}")
                     return False
@@ -213,6 +227,8 @@ class ProgramModel:
                 if not local_challenge.apply_patch_diff():
                     logger.info(f"No diffs for {args.package_name} {args.task_id}")
 
+                if self.wdir is None:
+                    raise ValueError("Work directory is not initialized")
                 cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
                 # Push it to the remote storage
                 node_local.dir_to_remote_archive(cqp.challenge.task_dir)
@@ -232,6 +248,8 @@ class ProgramModel:
         return rv_code_query or rv_kythe
 
     def serve_item(self) -> bool:
+        if self.task_queue is None:
+            raise ValueError("Task queue is not initialized")
         rq_item = self.task_queue.pop()
         if rq_item is None:
             return False
@@ -240,6 +258,8 @@ class ProgramModel:
         success = self.process_task(task_index)
 
         if success:
+            if self.output_queue is None:
+                raise ValueError("Output queue is not initialized")
             self.output_queue.push(
                 IndexOutput(
                     build_type=task_index.build_type,
@@ -256,7 +276,7 @@ class ProgramModel:
 
         return True
 
-    def serve(self):
+    def serve(self) -> None:
         """Main loop to process tasks from queue"""
         if self.task_queue is None:
             raise ValueError("Task queue is not initialized")

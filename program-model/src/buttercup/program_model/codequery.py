@@ -40,7 +40,7 @@ class CQSearchResult:
         """Parse a line of the cqsearch output into a CQSearchResult."""
         try:
             value, file_line, body = line.split("\t", 2)
-            file, line = file_line.split(":", 1)
+            file_str, line = file_line.split(":", 1)
         except ValueError:
             logger.warning("Invalid cqsearch line: %s", line)
             return None
@@ -48,9 +48,9 @@ class CQSearchResult:
         # Rebase the file path from the challenge task base dir.
         # This is needed because the task-dir part might be different from what
         # was originall used to create the db.
-        file = Path(file)
+        file: Path = Path(file_str)
         if CONTAINER_SRC_DIR not in file.parts:
-            logger.warning("File %s is not in the container source dir", file)
+            logger.warning("File %s is not in the container source dir", file_str)
             return None
 
         container_src_dir_idx = file.parts.index(CONTAINER_SRC_DIR)
@@ -128,7 +128,7 @@ class CodeQuery:
 
     def _get_container_src_dir(self) -> Path:
         """Get the container source directory."""
-        return self.challenge.task_dir.joinpath(CONTAINER_SRC_DIR)
+        return Path(self.challenge.task_dir.joinpath(CONTAINER_SRC_DIR))
 
     def _copy_src_from_container(self) -> None:
         """Copy the /src directory from the container to the challenge task directory."""
@@ -343,8 +343,9 @@ class CodeQuery:
 
         res: set[Function] = set()
         results_by_file = groupby(results_all, key=lambda x: x.file)
-        for file, results in results_by_file:
-            functions_found = list(set(result.value for result in results))
+        for file, file_results in results_by_file:
+            file_results_list = list(file_results)
+            functions_found = list(set(result.value for result in file_results_list))
 
             if not fuzzy and not all(function_name == f for f in functions_found):
                 logger.warning(
@@ -443,7 +444,7 @@ class CodeQuery:
         callees: set[Function] = set()
         for result in results:
             functions = self.get_functions(result.value)
-            unique_functions = []
+            unique_functions: list[Function] = []
             for f in functions:
                 if not any(x for x in unique_functions if x.has_same_source(f)):
                     unique_functions.append(f)
@@ -468,29 +469,29 @@ class CodeQuery:
             "-p",
             "1",  # '1' for symbol
             "-t",
-            type_name,  # The name of the type
+            str(type_name),  # Convert to string to ensure type safety
             "-f" if fuzzy else "-e",
             "-u",  # use full paths
         ]
         if file_path:
             cqsearch_args += ["-b", file_path.as_posix()]
 
-        results = self._run_cqsearch(*cqsearch_args)
-
+        results: list[CQSearchResult] = list(self._run_cqsearch(*cqsearch_args))
         logger.info("Found %d instances of type %s", len(results), type_name)
 
         res: list[TypeDefinition] = []
         results_by_file = groupby(results, key=lambda x: x.file)
-        for file, results in results_by_file:
-            types_found = list(set(result.value for result in results))
+        for file, file_results in results_by_file:
+            file_results_list = list(file_results)
+            types_found = list(set(result.value for result in file_results_list))
 
-            if not fuzzy and not all(type_name == t for t in types_found):
+            if not fuzzy and not all(str(type_name) == str(t) for t in types_found):
                 logger.warning(
                     "Type name mismatch, this should not happen: %s",
                     type_name,
                 )
                 continue
-            if fuzzy and not all(type_name in t for t in types_found):
+            if fuzzy and not all(str(type_name) in str(t) for t in types_found):
                 logger.warning(
                     "Type name mismatch, this should not happen: %s",
                     type_name,

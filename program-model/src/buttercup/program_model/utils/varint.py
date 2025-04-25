@@ -9,15 +9,15 @@ import sys
 
 if sys.version > "3":
 
-    def _byte(b):
+    def _byte(b: int) -> bytes:
         return bytes((b,))
 else:
 
-    def _byte(b):
+    def _byte(b: int) -> str:  # type: ignore[misc]
         return chr(b)
 
 
-def encode(number):
+def encode(number: int) -> bytes:
     """Pack `number` into varint bytes"""
     buf = b""
     while True:
@@ -31,7 +31,7 @@ def encode(number):
     return buf
 
 
-def decode_stream(stream):
+def decode_stream(stream: BytesIO) -> int:
     """Read a varint from `stream`"""
     shift = 0
     result = 0
@@ -45,12 +45,12 @@ def decode_stream(stream):
     return result
 
 
-def decode_bytes(buf):
+def decode_bytes(buf: bytes) -> int:
     """Read a varint from from `buf` bytes"""
     return decode_stream(BytesIO(buf))
 
 
-def _read_one(stream):
+def _read_one(stream: BytesIO) -> int:
     """Read a byte from the file (as an integer)
 
     raises EOFError if the stream ends while reading bytes.

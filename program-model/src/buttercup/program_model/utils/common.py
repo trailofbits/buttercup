@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class FunctionBody:
     end_line: int
     """End line of the function in the file (1-based)."""
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """Two function bodies are equal if they have the same body and start and end lines."""
         if not isinstance(other, FunctionBody):
             return NotImplemented
@@ -30,7 +30,7 @@ class FunctionBody:
             and self.end_line == other.end_line
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Hash based on body and start and end lines."""
         return hash((self.body, self.start_line, self.end_line))
 
@@ -51,7 +51,7 @@ class Function:
     bodies: list[FunctionBody] = field(default_factory=list)
     """List of function bodies."""
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """Two functions are equal if they have the same name and file path."""
         if not isinstance(other, Function):
             return NotImplemented
@@ -61,11 +61,11 @@ class Function:
             and frozenset(self.bodies) == frozenset(other.bodies)
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Hash based on name and file path."""
         return hash((self.name, self.file_path, frozenset(self.bodies)))
 
-    def has_same_source(self, other: "Function"):
+    def has_same_source(self, other: "Function") -> bool:
         """Return true if both functions have exactly the same
         source code in their bodies. This doesn't check line numbers
         or source files, just the plain source code for the functions

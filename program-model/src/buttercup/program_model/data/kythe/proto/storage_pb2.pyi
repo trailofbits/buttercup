@@ -108,7 +108,7 @@ class VNameRewriteRules(_message.Message):
     def __init__(self, rule: _Optional[_Iterable[_Union[VNameRewriteRule, _Mapping]]] = ...) -> None: ...
 
 class WriteReply(_message.Message):
-    __slots__ = []
+    __slots__: list[str] = []
     def __init__(self) -> None: ...
 
 class WriteRequest(_message.Message):

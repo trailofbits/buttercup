@@ -163,9 +163,6 @@ class CodeTS:
         else:
             raise ValueError(f"Unsupported language: {project_yaml.language}")
 
-        self.get_functions_in_code = lru_cache(maxsize=1000)(self.get_functions_in_code)
-        self.get_function = lru_cache(maxsize=1000)(self.get_function)
-
         try:
             self.query = self.language.query(query_str)
             self.query_types = self.language.query(types_query_str)
@@ -177,6 +174,7 @@ class CodeTS:
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
         return self.get_functions_in_code(code, file_path)
 
+    @lru_cache(maxsize=1000)
     def get_functions_in_code(
         self, code: bytes, file_path: Path
     ) -> dict[str, Function]:
@@ -194,13 +192,10 @@ class CodeTS:
             node, capture_name = match
             if "function.name" in capture_name.keys():
                 name_node = capture_name["function.name"][0]
-            if "function.body" in capture_name.keys():
-                body_node = capture_name["function.body"][0]
+            #   if "function.body" in capture_name.keys():
+            #       body_node = capture_name["function.body"][0]
             if "function.definition" in capture_name.keys():
                 definition_node = capture_name["function.definition"][0]
-
-            if not name_node or not body_node or not definition_node:
-                continue
 
             function_name = code[name_node.start_byte : name_node.end_byte]
             function_definition = definition_node
@@ -241,6 +236,7 @@ class CodeTS:
 
         return functions
 
+    @lru_cache(maxsize=1000)
     def get_function(self, function_name: str, file_path: Path) -> Function | None:
         """Get the code of a function in a file."""
         functions = self.get_functions(file_path)
@@ -266,9 +262,6 @@ class CodeTS:
             except Exception:
                 continue
 
-            if not name_node or not definition_node:
-                continue
-
             # Walk back to include any comments right before the definition
             start_byte = definition_node.start_byte
             prev_node = definition_node.prev_named_sibling
@@ -280,6 +273,9 @@ class CodeTS:
                 start_byte -= 1
 
             type_definition = code[start_byte : definition_node.end_byte].decode()
+            if name_node.text is None:
+                logger.warning("Type %s is None for %s", name_node, file_path)
+                continue
             name = name_node.text.decode()
             # NOTE(boyan): here we strip any unexpected indirection that TS might leave.
             # It is the case for example with the following from libjpeg-turbo:
