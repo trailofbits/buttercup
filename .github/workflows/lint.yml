@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
 
       - name: Setup ${{ matrix.component }} component
         run: uv sync --all-extras
