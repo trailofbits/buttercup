@@ -46,7 +46,6 @@ def commons_codec_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         ),
     ],
 )
-@pytest.mark.skip("Fix identifying inner classes in cscope")
 @pytest.mark.integration
 def test_commons_codec_get_functions(
     commons_codec_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info

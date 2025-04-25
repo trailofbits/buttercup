@@ -52,6 +52,20 @@ docker push ghcr.io/aixcc-finals/buttercup-kythe:main
 
 You should see the `buttercup-kythe` package [here](https://github.com/orgs/aixcc-finals/packages?visibility=private).
 
+Build [cscope](https://github.com/trailofbits/aixcc-cscope) docker image and push to `aixcc-finals`.
+
+```shell
+git clone git@github.com:trailofbits/aixcc-cscope.git
+cd aixcc-cscope/
+git checkout buttercup
+
+docker build -t aixcc-cscope -f aixcc.Dockerfile .
+docker tag aixcc-cscope ghcr.io/aixcc-finals/buttercup-cscope:main
+docker push ghcr.io/aixcc-finals/buttercup-cscope:main
+```
+
+You should see the `buttercup-cscope` package [here](https://github.com/orgs/aixcc-finals/packages?visibility=private).
+
 ## Usage
 
 Start up CRS.

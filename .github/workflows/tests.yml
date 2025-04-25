@@ -110,26 +110,22 @@ jobs:
         if: ${{ matrix.component }} == 'seed-gen'
         working-directory: seed-gen
 
-      # - name: Prepare Kythe and JanusGraph
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      #   run: |
-      #     export DEBIAN_FRONTEND=noninteractive
-      #     sudo apt-get update
-      #     sudo apt-get install -y codequery
-      #     sudo mkdir -p /crs_scratch
-      #     sudo chmod -R 777 /crs_scratch
-      #     sudo apt-get install -y just
-      #     echo ${{ env.GH_TOKEN }} | docker login ghcr.io -u USERNAME --password-stdin
-      #     just download-kythe
-      #   if: ${{ matrix.component }} == 'program-model'
-      #   working-directory: program-model
+      - name: Prepare CodeQuery
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y codequery
+          sudo apt-get install -y just
+          echo ${{ env.GHCR_TOKEN }} | docker login ghcr.io -u ${{ env.GHCR_USERNAME }} --password-stdin
+          just download-cscope
+          just install-cscope
 
       - name: Prepare environment
         run: |
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          sudo apt-get install -y codequery
           sudo mkdir -p /crs_scratch
           sudo chmod -R 777 /crs_scratch
 

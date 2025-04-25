@@ -202,7 +202,7 @@ class CodeQuery:
 
         try:
             subprocess.run(
-                ["cscope", "-cb"], cwd=self._get_container_src_dir(), timeout=200
+                ["cscope", "-bq"], cwd=self._get_container_src_dir(), timeout=200
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             raise RuntimeError("Failed to create cscope index.")
@@ -316,7 +316,7 @@ class CodeQuery:
         """Get the definition(s) of a function in the codebase or in a specific
         file. File paths are based on the challenge task container structure
         (e.g. /src)."""
-        # Get symbols and functions. Some functions are not found by cqsearching functions so we have to use symbols instead.
+        # FIXME(Evan): Sometimes cscope doesn't identify a function. They can be found by looking for symbols.
         results_all = []
         for search_type in ["1", "2"]:  # 1 for symbols, 2 for functions
             cqsearch_args = [

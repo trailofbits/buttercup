@@ -26,7 +26,7 @@ def checkstyle_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     [
         (
             "JavaLanguageParser",
-            "/src/main/java/com/puppycrawl/tools/checkstyle/JavaLanguageParser.java",
+            "/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/JavaLanguageParser.java",
             TestFunctionInfo(
                 num_bodies=2,
                 body_excerpts=[
@@ -37,7 +37,7 @@ def checkstyle_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         ),
     ],
 )
-@pytest.mark.skip("Fix codequery issues with long filepaths")
+@pytest.mark.skip("Figure out where this function is located within the source repo")
 @pytest.mark.integration
 def test_checkstyle_get_functions(
     checkstyle_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info

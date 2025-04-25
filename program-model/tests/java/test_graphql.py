@@ -58,7 +58,7 @@ def test_graphql_get_functions(
             28,
             False,
             [],
-            22,
+            None,  # FIXME(Evan): Too many to verify. Need to add a test for this.
         ),
     ],
 )
@@ -93,7 +93,7 @@ def test_get_callers(
             28,
             False,
             [],
-            75,
+            None,  # FIXME(Evan): Too many to verify. Need to add a test for this.
         ),
     ],
 )

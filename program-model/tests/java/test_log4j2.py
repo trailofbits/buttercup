@@ -28,7 +28,7 @@ def log4j2_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     [
         (
             "getLogger",
-            "/src/logging-log4j2/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
+            "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
             TestFunctionInfo(
                 num_bodies=2,
                 body_excerpts=[
@@ -39,7 +39,7 @@ def log4j2_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         ),
     ],
 )
-@pytest.mark.skip("cscope times out")
+@pytest.mark.skip("Doesn't find getLogger() in LoggerContext.java")
 @pytest.mark.integration
 def test_log4j2_get_functions(
     log4j2_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
@@ -55,7 +55,7 @@ def test_log4j2_get_functions(
     [
         (
             "getLogger",
-            "/src/logging-log4j2/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
+            "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
             565,
             False,
             [],
@@ -63,7 +63,7 @@ def test_log4j2_get_functions(
         ),
     ],
 )
-@pytest.mark.skip("cscope times out")
+@pytest.mark.skip("Doesn't find getLogger() in LoggerContext.java")
 @pytest.mark.integration
 def test_get_callers(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -91,7 +91,7 @@ def test_get_callers(
     [
         (
             "getLogger",
-            "/src/logging-log4j2/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
+            "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
             565,
             False,
             [],
@@ -99,7 +99,7 @@ def test_get_callers(
         ),
     ],
 )
-@pytest.mark.skip("cscope times out")
+@pytest.mark.skip("Doesn't find getLogger() in LoggerContext.java")
 @pytest.mark.integration
 def test_log4j2_get_callees(
     log4j2_oss_fuzz_task: ChallengeTask,

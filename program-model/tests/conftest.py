@@ -113,7 +113,7 @@ def oss_fuzz_task(
     # Create task metadata
     TaskMeta(
         project_name=oss_fuzz_project,
-        focus=oss_fuzz_project,
+        focus=project,
         task_id=f"task-id-{oss_fuzz_project}",
     ).save(tmp_path)
 

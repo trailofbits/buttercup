@@ -13,7 +13,8 @@ lint:
     # uv run mypy
 
 test:
-    uv run pytest -svv --log-cli-level=DEBUG --runintegration
+    # uv run pytest -svv --log-cli-level=DEBUG --runintegration
+    uv run pytest -svv --runintegration
 
 install-gh:
     (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
