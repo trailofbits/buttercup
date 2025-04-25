@@ -22,6 +22,7 @@ from redis import Redis
 import subprocess
 import tempfile
 import buttercup.common.node_local as node_local
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +94,8 @@ class ProgramModel:
         graphml_file = Path(td) / f"kythe_output_graphml_{output_id}.xml"
         with open(graphml_file, "w") as fw, open(bin_file, "rb") as fr:
             gs = GraphStorage(task_id=task_id)
-            gs.process_stream(fr)
-            fw.write(gs.to_graphml())
+            buf = BytesIO(fr.read())
+            gs.process_stream(buf, fw)
         return graphml_file
 
     def load_graphml(self, graphml_file: Path) -> None:
@@ -188,7 +189,8 @@ class ProgramModel:
                     graphml_file = Path(td) / f"kythe_output_graphml_{output_id}.xml"
                     with open(graphml_file, "w") as fw, open(bin_file, "rb") as fr:
                         gs = GraphStorage(task_id=args.task_id)
-                        gs.process_stream(fr, fw)
+                        buf = BytesIO(fr.read())
+                        gs.process_stream(buf, fw)
                         logger.info(
                             f"Successfully stored program {args.task_id} in graphml file: {graphml_file}"
                         )

@@ -49,7 +49,8 @@ class Graph:
         """Decode an edge from the graph."""
         return Edge(
             id=edge[T.id],
-            label=edge[T.label],
+            source_id=edge[T.outV],
+            target_id=edge[T.inV],
             properties=self._decode_properties(edge),
         )
 
@@ -121,16 +122,27 @@ class Graph:
 
             # Get start and end bytes of the function
             a_plain = self._decode_node(a)
-            start = int(a_plain.properties.get("/kythe/loc/start"))
-            end = int(a_plain.properties.get("/kythe/loc/end"))
+            start_str = a_plain.properties.get("/kythe/loc/start")
+            if start_str is None:
+                logger.warning(f"No start byte offset found for anchor: {a}")
+                continue
+            start = int(start_str)
+            end_str = a_plain.properties.get("/kythe/loc/end")
+            if end_str is None:
+                logger.warning(f"No end byte offset found for anchor: {a}")
+                continue
+            end = int(end_str)
             logger.debug(f"Start byte offset: {start}, End byte offset: {end}")
 
             # Get the file nodes matching the anchor's file path
             file_path = a_plain.properties.get("path")
+            if file_path is None:
+                logger.warning(f"No file path found for anchor: {a}")
+                continue
             files.extend(
                 self.g.V()
                 .has("/kythe/node/kind", encode_value(b"file"))
-                .has("path", encode_value(file_path))
+                .has("path", encode_value(file_path.encode("utf-8")))
                 .elementMap()
                 .toList()
             )
@@ -141,7 +153,11 @@ class Graph:
         # For each file found, return the function body
         for fn in files:
             fn_plain = self._decode_node(fn)
-            bodies.append(fn_plain.properties.get("/kythe/text")[start:end])
+            fn_plain_text = fn_plain.properties.get("/kythe/text")
+            if fn_plain_text is None:
+                logger.warning(f"No text found for function: {fn}")
+                continue
+            bodies.append(fn_plain_text[start:end])
 
         return bodies
 
