@@ -198,9 +198,9 @@ def test_get_functions_fuzzy(mock_c_challenge_task: ChallengeTask):
     functions = codequery.get_functions("function", fuzzy=True)
     assert len(functions) == 4
     functions = codequery.get_functions("function", Path("test3.c"), fuzzy=True)
-    assert len(functions) == 2
+    assert len(functions) == 4
     functions = codequery.get_functions("function3", Path("test3.c"), fuzzy=True)
-    assert len(functions) == 1
+    assert len(functions) == 4
 
 
 def test_keep_status(

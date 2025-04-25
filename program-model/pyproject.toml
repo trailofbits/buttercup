@@ -11,6 +11,7 @@ dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.4.0",
+    "rapidfuzz ~= 3.12.2",
 ]
 
 [project.scripts]

@@ -8,8 +8,9 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from itertools import groupby
-from typing import ClassVar, Union
-
+from typing import ClassVar
+import rapidfuzz
+from functools import lru_cache
 
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.program_model.api.tree_sitter import CodeTS
@@ -99,6 +100,10 @@ class CodeQuery:
 
         self._create_codequery_db()
         logger.info("CodeQuery DB created successfully.")
+
+        # TODO(Evan): Is this too much to keep in memory?
+        self._get_all_functions = lru_cache(maxsize=1000)(self._get_all_functions)  # type: ignore [method-assign]
+        self._get_all_types = lru_cache(maxsize=1000)(self._get_all_types)  # type: ignore [method-assign]
 
     def _verify_requirements(self) -> None:
         """Verify that the required commands are installed."""
@@ -199,7 +204,7 @@ class CodeQuery:
 
         try:
             subprocess.run(
-                ["cscope", "-bq"],
+                ["cscope", "-bkq"],
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=200,
@@ -307,18 +312,37 @@ class CodeQuery:
             for tu in type_usages
         ]
 
+    def _get_all_functions(self) -> list[CQSearchResult]:
+        """Get all functions in the codebase."""
+        return [
+            f
+            for f in self._run_cqsearch(
+                "-s", self.CODEQUERY_DB, "-p", "2", "-t", "*", "-u"
+            )
+        ]
+
+    def _get_all_types(self) -> list[CQSearchResult]:
+        """Get all symbols in the codebase."""
+        return [
+            t
+            for t in self._run_cqsearch(
+                "-s", self.CODEQUERY_DB, "-p", "1", "-t", "*", "-u"
+            )
+        ]
+
     def get_functions(
         self,
         function_name: str,
         file_path: Path | None = None,
         line_number: int | None = None,
         fuzzy: bool | None = False,
+        fuzzy_threshold: int = 80,
     ) -> list[Function]:
         """Get the definition(s) of a function in the codebase or in a specific
         file. File paths are based on the challenge task container structure
         (e.g. /src)."""
         # FIXME(Evan): Sometimes cscope doesn't identify a function. They can be found by looking for symbols.
-        results_all = []
+        results_all: list[CQSearchResult] = []
         for search_type in ["1", "2"]:  # 1 for symbols, 2 for functions
             cqsearch_args = [
                 "-s",
@@ -337,8 +361,30 @@ class CodeQuery:
 
             results_all.extend(results)
 
+        # Extended fuzzy matching
+        if fuzzy:
+            # Fuzzy match the function name against all functions in the codebase
+            fuzzy_matches: list[tuple[CQSearchResult, float]] = sorted(
+                [
+                    (f, rapidfuzz.fuzz.ratio(function_name, f.value))
+                    for f in self._get_all_functions()
+                    if f.value
+                    and rapidfuzz.fuzz.ratio(function_name, f.value) > fuzzy_threshold
+                ],
+                key=lambda x: x[1],
+                reverse=True,
+            )
+            fuzzy_matches = [f for f, _ in fuzzy_matches]
+            logger.info(
+                "Found %d fuzzy matches for function %s",
+                len(fuzzy_matches),
+                function_name,
+            )
+            results_all.extend(fuzzy_matches)
         logger.info(
-            "Found %d instances of function %s", len(results_all), function_name
+            "Found %d instances (fuzzy or exact) of function %s",
+            len(results_all),
+            function_name,
         )
 
         res: set[Function] = set()
@@ -346,14 +392,7 @@ class CodeQuery:
         for file, file_results in results_by_file:
             file_results_list = list(file_results)
             functions_found = list(set(result.value for result in file_results_list))
-
             if not fuzzy and not all(function_name == f for f in functions_found):
-                logger.warning(
-                    "Function name mismatch, this should not happen: %s",
-                    function_name,
-                )
-                continue
-            if fuzzy and not all(function_name in f for f in functions_found):
                 logger.warning(
                     "Function name mismatch, this should not happen: %s",
                     function_name,
@@ -464,10 +503,11 @@ class CodeQuery:
 
     def get_types(
         self,
-        type_name: Union[bytes, str],
+        type_name: str,
         file_path: Path | None = None,
         function_name: str | None = None,
         fuzzy: bool | None = False,
+        fuzzy_threshold: int = 80,
     ) -> list[TypeDefinition]:
         """Finds and return the definition of type named `typename`. File paths
         are based on the challenge task container structure (e.g. /src)."""
@@ -485,6 +525,29 @@ class CodeQuery:
             cqsearch_args += ["-b", file_path.as_posix()]
 
         results: list[CQSearchResult] = list(self._run_cqsearch(*cqsearch_args))
+
+        # Extended fuzzy matching
+        if fuzzy:
+            # Fuzzy match the function name against all functions in the codebase
+            fuzzy_matches: list[tuple[CQSearchResult, float]] = sorted(
+                [
+                    (t, rapidfuzz.fuzz.ratio(type_name, t.value))
+                    for t in self._get_all_types()
+                    if t.value
+                    and rapidfuzz.fuzz.ratio(type_name, t.value) > fuzzy_threshold
+                ],
+                key=lambda x: x[1],
+                reverse=True,
+            )
+            fuzzy_matches = [t for t, _ in fuzzy_matches]
+            logger.info(
+                "Found %d fuzzy matches for type %s", len(fuzzy_matches), type_name
+            )
+            results.extend(fuzzy_matches)
+        logger.info(
+            "Found %d instances (fuzzy or exact) of type %s", len(results), type_name
+        )
+
         logger.info("Found %d instances of type %s", len(results), type_name)
 
         res: list[TypeDefinition] = []
@@ -494,12 +557,6 @@ class CodeQuery:
             types_found = list(set(result.value for result in file_results_list))
 
             if not fuzzy and not all(str(type_name) == str(t) for t in types_found):
-                logger.warning(
-                    "Type name mismatch, this should not happen: %s",
-                    type_name,
-                )
-                continue
-            if fuzzy and not all(str(type_name) in str(t) for t in types_found):
                 logger.warning(
                     "Type name mismatch, this should not happen: %s",
                     type_name,
