@@ -139,9 +139,6 @@ class CodeQuery:
         challenge_container_name = self.challenge.container_image()
         src_dst = self._get_container_src_dir()
         src_dst.mkdir(parents=True, exist_ok=True)
-        logger.info(
-            "Copying src from container %s to %s", challenge_container_name, src_dst
-        )
         try:
             command = [
                 "docker",
@@ -152,14 +149,14 @@ class CodeQuery:
                 f"{self.challenge.get_source_path().as_posix()}:{self.challenge.workdir_from_dockerfile()}",
                 challenge_container_name,
             ]
-            subprocess.run(command, check=True)
+            subprocess.run(command, check=True, capture_output=True)
             command = [
                 "docker",
                 "cp",
                 f"codequery-container-{self.challenge.task_meta.task_id}:/src",
                 src_dst.resolve().as_posix(),
             ]
-            subprocess.run(command, check=True)
+            subprocess.run(command, check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
             logger.error("Failed to copy src from container: %s", e)
             raise RuntimeError(f"Failed to copy src from container: {e}")
@@ -169,7 +166,7 @@ class CodeQuery:
                 "rm",
                 f"codequery-container-{self.challenge.task_meta.task_id}",
             ]
-            subprocess.run(command, check=True)
+            subprocess.run(command, check=True, capture_output=True)
 
     def _create_codequery_db(self) -> None:
         """Create the codequery database."""
@@ -202,7 +199,10 @@ class CodeQuery:
 
         try:
             subprocess.run(
-                ["cscope", "-bq"], cwd=self._get_container_src_dir(), timeout=200
+                ["cscope", "-bq"],
+                cwd=self._get_container_src_dir(),
+                capture_output=True,
+                timeout=200,
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             raise RuntimeError("Failed to create cscope index.")
@@ -214,6 +214,7 @@ class CodeQuery:
             subprocess.run(
                 ["ctags", "--fields=+i", "-n", "-L", self.CSCOPE_FILES],
                 cwd=self._get_container_src_dir(),
+                capture_output=True,
                 timeout=300,
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
@@ -235,6 +236,7 @@ class CodeQuery:
                     "-p",
                 ],
                 cwd=self._get_container_src_dir(),
+                capture_output=True,
                 timeout=2700,
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
@@ -246,7 +248,6 @@ class CodeQuery:
     def _run_cqsearch(self, *args: str) -> list[CQSearchResult]:
         """Run the cqsearch command and parse the results."""
         try:
-            logger.debug("Running cqsearch with args: %s", " ".join(args))
             result = subprocess.run(
                 ["cqsearch", *args],
                 cwd=self._get_container_src_dir(),
@@ -333,9 +334,12 @@ class CodeQuery:
                 cqsearch_args += ["-b", file_path.as_posix()]
 
             results = self._run_cqsearch(*cqsearch_args)
-            logger.debug("cqsearch output: %s", results)
 
             results_all.extend(results)
+
+        logger.info(
+            "Found %d instances of function %s", len(results_all), function_name
+        )
 
         res: set[Function] = set()
         results_by_file = groupby(results_all, key=lambda x: x.file)
@@ -370,12 +374,6 @@ class CodeQuery:
                         )
                         for body in f.bodies
                     ]
-                    logger.debug(
-                        "Looking for function %s in file %s on lines %s",
-                        function,
-                        file,
-                        ",".join(map(str, lines)),
-                    )
                     # NOTE(boyan): We check whether the supplied line to look up for the function
                     # is contained within at least one of the function bodies found by
                     # tree-sitter
@@ -395,6 +393,10 @@ class CodeQuery:
                 else:
                     res.add(f)
 
+        logger.info(
+            "Found %d functions for %s after filtering", len(res), function_name
+        )
+
         return self._rebase_functions_file_paths(list(res))
 
     def get_callers(self, function: Function) -> list[Function]:
@@ -412,12 +414,13 @@ class CodeQuery:
         ]
 
         results = self._run_cqsearch(*cqsearch_args)
-        logger.debug("cqsearch output: %s", results)
 
         callers: set[Function] = set()
         for result in results:
             functions = self.get_functions(result.value, Path(result.file), result.line)
             callers.update(functions)
+
+        logger.info("Found %d callers for %s", len(callers), function.name)
 
         return self._rebase_functions_file_paths(list(callers))
 
@@ -436,7 +439,6 @@ class CodeQuery:
         ]
 
         results = self._run_cqsearch(*cqsearch_args)
-        logger.debug("cqsearch output: %s", results)
 
         callees: set[Function] = set()
         for result in results:
@@ -446,6 +448,9 @@ class CodeQuery:
                 if not any(x for x in unique_functions if x.has_same_source(f)):
                     unique_functions.append(f)
             callees.update(functions)
+
+        logger.info("Found %d callees for %s", len(callees), function.name)
+
         return self._rebase_functions_file_paths(list(callees))
 
     def get_types(
@@ -471,7 +476,8 @@ class CodeQuery:
             cqsearch_args += ["-b", file_path.as_posix()]
 
         results = self._run_cqsearch(*cqsearch_args)
-        logger.debug("cqsearch output: %s", results)
+
+        logger.info("Found %d instances of type %s", len(results), type_name)
 
         res: list[TypeDefinition] = []
         results_by_file = groupby(results, key=lambda x: x.file)
@@ -524,6 +530,8 @@ class CodeQuery:
 
             res.extend(typedefs.values())
 
+        logger.info("Found %d types for %s after filtering", len(res), type_name)
+
         # Rebase the file paths
         res = self._rebase_types_file_paths(res)
         return res
@@ -543,7 +551,8 @@ class CodeQuery:
         ]
 
         results = self._run_cqsearch(*cqsearch_args)
-        logger.debug("cqsearch output: %s", results)
+
+        logger.info("Found %d calls to type %s", len(results), type_definition.name)
 
         calls: list[TypeUsageInfo] = []
         for result in results:

@@ -41,7 +41,7 @@ class Indexer:
             f"BASE_IMAGE={base_image_name}",
             ".",
         ]
-        result = subprocess.run(command, check=True, cwd=wdir)
+        result = subprocess.run(command, check=True, cwd=wdir, capture_output=True)
         if result.returncode != 0:
             logger.error(
                 f"Failed to build image for {task.task_meta.task_id}. Return code: {result.returncode}"
@@ -87,7 +87,7 @@ class Indexer:
             emitted_image,
             "compile_and_extract",
         ]
-        result = subprocess.run(command, check=True)
+        result = subprocess.run(command, check=True, capture_output=True)
         if result.returncode != 0:
             logger.error(
                 f"Failed to index target {task.task_meta.task_id}. Return code: {result.returncode}"

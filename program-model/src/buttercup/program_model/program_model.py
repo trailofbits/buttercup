@@ -105,13 +105,6 @@ class ProgramModel:
     def process_task_kythe(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         # Convert path strings to Path objects
-        logger.debug(f"Kythe dir: {self.kythe_dir}")
-        logger.debug(f"Script dir: {self.script_dir}")
-        logger.debug(f"Wdir: {self.wdir}")
-        logger.debug(f"Python: {self.python}")
-        logger.debug(f"Allow pull: {self.allow_pull}")
-        logger.debug(f"Base image URL: {self.base_image_url}")
-
         with tempfile.TemporaryDirectory(dir=self.wdir) as td:
             logger.info(
                 f"Running indexer for {args.package_name} | {args.task_dir} | {args.task_id}"
@@ -128,8 +121,6 @@ class ProgramModel:
             )
 
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
-                logger.debug(f"Local path: {local_tsk.local_task_dir}")
-
                 # Apply the diff if it exists
                 logger.info(f"Applying diff for {args.package_name} {args.task_id}")
                 if not local_tsk.apply_patch_diff():
@@ -157,6 +148,7 @@ class ProgramModel:
                             local_tsk.local_task_dir,
                         ],
                         check=True,
+                        capture_output=True,
                     )
                 except Exception as e:
                     logger.error(f"Failed to index task {args.task_id}: {e}")

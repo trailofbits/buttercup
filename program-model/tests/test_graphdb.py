@@ -219,6 +219,7 @@ def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
             "https://github.com/google/oss-fuzz.git",
         ],
         check=True,
+        capture_output=True,
     )
     # Restore libpng project directory to specific commit
     subprocess.run(
@@ -232,12 +233,17 @@ def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
             "projects/libpng",
         ],
         check=True,
+        capture_output=True,
     )
 
     # Download libpng source code
     libpng_url = "https://github.com/pnggroup/libpng"
     # Checkout specific libpng commit for reproducibility
-    subprocess.run(["git", "-C", str(source_dir), "clone", libpng_url], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_dir), "clone", libpng_url],
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(
         [
             "git",
@@ -247,6 +253,7 @@ def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
             "44f97f08d729fcc77ea5d08e02cd538523dd7157",
         ],
         check=True,
+        capture_output=True,
     )
 
     # Create task metadata

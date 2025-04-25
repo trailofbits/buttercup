@@ -192,7 +192,6 @@ class CodeTS:
 
         for match in captures:
             node, capture_name = match
-            logger.debug("Match: %s, %s", node, capture_name)
             if "function.name" in capture_name.keys():
                 name_node = capture_name["function.name"][0]
             if "function.body" in capture_name.keys():
@@ -204,7 +203,6 @@ class CodeTS:
                 continue
 
             function_name = code[name_node.start_byte : name_node.end_byte]
-            logger.debug("Function name: %s", function_name)
             function_definition = definition_node
             start_body = function_definition
             if (
@@ -226,8 +224,6 @@ class CodeTS:
             # We do this because the stacktrace will be 1-based, so it's best to keep everything consistent.
             start_line = start_body.start_point[0] + 1
             end_line = function_definition.end_point[0] + 1
-            logger.debug("Function body start: %d", start_line)
-            logger.debug("Function body end: %d", end_line)
 
             function_code = code[function_body_start:function_body_end]
             function_body = FunctionBody(
@@ -241,7 +237,7 @@ class CodeTS:
             )
             function.bodies.append(function_body)
 
-            logger.debug("\n")
+        logger.debug("Found %d functions in %s", len(functions), file_path)
 
         return functions
 
@@ -254,7 +250,6 @@ class CodeTS:
         self, file_path: Path, typename: str | None = None, fuzzy: bool | None = False
     ) -> dict[str, TypeDefinition]:
         """Parse the definition of a type in a piece of code."""
-        logger.debug(f"Parsing types in: {file_path}")
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
         tree = self.parser.parse(code)
         root_node = tree.root_node
@@ -296,9 +291,6 @@ class CodeTS:
                 continue
             if typename and fuzzy and typename not in name:
                 continue
-            logger.debug("Type name: %s", name)
-            logger.debug("Type definition: %s", type_definition)
-            logger.debug("Definition node type: %s", definition_node.type)
 
             # Determine the type based on the node type
             type_def_type = TypeDefinitionType.STRUCT  # default
@@ -325,5 +317,7 @@ class CodeTS:
                 + 1,  # Convert to 1-based line number, since the stacktrace is 1-based
                 file_path=file_path,
             )
+
+        logger.debug("Found %d types in %s", len(res), file_path)
 
         return res

@@ -81,6 +81,7 @@ def oss_fuzz_task(
             "https://github.com/aixcc-finals/oss-fuzz-aixcc.git",
         ],
         check=True,
+        capture_output=True,
     )
     # Restore oss-fuzz project directory to specific commit
     subprocess.run(
@@ -94,11 +95,16 @@ def oss_fuzz_task(
             f"projects/{oss_fuzz_project}",
         ],
         check=True,
+        capture_output=True,
     )
 
     # Download project source code
     # Checkout specific project commit for reproducibility
-    subprocess.run(["git", "-C", str(source_dir), "clone", project_url], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_dir), "clone", project_url],
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(
         [
             "git",
@@ -108,6 +114,7 @@ def oss_fuzz_task(
             project_commit,
         ],
         check=True,
+        capture_output=True,
     )
 
     # Create task metadata
