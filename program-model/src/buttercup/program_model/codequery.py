@@ -400,16 +400,20 @@ class CodeQuery:
 
         return self._rebase_functions_file_paths(list(res))
 
-    def get_callers(self, function: Function) -> list[Function]:
+    def get_callers(self, function: Function | str) -> list[Function]:
         """Get the callers of a function. File paths are based on the challenge
         task container structure (e.g. /src)."""
+        if isinstance(function, str):
+            function_name = function
+        elif isinstance(function, Function):
+            function_name = function.name
         cqsearch_args = [
             "-s",
             self.CODEQUERY_DB,  # Specify the database file path
             "-p",
             "6",
             "-t",
-            function.name,
+            function_name,
             "-e",
             "-u",  # use full paths
         ]
@@ -421,20 +425,24 @@ class CodeQuery:
             functions = self.get_functions(result.value, Path(result.file), result.line)
             callers.update(functions)
 
-        logger.info("Found %d callers for %s", len(callers), function.name)
+        logger.info("Found %d callers for %s", len(callers), function_name)
 
         return self._rebase_functions_file_paths(list(callers))
 
-    def get_callees(self, function: Function) -> list[Function]:
+    def get_callees(self, function: Function | str) -> list[Function]:
         """Get the callees of a function. File paths are based on the challenge
         task container structure (e.g. /src)."""
+        if isinstance(function, str):
+            function_name = function
+        elif isinstance(function, Function):
+            function_name = function.name
         cqsearch_args = [
             "-s",
             self.CODEQUERY_DB,  # Specify the database file path
             "-p",
             "7",
             "-t",
-            function.name,
+            function_name,
             "-e",
             "-u",  # use full paths
         ]
@@ -450,7 +458,7 @@ class CodeQuery:
                     unique_functions.append(f)
             callees.update(functions)
 
-        logger.info("Found %d callees for %s", len(callees), function.name)
+        logger.info("Found %d callees for %s", len(callees), function_name)
 
         return self._rebase_functions_file_paths(list(callees))
 
