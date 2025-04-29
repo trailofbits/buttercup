@@ -247,6 +247,9 @@ class CodeQuery:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             raise RuntimeError("Failed to create cquery database.")
 
+        if not self._get_container_src_dir().joinpath(self.CODEQUERY_DB).exists():
+            raise RuntimeError("Failed to create cquery database.")
+
     def __repr__(self) -> str:
         return f"CodeQuery(challenge={self.challenge})"
 
@@ -651,7 +654,6 @@ class CodeQueryPersistent(CodeQuery):
         cqdb_path = self.work_dir.joinpath(task_id + ".cqdb")
         try:
             self.challenge = ChallengeTask(cqdb_path, local_task_dir=cqdb_path)
-            super().__post_init__()
         except ChallengeTaskError:
             # This is the case where the cqdb is not yet created
             logger.debug("Creating new CodeQueryPersistent DB in %s", cqdb_path)
@@ -667,3 +669,7 @@ class CodeQueryPersistent(CodeQuery):
                 except Exception as e:
                     logger.exception("Failed to commit the cqdb: %s", e)
                     raise e
+
+            return
+
+        super().__post_init__()

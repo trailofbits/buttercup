@@ -1,15 +1,24 @@
-ARG PYTHON_BASE=3.12-slim-bookworm
+ARG BASE_IMAGE=ubuntu:24.04
 
-FROM python:${PYTHON_BASE} AS runtime-base
-RUN apt-get update
-RUN apt-get install -y curl
-RUN curl -fsSL https://get.docker.com | sh
-RUN apt-get install -y \
+FROM $BASE_IMAGE AS python_base
+ARG PYTHON_VERSION=3.12
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y python$PYTHON_VERSION python$PYTHON_VERSION-dev
+
+FROM python_base AS runtime-base
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    curl \
     patch \
+    codequery \
+    rsync \
+    libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN curl -fsSL https://get.docker.com | sh
 
-FROM python:${PYTHON_BASE} AS builder
+
+FROM python_base AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
@@ -38,13 +47,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd patcher && uv sync --frozen --no-editable
 
 
+FROM runtime-base AS cscope-builder
+COPY --from=ghcr.io/aixcc-finals/buttercup-cscope:main /cscope /cscope
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
+
+
 FROM runtime-base AS runtime
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
+COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
+
 WORKDIR /app/patcher
 ENV PATH=/app/patcher/.venv/bin:$PATH
 

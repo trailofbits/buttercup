@@ -1,6 +1,11 @@
-ARG PYTHON_BASE=3.12-slim-bookworm
+ARG BASE_IMAGE=ubuntu:24.04
 
-FROM python:${PYTHON_BASE} AS runtime-base
+FROM $BASE_IMAGE AS python_base
+ARG PYTHON_VERSION=3.12
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y python$PYTHON_VERSION python$PYTHON_VERSION-dev
+
+FROM python_base AS runtime-base
 RUN apt-get update \
     && apt-get install -y curl ripgrep codequery
 RUN curl -fsSL https://get.docker.com | sh
@@ -8,7 +13,7 @@ RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/rel
 
 RUN rm -rf /var/lib/apt/lists/*
 
-FROM python:${PYTHON_BASE} AS builder
+FROM python_base AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
@@ -36,10 +41,16 @@ ADD seed-gen /app/seed-gen
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
+FROM runtime-base AS cscope-builder
+COPY --from=ghcr.io/aixcc-finals/buttercup-cscope:main /cscope /cscope
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf gcc make bison flex libncurses-dev
+RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
+
 FROM runtime-base AS runtime
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync libncurses-dev
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
+COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
 WORKDIR /app/seed-gen
 ENV PATH=/app/seed-gen/.venv/bin:$PATH

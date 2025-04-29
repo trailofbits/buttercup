@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:20.04@sha256:4a45212e9518f35983a976eead0de5eecc555a2f047134e9dd2cfc589076a00d
+ARG BASE_IMAGE=ubuntu:24.04@sha256:f8b860e4f9036f2694571770da292642eebcc4c2ea0c70a1a9244c2a1d436cd9
 
 FROM $BASE_IMAGE AS base
 RUN apt-get update && apt-get install -y software-properties-common
@@ -31,18 +31,18 @@ COPY ./program-model /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
+FROM base AS cscope-builder
+COPY --from=ghcr.io/aixcc-finals/buttercup-cscope:main /cscope /cscope
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
+
 FROM base AS runtime
 WORKDIR /app
 
-COPY ./program-model/scripts /app/scripts
-RUN mkdir -p /app/scripts/gzs/kythe/
-COPY --from=ghcr.io/aixcc-finals/buttercup-kythe:main /kythe-v0.0.67.tar.gz /app/scripts/gzs/
-RUN tar xvzf /app/scripts/gzs/kythe-v0.0.67.tar.gz -C /app/scripts/gzs/kythe/ --strip-components=1
-RUN rm /app/scripts/gzs/kythe-v0.0.67.tar.gz
-
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery && \
+    apt-get install -y codequery libncurses-dev && \
     rm -rf /var/lib/apt/lists/*
 
+COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 ENV PATH=/app/.venv/bin:$PATH

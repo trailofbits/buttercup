@@ -13,7 +13,7 @@ class ServeCommand(BaseModel):
 class ProcessCommand(BaseModel):
     challenge_task_dir: CliPositionalArg[Path] = Field(description="Challenge Task Directory")
     task_id: CliPositionalArg[str] = Field(description="Task ID")
-    vulnerability_id: CliPositionalArg[str] = Field(description="Vulnerability ID")
+    submission_index: CliPositionalArg[str] = Field(description="Submission Index")
     harness_name: CliPositionalArg[str] = Field(description="Harness Name")
     engine: CliPositionalArg[str] = Field(description="Engine")
     sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")

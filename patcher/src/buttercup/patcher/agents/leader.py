@@ -85,10 +85,10 @@ class PatcherLeaderAgent:
         chain = patch_team.compile().with_config(
             RunnableConfig(
                 callbacks=llm_callbacks,
-                tags=["patch_team", self.challenge.name, self.input.task_id, self.input.vulnerability_id],
+                tags=["patch_team", self.challenge.name, self.input.task_id, self.input.submission_index],
                 metadata={
                     "task_id": self.input.task_id,
-                    "vulnerability_id": self.input.vulnerability_id,
+                    "submission_index": self.input.submission_index,
                     "challenge_project_name": self.challenge.name,
                     "challenge_task_dir": self.challenge.task_dir,
                 },

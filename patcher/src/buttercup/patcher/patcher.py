@@ -75,16 +75,16 @@ class Patcher:
             patch = patcher_agent.run_patch_task()
             if patch is None:
                 logger.error(
-                    "Could not generate a patch for vulnerability %s/%s", input.task_id, input.vulnerability_id
+                    "Could not generate a patch for vulnerability %s/%s", input.task_id, input.submission_index
                 )
                 return None
 
-            logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.vulnerability_id)
+            logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.submission_index)
             logger.debug(f"Patch: {patch}")
             return patch
 
     def process_patch_input(self, input: PatchInput) -> PatchOutput | None:
-        logger.info(f"Processing vulnerability {input.task_id}/{input.vulnerability_id}")
+        logger.info(f"Processing vulnerability {input.task_id}/{input.submission_index}")
         logger.debug(f"Patch Input: {input}")
 
         if self.dev_mode:
@@ -92,9 +92,9 @@ class Patcher:
 
         res = self._process_vulnerability(input)
         if res is not None:
-            logger.info(f"Processed vulnerability {input.task_id}/{input.vulnerability_id}")
+            logger.info(f"Processed vulnerability {input.task_id}/{input.submission_index}")
         else:
-            logger.error(f"Failed to process vulnerability {input.task_id}/{input.vulnerability_id}")
+            logger.error(f"Failed to process vulnerability {input.task_id}/{input.submission_index}")
 
         return res
 
@@ -131,15 +131,15 @@ class Patcher:
                 self.patches_queue.push(patch_msg)
                 self.vulnerability_queue.ack_item(rq_item.item_id)
                 logger.info(
-                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}"
+                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}"
                 )
             else:
                 logger.error(
-                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}"
+                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}"
                 )
         except Exception as e:
             logger.error(
-                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.vulnerability_id}: {e}"
+                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}: {e}"
             )
 
     @_check_redis

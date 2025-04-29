@@ -465,7 +465,7 @@ class SWEAgent(PatcherAgentBase):
             logger.debug("Generated patch for %s (%d)", code_snippet_key, code_snippet_idx)
             patch_output = PatchOutput(
                 task_id=self.input.task_id,
-                vulnerability_id=self.input.vulnerability_id,
+                submission_index=self.input.submission_index,
                 patch=patch_str,
             )
             patches.append(patch_output)
@@ -494,7 +494,7 @@ class SWEAgent(PatcherAgentBase):
         patch_content = "\n".join(p.patch for p in patches)
         final_patch = PatchOutput(
             task_id=self.input.task_id,
-            vulnerability_id=self.input.vulnerability_id,
+            submission_index=self.input.submission_index,
             patch=patch_content,
         )
         return final_patch

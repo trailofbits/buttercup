@@ -187,7 +187,9 @@ class QEAgent(PatcherAgentBase):
             patch_file.flush()
             logger.debug("Patch written to %s", patch_file.name)
 
-            logger.info("Applying patch to task %s / vulnerability %s", self.input.task_id, self.input.vulnerability_id)
+            logger.info(
+                "Applying patch to task %s / submission index %s", self.input.task_id, self.input.submission_index
+            )
             try:
                 return self.challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
             except ChallengeTaskError:
