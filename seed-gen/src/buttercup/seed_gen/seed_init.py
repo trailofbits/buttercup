@@ -5,8 +5,10 @@ from typing import override
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
+from opentelemetry import trace
 
 from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.seed_gen.prompts import (
     PYTHON_SEED_INIT_SYSTEM_PROMPT,
     PYTHON_SEED_INIT_USER_PROMPT,
@@ -69,7 +71,15 @@ class SeedInitTask(SeedBaseTask):
         chain = workflow.compile().with_config(
             RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks)
         )
-        result = chain.invoke(state)
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("seed_gen_init") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.INPUT_GENERATION,
+                crs_action_name="seed_gen_init",
+                task_metadata=dict(self.challenge_task.task_meta.metadata),
+            )
+            result = chain.invoke(state)
 
         return result["generated_functions"]
 

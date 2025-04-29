@@ -17,6 +17,8 @@ from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
+from buttercup.common.telemetry import init_telemetry, log_crs_action_ok, CRSActionCategory
+from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,17 @@ class FuzzerBot(TaskLoop):
                     build.sanitizer,
                 )
                 logger.info(f"Starting fuzzer {build.engine} | {build.sanitizer} | {task.harness_name}")
+                tracer = trace.get_tracer(__name__)
+                log_crs_action_ok(
+                    tracer,
+                    CRSActionCategory.FUZZING,
+                    "run_fuzzer",
+                    tsk.task_meta.metadata,
+                    {
+                        "crs.action.target.harness": task.harness_name,
+                        "crs.action.target.sanitizer": build.sanitizer,
+                    },
+                )
                 result = self.runner.run_fuzzer(fuzz_conf)
                 crash_set = CrashSet(self.redis)
                 crash_dir = CrashDir(
@@ -101,7 +114,7 @@ class FuzzerBot(TaskLoop):
 def main():
     args = FuzzerBotSettings()
     setup_package_logger(__name__, args.log_level)
-
+    init_telemetry("fuzzer")
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir} crs_scratch_dir: {args.crs_scratch_dir})")
 

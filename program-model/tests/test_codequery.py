@@ -67,6 +67,11 @@ myInt function5(myInt a, myInt b) {
         project_name="example_c_project",
         focus="my-source",
         task_id="task-id-challenge-task",
+        metadata={
+            "task_id": "task-id-challenge-task",
+            "round_id": "testing",
+            "team_id": "tob",
+        },
     ).save(tmp_path)
 
     return tmp_path
@@ -440,6 +445,11 @@ public class Test3 {
         project_name="example_java_project",
         focus="my-source",
         task_id="task-id-challenge-task",
+        metadata={
+            "task_id": "task-id-challenge-task",
+            "round_id": "testing",
+            "team_id": "tob",
+        },
     ).save(tmp_path)
 
     return tmp_path

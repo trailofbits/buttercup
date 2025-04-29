@@ -18,11 +18,14 @@ from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.utils import serve_loop
 from pathlib import Path
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from redis import Redis
 import subprocess
 import tempfile
 import buttercup.common.node_local as node_local
 from io import BytesIO
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 logger = logging.getLogger(__name__)
 
@@ -231,10 +234,20 @@ class ProgramModel:
 
                 if self.wdir is None:
                     raise ValueError("Work directory is not initialized")
-                cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
+
+                # log telemetry
+                tracer = trace.get_tracer(__name__)
+                with tracer.start_as_current_span("index_task_with_codequery") as span:
+                    set_crs_attributes(
+                        span,
+                        crs_action_category=CRSActionCategory.PROGRAM_ANALYSIS,
+                        crs_action_name="index_task_with_codequery",
+                        task_metadata=dict(challenge.task_meta.metadata),
+                    )
+                    cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
+                    span.set_status(Status(StatusCode.OK))
                 # Push it to the remote storage
                 node_local.dir_to_remote_archive(cqp.challenge.task_dir)
-
             return True
         except Exception as e:
             logger.exception(f"Failed to process task {args.task_id}: {e}")

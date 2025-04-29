@@ -160,8 +160,12 @@ def test_process_build_output(mock_get_fuzz_targets, scheduler):
         stub_helper_py.touch()
 
         # Create and save TaskMeta
-        task_meta = TaskMeta(project_name="test-package", focus="test-focus", task_id="task-id-build-output")
-        task_meta.save(task_dir)
+        TaskMeta(
+            project_name="test-package",
+            focus="test-focus",
+            task_id="task-id-build-output",
+            metadata={"task_id": "task-id-build-output", "round_id": "testing", "team_id": "tob"},
+        ).save(task_dir)
 
         build_output = BuildOutput(
             engine="libfuzzer",

@@ -98,7 +98,12 @@ language: c
     (source / "test.c").write_text("int foo() { return 0; }\nint main() { int a = foo(); return a; }")
     (source / "test.h").write_text("struct ebitmap_t { int a; };")
 
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(tmp_path)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
 
     return tmp_path
 
@@ -162,7 +167,12 @@ def selinux_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
     )
 
     # Create task metadata
-    TaskMeta(project_name="selinux", focus="selinux", task_id="task-id-selinux").save(tmp_path)
+    TaskMeta(
+        project_name="selinux",
+        focus="selinux",
+        task_id="task-id-selinux",
+        metadata={"task_id": "task-id-selinux", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
 
     return ChallengeTask(
         read_only_task_dir=tmp_path,

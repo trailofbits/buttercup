@@ -73,7 +73,12 @@ language: c
     (source / "test.c").write_text("int main() { return 0; }")
     (source / "test.h").write_text("struct ebitmap_t { int a; };")
 
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(tmp_path)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
 
     return tmp_path
 

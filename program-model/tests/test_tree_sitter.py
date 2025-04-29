@@ -92,6 +92,11 @@ double add(double a, double b) {
         project_name="example_project",
         focus="example_project",
         task_id="task-id-tree-sitter",
+        metadata={
+            "task_id": "task-id-tree-sitter",
+            "round_id": "testing",
+            "team_id": "tob",
+        },
     ).save(base_path)
 
     return base_path

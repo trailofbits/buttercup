@@ -4,11 +4,12 @@ from buttercup.orchestrator.scheduler.config import (
     ProcessBuildOutputCommand,
     ProcessReadyTaskCommand,
 )
-from buttercup.orchestrator.scheduler.scheduler import Scheduler
+from buttercup.orchestrator.scheduler.scheduler import Scheduler, Task, BuildOutput
 from buttercup.common.logger import setup_package_logger
+from buttercup.common.telemetry import init_telemetry
+
 from pydantic_settings import get_subcommand
 from redis import Redis
-from buttercup.orchestrator.scheduler.scheduler import Task, BuildOutput
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ def main():
     logger.debug(f"Settings: {settings}")
     command = get_subcommand(settings)
     if isinstance(command, ServeCommand):
+        init_telemetry("scheduler")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         scheduler = Scheduler(
             settings.tasks_storage_dir,

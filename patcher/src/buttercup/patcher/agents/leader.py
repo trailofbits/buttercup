@@ -4,12 +4,15 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-import openai
-from buttercup.patcher.utils import CHAIN_CALL_TYPE
 
+import openai
+from opentelemetry import trace
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
+
+from buttercup.patcher.utils import CHAIN_CALL_TYPE
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName
 from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
@@ -95,9 +98,18 @@ class PatcherLeaderAgent:
 
         state = PatcherAgentState(messages=[], context=self.input)
         try:
-            output_state_dict: dict = chain.invoke(state)
-            output_state = PatcherAgentState(**output_state_dict)
-            return output_state.get_successful_patch()
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("generate_pov_patch") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.PATCH_GENERATION,
+                    crs_action_name="generate_pov_patch",
+                    task_metadata=dict(self.challenge.task_meta.metadata),
+                )
+
+                output_state_dict: dict = chain.invoke(state)
+                output_state = PatcherAgentState(**output_state_dict)
+                return output_state.get_successful_patch()
         except openai.OpenAIError:
             logger.exception("OpenAI error")
             return None

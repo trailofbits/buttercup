@@ -10,6 +10,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     Crash,
     Patch,
     SubmissionEntry,
+    Task,
 )
 from buttercup.orchestrator.competition_api_client.models.types_pov_submission_response import (
     TypesPOVSubmissionResponse,
@@ -69,6 +70,7 @@ def mock_competition_api():
 def mock_task_registry():
     mock_registry = Mock(spec=TaskRegistry)
     mock_registry.should_stop_processing.return_value = False
+    mock_registry.get = Mock()
     return mock_registry
 
 
@@ -113,10 +115,23 @@ class TestCompetitionAPI:
         mock_pov_api = Mock()
         mock_pov_api.v1_task_task_id_pov_post.return_value = mock_response
 
+        # Setup the task registy / item
+        mock_registry = Mock(spec=TaskRegistry)
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        mock_registry.get = Mock(return_value=task_item)
+
         # Patch the PovApi constructor
         with patch("buttercup.orchestrator.scheduler.submissions.PovApi", return_value=mock_pov_api):
             # Call the method
-            result = competition_api.submit_pov(sample_crash)
+            result = competition_api.submit_pov(sample_crash, mock_registry)
 
             # Verify file was read correctly
             mock_lopen.assert_called_once_with(sample_crash.crash.crash_input_path, "rb")
@@ -151,10 +166,23 @@ class TestCompetitionAPI:
         mock_pov_api = Mock()
         mock_pov_api.v1_task_task_id_pov_post.return_value = mock_response
 
+        # Setup the task registy / item
+        mock_registry = Mock(spec=TaskRegistry)
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        mock_registry.get = Mock(return_value=task_item)
+
         # Patch the PovApi constructor
         with patch("buttercup.orchestrator.scheduler.submissions.PovApi", return_value=mock_pov_api):
             # Call the method
-            result = competition_api.submit_pov(sample_crash)
+            result = competition_api.submit_pov(sample_crash, mock_registry)
 
             # Verify result is a tuple with (None, FAILED)
             assert result[0] is None
@@ -187,10 +215,23 @@ class TestCompetitionAPI:
         mock_patch_api = Mock()
         mock_patch_api.v1_task_task_id_patch_post.return_value = mock_response
 
+        # Setup the task registy / item
+        mock_registry = Mock(spec=TaskRegistry)
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        mock_registry.get = Mock(return_value=task_item)
+
         # Patch the PatchApi constructor
         with patch("buttercup.orchestrator.scheduler.submissions.PatchApi", return_value=mock_patch_api):
             # Call method
-            result = competition_api.submit_patch(task_id, patch_content)
+            result = competition_api.submit_patch(task_id, patch_content, mock_registry)
 
             # Verify API call
             mock_patch_api.v1_task_task_id_patch_post.assert_called_once()
@@ -231,10 +272,23 @@ class TestCompetitionAPI:
         mock_bundle_api = Mock()
         mock_bundle_api.v1_task_task_id_bundle_post.return_value = mock_response
 
+        # Setup the task registy / item
+        mock_registry = Mock(spec=TaskRegistry)
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        mock_registry.get = Mock(return_value=task_item)
+
         # Patch the BundleApi constructor
         with patch("buttercup.orchestrator.scheduler.submissions.BundleApi", return_value=mock_bundle_api):
             # Call method
-            result = competition_api.submit_bundle(task_id, pov_id, patch_id)
+            result = competition_api.submit_bundle(task_id, pov_id, patch_id, mock_registry)
 
             # Verify API call
             mock_bundle_api.v1_task_task_id_bundle_post.assert_called_once()
@@ -259,12 +313,25 @@ class TestCompetitionAPI:
         mock_sarif_api = Mock()
         mock_sarif_api.v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_post.return_value = mock_response
 
+        # Setup the task registy / item
+        mock_registry = Mock(spec=TaskRegistry)
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        mock_registry.get = Mock(return_value=task_item)
+
         # Patch the BroadcastSarifAssessmentApi constructor
         with patch(
             "buttercup.orchestrator.scheduler.submissions.BroadcastSarifAssessmentApi", return_value=mock_sarif_api
         ):
             # Call method
-            result = competition_api.submit_matching_sarif(task_id, sarif_id)
+            result = competition_api.submit_matching_sarif(task_id, sarif_id, mock_registry)
 
             # Verify API call
             mock_sarif_api.v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_post.assert_called_once()
@@ -281,11 +348,23 @@ class TestSubmissions:
         mock_competition_api.submit_pov.return_value = ("test-pov-123", TypesSubmissionStatus.ACCEPTED)
         mock_redis.rpush.return_value = 1  # Index of the inserted entry
 
+        # Setup the task item
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        submissions.task_registry.get.return_value = task_item
+
         # Call the method
         result = submissions.submit_vulnerability(sample_crash)
 
         # Verify competition API call
-        mock_competition_api.submit_pov.assert_called_once_with(sample_crash)
+        mock_competition_api.submit_pov.assert_called_once_with(sample_crash, submissions.task_registry)
 
         # Verify Redis interactions
         mock_redis.rpush.assert_called_once()
@@ -302,11 +381,23 @@ class TestSubmissions:
         # Setup mock to return an error
         mock_competition_api.submit_pov.return_value = (None, TypesSubmissionStatus.FAILED)
 
+        # Setup the task item
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        submissions.task_registry.get.return_value = task_item
+
         # Call the method
         result = submissions.submit_vulnerability(sample_crash)
 
         # Verify competition API call
-        mock_competition_api.submit_pov.assert_called_once_with(sample_crash)
+        mock_competition_api.submit_pov.assert_called_once_with(sample_crash, submissions.task_registry)
 
         # Verify result
         assert result is True  # Returns True even for a failure because we stop processing
@@ -318,11 +409,23 @@ class TestSubmissions:
         # Setup mock to return an error
         mock_competition_api.submit_pov.return_value = (None, TypesSubmissionStatus.ERRORED)
 
+        # Setup the task item
+        task_item = Mock(spec=Task)
+        task_item.task_id = "test_id"
+        task_item.metadata = {
+            "metadata": {
+                "round.id": "round-1",
+                "task.id": "task-1",
+                "team.id": "team-1",
+            }
+        }
+        submissions.task_registry.get.return_value = task_item
+
         # Call the method
         result = submissions.submit_vulnerability(sample_crash)
 
         # Verify competition API call
-        mock_competition_api.submit_pov.assert_called_once_with(sample_crash)
+        mock_competition_api.submit_pov.assert_called_once_with(sample_crash, submissions.task_registry)
 
         # Verify result
         assert result is False  # Returns False for ERRORED, indicating we should retry

@@ -12,10 +12,12 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
+from opentelemetry import trace
 from pydantic import Field
 
 from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.sarif_store import SARIFBroadcastDetail
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_md
@@ -139,7 +141,15 @@ class VulnBaseTask(Task):
             chain = workflow.compile().with_config(
                 RunnableConfig(tags=["vuln-discovery"], callbacks=llm_callbacks)
             )
-            result = chain.invoke(state)
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("seed_gen_vuln_discovery") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.INPUT_GENERATION,
+                    crs_action_name="seed_gen_vuln_discovery",
+                    task_metadata=dict(self.challenge_task.task_meta.metadata),
+                )
+                result = chain.invoke(state)
 
             logger.info("Executing PoV functions for challenge %s", self.package_name)
             sandbox_exec_funcs(result["generated_functions"], output_dir)

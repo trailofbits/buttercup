@@ -6,6 +6,7 @@ from buttercup.program_model.settings import (
     ProcessCommand,
 )
 from buttercup.common.logger import setup_package_logger
+from buttercup.common.telemetry import init_telemetry
 from pydantic_settings import get_subcommand
 from buttercup.common.datastructures.msg_pb2 import IndexRequest
 from redis import Redis
@@ -30,6 +31,7 @@ def main() -> None:
     command = get_subcommand(settings)
     setup_package_logger(__name__, settings.log_level)
     if isinstance(command, ServeCommand):
+        init_telemetry("program-model")
         redis = Redis.from_url(command.redis_url, decode_responses=False)  # type: ignore[unreachable]
         with ProgramModel(
             sleep_time=command.sleep_time,

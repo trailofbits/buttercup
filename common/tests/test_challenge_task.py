@@ -36,7 +36,12 @@ def task_dir(tmp_path: Path) -> Path:
     (source / "test.txt").write_text("mock test content")
 
     # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(tmp_path)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
 
     return tmp_path
 
@@ -241,7 +246,12 @@ def test_missing_required_dirs(tmp_path: Path):
     task_dir.mkdir()
 
     # Add TaskMeta even though directories are missing
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(task_dir)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(task_dir)
 
     with pytest.raises(ChallengeTaskError, match=f"Missing required directory: {task_dir / 'src'}"):
         ChallengeTask(
@@ -321,7 +331,12 @@ def libjpeg_oss_fuzz_task_dir(tmp_path: Path) -> Path:
     )
 
     # Create task metadata
-    TaskMeta(project_name="libjpeg-turbo", focus="libjpeg-turbo", task_id="task-id-libjpeg-turbo").save(tmp_path)
+    TaskMeta(
+        project_name="libjpeg-turbo",
+        focus="libjpeg-turbo",
+        task_id="task-id-libjpeg-turbo",
+        metadata={"task_id": "task-id-libjpeg-turbo", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
 
     yield tmp_path
 
@@ -738,7 +753,12 @@ def test_challenge_task_with_node_local_storage_download(
     helper_path.write_text("import sys;\nsys.exit(0)\n")
 
     # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(downloaded_path)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(downloaded_path)
 
     # Setup mock to return a downloaded path
     mock_remote_archive_to_dir.return_value = downloaded_path
@@ -800,7 +820,12 @@ def mock_node_local_storage(tmp_path: Path):
     (source / "test.txt").write_text("node local storage content")
 
     # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(local_task_path)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(local_task_path)
 
     yield node_data_dir
 

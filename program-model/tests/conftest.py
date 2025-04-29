@@ -122,6 +122,11 @@ def oss_fuzz_task(
         project_name=oss_fuzz_project,
         focus=project,
         task_id=f"task-id-{oss_fuzz_project}",
+        metadata={
+            "task_id": f"task-id-{oss_fuzz_project}",
+            "round_id": "testing",
+            "team_id": "tob",
+        },
     ).save(tmp_path)
 
     with patch.dict(os.environ, {"OSS_FUZZ_CONTAINER_ORG": "aixcc-afc"}):

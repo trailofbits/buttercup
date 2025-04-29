@@ -257,9 +257,16 @@ def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
     )
 
     # Create task metadata
-    TaskMeta(project_name="libpng", focus="libpng", task_id="test-task-id-libpng").save(
-        tmp_path
-    )
+    TaskMeta(
+        project_name="libpng",
+        focus="libpng",
+        task_id="test-task-id-libpng",
+        metadata={
+            "task_id": "test-task-id-libpng",
+            "round_id": "testing",
+            "team_id": "tob",
+        },
+    ).save(tmp_path)
 
     return ChallengeTask(
         read_only_task_dir=tmp_path,

@@ -42,7 +42,12 @@ def task_dir(tmp_path: Path) -> Path:
     (source / "d1" / "d2" / "d3" / "test.txt").write_text("mock test content 4")
 
     # Create task metadata
-    TaskMeta(project_name="example_project", focus="my-source", task_id="task-id-challenge-task").save(task_dir)
+    TaskMeta(
+        project_name="example_project",
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(task_dir)
 
     yield task_dir
 

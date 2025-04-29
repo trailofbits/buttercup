@@ -119,9 +119,12 @@ def task_dir(tmp_path: Path) -> Path:
     project_yaml_path = oss_fuzz / "projects" / project_name / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     # Create task metadata
-    TaskMeta(project_name=project_name, focus="my-source", task_id="task-id-challenge-task").save(
-        tmp_path
-    )
+    TaskMeta(
+        project_name=project_name,
+        focus="my-source",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
 
     return tmp_path
 

@@ -12,6 +12,7 @@ class TaskMeta:
     project_name: str
     focus: str
     task_id: str
+    metadata: dict
 
     @classmethod
     def load(cls, directory: PathLike) -> "TaskMeta":
