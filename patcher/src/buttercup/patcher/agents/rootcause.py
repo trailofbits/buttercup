@@ -235,9 +235,6 @@ class RootCauseAgent(PatcherAgentBase):
 
         update_state = {
             "root_cause": root_cause,
-            "build_succeeded": None,
-            "pov_fixed": None,
-            "tests_passed": None,
         }
         goto, update_state = self.get_code_snippet_requests(
             root_cause,

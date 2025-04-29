@@ -99,13 +99,16 @@ class Patcher:
         return res
 
     def _create_patch_input(self, vuln: ConfirmedVulnerability) -> PatchInput:
-        node_local.make_locally_available(vuln.crash.crash.crash_input_path)
+        pov_path = node_local.make_locally_available(vuln.crash.crash.crash_input_path)
+        pov_variants_path = pov_path.parent
         return PatchInput(
             challenge_task_dir=Path(vuln.crash.crash.target.task_dir),
             task_id=vuln.crash.crash.target.task_id,
             submission_index=vuln.submission_index,
             harness_name=vuln.crash.crash.harness_name,
-            pov=Path(vuln.crash.crash.crash_input_path),
+            pov=pov_path,
+            pov_token=vuln.crash.crash.crash_token,
+            pov_variants_path=pov_variants_path,
             sanitizer_output=vuln.crash.tracer_stacktrace
             if vuln.crash.tracer_stacktrace
             else vuln.crash.crash.stacktrace,

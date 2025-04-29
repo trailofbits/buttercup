@@ -38,7 +38,6 @@ class PatcherAgentState(BaseModel):
     ctx_request_limit: bool = Field(default=False)
 
     patches: list[PatchOutput] = Field(default_factory=list)
-    patch_tries: int = Field(default=0)
 
     patch_review: str | None = None
     patch_review_tries: int = Field(default=0)

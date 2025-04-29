@@ -52,8 +52,11 @@ COPY --from=ghcr.io/aixcc-finals/buttercup-cscope:main /cscope /cscope
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
-
 FROM runtime-base AS runtime
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y codequery rsync && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope

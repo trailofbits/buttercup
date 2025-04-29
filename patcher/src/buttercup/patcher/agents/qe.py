@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 from langgraph.types import Command
 from langgraph.constants import END
-
+from buttercup.common.corpus import CrashDir
 from buttercup.common.challenge_task import ChallengeTaskError, CommandResult
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
@@ -17,6 +17,7 @@ from langchain_core.prompts import (
     MessagesPlaceholder,
 )
 from pydantic import BaseModel, Field
+import buttercup.common.node_local as node_local
 from langchain_core.runnables import Runnable
 from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
@@ -31,6 +32,7 @@ from buttercup.patcher.agents.common import (
 from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.utils import get_diff_content
 from pydantic import ValidationError
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -91,10 +93,12 @@ there are some points to address in the review."
 class QEAgent(PatcherAgentBase):
     """Quality Engineer LLM agent, handling the testing of patches."""
 
+    work_dir: Path
     llm: Runnable = field(init=False)
     review_patch_chain: Runnable = field(init=False)
     review_patch_structured_chain: Runnable = field(init=False)
     max_review_retries: int = 3
+    max_minutes_run_povs: int = 30
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -270,59 +274,83 @@ class QEAgent(PatcherAgentBase):
         self, state: PatcherAgentState
     ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs a PoV against a currently built patch"""
-        logger.info("Testing PoV on Challenge Task %s rebuilt with patch", self.challenge.name)
-        try:
-            if isinstance(self.input.pov, bytes):
-                with tempfile.NamedTemporaryFile() as pov_file:
-                    pov_file.write(self.input.pov)
-                    pov_file.flush()
-                    pov_name = Path(pov_file.name)
+        logger.info("Testing PoVs on Challenge Task %s rebuilt with patch", self.challenge.name)
 
-                    pov_output = self.challenge.reproduce_pov(self.input.harness_name, pov_name)
-            else:
-                pov_name = self.input.pov
-                pov_output = self.challenge.reproduce_pov(self.input.harness_name, pov_name)
-        except ChallengeTaskError as exc:
-            logger.error("Failed to run pov for Challenge Task %s", self.challenge.name)
-            return Command(
-                update={
-                    "pov_fixed": False,
-                    "pov_stdout": exc.stdout,
-                    "pov_stderr": exc.stderr,
-                },
-                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-            )
+        crash_dir = CrashDir(self.work_dir, self.input.task_id, self.input.harness_name)
+        crashes_for_token = crash_dir.list_crashes_for_token(self.input.pov_token, get_remote=True)
+        if not crashes_for_token:
+            logger.warning("No crashes found for PoV token %s", self.input.pov_token)
+            crashes_for_token = []
 
-        if not pov_output.command_result.success:
-            logger.error("PoV failed running")
-            return Command(
-                update={
-                    "pov_fixed": False,
-                    "pov_stdout": pov_output.command_result.output,
-                    "pov_stderr": pov_output.command_result.error,
-                },
-                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-            )
+        pov_variants = [self.input.pov]
+        pov_variants.extend([Path(crash) for crash in crashes_for_token])
 
-        logger.info(
-            "Ran PoV %s/%s for harness %s",
-            self.challenge.name,
-            pov_name,
-            self.input.harness_name,
-        )
-        logger.debug("PoV stdout: %s", pov_output.command_result.output)
-        logger.debug("PoV stderr: %s", pov_output.command_result.error)
+        start_time = time.time()
+        run_once = False
 
-        logger.info("PoV was %sfixed", "" if not pov_output.did_crash() else "not ")
+        for pov_variant in pov_variants:
+            # Check if we've exceeded the max_minutes_run_povs timeout
+            if time.time() - start_time > self.max_minutes_run_povs * 60:
+                logger.error("PoV processing lasted more than %d minutes", self.max_minutes_run_povs)
+                if run_once:
+                    logger.info(
+                        "PoV processing lasted more than %d minutes, but we already ran one PoV successfully, so we'll stop here",
+                        self.max_minutes_run_povs,
+                    )
+                    break
+
+                return Command(
+                    update={
+                        "pov_fixed": False,
+                        "pov_stdout": f"Operation timed out after {self.max_minutes_run_povs} minutes",
+                        "pov_stderr": None,
+                    },
+                    goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                )
+
+            pov_variant = node_local.make_locally_available(pov_variant)
+            try:
+                pov_output = self.challenge.reproduce_pov(self.input.harness_name, pov_variant)
+                logger.info(
+                    "Ran PoV %s/%s for harness %s",
+                    self.challenge.name,
+                    pov_variant,
+                    self.input.harness_name,
+                )
+                logger.debug("PoV stdout: %s", pov_output.command_result.output)
+                logger.debug("PoV stderr: %s", pov_output.command_result.error)
+
+                if not pov_output.command_result.success or pov_output.did_crash():
+                    logger.error("PoV %s failed running or still crashes", pov_variant)
+                    return Command(
+                        update={
+                            "pov_fixed": False,
+                            "pov_stdout": pov_output.command_result.output,
+                            "pov_stderr": pov_output.command_result.error,
+                        },
+                        goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                    )
+
+                run_once = True
+            except ChallengeTaskError as exc:
+                logger.error("Failed to run pov for Challenge Task %s", self.challenge.name)
+                return Command(
+                    update={
+                        "pov_fixed": False,
+                        "pov_stdout": exc.stdout,
+                        "pov_stderr": exc.stderr,
+                    },
+                    goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                )
+
+        logger.info("All PoVs were fixed")
         return Command(
             update={
-                "pov_fixed": not pov_output.did_crash(),
-                "pov_stdout": pov_output.command_result.output,
-                "pov_stderr": pov_output.command_result.error,
+                "pov_fixed": True,
+                "pov_stdout": None,
+                "pov_stderr": None,
             },
-            goto=PatcherAgentName.RUN_TESTS.value
-            if not pov_output.did_crash()
-            else PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            goto=PatcherAgentName.RUN_TESTS.value,
         )
 
     def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:  # type: ignore[name-defined]

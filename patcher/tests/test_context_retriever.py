@@ -190,6 +190,8 @@ def selinux_agent(selinux_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Conte
         harness_name="secilc-fuzzer",
         # not used by the context retriever
         pov=Path("pov-path-selinux"),
+        pov_variants_path=Path("pov-variants-path-selinux"),
+        pov_token="pov-token-selinux",
         sanitizer_output="sanitizer-output-selinux",
         engine="libfuzzer",
         sanitizer="address",
@@ -214,6 +216,8 @@ def mock_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> ContextRetrieve
         harness_name="mock-harness",
         # not used by the context retriever
         pov=Path("pov-path-mock"),
+        pov_variants_path=Path("pov-variants-path-mock"),
+        pov_token="pov-token-mock",
         sanitizer_output="sanitizer-output-mock",
         engine="libfuzzer",
         sanitizer="address",

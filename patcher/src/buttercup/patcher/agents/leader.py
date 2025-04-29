@@ -55,6 +55,7 @@ class PatcherLeaderAgent:
             self.input,
             chain_call=self.chain_call,
             max_review_retries=self.max_review_retries,
+            work_dir=self.work_dir,
         )
         context_retriever_agent = ContextRetrieverAgent(
             self.challenge,

@@ -25,7 +25,9 @@ class PatchInput(BaseModel):
     harness_name: str
     engine: str
     sanitizer: str
-    pov: bytes | Path
+    pov: Path
+    pov_token: str
+    pov_variants_path: Path
     sanitizer_output: str | None = None
 
     def __getitem__(self, key: str) -> Any:

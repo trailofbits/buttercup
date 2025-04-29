@@ -13,7 +13,6 @@ from langgraph.types import Command
 from langgraph.constants import END
 
 
-from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -24,10 +23,6 @@ from langchain_core.runnables import (
     Runnable,
 )
 from buttercup.patcher.agents.common import (
-    CONTEXT_CODE_SNIPPET_TMPL,
-    CONTEXT_DIFF_TMPL,
-    CONTEXT_PROJECT_TMPL,
-    CONTEXT_ROOT_CAUSE_TMPL,
     ContextRetrieverState,
     PatcherAgentState,
     PatcherAgentName,
@@ -36,7 +31,7 @@ from buttercup.patcher.agents.common import (
     CodeSnippetRequest,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes, PatchOutput, get_diff_content, find_file_in_source_dir
+from buttercup.patcher.utils import decode_bytes, PatchOutput, find_file_in_source_dir
 
 logger = logging.getLogger(__name__)
 
@@ -316,30 +311,6 @@ class SWEAgent(PatcherAgentBase):
         except FileNotFoundError:
             return None
 
-    def get_context(self, state: PatcherAgentState) -> list[BaseMessage | str]:
-        """Get the messages for the context."""
-
-        messages: list[BaseMessage | str] = []
-        messages += [CONTEXT_PROJECT_TMPL.format(project_name=self.challenge.name)]
-
-        diff_content = get_diff_content(self.challenge)
-
-        messages += [CONTEXT_DIFF_TMPL.format(diff_content=diff_content)]
-        if state.root_cause:
-            messages += [CONTEXT_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause)]
-
-        for code_snippet in state.relevant_code_snippets:
-            messages += [
-                CONTEXT_CODE_SNIPPET_TMPL.format(
-                    file_path=code_snippet.key.file_path,
-                    identifier=code_snippet.key.identifier,
-                    code=code_snippet.code,
-                    code_context=code_snippet.code_context,
-                )
-            ]
-
-        return messages
-
     def _find_closest_match(
         self, orig_code_snippets: dict[CodeSnippetKey, str], target_key: CodeSnippetKey
     ) -> CodeSnippetKey | None:
@@ -510,7 +481,7 @@ class SWEAgent(PatcherAgentBase):
         ]
     ]:
         """Node in the LangGraph that generates a patch (in diff format)"""
-        if state.patch_tries >= self.max_patch_retries:
+        if len(state.patches) >= self.max_patch_retries:
             logger.warning("Reached max patch tries, terminating the patching process")
             return Command(
                 update=state,
@@ -601,12 +572,10 @@ class SWEAgent(PatcherAgentBase):
 
         logger.info("Generated a patch for Challenge Task %s", self.challenge.name)
         logger.debug("Patch: %s", patch.patch)
-        patch_tries = state.patch_tries + 1
         patches = state.patches + [patch]
         update_state.update(
             {
                 "patches": patches,
-                "patch_tries": patch_tries,
             }
         )
         if patch.patch in [p.patch for p in (state.patches)]:

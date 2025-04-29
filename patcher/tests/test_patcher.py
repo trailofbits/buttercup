@@ -44,7 +44,7 @@ def task_dir(tmp_path: Path) -> Path:
 @patch("buttercup.common.node_local.make_locally_available")
 def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_path: Path):
     # Mock make_locally_available to return the path unchanged
-    mock_make_locally_available.side_effect = lambda path: path
+    mock_make_locally_available.side_effect = lambda path: Path(path)
 
     # Ensure all paths are absolute
     task_dir = task_dir.absolute()

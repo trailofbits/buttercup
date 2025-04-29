@@ -112,6 +112,8 @@ def mock_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> RootCauseAgent:
         harness_name="mock-harness",
         # not used by the context retriever
         pov=Path("pov-path-mock"),
+        pov_variants_path=Path("pov-variants-path-mock"),
+        pov_token="pov-token-mock",
         sanitizer_output="sanitizer-output-mock",
         engine="libfuzzer",
         sanitizer="address",
