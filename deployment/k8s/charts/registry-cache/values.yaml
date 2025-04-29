@@ -7,11 +7,16 @@ image:
 
 service:
   type: ClusterIP
-  port: 80
+  port: 443
 
-# Disable HTTPS and use HTTP
+# Enable HTTPS
 https:
-  enabled: false
+  enabled: true
+  tls:
+    secretName: registry-cache-tls
+    # You'll need to create a secret with these keys:
+    # tls.crt: Your TLS certificate
+    # tls.key: Your TLS private key
 
 # Use a Persistent Volume Claim to store the cached images
 persistence:
@@ -31,6 +36,9 @@ registry:
   # Configure HTTP
   http:
     addr: :80
+  # Configure HTTP
+  https:
+    addr: :443
   # Configure proxy cache TTL
   middleware:
     registry:

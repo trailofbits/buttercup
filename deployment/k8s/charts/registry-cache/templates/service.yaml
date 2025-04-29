@@ -9,7 +9,7 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: 80
+      targetPort: 443
   selector:
     app: registry-cache
-    release: {{ .Release.Name }} 
+    release: {{ .Release.Name }}

@@ -108,6 +108,21 @@ up() {
 		--docker-username="$DOCKER_USERNAME" \
 		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
 
+	# Create TLS certificate for registry cache
+	echo -e "${BLU}Creating TLS certificate for registry cache${NC}"
+	REGISTRY_CACHE_HOST="registry-cache.${BUTTERCUP_NAMESPACE}.svc.cluster.local"
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+		-keyout /tmp/registry-cache.key \
+		-out /tmp/registry-cache.crt \
+		-subj "/CN=${REGISTRY_CACHE_HOST}" \
+		-addext "subjectAltName=DNS:${REGISTRY_CACHE_HOST},DNS:registry-cache,DNS:registry-cache.${BUTTERCUP_NAMESPACE},DNS:ghcr.io"
+
+	kubectl create secret tls registry-cache-tls \
+		--namespace "$BUTTERCUP_NAMESPACE" \
+		--key=/tmp/registry-cache.key \
+		--cert=/tmp/registry-cache.crt || echo -e "${GRN}registry-cache-tls secret already exists${NC}"
+	rm -f /tmp/registry-cache.key /tmp/registry-cache.crt
+
 	#deploy kubernetes resources in AKS cluster
 	if [ "$TAILSCALE_ENABLED" = "true" ]; then
 		kubectl apply -k k8s/base/tailscale-operator/

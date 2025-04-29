@@ -22,7 +22,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: 80
+            - containerPort: 443
           env:
             - name: REGISTRY_PROXY_REMOTEURL
               value: {{ .Values.registry.proxy.remoteUrl | quote }}
@@ -31,10 +31,17 @@ spec:
             - name: REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR
               value: {{ .Values.registry.storage.cache.blobdescriptor | quote }}
             - name: REGISTRY_HTTP_ADDR
-              value: {{ .Values.registry.http.addr | quote }}
+              value: {{ .Values.registry.https.addr | quote }}
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: "/certs/tls.crt"
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: "/certs/tls.key"
           volumeMounts:
             - name: registry-data
               mountPath: /var/lib/registry
+            - name: tls-cert
+              mountPath: /certs
+              readOnly: true
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
@@ -44,4 +51,7 @@ spec:
             claimName: {{ .Release.Name }}-registry-cache-data
           {{- else }}
           emptyDir: {}
-          {{- end }} 
+          {{- end }}
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.https.tls.secretName }}

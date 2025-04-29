@@ -55,14 +55,17 @@ Define Docker-in-Docker sidecar container
     - name: DOCKER_TLS_CERTDIR
       value: ""
     - name: REGISTRY_HOST
-      value: "{{ .Release.Name }}-registry-cache:80"
+      value: "{{ .Release.Name }}-registry-cache:443"
   # Add hosts entry to redirect ghcr.io to localhost, then proxy localhost to registry-cache
-  command: ["sh", "-c", "echo '127.0.0.1 ghcr.io' >> /etc/hosts && apk add --no-cache socat && (socat TCP-LISTEN:80,fork,reuseaddr TCP:$REGISTRY_HOST &) && dockerd-entrypoint.sh"]
+  command: ["sh", "-c", "echo '127.0.0.1 ghcr.io' >> /etc/hosts && apk add --no-cache socat ca-certificates && cp /certs/tls.crt /usr/local/share/ca-certificates/registry-cache.crt && update-ca-certificates && (socat TCP-LISTEN:443,fork,reuseaddr TCP:$REGISTRY_HOST &) && dockerd-entrypoint.sh"]
   volumeMounts:
     - name: crs-scratch
       mountPath: {{ include "buttercup.dirs.crs_scratch" . }}
     - name: dind-storage
       mountPath: /var/lib/docker
+    - name: tls-cert
+      mountPath: /certs
+      readOnly: true
     {{- include "buttercup.nodeLocalVolumeMount" . | nindent 4 }}
     {{- if .Values.extraVolumeMounts }}
     {{- range .Values.extraVolumeMounts }}
@@ -78,6 +81,9 @@ Define Docker-in-Docker volume
 {{- define "buttercup.dindVolume" -}}
 - name: dind-storage
   emptyDir: {}
+- name: tls-cert
+  secret:
+    secretName: registry-cache-tls
 {{- end -}}
 
 {{/*
