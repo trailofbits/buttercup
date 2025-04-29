@@ -55,9 +55,28 @@ Define Docker-in-Docker sidecar container
     - name: DOCKER_TLS_CERTDIR
       value: ""
     - name: REGISTRY_HOST
-      value: "{{ .Release.Name }}-registry-cache:443"
+      value: "{{ .Release.Name }}-registry-cache"
   # Add hosts entry to redirect ghcr.io to localhost, then proxy localhost to registry-cache
-  command: ["sh", "-c", "echo '127.0.0.1 ghcr.io' >> /etc/hosts && apk add --no-cache socat ca-certificates && cp /certs/tls.crt /usr/local/share/ca-certificates/registry-cache.crt && update-ca-certificates && (socat TCP-LISTEN:443,fork,reuseaddr TCP:$REGISTRY_HOST &) && dockerd-entrypoint.sh"]
+  command:
+    - sh
+    - -c
+    - |
+      # Add ghcr.io to hosts file
+      echo '127.0.0.1 ghcr.io' >> /etc/hosts
+
+      # Install required packages
+      apk add --no-cache socat ca-certificates
+
+      # Setup certificates
+      cp /certs/tls.crt /usr/local/share/ca-certificates/registry-cache.crt
+      update-ca-certificates
+
+      # Start socat proxies in background
+      socat TCP-LISTEN:443,fork,reuseaddr TCP:$REGISTRY_HOST:443 &
+      socat TCP-LISTEN:80,fork,reuseaddr TCP:$REGISTRY_HOST:80 &
+
+      # Start Docker daemon
+      dockerd-entrypoint.sh
   volumeMounts:
     - name: crs-scratch
       mountPath: {{ include "buttercup.dirs.crs_scratch" . }}
