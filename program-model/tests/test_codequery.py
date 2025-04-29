@@ -203,9 +203,9 @@ def test_get_functions_fuzzy(mock_c_challenge_task: ChallengeTask):
     functions = codequery.get_functions("function", fuzzy=True)
     assert len(functions) == 4
     functions = codequery.get_functions("function", Path("test3.c"), fuzzy=True)
-    assert len(functions) == 4
+    assert len(functions) == 0
     functions = codequery.get_functions("function3", Path("test3.c"), fuzzy=True)
-    assert len(functions) == 4
+    assert len(functions) == 1
 
 
 def test_keep_status(
@@ -281,12 +281,14 @@ def test_get_types_fuzzy(mock_c_challenge_task: ChallengeTask):
     with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task)):
         codequery = CodeQuery(mock_c_challenge_task)
     types = codequery.get_types("my", Path("test4.c"), fuzzy=True)
-    assert len(types) == 2
+    assert len(types) == 0
     types = codequery.get_types("myInt", Path("test4.c"), fuzzy=True)
     assert len(types) == 1
     types = codequery.get_types("myOtherInt", Path("test4.c"), fuzzy=True)
     assert len(types) == 1
     types = codequery.get_types("my", fuzzy=True)
+    assert len(types) == 0
+    types = codequery.get_types("my", fuzzy=True, fuzzy_threshold=10)
     assert len(types) == 2
     types = codequery.get_types("myOtherInt", Path("test4.c"), "function5", fuzzy=True)
     assert len(types) == 1

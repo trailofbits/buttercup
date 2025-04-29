@@ -10,7 +10,6 @@ from pathlib import Path
 from itertools import groupby
 from typing import ClassVar
 import rapidfuzz
-from functools import lru_cache
 
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.program_model.api.tree_sitter import CodeTS
@@ -100,10 +99,6 @@ class CodeQuery:
 
         self._create_codequery_db()
         logger.info("CodeQuery DB created successfully.")
-
-        # TODO(Evan): Is this too much to keep in memory?
-        self._get_all_functions = lru_cache(maxsize=1000)(self._get_all_functions)  # type: ignore [method-assign]
-        self._get_all_types = lru_cache(maxsize=1000)(self._get_all_types)  # type: ignore [method-assign]
 
     def _verify_requirements(self) -> None:
         """Verify that the required commands are installed."""
@@ -343,9 +338,20 @@ class CodeQuery:
     ) -> list[Function]:
         """Get the definition(s) of a function in the codebase or in a specific
         file. File paths are based on the challenge task container structure
-        (e.g. /src)."""
+        (e.g. /src).
+
+        The order of the results is (1) exact matches and (2) fuzzy matches sorted in descending order of similarity.
+
+        NOTE: Fuzzy search will be disabled if a file path is provided.
+        """
+        if fuzzy and file_path:
+            logger.warning(
+                "Fuzzy search will be disabled because file path %s was provided.",
+                file_path,
+            )
+
         # FIXME(Evan): Sometimes cscope doesn't identify a function. They can be found by looking for symbols.
-        results_all: list[CQSearchResult] = []
+        results: list[CQSearchResult] = []
         for search_type in ["1", "2"]:  # 1 for symbols, 2 for functions
             cqsearch_args = [
                 "-s",
@@ -354,18 +360,16 @@ class CodeQuery:
                 search_type,
                 "-t",
                 function_name,
-                "-f" if fuzzy else "-e",
+                "-e",
                 "-u",
             ]
             if file_path:
                 cqsearch_args += ["-b", file_path.as_posix()]
 
-            results = self._run_cqsearch(*cqsearch_args)
-
-            results_all.extend(results)
+            results.extend(self._run_cqsearch(*cqsearch_args))
 
         # Extended fuzzy matching
-        if fuzzy:
+        if fuzzy and file_path is None:
             # Fuzzy match the function name against all functions in the codebase
             fuzzy_matches: list[tuple[CQSearchResult, float]] = sorted(
                 [
@@ -383,15 +387,15 @@ class CodeQuery:
                 len(fuzzy_matches),
                 function_name,
             )
-            results_all.extend(fuzzy_matches)
+            results.extend(fuzzy_matches)
         logger.info(
             "Found %d instances (fuzzy or exact) of function %s",
-            len(results_all),
+            len(results),
             function_name,
         )
 
         res: set[Function] = set()
-        results_by_file = groupby(results_all, key=lambda x: x.file)
+        results_by_file = groupby(results, key=lambda x: x.file)
         for file, file_results in results_by_file:
             file_results_list = list(file_results)
             functions_found = list(set(result.value for result in file_results_list))
@@ -440,7 +444,13 @@ class CodeQuery:
             "Found %d functions for %s after filtering", len(res), function_name
         )
 
-        return self._rebase_functions_file_paths(list(res))
+        # Sort in same order as results
+        results_value = [r.value for r in results]
+        res_sorted: list[Function] = sorted(
+            res, key=lambda x: results_value.index(x.name)
+        )
+
+        return self._rebase_functions_file_paths(res_sorted)
 
     def get_callers(self, function: Function | str) -> list[Function]:
         """Get the callers of a function. File paths are based on the challenge
@@ -451,13 +461,13 @@ class CodeQuery:
             function_name = function.name
         cqsearch_args = [
             "-s",
-            self.CODEQUERY_DB,  # Specify the database file path
+            self.CODEQUERY_DB,
             "-p",
             "6",
             "-t",
             function_name,
             "-e",
-            "-u",  # use full paths
+            "-u",
         ]
 
         results = self._run_cqsearch(*cqsearch_args)
@@ -480,13 +490,13 @@ class CodeQuery:
             function_name = function.name
         cqsearch_args = [
             "-s",
-            self.CODEQUERY_DB,  # Specify the database file path
+            self.CODEQUERY_DB,
             "-p",
             "7",
             "-t",
             function_name,
             "-e",
-            "-u",  # use full paths
+            "-u",
         ]
 
         results = self._run_cqsearch(*cqsearch_args)
@@ -513,16 +523,27 @@ class CodeQuery:
         fuzzy_threshold: int = 80,
     ) -> list[TypeDefinition]:
         """Finds and return the definition of type named `typename`. File paths
-        are based on the challenge task container structure (e.g. /src)."""
+        are based on the challenge task container structure (e.g. /src).
+
+        The order of the results is (1) exact matches and (2) fuzzy matches sorted in descending order of similarity.
+
+        NOTE: Fuzzy search will be disabled if a file path is provided.
+        """
+        if fuzzy and file_path:
+            logger.warning(
+                "Fuzzy search will be disabled because file path %s was provided.",
+                file_path,
+            )
+
         cqsearch_args = [
             "-s",
-            self.CODEQUERY_DB,  # Specify the database file path
+            self.CODEQUERY_DB,
             "-p",
-            "1",  # '1' for symbol
+            "1",
             "-t",
-            str(type_name),  # Convert to string to ensure type safety
-            "-f" if fuzzy else "-e",
-            "-u",  # use full paths
+            str(type_name),
+            "-e",
+            "-u",
         ]
         if file_path:
             cqsearch_args += ["-b", file_path.as_posix()]
@@ -530,7 +551,7 @@ class CodeQuery:
         results: list[CQSearchResult] = list(self._run_cqsearch(*cqsearch_args))
 
         # Extended fuzzy matching
-        if fuzzy:
+        if fuzzy and file_path is None:
             # Fuzzy match the function name against all functions in the codebase
             fuzzy_matches: list[tuple[CQSearchResult, float]] = sorted(
                 [
@@ -601,22 +622,27 @@ class CodeQuery:
 
         logger.info("Found %d types for %s after filtering", len(res), type_name)
 
+        # Sort in same order as results
+        results_value = [r.value for r in results]
+        res_sorted: list[TypeDefinition] = sorted(
+            res, key=lambda x: results_value.index(x.name)
+        )
+
         # Rebase the file paths
-        res = self._rebase_types_file_paths(res)
-        return res
+        return self._rebase_types_file_paths(res_sorted)
 
     def get_type_calls(self, type_definition: TypeDefinition) -> list[TypeUsageInfo]:
         """Get the calls to a type definition. File paths are based on the challenge
         task container structure (e.g. /src)."""
         cqsearch_args = [
             "-s",
-            self.CODEQUERY_DB,  # Specify the database file path
+            self.CODEQUERY_DB,
             "-p",
             "8",
             "-t",
             type_definition.name,
             "-e",
-            "-u",  # use full paths
+            "-u",
         ]
 
         results = self._run_cqsearch(*cqsearch_args)

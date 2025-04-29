@@ -31,8 +31,8 @@ def main() -> None:
     command = get_subcommand(settings)
     setup_package_logger(__name__, settings.log_level)
     if isinstance(command, ServeCommand):
-        init_telemetry("program-model")
-        redis = Redis.from_url(command.redis_url, decode_responses=False)  # type: ignore[unreachable]
+        init_telemetry("program-model")  # type: ignore[unreachable]
+        redis = Redis.from_url(command.redis_url, decode_responses=False)
         with ProgramModel(
             sleep_time=command.sleep_time,
             redis=redis,
