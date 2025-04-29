@@ -82,7 +82,7 @@ class Task:
 
     @staticmethod
     def clean_func_name(func_name: str) -> str:
-        """Heuristic function to clean up function names for codequery
+        """Cleans function names from coverage info for codequery
 
         Handles the following function name formats:
         - OSS_FUZZ_ prefixed names (e.g., OSS_FUZZ_png_sig_cmp)
@@ -107,53 +107,62 @@ class Task:
         return cleaned_func_name
 
     def _do_get_function_def(
-        self, function_name: str, function_paths: list[Path]
+        self,
+        function_name: str,
+        function_paths: list[Path],
+        fuzzy: bool = False,
+        fuzzy_threshold: int = 80,
     ) -> Function | None:
+        """Gets function definition
+
+        If there are multiple matches, returns the one with highest similarity.
+        """
         for function_path in function_paths:
-            function_defs = self.codequery.get_functions(function_name, function_path)
-            if len(function_defs) == 0:
-                continue
-            if len(function_defs) > 1:
-                logger.warning(
-                    "Multiple function definitions found for %s in %s. using first one.",
-                    function_name,
-                    function_path,
-                )
-            else:
+            # functions returned in descending order of similarity
+            function_defs = self.codequery.get_functions(
+                function_name, function_path, fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
+            )
+            if len(function_defs) > 0:
                 logger.info(
-                    "Found function definition for %s in %s",
+                    "Found function definition for %s in %s: %s (fuzzy=%s) (matches=%s)",
                     function_name,
                     function_path,
+                    function_defs[0].name,
+                    fuzzy,
+                    len(function_defs),
                 )
-            return function_defs[0]
+                return function_defs[0]
 
         logger.debug(
-            "No function definition found for %s in paths: %s", function_name, function_paths
+            "No function definition found for %s in paths: %s. (fuzzy=%s)",
+            function_name,
+            function_paths,
+            fuzzy,
         )
         return None
 
-    def get_function_def(self, function_name: str, function_paths: list[Path]) -> Function | None:
-        """Get function definition from codequery, with progressively less precise searches"""
+    def get_function_def(
+        self,
+        function_name: str,
+        function_paths: list[Path] | None = None,
+        fuzzy_threshold: int = 80,
+    ) -> Function | None:
+        """Get function definition from codequery
+
+        Executes the following searches:
+            - Exact match with paths
+            - Fuzzy match without paths
+        """
         logger.info("Getting function definition for %s (paths: %s)", function_name, function_paths)
 
-        # Exact match in paths
-        function_def = self._do_get_function_def(function_name, function_paths)
-        if function_def is not None:
-            return function_def
+        if function_paths:
+            function_def = self._do_get_function_def(function_name, function_paths)
+            if function_def is not None:
+                return function_def
 
-        # Cleaned exact match in paths
-        cleaned_function_name = self.clean_func_name(function_name)
-        function_def = self._do_get_function_def(cleaned_function_name, function_paths)
-        if function_def is not None:
-            return function_def
-
-        # Exact match general
-        function_def = self._do_get_function_def(function_name, [None])
-        if function_def is not None:
-            return function_def
-
-        # Cleaned match general
-        function_def = self._do_get_function_def(cleaned_function_name, [None])
+        function_def = self._do_get_function_def(
+            function_name, [None], fuzzy=True, fuzzy_threshold=fuzzy_threshold
+        )
         if function_def is not None:
             return function_def
 
@@ -236,7 +245,7 @@ class Task:
                     ],
                 }
             )
-        function_def = state.task._do_get_function_def(function_name, [None])
+        function_def = state.task.get_function_def(function_name)
         if function_def:
             return Command(
                 update={

@@ -33,6 +33,8 @@ class SeedExploreTask(SeedBaseTask):
     MAX_CONTEXT_ITERATIONS = 2
     MAX_TOOL_CALLS = 4
 
+    TARGET_FUNCTION_FUZZY_THRESHOLD = 50
+
     @override
     def _generate_seeds(self, state: SeedExploreState) -> Command:
         """Generate seed functions using collected function definitions"""
@@ -102,7 +104,12 @@ class SeedExploreTask(SeedBaseTask):
             target_function_name,
             target_function_paths,
         )
-        function_def = self.get_function_def(target_function_name, target_function_paths)
+        cleaned_name = self.clean_func_name(target_function_name)
+        function_def = self.get_function_def(
+            cleaned_name,
+            target_function_paths,
+            fuzzy_threshold=self.TARGET_FUNCTION_FUZZY_THRESHOLD,
+        )
         if not function_def:
             logger.error("No function definition found for %s", target_function_name)
             return

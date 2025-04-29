@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = "==3.12.*"
 resolution-markers = [
     "python_full_version >= '3.12.4'",
@@ -1076,6 +1075,7 @@ dependencies = [
     { name = "common" },
     { name = "gremlinpython" },
     { name = "protobuf" },
+    { name = "rapidfuzz" },
     { name = "tree-sitter" },
     { name = "tree-sitter-language-pack" },
 ]
@@ -1085,6 +1085,7 @@ requires-dist = [
     { name = "common", editable = "../common" },
     { name = "gremlinpython", specifier = "==3.7.3" },
     { name = "protobuf", specifier = ">=3.20,<=3.20.3" },
+    { name = "rapidfuzz", specifier = "~=3.12.2" },
     { name = "tree-sitter", specifier = ">=0.24.0" },
     { name = "tree-sitter-language-pack", specifier = ">=0.4.0" },
 ]
@@ -1430,7 +1431,6 @@ requires-dist = [
     { name = "tqdm", marker = "extra == 'dev'", specifier = "~=4.67.1" },
     { name = "wasmtime", specifier = "~=29.0.0" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "setuptools"
