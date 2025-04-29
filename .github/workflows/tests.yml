@@ -131,11 +131,11 @@ jobs:
 
       - name: Setup ${{ matrix.component }} component
         run: |
-          uv sync --all-extras
+          uv sync --all-extras --frozen
         working-directory: ${{ matrix.component }}
 
       - name: Run tests on ${{ matrix.component }} component
-        run: uv run pytest -svv ${{ matrix.pytest_args }}
+        run: uv run --frozen pytest -svv ${{ matrix.pytest_args }}
         env:
           PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
         working-directory: ${{ matrix.component }}
