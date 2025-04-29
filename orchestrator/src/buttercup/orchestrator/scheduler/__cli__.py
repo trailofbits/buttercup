@@ -47,6 +47,8 @@ def main():
             competition_api_key_id=command.competition_api_key_id,
             competition_api_key_token=command.competition_api_key_token,
             competition_api_cycle_time=command.competition_api_cycle_time,
+            patch_submission_retry_limit=command.patch_submission_retry_limit,
+            patch_requests_per_vulnerability=command.patch_requests_per_vulnerability,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):

@@ -14,6 +14,12 @@ class ServeCommand(BaseSettings):
     competition_api_cycle_time: Annotated[
         float, Field(default=10.0, description="Min seconds between competition api interactions")
     ]
+    patch_submission_retry_limit: Annotated[
+        int, Field(default=60, description="Number of retries for errored patch submissions.")
+    ]
+    patch_requests_per_vulnerability: Annotated[
+        int, Field(default=1, description="Number of patch requests per vulnerability")
+    ]
 
     class Config:
         nested_model_default_partial_update = True

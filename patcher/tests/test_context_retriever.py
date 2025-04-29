@@ -176,7 +176,7 @@ def selinux_agent(selinux_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Conte
     patch_input = PatchInput(
         challenge_task_dir=selinux_oss_fuzz_task.task_dir,
         task_id=selinux_oss_fuzz_task.task_meta.task_id,
-        vulnerability_id="vuln-id-selinux",
+        submission_index="1",
         harness_name="secilc-fuzzer",
         # not used by the context retriever
         pov=Path("pov-path-selinux"),
@@ -200,7 +200,7 @@ def mock_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> ContextRetrieve
     patch_input = PatchInput(
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
-        vulnerability_id="vuln-id-mock",
+        submission_index="1",
         harness_name="mock-harness",
         # not used by the context retriever
         pov=Path("pov-path-mock"),

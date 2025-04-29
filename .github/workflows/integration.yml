@@ -148,19 +148,19 @@ jobs:
       - name: Wait for vuln submission to happen
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "Updated PoV .* status to TypesSubmissionStatus.PASSED" ; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_POV_PASS -> SUBMIT_PATCH" ; do
             sleep 10
           done
       - name: Wait for patch to be submitted
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "Updated patch .* status to TypesSubmissionStatus.PASSED"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"; do
             sleep 10
           done
       - name: Wait for bundle to be submitted
         timeout-minutes: ${{ fromJSON(env.BUNDLE_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "Bundle accepted: task=.* vuln=.* patch=.* bundle_id=bundle_id='.*' status=<TypesSubmissionStatus.ACCEPTED: 'accepted'>"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF"; do
             sleep 10
           done
       # TODO: re-enable seed-gen once it's fixed

@@ -21,7 +21,7 @@ class PatchInput(BaseModel):
 
     challenge_task_dir: Path
     task_id: str
-    vulnerability_id: str
+    submission_index: str
     harness_name: str
     engine: str
     sanitizer: str
@@ -39,7 +39,7 @@ class PatchOutput(BaseModel):
     """Output for the Patch Agent."""
 
     task_id: str
-    vulnerability_id: str
+    submission_index: str
     patch: str
 
 

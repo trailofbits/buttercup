@@ -9,13 +9,15 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildOutput,
     WeightedHarness,
     BuildType,
+    TracedCrash,
+    Patch,
 )
 from buttercup.common.task_meta import TaskMeta
 
-from buttercup.common.queues import RQItem, ReliableQueue
+from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
 from buttercup.orchestrator.registry import TaskRegistry
-from buttercup.orchestrator.scheduler.submission_tracker import SubmissionTracker
+from buttercup.orchestrator.scheduler.submissions import Submissions
 from buttercup.common.queues import QueueFactory
 
 import tempfile
@@ -33,16 +35,6 @@ def mock_patch_api():
 
 
 @pytest.fixture
-def mock_bundles_queue():
-    return Mock(spec=ReliableQueue)
-
-
-@pytest.fixture
-def mock_submission_tracker():
-    return Mock(spec=SubmissionTracker)
-
-
-@pytest.fixture
 def mock_task_registry():
     return Mock(spec=TaskRegistry)
 
@@ -54,37 +46,59 @@ def mock_api_client():
 
 @pytest.fixture
 def mock_queues():
-    crash_queue = Mock()
+    # Create mock queues for all the queues used in the Scheduler
+    build_output_queue = Mock()
+    ready_queue = Mock()
+    index_queue = Mock()
+    build_requests_queue = Mock()
     traced_vulnerabilities_queue = Mock()
-    confirmed_vulnerabilities_queue = Mock()
+    patches_queue = Mock()
+    confirmed_vulnerabilities_queue = Mock()  # Add this queue
 
     # Mock QueueFactory
     queue_factory = Mock(spec=QueueFactory)
-    queue_factory.create.side_effect = [crash_queue, traced_vulnerabilities_queue, confirmed_vulnerabilities_queue]
+    queue_factory.create.side_effect = [
+        build_output_queue,  # For build_output_queue
+        ready_queue,  # For ready_queue
+        index_queue,  # For index_queue
+        build_requests_queue,  # For build_requests_queue
+        traced_vulnerabilities_queue,  # For traced_vulnerabilities_queue
+        patches_queue,  # For patches_queue
+        confirmed_vulnerabilities_queue,  # For confirmed_vulnerabilities_queue
+    ]
 
     # Create a patch for QueueFactory
-    with patch("buttercup.orchestrator.scheduler.vulnerabilities.QueueFactory", return_value=queue_factory):
+    with patch("buttercup.orchestrator.scheduler.scheduler.QueueFactory", return_value=queue_factory):
         yield {
             "factory": queue_factory,
-            "crash": crash_queue,
+            "build_output": build_output_queue,
+            "ready": ready_queue,
+            "index": index_queue,
+            "build_requests": build_requests_queue,
             "traced": traced_vulnerabilities_queue,
+            "patches": patches_queue,
             "confirmed": confirmed_vulnerabilities_queue,
         }
+
+
+@pytest.fixture
+def mock_submissions():
+    return Mock(spec=Submissions)
 
 
 @pytest.fixture
 def scheduler(
     mock_redis,
     mock_patch_api,
-    mock_bundles_queue,
-    mock_submission_tracker,
     mock_task_registry,
     mock_api_client,
     mock_queues,
+    mock_submissions,
 ):
     with (
         patch("buttercup.orchestrator.competition_api_client.PatchApi", return_value=mock_patch_api),
         patch("buttercup.orchestrator.scheduler.scheduler.TaskRegistry", return_value=mock_task_registry),
+        patch("buttercup.orchestrator.scheduler.scheduler.Submissions", return_value=mock_submissions),
     ):
         # Create a scheduler instance with mocked dependencies
         scheduler = Scheduler(
@@ -96,18 +110,17 @@ def scheduler(
             competition_api_key_token="test_key_token",
         )
 
-        # Mock patches and vulnerabilities
-        scheduler.patches = Mock()
-        scheduler.patches.status_checker = Mock()
-        scheduler.patches.check_pending_statuses = Mock()
+        # Ensure key attributes are set up correctly from the mocked queues
+        scheduler.build_output_queue = mock_queues["build_output"]
+        scheduler.ready_queue = mock_queues["ready"]
+        scheduler.index_queue = mock_queues["index"]
+        scheduler.build_requests_queue = mock_queues["build_requests"]
+        scheduler.traced_vulnerabilities_queue = mock_queues["traced"]
+        scheduler.patches_queue = mock_queues["patches"]
+        scheduler.confirmed_vulnerabilities_queue = mock_queues["confirmed"]
 
-        scheduler.vulnerabilities = Mock()
-        scheduler.vulnerabilities.status_checker = Mock()
-        scheduler.vulnerabilities.check_pending_statuses = Mock()
-
-        # Set up bundles mock
-        scheduler.bundles = Mock()
-        scheduler.bundles.process_bundles = Mock(return_value=False)
+        # The submissions object should already be set by patching
+        assert scheduler.submissions == mock_submissions
 
         return scheduler
 
@@ -447,22 +460,19 @@ def test_should_stop_processing_wrapper(scheduler):
     scheduler.task_registry.should_stop_processing.assert_any_call(task, scheduler.cached_cancelled_ids)
 
 
-# This test is no longer needed since we're testing the wrapper function
-# and the actual logic is now in the registry module
-
-
 def test_serve_item_processes_cancellations_then_updates_cache(scheduler):
     """Test that serve_item runs process_cancellations first, then updates the cached cancelled IDs."""
     # Setup
+    scheduler.cancellation = Mock()
     scheduler.cancellation.process_cancellations = Mock(return_value=True)
+
+    # Mock the methods called by serve_item
     scheduler.update_cached_cancelled_ids = Mock(return_value=True)
     scheduler.serve_ready_task = Mock(return_value=False)
     scheduler.serve_build_output = Mock(return_value=False)
     scheduler.serve_index_output = Mock(return_value=False)
-    scheduler.vulnerabilities.process_traced_vulnerabilities = Mock(return_value=False)
-    scheduler.patches.process_patches = Mock(return_value=False)
-    scheduler.update_expired_task_weights = Mock(return_value=False)
     scheduler.competition_api_interactions = Mock(return_value=False)
+    scheduler.update_expired_task_weights = Mock(return_value=False)
 
     # Execute
     result = scheduler.serve_item()
@@ -474,10 +484,8 @@ def test_serve_item_processes_cancellations_then_updates_cache(scheduler):
     scheduler.serve_ready_task.assert_called_once()
     scheduler.serve_build_output.assert_called_once()
     scheduler.serve_index_output.assert_called_once()
-    scheduler.vulnerabilities.process_traced_vulnerabilities.assert_called_once()
-    scheduler.patches.process_patches.assert_called_once()
-    scheduler.update_expired_task_weights.assert_called_once()
     scheduler.competition_api_interactions.assert_called_once()
+    scheduler.update_expired_task_weights.assert_called_once()
 
 
 def test_update_cached_cancelled_ids(scheduler):
@@ -530,8 +538,7 @@ def test_serve_build_output_cancelled_task(scheduler):
     # Create a mock RQItem
     mock_item = RQItem(item_id="build-item-1", deserialized=build_output)
 
-    # Mock the queue operations
-    scheduler.build_output_queue = Mock()
+    # Mock the queue pop to return our item
     scheduler.build_output_queue.pop.return_value = mock_item
 
     # Set up the task registry and cached_cancelled_ids
@@ -572,13 +579,8 @@ def test_serve_ready_task_cancelled_task(mock_challenge_task, scheduler):
     # Create a mock RQItem
     mock_item = RQItem(item_id="ready-item-1", deserialized=task_ready)
 
-    # Mock the queue operations
-    scheduler.ready_queue = Mock()
+    # Mock the queue pop to return our item
     scheduler.ready_queue.pop.return_value = mock_item
-
-    # Mock other queues to ensure they're not called
-    scheduler.index_queue = Mock()
-    scheduler.build_requests_queue = Mock()
 
     # Set up the task registry and cached_cancelled_ids
     scheduler.task_registry = Mock()
@@ -608,34 +610,83 @@ def test_serve_ready_task_cancelled_task(mock_challenge_task, scheduler):
 
 
 def test_competition_api_interactions(scheduler):
-    """Test that competition_api_interactions calls all components."""
-    # Set up mocks
-    scheduler.vulnerabilities.check_pending_statuses.return_value = True
-    scheduler.patches.check_pending_statuses.return_value = False
-    scheduler.bundles.process_bundles.return_value = False
+    """Test that competition_api_interactions processes traced crashes and patches."""
+    # Create test data
+    traced_crash = TracedCrash()
+    traced_crash.crash.target.task_id = "test-task-id"
 
-    # Call competition_api_interactions
+    patch = Patch()
+    patch.task_id = "test-task-id"
+    patch.submission_index = "0"
+
+    # Set up queue mocks with items
+    scheduler.traced_vulnerabilities_queue.pop.return_value = RQItem(item_id="vuln-1", deserialized=traced_crash)
+    scheduler.patches_queue.pop.return_value = RQItem(item_id="patch-1", deserialized=patch)
+
+    # Set up submissions to return True for submit_vulnerability and record_patch
+    scheduler.submissions.submit_vulnerability.return_value = True
+    scheduler.submissions.record_patch.return_value = True
+
+    # Call the method
     result = scheduler.competition_api_interactions()
 
-    # Verify all components were called
-    scheduler.vulnerabilities.check_pending_statuses.assert_called_once()
-    scheduler.patches.check_pending_statuses.assert_called_once()
-    scheduler.bundles.process_bundles.assert_called_once()
+    # Verify interactions
+    scheduler.submissions.submit_vulnerability.assert_called_once_with(traced_crash)
+    scheduler.traced_vulnerabilities_queue.ack_item.assert_called_once_with("vuln-1")
+
+    scheduler.submissions.record_patch.assert_called_once_with(patch)
+    scheduler.patches_queue.ack_item.assert_called_once_with("patch-1")
+
+    scheduler.submissions.process_cycle.assert_called_once()
+
     assert result is True
 
 
 def test_competition_api_interactions_no_work(scheduler):
-    """Test that competition_api_interactions returns False when no work is done."""
-    # Set up mocks
-    scheduler.vulnerabilities.check_pending_statuses.return_value = False
-    scheduler.patches.check_pending_statuses.return_value = False
-    scheduler.bundles.process_bundles.return_value = False
+    """Test that competition_api_interactions returns False when no items in queue."""
+    # Set up queue mocks with no items
+    scheduler.traced_vulnerabilities_queue.pop.return_value = None
+    scheduler.patches_queue.pop.return_value = None
 
-    # Call competition_api_interactions
+    # Call the method
     result = scheduler.competition_api_interactions()
 
-    # Verify all components were called
-    scheduler.vulnerabilities.check_pending_statuses.assert_called_once()
-    scheduler.patches.check_pending_statuses.assert_called_once()
-    scheduler.bundles.process_bundles.assert_called_once()
+    # Verify
+    scheduler.submissions.submit_vulnerability.assert_not_called()
+    scheduler.submissions.record_patch.assert_not_called()
+    scheduler.submissions.process_cycle.assert_called_once()
+
+    assert result is False
+
+
+def test_competition_api_interactions_failed_submissions(scheduler):
+    """Test that competition_api_interactions handles failed submissions."""
+    # Create test data
+    traced_crash = TracedCrash()
+    traced_crash.crash.target.task_id = "test-task-id"
+
+    patch = Patch()
+    patch.task_id = "test-task-id"
+    patch.submission_index = "0"
+
+    # Set up queue mocks with items
+    scheduler.traced_vulnerabilities_queue.pop.return_value = RQItem(item_id="vuln-1", deserialized=traced_crash)
+    scheduler.patches_queue.pop.return_value = RQItem(item_id="patch-1", deserialized=patch)
+
+    # Set up submissions to return False for submit_vulnerability and record_patch
+    scheduler.submissions.submit_vulnerability.return_value = False
+    scheduler.submissions.record_patch.return_value = False
+
+    # Call the method
+    result = scheduler.competition_api_interactions()
+
+    # Verify interactions
+    scheduler.submissions.submit_vulnerability.assert_called_once_with(traced_crash)
+    scheduler.traced_vulnerabilities_queue.ack_item.assert_not_called()
+
+    scheduler.submissions.record_patch.assert_called_once_with(patch)
+    scheduler.patches_queue.ack_item.assert_not_called()
+
+    scheduler.submissions.process_cycle.assert_called_once()
+
     assert result is False

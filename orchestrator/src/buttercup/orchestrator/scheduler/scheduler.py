@@ -14,13 +14,13 @@ from buttercup.common.datastructures.msg_pb2 import (
     WeightedHarness,
     IndexRequest,
     BuildType,
+    TracedCrash,
+    Patch,
 )
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.orchestrator.scheduler.vulnerabilities import Vulnerabilities
+from buttercup.orchestrator.scheduler.submissions import Submissions, CompetitionAPI
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
-from buttercup.orchestrator.scheduler.patches import Patches
-from buttercup.orchestrator.scheduler.bundles import Bundles
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
 from buttercup.orchestrator.registry import TaskRegistry
@@ -40,6 +40,8 @@ class Scheduler:
     competition_api_key_id: str = "api_key_id"
     competition_api_key_token: str = "api_key_token"
     competition_api_cycle_time: float = 10.0  # Min seconds between competition api interactions
+    patch_submission_retry_limit: int = 60
+    patch_requests_per_vulnerability: int = 1
 
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
@@ -49,12 +51,12 @@ class Scheduler:
     harness_map: HarnessWeights | None = field(init=False, default=None)
     build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
-    vulnerabilities: Vulnerabilities | None = field(init=False, default=None)
-    patches: Patches = field(init=False)
-    bundles: Bundles = field(init=False)
     task_registry: TaskRegistry | None = field(init=False, default=None)
     cached_cancelled_ids: Set[str] = field(init=False, default_factory=set)
     status_checker: StatusChecker | None = field(init=False, default=None)
+    patches_queue: ReliableQueue | None = field(init=False, default=None)
+    traced_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
+    submissions: Submissions = field(init=False)
 
     def update_cached_cancelled_ids(self) -> bool:
         """Update the cached set of cancelled task IDs.
@@ -100,7 +102,6 @@ class Scheduler:
             )
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
-            self.vulnerabilities = Vulnerabilities(redis=self.redis, api_client=api_client)
             self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.ORCHESTRATOR, block_time=None)
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
             self.build_output_queue = queue_factory.create(
@@ -112,10 +113,19 @@ class Scheduler:
             )
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
-            self.patches = Patches(redis=self.redis, api_client=api_client)
-            self.bundles = Bundles(redis=self.redis, api_client=api_client)
             self.task_registry = TaskRegistry(self.redis)
             self.status_checker = StatusChecker(self.competition_api_cycle_time)
+            self.submissions = Submissions(
+                redis=self.redis,
+                competition_api=CompetitionAPI(api_client),
+                task_registry=self.task_registry,
+                patch_submission_retry_limit=self.patch_submission_retry_limit,
+                patch_requests_per_vulnerability=self.patch_requests_per_vulnerability,
+            )
+            self.patches_queue = queue_factory.create(QueueNames.PATCHES, GroupNames.ORCHESTRATOR, block_time=None)
+            self.traced_vulnerabilities_queue = queue_factory.create(
+                QueueNames.TRACED_VULNERABILITIES, GroupNames.ORCHESTRATOR, block_time=None
+            )
 
     def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
         """Select from preferred options if available, otherwise random choice.
@@ -325,21 +335,44 @@ class Scheduler:
         return any_updated
 
     def competition_api_interactions(self) -> bool:
-        """Check statuses and process bundles if needed.
-        Will also submit patches if they were previously pending due to
-        the associated PoV not having passed status checks.
-        The interation is limited by the status_checker as there isn't much
-        value in checking several times per second.
+        """Process vulnerabilities and patches, and check submission statuses.
+
+        This method:
+        1. Processes any new vulnerabilities from the traced_vulnerabilities_queue,
+           submitting them to the competition API
+        2. Processes any new patches from the patches_queue, recording them for
+           later submission once the associated vulnerability is validated
+        3. Periodically checks status of submitted vulnerabilities and patches via
+           the status_checker, which rate limits API calls
+        4. Submits patches for vulnerabilities that have passed validation
+
+        Returns:
+            bool: True if any items were processed from the queues, False otherwise
         """
+        collected_item = False
+        vuln_item: RQItem[TracedCrash] | None = self.traced_vulnerabilities_queue.pop()
+        if vuln_item is not None:
+            crash: TracedCrash = vuln_item.deserialized
+            logger.info(f"Submitting vulnerability for task {crash.crash.target.task_id}")
+            if self.submissions.submit_vulnerability(crash):
+                self.traced_vulnerabilities_queue.ack_item(vuln_item.item_id)
+                collected_item = True
 
-        def do_checks():
-            did_work = self.vulnerabilities.check_pending_statuses()
-            did_work = self.patches.check_pending_statuses() or did_work
-            did_work = self.bundles.process_bundles() or did_work
-            return did_work
+        patch_item: RQItem[Patch] | None = self.patches_queue.pop()
+        if patch_item is not None:
+            patch: Patch = patch_item.deserialized
+            logger.info(f"Submitting patch for task {patch.task_id}")
+            if self.submissions.record_patch(patch):
+                self.patches_queue.ack_item(patch_item.item_id)
+                collected_item = True
 
-        did_work = self.status_checker.check_statuses(do_checks)
-        return did_work
+        def do_check():
+            self.submissions.process_cycle()
+            return True
+
+        self.status_checker.check_statuses(do_check)
+
+        return collected_item
 
     def serve_item(self) -> bool:
         # Run all scheduler components and track if any did work
@@ -351,8 +384,6 @@ class Scheduler:
             self.serve_ready_task,
             self.serve_build_output,
             self.serve_index_output,
-            self.vulnerabilities.process_traced_vulnerabilities,
-            self.patches.process_patches,
             self.update_expired_task_weights,
             self.competition_api_interactions,
         ]

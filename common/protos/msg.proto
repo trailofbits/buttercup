@@ -96,12 +96,12 @@ message TracedCrash {
 
 message ConfirmedVulnerability {
     TracedCrash crash = 1;
-    string vuln_id = 2;
+    string submission_index = 2;
 }
 
 message Patch {
     string task_id = 1;
-    string vulnerability_id = 2;
+    string submission_index = 2;
     string patch = 3;
 }
 
@@ -126,4 +126,33 @@ message FunctionCoverage {
     repeated string function_paths = 2;
     int32 total_lines = 3;
     int32 covered_lines = 4;
+}
+
+message SubmissionEntry {
+    enum SubmissionState {
+        SUBMIT_PATCH_REQUEST = 0;
+        WAIT_POV_PASS = 1;
+        SUBMIT_PATCH = 2;
+        WAIT_PATCH_PASS = 3;
+        SUBMIT_BUNDLE = 4;
+        SUBMIT_MATCHING_SARIF = 5;
+        SUBMIT_BUNDLE_PATCH = 6;
+        STOP = 7;
+    }
+    
+    SubmissionState state = 1;
+
+    TracedCrash crash = 2;
+
+    string pov_id = 3;
+    string patch_id = 4;
+    string bundle_id = 5;
+    string sarif_id = 6;
+
+    // Content of patches targeting this vulnerability 
+    repeated string patches = 7;
+
+    // Current patch being considered
+    int32 patch_idx = 8;
+    int32 patch_submission_attempt = 9;
 }

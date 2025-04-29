@@ -103,7 +103,7 @@ class Patcher:
         return PatchInput(
             challenge_task_dir=Path(vuln.crash.crash.target.task_dir),
             task_id=vuln.crash.crash.target.task_id,
-            vulnerability_id=vuln.vuln_id,
+            submission_index=vuln.submission_index,
             harness_name=vuln.crash.crash.harness_name,
             pov=Path(vuln.crash.crash.crash_input_path),
             sanitizer_output=vuln.crash.tracer_stacktrace
@@ -125,7 +125,7 @@ class Patcher:
             if patch is not None:
                 patch_msg = Patch(
                     task_id=patch.task_id,
-                    vulnerability_id=patch.vulnerability_id,
+                    submission_index=patch.submission_index,
                     patch=patch.patch,
                 )
                 self.patches_queue.push(patch_msg)

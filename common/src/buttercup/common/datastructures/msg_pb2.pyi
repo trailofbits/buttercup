@@ -42,12 +42,12 @@ class BuildRequest(_message.Message):
     def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
-    __slots__ = ["crash", "vuln_id"]
+    __slots__ = ["crash", "submission_index"]
     CRASH_FIELD_NUMBER: _ClassVar[int]
-    VULN_ID_FIELD_NUMBER: _ClassVar[int]
+    SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
     crash: TracedCrash
-    vuln_id: str
-    def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., vuln_id: _Optional[str] = ...) -> None: ...
+    submission_index: str
+    def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., submission_index: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "crash_token", "harness_name", "stacktrace", "target"]
@@ -104,14 +104,14 @@ class IndexRequest(_message.Message):
     def __init__(self, build_type: _Optional[_Union[BuildType, str]] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
 class Patch(_message.Message):
-    __slots__ = ["patch", "task_id", "vulnerability_id"]
+    __slots__ = ["patch", "submission_index", "task_id"]
     PATCH_FIELD_NUMBER: _ClassVar[int]
+    SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
-    VULNERABILITY_ID_FIELD_NUMBER: _ClassVar[int]
     patch: str
+    submission_index: str
     task_id: str
-    vulnerability_id: str
-    def __init__(self, task_id: _Optional[str] = ..., vulnerability_id: _Optional[str] = ..., patch: _Optional[str] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., submission_index: _Optional[str] = ..., patch: _Optional[str] = ...) -> None: ...
 
 class SourceDetail(_message.Message):
     __slots__ = ["sha256", "source_type", "url"]
@@ -127,6 +127,38 @@ class SourceDetail(_message.Message):
     source_type: SourceDetail.SourceType
     url: str
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
+
+class SubmissionEntry(_message.Message):
+    __slots__ = ["bundle_id", "crash", "patch_id", "patch_idx", "patch_submission_attempt", "patches", "pov_id", "sarif_id", "state"]
+    class SubmissionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        __slots__ = []
+    BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
+    CRASH_FIELD_NUMBER: _ClassVar[int]
+    PATCHES_FIELD_NUMBER: _ClassVar[int]
+    PATCH_IDX_FIELD_NUMBER: _ClassVar[int]
+    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    PATCH_SUBMISSION_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    POV_ID_FIELD_NUMBER: _ClassVar[int]
+    SARIF_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    STOP: SubmissionEntry.SubmissionState
+    SUBMIT_BUNDLE: SubmissionEntry.SubmissionState
+    SUBMIT_BUNDLE_PATCH: SubmissionEntry.SubmissionState
+    SUBMIT_MATCHING_SARIF: SubmissionEntry.SubmissionState
+    SUBMIT_PATCH: SubmissionEntry.SubmissionState
+    SUBMIT_PATCH_REQUEST: SubmissionEntry.SubmissionState
+    WAIT_PATCH_PASS: SubmissionEntry.SubmissionState
+    WAIT_POV_PASS: SubmissionEntry.SubmissionState
+    bundle_id: str
+    crash: TracedCrash
+    patch_id: str
+    patch_idx: int
+    patch_submission_attempt: int
+    patches: _containers.RepeatedScalarFieldContainer[str]
+    pov_id: str
+    sarif_id: str
+    state: SubmissionEntry.SubmissionState
+    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., pov_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[str]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
 
 class Task(_message.Message):
     __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "metadata", "project_name", "sources", "task_id", "task_type"]
