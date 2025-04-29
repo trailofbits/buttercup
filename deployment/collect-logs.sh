@@ -58,12 +58,12 @@ for pod in $pods; do
     
     # Current logs
     log_file="$LOG_DIR/${pod}-${container}.log"
-    kubectl logs "$pod" -c "$container" -n "$namespace" > "$log_file" 2>/dev/null
+    kubectl logs "$pod" --tail -1 -c "$container" -n "$namespace" > "$log_file" 2>/dev/null
     echo "      Current logs saved to: $log_file"
     
     # Previous logs (if container has restarted)
     prev_log_file="$LOG_DIR/${pod}-${container}.previous.log"
-    kubectl logs "$pod" -c "$container" -n "$namespace" -p > "$prev_log_file" 2>/dev/null
+    kubectl logs "$pod" --tail -1 -c "$container" -n "$namespace" -p > "$prev_log_file" 2>/dev/null
     
     # Check if previous logs exist
     if [ -s "$prev_log_file" ]; then
@@ -80,12 +80,12 @@ for pod in $pods; do
     
     # Current logs
     log_file="$LOG_DIR/${pod}-${container}.log"
-    kubectl logs "$pod" -c "$container" -n "$namespace" > "$log_file" 2>/dev/null
+    kubectl logs "$pod" --tail -1 -c "$container" -n "$namespace" > "$log_file" 2>/dev/null
     echo "      Current logs saved to: $log_file"
     
     # Previous logs (if container has restarted)
     prev_log_file="$LOG_DIR/${pod}-${container}.previous.log"
-    kubectl logs "$pod" -c "$container" -n "$namespace" -p > "$prev_log_file" 2>/dev/null
+    kubectl logs "$pod" --tail -1 -c "$container" -n "$namespace" -p > "$prev_log_file" 2>/dev/null
     
     # Check if previous logs exist
     if [ -s "$prev_log_file" ]; then
