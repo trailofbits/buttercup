@@ -158,6 +158,13 @@ patcher:
 competition-api:
   enabled: true
 
+# Registry cache configuration
+registry-cache:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+
 # PostgreSQL configuration for LiteLLM
 litellm-db:
   enabled: true

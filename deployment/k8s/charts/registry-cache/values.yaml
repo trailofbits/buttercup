@@ -1,0 +1,52 @@
+replicaCount: 1
+
+image:
+  repository: registry
+  tag: "2.8.3"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Disable HTTPS and use HTTP
+https:
+  enabled: false
+
+# Use a Persistent Volume Claim to store the cached images
+persistence:
+  enabled: true
+  storageClass: ""  # Use cluster default
+  accessMode: ReadWriteOnce
+  size: 10Gi
+
+# Registry configuration for caching
+registry:
+  proxy:
+    enabled: true
+    remoteUrl: "https://ghcr.io"
+  storage:
+    cache:
+      blobdescriptor: inmemory
+  # Configure HTTP
+  http:
+    addr: :80
+  # Configure proxy cache TTL
+  middleware:
+    registry:
+      - name: proxycache
+        options:
+          ttl: 86400
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2048Mi
+  requests:
+    cpu: 1000m
+    memory: 1024Mi

@@ -54,6 +54,10 @@ Define Docker-in-Docker sidecar container
   env:
     - name: DOCKER_TLS_CERTDIR
       value: ""
+    - name: REGISTRY_HOST
+      value: "{{ .Release.Name }}-registry-cache:80"
+  # Add hosts entry to redirect ghcr.io to localhost, then proxy localhost to registry-cache
+  command: ["sh", "-c", "echo '127.0.0.1 ghcr.io' >> /etc/hosts && apk add --no-cache socat && (socat TCP-LISTEN:80,fork,reuseaddr TCP:$REGISTRY_HOST &) && dockerd-entrypoint.sh"]
   volumeMounts:
     - name: crs-scratch
       mountPath: {{ include "buttercup.dirs.crs_scratch" . }}

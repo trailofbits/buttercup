@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-registry-cache
+  labels:
+    app: registry-cache
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: registry-cache
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: registry-cache
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: registry
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+          env:
+            - name: REGISTRY_PROXY_REMOTEURL
+              value: {{ .Values.registry.proxy.remoteUrl | quote }}
+            - name: REGISTRY_MIDDLEWARE_REGISTRY_PROXYCACHE_TTL
+              value: "86400s"
+            - name: REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR
+              value: {{ .Values.registry.storage.cache.blobdescriptor | quote }}
+            - name: REGISTRY_HTTP_ADDR
+              value: {{ .Values.registry.http.addr | quote }}
+          volumeMounts:
+            - name: registry-data
+              mountPath: /var/lib/registry
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: registry-data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-registry-cache-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }} 

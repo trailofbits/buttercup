@@ -1,0 +1,6 @@
+apiVersion: v2
+name: registry-cache
+description: Docker Registry Cache for caching images from ghcr.io
+type: application
+version: 0.1.0
+appVersion: "2.8.3" 
