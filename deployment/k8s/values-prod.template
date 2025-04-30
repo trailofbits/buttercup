@@ -237,3 +237,17 @@ litellm:
     apiKey: "${OPENAI_API_KEY}"
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
+
+# Registry cache configuration
+registry-cache:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 30Gi
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 2000m
+      memory: 4Gi
