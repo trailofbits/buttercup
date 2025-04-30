@@ -19,6 +19,7 @@ spec:
       initContainers:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       containers:
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       - name: tracer-bot
         image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
@@ -31,7 +32,6 @@ spec:
         env:
         {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.volumes.tasks" . | nindent 6 }}

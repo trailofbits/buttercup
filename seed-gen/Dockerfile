@@ -52,6 +52,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
+COPY common/container-entrypoint.sh /container-entrypoint.sh
+
 WORKDIR /app/seed-gen
 ENV PATH=/app/seed-gen/.venv/bin:$PATH
 
+ENTRYPOINT ["/container-entrypoint.sh"]

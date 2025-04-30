@@ -45,4 +45,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY common/container-entrypoint.sh /container-entrypoint.sh
 ENV PATH=/app/.venv/bin:$PATH
+
+ENTRYPOINT ["/container-entrypoint.sh"]

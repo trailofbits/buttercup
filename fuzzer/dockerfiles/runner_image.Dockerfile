@@ -41,4 +41,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /fuzzer/.venv /fuzzer/.venv
+COPY common/container-entrypoint.sh /container-entrypoint.sh
 ENV PATH=/fuzzer/.venv/bin:$PATH
+
+ENTRYPOINT ["/container-entrypoint.sh"]

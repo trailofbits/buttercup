@@ -21,6 +21,7 @@ spec:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
       containers:
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       - name: patcher
         image: "{{ .Values.global.patcherImage.repository | default "patcher" }}:{{ .Values.global.patcherImage.tag | default "latest" }}"
         imagePullPolicy: {{ .Values.global.patcherImage.pullPolicy | default "IfNotPresent" }}
@@ -38,7 +39,6 @@ spec:
         {{- include "buttercup.env.langfuse" . | nindent 8 }}
         - name: LOG_LEVEL
           value: "{{ .Values.logLevel }}"
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.dindVolume" . | nindent 6 }}

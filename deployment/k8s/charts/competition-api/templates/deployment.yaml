@@ -17,6 +17,7 @@ spec:
     spec:
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
       containers:
+        {{- include "buttercup.dindSidecar" . | nindent 8 }}
         - name: competition-api
           image: "{{ .Values.global.competitionApiImage.repository }}:{{ .Values.global.competitionApiImage.tag }}"
           imagePullPolicy: {{ .Values.global.competitionApiImage.pullPolicy }}
@@ -55,7 +56,6 @@ spec:
             {{- end }}
             {{- end }}
             {{- include "buttercup.nodeLocalVolumeMount" . | nindent 12 }}
-        {{- include "buttercup.dindSidecar" . | nindent 8 }}
       volumes:
         {{- include "buttercup.dindVolume" . | nindent 8 }}
         {{- include "buttercup.volumes.scratch" . | nindent 8 }}

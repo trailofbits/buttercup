@@ -19,6 +19,7 @@ spec:
       initContainers:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       containers:
+      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       - name: program-model
         image: "{{ .Values.global.programModelImage.repository }}:{{ .Values.global.programModelImage.tag }}"
         imagePullPolicy: {{ .Values.global.programModelImage.pullPolicy }}
@@ -32,7 +33,6 @@ spec:
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.volumes.tasks" . | nindent 6 }}
