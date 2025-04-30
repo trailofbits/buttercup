@@ -457,11 +457,6 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     "tmp_code_snippets": tmp_code_snippets,
                 }
 
-            if logger.level <= logging.DEBUG:
-                for message in ctx_state_dict["messages"]:
-                    string_representation = f"{message.type.upper()}: {message.content}"
-                    logger.debug(string_representation)
-
             ctx_state = State(**ctx_state_dict)
             if not ctx_state.code_snippets:
                 # TODO: pass back these errors to the caller so that it can retry in other ways

@@ -288,17 +288,18 @@ class ChallengeTask:
 
         return cmd
 
-    def _log_output_line(self, current_line: bytes, new_data: bytes) -> bytes:
+    def _log_output_line(self, current_line: bytes, new_data: bytes, log: bool) -> bytes:
         current_line += new_data
         line_to_print = b""
         if b"\n" in current_line:
             line_to_print = current_line[: current_line.index(b"\n")]
             current_line = current_line[current_line.index(b"\n") + 1 :]
-            logger.debug(line_to_print.decode())
+            if log:
+                logger.debug(line_to_print.decode())
 
         return current_line
 
-    def _run_cmd(self, cmd: list[str], cwd: Path | None = None) -> CommandResult:
+    def _run_cmd(self, cmd: list[str], cwd: Path | None = None, log: bool = True) -> CommandResult:
         try:
             logger.debug(f"Running command (cwd={cwd}): {' '.join(cmd)}")
             process = subprocess.Popen(  # noqa: S603
@@ -317,11 +318,11 @@ class ChallengeTask:
                 stdout_line = process.stdout.readline() if process.stdout else b""
                 stderr_line = process.stderr.readline() if process.stderr else b""
                 if stdout_line:
-                    current_output_line = self._log_output_line(current_output_line, stdout_line)
+                    current_output_line = self._log_output_line(current_output_line, stdout_line, log)
                     stdout += stdout_line
 
                 if stderr_line:
-                    current_error_line = self._log_output_line(current_error_line, stderr_line)
+                    current_error_line = self._log_output_line(current_error_line, stderr_line, log)
                     stderr += stderr_line
 
                 # Break if process has finished and we've read all output
@@ -378,7 +379,7 @@ class ChallengeTask:
                 docker_cmd += ["-v", f"{src.resolve().as_posix()}:{dst.as_posix()}"]
 
         docker_cmd += [container_image, "bash", "-c", shlex.join(cmd)]
-        return self._run_cmd(docker_cmd)
+        return self._run_cmd(docker_cmd, log=False)
 
     @read_write_decorator
     def build_image(
