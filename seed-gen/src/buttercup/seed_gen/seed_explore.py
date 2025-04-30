@@ -31,7 +31,6 @@ class SeedExploreState(BaseTaskState):
 class SeedExploreTask(SeedBaseTask):
     SEED_EXPLORE_SEED_COUNT = 8
     MAX_CONTEXT_ITERATIONS = 2
-    MAX_TOOL_CALLS = 4
 
     TARGET_FUNCTION_FUZZY_THRESHOLD = 50
 
@@ -59,7 +58,6 @@ class SeedExploreTask(SeedBaseTask):
             "target_function": state.target_function,
             "harness": state.harness,
             "retrieved_code": state.format_retrieved_context(),
-            "max_calls": self.MAX_TOOL_CALLS,
         }
         res = self._get_context_base(
             SEED_EXPLORE_GET_CONTEXT_SYSTEM_PROMPT,

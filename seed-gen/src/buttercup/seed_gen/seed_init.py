@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 class SeedInitTask(SeedBaseTask):
     SEED_INIT_SEED_COUNT = 8
     MAX_CONTEXT_ITERATIONS = 2
-    MAX_TOOL_CALLS = 4
 
     @override
     def _generate_seeds(self, state: BaseTaskState) -> Command:
@@ -50,7 +49,6 @@ class SeedInitTask(SeedBaseTask):
         prompt_vars = {
             "harness": state.harness,
             "retrieved_code": state.format_retrieved_context(),
-            "max_calls": self.MAX_TOOL_CALLS,
         }
         res = self._get_context_base(
             SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT,

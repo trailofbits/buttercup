@@ -27,7 +27,6 @@ class VulnDiscoveryDeltaState(VulnBaseState):
 class VulnDiscoveryDeltaTask(VulnBaseTask):
     TaskStateClass = VulnDiscoveryDeltaState
     VULN_DISCOVERY_MAX_POV_COUNT = 8
-    MAX_TOOL_CALLS = 4
     MAX_CONTEXT_ITERATIONS = 2
 
     @override
@@ -38,7 +37,6 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
             "diff": state.diff_content,
             "harness": state.harness,
             "retrieved_code": state.format_retrieved_context(),
-            "max_calls": self.MAX_TOOL_CALLS,
             "sarif_hints": state.format_sarif_hints(),
         }
         res = self._get_context_base(

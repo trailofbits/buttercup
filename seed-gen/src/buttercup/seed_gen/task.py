@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.utils.common import Function
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
 from buttercup.seed_gen.utils import extract_md
 
@@ -30,6 +30,46 @@ class TaskName(str, Enum):
     SEED_INIT = "seed-init"
     SEED_EXPLORE = "seed-explore"
     VULN_DISCOVERY = "vuln-discovery"
+
+
+class CodeSnippet(BaseModel):
+    """Code snippet"""
+
+    file_path: Path
+    code: str
+
+    def __str__(self) -> str:
+        return f"""<code_snippet>
+<file_path>{self.file_path}</file_path>
+<code>
+{self.code}
+</code>
+</code_snippet>
+"""
+
+
+class ToolCallResult(BaseModel):
+    """Result of calling a tool"""
+
+    call: str
+    results: list[CodeSnippet]
+
+    def __str__(self) -> str:
+        string = f"""<tool_result>
+<tool_call>Retrieved with tool call: {self.call}</tool_call>"""
+        for snippet in self.results:
+            string += f"\n{snippet}"
+        string += "\n</tool_result>"
+        return string
+
+
+class ToolCall(BaseModel):
+    tool_name: str
+    arguments: list[str]
+
+
+class BatchToolCalls(BaseModel):
+    calls: list[ToolCall]
 
 
 @dataclass
@@ -43,9 +83,11 @@ class Task:
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
+    MAX_TYPE_DEFS = 5
+
     def __post_init__(self) -> None:
         self.llm = self.get_default_llm()
-        self.tools = [Task.get_function_definition]
+        self.tools = [Task.get_function_definition, Task.get_type_definition, Task.batch_tool]
         self.llm_with_tools = self.llm.bind_tools(self.tools)
 
     @staticmethod
@@ -218,6 +260,22 @@ class Task:
         """Determine if we should continue the context retrieval iteration"""
         return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
 
+    def _do_get_type_defs(self, type_name: str) -> list[TypeDefinition]:
+        """Get type definitions"""
+        type_defs = self.codequery.get_types(type_name)
+
+        if len(type_defs) > self.MAX_TYPE_DEFS:
+            logger.info(
+                "Got %d type defs for %s, truncating to %d",
+                len(type_defs),
+                type_name,
+                self.MAX_TYPE_DEFS,
+            )
+            type_defs = type_defs[: self.MAX_TYPE_DEFS]
+        else:
+            logger.info("Got %d type defs for %s", len(type_defs), type_name)
+        return type_defs
+
     @tool
     def get_function_definition(
         function_name: str,
@@ -233,8 +291,17 @@ class Task:
         - If looking up a method in a Java program, only specify the method name.
           For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
         """
-        context_key = f"get_function_definition: {function_name}"
-        if context_key in state.retrieved_context:
+        return Task._get_function_definition(function_name, state, tool_call_id)
+
+    def _get_function_definition(
+        function_name: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Implementation of get_function_definition tool"""
+        logger.info("Tool call: get_function_definition for %s", function_name)
+        call = f'get_function_definition("{function_name}")'
+        if call in state.retrieved_context:
             return Command(
                 update={
                     "messages": [
@@ -247,6 +314,10 @@ class Task:
             )
         function_def = state.task.get_function_def(function_name)
         if function_def:
+            results = [
+                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body)
+            ]
+            call_result = ToolCallResult(call=call, results=results)
             return Command(
                 update={
                     "messages": [
@@ -257,7 +328,7 @@ class Task:
                     ],
                     "retrieved_context": {
                         **state.retrieved_context,
-                        context_key: function_def.bodies[0].body,
+                        call: call_result,
                     },
                 }
             )
@@ -272,13 +343,139 @@ class Task:
             }
         )
 
+    @tool
+    def get_type_definition(
+        type_name: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Retrieves the source code definition of a type from the codebase.
+
+        Args:
+            type_name: The name of the type to retrieve
+
+        Notes:
+            - It will return multiple type definitions if there are multiple matches.
+            - This tool cannot look up functions.
+        """
+        return Task._get_type_definition(type_name, state, tool_call_id)
+
+    def _get_type_definition(
+        type_name: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Implementation of get_type_definition tool"""
+        logger.info("Tool call: get_type_definition for %s", type_name)
+        call = f'get_type_definition("{type_name}")'
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Definition for {type_name} already retrieved",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                }
+            )
+        type_defs = state.task._do_get_type_defs(type_name)
+        if len(type_defs) > 0:
+            results = [
+                CodeSnippet(file_path=type_def.file_path, code=type_def.definition)
+                for type_def in type_defs
+            ]
+            call_result = ToolCallResult(call=call, results=results)
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Found {len(type_defs)} definitions for type {type_name}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                    "retrieved_context": {
+                        **state.retrieved_context,
+                        call: call_result,
+                    },
+                }
+            )
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        f"Could not find definition for type {type_name}",
+                        tool_call_id=tool_call_id,
+                    )
+                ]
+            }
+        )
+
+    @tool
+    def batch_tool(
+        tool_calls: BatchToolCalls,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Execute multiple tool calls in a single invocation.
+
+        Specify a list of tool calls to execute at once. This allows you to collect more context.
+
+        Args:
+            tool_calls: A list of tool calls to execute
+
+        Notes:
+            - The tool_calls argument must be a dictionary that exactly follows the tool_calls schema
+            - Be careful to format tool_calls correctly.
+        """  # noqa: E501
+        logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
+        max_calls_in_batch = 10
+        results = []
+        for call in tool_calls.calls[:max_calls_in_batch]:
+            if call.tool_name == "get_function_definition":
+                function_name = call.arguments[0]
+                result = Task._get_function_definition(function_name, state, tool_call_id)
+                results.append(result)
+            elif call.tool_name == "get_type_definition":
+                type_name = call.arguments[0]
+                result = Task._get_type_definition(type_name, state, tool_call_id)
+                results.append(result)
+            else:
+                logger.warning("Invalid tool call: %s", call.tool_name)
+
+        # Combine all results into a single Command
+        combined_message = ""
+        combined_context = {**state.retrieved_context}
+        for i, result in enumerate(results):
+            if isinstance(result, Command):
+                if "messages" in result.update:
+                    result_combined = "\n".join(
+                        message.content for message in result.update["messages"]
+                    )
+                    combined_message += f"Batched call {i}:\n{result_combined}\n"
+                if "retrieved_context" in result.update:
+                    combined_context.update(result.update["retrieved_context"])
+
+        # Anthropic API expects 1 tool message per tool call ID
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        combined_message,
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+                "retrieved_context": combined_context,
+            }
+        )
+
 
 class BaseTaskState(BaseModel):
     """Base state for all tasks."""
 
     harness: str = Field(description="Harness code")
     messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
-    retrieved_context: dict[str, str] = Field(
+    retrieved_context: dict[str, ToolCallResult] = Field(
         description="Context retrieved by tools, keyed by tool call", default_factory=dict
     )
     generated_functions: str = Field(description="The generated seed functions", default="")
@@ -289,6 +486,6 @@ class BaseTaskState(BaseModel):
         """Format retrieved context for prompt"""
         context = ""
         if self.retrieved_context:
-            for key, content in self.retrieved_context.items():
-                context += f"\n--- Retrieved with {key} ---\n{content}\n"
+            for call_result in self.retrieved_context.values():
+                context += f"{call_result}\n"
         return context

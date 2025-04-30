@@ -66,10 +66,12 @@ I am trying to generate initial test inputs for a harness. I will provide:
 
 Your goal is to identify and retrieve additional code that will help create valid test inputs for the harness.
 
-When using the tools:
+You must make a tool call to get additional context.
+
+When making a tool call:
 1. Focus on code that processes or validates inputs
 2. Look for code that defines the expected input format or structure
-3. Make up to {max_calls} tool calls to gather context
+3. You can use the batch tool to make several tool calls in one call.
 
 The harness is:
 ```
@@ -82,7 +84,7 @@ Additional retrieved code:
 ```
 
 Remember:
-- Make up to {max_calls} tool calls to gather context. These calls are in addition to the ones already made.
+- You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - My goal is to create valid test inputs for the harness
 - Focus on code that handles input processing or validation
 - Avoid retrieving code that is already provided in full (in the harness or the retrieved code)
@@ -290,10 +292,12 @@ I am trying to generate test inputs that reach a target function from a harness.
 
 Your goal is to identify and retrieve additional code that will help create test inputs that reach the target function.
 
-When using the tools:
+You must make a tool call to get additional context.
+
+When making a tool call:
 1. Focus on code that is part of the execution path from the harness to the target function
 2. Look for code that handles input processing or validation
-3. Make up to {max_calls} tool calls to gather context
+3. You can use the batch tool to make several tool calls in one call.
 
 The target function is:
 ```
@@ -311,7 +315,7 @@ Additional retrieved code:
 ```
 
 Remember:
-- Make up to {max_calls} tool calls to gather context. These calls are in addition to the ones already made.
+- You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - My goal is to create test inputs that reach the target function
 - Focus on code that is part of the execution path from harness to target
 - Avoid retrieving code that is already provided in full (in the target function, the harness, or the retrieved code)
@@ -331,6 +335,8 @@ You are analyzing a diff that introduces changes to the codebase. You need to un
 You will be provided a test harness, a diff, and previously retrieved context about the codebase.
 
 You may also be provided SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+
+You must make a tool call to get additional context.
 
 Prioritize code that:
 1) Helps you understand what vulnerability is introduced
@@ -358,7 +364,7 @@ Retrieved code from the program:
 ```
 
 Remember:
-- You can make up to {max_calls} more tool calls to gather additional context.
+- You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - You can select functions that are in the diff but not included in full. These may be especially helpful.
 - My goal is to understand the vulnerability and write test cases that reach it
 - Avoid selecting code that is already provided in full (in the diff, in the harness, or in the retrieved code)
@@ -379,6 +385,8 @@ You need to reason about vulnerabilities that could be reached by the test harne
 You will be provided a test harness and previously retrieved context about the codebase.
 
 You may also be provided SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+
+You must make a tool call to get additional context.
 
 Prioritize code that:
 1) Helps you understand what vulnerability(s) could exist
@@ -402,7 +410,7 @@ Retrieved code from the program:
 ```
 
 Remember:
-- You can make up to {max_calls} more tool calls to gather additional context.
+- You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - My goal is to understand the vulnerability and write test cases that reach it
 - Avoid selecting code that is already provided in full (in the harness or in the retrieved code)
 
