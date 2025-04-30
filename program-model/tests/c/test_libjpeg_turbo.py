@@ -190,18 +190,12 @@ def test_libjpeg_get_callers(
                     start_line=66,
                 ),
             ],
-            None,  #
+            4,  # num callees after deduplication
         ),
     ],
 )
 @pytest.mark.integration
-# NOTE(boyan): right now we use num_callees = None because get_callees fails in this particular example.
-# The problem in this test is that there are 3 start_iMCU_row functions
-# defined in the code base of libjpeg-turbo and they are all returned
-# by get_callees.
-# This could be resolved with some import graphs tools that allow us
-# to only look for callees in files that are imported.
-def test_libjpeg_get_callees(
+def test_get_callees(
     libjpeg_oss_fuzz_task: ChallengeTask,
     function_name,
     file_path,

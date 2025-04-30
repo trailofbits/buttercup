@@ -8,11 +8,15 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from itertools import groupby
-from typing import ClassVar
+from typing import ClassVar, Optional
 import rapidfuzz
 
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.program_model.api.tree_sitter import CodeTS
+from buttercup.program_model.api.fuzzy_imports_resolver import (
+    FuzzyJavaImportsResolver,
+    FuzzyCImportsResolver,
+)
 from buttercup.program_model.utils.common import (
     Function,
     TypeDefinition,
@@ -77,6 +81,7 @@ class CodeQuery:
 
     challenge: ChallengeTask
     ts: CodeTS = field(init=False)
+    imports_resolver: Optional[FuzzyCImportsResolver] = field(init=False)
 
     CSCOPE_FILES: ClassVar[str] = "cscope.files"
     CSCOPE_OUT: ClassVar[str] = "cscope.out"
@@ -86,8 +91,15 @@ class CodeQuery:
     def __post_init__(self) -> None:
         """Initialize the CodeQuery object."""
         self._verify_requirements()
-
         self.ts = CodeTS(self.challenge)
+        language = self._get_project_language()
+        if language == "c":
+            self.imports_resolver = FuzzyCImportsResolver(self._get_container_src_dir())
+        elif language in ["java", "jvm"]:
+            self.imports_resolver = FuzzyJavaImportsResolver(self.challenge)
+        else:
+            self.imports_resolver = None
+
         if self._is_already_indexed():
             logger.info("CodeQuery DB already exists in %s.", self.challenge.task_dir)
             return
@@ -115,6 +127,12 @@ class CodeQuery:
                 ", ".join(missing_commands),
             )
             raise RuntimeError("No code query package")
+
+    def _get_project_language(self) -> str:
+        project_yaml = ProjectYaml(
+            self.challenge, self.challenge.task_meta.project_name
+        )
+        return project_yaml.language
 
     def _is_already_indexed(self) -> bool:
         """Check if the codequery database already exists."""
@@ -452,6 +470,14 @@ class CodeQuery:
 
         return self._rebase_functions_file_paths(res_sorted)
 
+    def _filter_callees(
+        self, caller_function: Function, callees: list[Function]
+    ) -> list[Function]:
+        # If no resolver available, don't filter anything
+        if not self.imports_resolver:
+            return callees
+        return self.imports_resolver.filter_callees(caller_function, callees)
+
     def get_callers(self, function: Function | str) -> list[Function]:
         """Get the callers of a function. File paths are based on the challenge
         task container structure (e.g. /src)."""
@@ -510,9 +536,14 @@ class CodeQuery:
                     unique_functions.append(f)
             callees.update(functions)
 
+        # TODO(boyan): if function is a str we should try to find the actual function
+        # at the beginning of this function so we can use to do the filtering. If not
+        # then we need the function file
+        if isinstance(function, Function):
+            callees = self._filter_callees(function, list(callees))
         logger.info("Found %d callees for %s", len(callees), function_name)
-
-        return self._rebase_functions_file_paths(list(callees))
+        res = self._rebase_functions_file_paths(list(callees))
+        return res
 
     def get_types(
         self,

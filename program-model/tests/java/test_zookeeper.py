@@ -208,8 +208,13 @@ def test_get_type_definitions(
                     file_path="/src/zookeeper/zookeeper-server/src/test/java/org/apache/zookeeper/server/util/MessageTrackerTest.java",
                     line_number=105,
                 ),
+                # This one is not present in the source but created in the ossfuzz container source dir
+                TestTypeUsageInfo(
+                    file_path="/src/MessageTrackerPeekReceivedFuzzer.java",
+                    line_number=29,
+                ),
             ],
-            5,
+            6,
         ),
     ],
 )

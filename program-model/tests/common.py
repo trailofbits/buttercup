@@ -12,7 +12,9 @@ from buttercup.program_model.utils.common import (
 
 
 def filter_project_context(
-    project_name, results: list[Function | TypeDefinition | TypeUsageInfo]
+    project_name,
+    results: list[Function | TypeDefinition | TypeUsageInfo],
+    language: str,
 ):
     """Some challenge tasks result in multiple instances of the target project to
     be built in the /src/ directory. This in turn causes Codequery to return multiple
@@ -22,8 +24,11 @@ def filter_project_context(
     This function filters out found functions and types using the target project name.
     It removes all matches that don't directly come from the target project. To identify these,
     it checks whether matches belong to a file that as the proper project_name in their path."""
-    filtered = [x for x in results if f"/{project_name}/" in str(x.file_path)]
-    return filtered
+    # Only do this for C
+    if language == "c":
+        return [x for x in results if f"/{project_name}/" in str(x.file_path)]
+    else:
+        return results
 
 
 @dataclass(frozen=True)
@@ -80,7 +85,9 @@ def common_test_get_callers(
     )[0]
 
     callers = codequery.get_callers(function)
-    callers = filter_project_context(fuzz_task.task_meta.project_name, callers)
+    callers = filter_project_context(
+        fuzz_task.task_meta.project_name, callers, codequery._get_project_language()
+    )
     for expected_caller in expected_callers:
         caller_info = [
             c
@@ -135,7 +142,9 @@ def common_test_get_callees(
     )[0]
 
     callees = codequery.get_callees(function)
-    callees = filter_project_context(fuzz_task.task_meta.project_name, callees)
+    callees = filter_project_context(
+        fuzz_task.task_meta.project_name, callees, codequery._get_project_language()
+    )
     for expected_callee in expected_callees:
         callee_info = [
             c
@@ -186,7 +195,9 @@ def common_test_get_type_definitions(
         fuzzy=fuzzy,
     )
     type_definitions = filter_project_context(
-        fuzz_task.task_meta.project_name, type_definitions
+        fuzz_task.task_meta.project_name,
+        type_definitions,
+        codequery._get_project_language(),
     )
     assert len(type_definitions) == 1
     assert type_definitions[0].name == type_definition_info.name
@@ -222,7 +233,9 @@ def common_test_get_type_usages(
         fuzzy=fuzzy,
     )[0]
     call_sites = codequery.get_type_calls(type_definition)
-    call_sites = filter_project_context(fuzz_task.task_meta.project_name, call_sites)
+    call_sites = filter_project_context(
+        fuzz_task.focus, call_sites, codequery._get_project_language()
+    )
     if num_type_usages:
         assert len(call_sites) == num_type_usages
 

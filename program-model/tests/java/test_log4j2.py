@@ -89,17 +89,24 @@ def test_get_callers(
 @pytest.mark.parametrize(
     "function_name,file_path,line_number,fuzzy,expected_callees,num_callees",
     [
+        # (
+        #     "getLogger",
+        #     "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
+        #     565,
+        #     False,
+        #     [],
+        #     13,
+        # ),
         (
             "getLogger",
-            "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
-            565,
+            "/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java",
+            126,
             False,
             [],
-            13,
-        ),
+            21,
+        )
     ],
 )
-@pytest.mark.skip("Doesn't find getLogger() in LoggerContext.java")
 @pytest.mark.integration
 def test_log4j2_get_callees(
     log4j2_oss_fuzz_task: ChallengeTask,
