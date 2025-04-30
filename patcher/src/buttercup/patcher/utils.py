@@ -1,6 +1,7 @@
 """Various utility functions for the patching engine."""
 
 import re
+import random
 from typing import Any, cast
 
 from langchain_core.exceptions import OutputParserException
@@ -116,3 +117,8 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
         return cast(Path, res[0].relative_to(challenge.get_source_path()))
 
     return None
+
+
+def pick_temperature() -> float:
+    """Pick a temperature for the LLM."""
+    return random.choices([0.1, 0.2, 0.3, 0.4, 0.5], weights=[0.4, 0.2, 0.15, 0.15, 0.1])[0]

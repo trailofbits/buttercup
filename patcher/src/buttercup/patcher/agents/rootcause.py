@@ -9,7 +9,7 @@ from langchain_core.prompts import (
     ChatPromptTemplate,
 )
 from langchain_core.messages import BaseMessage
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
@@ -17,8 +17,8 @@ from buttercup.patcher.agents.common import (
     CONTEXT_CODE_SNIPPET_TMPL,
     ContextCodeSnippet,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.patcher.utils import decode_bytes, pick_temperature
 from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
@@ -132,11 +132,67 @@ Instructions:
 Maintain a highly technical approach throughout your analysis, focusing solely on the vulnerability introduced by the diff and avoiding any generic advice or recommendations for fixing the code.
 """
 
+INITIAL_ROOT_CAUSE_USER_MSG = """Your goal is to determine the required code snippets to perform a thorough root cause analysis of the vulnerability.
+
+Here is the information you have so far:
+
+1. Diff introducing the vulnerability (if available):
+<diff>
+{DIFF}
+</diff>
+
+2. Project Name:
+<project_name>
+{PROJECT_NAME}
+</project_name>
+
+3. Sanitizer used:
+<sanitizer>
+{SANITIZER}
+</sanitizer>
+
+4. Sanitizer output:
+<sanitizer_output>
+{SANITIZER_OUTPUT}
+</sanitizer_output>
+
+5. Code snippets from the project:
+<code_snippets>
+{CODE_SNIPPETS}
+</code_snippets>{OLD_ROOT_CAUSE}
+
+Instructions:
+
+1. Review all the provided information carefully.
+
+2. Conduct a thorough analysis of the vulnerability. Focus solely on the issue reported in the sanitizer output (and introduced by the diff if available).
+
+3. Determine which additional code snippets need to be requested:
+   Wrap your code request in <code_request> tags. Be specific about what code you need and why. If there is a previous root cause analysis, try to explore more parts of the code to better understand the vulnerability. Request example:
+    <code_requests>
+    <code_request>
+    Full implementation of the function 'validate_input()' from the file 'input_validation.c', as it's referenced in the diff but not fully visible.
+    </code_request>
+    <code_request>
+    ...
+    </code_request>
+    </code_requests>
+"""
+
+
 ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", ROOT_CAUSE_SYSTEM_MSG),
         ("user", ROOT_CAUSE_USER_MSG),
         ("ai", "<vulnerability_analysis_process>"),
+    ]
+)
+
+INITIAL_ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", ROOT_CAUSE_SYSTEM_MSG),
+        ("user", INITIAL_ROOT_CAUSE_USER_MSG),
+        ("ai", "<code_requests>"),
     ]
 )
 
@@ -183,13 +239,14 @@ class RootCauseAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
+        default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms = [
-            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
+            create_default_llm_with_temperature(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
         ]
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
         self.root_cause_chain = ROOT_CAUSE_PROMPT | self.llm | StrOutputParser()
+        self.initial_root_cause_chain = INITIAL_ROOT_CAUSE_PROMPT | self.llm | StrOutputParser()
         self.build_failure_analysis_chain = BUILD_FAILURE_PROMPT | self.llm | StrOutputParser()
 
     def _get_relevant_code_snippets_msgs(
@@ -216,9 +273,10 @@ class RootCauseAgent(PatcherAgentBase):
         logger.info("Analyzing the vulnerability in Challenge Task %s", self.challenge.name)
 
         diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
+        root_cause_chain = self.root_cause_chain if state.relevant_code_snippets else self.initial_root_cause_chain
         root_cause = self.chain_call(
             lambda x, y: x + y,
-            self.root_cause_chain,
+            root_cause_chain,
             {
                 "DIFF": diff_content,
                 "PROJECT_NAME": self.challenge.project_name,
@@ -228,6 +286,11 @@ class RootCauseAgent(PatcherAgentBase):
                 "OLD_ROOT_CAUSE": OLD_ROOT_CAUSE_TMPL.format(root_cause=state.root_cause) if state.root_cause else "",
             },
             default="",  # type: ignore[call-arg]
+            config=RunnableConfig(
+                configurable={
+                    "llm_temperature": pick_temperature(),
+                },
+            ),
         )
         if not root_cause:
             logger.error("Could not find the root cause of the vulnerability")
@@ -267,6 +330,11 @@ class RootCauseAgent(PatcherAgentBase):
                 "build_stderr": decode_bytes(state.build_stderr),
             },
             default="",  # type: ignore[call-arg]
+            config=RunnableConfig(
+                configurable={
+                    "llm_temperature": pick_temperature(),
+                },
+            ),
         )
 
         return Command(

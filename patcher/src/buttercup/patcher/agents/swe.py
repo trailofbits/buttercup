@@ -19,8 +19,8 @@ from langchain_core.prompts import (
 )
 from pydantic import BaseModel, Field
 from langchain_core.runnables import (
-    ConfigurableField,
     Runnable,
+    RunnableConfig,
 )
 from buttercup.patcher.agents.common import (
     ContextRetrieverState,
@@ -30,8 +30,8 @@ from buttercup.patcher.agents.common import (
     CodeSnippetKey,
     CodeSnippetRequest,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.patcher.utils import decode_bytes, PatchOutput, find_file_in_source_dir
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.patcher.utils import decode_bytes, PatchOutput, find_file_in_source_dir, pick_temperature
 
 logger = logging.getLogger(__name__)
 
@@ -272,26 +272,12 @@ class SWEAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value).configurable_fields(
-            temperature=ConfigurableField(
-                id="llm_temperature",
-                name="LLM temperature",
-                description="The temperature for the LLM model",
-            ),
-        )
+        default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms: list[Runnable] = []
         for fb_model in [
             ButtercupLLM.CLAUDE_3_5_SONNET,
         ]:
-            fallback_llms.append(
-                create_default_llm(model_name=fb_model.value).configurable_fields(
-                    temperature=ConfigurableField(
-                        id="llm_temperature",
-                        name="LLM temperature",
-                        description="The temperature for the LLM model",
-                    ),
-                )
-            )
+            fallback_llms.append(create_default_llm_with_temperature(model_name=fb_model.value))
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
@@ -550,6 +536,11 @@ class SWEAgent(PatcherAgentBase):
                 "TESTS_FAILED_PROMPT": tests_failed_prompt,
             },
             default="",  # type: ignore[call-arg]
+            config=RunnableConfig(
+                configurable={
+                    "llm_temperature": pick_temperature(),
+                },
+            ),
         )
         goto, update_state = self.get_code_snippet_requests(
             patch_str,

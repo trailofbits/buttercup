@@ -7,6 +7,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.runnables import ConfigurableField
 
 import logging
 
@@ -92,6 +93,23 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
         timeout=420.0,
         max_retries=3,
         **kwargs,
+    )
+
+
+def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
+    """Create an LLM object with the default configuration and temperature."""
+    return create_llm(
+        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4O.value),
+        temperature=kwargs.pop("temperature", 0.1),
+        timeout=420.0,
+        max_retries=3,
+        **kwargs,
+    ).configurable_fields(
+        temperature=ConfigurableField(
+            id="llm_temperature",
+            name="LLM temperature",
+            description="The temperature for the LLM model",
+        ),
     )
 
 

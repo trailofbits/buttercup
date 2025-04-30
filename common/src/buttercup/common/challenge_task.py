@@ -107,6 +107,7 @@ class ChallengeTask:
     WORKDIR_REGEX = re.compile(r"\s*WORKDIR\s*([^\s]+)")
 
     _helper_path: Path = field(init=False)
+    _image_built: bool = field(default=False)
 
     def __post_init__(self) -> None:
         self.read_only_task_dir = self._local_ro_dir(self.read_only_task_dir)
@@ -360,13 +361,17 @@ class ChallengeTask:
         cmd: list[str],
         mount_dirs: dict[Path, Path] | None = None,
         container_image: str | None = None,
+        always_build_image: bool = False,
     ) -> CommandResult:
         """Execute a command inside a docker container. If not specified, the
         docker container is the oss-fuzz one."""
         if container_image is None:
-            res = self.build_image(cache=True)
-            if not res.success:
-                raise ChallengeTaskError(f"Failed to build image: {res.error}")
+            if not self._image_built or always_build_image:
+                res = self.build_image(cache=True)
+                if not res.success:
+                    raise ChallengeTaskError(f"Failed to build image: {res.error}")
+
+                self._image_built = True
 
             container_image = self.container_image()
             if mount_dirs is None:
