@@ -23,6 +23,9 @@ def setup_package_logger(logger_name: str, log_level: str = "info") -> logging.L
             logging.FileHandler(os.path.join(tempfile.gettempdir(), f"{logger_name}.log")),
         ]
         if persistent_log_dir:
+            if not os.path.exists(persistent_log_dir):
+                os.makedirs(persistent_log_dir, exist_ok=True)
+
             handlers.append(logging.FileHandler(os.path.join(persistent_log_dir, f"{logger_name}.log")))
 
         # Configure root logger
