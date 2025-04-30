@@ -113,6 +113,9 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
             return res
 
     # # Strategy 3: Search recursively in source directory
+    if file_path.is_absolute():
+        file_path = file_path.relative_to(Path("/"))
+
     res = list(challenge.get_source_path().rglob(file_path.as_posix()))
     if res:
         return res[0].relative_to(challenge.get_source_path())

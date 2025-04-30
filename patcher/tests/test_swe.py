@@ -1,6 +1,309 @@
 """Tests for the Software Engineer agent's code snippet parsing functionality."""
 
-from buttercup.patcher.agents.swe import CodeSnippetChange, CodeSnippetChanges, CodeSnippetKey
+import pytest
+from pathlib import Path
+import shutil
+import subprocess
+from unittest.mock import MagicMock, patch
+import os
+
+from buttercup.patcher.agents.common import ContextCodeSnippet
+from buttercup.patcher.patcher import PatchInput
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.task_meta import TaskMeta
+from buttercup.patcher.agents.swe import (
+    CodeSnippetChange,
+    CodeSnippetChanges,
+    CodeSnippetKey,
+    CreateUPatchInput,
+    PatcherAgentState,
+    SWEAgent,
+    PatchOutput,
+)
+
+PNGRUTIL_C_CODE = """
+      return;
+   }
+
+   (void)png_colorspace_set_sRGB(png_ptr, &png_ptr->colorspace, intent);
+   png_colorspace_sync(png_ptr, info_ptr);
+}
+#endif /* READ_sRGB */
+
+#ifdef PNG_READ_iCCP_SUPPORTED
+void /* PRIVATE */
+png_handle_iCCP(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
+/* Note: this does not properly handle profiles that are > 64K under DOS */
+{
+   png_const_charp errmsg = NULL; /* error message output, or no error */
+   int finished = 0; /* crc checked */
+
+   png_debug(1, "in png_handle_iCCP");
+
+   if ((png_ptr->mode & PNG_HAVE_IHDR) == 0)
+      png_chunk_error(png_ptr, "missing IHDR");
+
+   else if ((png_ptr->mode & (PNG_HAVE_IDAT|PNG_HAVE_PLTE)) != 0)
+   {
+      png_crc_finish(png_ptr, length);
+      png_chunk_benign_error(png_ptr, "out of place");
+      return;
+   }
+
+   /* Consistent with all the above colorspace handling an obviously *invalid*
+    * chunk is just ignored, so does not invalidate the color space.  An
+    * alternative is to set the 'invalid' flags at the start of this routine
+    * and only clear them in they were not set before and all the tests pass.
+    */
+
+   /* The keyword must be at least one character and there is a
+    * terminator (0) byte and the compression method byte, and the
+    * 'zlib' datastream is at least 11 bytes.
+    */
+   if (length < 14)
+   {
+      png_crc_finish(png_ptr, length);
+      png_chunk_benign_error(png_ptr, "too short");
+      return;
+   }
+
+   /* If a colorspace error has already been output skip this chunk */
+   if ((png_ptr->colorspace.flags & PNG_COLORSPACE_INVALID) != 0)
+   {
+      png_crc_finish(png_ptr, length);
+      return;
+   }
+
+   /* Only one sRGB or iCCP chunk is allowed, use the HAVE_INTENT flag to detect
+    * this.
+    */
+   if ((png_ptr->colorspace.flags & PNG_COLORSPACE_HAVE_INTENT) == 0)
+   {
+      uInt read_length, keyword_length;
+      uInt max_keyword_wbytes = 41;
+      wpng_byte keyword[max_keyword_wbytes];
+
+      /* Find the keyword; the keyword plus separator and compression method
+       * bytes can be at most 41 wide characters long.
+       */
+      read_length = sizeof(keyword); /* maximum */
+      if (read_length > length)
+         read_length = (uInt)length;
+
+      png_crc_read(png_ptr, (png_bytep)keyword, read_length);
+      length -= read_length;
+
+      /* The minimum 'zlib' stream is assumed to be just the 2 byte header,
+       * 5 bytes minimum 'deflate' stream, and the 4 byte checksum.
+       */
+      if (length < 11)
+      {
+         png_crc_finish(png_ptr, length);
+         png_chunk_benign_error(png_ptr, "too short");
+         return;
+      }
+
+      keyword_length = 0;
+      while (keyword_length < (read_length-1) && keyword_length < read_length &&
+         keyword[keyword_length] != 0)
+         ++keyword_length;
+
+      /* TODO: make the keyword checking common */
+      if (keyword_length >= 1 && keyword_length <= (read_length-2))
+      {
+         /* We only understand '0' compression - deflate - so if we get a
+          * different value we can't safely decode the chunk.
+          */
+         if (keyword_length+1 < read_length &&
+            keyword[keyword_length+1] == PNG_COMPRESSION_TYPE_BASE)
+         {
+            read_length -= keyword_length+2;
+
+            if (png_inflate_claim(png_ptr, png_iCCP) == Z_OK)
+            {
+               Byte profile_header[132]={0};
+               Byte local_buffer[PNG_INFLATE_BUF_SIZE];
+               png_alloc_size_t size = (sizeof profile_header);
+
+               png_ptr->zstream.next_in = (Bytef*)keyword + (keyword_length+2);
+               png_ptr->zstream.avail_in = read_length;
+               (void)png_inflate_read(png_ptr, local_buffer,
+                   (sizeof local_buffer), &length, profile_header, &size,
+                   0/*finish: don't, because the output is too small*/);
+
+               if (size == 0)
+               {
+                  /* We have the ICC profile header; do the basic header checks.
+                   */
+                  png_uint_32 profile_length = png_get_uint_32(profile_header);
+
+                  if (png_icc_check_length(png_ptr, &png_ptr->colorspace,
+                      (char*)keyword, profile_length) != 0)
+                  {
+                     /* The length is apparently ok, so we can check the 132
+                      * byte header.
+                      */
+                     if (png_icc_check_header(png_ptr, &png_ptr->colorspace,
+                         (char*)keyword, profile_length, profile_header,
+                         png_ptr->color_type) != 0)
+                     {
+                        /* Now read the tag table; a variable size buffer is
+                         * needed at this point, allocate one for the whole
+                         * profile.  The header check has already validated
+                         * that none of this stuff will overflow.
+                         */
+                        png_uint_32 tag_count =
+                           png_get_uint_32(profile_header + 128);
+                        png_bytep profile = png_read_buffer(png_ptr,
+                            profile_length, 2/*silent*/);
+
+                        if (profile != NULL)
+                        {
+                           memcpy(profile, profile_header,
+                               (sizeof profile_header));
+
+                           size = 12 * tag_count;
+
+                           (void)png_inflate_read(png_ptr, local_buffer,
+                               (sizeof local_buffer), &length,
+                               profile + (sizeof profile_header), &size, 0);
+"""
+
+
+@pytest.fixture
+def mock_llm():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_chain(mock_llm: MagicMock):
+    res = MagicMock()
+    res.with_fallbacks.return_value = mock_llm
+    res.with_fallbacks.return_value.bind_tools.return_value = mock_llm
+    return res
+
+
+original_subprocess_run = subprocess.run
+
+
+def mock_docker_run(challenge_task: ChallengeTask):
+    def wrapped(args, *rest, **kwargs):
+        if args[0] == "docker":
+            # Mock docker cp command by copying source path to container src dir
+            if args[1] == "cp":
+                container_dst_dir = Path(args[3]) / "src" / challenge_task.task_meta.project_name
+                container_dst_dir.mkdir(parents=True, exist_ok=True)
+                # Copy source files to container src dir
+                src_path = challenge_task.get_source_path()
+                shutil.copytree(src_path, container_dst_dir, dirs_exist_ok=True)
+            elif args[1] == "create":
+                pass
+            elif args[1] == "rm":
+                pass
+
+            return subprocess.CompletedProcess(args, returncode=0)
+        return original_subprocess_run(args, *rest, **kwargs)
+
+    return wrapped
+
+
+@pytest.fixture(autouse=True)
+def mock_llm_functions(mock_chain: MagicMock):
+    """Mock LLM creation functions and environment variables."""
+    with (
+        patch.dict(os.environ, {"BUTTERCUP_LITELLM_HOSTNAME": "http://test-host", "BUTTERCUP_LITELLM_KEY": "test-key"}),
+        patch("buttercup.common.llm.create_default_llm", return_value=mock_chain),
+        patch("buttercup.common.llm.create_llm", return_value=mock_chain),
+    ):
+        yield
+
+
+@pytest.fixture
+def task_dir(tmp_path: Path) -> Path:
+    """Create a mock challenge task directory structure."""
+    # Create the main directories
+    tmp_path = tmp_path / "test-challenge-task"
+    oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
+    source = tmp_path / "src" / "libpng"
+    diffs = tmp_path / "diff" / "my-diff"
+
+    oss_fuzz.mkdir(parents=True, exist_ok=True)
+    source.mkdir(parents=True, exist_ok=True)
+    diffs.mkdir(parents=True, exist_ok=True)
+
+    # Create project.yaml file
+    project_yaml_path = oss_fuzz / "projects" / "libpng" / "project.yaml"
+    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.write_text("""name: libpng
+language: c
+""")
+
+    # Create some mock patch files
+    (diffs / "patch1.diff").write_text("mock patch 1")
+    (diffs / "patch2.diff").write_text("mock patch 2")
+
+    # Create a mock helper.py file
+    helper_path = oss_fuzz / "infra/helper.py"
+    helper_path.parent.mkdir(parents=True, exist_ok=True)
+    helper_path.write_text("import sys;\nsys.exit(0)\n")
+
+    # Create a mock test.c file
+    (source / "test.c").write_text("int foo() { return 0; }\nint main() { int a = foo(); return a; }")
+    (source / "test.h").write_text("struct ebitmap_t { int a; };")
+    (source / "pngrutil.c").write_text(PNGRUTIL_C_CODE)
+
+    TaskMeta(
+        project_name="libpng",
+        focus="libpng",
+        task_id="task-id-challenge-task",
+        metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
+
+    return tmp_path
+
+
+@pytest.fixture
+def mock_challenge(task_dir: Path) -> ChallengeTask:
+    """Create a mock challenge task for testing."""
+    return ChallengeTask(
+        read_only_task_dir=task_dir,
+        local_task_dir=task_dir,
+    )
+
+
+@pytest.fixture
+def swe_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> SWEAgent:
+    patch_input = PatchInput(
+        challenge_task_dir=mock_challenge.task_dir,
+        task_id=mock_challenge.task_meta.task_id,
+        submission_index="submission-index-challenge-task",
+        harness_name="my-harness",
+        pov=tmp_path / "pov.c",
+        pov_token="pov-token-challenge-task",
+        pov_variants_path=tmp_path / "pov-variants",
+        sanitizer_output="sanitizer-output-challenge-task",
+        engine="libfuzzer",
+        sanitizer="address",
+    )
+    return SWEAgent(
+        challenge=mock_challenge,
+        input=patch_input,
+        chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
+    )
+
+
+@pytest.fixture
+def patcher_agent_state(swe_agent: SWEAgent) -> PatcherAgentState:
+    """Create a PatcherAgentState instance."""
+    code_snippet = ContextCodeSnippet(
+        key=CodeSnippetKey(file_path="/src/libpng/pngrutil.c", identifier="png_handle_iCCP"),
+        code=PNGRUTIL_C_CODE,
+    )
+    return PatcherAgentState(
+        context=swe_agent.input,
+        messages=[],
+        relevant_code_snippets=[code_snippet],
+    )
 
 
 def test_code_snippet_change_parse_single_pair():
@@ -269,3 +572,102 @@ def test_code_snippet_change_is_valid():
         code=None,
     )
     assert not invalid_change4.is_valid()
+
+
+def test_code_snippet_changes_parse_real():
+    msg = """<explanation>
+The changes I intend to make involve adjusting the logic to ensure that the `read_length` does not exceed the buffer size of 41 wide characters. This will involve modifying the calculation of `read_length` to be the minimum of the buffer size and the remaining length of the data. Additionally, I will ensure that the while loop condition properly checks the bounds to prevent reading beyond the buffer's allocated size. These changes will fix the vulnerability by preventing the buffer overflow condition that was introduced by the reduction in buffer size.
+</explanation>
+
+<patch>
+<identifier>png_handle_iCCP</identifier>
+<file_path>/src/libpng/pngrutil.c</file_path>
+<old_code>
+      read_length = sizeof(keyword); /* maximum */
+      if (read_length > length)
+         read_length = (uInt)length;
+
+      png_crc_read(png_ptr, (png_bytep)keyword, read_length);
+      length -= read_length;
+
+      keyword_length = 0;
+      while (keyword_length < (read_length-1) && keyword_length < read_length &&
+         keyword[keyword_length] != 0)
+         ++keyword_length;
+</old_code>
+<new_code>
+      read_length = max_keyword_wbytes - 1; /* ensure space for null terminator */
+      if (read_length > length)
+         read_length = (uInt)length;
+
+      png_crc_read(png_ptr, (png_bytep)keyword, read_length);
+      length -= read_length;
+
+      keyword_length = 0;
+      while (keyword_length < read_length && keyword[keyword_length] != 0)
+         ++keyword_length;
+</new_code>
+</patch>
+    """
+
+    result = CodeSnippetChanges.parse(msg)
+
+    assert result.items is not None
+    assert len(result.items) == 1
+    assert result.items[0].key.identifier == "png_handle_iCCP"
+    assert result.items[0].key.file_path == "/src/libpng/pngrutil.c"
+    assert result.items[0].old_code is not None
+    assert result.items[0].code is not None
+    assert "read_length = sizeof(keyword); /* maximum */" in result.items[0].old_code
+    assert "read_length = max_keyword_wbytes - 1; /* ensure space for null terminator */" in result.items[0].code
+    assert (
+        "      while (keyword_length < (read_length-1) && keyword_length < read_length &&" in result.items[0].old_code
+    )
+    assert "      while (keyword_length < read_length && keyword[keyword_length] != 0)" in result.items[0].code
+
+
+def test_create_upatch_no_oldcode(swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState):
+    old_code = """
+      read_length = sizeof(keyword); /* maximum */
+      if (read_length > length)
+         read_length = (uInt)length;
+
+      png_crc_read(png_ptr, (png_bytep)keyword, read_length);
+      length -= read_length;
+
+      keyword_length = 0;
+      while (keyword_length < (read_length-1) && keyword_length < read_length &&
+         keyword[keyword_length] != 0)
+         ++keyword_length;
+"""
+    new_code = """
+      read_length = max_keyword_wbytes - 1; /* ensure space for null terminator */
+      if (read_length > length)
+         read_length = (uInt)length;
+
+      png_crc_read(png_ptr, (png_bytep)keyword, read_length);
+      length -= read_length;
+
+      keyword_length = 0;
+      while (keyword_length < read_length && keyword[keyword_length] != 0)
+         ++keyword_length;
+"""
+    changes = CodeSnippetChanges(
+        items=[
+            CodeSnippetChange(
+                key=CodeSnippetKey(file_path="/src/libpng/pngrutil.c", identifier="png_handle_iCCP"),
+                old_code=old_code,
+                code=new_code,
+            ),
+        ],
+    )
+    upatch_input = CreateUPatchInput(
+        code_snippets=changes,
+        state=patcher_agent_state,
+    )
+    patch = swe_agent.create_upatch(upatch_input)
+    assert patch is not None
+    assert isinstance(patch, PatchOutput)
+    assert not patch.patch, "No patch should be generated if old code cannot be found in the original file"
+    assert patch.task_id == "task-id-challenge-task"
+    assert patch.submission_index == "submission-index-challenge-task"

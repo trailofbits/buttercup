@@ -322,7 +322,7 @@ class SWEAgent(PatcherAgentBase):
         if not orig_code_snippets:
             return None
 
-        # First try exact identifier match with fuzzy file path
+        # Try exact identifier match with fuzzy file path
         matches = [key for key in orig_code_snippets.keys() if key.identifier == target_key.identifier]
         if matches:
             # Find best file path match among matches
@@ -331,10 +331,9 @@ class SWEAgent(PatcherAgentBase):
             if match_ratio > self.MATCH_RATIO_THRESHOLD:
                 return best_match
 
-        # If no good match found with identifier, try best overall match
-        best_match = max(orig_code_snippets.keys(), key=sequence_ratio)
-        match_ratio = sequence_ratio(best_match)
-        return best_match if match_ratio > self.MATCH_RATIO_THRESHOLD else None
+        # If no good match found with identifier, just return so, we'll ask for
+        # the code snippet
+        return None
 
     def _get_code_snippet_key(
         self, code_snippet: CodeSnippetChange, orig_code_snippets: dict[CodeSnippetKey, str]
@@ -398,6 +397,14 @@ class SWEAgent(PatcherAgentBase):
                 logger.debug("Found code snippet in orig_code_snippets: %s (%d)", code_snippet_key, code_snippet_idx)
                 orig_code_snippet = orig_code_snippets[code_snippet_key]
 
+                if code_snippet.old_code not in orig_code_snippet:
+                    logger.error(
+                        "Could not generate a valid patch for %s (%d), old code snippet change not found in the original code snippet",
+                        code_snippet_key,
+                        code_snippet_idx,
+                    )
+                    continue
+
                 new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
             else:
                 logger.debug(
@@ -456,9 +463,18 @@ class SWEAgent(PatcherAgentBase):
 
         logger.debug("Creating patches for %d code snippets", len(code_snippets.items or []))
         patches, code_snippet_requests = self._get_snippets_patches(code_snippets, orig_code_snippets)
-        if not patches or code_snippet_requests:
+        if not patches:
             logger.warning("No valid patches generated")
-            return code_snippet_requests
+            if code_snippet_requests:
+                logger.warning("Requesting new code snippets for patch generation")
+                return code_snippet_requests
+            else:
+                logger.error("No valid patches generated and no code snippet requests")
+                return PatchOutput(
+                    task_id=self.input.task_id,
+                    submission_index=self.input.submission_index,
+                    patch="",
+                )
 
         # Concatenate all patches in one
         logger.debug("Concatenating %d patches", len(patches))
