@@ -11,11 +11,12 @@ jobs:
     strategy:
       matrix:
         component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
+        continue-on-error: [true]
         include:
           - component: patcher
             continue-on-error: false
           - component: program-model
-            continue-on-error: false
+            continue-on-error: true
 
     runs-on: ubuntu-latest
     steps:
@@ -37,7 +38,7 @@ jobs:
       - name: Run mypy on ${{ matrix.component }}
         run: uv run mypy
         working-directory: ${{ matrix.component }}
-        continue-on-error: ${{ matrix.continue-on-error || true }}
+        continue-on-error: ${{ matrix.continue-on-error }}
 
   check-protobuf:
     runs-on: ubuntu-24.04

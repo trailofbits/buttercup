@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import langgraph.errors
 import operator
+from typing import Any
 from langchain_core.language_models import BaseChatModel
 from dataclasses import dataclass, field
 from langchain_core.messages import ToolMessage
@@ -87,7 +88,7 @@ class NodeNames(str, Enum):
 def _return_command_tool_message(
     tool_call_id: str, message: str, code_snippets: list[ContextCodeSnippet] | None = None
 ) -> Command:
-    update_state = {"messages": [ToolMessage(message, tool_call_id=tool_call_id)]}
+    update_state: dict[str, Any] = {"messages": [ToolMessage(message, tool_call_id=tool_call_id)]}
     if code_snippets:
         update_state["code_snippets"] = code_snippets
 

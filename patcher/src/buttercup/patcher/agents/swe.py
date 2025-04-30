@@ -296,7 +296,7 @@ class SWEAgent(PatcherAgentBase):
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
 
-    def _get_file_content(self, file_path: str) -> tuple[str, str] | None:
+    def _get_file_content(self, file_path: str) -> tuple[str, Path] | None:
         """Get the content of a file, trying multiple search strategies. Returns
         the content of the file and the relative path of the file (from the
         source path)."""
@@ -307,7 +307,7 @@ class SWEAgent(PatcherAgentBase):
 
         try:
             file_content = self.challenge.get_source_path().joinpath(relative_file_path).read_text()
-            return file_content, relative_file_path
+            return str(file_content), relative_file_path
         except FileNotFoundError:
             return None
 
@@ -422,7 +422,7 @@ class SWEAgent(PatcherAgentBase):
                 continue
 
             file_content = file_content.replace(orig_code_snippet, new_code_snippet)
-            patched_file = Path(file_path)
+            patched_file = file_path
 
             patch = difflib.unified_diff(
                 orig_file_content.splitlines(),
