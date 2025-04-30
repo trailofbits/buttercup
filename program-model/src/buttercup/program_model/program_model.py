@@ -43,7 +43,9 @@ class ProgramModel:
     graphdb_enabled: bool = True
     python: str | None = None
     allow_pull: bool = True
-    base_image_url: str = "gcr.io/oss-fuzz"
+    base_image_url: str = field(
+        default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz")
+    )
 
     def __post_init__(self) -> None:
         """Post-initialization setup."""
