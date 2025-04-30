@@ -828,6 +828,8 @@ class Submissions:
         """
         status = self.competition_api.get_patch_status(_task_id(e), e.patch_id)
         match status:
+            case TypesSubmissionStatus.ACCEPTED:
+                return  # No change.
             case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
                 _advance_patch_idx(e)
                 e.state = SubmissionEntry.SUBMIT_PATCH
