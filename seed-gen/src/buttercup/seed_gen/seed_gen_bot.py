@@ -122,6 +122,7 @@ class SeedGenBot(TaskLoop):
                             harness_name=task.harness_name,
                             crash_input_path=dst,
                             stacktrace=stacktrace,
+                            crash_token=ctoken,
                         )
                         self.crash_queue.push(crash)
 
