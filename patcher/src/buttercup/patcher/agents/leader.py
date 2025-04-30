@@ -41,6 +41,7 @@ class PatcherLeaderAgent:
     max_review_retries: int = int(os.getenv("TOB_PATCHER_MAX_REVIEW_RETRIES", 5))
     max_context_retriever_retries: int = int(os.getenv("TOB_PATCHER_MAX_CONTEXT_RETRIEVER_RETRIES", 30))
     max_context_retriever_recursion_limit: int = int(os.getenv("TOB_PATCHER_CTX_RETRIEVER_RECURSION_LIMIT", 80))
+    max_minutes_run_povs: int = int(os.getenv("TOB_PATCHER_MAX_MINUTES_RUN_POVS", 30))
 
     def _init_patch_team(self) -> StateGraph:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
@@ -56,6 +57,7 @@ class PatcherLeaderAgent:
             chain_call=self.chain_call,
             max_review_retries=self.max_review_retries,
             work_dir=self.work_dir,
+            max_minutes_run_povs=self.max_minutes_run_povs,
         )
         context_retriever_agent = ContextRetrieverAgent(
             self.challenge,

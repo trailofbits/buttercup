@@ -55,3 +55,6 @@ litellm:
 
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}
+
+patcher:
+  maxMinutesRunPOVs: 10

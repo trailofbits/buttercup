@@ -209,6 +209,7 @@ patcher:
   maxPatchRetries: 25
   maxContextRetrieverRetries: 30
   maxContextRetrieverRecursionLimit: 100
+  maxMinutesRunPOVs: 30
   resources:
     limits:
       cpu: 1000m

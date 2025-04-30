@@ -262,6 +262,8 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ int .Values.maxContextRetrieverRetries | default 30 | quote }}
 - name: TOB_PATCHER_CTX_RETRIEVER_RECURSION_LIMIT
   value: {{ int .Values.maxContextRetrieverRecursionLimit | default 80 | quote }}
+- name: TOB_PATCHER_MAX_MINUTES_RUN_POVS
+  value: {{ int .Values.maxMinutesRunPOVs | default 30 | quote }}
 {{- end }}
 
 {{- define "buttercup.buildBotEnv" }}
