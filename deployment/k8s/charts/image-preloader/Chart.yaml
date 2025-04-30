@@ -1,0 +1,6 @@
+apiVersion: v2
+name: image-preloader
+description: A Helm chart for preloading Docker images from ghcr.io using DinD sidecar
+type: application
+version: 0.1.0
+appVersion: "1.0.0" 
