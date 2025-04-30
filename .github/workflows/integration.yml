@@ -36,7 +36,7 @@ on:
         default: ""
 
 env:
-  FUZZER_BUILD_TIMEOUT: ${{ inputs.build_timeout || 15 }}
+  FUZZER_BUILD_TIMEOUT: ${{ inputs.build_timeout || 20 }}
   VULN_TIMEOUT: ${{ inputs.vuln_timeout || 25 }}
   PATCH_TIMEOUT: ${{ inputs.patch_timeout || 15 }}
   BUNDLE_TIMEOUT: ${{ inputs.bundle_timeout || 5 }}
