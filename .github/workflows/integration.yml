@@ -144,14 +144,26 @@ jobs:
               sleep 10
             fi
           done
-
-      - name: Wait for vuln submission to happen
+  
+      - name: Wait for vuln to be found
+        timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
+        run: |
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "  -> SUBMIT_PATCH_REQUEST" ; do
+            sleep 10
+          done
+      - name: Wait for vuln to enter the passed state in competition api
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_POV_PASS -> SUBMIT_PATCH" ; do
             sleep 10
           done
       - name: Wait for patch to be submitted
+        timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
+        run: |
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_PATCH -> WAIT_PATCH_PASS"; do
+            sleep 10
+          done
+      - name: Wait for patch to enter the passed state in competition api
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"; do

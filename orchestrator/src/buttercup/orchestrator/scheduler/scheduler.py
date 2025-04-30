@@ -117,7 +117,7 @@ class Scheduler:
             self.status_checker = StatusChecker(self.competition_api_cycle_time)
             self.submissions = Submissions(
                 redis=self.redis,
-                competition_api=CompetitionAPI(api_client),
+                competition_api=CompetitionAPI(api_client, self.task_registry),
                 task_registry=self.task_registry,
                 patch_submission_retry_limit=self.patch_submission_retry_limit,
                 patch_requests_per_vulnerability=self.patch_requests_per_vulnerability,

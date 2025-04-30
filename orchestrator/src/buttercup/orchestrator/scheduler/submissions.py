@@ -1,4 +1,5 @@
 from dataclasses import field, dataclass
+from functools import lru_cache
 import logging
 import base64
 from redis import Redis
@@ -79,7 +80,7 @@ def _task_id(e: SubmissionEntry | TracedCrash) -> str:
 
 def _have_more_patches(e: SubmissionEntry) -> bool:
     """Check if there are more patches to try (following the current patch if any)."""
-    return e.patch_idx + 1 < len(e.crash.crash.target.patches)
+    return e.patch_idx + 1 < len(e.patches)
 
 
 def _advance_patch_idx(e: SubmissionEntry) -> None:
@@ -100,16 +101,26 @@ class CompetitionAPI:
     Each method handles errors and returns results in a consistent format.
     """
 
-    def __init__(self, api_client: ApiClient):
+    def __init__(self, api_client: ApiClient, task_registry: TaskRegistry):
         """
         Initialize with an API client.
 
         Args:
             api_client: Client for making HTTP requests
+            task_registry: Task registry for getting task metadata
         """
         self.api_client = api_client
+        self.task_registry = task_registry
 
-    def submit_pov(self, crash: TracedCrash, task_registry: TaskRegistry) -> Tuple[str | None, TypesSubmissionStatus]:
+    @lru_cache(maxsize=10)
+    def _get_task_metadata(self, task_id: str) -> dict:
+        """Get the task metadata for a given task ID.
+
+        Note: this is cached because the task metadata is immutable.
+        """
+        return dict(self.task_registry.get(task_id).metadata)
+
+    def submit_pov(self, crash: TracedCrash) -> Tuple[str | None, TypesSubmissionStatus]:
         """
         Submit a vulnerability (POV) to the competition API.
 
@@ -144,7 +155,7 @@ class CompetitionAPI:
                     span,
                     crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
                     crs_action_name="submit_pov_for_scoring",
-                    task_metadata=dict(task_registry.get(crash.crash.target.task_id).metadata),
+                    task_metadata=self._get_task_metadata(_task_id(crash)),
                     extra_attributes={
                         "crs.action.target.harness": crash.crash.harness_name,
                     },
@@ -155,7 +166,7 @@ class CompetitionAPI:
                     task_id=crash.crash.target.task_id,
                     payload=submission,
                 )
-
+                logger.debug(f"[{crash.crash.target.task_id}] POV submission response: {response}")
                 if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                     logger.error(
                         f"[{crash.crash.target.task_id}] POV submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}"
@@ -185,9 +196,7 @@ class CompetitionAPI:
 
         return PovApi(api_client=self.api_client).v1_task_task_id_pov_pov_id_get(task_id=task_id, pov_id=pov_id).status
 
-    def submit_patch(
-        self, task_id: str, patch: str, task_registry: TaskRegistry
-    ) -> Tuple[str | None, TypesSubmissionStatus]:
+    def submit_patch(self, task_id: str, patch: str) -> Tuple[str | None, TypesSubmissionStatus]:
         """
         Submit a patch to the competition API.
 
@@ -215,12 +224,13 @@ class CompetitionAPI:
                 span,
                 crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
                 crs_action_name="submit_patch_for_scoring",
-                task_metadata=dict(task_registry.get(task_id).metadata),
+                task_metadata=self._get_task_metadata(task_id),
             )
 
             response = PatchApi(api_client=self.api_client).v1_task_task_id_patch_post(
                 task_id=task_id, payload=submission
             )
+            logger.debug(f"[{task_id}] Patch submission response: {response}")
             if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(f"[{task_id}] Patch submission rejected (status: {response.status}) for harness: {patch}")
                 span.set_status(Status(StatusCode.ERROR))
@@ -243,15 +253,16 @@ class CompetitionAPI:
         assert task_id
         assert patch_id
 
-        return (
-            PatchApi(api_client=self.api_client)
-            .v1_task_task_id_patch_patch_id_get(task_id=task_id, patch_id=patch_id)
-            .status
+        response = PatchApi(api_client=self.api_client).v1_task_task_id_patch_patch_id_get(
+            task_id=task_id, patch_id=patch_id
         )
+        if response.functionality_tests_passing is not None:
+            logger.info(
+                f"[{task_id}] Patch {patch_id} functionality tests passing: {response.functionality_tests_passing}"
+            )
+        return response.status
 
-    def submit_bundle(
-        self, task_id: str, pov_id: str, patch_id: str, task_registry: TaskRegistry
-    ) -> Tuple[str | None, TypesSubmissionStatus]:
+    def submit_bundle(self, task_id: str, pov_id: str, patch_id: str) -> Tuple[str | None, TypesSubmissionStatus]:
         """
         Submit a bundle (vulnerability + patch).
 
@@ -281,12 +292,13 @@ class CompetitionAPI:
                 span,
                 crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
                 crs_action_name="submit_bundle_for_scoring",
-                task_metadata=dict(task_registry.get(task_id).metadata),
+                task_metadata=self._get_task_metadata(task_id),
             )
 
             response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_post(
                 task_id=task_id, payload=submission
             )
+            logger.debug(f"[{task_id}] Bundle submission response: {response}")
             if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(
                     f"[{task_id}] Bundle submission rejected (status: {response.status}) for harness: {pov_id} {patch_id}"
@@ -330,6 +342,7 @@ class CompetitionAPI:
         response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_patch_post(
             task_id=task_id, bundle_id=bundle_id, payload=submission
         )
+        logger.debug(f"[{task_id}] Bundle patch submission response: {response}")
         if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
             logger.error(
                 f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}"
@@ -337,9 +350,7 @@ class CompetitionAPI:
             return (False, response.status)
         return (True, response.status)
 
-    def submit_matching_sarif(
-        self, task_id: str, sarif_id: str, task_registry: TaskRegistry
-    ) -> Tuple[bool, TypesSubmissionStatus]:
+    def submit_matching_sarif(self, task_id: str, sarif_id: str) -> Tuple[bool, TypesSubmissionStatus]:
         """
         Submit a matching assessment for a SARIF report.
 
@@ -370,7 +381,7 @@ class CompetitionAPI:
                 span,
                 crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
                 crs_action_name="submit_SARIF_for_scoring",
-                task_metadata=dict(task_registry.get(task_id).metadata),
+                task_metadata=self._get_task_metadata(task_id),
             )
 
             response = BroadcastSarifAssessmentApi(
@@ -378,6 +389,7 @@ class CompetitionAPI:
             ).v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_post(
                 task_id=task_id, broadcast_sarif_id=sarif_id, payload=submission
             )
+            logger.debug(f"[{task_id}] Matching SARIF submission response: {response}")
             if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
                 logger.error(
                     f"[{task_id}] Matching SARIF submission rejected (status: {response.status}) for sarif_id: {sarif_id}"
@@ -554,7 +566,7 @@ class Submissions:
             logger.debug(f"CrashInfo: {crash}")
             return True
 
-        pov_id, status = self.competition_api.submit_pov(crash, self.task_registry)
+        pov_id, status = self.competition_api.submit_pov(crash)
         if not pov_id:
             log_structured(
                 logger.error,
@@ -685,12 +697,12 @@ class Submissions:
                     index=i,
                     pov_id=e.pov_id,
                     state_change=("WAIT_POV_PASS", "SUBMIT_PATCH"),
-                    msg="POV passed, submitting patch",
+                    msg="POV passed, ready to submit patch when the patch is ready",
                 )
             case TypesSubmissionStatus.ERRORED:
                 log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV errored, will resubmit")
 
-                pov_id, status = self.competition_api.submit_pov(e.crash, self.task_registry)
+                pov_id, status = self.competition_api.submit_pov(e.crash)
                 if not pov_id:
                     log_structured(
                         logger.error,
@@ -744,7 +756,7 @@ class Submissions:
         )
         logger.debug(f"patch: {patch[:512]}...")
 
-        patch_id, status = self.competition_api.submit_patch(e.crash, patch, self.task_registry)
+        patch_id, status = self.competition_api.submit_patch(_task_id(e), patch)
 
         if patch_id:
             e.patch_id = patch_id
@@ -868,7 +880,7 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        bundle_id, status = self.competition_api.submit_bundle(_task_id(e), e.pov_id, e.patch_id, self.task_registry)
+        bundle_id, status = self.competition_api.submit_bundle(_task_id(e), e.pov_id, e.patch_id)
         if not bundle_id:
             match status:
                 case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
