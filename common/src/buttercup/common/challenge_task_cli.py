@@ -4,6 +4,8 @@ from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.common.logger import setup_package_logger
 from pathlib import Path
 from typing import Dict
+from contextlib import contextmanager
+from typing import Iterator
 
 
 class BuildImageCommand(BaseModel):
@@ -102,6 +104,15 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
         raise ValueError(f"Unknown subcommand: {subcommand}")
 
 
+@contextmanager
+def get_task_copy(task: ChallengeTask, use_copy: bool = False) -> Iterator[ChallengeTask]:
+    if use_copy:
+        with task.get_rw_copy(None, delete=False) as task_copy:
+            yield task_copy
+    else:
+        yield task
+
+
 def main():
     settings = Settings()
     setup_package_logger(__name__, "DEBUG")
@@ -118,7 +129,7 @@ def main():
         )
 
     subcommand = get_subcommand(settings)
-    with task.get_rw_copy(None, delete=False) as rw_task:
+    with get_task_copy(task, not settings.rw) as rw_task:
         result = handle_subcommand(rw_task, subcommand)
 
     print("Command result:", result.success)
