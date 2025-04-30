@@ -100,6 +100,14 @@ Define OSS-Fuzz container organization environment variable
 {{- end }}
 
 {{/*
+Define persistent log directory environment variable
+*/}}
+{{- define "buttercup.env.persistentLogDir" }}
+- name: PERSISTENT_LOG_DIR
+  value: "{{ .Values.global.persistentLogDir | default (include "buttercup.nodeLocalCrsScratchPath" .) }}"
+{{- end }}
+
+{{/*
 Define common environment for all services
 */}}
 {{- define "buttercup.commonEnv" }}
@@ -108,6 +116,7 @@ Define common environment for all services
 {{- include "buttercup.env.dirs" . | nindent 0 }}
 {{- include "buttercup.env.nodeData" . | nindent 0 }}
 {{- include "buttercup.env.ossFuzzContainerOrg" . | nindent 0 }}
+{{- include "buttercup.env.persistentLogDir" . | nindent 0 }}
 {{- end }}
 
 {{/*
