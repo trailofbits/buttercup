@@ -587,7 +587,7 @@ class Task:
 
         Notes:
             - The tool_calls argument must be a dictionary that exactly follows the tool_calls schema
-            - Be careful to format tool_calls correctly.
+            - Do not include '</invoke>' in your tool_calls argument.
         """  # noqa: E501
         logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
         max_calls_in_batch = 10
