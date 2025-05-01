@@ -132,7 +132,7 @@ class FuzzyCImportsResolver:
 
         except Exception as e:
             print(f"Error parsing {file_path}: {e}")
-            return []
+            return set()
 
     def get_all_imports(
         self, file_path: Path, depth: Optional[int] = None
@@ -169,11 +169,11 @@ class FuzzyCImportsResolver:
         """
         # Check if we've reached the maximum depth
         if depth is not None and current_depth >= depth:
-            return []
+            return
 
         # Detect import loops
         if file_path in self._tmp_imports:
-            return []  # Skip this file to break the loop
+            return  # Skip this file to break the loop
 
         # Mark this file as being done
         self._tmp_imports.add(file_path)
@@ -229,9 +229,9 @@ class FuzzyCImportsResolver:
                     callee_file_h = str(callee.file_path).replace(".c", ".h")
                     possible_decl_files = [
                         callee_file,
-                        callee_file_h,
-                        callee_file_h + ".in",
-                        callee_file_h + "h",
+                        Path(callee_file_h),
+                        Path(callee_file_h + ".in"),
+                        Path(callee_file_h + "h"),
                     ]
                     # For each potential declaration file, see whether it is imported by the caller
                     for decl_file in possible_decl_files:
@@ -299,7 +299,9 @@ class FuzzyJavaImportsResolver:
         if challenge.focus not in ["logging-log4j2"]:
             self.local_code_path /= challenge.focus
 
-    def filter_callees(self, caller_function: Function, callees: List[Function]):
+    def filter_callees(
+        self, caller_function: Function, callees: List[Function]
+    ) -> List[Function]:
         callee_groups = defaultdict(list)
         for callee in callees:
             callee_groups[callee.name].append(callee)
@@ -375,7 +377,7 @@ class FuzzyJavaImportsResolver:
 
     def try_extract_call_expr_prefix(
         self, caller: Function, callee_name: str
-    ) -> str | None:
+    ) -> list[str]:
         # TODO(boyan): handle the case where function is called directly
         # without a leading '.'
         call_marker = f".{callee_name}("

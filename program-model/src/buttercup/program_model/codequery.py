@@ -81,7 +81,9 @@ class CodeQuery:
 
     challenge: ChallengeTask
     ts: CodeTS = field(init=False)
-    imports_resolver: Optional[FuzzyCImportsResolver] = field(init=False)
+    imports_resolver: Optional[FuzzyCImportsResolver | FuzzyJavaImportsResolver] = (
+        field(init=False)
+    )
 
     CSCOPE_FILES: ClassVar[str] = "cscope.files"
     CSCOPE_OUT: ClassVar[str] = "cscope.out"
@@ -132,7 +134,7 @@ class CodeQuery:
         project_yaml = ProjectYaml(
             self.challenge, self.challenge.task_meta.project_name
         )
-        return project_yaml.language
+        return str(project_yaml.language)
 
     def _is_already_indexed(self) -> bool:
         """Check if the codequery database already exists."""
@@ -540,7 +542,7 @@ class CodeQuery:
         # at the beginning of this function so we can use to do the filtering. If not
         # then we need the function file
         if isinstance(function, Function):
-            callees = self._filter_callees(function, list(callees))
+            callees = self._filter_callees(function, list(callees))  # type: ignore [assignment]
         logger.info("Found %d callees for %s", len(callees), function_name)
         res = self._rebase_functions_file_paths(list(callees))
         return res

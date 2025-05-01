@@ -16,7 +16,7 @@ jobs:
           - component: patcher
             continue-on-error: false
           - component: program-model
-            continue-on-error: true
+            continue-on-error: false
 
     runs-on: ubuntu-latest
     steps:
