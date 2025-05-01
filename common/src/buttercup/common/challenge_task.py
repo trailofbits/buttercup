@@ -95,6 +95,7 @@ class ChallengeTask:
     task_meta: TaskMeta = field(init=False)
     python_path: PathLike = Path("python")
     local_task_dir: PathLike | None = None
+    clean: bool = True
 
     SRC_DIR = "src"
     DIFF_DIR = "diff"
@@ -300,14 +301,20 @@ class ChallengeTask:
 
         return current_line
 
-    def _run_cmd(self, cmd: list[str], cwd: Path | None = None, log: bool = True) -> CommandResult:
+    def _run_cmd(
+        self, cmd: list[str], cwd: Path | None = None, log: bool = True, env_helper: Dict[str, str] | None = None
+    ) -> CommandResult:
         try:
+            if env_helper:
+                logger.debug("Env helper: %s", env_helper)
+                env_helper = {**os.environ, **env_helper}
             logger.debug(f"Running command (cwd={cwd}): {' '.join(cmd)}")
             process = subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 cwd=cwd,
+                env=env_helper,
             )
 
             # Poll process for new output until finished
@@ -350,8 +357,8 @@ class ChallengeTask:
             logger.exception(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
             return CommandResult(success=False, returncode=None, error=str(e), output=None)
 
-    def _run_helper_cmd(self, cmd: list[str]) -> CommandResult:
-        return self._run_cmd(cmd, cwd=self.task_dir / self.get_oss_fuzz_subpath())
+    def _run_helper_cmd(self, cmd: list[str], env_helper: Dict[str, str] | None = None) -> CommandResult:
+        return self._run_cmd(cmd, cwd=self.task_dir / self.get_oss_fuzz_subpath(), env_helper=env_helper)
 
     def container_image(self) -> str:
         return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
@@ -424,6 +431,7 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
+        env_helper: Dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
@@ -447,6 +455,8 @@ class ChallengeTask:
             # AIxCC guarantees `build_fuzzers <local-path>` to just work.
             # https://github.com/google/oss-fuzz/blob/80a57ca6da03069afabb5116cae0b338d19f9f27/infra/helper.py#L870-L872
             kwargs["mount_path"] = Path(f"/src/{self.focus}")
+        if not self.clean:
+            kwargs["no-clean"] = True
 
         cmd = self._get_helper_cmd(
             "build_fuzzers",
@@ -455,7 +465,7 @@ class ChallengeTask:
             **kwargs,
         )
 
-        return self._run_helper_cmd(cmd)
+        return self._run_helper_cmd(cmd, env_helper=env_helper)
 
     @read_write_decorator
     def build_fuzzers_with_cache(
@@ -481,6 +491,38 @@ class ChallengeTask:
             engine=engine,
             sanitizer=sanitizer,
             env=env,
+        )
+
+    @read_write_decorator
+    def build_fuzzers_save_containers(
+        self,
+        container_name: str,
+        use_source_dir: bool = True,
+        *,
+        architecture: str | None = None,
+        engine: str | None = None,
+        sanitizer: str | None = None,
+        pull_latest_base_image: bool = True,
+        env: Dict[str, str] | None = None,
+    ) -> CommandResult:
+        check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
+        if check_build_res.success:
+            logger.info("Build is up to date, skipping building fuzzers")
+            return check_build_res
+
+        self.build_image(pull_latest_base_image=pull_latest_base_image, architecture=architecture)
+
+        env_helper = {
+            "OSS_FUZZ_SAVE_CONTAINERS_NAME": container_name,
+        }
+
+        return self.build_fuzzers(
+            use_source_dir=use_source_dir,
+            architecture=architecture,
+            engine=engine,
+            sanitizer=sanitizer,
+            env=env,
+            env_helper=env_helper,
         )
 
     @read_write_decorator

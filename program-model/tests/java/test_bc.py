@@ -25,19 +25,17 @@ def bc_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     "function_name,file_path,function_info",
     [
         (
-            "JavaLanguageParser",
-            None,
+            "doGenerate",
+            "/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
             TestFunctionInfo(
-                num_bodies=2,
+                num_bodies=1,
                 body_excerpts=[
-                    """return "[" + simplePrint(unwrapOne(type)) + "]";""",
-                    """return ((bcNamedSchemaElement) schemaElement).getName();""",
+                    """authenticatedAttrSet = CMSUtils.processAuthAttrSet(authAttrsGenerator, contentEncryptor);""",
                 ],
             ),
         ),
     ],
 )
-@pytest.mark.skip("Figure out where this function is located within the source repo")
 @pytest.mark.integration
 def test_bc_get_functions(
     bc_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info

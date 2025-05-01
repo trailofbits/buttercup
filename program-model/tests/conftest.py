@@ -66,56 +66,59 @@ def oss_fuzz_task(
     project_commit: str,
 ) -> ChallengeTask:
     """Create a challenge task using a real OSS-Fuzz repository."""
-    # Clone real oss-fuzz repo into temp dir
     oss_fuzz_dir = tmp_path / "fuzz-tooling"
-    oss_fuzz_dir.mkdir(parents=True)
+    if not oss_fuzz_dir.exists():
+        oss_fuzz_dir.mkdir(parents=True)
+
+        # Clone real oss-fuzz repo into temp dir
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(oss_fuzz_dir),
+                "clone",
+                "https://github.com/aixcc-finals/oss-fuzz-aixcc.git",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        # Restore oss-fuzz project directory to specific commit
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(oss_fuzz_dir / "oss-fuzz-aixcc"),
+                "checkout",
+                "aixcc-afc",
+                "--",
+                f"projects/{oss_fuzz_project}",
+            ],
+            check=True,
+            capture_output=True,
+        )
+
     source_dir = tmp_path / "src"
-    source_dir.mkdir(parents=True)
+    if not source_dir.exists():
+        source_dir.mkdir(parents=True)
 
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir),
-            "clone",
-            "https://github.com/aixcc-finals/oss-fuzz-aixcc.git",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    # Restore oss-fuzz project directory to specific commit
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir / "oss-fuzz-aixcc"),
-            "checkout",
-            "aixcc-afc",
-            "--",
-            f"projects/{oss_fuzz_project}",
-        ],
-        check=True,
-        capture_output=True,
-    )
-
-    # Download project source code
-    # Checkout specific project commit for reproducibility
-    subprocess.run(
-        ["git", "-C", str(source_dir), "clone", project_url],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(source_dir / project),
-            "checkout",
-            project_commit,
-        ],
-        check=True,
-        capture_output=True,
-    )
+        # Download project source code
+        subprocess.run(
+            ["git", "-C", str(source_dir), "clone", project_url],
+            check=True,
+            capture_output=True,
+        )
+        # Checkout specific project commit for reproducibility
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(source_dir / project),
+                "checkout",
+                project_commit,
+            ],
+            check=True,
+            capture_output=True,
+        )
 
     # Create task metadata
     TaskMeta(

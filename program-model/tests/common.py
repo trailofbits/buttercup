@@ -46,10 +46,13 @@ def common_test_get_functions(
 ):
     """Generic function for testing get_functions() in C codebases"""
     codequery = CodeQuery(fuzz_task)
-    functions = codequery.get_functions(function_name, file_path=Path(file_path))
+    if file_path:
+        file_path = Path(file_path)
+    functions = codequery.get_functions(function_name, file_path=file_path)
     assert len(functions) == 1
     assert functions[0].name == function_name
-    assert str(functions[0].file_path) == file_path
+    if file_path:
+        assert Path(functions[0].file_path) == file_path
     assert len(functions[0].bodies) == function_info.num_bodies
     for body in function_info.body_excerpts:
         assert any([body in x.body for x in functions[0].bodies])

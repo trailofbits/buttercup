@@ -5,9 +5,12 @@ import pytest
 from buttercup.common.challenge_task import ChallengeTask
 from ..conftest import oss_fuzz_task
 from ..common import (
-    common_test_get_functions,
     TestFunctionInfo,
+    common_test_get_functions,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
@@ -25,19 +28,28 @@ def checkstyle_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     "function_name,file_path,function_info",
     [
         (
-            "JavaLanguageParser",
-            "/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/JavaLanguageParser.java",
+            "parseAndPrintJavadocTree",
+            "/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/AstTreeStringPrinter.java",
             TestFunctionInfo(
-                num_bodies=2,
+                num_bodies=1,
                 body_excerpts=[
-                    """return "[" + simplePrint(unwrapOne(type)) + "]";""",
-                    """return ((checkstyleNamedSchemaElement) schemaElement).getName();""",
+                    """baseIndentation = baseIndentation.substring(0, baseIndentation.length() - 2);""",
+                ],
+            ),
+        ),
+        (
+            "expr",
+            "/src/checkstyle/target/generated-sources/antlr/com/puppycrawl/tools/checkstyle/grammar/java/JavaLanguageParser.java",
+            TestFunctionInfo(
+                num_bodies=27,
+                body_excerpts=[
+                    """return getRuleContext(ExprContext.class,i);""",
+                    """return getRuleContext(ExprContext.class,0);""",
                 ],
             ),
         ),
     ],
 )
-@pytest.mark.skip("Figure out where this function is located within the source repo")
 @pytest.mark.integration
 def test_checkstyle_get_functions(
     checkstyle_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
