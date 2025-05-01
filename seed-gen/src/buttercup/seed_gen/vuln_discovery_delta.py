@@ -27,7 +27,7 @@ class VulnDiscoveryDeltaState(VulnBaseState):
 class VulnDiscoveryDeltaTask(VulnBaseTask):
     TaskStateClass = VulnDiscoveryDeltaState
     VULN_DISCOVERY_MAX_POV_COUNT = 8
-    MAX_CONTEXT_ITERATIONS = 2
+    MAX_CONTEXT_ITERATIONS = 6
 
     @override
     def _gather_context(self, state: VulnDiscoveryDeltaState) -> Command:

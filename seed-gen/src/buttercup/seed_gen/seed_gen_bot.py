@@ -131,7 +131,13 @@ class SeedGenBot(TaskLoop):
                     logger.error(f"Error reproducing PoV {pov}: {exc}")
 
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]):
-        with tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str:
+        build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
+        ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
+
+        with (
+            tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str,
+            ro_challenge_task.get_rw_copy(work_dir=temp_dir_str) as challenge_task,
+        ):
             logger.info(
                 f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}"
             )
@@ -140,13 +146,10 @@ class SeedGenBot(TaskLoop):
             out_dir = temp_dir / "seedgen-out"
             out_dir.mkdir()
 
-            build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
-            challenge_task = ChallengeTask(read_only_task_dir=build_dir)
             logger.info("Initializing codequery")
             codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
-
             override_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
             if override_task:
                 logger.info("Only testing task: %s", override_task)

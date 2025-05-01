@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class VulnDiscoveryFullTask(VulnBaseTask):
     TaskStateClass = VulnBaseState
     VULN_DISCOVERY_MAX_POV_COUNT = 8
-    MAX_CONTEXT_ITERATIONS = 2
+    MAX_CONTEXT_ITERATIONS = 8
 
     @override
     def _gather_context(self, state: VulnBaseState) -> Command:

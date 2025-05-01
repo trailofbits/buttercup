@@ -87,7 +87,13 @@ class Task:
 
     def __post_init__(self) -> None:
         self.llm = self.get_default_llm()
-        self.tools = [Task.get_function_definition, Task.get_type_definition, Task.batch_tool]
+        self.tools = [
+            Task.get_function_definition,
+            Task.get_type_definition,
+            Task.batch_tool,
+            Task.cat,
+            Task.get_callers,
+        ]
         self.llm_with_tools = self.llm.bind_tools(self.tools)
 
     @staticmethod
@@ -187,13 +193,14 @@ class Task:
         self,
         function_name: str,
         function_paths: list[Path] | None = None,
+        fuzzy: bool = True,
         fuzzy_threshold: int = 80,
     ) -> Function | None:
         """Get function definition from codequery
 
         Executes the following searches:
             - Exact match with paths
-            - Fuzzy match without paths
+            - Match without paths (fuzzy if enabled)
         """
         logger.info("Getting function definition for %s (paths: %s)", function_name, function_paths)
 
@@ -203,7 +210,7 @@ class Task:
                 return function_def
 
         function_def = self._do_get_function_def(
-            function_name, [None], fuzzy=True, fuzzy_threshold=fuzzy_threshold
+            function_name, [None], fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
         )
         if function_def is not None:
             return function_def
@@ -312,7 +319,7 @@ class Task:
                     ],
                 }
             )
-        function_def = state.task.get_function_def(function_name)
+        function_def = state.task.get_function_def(function_name, fuzzy=False)
         if function_def:
             results = [
                 CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body)
@@ -412,6 +419,160 @@ class Task:
         )
 
     @tool
+    def cat(
+        file_path: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Read the contents of a file. Use this tool selectively as it could return a large amount of text.
+
+        Args:
+            file_path: The path to the file to read
+
+        Notes:
+            - Specify the absolute path to the file.
+            - Prefer other tools when possible since this tool could return a large amount of text.
+        """  # noqa: E501
+        return Task._cat(file_path, state, tool_call_id)
+
+    def _cat(
+        file_path: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Implementation of cat tool"""
+        logger.info("Tool call: cat for %s", file_path)
+        path = Path(file_path)
+        logger.info("Reading contents of %s", path)
+        call = f'cat "{file_path}")'
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Contents of {file_path} already retrieved",
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
+        cat_cmd_res = state.task.challenge_task.exec_docker_cmd(["cat", str(path)])
+        if not cat_cmd_res.success:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Could not read contents of {path}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
+        cat_output = cat_cmd_res.output.decode("utf-8")
+        results = [CodeSnippet(file_path=path, code=cat_output)]
+        call_result = ToolCallResult(call=call, results=results)
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        f"Retrieved contents of {path}",
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+                "retrieved_context": {
+                    **state.retrieved_context,
+                    call: call_result,
+                },
+            }
+        )
+
+    def _do_get_callers(
+        self,
+        function_name: str,
+    ) -> list[Function]:
+        """Get the callers of a function"""
+        max_callers = 20
+        callers = self.codequery.get_callers(function_name)
+        if len(callers) > max_callers:
+            logger.info(
+                "Found %d callers for %s, truncating to %d",
+                len(callers),
+                function_name,
+                max_callers,
+            )
+            callers = callers[:max_callers]
+        return callers
+
+    @tool
+    def get_callers(
+        function_name: str,
+        file_path: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        """Get the callers of a function.
+
+        Args:
+            function_name: The name of the function to get callers for
+            file_path: The path to the file containing the function
+        """
+        return Task._get_callers(function_name, file_path, state, tool_call_id)
+
+    def _get_callers(
+        function_name: str,
+        file_path: str,
+        state: Annotated[BaseModel, InjectedState],
+        tool_call_id: Annotated[str, InjectedToolCallId],
+    ) -> Command:
+        call = f'get_callers("{function_name}", "{file_path}")'
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Callers for {function_name} in {file_path} already retrieved",
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
+        path = Path(file_path)
+        logger.info("Getting callers of %s in %s", function_name, path)
+        function = state.task.get_function_def(function_name, function_paths=[path], fuzzy=False)
+        if not function:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Could not look up function {function_name} in {path}",
+                            tool_call_id=tool_call_id,
+                        )
+                    ]
+                }
+            )
+        callers = state.task._do_get_callers(function_name)
+
+        code_snippets = [
+            CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body)
+            for caller in callers
+        ]
+        call_result = ToolCallResult(call=call, results=code_snippets)
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        f"Found {len(code_snippets)} callers of function {function_name}",
+                        tool_call_id=tool_call_id,
+                    )
+                ],
+                "retrieved_context": {
+                    **state.retrieved_context,
+                    call: call_result,
+                },
+            }
+        )
+
+    @tool
     def batch_tool(
         tool_calls: BatchToolCalls,
         state: Annotated[BaseModel, InjectedState],
@@ -439,6 +600,15 @@ class Task:
             elif call.tool_name == "get_type_definition":
                 type_name = call.arguments[0]
                 result = Task._get_type_definition(type_name, state, tool_call_id)
+                results.append(result)
+            elif call.tool_name == "cat":
+                file_path = call.arguments[0]
+                result = Task._cat(file_path, state, tool_call_id)
+                results.append(result)
+            elif call.tool_name == "get_callers":
+                function_name = call.arguments[0]
+                file_path = call.arguments[1]
+                result = Task._get_callers(function_name, file_path, state, tool_call_id)
                 results.append(result)
             else:
                 logger.warning("Invalid tool call: %s", call.tool_name)

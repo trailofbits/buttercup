@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SeedInitTask(SeedBaseTask):
     SEED_INIT_SEED_COUNT = 8
-    MAX_CONTEXT_ITERATIONS = 2
+    MAX_CONTEXT_ITERATIONS = 4
 
     @override
     def _generate_seeds(self, state: BaseTaskState) -> Command:

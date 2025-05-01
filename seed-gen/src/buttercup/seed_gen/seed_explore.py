@@ -30,7 +30,7 @@ class SeedExploreState(BaseTaskState):
 
 class SeedExploreTask(SeedBaseTask):
     SEED_EXPLORE_SEED_COUNT = 8
-    MAX_CONTEXT_ITERATIONS = 2
+    MAX_CONTEXT_ITERATIONS = 4
 
     TARGET_FUNCTION_FUZZY_THRESHOLD = 50
 
