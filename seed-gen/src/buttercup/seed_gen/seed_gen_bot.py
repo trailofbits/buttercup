@@ -100,9 +100,7 @@ class SeedGenBot(TaskLoop):
         with reproduce_multiple.open() as mult:
             for pov in out_dir.iterdir():
                 try:
-                    pov_output = mult.get_first_crash(pov, task.harness_name)
-                    if pov_output is not None:
-                        build, result = pov_output
+                    for build, result in mult.get_crashes(pov, task.harness_name):
                         logger.info(f"Valid PoV found: {pov}")
                         stacktrace = result.stacktrace()
                         ctoken = stack_parsing.get_crash_data(stacktrace)
@@ -111,6 +109,7 @@ class SeedGenBot(TaskLoop):
                             task.package_name,
                             task.harness_name,
                             task.task_id,
+                            build.sanitizer,
                             stacktrace,
                         ):
                             logger.info(f"PoV with crash {stacktrace} already in crash set")

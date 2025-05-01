@@ -39,3 +39,8 @@ class ReproduceMultiple:
             if result.command_result.returncode is not None and result.stacktrace() is not None and result.did_crash():
                 return build, result
         return None
+
+    def get_crashes(self, pov: Path, harness_name: str) -> Generator[tuple[BuildOutput, ReproduceResult], None, None]:
+        for build, result in self.attempt_reproduce(pov, harness_name):
+            if result.command_result.returncode is not None and result.stacktrace() is not None and result.did_crash():
+                yield build, result

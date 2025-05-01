@@ -90,6 +90,7 @@ class FuzzerBot(TaskLoop):
                         task.package_name,
                         task.harness_name,
                         task.task_id,
+                        build.sanitizer,
                         crash.stacktrace,
                     ):
                         logger.info(
