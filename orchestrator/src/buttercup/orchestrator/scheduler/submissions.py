@@ -3,7 +3,7 @@ from functools import lru_cache
 import logging
 import base64
 from redis import Redis
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Set, Tuple
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 import buttercup.common.node_local as node_local
@@ -18,6 +18,7 @@ from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
+from buttercup.orchestrator.scheduler.sarif_matcher import match
 from buttercup.orchestrator.registry import TaskRegistry
 from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
 from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
@@ -339,7 +340,7 @@ class CompetitionAPI:
             patch_id=patch_id,
             broadcast_sarif_id=sarif_id,
         )
-        response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_patch_post(
+        response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_patch(
             task_id=task_id, bundle_id=bundle_id, payload=submission
         )
         logger.debug(f"[{task_id}] Bundle patch submission response: {response}")
@@ -486,6 +487,7 @@ class Submissions:
 
     # Redis names
     SUBMISSIONS = "submissions"
+    MATCHED_SARIFS = "matched_sarifs"
 
     redis: Redis
     competition_api: CompetitionAPI
@@ -494,6 +496,7 @@ class Submissions:
     patch_requests_per_vulnerability: int = 1
     entries: List[SubmissionEntry] = field(init=False)
     sarif_store: SARIFStore = field(init=False)
+    matched_sarifs: Set[str] = field(default_factory=set)
 
     def __post_init__(self):
         logger.info(
@@ -501,6 +504,22 @@ class Submissions:
         )
         self.entries = self._get_stored_submissions()
         self.sarif_store = SARIFStore(self.redis)
+        self.matched_sarifs = self._get_matched_sarifs(self.redis)
+
+    def _insert_matched_sarif(self, redis: Redis, sarif_id: str):
+        """Insert a matched SARIF ID into Redis."""
+        self.matched_sarifs.add(sarif_id)
+        redis.sadd(self.MATCHED_SARIFS, sarif_id)
+
+    def _get_matched_sarifs(self, redis: Redis) -> Set[str]:
+        """Get all matched SARIF IDs from Redis."""
+        return set(redis.smembers(self.MATCHED_SARIFS))
+
+    def _get_sarif_candidates(self, task_id: str) -> List[TracedCrash]:
+        """Get all SARIFs for a task that are not matched to a vulnerability."""
+        return [
+            sarif for sarif in self.sarif_store.get_by_task_id(task_id) if sarif.sarif_id not in self.matched_sarifs
+        ]
 
     def _get_stored_submissions(self) -> List[SubmissionEntry]:
         """Get all stored submissions from Redis."""
@@ -945,18 +964,32 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        _sarif_list = self.sarif_store.get_by_task_id(_task_id(e))
-        # TODO: Scan SARIFs to find a match.
-        # TODO: Ensure once a SARIF is paired with a vulnerability, it is not paired with another vulnerability.
+        sarif_list = self._get_sarif_candidates(_task_id(e))
+
         matching_sarif_id = None
+        for sarif in sarif_list:
+            match_result = match(sarif, e.crash)
+            if match_result:
+                logger.debug(
+                    f"[{i}:{_task_id(e)}] Found matching SARIF: {sarif.sarif_id}: {match_result}. Will check if it's a good enough match."
+                )
+                # We require a match on lines to be confident that the SARIF is a good match.
+                if not match_result.matches_lines:
+                    continue
+                logger.info(f"[{i}:{_task_id(e)}] Found matching SARIF: {sarif.sarif_id}: {match_result}")
+                matching_sarif_id = sarif.sarif_id
+                break
         if not matching_sarif_id:
             return
 
         success, status = self.competition_api.submit_matching_sarif(_task_id(e), matching_sarif_id)
         if success:
-            e.sarif_id = matching_sarif_id
-            e.state = SubmissionEntry.SUBMIT_BUNDLE_PATCH
-            self._persist(self.redis, i, e)
+            with self.redis.pipeline() as pipe:
+                e.sarif_id = matching_sarif_id
+                e.state = SubmissionEntry.SUBMIT_BUNDLE_PATCH
+                self._persist(pipe, i, e)
+                self._insert_matched_sarif(pipe, matching_sarif_id)
+                pipe.execute()
             log_structured(
                 logger.info,
                 _task_id(e),
@@ -1006,9 +1039,7 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        success, status = self.competition_api.submit_bundle_patch(
-            _task_id(e), e.bundle_id, e.pov_id, e.patch_id, e.sarif_id
-        )
+        success, status = self.competition_api.patch_bundle(_task_id(e), e.bundle_id, e.pov_id, e.patch_id, e.sarif_id)
         if success:
             e.state = SubmissionEntry.STOP
             self._persist(self.redis, i, e)

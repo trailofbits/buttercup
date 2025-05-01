@@ -1,0 +1,100 @@
+{
+  "metadata": {
+    "task_id": "",
+    "sarif_id": "",
+    "round_id": ""
+  },
+  "sarif": {
+    "runs": [
+      {
+        "artifacts": [
+          {
+            "location": {
+              "index": 0,
+              "uri": "pngrutil.c"
+            }
+          }
+        ],
+        "automationDetails": {
+          "id": "/"
+        },
+        "conversion": {
+          "tool": {
+            "driver": {
+              "name": "GitHub Code Scanning"
+            }
+          }
+        },
+        "results": [
+          {
+            "correlationGuid": "9d13d264-74f2-48cc-a3b9-d45a8221b3e1",
+            "level": "error",
+            "locations": [
+              {
+                "physicalLocation": {
+                  "artifactLocation": {
+                    "index": 0,
+                    "uri": "pngrutil.c"
+                  },
+                  "region": {
+                    "endLine": 1447,
+                    "startColumn": 1,
+                    "startLine": 1421
+                  }
+                }
+              }
+            ],
+            "message": {
+              "text": "Associated risk: CWE-121"
+            },
+            "partialFingerprints": {
+              "primaryLocationLineHash": "22ac9f8e7c3a3bd8:8"
+            },
+            "properties": {
+              "github/alertNumber": 2,
+              "github/alertUrl": "https://api.github.com/repos/aixcc-finals/example-libpng/code-scanning/alerts/2"
+            },
+            "rule": {
+              "id": "CWE-121",
+              "index": 0
+            },
+            "ruleId": "CWE-121"
+          }
+        ],
+        "tool": {
+          "driver": {
+            "name": "CodeScan++",
+            "rules": [
+              {
+                "defaultConfiguration": {
+                  "level": "warning"
+                },
+                "fullDescription": {
+                  "text": "vulnerable to #CWE-121"
+                },
+                "helpUri": "https://example.com/help/png_handle_iCCP",
+                "id": "CWE-121",
+                "properties": {},
+                "shortDescription": {
+                  "text": "CWE #CWE-121"
+                }
+              }
+            ],
+            "version": "1.0.0"
+          }
+        },
+        "versionControlProvenance": [
+          {
+            "branch": "refs/heads/challenges/full-scan",
+            "repositoryUri": "https://github.com/aixcc-finals/example-libpng",
+            "revisionId": "fdacd5a1dcff42175117d674b0fda9f8a005ae88"
+          }
+        ]
+      }
+    ],
+    "": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+    "version": "2.1.0"
+  },
+  "sarif_id": "9be47143-9126-43ec-aa86-5eee3935e79c",
+  "task_id": "d769fce7-59f0-4399-8a63-9569bfcd67a4"
+}

@@ -75,6 +75,7 @@ def sample_crash():
 def mock_redis():
     mock = Mock()
     mock.lrange.return_value = []  # Default empty list for stored submissions
+    mock.smembers.return_value = set()  # Return empty set for smembers calls
     return mock
 
 
@@ -580,7 +581,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return successful bundle patch
-        mock_competition_api.submit_bundle_patch.return_value = (True, TypesSubmissionStatus.ACCEPTED)
+        mock_competition_api.patch_bundle.return_value = (True, TypesSubmissionStatus.ACCEPTED)
 
         # Simulate process_cycle
         submissions.process_cycle()
