@@ -1,5 +1,5 @@
 from buttercup.fuzzing_infra.settings import TracerSettings
-from buttercup.fuzzing_infra.tracer_runner import TracerRunner, TracerInfo
+from buttercup.fuzzing_infra.tracer_runner import TracerRunner
 from buttercup.common.logger import setup_package_logger
 import os
 import logging
@@ -25,7 +25,7 @@ class TracerBot:
         self.queue = queue_factory.create(QueueNames.CRASH, GroupNames.TRACER_BOT)
         self.output_q = queue_factory.create(QueueNames.TRACED_VULNERABILITIES)
 
-    def serve_item(self) -> None:
+    def serve_item(self) -> bool:
         item = self.queue.pop()
         if item is None:
             return False
@@ -48,7 +48,7 @@ class TracerBot:
 
         if tinfo is None:
             logger.warning(f"Reached max tries for {item.deserialized.target.task_id}")
-            tinfo = TracerInfo(is_valid=True, stacktrace=item.deserialized.tracer_stacktrace)
+            self.queue.ack_item(item.item_id)
             return True
 
         if tinfo.is_valid:
