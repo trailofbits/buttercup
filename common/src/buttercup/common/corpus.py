@@ -1,4 +1,5 @@
 import re
+import logging
 from typing import List
 import urllib.parse
 import buttercup.common.node_local as node_local
@@ -10,6 +11,10 @@ import subprocess
 import uuid
 from pathlib import Path
 import urllib
+from redis import Redis
+from buttercup.common.sets import MergedCorpusSet
+
+logger = logging.getLogger(__name__)
 
 
 def hash_file(fl):
@@ -41,9 +46,11 @@ class InputDir:
             shutil.copy(dst, dst_remote)
             return dst
 
-    def copy_corpus(self, src_dir: str):
+    def copy_corpus(self, src_dir: str) -> list[str]:
+        files = []
         for file in os.listdir(src_dir):
-            self.copy_file(os.path.join(src_dir, file))
+            files.append(self.copy_file(os.path.join(src_dir, file)))
+        return files
 
     def local_corpus_size(self) -> int:
         # this is only the local corpus size
@@ -54,6 +61,19 @@ class InputDir:
 
     def local_corpus_count(self) -> int:
         return len(os.listdir(self.path))
+
+    def remove_local_file(self, file: str):
+        try:
+            os.remove(os.path.join(self.path, file))
+        except Exception as e:
+            logger.error(f"Error removing file {file} from local corpus {self.path}: {e}")
+
+    def remove_file(self, file: str):
+        self.remove_local_file(file)
+        try:
+            os.remove(os.path.join(self.remote_path, file))
+        except Exception as e:
+            logger.error(f"Error removing file {file} from remote corpus {self.remote_path}: {e}")
 
     def hash_new_corpus(self):
         for file in os.listdir(self.path):
@@ -93,6 +113,9 @@ class InputDir:
         os.makedirs(self.remote_path, exist_ok=True)
         self._do_sync(self.remote_path, self.path)
 
+    def list_local_corpus(self) -> list[str]:
+        return [os.path.join(self.path, f) for f in os.listdir(self.path)]
+
     def list_corpus(self) -> list[str]:
         return [os.path.join(self.path, f) for f in os.listdir(self.path)]
 
@@ -130,8 +153,25 @@ class CrashDir:
 
 class Corpus(InputDir):
     def __init__(self, wdir: str, task_id: str, harness_name: str):
+        self.task_id = task_id
+        self.harness_name = harness_name
         self.corpus_dir = os.path.join(task_id, f"{CORPUS_DIR_NAME}_{harness_name}")
         super().__init__(wdir, self.corpus_dir)
+
+    def remove_any_merged(self, redis: Redis):
+        merged_corpus_set = MergedCorpusSet(redis, self.task_id, self.harness_name)
+        logger.info(f"Removing merged files from local corpus {self.path}")
+        removed = 0
+        local_files = set([os.path.basename(fl) for fl in self.list_local_corpus()])
+        for file in merged_corpus_set:
+            if file in local_files:
+                removed += 1
+                try:
+                    self.remove_local_file(file)
+                except Exception as e:
+                    logger.error(f"Error removing file {file} from local corpus {self.path}: {e}")
+        if removed > 0:
+            logger.info(f"Removed {removed} files from local corpus {self.path}")
 
     @staticmethod
     def locally_available(wdir: str) -> List["Corpus"]:

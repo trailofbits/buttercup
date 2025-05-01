@@ -18,7 +18,7 @@ spec:
       - name: corpus-sync
         image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
-        command: ["buttercup-corpus-sync", "--wdir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--log-level", "{{ include "buttercup.core.logLevel" . }}"]
+        command: ["buttercup-corpus-sync",  "--redis-url", "{{ include "buttercup.core.redisUrl" . }}", "--wdir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--log-level", "{{ include "buttercup.core.logLevel" . }}"]
         env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         - name: BUTTERCUP_FUZZER_LOG_LEVEL

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import argparse
 import uuid
 import logging
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,15 @@ class Runner:
         os.environ["JOB_NAME"] = ""
         logger.debug(f"Fuzzer logs: {results.logs}")
         return results
+
+    def merge_corpus(self, conf: FuzzConfiguration, output_dir: str):
+        logger.info(f"Merging corpus with {conf.engine} | {conf.sanitizer} | {conf.target_path}")
+        job_name = f"{conf.engine}_{conf.sanitizer}"
+        os.environ["JOB_NAME"] = job_name
+        engine = typing.cast(Engine, get_engine(conf.engine))
+        # Temporary directory ignores crashes
+        with tempfile.TemporaryDirectory() as td:
+            engine.minimize_corpus(conf.target_path, [], [conf.corpus_dir], output_dir, td, self.conf.timeout)
 
 
 def main():
