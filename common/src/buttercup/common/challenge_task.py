@@ -81,10 +81,20 @@ class ReproduceResult:
             return output
         return None
 
-    # This is inteneded to encapsulate heuristics for determining if a run caused a crash
+    # This is intended to encapsulate heuristics for determining if a run caused a crash
     # Could grep for strings from sanitizers as well
     def did_crash(self) -> bool:
-        return self.command_result.returncode is not None and self.command_result.returncode != 0
+        """Determine if a crash occurred
+
+        Conditions:
+         - Nonzero return code
+         - Fuzzer ran (assumes libfuzzer or Jazzer)
+        """
+        nonzero_return = self.command_result.returncode is not None and self.command_result.returncode != 0
+        fuzzer_ran = b"INFO: Seed: " in self.command_result.output
+        if not fuzzer_ran:
+            logger.info(f"Fuzzer did not run. Stdout: {self.command_result.output[:200]}...")
+        return nonzero_return and fuzzer_ran
 
 
 @dataclass
