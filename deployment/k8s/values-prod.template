@@ -205,7 +205,7 @@ seed-gen:
 
 patcher:
   enabled: true
-  replicaCount: 8
+  replicaCount: 16
   maxPatchRetries: 25
   maxContextRetrieverRetries: 30
   maxContextRetrieverRecursionLimit: 100
