@@ -83,7 +83,7 @@ def mock_redis():
 def mock_competition_api(mock_task_registry):
     mock = Mock(spec=CompetitionAPI)
     # Add the missing method that's needed in tests
-    mock.submit_bundle_patch = Mock(return_value=(True, TypesSubmissionStatus.ACCEPTED))
+    mock.submit_bundle_patch = Mock(return_value=(True, TypesSubmissionStatus.SubmissionStatusAccepted))
     return mock
 
 
@@ -122,7 +122,9 @@ class TestCompetitionAPI:
         mock_lopen.return_value.__enter__.return_value = mock_file
 
         # Setup API response
-        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, pov_id="test-pov-123")
+        mock_response = TypesPOVSubmissionResponse(
+            status=TypesSubmissionStatus.SubmissionStatusAccepted, pov_id="test-pov-123"
+        )
 
         # Setup API client mock
         mock_pov_api = Mock()
@@ -135,7 +137,7 @@ class TestCompetitionAPI:
 
             # Verify result first
             assert result[0] == "test-pov-123"
-            assert result[1] == TypesSubmissionStatus.ACCEPTED
+            assert result[1] == TypesSubmissionStatus.SubmissionStatusAccepted
 
             # Verify file was read correctly
             mock_lopen.assert_called_once_with(sample_crash.crash.crash_input_path, "rb")
@@ -160,7 +162,7 @@ class TestCompetitionAPI:
         mock_lopen.return_value.__enter__.return_value = mock_file
 
         # Setup API response
-        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.FAILED, pov_id="")
+        mock_response = TypesPOVSubmissionResponse(status=TypesSubmissionStatus.SubmissionStatusFailed, pov_id="")
 
         # Setup API client mock
         mock_pov_api = Mock()
@@ -173,12 +175,14 @@ class TestCompetitionAPI:
 
             # Verify result is a tuple with (None, FAILED)
             assert result[0] is None
-            assert result[1] == TypesSubmissionStatus.FAILED
+            assert result[1] == TypesSubmissionStatus.SubmissionStatusFailed
 
     def test_get_pov_status(self, competition_api):
         # Setup mock
         mock_pov_api = Mock()
-        mock_pov_api.v1_task_task_id_pov_pov_id_get.return_value = Mock(status=TypesSubmissionStatus.PASSED)
+        mock_pov_api.v1_task_task_id_pov_pov_id_get.return_value = Mock(
+            status=TypesSubmissionStatus.SubmissionStatusPassed
+        )
 
         # Patch the PovApi constructor
         with patch("buttercup.orchestrator.scheduler.submissions.PovApi", return_value=mock_pov_api):
@@ -187,7 +191,7 @@ class TestCompetitionAPI:
 
             # Verify call and result
             mock_pov_api.v1_task_task_id_pov_pov_id_get.assert_called_once_with(task_id="task-123", pov_id="pov-456")
-            assert status == TypesSubmissionStatus.PASSED
+            assert status == TypesSubmissionStatus.SubmissionStatusPassed
 
     def test_submit_patch_successful(self, competition_api):
         # Setup test data
@@ -196,7 +200,9 @@ class TestCompetitionAPI:
         expected_encoded_patch = base64.b64encode(patch_content.encode()).decode()
 
         # Setup mock response
-        mock_response = TypesPatchSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, patch_id="patch-123")
+        mock_response = TypesPatchSubmissionResponse(
+            status=TypesSubmissionStatus.SubmissionStatusAccepted, patch_id="patch-123"
+        )
 
         # Setup patch API mock
         mock_patch_api = Mock()
@@ -215,12 +221,14 @@ class TestCompetitionAPI:
 
             # Verify result
             assert result[0] == "patch-123"
-            assert result[1] == TypesSubmissionStatus.ACCEPTED
+            assert result[1] == TypesSubmissionStatus.SubmissionStatusAccepted
 
     def test_get_patch_status(self, competition_api):
         # Setup mock
         mock_patch_api = Mock()
-        mock_patch_api.v1_task_task_id_patch_patch_id_get.return_value = Mock(status=TypesSubmissionStatus.PASSED)
+        mock_patch_api.v1_task_task_id_patch_patch_id_get.return_value = Mock(
+            status=TypesSubmissionStatus.SubmissionStatusPassed
+        )
 
         # Patch the PatchApi constructor
         with patch("buttercup.orchestrator.scheduler.submissions.PatchApi", return_value=mock_patch_api):
@@ -231,7 +239,7 @@ class TestCompetitionAPI:
             mock_patch_api.v1_task_task_id_patch_patch_id_get.assert_called_once_with(
                 task_id="task-123", patch_id="patch-456"
             )
-            assert status == TypesSubmissionStatus.PASSED
+            assert status == TypesSubmissionStatus.SubmissionStatusPassed
 
     def test_submit_bundle_successful(self, competition_api):
         # Setup test data
@@ -240,7 +248,9 @@ class TestCompetitionAPI:
         patch_id = "patch-789"
 
         # Setup mock response
-        mock_response = TypesBundleSubmissionResponse(status=TypesSubmissionStatus.ACCEPTED, bundle_id="bundle-123")
+        mock_response = TypesBundleSubmissionResponse(
+            status=TypesSubmissionStatus.SubmissionStatusAccepted, bundle_id="bundle-123"
+        )
 
         # Setup bundle API mock
         mock_bundle_api = Mock()
@@ -260,7 +270,7 @@ class TestCompetitionAPI:
 
             # Verify result
             assert result[0] == "bundle-123"
-            assert result[1] == TypesSubmissionStatus.ACCEPTED
+            assert result[1] == TypesSubmissionStatus.SubmissionStatusAccepted
 
     def test_submit_matching_sarif_successful(self, competition_api):
         # Setup test data
@@ -268,7 +278,7 @@ class TestCompetitionAPI:
         sarif_id = "sarif-456"
 
         # Setup mock response
-        mock_response = Mock(status=TypesSubmissionStatus.ACCEPTED)
+        mock_response = Mock(status=TypesSubmissionStatus.SubmissionStatusAccepted)
 
         # Setup sarif API mock
         mock_sarif_api = Mock()
@@ -286,14 +296,14 @@ class TestCompetitionAPI:
 
             # Verify result
             assert result[0] is True
-            assert result[1] == TypesSubmissionStatus.ACCEPTED
+            assert result[1] == TypesSubmissionStatus.SubmissionStatusAccepted
 
 
 # Tests for the Submissions class
 class TestSubmissions:
     def test_submit_vulnerability_successful(self, submissions, mock_competition_api, sample_crash, mock_redis):
         # Setup mock return value for submit_vulnerability
-        mock_competition_api.submit_pov.return_value = ("test-pov-123", TypesSubmissionStatus.ACCEPTED)
+        mock_competition_api.submit_pov.return_value = ("test-pov-123", TypesSubmissionStatus.SubmissionStatusAccepted)
         mock_redis.rpush.return_value = 1  # Index of the inserted entry
 
         # Call the method
@@ -315,7 +325,7 @@ class TestSubmissions:
 
     def test_submit_vulnerability_failed(self, submissions, mock_competition_api, sample_crash):
         # Setup mock to return an error
-        mock_competition_api.submit_pov.return_value = (None, TypesSubmissionStatus.FAILED)
+        mock_competition_api.submit_pov.return_value = (None, TypesSubmissionStatus.SubmissionStatusFailed)
 
         # Call the method
         result = submissions.submit_vulnerability(sample_crash)
@@ -331,7 +341,7 @@ class TestSubmissions:
 
     def test_submit_vulnerability_errored(self, submissions, mock_competition_api, sample_crash):
         # Setup mock to return an error
-        mock_competition_api.submit_pov.return_value = (None, TypesSubmissionStatus.ERRORED)
+        mock_competition_api.submit_pov.return_value = (None, TypesSubmissionStatus.SubmissionStatusErrored)
 
         # Call the method
         result = submissions.submit_vulnerability(sample_crash)
@@ -396,7 +406,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return PASSED
-        mock_competition_api.get_pov_status.return_value = TypesSubmissionStatus.PASSED
+        mock_competition_api.get_pov_status.return_value = TypesSubmissionStatus.SubmissionStatusPassed
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -410,7 +420,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return FAILED
-        mock_competition_api.get_pov_status.return_value = TypesSubmissionStatus.FAILED
+        mock_competition_api.get_pov_status.return_value = TypesSubmissionStatus.SubmissionStatusFailed
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -424,8 +434,8 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return ERRORED then successful resubmission
-        mock_competition_api.get_pov_status.return_value = TypesSubmissionStatus.ERRORED
-        mock_competition_api.submit_pov.return_value = ("new-pov-456", TypesSubmissionStatus.ACCEPTED)
+        mock_competition_api.get_pov_status.return_value = TypesSubmissionStatus.SubmissionStatusErrored
+        mock_competition_api.submit_pov.return_value = ("new-pov-456", TypesSubmissionStatus.SubmissionStatusAccepted)
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -445,7 +455,10 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return successful patch submission
-        mock_competition_api.submit_patch.return_value = ("test-patch-123", TypesSubmissionStatus.ACCEPTED)
+        mock_competition_api.submit_patch.return_value = (
+            "test-patch-123",
+            TypesSubmissionStatus.SubmissionStatusAccepted,
+        )
 
         # Mock the _have_more_patches function to avoid AttributeError
         with patch("buttercup.orchestrator.scheduler.submissions._have_more_patches", return_value=True):
@@ -464,7 +477,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return PASSED
-        mock_competition_api.get_patch_status.return_value = TypesSubmissionStatus.PASSED
+        mock_competition_api.get_patch_status.return_value = TypesSubmissionStatus.SubmissionStatusPassed
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -484,7 +497,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return FAILED
-        mock_competition_api.get_patch_status.return_value = TypesSubmissionStatus.FAILED
+        mock_competition_api.get_patch_status.return_value = TypesSubmissionStatus.SubmissionStatusFailed
 
         # Mock the _advance_patch_idx function to avoid AttributeError
         with patch("buttercup.orchestrator.scheduler.submissions._advance_patch_idx") as mock_advance:
@@ -505,7 +518,10 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return successful bundle submission
-        mock_competition_api.submit_bundle.return_value = ("test-bundle-789", TypesSubmissionStatus.ACCEPTED)
+        mock_competition_api.submit_bundle.return_value = (
+            "test-bundle-789",
+            TypesSubmissionStatus.SubmissionStatusAccepted,
+        )
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -522,7 +538,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return failed bundle submission
-        mock_competition_api.submit_bundle.return_value = (None, TypesSubmissionStatus.FAILED)
+        mock_competition_api.submit_bundle.return_value = (None, TypesSubmissionStatus.SubmissionStatusFailed)
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -538,7 +554,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return error
-        mock_competition_api.submit_bundle.return_value = (None, TypesSubmissionStatus.ERRORED)
+        mock_competition_api.submit_bundle.return_value = (None, TypesSubmissionStatus.SubmissionStatusErrored)
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -581,7 +597,7 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return successful bundle patch
-        mock_competition_api.patch_bundle.return_value = (True, TypesSubmissionStatus.ACCEPTED)
+        mock_competition_api.patch_bundle.return_value = (True, TypesSubmissionStatus.SubmissionStatusAccepted)
 
         # Simulate process_cycle
         submissions.process_cycle()
@@ -665,7 +681,10 @@ class TestStateTransitions:
         # Mock the _task_id function to verify it's being called with the right arguments
         with patch("buttercup.orchestrator.scheduler.submissions._task_id", return_value=task_id) as mock_task_id:
             # Mock competition API to return successful patch submission
-            mock_competition_api.submit_patch.return_value = ("test-patch-123", TypesSubmissionStatus.ACCEPTED)
+            mock_competition_api.submit_patch.return_value = (
+                "test-patch-123",
+                TypesSubmissionStatus.SubmissionStatusAccepted,
+            )
 
             # Simulate process_cycle
             submissions.process_cycle()

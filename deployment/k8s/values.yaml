@@ -30,7 +30,7 @@ global:
     pullSecrets: ["ghcr-auth"]
   competitionApiImage:
     repository: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api
-    tag: v1.1-rc7
+    tag: v1.2-rc1
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
 

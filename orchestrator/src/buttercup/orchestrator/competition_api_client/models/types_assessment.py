@@ -26,8 +26,8 @@ class TypesAssessment(str, Enum):
     """
     allowed enum values
     """
-    CORRECT = 'correct'
-    INCORRECT = 'incorrect'
+    AssessmentCorrect = 'correct'
+    AssessmentIncorrect = 'incorrect'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:

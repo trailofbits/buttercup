@@ -14,12 +14,12 @@ from buttercup.common.datastructures.msg_pb2 import (
     Patch,
 )
 from buttercup.common.sarif_store import SARIFStore
-from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 from buttercup.orchestrator.scheduler.sarif_matcher import match
 from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture
 from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
 from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
 from buttercup.orchestrator.competition_api_client.models.types_bundle_submission import TypesBundleSubmission
@@ -142,7 +142,7 @@ class CompetitionAPI:
 
             # Create submission payload from crash data
             submission = TypesPOVSubmission(
-                architecture=ARCHITECTURE,
+                architecture=TypesArchitecture.ArchitectureX8664,
                 engine=crash.crash.target.engine,
                 fuzzer_name=crash.crash.harness_name,
                 sanitizer=crash.crash.target.sanitizer,
@@ -168,7 +168,10 @@ class CompetitionAPI:
                     payload=submission,
                 )
                 logger.debug(f"[{crash.crash.target.task_id}] POV submission response: {response}")
-                if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
+                if response.status not in [
+                    TypesSubmissionStatus.SubmissionStatusAccepted,
+                    TypesSubmissionStatus.SubmissionStatusPassed,
+                ]:
                     logger.error(
                         f"[{crash.crash.target.task_id}] POV submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}"
                     )
@@ -179,7 +182,7 @@ class CompetitionAPI:
                 return response.pov_id, response.status
         except Exception as e:
             logger.error(f"[{crash.crash.target.task_id}] Failed to submit vulnerability: {e}")
-            return None, TypesSubmissionStatus.ERRORED
+            return None, TypesSubmissionStatus.SubmissionStatusErrored
 
     def get_pov_status(self, task_id: str, pov_id: str) -> TypesSubmissionStatus:
         """
@@ -190,7 +193,7 @@ class CompetitionAPI:
             pov_id: POV ID from submit_vulnerability
 
         Returns:
-            TypesSubmissionStatus: Current status (ACCEPTED, PASSED, FAILED, ERRORED, DEADLINE_EXCEEDED)
+            TypesSubmissionStatus: Current status (SubmissionStatusAccepted, SubmissionStatusPassed, SubmissionStatusFailed, SubmissionStatusErrored, SubmissionStatusDeadlineExceeded)
         """
         assert task_id
         assert pov_id
@@ -232,7 +235,10 @@ class CompetitionAPI:
                 task_id=task_id, payload=submission
             )
             logger.debug(f"[{task_id}] Patch submission response: {response}")
-            if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
+            if response.status not in [
+                TypesSubmissionStatus.SubmissionStatusAccepted,
+                TypesSubmissionStatus.SubmissionStatusPassed,
+            ]:
                 logger.error(f"[{task_id}] Patch submission rejected (status: {response.status}) for harness: {patch}")
                 span.set_status(Status(StatusCode.ERROR))
                 return (None, response.status)
@@ -249,7 +255,7 @@ class CompetitionAPI:
             patch_id: Patch ID from submit_patch
 
         Returns:
-            TypesSubmissionStatus: Current status (ACCEPTED, PASSED, FAILED, ERRORED, DEADLINE_EXCEEDED)
+            TypesSubmissionStatus: Current status (SubmissionStatusAccepted, SubmissionStatusPassed, SubmissionStatusFailed, SubmissionStatusErrored, SubmissionStatusDeadlineExceeded)
         """
         assert task_id
         assert patch_id
@@ -300,7 +306,10 @@ class CompetitionAPI:
                 task_id=task_id, payload=submission
             )
             logger.debug(f"[{task_id}] Bundle submission response: {response}")
-            if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
+            if response.status not in [
+                TypesSubmissionStatus.SubmissionStatusAccepted,
+                TypesSubmissionStatus.SubmissionStatusPassed,
+            ]:
                 logger.error(
                     f"[{task_id}] Bundle submission rejected (status: {response.status}) for harness: {pov_id} {patch_id}"
                 )
@@ -344,7 +353,10 @@ class CompetitionAPI:
             task_id=task_id, bundle_id=bundle_id, payload=submission
         )
         logger.debug(f"[{task_id}] Bundle patch submission response: {response}")
-        if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
+        if response.status not in [
+            TypesSubmissionStatus.SubmissionStatusAccepted,
+            TypesSubmissionStatus.SubmissionStatusPassed,
+        ]:
             logger.error(
                 f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}"
             )
@@ -371,7 +383,7 @@ class CompetitionAPI:
 
         # TODO: The description is the most basic I could think of. I don't know if we wanted to do something more fancy.
         submission = TypesSarifAssessmentSubmission(
-            assessment=TypesAssessment.CORRECT,
+            assessment=TypesAssessment.AssessmentCorrect,
             description="Overlapping with our POV/patch",
         )
 
@@ -391,7 +403,10 @@ class CompetitionAPI:
                 task_id=task_id, broadcast_sarif_id=sarif_id, payload=submission
             )
             logger.debug(f"[{task_id}] Matching SARIF submission response: {response}")
-            if response.status not in [TypesSubmissionStatus.ACCEPTED, TypesSubmissionStatus.PASSED]:
+            if response.status not in [
+                TypesSubmissionStatus.SubmissionStatusAccepted,
+                TypesSubmissionStatus.SubmissionStatusPassed,
+            ]:
                 logger.error(
                     f"[{task_id}] Matching SARIF submission rejected (status: {response.status}) for sarif_id: {sarif_id}"
                 )
@@ -594,7 +609,7 @@ class Submissions:
             )
 
             # If the API returned ERRORED, we want to retry.
-            stop = status != TypesSubmissionStatus.ERRORED
+            stop = status != TypesSubmissionStatus.SubmissionStatusErrored
 
             if stop:
                 logger.info(f"Competition API returned {status}, will not retry.")
@@ -696,7 +711,7 @@ class Submissions:
         """
         status = self.competition_api.get_pov_status(_task_id(e), e.pov_id)
         match status:
-            case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
+            case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
                 e.state = SubmissionEntry.STOP
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -707,7 +722,7 @@ class Submissions:
                     state_change=("WAIT_POV_PASS", "STOP"),
                     msg=f"POV failed (status={status}), stopping",
                 )
-            case TypesSubmissionStatus.PASSED:
+            case TypesSubmissionStatus.SubmissionStatusPassed:
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -718,7 +733,7 @@ class Submissions:
                     state_change=("WAIT_POV_PASS", "SUBMIT_PATCH"),
                     msg="POV passed, ready to submit patch when the patch is ready",
                 )
-            case TypesSubmissionStatus.ERRORED:
+            case TypesSubmissionStatus.SubmissionStatusErrored:
                 log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV errored, will resubmit")
 
                 pov_id, status = self.competition_api.submit_pov(e.crash)
@@ -730,7 +745,7 @@ class Submissions:
                     )
 
                     # If the API returned ERRORED, we want to retry.
-                    if status != TypesSubmissionStatus.ERRORED:
+                    if status != TypesSubmissionStatus.SubmissionStatusErrored:
                         e.state = SubmissionEntry.STOP
                         self._persist(self.redis, i, e)
                         log_structured(
@@ -749,7 +764,7 @@ class Submissions:
                     )
 
             case _:
-                assert status == TypesSubmissionStatus.ACCEPTED, f"Unexpected POV status: {status}"
+                assert status == TypesSubmissionStatus.SubmissionStatusAccepted, f"Unexpected POV status: {status}"
 
     def _submit_patch(self, i, e):
         """
@@ -794,7 +809,10 @@ class Submissions:
             )
         else:
             match status:
-                case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
+                case (
+                    TypesSubmissionStatus.SubmissionStatusFailed
+                    | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                ):
                     # Deadline exceeded or failed, move on to next patch (for exceeded we won't try again due to deadline check)
                     e.patch_idx += 1
                     self._persist(self.redis, i, e)
@@ -806,7 +824,7 @@ class Submissions:
                         patch_idx=e.patch_idx,
                         msg=f"Patch submission failed ({status}), will not attempt this patch again.",
                     )
-                case TypesSubmissionStatus.ERRORED:
+                case TypesSubmissionStatus.SubmissionStatusErrored:
                     if have_more_patches and e.patch_submission_attempt >= self.patch_submission_retry_limit:
                         _advance_patch_idx(e)
                         self._persist(self.redis, i, e)
@@ -847,9 +865,9 @@ class Submissions:
         """
         status = self.competition_api.get_patch_status(_task_id(e), e.patch_id)
         match status:
-            case TypesSubmissionStatus.ACCEPTED:
+            case TypesSubmissionStatus.SubmissionStatusAccepted:
                 return  # No change.
-            case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
+            case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
                 _advance_patch_idx(e)
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
@@ -862,7 +880,7 @@ class Submissions:
                     state_change=("WAIT_PATCH_PASS", "SUBMIT_PATCH"),
                     msg=f"Patch submission failed ({status}), will not attempt this patch again, moving on to next patch.",
                 )
-            case TypesSubmissionStatus.ERRORED:
+            case TypesSubmissionStatus.SubmissionStatusErrored:
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -874,7 +892,7 @@ class Submissions:
                     state_change=("WAIT_PATCH_PASS", "SUBMIT_PATCH"),
                     msg=f"Patch submission errored ({status}), will attempt this patch again.",
                 )
-            case TypesSubmissionStatus.PASSED:
+            case TypesSubmissionStatus.SubmissionStatusPassed:
                 e.state = SubmissionEntry.SUBMIT_BUNDLE
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -904,7 +922,10 @@ class Submissions:
         bundle_id, status = self.competition_api.submit_bundle(_task_id(e), e.pov_id, e.patch_id)
         if not bundle_id:
             match status:
-                case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
+                case (
+                    TypesSubmissionStatus.SubmissionStatusFailed
+                    | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                ):
                     e.state = SubmissionEntry.STOP
                     self._persist(self.redis, i, e)
                     log_structured(
@@ -916,7 +937,7 @@ class Submissions:
                         state_change=("SUBMIT_BUNDLE", "STOP"),
                         msg=f"Bundle submission failed ({status}), not much else to do but stop.",
                     )
-                case TypesSubmissionStatus.ERRORED:
+                case TypesSubmissionStatus.SubmissionStatusErrored:
                     log_structured(
                         logger.info,
                         _task_id(e),
@@ -1002,7 +1023,10 @@ class Submissions:
             )
         else:
             match status:
-                case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
+                case (
+                    TypesSubmissionStatus.SubmissionStatusFailed
+                    | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                ):
                     e.state = SubmissionEntry.STOP
                     self._persist(self.redis, i, e)
                     log_structured(
@@ -1056,7 +1080,10 @@ class Submissions:
             )
         else:
             match status:
-                case TypesSubmissionStatus.FAILED | TypesSubmissionStatus.DEADLINE_EXCEEDED:
+                case (
+                    TypesSubmissionStatus.SubmissionStatusFailed
+                    | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                ):
                     e.state = SubmissionEntry.STOP
                     self._persist(self.redis, i, e)
                     log_structured(

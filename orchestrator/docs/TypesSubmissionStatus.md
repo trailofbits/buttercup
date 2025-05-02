@@ -3,15 +3,15 @@
 
 ## Enum
 
-* `ACCEPTED` (value: `'accepted'`)
+* `SubmissionStatusAccepted` (value: `'accepted'`)
 
-* `PASSED` (value: `'passed'`)
+* `SubmissionStatusPassed` (value: `'passed'`)
 
-* `FAILED` (value: `'failed'`)
+* `SubmissionStatusFailed` (value: `'failed'`)
 
-* `DEADLINE_EXCEEDED` (value: `'deadline_exceeded'`)
+* `SubmissionStatusDeadlineExceeded` (value: `'deadline_exceeded'`)
 
-* `ERRORED` (value: `'errored'`)
+* `SubmissionStatusErrored` (value: `'errored'`)
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

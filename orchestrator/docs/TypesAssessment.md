@@ -3,9 +3,9 @@
 
 ## Enum
 
-* `CORRECT` (value: `'correct'`)
+* `AssessmentCorrect` (value: `'correct'`)
 
-* `INCORRECT` (value: `'incorrect'`)
+* `AssessmentIncorrect` (value: `'incorrect'`)
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

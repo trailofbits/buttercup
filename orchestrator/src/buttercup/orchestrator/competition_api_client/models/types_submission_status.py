@@ -26,11 +26,11 @@ class TypesSubmissionStatus(str, Enum):
     """
     allowed enum values
     """
-    ACCEPTED = 'accepted'
-    PASSED = 'passed'
-    FAILED = 'failed'
-    DEADLINE_EXCEEDED = 'deadline_exceeded'
-    ERRORED = 'errored'
+    SubmissionStatusAccepted = 'accepted'
+    SubmissionStatusPassed = 'passed'
+    SubmissionStatusFailed = 'failed'
+    SubmissionStatusDeadlineExceeded = 'deadline_exceeded'
+    SubmissionStatusErrored = 'errored'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
