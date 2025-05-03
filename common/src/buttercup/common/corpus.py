@@ -127,7 +127,8 @@ class CrashDir:
         self.count_limit = count_limit
 
     def input_dir_for_token(self, token: str) -> InputDir:
-        return InputDir(self.wdir, os.path.join(self.crash_dir, urllib.parse.quote(token)))
+        quoted_token = urllib.parse.quote(token).lstrip("/")
+        return InputDir(self.wdir, os.path.join(self.crash_dir, quoted_token))
 
     def copy_file(self, src_file: str, crash_token: str) -> str:
         idir = self.input_dir_for_token(crash_token)

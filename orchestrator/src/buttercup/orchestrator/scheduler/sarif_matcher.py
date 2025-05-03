@@ -157,7 +157,10 @@ def _match_thread_callstack(frames: List[StackFrame], sarif_infos: List[SarifInf
 
     for frame in frames:
         try:
-            match = _match_frame(_get_frame(frame), sarif_infos)
+            frame = _get_frame(frame)
+            if frame is None:
+                continue
+            match = _match_frame(frame, sarif_infos)
             if match:
                 return match
         except Exception as e:
@@ -167,10 +170,14 @@ def _match_thread_callstack(frames: List[StackFrame], sarif_infos: List[SarifInf
     return None
 
 
-def _get_frame(frame: StackFrame) -> Frame:
+def _get_frame(frame: StackFrame) -> Frame | None:
     """
     Get a Frame object from a StackFrame object.
+    NOTE: We require the filename to be present in the StackFrame object.
     """
+    if frame.filename is None:
+        return None
+
     return Frame(file=Path(frame.filename), line=int(frame.fileline), function=frame.function_name)
 
 
