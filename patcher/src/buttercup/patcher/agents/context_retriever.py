@@ -50,6 +50,14 @@ The software engineer has made the following request:
 {REQUEST}
 </engineer_request>
 
+<cwd>
+{CWD}
+</cwd>
+
+<ls_cwd>
+{LS_CWD}
+</ls_cwd>
+
 Throughout this process, maintain a <scratchpad> where you document your thought process, the commands you're using, and the results you're finding. This will help you keep track of your progress and make informed decisions about next steps.
 Do not make up any information, only use the provided tools and the information available in the project.
 Do not make up any file paths.
@@ -380,11 +388,19 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.codequery = CodeQueryPersistent(self.challenge, work_dir=self.work_dir)
 
+        ls_cwd = self.challenge.exec_docker_cmd(["ls", "-l"])
+        if ls_cwd.success:
+            self.ls_cwd = ls_cwd.output.decode("utf-8")
+        else:
+            self.ls_cwd = "ls cwd failed"
+
     def _call_model(self, state: State) -> Command[Literal[NodeNames.TOOLS.value, END]]:  # type: ignore[name-defined]
         """Call the model."""
         user_msg = USER_MSG.format(
             REQUEST=state.request,
             PROJECT_NAME=state.project_name,
+            CWD=state.challenge.workdir_from_dockerfile(),
+            LS_CWD=self.ls_cwd,
         )
         res = self.llm_with_tools.invoke(
             [
