@@ -3,15 +3,15 @@ global:
 
   ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   orchestratorImage:
-    tag: "v0.2.0"
+    tag: "v0.2.1"
   fuzzerImage:
-    tag: "v0.2.0"
+    tag: "v0.2.1"
   seedGenImage:
-    tag: "v0.2.0"
+    tag: "v0.2.1"
   patcherImage:
-    tag: "v0.2.0"
+    tag: "v0.2.1"
   programModelImage:
-    tag: "v0.2.0"
+    tag: "v0.2.1"
 
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
