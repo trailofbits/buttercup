@@ -23,7 +23,7 @@ global:
     pullPolicy: Never
 
   langfuse:
-    enabled: true
+    enabled: ${LANGFUSE_ENABLED}
     host: "${LANGFUSE_HOST}"
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"

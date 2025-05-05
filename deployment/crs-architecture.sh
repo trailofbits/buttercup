@@ -29,6 +29,12 @@ fi
 if [ "$TAILSCALE_ENABLED" = "true" ]; then
 	envsubst <k8s/base/tailscale-operator/operator.template >k8s/base/tailscale-operator/operator.yaml
 fi
+if [ "$(echo "$LANGFUSE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
+	LANGFUSE_ENABLED="true"
+else
+	LANGFUSE_ENABLED="false"
+fi
+
 BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE:-crs}
 DEPLOY_CLUSTER=${DEPLOY_CLUSTER:-true}
 CLUSTER_TYPE=${CLUSTER_TYPE:-minikube}

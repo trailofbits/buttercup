@@ -2,7 +2,7 @@ global:
   environment: "aks"
   ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   langfuse:
-    enabled: true
+    enabled: ${LANGFUSE_ENABLED}
     host: "${LANGFUSE_HOST}"
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"

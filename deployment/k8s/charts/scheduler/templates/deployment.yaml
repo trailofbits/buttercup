@@ -30,6 +30,8 @@ spec:
         env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.schedulerEnv" . | nindent 8 }}
+        - name: BUTTERCUP_SCHEDULER_SERVE__PATCH_REQUESTS_PER_VULNERABILITY
+          value: "{{ .Values.patchRequestsPerVulnerability | default 1 }}"
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         volumeMounts:

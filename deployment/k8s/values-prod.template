@@ -14,8 +14,12 @@ global:
     tag: "v0.1.3"
 
   langfuse:
-    enabled: false
+    enabled: ${LANGFUSE_ENABLED}
+    host: "${LANGFUSE_HOST}"
+    publicKey: "${LANGFUSE_PUBLIC_KEY}"
+    secretKey: "${LANGFUSE_SECRET_KEY}"
   
+
   crs:
     api_key_id: ${CRS_KEY_ID}
     api_key_token: ${CRS_KEY_TOKEN}
@@ -88,6 +92,7 @@ task-downloader:
   
 scheduler:
   enabled: true
+  patchRequestsPerVulnerability: 3
   resources:
     limits:
       cpu: 2000m
@@ -137,14 +142,14 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 80
+  replicaCount: 240
   resources:
     limits:
       cpu: 4000m
       memory: 16Gi
     requests:
-      cpu: 1000m
-      memory: 4Gi
+      cpu: 500m
+      memory: 2Gi
 
 coverage-bot:
   enabled: true
@@ -212,15 +217,15 @@ patcher:
   maxMinutesRunPOVs: 30
   resources:
     limits:
-      cpu: 1000m
-      memory: 1Gi
+      cpu: 2000m
+      memory: 2Gi
     requests:
       cpu: 500m
       memory: 512Mi
   dind:
     resources:
       limits:
-        cpu: 2000m
+        cpu: 4000m
         memory: 16Gi
       requests:
         cpu: 250m
