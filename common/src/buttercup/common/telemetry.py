@@ -35,6 +35,9 @@ def init_telemetry(application_name: str):
     if not os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL"):
         logger.warning("OTEL_EXPORTER_OTLP_PROTOCOL not set")
 
+    logger.info("Sending telemetry to %s", os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+    logger.info("Sending telemetry using %s", os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))
+
     openlit.init(application_name=application_name)
 
 
