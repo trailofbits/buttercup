@@ -93,6 +93,18 @@ volumes:
     size: "10Gi"
     accessMode: ReadWriteMany
 
+
+# Dind daemon chart configuration
+dind-daemon:
+  enabled: true
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 16Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
 # Service-specific configurations
 redis:
   auth:

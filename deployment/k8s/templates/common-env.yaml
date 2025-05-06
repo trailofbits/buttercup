@@ -18,6 +18,24 @@ redis://{{ .Release.Name }}-redis-master:6379
 tcp://localhost:2375
 {{- end -}}
 
+{{/*
+Define a unique Docker socket path using the release name and namespace
+*/}}
+{{- define "buttercup.core.uniqueDockerSocketDir" -}}
+/var/run/dind-{{ .Release.Namespace }}-{{ .Release.Name }}
+{{- end -}}
+
+
+{{- define "buttercup.core.dockerSocketPath" -}}
+{{ include "buttercup.core.uniqueDockerSocketDir" . }}/docker.sock
+{{- end -}}
+
+{{/*
+Define the full Docker socket path
+*/}}
+{{- define "buttercup.core.dockerSocketEndpoint" -}}
+unix://{{ include "buttercup.core.dockerSocketPath" . }}
+{{- end -}}
 
 {{- define "buttercup.core.litellmEndpoint" -}}
 http://{{ .Release.Name }}-litellm:4000
@@ -45,9 +63,12 @@ Define common variables by categories
   value: {{ include "buttercup.core.redisUrl" . }}
 {{- end }}
 
-{{- define "buttercup.env.docker" }}
+{{/*
+Define Docker Host environment variable for Unix socket
+*/}}
+{{- define "buttercup.env.dockerSocket" }}
 - name: DOCKER_HOST
-  value: {{ include "buttercup.core.dockerEndpoint" . }}
+  value: {{ include "buttercup.core.dockerSocketEndpoint" . }}
 {{- end }}
 
 {{- define "buttercup.env.llm" }}
@@ -270,3 +291,4 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_FUZZER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
 {{- end }}
+

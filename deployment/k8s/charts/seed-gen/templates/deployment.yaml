@@ -20,8 +20,8 @@ spec:
       initContainers:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
+      {{- include "buttercup.waitForDocker" . | nindent 6 }}
       containers:
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       - name: seed-gen
         image: "{{ .Values.global.seedGenImage.repository }}:{{ .Values.global.seedGenImage.tag }}"
         imagePullPolicy: {{ .Values.global.seedGenImage.pullPolicy }}
@@ -40,14 +40,15 @@ spec:
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+        {{- include "buttercup.dockerSocketVolumeMount" . | nindent 8 }}
         env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
-        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+        {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         {{- include "buttercup.env.langfuse" . | nindent 8 }}
         - name: LOG_LEVEL
           value: "{{ include "buttercup.core.logLevel" . }}"
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
-      {{- include "buttercup.dindVolume" . | nindent 6 }}
+      {{- include "buttercup.dockerSocketVolume" . | nindent 6 }}
       {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
 {{- end }}

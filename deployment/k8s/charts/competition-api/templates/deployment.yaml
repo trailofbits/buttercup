@@ -16,8 +16,48 @@ spec:
         app: competition-api
     spec:
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      hostAliases:
+        - ip: "127.0.0.1"
+          hostnames:
+          - "ghcr.io"
+      initContainers:
       containers:
-        {{- include "buttercup.dindSidecar" . | nindent 8 }}
+        - name: dind
+          image: "docker:24.0.6-dind"
+          securityContext:
+            privileged: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+            - name: REGISTRY_HOST
+              value: "{{ .Release.Name }}-registry-cache"
+          command:
+            - sh
+            - -c
+            - |
+              # Install required packages
+              apk add --no-cache socat ca-certificates
+
+              # Setup certificates
+              cp /certs/tls.crt /usr/local/share/ca-certificates/registry-cache.crt
+              update-ca-certificates
+
+              # Start socat proxies in background
+              socat TCP-LISTEN:443,fork,reuseaddr TCP:$REGISTRY_HOST:443 &
+              socat TCP-LISTEN:80,fork,reuseaddr TCP:$REGISTRY_HOST:80 &
+
+              # Start Docker daemon with socket in a location that can be shared
+              dockerd-entrypoint.sh
+          volumeMounts:
+            - name: dind-storage
+              mountPath: /var/lib/docker
+            - name: tls-cert
+              mountPath: /certs
+              readOnly: true
+            - name: tmp-storage
+              mountPath: /tmp
         - name: competition-api
           image: "{{ .Values.global.competitionApiImage.repository }}:{{ .Values.global.competitionApiImage.tag }}"
           imagePullPolicy: {{ .Values.global.competitionApiImage.pullPolicy }}
@@ -39,7 +79,8 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
-            {{- include "buttercup.dockerHostEnv" . | nindent 12 }}
+            - name: DOCKER_HOST
+              value: tcp://localhost:2375
             - name: SCANTRON_GITHUB_PAT
               valueFrom:
                 secretKeyRef:
@@ -49,25 +90,17 @@ spec:
             - name: scantron-config
               mountPath: /etc/scantron/scantron.yaml
               subPath: scantron.yaml
-            {{- if .Values.extraVolumeMounts }}
-            {{- range .Values.extraVolumeMounts }}
-            - name: {{ .name }}
-              mountPath: {{ .mountPath }}
-            {{- end }}
-            {{- end }}
-            {{- include "buttercup.nodeLocalVolumeMount" . | nindent 12 }}
+            - name: tmp-storage
+              mountPath: /tmp
       volumes:
-        {{- include "buttercup.dindVolume" . | nindent 8 }}
-        {{- include "buttercup.volumes.scratch" . | nindent 8 }}
-
         - name: scantron-config
           configMap:
             name: {{ .Release.Name }}-scantron-config
-        {{- if .Values.extraVolumeMounts }}
-        {{- range .Values.extraVolumeMounts }}
-        - name: {{ .name }}
+        - name: tmp-storage
           emptyDir: {}
-        {{- end }}
-        {{- end }}
-        {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
+        - name: dind-storage
+          emptyDir: {}
+        - name: tls-cert
+          secret:
+            secretName: registry-cache-tls
 {{- end }}

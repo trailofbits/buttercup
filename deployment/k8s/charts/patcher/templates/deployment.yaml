@@ -20,8 +20,8 @@ spec:
       initContainers:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
+      {{- include "buttercup.waitForDocker" . | nindent 6 }}
       containers:
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       - name: patcher
         image: "{{ .Values.global.patcherImage.repository | default "patcher" }}:{{ .Values.global.patcherImage.tag | default "latest" }}"
         imagePullPolicy: {{ .Values.global.patcherImage.pullPolicy | default "IfNotPresent" }}
@@ -32,15 +32,16 @@ spec:
         volumeMounts:
         {{- include "buttercup.volumeMounts.scratch" . | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+        {{- include "buttercup.dockerSocketVolumeMount" . | nindent 8 }}
         env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.patcherEnv" . | nindent 8 }}
-        {{- include "buttercup.dockerHostEnv" . | nindent 8 }}
+        {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         {{- include "buttercup.env.langfuse" . | nindent 8 }}
         - name: LOG_LEVEL
           value: "{{ .Values.logLevel }}"
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
-      {{- include "buttercup.dindVolume" . | nindent 6 }}
+      {{- include "buttercup.dockerSocketVolume" . | nindent 6 }}
       {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
 {{- end }}

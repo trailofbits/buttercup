@@ -56,6 +56,18 @@ volumes:
     storageClass: "azurefile-csi-nfs-crs"
     size: "500Gi"
 
+
+# Dind daemon chart configuration
+dind-daemon:
+  enabled: true
+  resources:
+    limits:
+      cpu: 12000m
+      memory: 32Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+
 redis:
   master:
     persistence:
@@ -110,16 +122,6 @@ program-model:
     requests:
       cpu: 250m
       memory: 512Mi
-  dind:
-    # program-model uses DinD only with Kythe, but this is disabled for unscored-1
-    # so let's give it a small amount of resources
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 100Mi
 
 build-bot:
   enabled: true
@@ -131,14 +133,6 @@ build-bot:
     requests:
       cpu: 250m
       memory: 512Mi
-  dind:
-    resources:
-      limits:
-        cpu: 4000m
-        memory: 16Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
 
 fuzzer-bot:
   enabled: true
@@ -161,14 +155,6 @@ coverage-bot:
     requests:
       cpu: 250m
       memory: 512Mi
-  dind:
-    resources:
-      limits:
-        cpu: 4000m
-        memory: 8Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
 
 tracer-bot:
   enabled: true
@@ -180,14 +166,6 @@ tracer-bot:
     requests:
       cpu: 500m
       memory: 512Mi
-  dind:
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 8Gi
-      requests:
-        cpu: 250m
-        memory: 512Mi
 
 seed-gen:
   enabled: true
@@ -199,14 +177,6 @@ seed-gen:
     requests:
       cpu: 500m
       memory: 512Mi
-  dind:
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 8Gi
-      requests:
-        cpu: 250m
-        memory: 512Mi
 
 patcher:
   enabled: true
@@ -222,14 +192,6 @@ patcher:
     requests:
       cpu: 500m
       memory: 512Mi
-  dind:
-    resources:
-      limits:
-        cpu: 4000m
-        memory: 16Gi
-      requests:
-        cpu: 250m
-        memory: 512Mi
 
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}

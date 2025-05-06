@@ -14,8 +14,9 @@ spec:
     spec:
       restartPolicy: {{ .Values.restartPolicy | default "OnFailure" }}
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+      {{- include "buttercup.waitForDocker" . | nindent 6 }}
       containers:
-      {{- include "buttercup.dindSidecar" . | nindent 6 }}
       - name: image-preloader
         image: "docker:cli"
         resources:
@@ -53,10 +54,11 @@ spec:
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+        {{- include "buttercup.dockerSocketVolumeMount" . | nindent 8 }}
         env:
-        {{- include "buttercup.dockerHostEnv" . | nindent 10 }}
+        {{- include "buttercup.env.dockerSocket" . | nindent 10 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
-      {{- include "buttercup.dindVolume" . | nindent 6 }}
+      {{- include "buttercup.dockerSocketVolume" . | nindent 6 }}
       {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
 {{- end }} 

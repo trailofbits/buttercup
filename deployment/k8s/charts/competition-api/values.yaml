@@ -22,10 +22,6 @@ dind:
       cpu: 4000m
       memory: 8Gi
 
-extraVolumeMounts:
-  - name: tmp-storage
-    mountPath: /tmp
-
 nodeSelector: {}
 tolerations: []
 affinity: {}

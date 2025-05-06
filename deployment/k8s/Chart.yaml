@@ -7,6 +7,9 @@ dependencies:
   - name: redis
     version: "17.x.x"
     repository: "https://charts.bitnami.com/bitnami"
+  - name: dind-daemon
+    version: "*"
+    repository: "file://charts/dind-daemon"
   - name: litellm-helm
     version: "0.1.615"
     repository: "oci://ghcr.io/berriai"

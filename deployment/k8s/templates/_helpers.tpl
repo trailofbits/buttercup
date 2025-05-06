@@ -36,81 +36,6 @@ Define the LiteLLM health check init container template
   command: ['sh', '-c', 'until curl --silent -f http://{{ .Release.Name }}-litellm:4000/health/readiness; do echo waiting for litellm; sleep 2; done;']
 {{- end -}}
 
-{{/*
-Define Docker-in-Docker sidecar container
-*/}}
-{{- define "buttercup.dindSidecar" -}}
-- name: dind
-  image: "docker:24.0.6-dind"
-  securityContext:
-    privileged: true
-  resources:
-    requests:
-      cpu: "{{ .Values.dind.resources.requests.cpu | default "250m" }}"
-      memory: "{{ .Values.dind.resources.requests.memory | default "512Mi" }}"
-    limits:
-      cpu: "{{ .Values.dind.resources.limits.cpu | default "500m" }}"
-      memory: "{{ .Values.dind.resources.limits.memory | default "1Gi" }}"
-  env:
-    - name: DOCKER_TLS_CERTDIR
-      value: ""
-    - name: REGISTRY_HOST
-      value: "{{ .Release.Name }}-registry-cache"
-  # Add hosts entry to redirect ghcr.io to localhost, then proxy localhost to registry-cache
-  command:
-    - sh
-    - -c
-    - |
-      # Add ghcr.io to hosts file
-      echo '127.0.0.1 ghcr.io' >> /etc/hosts
-
-      # Install required packages
-      apk add --no-cache socat ca-certificates
-
-      # Setup certificates
-      cp /certs/tls.crt /usr/local/share/ca-certificates/registry-cache.crt
-      update-ca-certificates
-
-      # Start socat proxies in background
-      socat TCP-LISTEN:443,fork,reuseaddr TCP:$REGISTRY_HOST:443 &
-      socat TCP-LISTEN:80,fork,reuseaddr TCP:$REGISTRY_HOST:80 &
-
-      # Start Docker daemon
-      dockerd-entrypoint.sh
-  volumeMounts:
-    - name: crs-scratch
-      mountPath: {{ include "buttercup.dirs.crs_scratch" . }}
-    - name: dind-storage
-      mountPath: /var/lib/docker
-    - name: tls-cert
-      mountPath: /certs
-      readOnly: true
-    {{- include "buttercup.nodeLocalVolumeMount" . | nindent 4 }}
-    {{- if .Values.extraVolumeMounts }}
-    {{- range .Values.extraVolumeMounts }}
-    - name: {{ .name }}
-      mountPath: {{ .mountPath }}
-    {{- end }}
-    {{- end }}
-{{- end -}}
-
-{{/*
-Define Docker-in-Docker volume
-*/}}
-{{- define "buttercup.dindVolume" -}}
-- name: dind-storage
-  emptyDir: {}
-- name: tls-cert
-  secret:
-    secretName: registry-cache-tls
-{{- end -}}
-
-{{/*
-Define Docker Host environment variable for sidecar
-*/}}
-{{- define "buttercup.dockerHostEnv" -}}
-{{- include "buttercup.env.docker" . }}
-{{- end -}}
 
 {{/*
 Define standard container volumeMounts for bots
@@ -179,4 +104,55 @@ Usage: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 {{- else -}}
 {{- include "buttercup.dirs.tasks_storage" . -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Define Docker Host environment variable for Unix socket
+*/}}
+{{- define "buttercup.env.dockerSocket" }}
+- name: DOCKER_HOST
+  value: {{ include "buttercup.core.dockerSocketEndpoint" . }}
+{{- end }}
+
+{{/*
+Define Docker Host environment variable for Unix socket
+*/}}
+{{- define "buttercup.core.dockerEndpoint" -}}
+tcp://localhost:2375
+{{- end -}}
+
+{{/*
+Include the dind DaemonSet template
+*/}}
+{{- define "buttercup.templates.dind-daemonset" -}}
+{{ include (print $.Template.BasePath "/dind-daemonset.yaml") . }}
+{{- end -}}
+
+{{/*
+Define Docker Socket volume mount
+*/}}
+{{- define "buttercup.dockerSocketVolumeMount" -}}
+- name: docker-socket-dir
+  mountPath: {{ include "buttercup.core.uniqueDockerSocketDir" . }}
+{{- end -}}
+
+{{/*
+Define Docker Socket volume
+*/}}
+{{- define "buttercup.dockerSocketVolume" -}}
+- name: docker-socket-dir
+  hostPath:
+    path: {{ include "buttercup.core.uniqueDockerSocketDir" . }}
+    type: DirectoryOrCreate
+{{- end -}}
+
+{{/*
+Define a wait-for-docker init container that checks if the Docker socket is available
+*/}}
+{{- define "buttercup.waitForDocker" -}}
+- name: wait-for-docker
+  image: busybox:1.28
+  command: ['sh', '-c', 'until [ -S {{ include "buttercup.core.dockerSocketPath" . }} ]; do echo waiting for docker socket; sleep 2; done;']
+  volumeMounts:
+  {{- include "buttercup.dockerSocketVolumeMount" . | nindent 2 }}
 {{- end -}}

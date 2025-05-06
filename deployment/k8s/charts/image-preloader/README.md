@@ -64,6 +64,5 @@ kubectl logs -l app=image-preloader
 
 ## Notes
 
-- The job uses the `buttercup.dindSidecar` template for Docker-in-Docker functionality
 - Images are pulled in sequence, and the job will fail if any image pull fails
 - After all images are pulled, a Docker system prune is executed to clean up 
