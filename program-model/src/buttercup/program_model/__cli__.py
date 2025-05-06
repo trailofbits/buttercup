@@ -19,10 +19,7 @@ def prepare_task(command: ProcessCommand) -> IndexRequest:
 
     return IndexRequest(
         task_dir=command.task_dir,
-        package_name=command.package_name,
-        sanitizer=command.sanitizer,
         task_id=command.task_id,
-        build_type=command.build_type,
     )
 
 

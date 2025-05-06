@@ -118,9 +118,7 @@ class ProgramModel:
         """Process a single task for indexing a program"""
         # Convert path strings to Path objects
         with tempfile.TemporaryDirectory(dir=self.wdir) as td:
-            logger.info(
-                f"Running indexer for {args.package_name} | {args.task_dir} | {args.task_id}"
-            )
+            logger.info(f"Running indexer for {args.task_id} | {args.task_dir}")
 
             # Change permissions so that JanusGraph can read from the temporary directory
             current = os.stat(td).st_mode
@@ -134,9 +132,9 @@ class ProgramModel:
 
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 # Apply the diff if it exists
-                logger.info(f"Applying diff for {args.package_name} {args.task_id}")
+                logger.info(f"Applying diff for {args.task_id}")
                 if not local_tsk.apply_patch_diff():
-                    logger.info(f"No diffs for {args.package_name} {args.task_id}")
+                    logger.info(f"No diffs for {args.task_id}")
 
                 # Index the task
                 try:
@@ -230,9 +228,9 @@ class ProgramModel:
             )
             with challenge.get_rw_copy(work_dir=self.wdir) as local_challenge:
                 # Apply the diff if it exists
-                logger.info(f"Applying diff for {args.package_name} {args.task_id}")
+                logger.info(f"Applying diff for {args.task_id}")
                 if not local_challenge.apply_patch_diff():
-                    logger.info(f"No diffs for {args.package_name} {args.task_id}")
+                    logger.info(f"No diffs for {args.task_id}")
 
                 if self.wdir is None:
                     raise ValueError("Work directory is not initialized")
