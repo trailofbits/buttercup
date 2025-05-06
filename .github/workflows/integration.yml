@@ -185,10 +185,25 @@ jobs:
         run: |
           TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF" | grep -o "\[[^]]*\]" | grep -o "[^[]*$" | cut -d: -f2 | tr -d ']')
           echo "Task ID: $TASK_ID"
-          kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
-          sleep 5
-          ./orchestrator/scripts/send_sarif.sh $TASK_ID
-          sleep 5
+          while true; do
+            # Kill any existing port-forward processes
+            pkill -f "kubectl port-forward.*buttercup-competition-api" || true
+
+            # Start port forwarding in background
+            kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
+
+            # Give port-forward time to establish
+            sleep 5
+
+            # Try to send SARIF report
+            if ./orchestrator/scripts/send_sarif.sh $TASK_ID; then
+              # Success - exit loop
+              break
+            fi
+
+            # Failed - wait a bit before retrying
+            sleep 10
+          done
       - name: Wait for SARIF to be submitted as correct
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
