@@ -1,18 +1,6 @@
 from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyCImportsResolver
 import pytest
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
-
-
-@pytest.fixture(scope="module")
-def libjpeg_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "libjpeg-turbo",
-        "libjpeg-turbo",
-        "https://github.com/libjpeg-turbo/libjpeg-turbo",
-        "main",
-    )
 
 
 @pytest.mark.parametrize(
@@ -20,14 +8,14 @@ def libjpeg_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
 )
 @pytest.mark.integration
 def test_list_direct_imports(
-    libjpeg_oss_fuzz_task: ChallengeTask, file_path, expected_imports
+    libjpeg_main_oss_fuzz_task: ChallengeTask, file_path, expected_imports
 ):
     # Unit test for the get_direct_imports() function
     # We just check whether we can get imports in a single file properly
     resolver = FuzzyCImportsResolver(
-        libjpeg_oss_fuzz_task.task_dir / "src/libjpeg-turbo"
+        libjpeg_main_oss_fuzz_task.task_dir / "src/libjpeg-turbo"
     )
-    path_prefix = libjpeg_oss_fuzz_task.task_dir / "src/libjpeg-turbo"
+    path_prefix = libjpeg_main_oss_fuzz_task.task_dir / "src/libjpeg-turbo"
     full_path = (path_prefix / file_path).resolve()
     direct_imports = resolver.get_direct_imports(full_path)
     # Check resolved imports. We make found imports relative to
@@ -89,11 +77,11 @@ def test_list_direct_imports(
 )
 @pytest.mark.integration
 def test_import_checker(
-    libjpeg_oss_fuzz_task: ChallengeTask, file_path, expected_imports
+    libjpeg_main_oss_fuzz_task: ChallengeTask, file_path, expected_imports
 ):
     # Create resolver
     resolver = FuzzyCImportsResolver(
-        libjpeg_oss_fuzz_task.task_dir / "src/libjpeg-turbo"
+        libjpeg_main_oss_fuzz_task.task_dir / "src/libjpeg-turbo"
     )
     # Check expected imports
     for expected in expected_imports:

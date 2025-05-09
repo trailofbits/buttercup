@@ -1,7 +1,6 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
 from ..common import (
     common_test_get_type_definitions,
     common_test_get_functions,
@@ -13,17 +12,6 @@ from ..common import (
     TestTypeDefinitionInfo,
 )
 from buttercup.program_model.utils.common import TypeDefinitionType
-
-
-@pytest.fixture(scope="module")
-def hdf5_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "hdf5",
-        "hdf5",
-        "https://github.com/HDFGroup/hdf5",
-        "966454aac1231da7209ef81c11055d3312181f99",
-    )
 
 
 # Test searching for functions in codebase where we expect

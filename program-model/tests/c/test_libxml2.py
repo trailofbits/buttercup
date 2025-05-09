@@ -1,25 +1,12 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
 from ..common import (
     common_test_get_callees,
     common_test_get_functions,
     TestFunctionInfo,
     TestCalleeInfo,
 )
-
-
-@pytest.fixture(scope="module")
-def libxml2_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "libxml2",
-        "libxml2",
-        "https://gitlab.gnome.org/GNOME/libxml2",
-        "1c82bca6bd23d0f0858d7fc228ec3a91fda3e0e2",
-        # "163da97b1ad4492201149e0234d9db68e2fa245b",
-    )
 
 
 @pytest.mark.parametrize(

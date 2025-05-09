@@ -4,7 +4,6 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.utils.common import TypeDefinitionType
-from ..conftest import oss_fuzz_task
 from ..common import (
     common_test_get_type_definitions,
     common_test_get_functions,
@@ -17,17 +16,6 @@ from ..common import (
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
 )
-
-
-@pytest.fixture(scope="module")
-def zookeeper_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "zookeeper",
-        "zookeeper",
-        "https://github.com/apache/zookeeper",
-        "b86ccf19cf6c32f7e58e36754b6f3534be567727",
-    )
 
 
 @pytest.mark.parametrize(

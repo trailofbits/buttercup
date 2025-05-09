@@ -3,22 +3,10 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
 from ..common import (
     common_test_get_functions,
     TestFunctionInfo,
 )
-
-
-@pytest.fixture(scope="module")
-def bc_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "bc-java",
-        "bc-java",
-        "https://github.com/bcgit/bc-java",
-        "8b4326f24738ad6f6ab360089436a8a93c6a5424",
-    )
 
 
 @pytest.mark.parametrize(

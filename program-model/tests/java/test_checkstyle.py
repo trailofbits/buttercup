@@ -3,25 +3,10 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
 from ..common import (
     TestFunctionInfo,
     common_test_get_functions,
 )
-import logging
-
-logger = logging.getLogger(__name__)
-
-
-@pytest.fixture(scope="module")
-def checkstyle_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "checkstyle",
-        "checkstyle",
-        "https://github.com/checkstyle/checkstyle",
-        "94cd165da31942661301a09561e4b4ad85366c77",
-    )
 
 
 @pytest.mark.parametrize(

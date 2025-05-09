@@ -5,10 +5,8 @@ NOTE: Splitting this into individual tests for Kythe indexing is difficult becau
 from pathlib import Path
 from xml.dom import minidom
 import pytest
-import subprocess
 from typing import Iterator
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.api import Graph
 from buttercup.program_model.graph import encode_value
 from buttercup.program_model.program_model import ProgramModel
@@ -171,7 +169,7 @@ def graphml_db(tmp_path: Path, get_graphml_content: str, request) -> Iterator[bo
     cleanup_graphdb(request, "unit_test")
 
 
-@pytest.mark.skip(reason="Skipping test_get_function_body because it's not working")
+@pytest.mark.skip(reason="Skipping test because we're not using Kythe")
 def test_get_function_body(graphml_db: bool):
     """Test getting function body from graph database."""
     assert graphml_db is True
@@ -199,79 +197,6 @@ def test_get_function_body(graphml_db: bool):
         assert len(bodies) == 1
         assert b"void print_hello(void)" in bodies[0]
         assert b'printf("Hello, World!\\n");' in bodies[0]
-
-
-@pytest.fixture
-def libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    """Create a challenge task using a real OSS-Fuzz repository."""
-    # Clone real oss-fuzz repo into temp dir
-    oss_fuzz_dir = tmp_path / "fuzz-tooling"
-    oss_fuzz_dir.mkdir(parents=True)
-    source_dir = tmp_path / "src"
-    source_dir.mkdir(parents=True)
-
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir),
-            "clone",
-            "https://github.com/google/oss-fuzz.git",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    # Restore libpng project directory to specific commit
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(oss_fuzz_dir / "oss-fuzz"),
-            "checkout",
-            "7e664533834b558a859b0f8eb1f2c2caf676c12a",
-            "--",
-            "projects/libpng",
-        ],
-        check=True,
-        capture_output=True,
-    )
-
-    # Download libpng source code
-    libpng_url = "https://github.com/pnggroup/libpng"
-    # Checkout specific libpng commit for reproducibility
-    subprocess.run(
-        ["git", "-C", str(source_dir), "clone", libpng_url],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        [
-            "git",
-            "-C",
-            str(source_dir / "libpng"),
-            "checkout",
-            "44f97f08d729fcc77ea5d08e02cd538523dd7157",
-        ],
-        check=True,
-        capture_output=True,
-    )
-
-    # Create task metadata
-    TaskMeta(
-        project_name="libpng",
-        focus="libpng",
-        task_id="test-task-id-libpng",
-        metadata={
-            "task_id": "test-task-id-libpng",
-            "round_id": "testing",
-            "team_id": "tob",
-        },
-    ).save(tmp_path)
-
-    return ChallengeTask(
-        read_only_task_dir=tmp_path,
-        local_task_dir=tmp_path,
-    )
 
 
 @pytest.fixture
@@ -327,9 +252,7 @@ def libpng_oss_fuzz_graphml_content(
 
 
 # @pytest.mark.integration
-@pytest.mark.skip(
-    reason="Skipping test_libpng_get_function_body until we enable self-hosted runners"
-)
+@pytest.mark.skip(reason="Skipping test because we're not using Kythe")
 def test_libpng_get_function_body(libpng_oss_fuzz_graphml_content: bool):
     """Test getting function body from libpng."""
     assert libpng_oss_fuzz_graphml_content is True

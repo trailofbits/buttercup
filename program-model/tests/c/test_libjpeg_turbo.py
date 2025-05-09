@@ -3,7 +3,6 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
 from ..common import (
     common_test_get_type_definitions,
     common_test_get_callees,
@@ -15,17 +14,6 @@ from ..common import (
     TestTypeDefinitionInfo,
 )
 from buttercup.program_model.utils.common import TypeDefinitionType
-
-
-@pytest.fixture(scope="module")
-def libjpeg_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "libjpeg-turbo",
-        "libjpeg-turbo",
-        "https://github.com/libjpeg-turbo/libjpeg-turbo",
-        "6d91e950c871103a11bac2f10c63bf998796c719",
-    )
 
 
 # Test searching for functions in codebase where we expect

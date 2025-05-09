@@ -4,18 +4,6 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
-from .conftest import oss_fuzz_task
-
-
-@pytest.fixture(scope="module")
-def libpng_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "libpng",
-        "libpng",
-        "https://github.com/pnggroup/libpng",
-        "44f97f08d729fcc77ea5d08e02cd538523dd7157",
-    )
 
 
 @pytest.mark.parametrize(

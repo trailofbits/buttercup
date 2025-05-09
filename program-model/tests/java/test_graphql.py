@@ -3,24 +3,12 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from ..conftest import oss_fuzz_task
 from ..common import (
     common_test_get_functions,
     common_test_get_callers,
     common_test_get_callees,
     TestFunctionInfo,
 )
-
-
-@pytest.fixture(scope="module")
-def graphql_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "graphql-java",
-        "graphql-java",
-        "https://github.com/graphql-java/graphql-java",
-        "f52305325593dcec70aba9c4a5717b18b6543fa0",
-    )
 
 
 @pytest.mark.parametrize(

@@ -10,7 +10,6 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.utils.common import TypeDefinitionType
-from .conftest import oss_fuzz_task
 
 
 def setup_c_dirs(tmp_path: Path) -> Path:
@@ -51,7 +50,8 @@ def setup_c_dirs(tmp_path: Path) -> Path:
 }
 
 int function4(char *s) {
-    return strlen(s);
+onftest import libjpeg_oss_fuzz_task
+from .c    return strlen(s);
 }
 """)
     (source / "test4.c").write_text("""typedef int myInt;
@@ -192,7 +192,7 @@ def test_get_functions_multiple(mock_c_challenge_task: ChallengeTask):
     assert function4[0].name == "function4"
     assert (
         function4[0].bodies[0].body
-        == "int function4(char *s) {\n    return strlen(s);\n}"
+        == "int function4(char *s) {\nonftest import libjpeg_oss_fuzz_task\nfrom .c    return strlen(s);\n}"
     )
 
 
@@ -294,30 +294,16 @@ def test_get_types_fuzzy(mock_c_challenge_task: ChallengeTask):
     assert len(types) == 1
 
 
-@pytest.fixture
-def libjpeg_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    return oss_fuzz_task(
-        tmp_path,
-        "libjpeg-turbo",
-        "libjpeg-turbo",
-        "https://github.com/libjpeg-turbo/libjpeg-turbo",
-        "6d91e950c871103a11bac2f10c63bf998796c719",
-    )
-
-
 @pytest.mark.integration
-@pytest.mark.skip(
-    reason="Skipping libjpeg-turbo because it clones multiple repo versions in the container"
-)
 def test_libjpeg_indexing(libjpeg_oss_fuzz_task: ChallengeTask):
     """Test that we can index libjpeg"""
     codequery = CodeQuery(libjpeg_oss_fuzz_task)
     functions = codequery.get_functions("jpeg_read_header")
-    assert len(functions) == 1
+    assert len(functions) == 3
     assert functions[0].name == "jpeg_read_header"
 
     parse_switches = codequery.get_functions("parse_switches")
-    assert len(parse_switches) == 3
+    assert len(parse_switches) == 9
 
     parse_switches.sort(key=lambda x: x.file_path)
 
@@ -353,17 +339,6 @@ parse_switches(j_decompress_ptr cinfo, int argc, char **argv,
     assert (
         "parse_switches(j_compress_ptr cinfo, int argc, char **argv,"
         in parse_switches[2].bodies[0].body
-    )
-
-
-@pytest.fixture
-def selinux_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    return oss_fuzz_task(
-        tmp_path,
-        "selinux",
-        "selinux",
-        "https://github.com/SELinuxProject/selinux",
-        "c35919a703302bd571476f245d856174a1fe1926",
     )
 
 
@@ -522,17 +497,6 @@ def test_get_types_java(mock_java_challenge_task: ChallengeTask):
         == "class MyStruct {\n    public int id;\n    public String name;\n    public double value;\n\n    public MyStruct(int id, String name, double value) {\n        this.id = id;\n        this.name = name;\n        this.value = value;\n    }\n}"
     )
     assert types[0].definition_line == 1
-
-
-@pytest.fixture
-def antlr4_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
-    return oss_fuzz_task(
-        tmp_path,
-        "antlr4-java",
-        "antlr4",
-        "https://github.com/antlr/antlr4",
-        "7b53e13ba005b978e2603f3ff81a0cb7cc98f689",
-    )
 
 
 @pytest.mark.integration
