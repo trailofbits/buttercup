@@ -94,6 +94,7 @@ class TypeDefinitionType(str, Enum):
     ENUM = "enum"
     TYPEDEF = "typedef"
     PREPROC_TYPE = "preproc_type"
+    PREPROC_FUNCTION = "preproc_function"
     CLASS = "class"
 
 

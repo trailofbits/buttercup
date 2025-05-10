@@ -3,6 +3,17 @@ import pytest
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.api.tree_sitter import CodeTS, TypeDefinitionType
+from .conftest import oss_fuzz_task
+from dataclasses import dataclass
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class FunctionInfo:
+    num_bodies: int
+    body_excerpts: list[str]
 
 
 @pytest.fixture
@@ -151,11 +162,13 @@ def test_get_function_multiple_definitions_c(challenge_task_readonly: ChallengeT
     assert function.name == "add"
     assert function.file_path == Path("src/example_project/test2.c")
     assert len(function.bodies) == 2
+    assert "#ifdef TEST" in function.bodies[0].body
     assert "int add(int a, int b)" in function.bodies[0].body
     assert "double add(double a, double b)" in function.bodies[1].body
-    assert function.bodies[0].start_line == 4
+    assert "#else" in function.bodies[1].body
+    assert function.bodies[0].start_line == 3
     assert function.bodies[0].end_line == 6
-    assert function.bodies[1].start_line == 8
+    assert function.bodies[1].start_line == 7
     assert function.bodies[1].end_line == 10
 
 
@@ -163,6 +176,7 @@ def test_get_type_definition_types(challenge_task_readonly: ChallengeTask):
     """Test getting different types of definitions."""
     code_ts = CodeTS(challenge_task_readonly)
     types = code_ts.parse_types_in_code(Path("src/example_project/test.c"))
+    logger.info(types)
 
     # Test preprocessor type definitions
     type_def = types["MY_TYPE"]
@@ -174,3 +188,125 @@ def test_get_type_definition_types(challenge_task_readonly: ChallengeTask):
     assert type_def is not None
     assert type_def.type == TypeDefinitionType.PREPROC_TYPE
     assert "#define ANOTHER_TYPE struct my_struct" in type_def.definition
+
+
+@pytest.fixture
+def libpng_oss_fuzz_task(tmp_path: Path):
+    return oss_fuzz_task(
+        tmp_path,
+        "libpng",
+        "libpng",
+        "https://github.com/pnggroup/libpng",
+        "34005e3d3d373c0c36898cc55eae48a79c8238a1",
+    )
+
+
+@pytest.mark.parametrize(
+    "function_name,file_path,function_info",
+    [
+        (
+            "png_icc_check_length",
+            "src/libpng/png.c",
+            FunctionInfo(
+                num_bodies=1,
+                body_excerpts=[
+                    """int /* PRIVATE */
+png_icc_check_length(png_const_structrp png_ptr, png_const_charp name,
+   png_uint_32 profile_length)
+{
+   if (!icc_check_length(png_ptr, name, profile_length))
+      return 0;
+"""
+                ],
+            ),
+        ),
+        (
+            "have_chromaticities",
+            "src/libpng/png.c",
+            FunctionInfo(
+                num_bodies=1,
+                body_excerpts=[
+                    """static int
+have_chromaticities(png_const_structrp png_ptr)
+{
+   /* Handle new PNGv3 chunks and the precedence rules to determine whether
+    * png_struct::chromaticities must be processed.  Only required for RGB to
+""",
+                ],
+            ),
+        ),
+        (
+            "png_pow10",
+            "src/libpng/png.c",
+            FunctionInfo(
+                num_bodies=1,
+                body_excerpts=[
+                    """/* Utility used below - a simple accurate power of ten from an integral
+ * exponent.
+ */
+static double
+png_pow10(int power)
+{
+   int recip = 0;
+   double d = 1;
+""",
+                ],
+            ),
+        ),
+        (
+            "png_check_IHDR",
+            "src/libpng/png.c",
+            FunctionInfo(
+                num_bodies=1,
+                body_excerpts=[
+                    """
+#ifdef PNG_SET_USER_LIMITS_SUPPORTED
+   if (width > png_ptr->user_width_max)
+#else
+   if (width > PNG_USER_WIDTH_MAX)
+#endif
+   {
+      png_warning(png_ptr, "Image width exceeds user limit in IHDR");
+      error = 1;
+   }
+
+   if (height == 0)
+   {
+      png_warning(png_ptr, "Image height is zero in IHDR");
+      error = 1;
+   }
+
+   if (height > PNG_UINT_31_MAX)
+   {
+      png_warning(png_ptr, "Invalid image height in IHDR");
+      error = 1;
+   }
+
+#ifdef PNG_SET_USER_LIMITS_SUPPORTED
+   if (height > png_ptr->user_height_max)
+#else
+   if (height > PNG_USER_HEIGHT_MAX)
+#endif
+   {
+      png_warning(png_ptr, "Image height exceeds user limit in IHDR");
+      error = 1;
+   }"""
+                ],
+            ),
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_libpng_indexing(
+    libpng_oss_fuzz_task: ChallengeTask,
+    function_name: str,
+    file_path: str,
+    function_info: FunctionInfo,
+):
+    """Test that we can parse libpng code using tree-sitter."""
+    code_ts = CodeTS(libpng_oss_fuzz_task)
+    function = code_ts.get_function(function_name, Path(file_path))
+    assert function is not None
+    assert len(function.bodies) == function_info.num_bodies
+    for body in function_info.body_excerpts:
+        assert any([body in x.body for x in function.bodies])
