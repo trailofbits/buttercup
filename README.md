@@ -43,6 +43,8 @@ CRS_KEY_ID="515cc8a0-3019-4c9f-8c1c-72d0b54ae561"
 CRS_KEY_TOKEN="VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB"
 CRS_API_HOSTNAME="<generated with: openssl rand -hex 16>"
 BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-minikube.template"
+OTEL_ENDPOINT="<insert endpoint url from aixcc vault, is pseudo secret>"
+OTEL_PROTOCOL="http"
 ```
 
 Keep empty:
@@ -60,7 +62,6 @@ CRS_API_HOSTNAME
 LANGFUSE_HOST
 LANGFUSE_PUBLIC_KEY
 LANGFUSE_SECRET_KEY
-OTEL_ENDPOINT
 OTEL_TOKEN
 ```
 

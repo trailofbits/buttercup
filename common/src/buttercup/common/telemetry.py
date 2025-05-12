@@ -3,6 +3,7 @@ import logging
 from enum import Enum
 
 import openlit
+from opentelemetry import trace
 from opentelemetry.trace import Span, Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class CRSActionCategory(Enum):
     PATCH_GENERATION = "patch_generation"
     TESTING = "testing"
     SCORING_SUBMISSION = "scoring_submission"
+    TELEMETRY_INIT = "telemetry_init"
 
 
 def init_telemetry(application_name: str):
@@ -39,6 +41,10 @@ def init_telemetry(application_name: str):
     logger.info("Sending telemetry using %s", os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL"))
 
     openlit.init(application_name=application_name)
+
+    # Send a telemetry init trace
+    tracer = trace.get_tracer(__name__)
+    log_crs_action_ok(tracer, CRSActionCategory.TELEMETRY_INIT, application_name, {}, {})
 
 
 def set_crs_attributes(

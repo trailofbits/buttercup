@@ -41,6 +41,7 @@ global:
   otel:
     endpoint: "${OTEL_ENDPOINT}"
     token: "${OTEL_TOKEN}"
+    protocol: "${OTEL_PROTOCOL}"
 
 redis:
   master:

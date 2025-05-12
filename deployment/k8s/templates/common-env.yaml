@@ -79,6 +79,9 @@ Define Docker Host environment variable for Unix socket
       key: BUTTERCUP_LITELLM_KEY
 - name: BUTTERCUP_LITELLM_HOSTNAME
   value: {{ include "buttercup.core.litellmEndpoint" . }}
+{{- end }}
+
+{{- define "buttercup.env.telemetry" }}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: "{{ .Values.global.otel.endpoint }}"
 - name: OTEL_EXPORTER_OTLP_HEADERS
@@ -133,6 +136,7 @@ Define common environment for all services
 */}}
 {{- define "buttercup.commonEnv" }}
 {{- include "buttercup.env.llm" . | nindent 0 }}
+{{- include "buttercup.env.telemetry" . | nindent 0 }}
 {{- include "buttercup.env.timeouts" . | nindent 0 }}
 {{- include "buttercup.env.dirs" . | nindent 0 }}
 {{- include "buttercup.env.nodeData" . | nindent 0 }}
