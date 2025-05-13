@@ -181,8 +181,25 @@ down() {
 
 # destroys the kubernetes resources only
 down-k8s() {
-	echo -e "${BLU}Deleting Kubernetes resource${NC}"
 	set +e
+	echo -e "${BLU}Configuring kubectl context${NC}"
+	if [ "$DEPLOY_CLUSTER" = "true" ]; then
+		case "$CLUSTER_TYPE" in
+			"aks")
+				terraform init
+
+				#set resource group name and kubernetes cluster name variables from terraform outputs
+				KUBERNETES_CLUSTER_NAME=$(terraform output -raw kubernetes_cluster_name)
+				RESOURCE_GROUP_NAME=$(terraform output -raw resource_group_name)
+
+				az aks get-credentials --resource-group "$RESOURCE_GROUP_NAME" --name "$KUBERNETES_CLUSTER_NAME"
+				;;
+			*)
+				kubectl config use-context minikube
+				;;
+		esac
+	fi
+	echo -e "${BLU}Deleting Kubernetes resource${NC}"
 	kubectl delete -k k8s/base/tailscale-connections/
 	helm uninstall --wait --namespace "$BUTTERCUP_NAMESPACE" buttercup
 	kubectl delete -k k8s/base/tailscale-coredns/
