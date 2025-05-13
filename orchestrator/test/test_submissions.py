@@ -3,7 +3,6 @@ import base64
 import uuid
 from unittest.mock import Mock, patch, MagicMock
 from buttercup.orchestrator.scheduler.submissions import CompetitionAPI, Submissions
-from buttercup.orchestrator.registry import TaskRegistry
 from buttercup.common.datastructures.msg_pb2 import (
     TracedCrash,
     BuildOutput,
@@ -12,6 +11,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     SubmissionEntry,
     Task,
 )
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.competition_api_client.models.types_pov_submission_response import (
     TypesPOVSubmissionResponse,
 )

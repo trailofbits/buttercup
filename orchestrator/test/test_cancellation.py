@@ -6,7 +6,8 @@ from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import TaskDelete
 from buttercup.common.queues import ReliableQueue, RQItem
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.orchestrator.registry import TaskRegistry, Task
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.datastructures.msg_pb2 import Task
 
 
 @pytest.fixture
@@ -25,6 +26,9 @@ def mock_queue():
 def mock_registry():
     registry = Mock(spec=TaskRegistry)
     registry.__iter__ = Mock(return_value=iter([]))
+    # Ensure smembers returns an iterable
+    registry.redis = Mock()
+    registry.redis.smembers = Mock(return_value=[])
     return registry
 
 
@@ -32,8 +36,14 @@ def mock_registry():
 def cancellation(mock_redis, mock_queue, mock_registry):
     with patch("buttercup.orchestrator.scheduler.cancellation.QueueFactory") as mock_factory:
         mock_factory.return_value.create.return_value = mock_queue
-        with patch("buttercup.orchestrator.scheduler.cancellation.TaskRegistry", return_value=mock_registry):
-            return Cancellation(redis=mock_redis)
+
+        # Patch the TaskRegistry constructor to return our mock registry
+        with patch("buttercup.common.task_registry.TaskRegistry", return_value=mock_registry):
+            # Create a Cancellation instance with our mocked dependencies
+            cancellation = Cancellation(redis=mock_redis)
+            # Replace the registry instance with our mock to ensure tests use it
+            cancellation.registry = mock_registry
+            return cancellation
 
 
 def test_process_delete_request_success(cancellation, mock_registry):

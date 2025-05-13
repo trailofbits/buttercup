@@ -15,10 +15,10 @@ from buttercup.common.datastructures.msg_pb2 import (
 )
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 from buttercup.orchestrator.scheduler.sarif_matcher import match
-from buttercup.orchestrator.registry import TaskRegistry
 from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture
 from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
 from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission

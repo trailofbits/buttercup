@@ -14,7 +14,7 @@ from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDown
 from buttercup.orchestrator.utils import response_stream_to_file
 from buttercup.common.task_meta import TaskMeta
 from redis import Redis
-from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
 import buttercup.common.node_local as node_local
 

@@ -16,7 +16,7 @@ from buttercup.common.task_meta import TaskMeta
 
 from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
-from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.submissions import Submissions
 from buttercup.common.queues import QueueFactory
 

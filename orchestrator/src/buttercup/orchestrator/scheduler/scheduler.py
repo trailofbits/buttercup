@@ -23,7 +23,7 @@ from buttercup.orchestrator.scheduler.submissions import Submissions, Competitio
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
-from buttercup.orchestrator.registry import TaskRegistry
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
 import random
 

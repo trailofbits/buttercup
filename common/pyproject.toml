@@ -22,6 +22,7 @@ dependencies = [
 [project.scripts]
 buttercup-util = "buttercup.common.util_cli:main"
 buttercup-challenge-task = "buttercup.common.challenge_task_cli:main"
+buttercup-task-registry = "buttercup.common.task_registry:task_registry_cli"
 
 
 [tool.hatch.build.targets.wheel]
