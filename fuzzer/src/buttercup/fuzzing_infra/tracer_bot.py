@@ -6,6 +6,7 @@ import logging
 from redis import Redis
 from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
+from buttercup.common.task_registry import TaskRegistry
 from pathlib import Path
 from buttercup.common import stack_parsing
 from buttercup.common.utils import serve_loop
@@ -24,6 +25,7 @@ class TracerBot:
         queue_factory = QueueFactory(redis)
         self.queue = queue_factory.create(QueueNames.CRASH, GroupNames.TRACER_BOT)
         self.output_q = queue_factory.create(QueueNames.TRACED_VULNERABILITIES)
+        self.registry = TaskRegistry(redis)
 
     def serve_item(self) -> bool:
         item = self.queue.pop()
@@ -31,6 +33,11 @@ class TracerBot:
             return False
 
         logger.info(f"Received tracer request for {item.deserialized.target.task_id}")
+        if self.registry.should_stop_processing(item.deserialized.target.task_id):
+            logger.info(f"Task {item.deserialized.target.task_id} is cancelled or expired, skipping")
+            self.queue.ack_item(item.item_id)
+            return True
+
         runner = TracerRunner(item.deserialized.target.task_id, self.wdir, self.redis)
 
         # Ensure the crash input is locally available
