@@ -16,6 +16,7 @@ from buttercup.program_model.graph import GraphStorage
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
 from pathlib import Path
 from opentelemetry import trace
@@ -36,6 +37,7 @@ class ProgramModel:
     redis: Redis | None = None
     task_queue: ReliableQueue | None = field(init=False, default=None)
     output_queue: ReliableQueue | None = field(init=False, default=None)
+    registry: TaskRegistry | None = field(init=False, default=None)
     wdir: Path | None = None
     script_dir: Path | None = None
     kythe_dir: Path | None = None
@@ -61,6 +63,7 @@ class ProgramModel:
             queue_factory = QueueFactory(self.redis)
             self.task_queue = queue_factory.create(QueueNames.INDEX, GroupNames.INDEX)
             self.output_queue = queue_factory.create(QueueNames.INDEX_OUTPUT)
+            self.registry = TaskRegistry(self.redis)
 
     def __enter__(self):  # type: ignore[no-untyped-def]
         return self
@@ -270,6 +273,15 @@ class ProgramModel:
             return False
 
         task_index: IndexRequest = rq_item.deserialized
+
+        # Check if task should be processed or skipped
+        if self.registry is not None and self.registry.should_stop_processing(
+            task_index.task_id
+        ):
+            logger.info(f"Task {task_index.task_id} is cancelled or expired, skipping")
+            self.task_queue.ack_item(rq_item.item_id)
+            return True
+
         success = self.process_task(task_index)
 
         if success:
