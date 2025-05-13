@@ -15,6 +15,7 @@ from buttercup.patcher.agents.leader import PatcherLeaderAgent
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
 from buttercup.common.utils import serve_loop
+from buttercup.common.task_registry import TaskRegistry
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,14 @@ class Patcher:
 
     vulnerability_queue: ReliableQueue[ConfirmedVulnerability] | None = field(init=False, default=None)
     patches_queue: ReliableQueue[Patch] | None = field(init=False, default=None)
+    registry: TaskRegistry | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             self.vulnerability_queue = queue_factory.create(QueueNames.CONFIRMED_VULNERABILITIES, GroupNames.PATCHER)
             self.patches_queue = queue_factory.create(QueueNames.PATCHES)
+            self.registry = TaskRegistry(self.redis)
 
     @staticmethod
     def _check_redis(func: Callable) -> Callable:
@@ -120,8 +123,17 @@ class Patcher:
     def process_item(self, rq_item: RQItem[ConfirmedVulnerability]) -> None:
         assert self.patches_queue is not None
         assert self.vulnerability_queue is not None
+        assert self.registry is not None
 
         vuln = rq_item.deserialized
+        task_id = vuln.crash.crash.target.task_id
+
+        # Check if task should not be processed (expired or cancelled)
+        if self.registry.should_stop_processing(task_id):
+            logger.info(f"Skipping expired or cancelled task {task_id}")
+            self.vulnerability_queue.ack_item(rq_item.item_id)
+            return
+
         patch_input = self._create_patch_input(vuln)
         try:
             patch = self.process_patch_input(patch_input)

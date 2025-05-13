@@ -1,10 +1,21 @@
 from pathlib import Path
 from buttercup.patcher.patcher import Patcher
-from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash, Task
 from buttercup.patcher.agents.common import CodeSnippetRequest
+from buttercup.common.queues import RQItem
+from buttercup.common.task_registry import TaskRegistry
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import re
+import time
+from redis import Redis
+
+
+@pytest.fixture
+def redis_client():
+    res = Redis(host="localhost", port=6379, db=13)
+    yield res
+    res.flushdb()
 
 
 @pytest.fixture
@@ -207,3 +218,128 @@ def test_code_snippet_request_parse_with_code_requests_wrapper():
         result[2].request
         == "Please provide the implementation of the function 'format_output' from file 'output_formatter.c'."
     )
+
+
+@patch("buttercup.common.node_local.make_locally_available")
+def test_process_item_should_process_normal_task(
+    mock_make_locally_available, redis_client, task_dir: Path, tmp_path: Path
+):
+    """Test that a normal task is processed correctly"""
+    # Mock make_locally_available to return the path unchanged
+    mock_make_locally_available.side_effect = lambda path: Path(path)
+
+    # Ensure all paths are absolute
+    task_dir = task_dir.absolute()
+    tmp_path = tmp_path.absolute()
+
+    # Setup patcher with redis
+    patcher = Patcher(
+        task_storage_dir=tmp_path,
+        scratch_dir=tmp_path,
+        redis=redis_client,
+    )
+
+    # Setup task registry with a non-expired, non-cancelled task
+    registry = TaskRegistry(redis_client)
+    task_id = "test-task-id-1"
+
+    # Create a task with a future deadline
+    mock_task = Task(task_id=task_id, deadline=int(time.time()) + 3600)  # Set deadline 1 hour in future
+    registry.set(mock_task)
+
+    # Create a vulnerability for processing
+    vuln = ConfirmedVulnerability(
+        submission_index="1",
+        crash=TracedCrash(
+            crash=Crash(
+                target=BuildOutput(
+                    task_id=task_id,
+                    engine="test-engine-1",
+                    sanitizer="test-sanitizer-1",
+                    task_dir=str(task_dir),
+                ),
+                harness_name="test-harness-name-1",
+                crash_input_path=str(tmp_path / "test-crash-input.txt"),
+                stacktrace="test-stacktrace-1",
+            ),
+            tracer_stacktrace="test-tracer-stacktrace-1",
+        ),
+    )
+
+    # Create an RQItem with the vulnerability
+    rq_item = RQItem(item_id="item-id-1", deserialized=vuln)
+
+    # Patch the process_patch_input method to avoid actual processing
+    with (
+        patch.object(patcher, "process_patch_input") as mock_process,
+        patch.object(patcher.patches_queue, "push") as mock_push,
+        patch.object(patcher.vulnerability_queue, "ack_item") as mock_ack,
+    ):
+        # Configure mock to return a patch
+        mock_process.return_value = MagicMock(task_id=task_id, submission_index="1", patch="test-patch")
+
+        # Process the item
+        patcher.process_item(rq_item)
+
+        # Verify processing occurred
+        mock_process.assert_called_once()
+        mock_push.assert_called_once()
+        mock_ack.assert_called_once_with("item-id-1")
+
+
+@patch("buttercup.common.node_local.make_locally_available")
+def test_process_item_should_skip_tasks_marked_for_stopping(
+    mock_make_locally_available, redis_client, task_dir: Path, tmp_path: Path
+):
+    """Test that tasks marked for stopping (expired or cancelled) are not processed"""
+    # Mock make_locally_available to return the path unchanged
+    mock_make_locally_available.side_effect = lambda path: Path(path)
+
+    # Ensure all paths are absolute
+    task_dir = task_dir.absolute()
+    tmp_path = tmp_path.absolute()
+
+    # Setup patcher with redis
+    patcher = Patcher(
+        task_storage_dir=tmp_path,
+        scratch_dir=tmp_path,
+        redis=redis_client,
+    )
+
+    # Create a vulnerability for processing
+    task_id = "skip-task-id"
+    vuln = ConfirmedVulnerability(
+        submission_index="1",
+        crash=TracedCrash(
+            crash=Crash(
+                target=BuildOutput(
+                    task_id=task_id,
+                    engine="test-engine-1",
+                    sanitizer="test-sanitizer-1",
+                    task_dir=str(task_dir),
+                ),
+                harness_name="test-harness-name-1",
+                crash_input_path=str(tmp_path / "test-crash-input.txt"),
+                stacktrace="test-stacktrace-1",
+            ),
+            tracer_stacktrace="test-tracer-stacktrace-1",
+        ),
+    )
+
+    # Create an RQItem with the vulnerability
+    rq_item = RQItem(item_id="item-id-to-skip", deserialized=vuln)
+
+    # Patch the registry's should_stop_processing method to return True
+    with (
+        patch.object(patcher.registry, "should_stop_processing", return_value=True),
+        patch.object(patcher, "process_patch_input") as mock_process,
+        patch.object(patcher.vulnerability_queue, "ack_item") as mock_ack,
+    ):
+        # Process the item
+        patcher.process_item(rq_item)
+
+        # Verify the task was acknowledged without processing
+        mock_process.assert_not_called()  # Process method should not be called
+        mock_ack.assert_called_once_with("item-id-to-skip")
+        # Verify registry was called with the correct task ID
+        patcher.registry.should_stop_processing.assert_called_once_with(task_id)
