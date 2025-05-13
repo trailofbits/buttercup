@@ -115,7 +115,7 @@ def get_task_copy(task: ChallengeTask, use_copy: bool = False) -> Iterator[Chall
 
 def main():
     settings = Settings()
-    setup_package_logger(__name__, "DEBUG")
+    setup_package_logger("challenge-task-cli", __name__, "DEBUG")
     if settings.rw:
         task = ChallengeTask(
             read_only_task_dir=settings.task_dir,

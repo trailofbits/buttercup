@@ -85,7 +85,7 @@ class Settings(BaseSettings):
 
 def main():
     settings = Settings()
-    setup_package_logger(__name__, settings.log_level)
+    setup_package_logger("util-cli", __name__, settings.log_level)
 
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     command = get_subcommand(settings)

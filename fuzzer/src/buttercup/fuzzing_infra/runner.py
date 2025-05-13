@@ -61,7 +61,7 @@ def main():
     prsr.add_argument("target")
     args = prsr.parse_args()
 
-    setup_package_logger(__name__, "DEBUG")
+    setup_package_logger("fuzzer-runner", __name__, "DEBUG")
 
     conf = Conf(args.timeout)
     fuzzconf = FuzzConfiguration(args.corpusdir, args.target, args.engine, args.sanitizer)

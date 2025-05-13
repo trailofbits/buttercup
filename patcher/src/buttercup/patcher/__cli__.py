@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def main() -> None:
     settings = Settings()
     command = get_subcommand(settings)
-    setup_package_logger(__name__, settings.log_level)
+    setup_package_logger("patcher", __name__, settings.log_level)
 
     logger.info("Starting patcher")
     logger.debug("Settings: %s", settings)

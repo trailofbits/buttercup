@@ -80,7 +80,7 @@ class TracerBot:
 
 def main():
     args = TracerSettings()
-    setup_package_logger(__name__, "DEBUG")
+    setup_package_logger("tracer-bot", __name__, "DEBUG")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting tracer-bot (wdir: {args.wdir})")

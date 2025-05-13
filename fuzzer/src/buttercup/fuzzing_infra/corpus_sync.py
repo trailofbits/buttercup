@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--redis-url", type=str, required=True)
     args = parser.parse_args()
 
-    setup_package_logger(__name__, args.log_level)
+    setup_package_logger("corpus-sync", __name__, args.log_level)
     last_sync = 0
     logger.info(f"Syncing corpora from {args.wdir}")
     redis = Redis.from_url(args.redis_url)

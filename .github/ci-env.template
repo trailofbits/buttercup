@@ -11,6 +11,8 @@ export CRS_KEY_TOKEN_HASH='$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A
 export LITELLM_MASTER_KEY="06beca4d4debbb6bd0933cddd28a3f60"
 export AZURE_API_BASE="ignore-me"
 export AZURE_API_KEY="ignore-me"
+export OTEL_ENDPOINT="https://aixcc-crone-bronx-cuprous-wiggly.gateway.trailofbits.com"
+export OTEL_PROTOCOL="http"
 
 # Secrets/Env replaced
 export BUTTERCUP_NAMESPACE=replace-me

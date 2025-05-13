@@ -194,7 +194,7 @@ class CoverageBot(TaskLoop):
 def main():
     args = CoverageBotSettings()
 
-    setup_package_logger(__name__, args.log_level)
+    setup_package_logger("coverage-bot", __name__, args.log_level)
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting coverage bot (wdir: {args.wdir})")

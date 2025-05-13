@@ -15,7 +15,7 @@ from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 import os
 from buttercup.common.logger import setup_package_logger
 
-logger = setup_package_logger(__name__)
+logger = setup_package_logger("fuzzer-orchestrator", __name__)
 DEFAULT_WEIGHT = 1.0
 
 

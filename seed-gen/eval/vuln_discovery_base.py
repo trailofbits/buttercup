@@ -28,7 +28,7 @@ from buttercup.common.logger import setup_package_logger
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_md
 
-logger = setup_package_logger(__name__, "DEBUG")
+logger = setup_package_logger("vuln-discovery-base", __name__, "DEBUG")
 
 
 @dataclass

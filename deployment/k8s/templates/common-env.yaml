@@ -88,6 +88,11 @@ Define Docker Host environment variable for Unix socket
   value: "Authorization=Basic {{ .Values.global.otel.token }}"
 - name: OTEL_EXPORTER_OTLP_PROTOCOL
   value: "{{ .Values.global.otel.protocol | default "grpc" }}"
+- name: SERVICE_INSTANCE_ID
+  valueFrom:
+    configMapKeyRef:
+      name: service-instance-id
+      key: service-instance-id
 {{- end }}
 
 {{- define "buttercup.env.timeouts" }}

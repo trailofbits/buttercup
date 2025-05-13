@@ -49,6 +49,6 @@ def main() -> None:
         help="Maximum number of crashes in the crash dir for a single token",
     )
     args = parser.parse_args()
-    setup_package_logger(__name__, os.getenv("LOG_LEVEL", "INFO").upper())
+    setup_package_logger("seed-gen", __name__, os.getenv("LOG_LEVEL", "INFO").upper())
     if args.command == "server":
         command_server(args)

@@ -49,3 +49,4 @@ common/common/datastructures/fuzzer_msg*
 
 crs_scratch/*
 tasks_storage/*
+node_data_storage/*
