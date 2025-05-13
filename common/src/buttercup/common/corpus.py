@@ -1,7 +1,6 @@
 import re
 import logging
 from typing import List
-import urllib.parse
 import buttercup.common.node_local as node_local
 from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
 import os
@@ -10,7 +9,6 @@ import shutil
 import subprocess
 import uuid
 from pathlib import Path
-import urllib
 from redis import Redis
 from buttercup.common.sets import MergedCorpusSet
 
@@ -127,8 +125,8 @@ class CrashDir:
         self.count_limit = count_limit
 
     def input_dir_for_token(self, token: str) -> InputDir:
-        quoted_token = urllib.parse.quote(token).lstrip("/")
-        return InputDir(self.wdir, os.path.join(self.crash_dir, quoted_token))
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        return InputDir(self.wdir, os.path.join(self.crash_dir, token_hash))
 
     def copy_file(self, src_file: str, crash_token: str) -> str:
         idir = self.input_dir_for_token(crash_token)
