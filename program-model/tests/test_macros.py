@@ -3,7 +3,6 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from .conftest import oss_fuzz_task
 from .common import (
     common_test_get_functions,
     common_test_get_type_definitions,
@@ -13,17 +12,6 @@ from .common import (
 )
 
 
-@pytest.fixture(scope="module")
-def libpng_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
-    return oss_fuzz_task(
-        tmp_path_factory.mktemp("task_dir"),
-        "libpng",
-        "libpng",
-        "https://github.com/pnggroup/libpng",
-        "44f97f08d729fcc77ea5d08e02cd538523dd7157",
-    )
-
-
 @pytest.mark.parametrize(
     "function_name,file_path,function_info",
     [
@@ -31,7 +19,7 @@ def libpng_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
             "png_create_read_struct",
             "/src/libpng/pngread.c",
             TestFunctionInfo(
-                num_bodies=2,  # TODO(Evan): This is wrong, the query grabs the next function as well.
+                num_bodies=1,
                 body_excerpts=[
                     """#ifndef PNG_USER_MEM_SUPPORTED
    png_structp png_ptr = png_create_png_struct(user_png_ver, error_ptr,
@@ -47,7 +35,7 @@ def libpng_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
             "png_create_info_struct",
             "/src/libpng/png.c",
             TestFunctionInfo(
-                num_bodies=2,  # TODO(Evan): This is wrong, the query grabs the next function as well.
+                num_bodies=1,
                 body_excerpts=[
                     """info_ptr = png_voidcast(png_inforp, png_malloc_base(png_ptr,"""
                 ],
@@ -76,7 +64,7 @@ def test_libpng_get_functions(
                 name="PNG_CHUNK_FROM_STRING",
                 type=TypeDefinitionType.PREPROC_FUNCTION,
                 definition="PNG_U32(0xff & (s)[0], 0xff & (s)[1], 0xff & (s)[2], 0xff & (s)[3])",
-                definition_line=890,  # TODO(Evan): This is wrong, we need to get the correct line number of the macro definition
+                definition_line=890,
                 file_path="/src/libpng/pngpriv.h",
             ),
         ),

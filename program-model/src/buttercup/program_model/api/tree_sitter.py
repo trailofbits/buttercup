@@ -275,7 +275,6 @@ class CodeTS:
                 function_body_start -= 1
 
             function_body_end = function_definition.end_byte
-
             if is_macro:
                 function_body_end = body_node.end_byte
 
@@ -289,7 +288,6 @@ class CodeTS:
             # We do this because the stacktrace will be 1-based, so it's best to keep everything consistent.
             start_line = start_body.start_point[0] + 1
             end_line = function_definition.end_point[0] + 1
-
             if is_macro:
                 end_line = body_node.end_point[0] + 1
 
@@ -303,6 +301,10 @@ class CodeTS:
                 function_name.decode(),
                 Function(function_name.decode(), file_path),
             )
+            # If the function is a macro, we shouldn't continue. The tree-sitter
+            # query picks up more than just the function body.
+            if is_macro and len(function.bodies) > 0:
+                continue
             if function_body not in function.bodies:
                 function.bodies.append(function_body)
 
