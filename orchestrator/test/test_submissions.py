@@ -377,6 +377,34 @@ class TestSubmissions:
         # Verify return value
         assert result is True
 
+    def test_record_patch_task_stopped(self, submissions, sample_patch, sample_submission_entry, mock_task_registry):
+        # Setup submission entry in entries list
+        submissions.entries = [sample_submission_entry]
+
+        # Set task_id in both sample_submission_entry and sample_patch to match
+        task_id = "test-task-123"
+        sample_submission_entry.crash.crash.target.task_id = task_id
+        sample_patch.task_id = task_id
+
+        # Configure mock to return True for should_stop_processing
+        mock_task_registry.should_stop_processing.return_value = True
+
+        # Call the method
+        result = submissions.record_patch(sample_patch)
+
+        # Verify _persist was still called
+        submissions.redis.lset.assert_called_once()
+
+        # Verify patch was added to entries
+        assert len(submissions.entries[0].patches) == 1
+        assert submissions.entries[0].patches[0] == sample_patch.patch
+
+        # Verify return value
+        assert result is True
+
+        # Verify should_stop_processing was called with the task_id
+        mock_task_registry.should_stop_processing.assert_called_once_with(task_id)
+
 
 # Tests for state transitions
 class TestStateTransitions:

@@ -361,7 +361,7 @@ class Scheduler:
         patch_item: RQItem[Patch] | None = self.patches_queue.pop()
         if patch_item is not None:
             patch: Patch = patch_item.deserialized
-            logger.info(f"Submitting patch for task {patch.task_id}")
+            logger.info(f"Appending patch for task {patch.task_id}")
             if self.submissions.record_patch(patch):
                 self.patches_queue.ack_item(patch_item.item_id)
                 collected_item = True

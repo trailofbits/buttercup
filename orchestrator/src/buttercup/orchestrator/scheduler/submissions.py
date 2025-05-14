@@ -555,31 +555,6 @@ class Submissions:
                 continue
             yield i, e
 
-    def _get_submission(self, index: int) -> SubmissionEntry | None:
-        """
-        Get a submission from the list of submissions if it is active.
-
-        This method retrieves a submission entry by index and verifies if the associated task
-        is still active (not cancelled or expired).
-
-        Args:
-            index: The index of the submission in the entries list
-
-        Returns:
-            The submission entry if found and active, None otherwise
-        """
-        try:
-            e = self.entries[index]
-            if self.task_registry.should_stop_processing(_task_id(e)):
-                return None
-            return e
-        except IndexError:
-            logger.error(
-                f"BUG: Submission {index} not found. Entries (len={len(self.entries)}): {self.entries}.  This should never happen. Either the patcher was sent the wrong index or the patcher is buggy."
-            )
-            # Submission with this index doesn't exist
-            return None
-
     def submit_vulnerability(self, crash: TracedCrash) -> bool:
         """
         Submit a vulnerability to the competition API and store the result in Redis.
@@ -655,16 +630,27 @@ class Submissions:
             True if the patch was successfully recorded, False if the submission doesn't exist
         """
         index = int(patch.submission_index)
-        e = self._get_submission(index)
-        if not e:
-            logger.error(f"Submission {index} not found. Task might not be active.")
-            return False
+        try:
+            e = self.entries[index]
+        except IndexError:
+            logger.error(
+                f"BUG: Submission {index} not found. Entries (len={len(self.entries)}): {self.entries}.  This should never happen. Either the patcher was sent the wrong index or the patcher is buggy."
+            )
+            # We return True because we don't want to risk this erroneous patch to later be attached to a vulnerability.
+            return True
 
-        assert _task_id(e) == patch.task_id
+        task_id = _task_id(e)
+        assert task_id == patch.task_id
+        if self.task_registry.should_stop_processing(task_id):
+            # We still allow the patch to be recorded, for debugging purposes.
+            logger.warning(
+                f"[{index}:{task_id}] expired or cancelled. Patch for PoV {e.pov_id} will never be submitted."
+            )
+
         e.patches.append(patch.patch)
         self._persist(self.redis, index, e)
         log_structured(
-            logger.info, _task_id(e), index=index, pov_id=e.pov_id, patch_idx=len(e.patches) - 1, msg="Patch added"
+            logger.info, task_id, index=index, pov_id=e.pov_id, patch_idx=len(e.patches) - 1, msg="Patch added"
         )
         return True
 
