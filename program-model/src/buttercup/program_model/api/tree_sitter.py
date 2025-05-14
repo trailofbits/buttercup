@@ -420,17 +420,17 @@ class CodeTS:
         def walk(node: Any) -> bool:
             # Check current node
             if node.type == "identifier" and node.text.decode() == target_name:
-                logger.info("Found target node: %s", node.text.decode())
+                logger.debug("Found target node: %s", node.text.decode())
 
                 # Print parent
                 parent = node.parent
                 if parent:
-                    logger.info("Parent: %s - %s", parent.type, parent.text.decode())
+                    logger.debug("Parent: %s - %s", parent.type, parent.text.decode())
 
                     # Print grandparent
                     grandparent = parent.parent
                     if grandparent:
-                        logger.info(
+                        logger.debug(
                             "Grandparent: %s - %s",
                             grandparent.type,
                             grandparent.text.decode(),
@@ -439,12 +439,12 @@ class CodeTS:
                     # Print grandparent's siblings
                     siblings = grandparent.parent.children
                     for sibling in siblings:
-                        logger.info(
+                        logger.debug(
                             "Sibling    : %s - %s", sibling.type, sibling.text.decode()
                         )
                         # Print sibling's children
                         for child in sibling.children:
-                            logger.info(
+                            logger.debug(
                                 "\tChild      : %s - %s",
                                 child.type,
                                 child.text.decode(),
@@ -453,7 +453,7 @@ class CodeTS:
                             if child.type == "expression_statement":
                                 child_children = child.children
                                 for child_child in child_children:
-                                    logger.info(
+                                    logger.debug(
                                         "\t\tChild      : %s - %s",
                                         child_child.type,
                                         child_child.text.decode(),
@@ -462,7 +462,7 @@ class CodeTS:
                     # Print great-grandparents
                     great_grandparent = grandparent.parent
                     if great_grandparent:
-                        logger.info(
+                        logger.debug(
                             "Great-grandparent: %s - %s",
                             great_grandparent.type,
                             great_grandparent.text.decode(),
@@ -471,7 +471,7 @@ class CodeTS:
                     # Print great-grandparent's siblings
                     siblings = great_grandparent.parent.children
                     for sibling in siblings:
-                        logger.info("Sibling    : %s", sibling.type)
+                        logger.debug("Sibling    : %s", sibling.type)
                 return True
 
             # Recursively check children

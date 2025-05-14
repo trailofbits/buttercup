@@ -153,7 +153,7 @@ def test_libjpeg_get_callers(
     [
         (
             "jpeg_skip_scanlines",
-            "src/libjpeg-turbo/jdapistd.c",
+            "/src/libjpeg-turbo/jdapistd.c",
             None,
             False,
             [
@@ -165,7 +165,7 @@ def test_libjpeg_get_callers(
                 TestCalleeInfo(
                     name="set_wraparound_pointers",
                     file_path="/src/libjpeg-turbo/jdmainct.h",
-                    start_line=52,
+                    start_line=47,
                 ),
                 TestCalleeInfo(
                     name="increment_simple_rowgroup_ctr",
@@ -175,10 +175,10 @@ def test_libjpeg_get_callers(
                 TestCalleeInfo(
                     name="start_iMCU_row",
                     file_path="/src/libjpeg-turbo/jdcoefct.h",
-                    start_line=66,
+                    start_line=63,
                 ),
             ],
-            4,  # num callees after deduplication
+            4,
         ),
     ],
 )
@@ -221,7 +221,7 @@ def test_get_callees(
         ),
         (
             "j_decompress_ptr",
-            "src/libjpeg-turbo/jpeglib.h",
+            "/src/libjpeg-turbo/jpeglib.h",
             False,
             TestTypeDefinitionInfo(
                 name="j_decompress_ptr",

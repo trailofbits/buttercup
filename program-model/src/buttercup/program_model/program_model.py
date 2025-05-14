@@ -121,7 +121,7 @@ class ProgramModel:
         """Process a single task for indexing a program"""
         # Convert path strings to Path objects
         with tempfile.TemporaryDirectory(dir=self.wdir) as td:
-            logger.info(f"Running indexer for {args.task_id} | {args.task_dir}")
+            logger.debug(f"Running indexer for {args.task_id} | {args.task_dir}")
 
             # Change permissions so that JanusGraph can read from the temporary directory
             current = os.stat(td).st_mode
@@ -135,9 +135,9 @@ class ProgramModel:
 
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 # Apply the diff if it exists
-                logger.info(f"Applying diff for {args.task_id}")
+                logger.debug(f"Applying diff for {args.task_id}")
                 if not local_tsk.apply_patch_diff():
-                    logger.info(f"No diffs for {args.task_id}")
+                    logger.debug(f"No diffs for {args.task_id}")
 
                 # Index the task
                 try:
@@ -175,7 +175,7 @@ class ProgramModel:
                 if output_dir is None:
                     logger.error(f"Failed to index task {args.task_id}")
                     return False
-                logger.info(f"Successfully indexed task {args.task_id}")
+                logger.debug(f"Successfully indexed task {args.task_id}")
 
                 output_id = str(uuid.uuid4())
 
@@ -186,7 +186,7 @@ class ProgramModel:
                 except Exception as e:
                     logger.error(f"Failed to index files for {args.task_id}: {e}")
                     return False
-                logger.info(
+                logger.debug(
                     f"Successfully indexed and merged kythe output for {args.task_id} to {bin_file}"
                 )
 
@@ -197,7 +197,7 @@ class ProgramModel:
                         gs = GraphStorage(task_id=args.task_id)
                         buf = BytesIO(fr.read())
                         gs.process_stream(buf, fw)
-                        logger.info(
+                        logger.debug(
                             f"Successfully stored program {args.task_id} in graphml file: {graphml_file}"
                         )
                 except Exception as e:
@@ -205,7 +205,7 @@ class ProgramModel:
                         f"Failed to store program {args.task_id} in graphml file {graphml_file}: {e}"
                     )
                     return False
-                logger.info(
+                logger.debug(
                     f"Successfully stored program {args.task_id} in graphml file: {graphml_file}"
                 )
 
@@ -218,7 +218,7 @@ class ProgramModel:
                         f"Failed to load graphml file {graphml_file} into JanusGraph"
                     )
                     return False
-                logger.info("Successfully loaded graphml file into JanusGraph")
+                logger.debug("Successfully loaded graphml file into JanusGraph")
 
         return True
 
@@ -231,9 +231,9 @@ class ProgramModel:
             )
             with challenge.get_rw_copy(work_dir=self.wdir) as local_challenge:
                 # Apply the diff if it exists
-                logger.info(f"Applying diff for {args.task_id}")
+                logger.debug(f"Applying diff for {args.task_id}")
                 if not local_challenge.apply_patch_diff():
-                    logger.info(f"No diffs for {args.task_id}")
+                    logger.debug(f"No diffs for {args.task_id}")
 
                 if self.wdir is None:
                     raise ValueError("Work directory is not initialized")
@@ -278,7 +278,7 @@ class ProgramModel:
         if self.registry is not None and self.registry.should_stop_processing(
             task_index.task_id
         ):
-            logger.info(f"Task {task_index.task_id} is cancelled or expired, skipping")
+            logger.debug(f"Task {task_index.task_id} is cancelled or expired, skipping")
             self.task_queue.ack_item(rq_item.item_id)
             return True
 
@@ -297,7 +297,7 @@ class ProgramModel:
                 )
             )
             self.task_queue.ack_item(rq_item.item_id)
-            logger.info(f"Successfully processed task {task_index.task_id}")
+            logger.debug(f"Successfully processed task {task_index.task_id}")
         else:
             logger.error(f"Failed to process task {task_index.task_id}")
 
@@ -311,5 +311,5 @@ class ProgramModel:
         if self.output_queue is None:
             raise ValueError("Output queue is not initialized")
 
-        logger.info("Starting indexing service")
+        logger.debug("Starting indexing service")
         serve_loop(self.serve_item, self.sleep_time)

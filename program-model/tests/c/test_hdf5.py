@@ -75,12 +75,7 @@ def test_hdf5_get_functions(
                 TestCallerInfo(
                     name="H5HF__huge_bt2_dir_decode",
                     file_path="/src/hdf5/src/H5HFbtree2.c",
-                    start_line=769,
-                ),
-                TestCallerInfo(
-                    name="H5HF__huge_bt2_dir_decode",
-                    file_path="/src/hdf5/src/H5HFbtree2.c",
-                    start_line=769,
+                    start_line=783,
                 ),
                 TestCallerInfo(
                     name="H5SM__message_decode",

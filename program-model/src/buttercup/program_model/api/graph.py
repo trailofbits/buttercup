@@ -172,12 +172,12 @@ class Graph:
         )
 
         if source_path is not None:
-            logger.info(
+            logger.debug(
                 f"Searching for functions with name: {function_name} from file path: {source_path}"
             )
             logger.debug(f"Encoded source path: {source_path_encode}")
         else:
-            logger.info(f"Searching for functions with name: {function_name}")
+            logger.debug(f"Searching for functions with name: {function_name}")
         logger.debug(f"Encoded function name: {function_name_encode}")
 
         # Retrieve all functions matching this function name (and optionally source path)

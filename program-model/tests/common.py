@@ -91,7 +91,22 @@ def common_test_get_callers(
     callers = filter_project_context(
         fuzz_task.task_meta.project_name, callers, codequery._get_project_language()
     )
+
+    # Validate each caller
     for expected_caller in expected_callers:
+        for c in callers:
+            if (c.name == expected_caller.name) and (
+                str(c.file_path) == expected_caller.file_path
+            ):
+                lines = [
+                    (b.start_line, b.end_line)
+                    for b in c.bodies
+                    if not (b.start_line <= expected_caller.start_line <= b.end_line)
+                ]
+                if len(lines) > 0:
+                    pytest.fail(
+                        f"Expected to see function {c.name} in {c.file_path} on line {expected_caller.start_line} but found it between {lines}"
+                    )
         caller_info = [
             c
             for c in callers
@@ -107,9 +122,11 @@ def common_test_get_callers(
             pytest.fail(f"Couldn't find expected caller: {expected_caller}")
         elif len(caller_info) > 1:
             pytest.fail(f"Found multiple identical callers for: {expected_caller}")
+
     # Make sure we get the right number of callers
-    if num_callers:
-        assert len(callers) == num_callers
+    len_actual = len(callers)
+    if num_callers and len_actual != num_callers:
+        pytest.fail(f"Expected {num_callers} callers, got {len_actual}")
 
 
 @dataclass(frozen=True)
@@ -148,7 +165,22 @@ def common_test_get_callees(
     callees = filter_project_context(
         fuzz_task.task_meta.project_name, callees, codequery._get_project_language()
     )
+
+    # Validate each callee
     for expected_callee in expected_callees:
+        for c in callees:
+            if (c.name == expected_callee.name) and (
+                str(c.file_path) == expected_callee.file_path
+            ):
+                lines = [
+                    (b.start_line, b.end_line)
+                    for b in c.bodies
+                    if not (b.start_line <= expected_callee.start_line <= b.end_line)
+                ]
+                if len(lines) > 0:
+                    pytest.fail(
+                        f"Expected to see function {c.name} in {c.file_path} on line {expected_callee.start_line} but found it between {lines}"
+                    )
         callee_info = [
             c
             for c in callees
@@ -166,8 +198,9 @@ def common_test_get_callees(
             pytest.fail(f"Found multiple identical callees for: {expected_callee}")
 
     # Make sure we don't get more callees than expected
-    if num_callees:
-        assert num_callees == len(callees)
+    len_actual = len(callees)
+    if num_callees and len_actual != num_callees:
+        pytest.fail(f"Expected {num_callees} callees, got {len_actual}")
 
 
 @dataclass(frozen=True)
@@ -239,8 +272,8 @@ def common_test_get_type_usages(
     call_sites = filter_project_context(
         fuzz_task.focus, call_sites, codequery._get_project_language()
     )
-    if num_type_usages:
-        assert len(call_sites) == num_type_usages
+    if num_type_usages and len(call_sites) != num_type_usages:
+        pytest.fail(f"Expected {num_type_usages} type usages, got {len(call_sites)}")
 
     for type_usage_info in type_usage_infos:
         found = [

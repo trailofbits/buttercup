@@ -5,9 +5,6 @@ from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.api.tree_sitter import CodeTS, TypeDefinitionType
 from .conftest import oss_fuzz_task
 from dataclasses import dataclass
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -176,7 +173,6 @@ def test_get_type_definition_types(challenge_task_readonly: ChallengeTask):
     """Test getting different types of definitions."""
     code_ts = CodeTS(challenge_task_readonly)
     types = code_ts.parse_types_in_code(Path("src/example_project/test.c"))
-    logger.info(types)
 
     # Test preprocessor type definitions
     type_def = types["MY_TYPE"]
