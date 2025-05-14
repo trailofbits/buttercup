@@ -1,0 +1,142 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mock-competition-api
+  labels:
+    app: mock-competition-api
+    app.kubernetes.io/name: mock-competition-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: mock-competition-api
+      app.kubernetes.io/name: mock-competition-api
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: mock-competition-api
+        app.kubernetes.io/name: mock-competition-api
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      initContainers:
+        - name: patch-python
+          image: python:3.12-slim
+          command: ["python", "-c"]
+          args:
+            - |
+              import os
+              import sys
+              import urllib.request
+              import zipfile
+              import shutil
+              
+              # Create directories
+              os.makedirs('/patch/site-packages/multipart', exist_ok=True)
+              
+              # Download python-multipart from GitHub directly
+              print("Downloading python-multipart package...")
+              urllib.request.urlretrieve(
+                  'https://github.com/andrew-d/python-multipart/archive/refs/tags/0.0.6.zip',
+                  '/patch/multipart.zip'
+              )
+              
+              # Extract the package
+              with zipfile.ZipFile('/patch/multipart.zip', 'r') as zip_ref:
+                  zip_ref.extractall('/patch')
+              
+              # Copy the multipart module
+              src_dir = '/patch/python-multipart-0.0.6/multipart'
+              dst_dir = '/patch/site-packages/multipart'
+              
+              # Copy package files
+              for item in os.listdir(src_dir):
+                  src_item = os.path.join(src_dir, item)
+                  dst_item = os.path.join(dst_dir, item)
+                  if os.path.isdir(src_item):
+                      shutil.copytree(src_item, dst_item)
+                  else:
+                      shutil.copy2(src_item, dst_item)
+              
+              # Create __init__.py if it doesn't exist
+              init_file = os.path.join(dst_dir, '__init__.py')
+              if not os.path.exists(init_file):
+                  with open(init_file, 'w') as f:
+                      f.write('# Python multipart package\n')
+              
+              print("Python-multipart package extracted and ready")
+          volumeMounts:
+            - name: python-patch
+              mountPath: /patch
+      containers:
+        - name: mock-competition-api
+          image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+          imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: CRS_URL
+              value: {{ .Values.global.crs.api_url | default (printf "http://%s-task-server.%s.svc.cluster.local:8000/v1/task" .Release.Name .Release.Namespace) | quote }}
+            - name: CRS_KEY_ID
+              value: {{ .Values.global.crs.api_key_id | quote }}
+            - name: CRS_TOKEN
+              value: {{ .Values.global.crs.api_key_token | quote }}
+            - name: TEMP_DIR
+              value: "/data/temp"
+            - name: PYTHONPATH
+              value: "/patch/site-packages"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
+            - name: control-file
+              mountPath: /data/control-file.json
+              subPath: control-file.json
+            - name: python-patch
+              mountPath: /patch
+          # Just run the module directly
+          command: ["/app/orchestrator/.venv/bin/python", "-m", "buttercup.orchestrator.mock_competition_api"]
+          args:
+            - "--host=0.0.0.0"
+            - "--port={{ .Values.service.port }}"
+            - "--crs-url={{ .Values.global.crs.api_url | default (printf "http://%s-task-server.%s.svc.cluster.local:8000/v1/task" .Release.Name .Release.Namespace) }}"
+            - "--crs-key-id={{ .Values.global.crs.api_key_id }}"
+            - "--crs-token={{ .Values.global.crs.api_key_token }}"
+            - "--crs-enabled"
+            {{- if .Values.baseUrl }}
+            - "--base-url={{ .Values.baseUrl }}"
+            {{- else }}
+            - "--base-url=http://{{ .Release.Name }}-mock-competition-api.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /v1/ping/
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /v1/ping/
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      {{- if .Values.global.orchestratorImage.pullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.global.orchestratorImage.pullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+        - name: control-file
+          configMap:
+            name: {{ .Release.Name }}-mock-competition-api-config
+        - name: python-patch
+          emptyDir: {} 
+{{- end }} 

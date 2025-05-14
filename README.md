@@ -65,6 +65,11 @@ LANGFUSE_SECRET_KEY
 OTEL_TOKEN
 ```
 
+When [re-running unscored rounds](orchestrator/src/buttercup/orchestrator/mock_competition_api/README.md), set this to `true`:
+```
+MOCK_COMPETITION_API_ENABLED
+```
+
 ## Authentication
 
 ### Docker

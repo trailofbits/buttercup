@@ -1,0 +1,24 @@
+# Mock Competition API Configuration
+# Set to false to disable the mock competition API entirely
+enabled: true
+
+replicaCount: 1
+
+service:
+  port: 8080
+
+# Base URL for serving files - this should be the externally accessible URL of the mock API service
+# The CRS will use this URL to access files
+# Note: The service name includes the release prefix (e.g., "afc-crs-mock-competition-api")
+baseUrl: ""  # Leave empty to auto-generate based on the release name and namespace
+
+# Control file containing test submissions (optional)
+controlFile: "[]"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi 

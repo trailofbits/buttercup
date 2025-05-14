@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mock-competition-api
+description: Simplified Mock Competition API for testing the CRS with controlled inputs
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
