@@ -452,8 +452,10 @@ class CodeQuery:
                 crs_action_name="get_functions_with_codequery",
                 task_metadata=dict(self.challenge.task_meta.metadata),
                 extra_attributes={
-                    "crs.action.code.file": file_path,
-                    "crs.action.code.lines": line_number,
+                    "crs.action.code.file": str(file_path) if file_path else "",
+                    "crs.action.code.lines": line_number if line_number else "",
+                    "crs.action.code.fuzzy": fuzzy if fuzzy else False,
+                    "crs.action.code.function_name": function_name,
                 },
             )
             results = self._run_cqsearch(*cqsearch_args)
@@ -575,7 +577,8 @@ class CodeQuery:
                 crs_action_name="get_callers_with_codequery",
                 task_metadata=dict(self.challenge.task_meta.metadata),
                 extra_attributes={
-                    "crs.action.code.file": file_path,
+                    "crs.action.code.file": str(file_path) if file_path else "",
+                    "crs.action.code.function_name": function_name,
                 },
             )
             results = self._run_cqsearch(*cqsearch_args)
@@ -657,8 +660,9 @@ class CodeQuery:
                 crs_action_name="get_callees_with_codequery",
                 task_metadata=dict(self.challenge.task_meta.metadata),
                 extra_attributes={
-                    "crs.action.code.file": file_path,
-                    "crs.action.code.lines": line_number,
+                    "crs.action.code.file": str(file_path) if file_path else "",
+                    "crs.action.code.lines": line_number if line_number else "",
+                    "crs.action.code.function_name": function_name,
                 },
             )
             results = self._run_cqsearch(*cqsearch_args)
@@ -767,7 +771,10 @@ class CodeQuery:
                 crs_action_name="get_types_with_codequery",
                 task_metadata=dict(self.challenge.task_meta.metadata),
                 extra_attributes={
-                    "crs.action.code.file": file_path,
+                    "crs.action.code.file": str(file_path) if file_path else "",
+                    "crs.action.code.fuzzy": fuzzy if fuzzy else False,
+                    "crs.action.code.type_name": type_name,
+                    "crs.action.code.function_name": function_name,
                 },
             )
             results = list(self._run_cqsearch(*cqsearch_args))
