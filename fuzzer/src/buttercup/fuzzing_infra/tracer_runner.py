@@ -67,6 +67,16 @@ class TracerRunner:
                 info_with_diff = local_diff_task.reproduce_pov(harness_name, crash_path)
                 span.set_status(Status(StatusCode.OK))
 
+        if not info_with_diff.did_run():
+            logger.warning("Could not reproduce task %s in diff mode", self.tsk_id)
+            logger.debug(
+                "Task %s in diff mode, stdout: %s, stderr: %s",
+                self.tsk_id,
+                info_with_diff.command_result.output,
+                info_with_diff.command_result.error,
+            )
+            return None
+
         if not is_diff_mode:
             return self._create_tracer_info(info_with_diff)
 
@@ -89,6 +99,16 @@ class TracerRunner:
                 )
                 info_without_diff = local_no_diff_task.reproduce_pov(harness_name, crash_path)
                 span.set_status(Status(StatusCode.OK))
+
+        if not info_without_diff.did_run():
+            logger.warning("Could not reproduce task %s in no diff mode", self.tsk_id)
+            logger.debug(
+                "Task %s in no diff mode, stdout: %s, stderr: %s",
+                self.tsk_id,
+                info_without_diff.command_result.output,
+                info_without_diff.command_result.error,
+            )
+            return None
 
         if info_with_diff.did_crash() and not info_without_diff.did_crash():
             logger.info("Task %s crashed in diff mode but not in no diff mode", self.tsk_id)

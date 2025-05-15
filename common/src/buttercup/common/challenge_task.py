@@ -59,6 +59,9 @@ class ChallengeTaskError(Exception):
     pass
 
 
+FAILURE_ERR_RESULT = 55
+
+
 @dataclass
 class CommandResult:
     success: bool
@@ -81,6 +84,13 @@ class ReproduceResult:
             return output
         return None
 
+    def did_run(self) -> bool:
+        """Determine if the fuzzer at least ran"""
+        return bool(
+            (self.command_result.output and b"INFO: Seed: " in self.command_result.output)
+            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error)
+        )
+
     # This is intended to encapsulate heuristics for determining if a run caused a crash
     # Could grep for strings from sanitizers as well
     def did_crash(self) -> bool:
@@ -90,11 +100,7 @@ class ReproduceResult:
          - Nonzero return code
          - Fuzzer ran (assumes libfuzzer or Jazzer)
         """
-        nonzero_return = self.command_result.returncode is not None and self.command_result.returncode != 0
-        fuzzer_ran = b"INFO: Seed: " in self.command_result.output
-        if not fuzzer_ran:
-            logger.info(f"Fuzzer did not run. Stdout: {self.command_result.output[:200]}...")
-        return nonzero_return and fuzzer_ran
+        return bool(self.did_run() and self.command_result.returncode not in [None, 0, FAILURE_ERR_RESULT])
 
 
 @dataclass
@@ -582,14 +588,21 @@ class ChallengeTask:
             architecture,
             env,
         )
+        kwargs = {
+            "architecture": architecture,
+            "e": env,
+        }
+        if "aixcc" in self.OSS_FUZZ_CONTAINER_ORG:
+            kwargs["propagate_exit_code"] = True
+            kwargs["err_result"] = FAILURE_ERR_RESULT
+
         cmd = self._get_helper_cmd(
             "reproduce",
             self.project_name,
             fuzzer_name,
             str(crash_path.absolute()),
             fuzzer_args,
-            architecture=architecture,
-            e=env,
+            **kwargs,
         )
 
         return ReproduceResult(self._run_helper_cmd(cmd))

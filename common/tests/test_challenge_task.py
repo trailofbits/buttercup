@@ -6,6 +6,8 @@ import os
 from buttercup.common.challenge_task import (
     ChallengeTask,
     ChallengeTaskError,
+    ReproduceResult,
+    CommandResult,
 )
 from buttercup.common.task_meta import TaskMeta
 import tempfile
@@ -845,3 +847,55 @@ def test_run_fuzzer_libjpeg(libjpeg_oss_fuzz_task_rw: ChallengeTask, tmp_path: P
     # Can't assert success because it will be False if the fuzzer finds a crash
     # assert result.success is True
     assert result.output is not None
+
+
+def test_reproduce_result_methods():
+    """Test the did_run and did_crash methods of ReproduceResult."""
+    # Test case 1: Successful run, no crash
+    result1 = ReproduceResult(
+        command_result=CommandResult(
+            success=True, returncode=0, output=b"INFO: Seed: 12345\nRunning normally", error=None
+        )
+    )
+    assert result1.did_run() is True
+    assert result1.did_crash() is False
+
+    # Test case 2: Failed run, no crash (fuzzer didn't start)
+    result2 = ReproduceResult(
+        command_result=CommandResult(success=False, returncode=1, output=b"Error: Could not start fuzzer", error=None)
+    )
+    assert result2.did_run() is False
+    assert result2.did_crash() is False
+
+    # Test case 3: Successful run with crash
+    result3 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=1,
+            output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
+            error=None,
+        )
+    )
+    assert result3.did_run() is True
+    assert result3.did_crash() is True
+
+    # Test case 4: Run with seed info in error output
+    result4 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=1,
+            output=None,
+            error=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
+        )
+    )
+    assert result4.did_run() is True
+    assert result4.did_crash() is True
+
+    # Test case 5: Run with None returncode
+    result5 = ReproduceResult(
+        command_result=CommandResult(
+            success=False, returncode=None, output=b"INFO: Seed: 12345\nRunning normally", error=None
+        )
+    )
+    assert result5.did_run() is True
+    assert result5.did_crash() is False

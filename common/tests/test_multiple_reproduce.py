@@ -95,6 +95,7 @@ def test_reproduce_fail_reproduce(build_outputs, mock_challenge_task):
         harness_name = "test_harness"
 
         _, result = next(rm.attempt_reproduce(pov_path, harness_name))
+        assert result.did_run() is False
         assert result.did_crash() is False
 
 

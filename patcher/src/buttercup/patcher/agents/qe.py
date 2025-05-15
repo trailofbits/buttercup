@@ -320,8 +320,12 @@ class QEAgent(PatcherAgentBase):
                 logger.debug("PoV stdout: %s", pov_output.command_result.output)
                 logger.debug("PoV stderr: %s", pov_output.command_result.error)
 
-                if not pov_output.command_result.success or pov_output.did_crash():
-                    logger.error("PoV %s failed running or still crashes", pov_variant)
+                if not pov_output.did_run():
+                    logger.warning("PoV %s did not run, skipping", pov_variant)
+                    continue
+
+                if pov_output.did_crash():
+                    logger.error("PoV %s still crashes", pov_variant)
                     return Command(
                         update={
                             "pov_fixed": False,
@@ -342,6 +346,17 @@ class QEAgent(PatcherAgentBase):
                     },
                     goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                 )
+
+        if not run_once:
+            logger.error("No PoVs could be run, this should never happen")
+            return Command(
+                update={
+                    "pov_fixed": False,
+                    "pov_stdout": None,
+                    "pov_stderr": None,
+                },
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            )
 
         logger.info("All PoVs were fixed")
         return Command(
