@@ -1,5 +1,5 @@
 import re
-from buttercup.common.clusterfuzz_parser import StackParser
+from buttercup.common.clusterfuzz_parser import StackParser, CrashInfo
 import logging
 from buttercup.common.sets import RedisSet
 from redis import Redis
@@ -21,7 +21,7 @@ class CrashSet:
         return self.set.add(key)
 
 
-def parse_stacktrace(stacktrace: str, symbolized: bool = False) -> str:
+def parse_stacktrace(stacktrace: str, symbolized: bool = False) -> CrashInfo:
     # Strip ANSI escape codes from stacktrace as parse_stacktrace doesn't like them
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     stacktrace = ansi_escape.sub("", stacktrace)
