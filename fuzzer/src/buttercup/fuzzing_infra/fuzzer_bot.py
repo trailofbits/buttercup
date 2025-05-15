@@ -17,8 +17,9 @@ from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
-from buttercup.common.telemetry import init_telemetry, log_crs_action_ok, CRSActionCategory
+from buttercup.common.telemetry import init_telemetry, CRSActionCategory, set_crs_attributes
 from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 
@@ -67,49 +68,54 @@ class FuzzerBot(TaskLoop):
                 )
                 logger.info(f"Starting fuzzer {build.engine} | {build.sanitizer} | {task.harness_name}")
                 tracer = trace.get_tracer(__name__)
-                log_crs_action_ok(
-                    tracer,
-                    CRSActionCategory.FUZZING,
-                    "run_fuzzer",
-                    tsk.task_meta.metadata,
-                    {
-                        "crs.action.target.harness": task.harness_name,
-                        "crs.action.target.sanitizer": build.sanitizer,
-                    },
-                )
-                result = self.runner.run_fuzzer(fuzz_conf)
-                crash_set = CrashSet(self.redis)
-                crash_dir = CrashDir(
-                    self.crs_scratch_dir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
-                )
-                for crash_ in result.crashes:
-                    crash: engine.Crash = crash_
-                    cdata = stack_parsing.get_crash_data(crash.stacktrace)
-                    dst = crash_dir.copy_file(crash.input_path, cdata)
-                    if crash_set.add(
-                        task.package_name,
-                        task.harness_name,
-                        task.task_id,
-                        build.sanitizer,
-                        crash.stacktrace,
-                    ):
-                        logger.info(
-                            f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set"
-                        )
-                        logger.debug(f"Crash stacktrace: {crash.stacktrace}")
-                        continue
-
-                    logger.info(f"Found unique crash {dst}")
-                    crash = Crash(
-                        target=build,
-                        harness_name=task.harness_name,
-                        crash_input_path=dst,
-                        stacktrace=crash.stacktrace,
-                        crash_token=cdata,
+                with tracer.start_as_current_span("run_fuzzer") as span:
+                    set_crs_attributes(
+                        span,
+                        crs_action_category=CRSActionCategory.FUZZING,
+                        crs_action_name="run_fuzzer",
+                        task_metadata=tsk.task_meta.metadata,
+                        extra_attributes={
+                            "crs.action.target.harness": task.harness_name,
+                            "crs.action.target.sanitizer": build.sanitizer,
+                            "crs.action.target.engine": build.engine,
+                            "fuzz.corpus.size": corp.local_corpus_size(),
+                        },
                     )
-                    self.output_q.push(crash)
+                    result = self.runner.run_fuzzer(fuzz_conf)
 
-                logger.info(f"Fuzzer finished for {build.engine} | {build.sanitizer} | {task.harness_name}")
+                    crash_set = CrashSet(self.redis)
+                    crash_dir = CrashDir(
+                        self.crs_scratch_dir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
+                    )
+                    for crash_ in result.crashes:
+                        crash: engine.Crash = crash_
+                        cdata = stack_parsing.get_crash_data(crash.stacktrace)
+                        dst = crash_dir.copy_file(crash.input_path, cdata)
+                        if crash_set.add(
+                            task.package_name,
+                            task.harness_name,
+                            task.task_id,
+                            build.sanitizer,
+                            crash.stacktrace,
+                        ):
+                            logger.info(
+                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set"
+                            )
+                            logger.debug(f"Crash stacktrace: {crash.stacktrace}")
+                            continue
+
+                        logger.info(f"Found unique crash {dst}")
+                        crash = Crash(
+                            target=build,
+                            harness_name=task.harness_name,
+                            crash_input_path=dst,
+                            stacktrace=crash.stacktrace,
+                            crash_token=cdata,
+                        )
+                        self.output_q.push(crash)
+
+                    span.set_status(Status(StatusCode.OK))
+                    logger.info(f"Fuzzer finished for {build.engine} | {build.sanitizer} | {task.harness_name}")
 
 
 def main():

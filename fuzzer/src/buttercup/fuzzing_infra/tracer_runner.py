@@ -5,6 +5,9 @@ from pathlib import Path
 from dataclasses import dataclass
 import logging
 from redis import Redis
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +51,21 @@ class TracerRunner:
 
         logger.info("Checking if task %s crashed", self.tsk_id)
         with diff_task.get_rw_copy(work_dir=self.wdir) as local_diff_task:
-            info_with_diff = local_diff_task.reproduce_pov(harness_name, crash_path)
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("reproduce_pov") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.DYNAMIC_ANALYSIS,
+                    crs_action_name="reproduce_pov",
+                    task_metadata=dict(diff_task.task_meta.metadata),
+                    extra_attributes={
+                        "crs.action.target.sanitizer": sanitizer,
+                        "crs.action.target.harness": harness_name,
+                    },
+                )
+                info_with_diff = local_diff_task.reproduce_pov(harness_name, crash_path)
+                span.set_status(Status(StatusCode.OK))
 
         if not is_diff_mode:
             return self._create_tracer_info(info_with_diff)
@@ -57,7 +74,21 @@ class TracerRunner:
         no_diff_task = ChallengeTask(read_only_task_dir=build_output_no_diffs.task_dir)
 
         with no_diff_task.get_rw_copy(work_dir=self.wdir) as local_no_diff_task:
-            info_without_diff = local_no_diff_task.reproduce_pov(harness_name, crash_path)
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("reproduce_pov_no_diff") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.DYNAMIC_ANALYSIS,
+                    crs_action_name="reproduce_pov_no_diff",
+                    task_metadata=dict(no_diff_task.task_meta.metadata),
+                    extra_attributes={
+                        "crs.action.target.sanitizer": sanitizer,
+                        "crs.action.target.harness": harness_name,
+                    },
+                )
+                info_without_diff = local_no_diff_task.reproduce_pov(harness_name, crash_path)
+                span.set_status(Status(StatusCode.OK))
 
         if info_with_diff.did_crash() and not info_without_diff.did_crash():
             logger.info("Task %s crashed in diff mode but not in no diff mode", self.tsk_id)

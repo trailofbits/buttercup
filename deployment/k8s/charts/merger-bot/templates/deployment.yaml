@@ -25,6 +25,7 @@ spec:
         command: ["buttercup-corpus-merger", "--wdir", "/tmp", "--crs_scratch_dir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}", "--crash_dir_count_limit", "{{ include "buttercup.core.crashDirCountLimit" . }}"]
         env: 
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
+        {{- include "buttercup.env.telemetry" . | nindent 8 }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:

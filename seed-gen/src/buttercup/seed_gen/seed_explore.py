@@ -87,6 +87,9 @@ class SeedExploreTask(SeedBaseTask):
                 crs_action_category=CRSActionCategory.INPUT_GENERATION,
                 crs_action_name="seed_gen_explore",
                 task_metadata=dict(self.challenge_task.task_meta.metadata),
+                extra_attributes={
+                    "gen_ai.request.model": self.llm.model_name,
+                },
             )
             result = chain.invoke(state)
 

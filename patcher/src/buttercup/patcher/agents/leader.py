@@ -34,6 +34,7 @@ class PatcherLeaderAgent:
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
     work_dir: Path
+    model_name: str | None = None
 
     # Default to a low number as the patcher will be run multiple times and it
     # will eventually retry this many times.
@@ -51,6 +52,7 @@ class PatcherLeaderAgent:
             chain_call=self.chain_call,
             max_patch_retries=self.max_patch_retries,
         )
+        self.model_name = swe_agent.default_llm.model_name
         qe_agent = QEAgent(
             self.challenge,
             self.input,
@@ -108,6 +110,9 @@ class PatcherLeaderAgent:
                     crs_action_category=CRSActionCategory.PATCH_GENERATION,
                     crs_action_name="generate_pov_patch",
                     task_metadata=dict(self.challenge.task_meta.metadata),
+                    extra_attributes={
+                        "gen_ai.request.model": self.model_name,
+                    },
                 )
 
                 output_state_dict: dict = chain.invoke(state)

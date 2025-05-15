@@ -17,6 +17,10 @@ from buttercup.common.challenge_task import ChallengeTask
 import shutil
 import buttercup.common.node_local as node_local
 from contextlib import contextmanager
+from buttercup.common.telemetry import init_telemetry
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 logger = logging.getLogger(__name__)
 
@@ -133,13 +137,29 @@ class CoverageBot(TaskLoop):
                     local_tsk,
                     self.llvm_cov_tool,
                 )
-                func_coverage = runner.run(task.harness_name, sampled_corpus_path)
 
-            if func_coverage is None:
-                logger.error(
-                    f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"
-                )
-                return
+                # log telemetry
+                tracer = trace.get_tracer(__name__)
+                with tracer.start_as_current_span("coverage_analysis") as span:
+                    set_crs_attributes(
+                        span,
+                        crs_action_category=CRSActionCategory.DYNAMIC_ANALYSIS,
+                        crs_action_name="coverage_analysis",
+                        task_metadata=dict(tsk.task_meta.metadata),
+                        extra_attributes={
+                            "crs.action.target.harness": task.harness_name,
+                            "fuzz.corpus.size": corpus.local_corpus_size(),
+                        },
+                    )
+                    func_coverage = runner.run(task.harness_name, sampled_corpus_path)
+
+                    if func_coverage is None:
+                        logger.error(
+                            f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"
+                        )
+                        span.set_status(Status(StatusCode.ERROR))
+                        return
+                    span.set_status(Status(StatusCode.OK))
 
             get_processed_coverage(corpus.path).update(remaining_files)
             logger.info(
@@ -195,6 +215,7 @@ def main():
     args = CoverageBotSettings()
 
     setup_package_logger("coverage-bot", __name__, args.log_level)
+    init_telemetry("coverage-bot")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting coverage bot (wdir: {args.wdir})")

@@ -23,6 +23,9 @@ from buttercup.program_model.utils.common import (
     TypeUsageInfo,
 )
 from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 
@@ -439,7 +442,22 @@ class CodeQuery:
         ]
         if file_path:
             cqsearch_args += ["-b", file_path.as_posix()]
-        results = self._run_cqsearch(*cqsearch_args)
+
+        # log telemetry
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("get_functions_with_codequery") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                crs_action_name="get_functions_with_codequery",
+                task_metadata=dict(self.challenge.task_meta.metadata),
+                extra_attributes={
+                    "crs.action.code.file": file_path,
+                    "crs.action.code.lines": line_number,
+                },
+            )
+            results = self._run_cqsearch(*cqsearch_args)
+            span.set_status(Status(StatusCode.OK))
 
         # Extended fuzzy matching
         if fuzzy and file_path is None:
@@ -549,7 +567,19 @@ class CodeQuery:
         # NOTE: Querying for callers returns the function definitions of the callers.
         # We don't add a file path to the cqsearch args because we don't want
         # to assume all callers of the function will be in the same file as the function.
-        results = self._run_cqsearch(*cqsearch_args)
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("get_callers_with_codequery") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                crs_action_name="get_callers_with_codequery",
+                task_metadata=dict(self.challenge.task_meta.metadata),
+                extra_attributes={
+                    "crs.action.code.file": file_path,
+                },
+            )
+            results = self._run_cqsearch(*cqsearch_args)
+            span.set_status(Status(StatusCode.OK))
 
         callers: set[Function] = set()
         for result in results:
@@ -618,7 +648,21 @@ class CodeQuery:
         # the same file as the function.
         if file_path:
             cqsearch_args += ["-b", file_path.as_posix()]
-        results = self._run_cqsearch(*cqsearch_args)
+        # log telemetry
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("get_callees_with_codequery") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                crs_action_name="get_callees_with_codequery",
+                task_metadata=dict(self.challenge.task_meta.metadata),
+                extra_attributes={
+                    "crs.action.code.file": file_path,
+                    "crs.action.code.lines": line_number,
+                },
+            )
+            results = self._run_cqsearch(*cqsearch_args)
+            span.set_status(Status(StatusCode.OK))
 
         # Create a dictionary of file path(s) and line ranges to filter callees by.
         callee_filter: dict[Path, list[tuple[int, int]]] = {}
@@ -713,8 +757,21 @@ class CodeQuery:
         ]
         if file_path:
             cqsearch_args += ["-b", file_path.as_posix()]
-
-        results: list[CQSearchResult] = list(self._run_cqsearch(*cqsearch_args))
+        results: list[CQSearchResult] = []
+        # log telemetry
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("get_types_with_codequery") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                crs_action_name="get_types_with_codequery",
+                task_metadata=dict(self.challenge.task_meta.metadata),
+                extra_attributes={
+                    "crs.action.code.file": file_path,
+                },
+            )
+            results = list(self._run_cqsearch(*cqsearch_args))
+            span.set_status(Status(StatusCode.OK))
 
         # Extended fuzzy matching
         if fuzzy and file_path is None:
@@ -805,7 +862,17 @@ class CodeQuery:
             "-u",
         ]
 
-        results = self._run_cqsearch(*cqsearch_args)
+        # log telemetry
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("get_type_calls_with_codequery") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                crs_action_name="get_type_calls_with_codequery",
+                task_metadata=dict(self.challenge.task_meta.metadata),
+            )
+            results = self._run_cqsearch(*cqsearch_args)
+            span.set_status(Status(StatusCode.OK))
 
         logger.debug("Found %d calls to type %s", len(results), type_definition.name)
 

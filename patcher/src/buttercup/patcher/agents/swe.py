@@ -12,7 +12,7 @@ from typing import Literal
 from langgraph.types import Command
 from langgraph.constants import END
 
-
+from langchain_openai.chat_models.base import BaseChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -264,6 +264,7 @@ class CreateUPatchInput(BaseModel):
 class SWEAgent(PatcherAgentBase):
     """Software Engineer LLM agent, handling the creation of patches."""
 
+    default_llm: BaseChatOpenAI = field(init=False)
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
     max_patch_retries: int = 30
@@ -272,13 +273,13 @@ class SWEAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
+        self.default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms: list[Runnable] = []
         for fb_model in [
             ButtercupLLM.CLAUDE_3_5_SONNET,
         ]:
             fallback_llms.append(create_default_llm_with_temperature(model_name=fb_model.value))
-        self.llm = default_llm.with_fallbacks(fallback_llms)
+        self.llm = self.default_llm.with_fallbacks(fallback_llms)
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
 

@@ -9,13 +9,19 @@ from buttercup.common.challenge_task import ChallengeTask
 from pathlib import Path
 from buttercup.fuzzing_infra.settings import BuilderBotSettings
 import buttercup.common.node_local as node_local
+from buttercup.common.telemetry import init_telemetry
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 logger = logging.getLogger(__name__)
 
 
 def main():
     args = BuilderBotSettings()
+
     setup_package_logger("builder-bot", __name__, args.log_level)
+    init_telemetry("builder-bot")
 
     logger.info(f"Starting builder bot ({args.wdir})")
     redis = Redis.from_url(args.redis_url)
@@ -58,14 +64,27 @@ def main():
                     logger.info(
                         f"No diffs for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
                     )
-            res = task.build_fuzzers_with_cache(
-                engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=args.allow_pull
-            )
-            if not res.success:
-                logger.error(
-                    f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("build_fuzzers_with_cache") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.BUILDING,
+                    crs_action_name="build_fuzzers_with_cache",
+                    task_metadata=dict(origin_task.task_meta.metadata),
                 )
-                return True
+                res = task.build_fuzzers_with_cache(
+                    engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=args.allow_pull
+                )
+
+                if not res.success:
+                    logger.error(
+                        f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                    )
+                    span.set_status(Status(StatusCode.ERROR))
+                    return True
+
+                span.set_status(Status(StatusCode.OK))
 
             task.commit()
             logger.info(

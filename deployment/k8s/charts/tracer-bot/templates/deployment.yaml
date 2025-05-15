@@ -33,6 +33,7 @@ spec:
         env:
         {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
+        {{- include "buttercup.env.telemetry" . | nindent 8 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.volumes.tasks" . | nindent 6 }}

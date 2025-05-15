@@ -17,7 +17,11 @@ from buttercup.common.sets import MergedCorpusSet, MergedCorpusSetLock
 from buttercup.common.constants import ADDRESS_SANITIZER
 from buttercup.common.sets import FailedToAcquireLock
 from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS
-
+from buttercup.common.telemetry import init_telemetry
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+import datetime
 
 # It doesnt make much sense to run a merge on a really small corpus
 MERGE_LIMIT_COUNT = 100
@@ -77,7 +81,27 @@ class MergerBot(TaskLoop):
                         try:
                             with tempfile.TemporaryDirectory() as td:
                                 will_definitely_be_merged = set([os.path.basename(x) for x in corp.list_local_corpus()])
-                                self.runner.merge_corpus(fuzz_conf, td)
+
+                                # log telemetry
+                                tracer = trace.get_tracer(__name__)
+                                with tracer.start_as_current_span("merge_corpus") as span:
+                                    set_crs_attributes(
+                                        span,
+                                        crs_action_category=CRSActionCategory.DYNAMIC_ANALYSIS,
+                                        crs_action_name="merge_corpus",
+                                        task_metadata=dict(tsk.task_meta.metadata),
+                                        extra_attributes={
+                                            "crs.action.target.harness": task.harness_name,
+                                            "crs.action.target.sanitizer": build.sanitizer,
+                                            "crs.action.target.engine": build.engine,
+                                            "fuzz.corpus.size": corp.local_corpus_size(),
+                                            "fuzz.corpus.update.method": "merge",
+                                            "fuzz.corpus.update.time": datetime.datetime.now().isoformat(),
+                                        },
+                                    )
+                                    self.runner.merge_corpus(fuzz_conf, td)
+                                    span.set_status(Status(StatusCode.OK))
+
                                 dest_names = [os.path.basename(x) for x in corp.copy_corpus(td)]
                                 to_remove = will_definitely_be_merged.difference(dest_names)
                                 corp.sync_to_remote()
@@ -102,7 +126,9 @@ class MergerBot(TaskLoop):
 
 def main():
     args = FuzzerBotSettings()
+
     setup_package_logger("corpus-merger", __name__, args.log_level)
+    init_telemetry("merger-bot")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting fuzzer (wdir: {args.wdir} crs_scratch_dir: {args.crs_scratch_dir})")

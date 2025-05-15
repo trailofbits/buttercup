@@ -11,6 +11,7 @@ from pathlib import Path
 from buttercup.common import stack_parsing
 from buttercup.common.utils import serve_loop
 import buttercup.common.node_local as node_local
+from buttercup.common.telemetry import init_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,9 @@ class TracerBot:
 
 def main():
     args = TracerSettings()
+
     setup_package_logger("tracer-bot", __name__, "DEBUG")
+    init_telemetry("tracer-bot")
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting tracer-bot (wdir: {args.wdir})")

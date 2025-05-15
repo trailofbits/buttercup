@@ -1,12 +1,14 @@
 import os
 import logging
 from enum import Enum
+import uuid
 
 import openlit
 from opentelemetry import trace
 from opentelemetry.trace import Span, Tracer, Status, StatusCode
 
 logger = logging.getLogger(__name__)
+service_instance_id = os.getenv("SERVICE_INSTANCE_ID", str(uuid.uuid4()))
 
 
 class CRSActionCategory(Enum):
@@ -57,6 +59,7 @@ def set_crs_attributes(
     extra_attributes = extra_attributes or {}
     span.set_attribute("crs.action.category", crs_action_category.value)
     span.set_attribute("crs.action.name", crs_action_name)
+    span.set_attribute("service.instance.id", service_instance_id)
 
     for key, value in task_metadata.items():
         span.set_attribute(key, value)
@@ -76,6 +79,7 @@ def log_crs_action_ok(
     with tracer.start_as_current_span(crs_action_name) as span:
         span.set_attribute("crs.action.category", crs_action_category.value)
         span.set_attribute("crs.action.name", crs_action_name)
+        span.set_attribute("service.instance.id", service_instance_id)
 
         for key, value in task_metadata.items():
             span.set_attribute(key, value)
