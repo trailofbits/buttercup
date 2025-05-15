@@ -13,6 +13,7 @@ export AZURE_API_BASE="ignore-me"
 export AZURE_API_KEY="ignore-me"
 export OTEL_ENDPOINT="https://aixcc-crone-bronx-cuprous-wiggly.gateway.trailofbits.com"
 export OTEL_PROTOCOL="http"
+export LANGFUSE_ENABLED=true
 
 # Secrets/Env replaced
 export BUTTERCUP_NAMESPACE=replace-me
