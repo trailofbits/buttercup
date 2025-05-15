@@ -39,6 +39,11 @@ class TracerBot:
             self.queue.ack_item(item.item_id)
             return True
 
+        if self.queue.times_delivered(item.item_id) > self.max_tries:
+            logger.warning(f"Reached max tries for {item.deserialized.target.task_id}")
+            self.queue.ack_item(item.item_id)
+            return True
+
         runner = TracerRunner(item.deserialized.target.task_id, self.wdir, self.redis)
 
         # Ensure the crash input is locally available
@@ -51,12 +56,7 @@ class TracerBot:
             item.deserialized.target.sanitizer,
         )
         if tinfo is None:
-            if self.queue.times_delivered(item.item_id) <= self.max_tries:
-                logger.warning(f"No tracer info found for {item.deserialized.target.task_id}")
-            else:
-                logger.warning(f"Reached max tries for {item.deserialized.target.task_id}")
-                self.queue.ack_item(item.item_id)
-
+            logger.warning(f"No tracer info found for {item.deserialized.target.task_id}")
             return True
 
         if tinfo.is_valid:

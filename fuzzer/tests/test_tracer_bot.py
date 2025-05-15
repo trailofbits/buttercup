@@ -48,6 +48,7 @@ def test_serve_item_should_process_normal_task(tracer_bot, redis_client):
     with (
         patch.object(tracer_bot.queue, "pop", return_value=mock_item),
         patch.object(tracer_bot.queue, "ack_item"),
+        patch.object(tracer_bot.queue, "times_delivered", return_value=1),
         patch("buttercup.fuzzing_infra.tracer_runner.TracerRunner.run") as mock_run,
         patch("buttercup.common.node_local.make_locally_available") as mock_local,
     ):
