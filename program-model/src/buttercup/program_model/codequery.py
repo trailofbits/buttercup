@@ -774,7 +774,9 @@ class CodeQuery:
                     "crs.action.code.file": str(file_path) if file_path else "",
                     "crs.action.code.fuzzy": fuzzy if fuzzy else False,
                     "crs.action.code.type_name": type_name,
-                    "crs.action.code.function_name": function_name,
+                    "crs.action.code.function_name": function_name
+                    if function_name
+                    else "",
                 },
             )
             results = list(self._run_cqsearch(*cqsearch_args))
