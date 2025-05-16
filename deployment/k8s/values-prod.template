@@ -158,7 +158,7 @@ coverage-bot:
 
 tracer-bot:
   enabled: true
-  replicaCount: 4
+  replicaCount: 8
   resources:
     limits:
       cpu: 1000m
