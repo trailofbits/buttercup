@@ -104,7 +104,7 @@ task-downloader:
   
 scheduler:
   enabled: true
-  patchRequestsPerVulnerability: 3
+  patchRequestsPerVulnerability: 1
   resources:
     limits:
       cpu: 2000m
