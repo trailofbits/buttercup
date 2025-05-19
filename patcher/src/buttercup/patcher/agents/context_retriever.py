@@ -371,7 +371,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         """Initialize a few fields"""
         default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms = [
-            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
+            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_7_SONNET.value),
         ]
 
         self.tools = [
