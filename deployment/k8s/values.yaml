@@ -129,6 +129,11 @@ redis:
       requests:
         cpu: 100m
         memory: 256Mi
+  # Add Docker registry authentication
+  global:
+    imagePullSecrets:
+      - ghcr-auth
+      - docker-auth
 
 task-server:
   enabled: true
@@ -201,6 +206,10 @@ litellm-db:
         memory: 256Mi
   readReplicas:
     replicaCount: 0  # No read replicas needed for this simple setup
+  global:
+    imagePullSecrets:
+      - ghcr-auth
+      - docker-auth
 
 # LiteLLM configuration
 litellm-helm:
@@ -223,6 +232,12 @@ litellm-helm:
   # For subcharts, we need to use a static name that will be templated at the parent level
   environmentSecrets:
     - "buttercup-litellm-api-secrets"
+  
+  # Docker authentication
+  global:
+    imagePullSecrets:
+      - ghcr-auth
+      - docker-auth
   
   # Direct inclusion of the litellm_config.yaml content
   proxy_config:

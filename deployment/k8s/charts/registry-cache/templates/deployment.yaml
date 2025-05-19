@@ -17,6 +17,7 @@ spec:
         app: registry-cache
         release: {{ .Release.Name }}
     spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: registry
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

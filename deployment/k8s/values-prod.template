@@ -33,6 +33,7 @@ global:
   otel:
     endpoint: "${OTEL_ENDPOINT}"
     token: "${OTEL_TOKEN}"
+    protocol: "${OTEL_PROTOCOL}"
 
   queueTimeouts:
     buildTaskTimeoutMs: 1200000
@@ -150,8 +151,8 @@ coverage-bot:
   replicaCount: 4
   resources:
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 1000m
+      memory: 8Gi
     requests:
       cpu: 250m
       memory: 512Mi

@@ -20,6 +20,7 @@ from pydantic import BaseModel
 import uvicorn
 import shutil
 import aiohttp
+import base64
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -182,6 +183,110 @@ class MockCompetitionAPI:
         async def ping():
             return PingResponse()
 
+        # POV models
+        class POVSubmission(BaseModel):
+            architecture: str = "x86_64"
+            engine: str = ""
+            fuzzer_name: str = ""
+            sanitizer: str = ""
+            testcase: str = ""  # base64 encoded test case
+
+        class POVSubmissionResponse(BaseModel):
+            pov_id: str
+            status: str
+
+        # POV submission endpoint
+        @self.app.post("/v1/task/{task_id}/pov/", response_model=POVSubmissionResponse)
+        async def submit_pov(task_id: str, payload: POVSubmission):
+            pov_id = f"pov-{self.next_bundle_id}"
+            self.next_bundle_id += 1
+
+            # Save POV data to temp directory
+            pov_path = os.path.join(self.temp_dir, f"{pov_id}.pov")
+            try:
+                # Decode base64 testcase and save it
+                testcase_data = base64.b64decode(payload.testcase)
+                with open(pov_path, "wb") as buffer:
+                    buffer.write(testcase_data)
+            except Exception as e:
+                logger.error(f"Error decoding base64 testcase: {e}")
+                # If base64 decoding fails, just save the raw testcase
+                with open(pov_path, "wb") as buffer:
+                    buffer.write(payload.testcase.encode())
+
+            self.bundles[pov_id] = {
+                "task_id": task_id,
+                "file_path": pov_path,
+                "engine": payload.engine,
+                "fuzzer_name": payload.fuzzer_name,
+                "sanitizer": payload.sanitizer,
+                "status": SubmissionStatus.ACCEPTED,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+
+            return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.ACCEPTED)
+
+        # POV status check endpoint
+        @self.app.get("/v1/task/{task_id}/pov/{pov_id}/", response_model=POVSubmissionResponse)
+        async def get_pov_status(task_id: str, pov_id: str):
+            if pov_id not in self.bundles:
+                raise HTTPException(status_code=404, detail="POV not found")
+
+            # Always return PASSED status
+            _bundle = self.bundles[pov_id].copy()
+
+            return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.PASSED)
+
+        # Patch models
+        class PatchSubmission(BaseModel):
+            patch: str  # base64 encoded patch
+
+        class PatchSubmissionResponse(BaseModel):
+            patch_id: str
+            status: str
+            functionality_tests_passing: Optional[bool] = None
+
+        # Patch submission endpoint
+        @self.app.post("/v1/task/{task_id}/patch/", response_model=PatchSubmissionResponse)
+        async def submit_patch(task_id: str, payload: PatchSubmission):
+            patch_id = f"patch-{self.next_bundle_id}"
+            self.next_bundle_id += 1
+
+            # Save patch file to temp directory
+            patch_path = os.path.join(self.temp_dir, f"{patch_id}.patch")
+            try:
+                # Decode base64 patch and save it
+                patch_data = base64.b64decode(payload.patch)
+                with open(patch_path, "wb") as buffer:
+                    buffer.write(patch_data)
+            except Exception as e:
+                logger.error(f"Error decoding base64 patch: {e}")
+                # If base64 decoding fails, just save the raw patch
+                with open(patch_path, "wb") as buffer:
+                    buffer.write(payload.patch.encode())
+
+            self.bundles[patch_id] = {
+                "task_id": task_id,
+                "file_path": patch_path,
+                "status": SubmissionStatus.ACCEPTED,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+
+            return PatchSubmissionResponse(
+                patch_id=patch_id, status=SubmissionStatus.ACCEPTED, functionality_tests_passing=None
+            )
+
+        # Patch status check endpoint
+        @self.app.get("/v1/task/{task_id}/patch/{patch_id}/", response_model=PatchSubmissionResponse)
+        async def get_patch_status(task_id: str, patch_id: str):
+            if patch_id not in self.bundles:
+                raise HTTPException(status_code=404, detail="Patch not found")
+
+            # Always return PASSED status with successful functionality tests
+            return PatchSubmissionResponse(
+                patch_id=patch_id, status=SubmissionStatus.PASSED, functionality_tests_passing=True
+            )
+
         # Upload tarball endpoint
         @self.app.post("/upload-tarball/")
         async def upload_tarball(file: UploadFile = File(...)):
@@ -248,16 +353,68 @@ class MockCompetitionAPI:
             return BundleSubmissionResponse(bundle_id=bundle_id, status=SubmissionStatus.ACCEPTED)
 
         # Get bundle status endpoint
-        @self.app.get("/v1/task/{task_id}/bundle/{bundle_id}/", response_model=Dict[str, Any])
+        @self.app.get("/v1/task/{task_id}/bundle/{bundle_id}/")
         async def get_bundle(task_id: str, bundle_id: str):
             if bundle_id not in self.bundles:
                 raise HTTPException(status_code=404, detail="Bundle not found")
 
-            # Always return PASSED status
+            # Always return PASSED status with the bundle data
             bundle = self.bundles[bundle_id].copy()
-            bundle["status"] = SubmissionStatus.PASSED
 
-            return bundle
+            # For the GET endpoint, we want to include all the submission data plus the status and bundle_id
+            response_data = {"bundle_id": bundle_id, "status": SubmissionStatus.PASSED}
+
+            # Add any other fields from the submission
+            if "submission" in bundle:
+                response_data.update(bundle["submission"])
+
+            return response_data
+
+        # Bundle patch endpoint
+        @self.app.patch("/v1/task/{task_id}/bundle/{bundle_id}/", response_model=Dict[str, Any])
+        async def patch_bundle(task_id: str, bundle_id: str, payload: BundleSubmission):
+            if bundle_id not in self.bundles:
+                raise HTTPException(status_code=404, detail="Bundle not found")
+
+            # Update the bundle with the new data
+            bundle = self.bundles[bundle_id]
+            bundle["submission"].update(payload.model_dump(exclude_unset=True))
+            bundle["status"] = SubmissionStatus.ACCEPTED
+
+            return {
+                "bundle_id": bundle_id,
+                "status": SubmissionStatus.ACCEPTED,
+                **payload.model_dump(exclude_unset=True),
+            }
+
+        # SARIF assessment models
+        class SarifAssessmentSubmission(BaseModel):
+            assessment: str = "correct"  # or "incorrect"
+
+        class SarifAssessmentResponse(BaseModel):
+            status: str
+
+        # Broadcast SARIF assessment endpoint
+        @self.app.post(
+            "/v1/task/{task_id}/broadcast-sarif-assessment/{broadcast_sarif_id}/",
+            response_model=SarifAssessmentResponse,
+        )
+        async def submit_broadcast_sarif_assessment(
+            task_id: str, broadcast_sarif_id: str, payload: SarifAssessmentSubmission
+        ):
+            # Store the assessment in bundles for tracking
+            sarif_id = f"sarif-assessment-{self.next_bundle_id}"
+            self.next_bundle_id += 1
+
+            self.bundles[sarif_id] = {
+                "task_id": task_id,
+                "broadcast_sarif_id": broadcast_sarif_id,
+                "assessment": payload.assessment,
+                "status": SubmissionStatus.ACCEPTED,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+
+            return SarifAssessmentResponse(status=SubmissionStatus.ACCEPTED)
 
         # File download endpoint
         @self.app.get("/v1/file/{file_hash}")

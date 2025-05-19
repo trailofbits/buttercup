@@ -60,7 +60,6 @@ resource "azurerm_kubernetes_cluster" "primary" {
   dns_prefix          = random_pet.azurerm_kubernetes_cluster_dns_prefix.id
   # Disable automatic upgrades to prevent disruption
   node_os_upgrade_channel   = "None"
-  automatic_upgrade_channel = "none"
 
   identity {
     type = "SystemAssigned"

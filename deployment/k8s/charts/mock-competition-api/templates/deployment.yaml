@@ -21,6 +21,7 @@ spec:
         app.kubernetes.io/name: mock-competition-api
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
       initContainers:
         - name: patch-python
           image: python:3.12-slim
@@ -125,12 +126,6 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
-      {{- if .Values.global.orchestratorImage.pullSecrets }}
-      imagePullSecrets:
-      {{- range .Values.global.orchestratorImage.pullSecrets }}
-        - name: {{ . }}
-      {{- end }}
-      {{- end }}
       volumes:
         - name: data-volume
           emptyDir: {}
