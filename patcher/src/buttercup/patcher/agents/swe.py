@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Literal
 
 from langgraph.types import Command
-from langgraph.constants import END
 
 from langchain_openai.chat_models.base import BaseChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
@@ -23,15 +22,15 @@ from langchain_core.runnables import (
     RunnableConfig,
 )
 from buttercup.patcher.agents.common import (
-    ContextRetrieverState,
     PatcherAgentState,
     PatcherAgentName,
     PatcherAgentBase,
     CodeSnippetKey,
-    CodeSnippetRequest,
+    PatchAttempt,
+    PatchStatus,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
-from buttercup.patcher.utils import decode_bytes, PatchOutput, find_file_in_source_dir, pick_temperature
+from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +47,14 @@ Project Name:
 </project_name>
 
 Root Cause Analysis:
-<root_cause_analysis>
 {ROOT_CAUSE_ANALYSIS}
-</root_cause_analysis>
 
 Code Snippets that may need modification:
 <code_snippets>
 {CODE_SNIPPETS}
 </code_snippets>
-{PREVIOUS_PATCH_PROMPT}{REVIEW_PROMPT}{BUILD_ANALYSIS_PROMPT}{POV_FAILED_PROMPT}{TESTS_FAILED_PROMPT}
+{PREVIOUS_PATCH_PROMPT}
+{REFLECTION_GUIDANCE}
 
 Instructions:
 
@@ -71,35 +69,32 @@ Instructions:
    b.4) consider the tests failure analysis and focus on addressing it
    c) Propose multiple potential solutions for the vulnerability
    d) Evaluate each solution's pros and cons
-   e) If you need additional context to patch the project, request it using <code_requests> tags. Be specific about what code you need and why. For example:
-        <code_requests>
-        <code_request>
-        Full implementation of the function 'validate_input()' from the file 'input_validation.c', as it's referenced in the analysis but not fully visible.
-        </code_request>
-        <code_request>
-        ...
-        </code_request>
-        </code_requests>
-        If you make a code request, wait for a response before proceeding.
-   f) Choose the best solution:
+   e) Choose the best solution:
         Consider:
         - The specific part(s) of the code that need modification
         - Potential solutions and their pros/cons
 
 3. Explain the changes you intend to make and how they fix the vulnerability. Use <explanation> tags for this section.
-   - If you need other code snippets to fix the vulnerability, request them using <code_requests> tags.
 
 4. Generate the patch based on your planning and explanation. Remember:
    - Only fix the described vulnerability
    - You can modify one or more code snippets
    - You don't have to modify all code snippets
    - You don't need to output snippets you haven't modified
+   - Do not make up any code, only use code that you know is present in the codebase.
+   - Do not put placeholders or TODOs in the code, if you suggest a change, you should know the exact code to put there.
 
-5. Format your output as follows for each modified code snippet:
+5. Provide a description of the changes you intend to make. Use <description> tags for this section.
+
+<description>
+[Description of the changes you intend to make]
+</description>
+
+6. Format your output as follows for each modified code snippet:
 
 <patch>
-<identifier>[Identifier of the code snippet]</identifier>
 <file_path>[File path of the code snippet]</file_path>
+<identifier>[Identifier of the code snippet]</identifier>
 <old_code>
 [Include at least 5 lines before the modified part, if available]
 [Old code that needs to be replaced]
@@ -112,8 +107,10 @@ Instructions:
 </new_code>
 </patch>
 
-Remember to focus solely on fixing the described vulnerability. Do not make any unrelated changes or improvements to the code.
-Begin your vulnerability analysis and solution planning now. If you need to request additional code, do so before providing any patches.
+Remember to focus solely on fixing the described vulnerability.
+Do not make any unrelated changes or improvements to the code.
+Do not make up any code, only use code that you know is present in the codebase.
+Begin your vulnerability analysis and solution planning now.
 """
 
 PROMPT = ChatPromptTemplate.from_messages(
@@ -124,60 +121,25 @@ PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
-ADDRESS_REVIEW_PATCH_PROMPT = """
-The last patch you have created does not pass the review process performed by the Quality Engineer. The Quality Engineer has provided the following review:
+REFLECTION_GUIDANCE_TMPL = """
+You have received additional guidance on what to do next, you should follow it as much as possible.
 
-<quality_engineer_review>
-{PATCH_REVIEW}
-</quality_engineer_review>
-
-Please generate a new patch that fixes the vulnerability and addresses the Quality Engineer review. Do not generate an already existing patch.
-When considering possible patch solutions, consider the review comments.
-"""
-
-BUILD_ANALYSIS_PROMPT = """
-The last patch you have created does not build correctly. Another \
-software engineer has provided the following analysis about the build failures.
-Build failure analysis:
-
-<build_failure_analysis>
-{build_failure_analysis}
-</build_failure_analysis>
-
-Please generate a patch that builds correctly and fixes the vulnerability. Do \
-not generate an already existing patch.
+<reflection_guidance>
+{REFLECTION_GUIDANCE}
+</reflection_guidance>
 """
 
 PATCH_PROMPT = """
-You previously tried the following patch, but it was not good enough (it failed the review process, failed to build, failed to fix the vulnerability, failed the tests, etc.).
+You previously tried the following patch, but it was not good enough.
+When producing the patch, include these changes as well, because they are not applied.
 
 <previous_patch>
-{PREVIOUS_PATCH}
+<description>{description}</description>
+<patch>{patch}</patch>
+<status>{status}</status>
+<failure_category>{failure_category}</failure_category>
+<failure_analysis>{failure_analysis}</failure_analysis>
 </previous_patch>
-"""
-
-POV_FAILED_PROMPT = """
-The last patch you have created does not fix the vulnerability \
-correctly. Please generate a patch that fixes the vulnerability. Do not generate \
-an already existing patch.
-"""
-
-
-TESTS_FAILED_PROMPT = """
-The last patch you have created does not pass some tests.
-
-Tests stdout:
-<tests_stdout>
-{tests_stdout}
-</tests_stdout>
-
-Tests stderr:
-<tests_stderr>
-{tests_stderr}
-</tests_stderr>
-
-Please generate a new patch that fixes the vulnerability but also makes the \
-tests work. Do not generate an already existing patch.
 """
 
 
@@ -198,9 +160,9 @@ class CodeSnippetChange(BaseModel):
 
     @classmethod
     def parse(cls, msg: str) -> list[CodeSnippetChange]:
-        # Extract identifier and file_path from the patch block
-        identifier_match = re.search(r"<identifier>(.*?)</identifier>", msg, re.DOTALL | re.IGNORECASE)
+        # Extract file_path and identifier from the patch block
         file_path_match = re.search(r"<file_path>(.*?)</file_path>", msg, re.DOTALL | re.IGNORECASE)
+        identifier_match = re.search(r"<identifier>(.*?)</identifier>", msg, re.DOTALL | re.IGNORECASE)
 
         if not identifier_match or not file_path_match:
             logger.warning("Missing identifier or file_path in patch block")
@@ -256,6 +218,7 @@ class CodeSnippetChanges(BaseModel):
 class CreateUPatchInput(BaseModel):
     """Input for the create_upatch function"""
 
+    description: str | None = None
     code_snippets: CodeSnippetChanges
     state: PatcherAgentState
 
@@ -267,7 +230,6 @@ class SWEAgent(PatcherAgentBase):
     default_llm: BaseChatOpenAI = field(init=False)
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
-    max_patch_retries: int = 30
 
     MATCH_RATIO_THRESHOLD: float = 0.8
 
@@ -282,6 +244,14 @@ class SWEAgent(PatcherAgentBase):
         self.llm = self.default_llm.with_fallbacks(fallback_llms)
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
+
+    def _parse_description(self, patch_str: str) -> str | None:
+        """Parse the description from the patch string."""
+        match = re.search(r"<description>(.*?)</description>", patch_str, re.DOTALL | re.IGNORECASE)
+        if match is None:
+            return None
+
+        return match.group(1).strip()
 
     def _get_file_content(self, file_path: str) -> tuple[str, Path] | None:
         """Get the content of a file, trying multiple search strategies. Returns
@@ -312,20 +282,24 @@ class SWEAgent(PatcherAgentBase):
         # Try exact identifier match with fuzzy file path
         matches = [key for key in orig_code_snippets.keys() if key.identifier == target_key.identifier]
         if matches:
+            # If there is only one match, just return it
+            if len(matches) == 1:
+                return matches[0]
+
             # Find best file path match among matches
             best_match = max(matches, key=sequence_ratio)
             match_ratio = sequence_ratio(best_match)
             if match_ratio > self.MATCH_RATIO_THRESHOLD:
                 return best_match
 
-        # If no good match found with identifier, just return so, we'll ask for
-        # the code snippet
+        # If no good match found with identifier, just return so,
+        # we'll ask for the code snippet
         return None
 
     def _get_code_snippet_key(
         self, code_snippet: CodeSnippetChange, orig_code_snippets: dict[CodeSnippetKey, str]
     ) -> CodeSnippetKey | None:
-        code_snippet_key = CodeSnippetKey(file_path=code_snippet.key.file_path, identifier=code_snippet.key.identifier)
+        code_snippet_key = code_snippet.key
         if code_snippet_key not in orig_code_snippets:
             closest_match = self._find_closest_match(orig_code_snippets, code_snippet_key)
             if closest_match:
@@ -340,128 +314,96 @@ class SWEAgent(PatcherAgentBase):
 
         return code_snippet_key
 
+    def _get_snippets_patch(
+        self, code_snippet: CodeSnippetChange, idx: int, orig_code_snippets: dict[CodeSnippetKey, str]
+    ) -> PatchOutput | None:
+        if not code_snippet.is_valid():
+            logger.warning("Invalid code snippet: %s (%d)", code_snippet.key, idx)
+            return None
+
+        code_snippet_key = self._get_code_snippet_key(code_snippet, orig_code_snippets)
+        if not code_snippet_key:
+            logger.warning("Could not find a valid code snippet key for %s (%d)", code_snippet.key, idx)
+            return None
+
+        assert code_snippet_key.file_path, "Code snippet key file path is empty"
+        get_file_content_result = self._get_file_content(code_snippet_key.file_path)
+        if get_file_content_result is None:
+            logger.warning("Could not read the file: %s", code_snippet_key.file_path)
+            return None
+
+        file_content, file_path = get_file_content_result
+        orig_file_content = file_content
+        orig_code_snippet = orig_code_snippets[code_snippet_key]
+        if orig_code_snippet not in file_content:
+            logger.warning(
+                "Could not generate a valid patch for %s (%d), original code snippet not found in the file",
+                code_snippet_key,
+                idx,
+            )
+            return None
+
+        assert code_snippet.old_code, "The code snippet should be validated before, old_code should be present"
+        assert code_snippet.code, "The code snippet should be validated before, code should be present"
+        if code_snippet.old_code not in orig_code_snippet:
+            # TODO: use some fuzzy matching to try to apply the patch anyway
+            logger.warning(
+                "Could not generate a valid patch for %s (%d), old code snippet change not found in the original code snippet",
+                code_snippet_key,
+                idx,
+            )
+            return None
+
+        new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
+        file_content = file_content.replace(orig_code_snippet, new_code_snippet)
+
+        patch = difflib.unified_diff(
+            orig_file_content.splitlines(),
+            file_content.splitlines(),
+            lineterm="",
+            fromfile="a/" + str(file_path),
+            tofile="b/" + str(file_path),
+        )
+        patch_str = "\n".join(patch) + "\n"
+        if not patch_str.strip():
+            logger.warning(
+                "Could not generate a valid patch for %s (%d)",
+                code_snippet_key,
+                idx,
+            )
+            return None
+
+        logger.debug("Generated patch for %s (%d)", code_snippet_key, idx)
+        return PatchOutput(
+            task_id=self.input.task_id,
+            submission_index=self.input.submission_index,
+            patch=patch_str,
+        )
+
     def _get_snippets_patches(
         self, code_snippets: CodeSnippetChanges, orig_code_snippets: dict[CodeSnippetKey, str]
-    ) -> tuple[list[PatchOutput], list[CodeSnippetRequest]]:
+    ) -> list[PatchOutput]:
         patches: list[PatchOutput] = []
-        code_snippet_requests: list[CodeSnippetRequest] = []
         for code_snippet_idx, code_snippet in enumerate(code_snippets.items or []):
-            if not code_snippet.is_valid():
-                logger.warning("Invalid code snippet: %s (%d)", code_snippet.key, code_snippet_idx)
+            patch_output = self._get_snippets_patch(code_snippet, code_snippet_idx, orig_code_snippets)
+            if not patch_output:
                 continue
 
-            code_snippet_key = self._get_code_snippet_key(code_snippet, orig_code_snippets)
-            if not code_snippet_key:
-                logger.warning(
-                    "Could not find a valid code snippet key for %s (%d)", code_snippet.key, code_snippet_idx
-                )
-                code_snippet_requests.append(
-                    CodeSnippetRequest(
-                        request="Provide code snippet %s / %s"
-                        % (code_snippet.key.file_path, code_snippet.key.identifier)
-                    )
-                )
-                continue
-
-            assert code_snippet_key.file_path, "Code snippet key file path is empty"
-            if not code_snippet.old_code or not code_snippet.code:
-                logger.warning(
-                    "Code snippet %s (%d) has no old code or new code, skipping",
-                    code_snippet_key,
-                    code_snippet_idx,
-                )
-                continue
-
-            get_file_content_result = self._get_file_content(code_snippet_key.file_path)
-            if get_file_content_result is None:
-                logger.warning("Could not read the file: %s", code_snippet_key.file_path)
-                continue
-
-            file_content, file_path = get_file_content_result
-
-            orig_file_content = file_content
-            if code_snippet_key in orig_code_snippets:
-                logger.debug("Found code snippet in orig_code_snippets: %s (%d)", code_snippet_key, code_snippet_idx)
-                orig_code_snippet = orig_code_snippets[code_snippet_key]
-
-                if code_snippet.old_code not in orig_code_snippet:
-                    logger.error(
-                        "Could not generate a valid patch for %s (%d), old code snippet change not found in the original code snippet",
-                        code_snippet_key,
-                        code_snippet_idx,
-                    )
-                    continue
-
-                new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
-            else:
-                logger.debug(
-                    "Code snippet not found in orig_code_snippets: %s (%d)", code_snippet_key, code_snippet_idx
-                )
-                orig_code_snippet = code_snippet.old_code
-                new_code_snippet = code_snippet.code
-
-            if orig_code_snippet not in file_content:
-                logger.error(
-                    "Could not generate a valid patch for %s (%d), original code snippet not found in the file",
-                    code_snippet_key,
-                    code_snippet_idx,
-                )
-                continue
-
-            file_content = file_content.replace(orig_code_snippet, new_code_snippet)
-            patched_file = file_path
-
-            patch = difflib.unified_diff(
-                orig_file_content.splitlines(),
-                file_content.splitlines(),
-                lineterm="",
-                fromfile="a/" + str(patched_file),
-                tofile="b/" + str(patched_file),
-            )
-            patch_str = "\n".join(patch) + "\n"
-            if not patch_str.strip():
-                logger.warning(
-                    "Could not generate a valid patch for %s (%d)",
-                    code_snippet_key,
-                    code_snippet_idx,
-                )
-                continue
-
-            logger.debug("Generated patch for %s (%d)", code_snippet_key, code_snippet_idx)
-            patch_output = PatchOutput(
-                task_id=self.input.task_id,
-                submission_index=self.input.submission_index,
-                patch=patch_str,
-            )
             patches.append(patch_output)
 
-        return patches, code_snippet_requests
+        return patches
 
-    def create_upatch(self, inp: CreateUPatchInput | dict) -> PatchOutput | list[CodeSnippetRequest]:
+    def create_upatch(self, state: PatcherAgentState, code_snippet_changes: CodeSnippetChanges) -> PatchOutput | None:
         """Extract the patch the new vulnerable code."""
-        inp = inp if isinstance(inp, CreateUPatchInput) else CreateUPatchInput(**inp)
-        code_snippets, state = inp.code_snippets, inp.state
-
         orig_code_snippets = {
-            CodeSnippetKey(file_path=cs.key.file_path, identifier=cs.key.identifier): cs.code
-            for cs in state.relevant_code_snippets
-            if cs.code and cs.key.identifier
+            cs.key: cs.code for cs in state.relevant_code_snippets if cs.code and cs.key.file_path and cs.key.identifier
         }
 
-        logger.debug("Creating patches for %d code snippets", len(code_snippets.items or []))
-        patches, code_snippet_requests = self._get_snippets_patches(code_snippets, orig_code_snippets)
+        logger.debug("Creating patches for %d code snippets", len(code_snippet_changes.items or []))
+        patches = self._get_snippets_patches(code_snippet_changes, orig_code_snippets)
         if not patches:
-            logger.warning("No valid patches generated")
-            if code_snippet_requests:
-                logger.warning("Requesting new code snippets for patch generation")
-                return code_snippet_requests
-            else:
-                logger.error("No valid patches generated and no code snippet requests")
-                return PatchOutput(
-                    task_id=self.input.task_id,
-                    submission_index=self.input.submission_index,
-                    patch="",
-                )
+            logger.error("No valid patches generated")
+            return None
 
         # Concatenate all patches in one
         logger.debug("Concatenating %d patches", len(patches))
@@ -474,53 +416,33 @@ class SWEAgent(PatcherAgentBase):
         return final_patch
 
     def create_patch_node(
-        self, state: PatcherAgentState
+        self, state: PatcherAgentState, config: RunnableConfig
     ) -> Command[  # type: ignore[name-defined]
         Literal[
-            PatcherAgentName.REVIEW_PATCH.value,
-            PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-            PatcherAgentName.CONTEXT_RETRIEVER.value,
-            END,
+            PatcherAgentName.BUILD_PATCH.value,
+            PatcherAgentName.REFLECTION.value,
         ]
     ]:
         """Node in the LangGraph that generates a patch (in diff format)"""
-        if len(state.patches) >= self.max_patch_retries:
-            logger.warning("Reached max patch tries, terminating the patching process")
-            return Command(
-                update=state,
-                goto=END,
-            )
+        logger.info(
+            "[%s / %s] Creating a patch for Challenge Task %s",
+            state.context.task_id,
+            state.context.submission_index,
+            self.challenge.name,
+        )
 
-        logger.info("Creating a patch for Challenge Task %s", self.challenge.name)
-        self.challenge.restore()
-
-        update_state = {
-            "patch_review": None,
-            "build_succeeded": None,
-            "pov_fixed": None,
-            "tests_passed": None,
-        }
+        execution_info = state.execution_info
+        execution_info.prev_node = PatcherAgentName.CREATE_PATCH
 
         previous_patch_prompt = ""
-        review_prompt = ""
-        build_analysis_prompt = ""
-        pov_failed_prompt = ""
-        tests_failed_prompt = ""
-
-        last_patch = state.get_last_patch()
-        if last_patch:
-            previous_patch_prompt = PATCH_PROMPT.format(PREVIOUS_PATCH=last_patch.patch)
-
-        if state.patch_review is not None:
-            review_prompt = ADDRESS_REVIEW_PATCH_PROMPT.format(PATCH_REVIEW=state.patch_review)
-        elif state.build_succeeded is False:
-            build_analysis_prompt = BUILD_ANALYSIS_PROMPT.format(build_failure_analysis=state.build_analysis)
-        elif state.pov_fixed is False:
-            pov_failed_prompt = POV_FAILED_PROMPT.format()
-        elif state.tests_passed is False:
-            tests_failed_prompt = TESTS_FAILED_PROMPT.format(
-                tests_stdout=decode_bytes(state.tests_stdout),
-                tests_stderr=decode_bytes(state.tests_stderr),
+        last_patch_attempt = state.get_last_patch_attempt()
+        if last_patch_attempt and last_patch_attempt.analysis and last_patch_attempt.analysis.partial_success:
+            previous_patch_prompt = PATCH_PROMPT.format(
+                description=last_patch_attempt.description,
+                patch=last_patch_attempt.patch.patch if last_patch_attempt.patch else "",
+                status=last_patch_attempt.status,
+                failure_category=last_patch_attempt.analysis.failure_category if last_patch_attempt.analysis else "",
+                failure_analysis=last_patch_attempt.analysis.failure_analysis if last_patch_attempt.analysis else "",
             )
 
         patch_str: str = self.chain_call(
@@ -528,13 +450,14 @@ class SWEAgent(PatcherAgentBase):
             self.code_snippets_chain,
             {
                 "PROJECT_NAME": self.challenge.name,
-                "ROOT_CAUSE_ANALYSIS": state.root_cause,
+                "ROOT_CAUSE_ANALYSIS": str(state.root_cause),
                 "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
                 "PREVIOUS_PATCH_PROMPT": previous_patch_prompt,
-                "REVIEW_PROMPT": review_prompt,
-                "BUILD_ANALYSIS_PROMPT": build_analysis_prompt,
-                "POV_FAILED_PROMPT": pov_failed_prompt,
-                "TESTS_FAILED_PROMPT": tests_failed_prompt,
+                "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
+                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
+                )
+                if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
+                else "",
             },
             default="",  # type: ignore[call-arg]
             config=RunnableConfig(
@@ -543,57 +466,47 @@ class SWEAgent(PatcherAgentBase):
                 },
             ),
         )
-        goto, update_state = self.get_code_snippet_requests(
-            patch_str,
-            update_state,
-            state.ctx_request_limit,
-            current_node=PatcherAgentName.CREATE_PATCH.value,
-            default_goto=PatcherAgentName.REVIEW_PATCH.value,
+        code_snippet_changes = CodeSnippetChanges.parse(patch_str)
+        new_patch_attempt = PatchAttempt(
+            patch=self.create_upatch(state, code_snippet_changes),
+            description=self._parse_description(patch_str),
+            patch_str=patch_str,
         )
-        if goto == PatcherAgentName.CONTEXT_RETRIEVER.value:
-            return Command(
-                update=update_state,
-                goto=goto,
-            )
-
-        create_upatch_input = CreateUPatchInput(
-            code_snippets=CodeSnippetChanges.parse(patch_str),
-            state=state,
-        )
-        patch = self.create_upatch(create_upatch_input)
-        if isinstance(patch, list):
-            logger.info("Requesting new code snippets for patch generation")
-            return Command(
-                update=ContextRetrieverState(
-                    code_snippet_requests=patch,
-                    prev_node=PatcherAgentName.CREATE_PATCH.value,
-                ),
-                goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
-            )
-
-        if not patch or not patch.patch:
+        if not new_patch_attempt.patch or not new_patch_attempt.patch.patch:
             logger.error("Could not generate a patch")
+            new_patch_attempt.status = PatchStatus.CREATION_FAILED
             return Command(
-                update=update_state,
-                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                update={
+                    "patch_attempts": new_patch_attempt,
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
             )
 
-        logger.info("Generated a patch for Challenge Task %s", self.challenge.name)
-        logger.debug("Patch: %s", patch.patch)
-        patches = state.patches + [patch]
-        update_state.update(
-            {
-                "patches": patches,
-            }
+        logger.info(
+            "[%s / %s] Generated a patch for Challenge Task %s",
+            state.context.task_id,
+            state.context.submission_index,
+            self.challenge.name,
         )
-        if patch.patch in [p.patch for p in (state.patches)]:
-            logger.warning("Generated patch already exists, going back to root cause analysis")
+        logger.debug("Patch attempt description: %s", new_patch_attempt.description)
+        logger.debug("Patch attempt: %s", new_patch_attempt.patch.patch)
+        if new_patch_attempt.patch.patch in [p.patch.patch for p in state.patch_attempts if p.patch]:
+            logger.warning(
+                "[%s / %s] Generated patch already exists", state.context.task_id, state.context.submission_index
+            )
+            new_patch_attempt.status = PatchStatus.DUPLICATED
             return Command(
-                update=update_state,
-                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                update={
+                    "patch_attempts": new_patch_attempt,
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
             )
 
         return Command(
-            update=update_state,
-            goto=PatcherAgentName.REVIEW_PATCH.value,
+            update={
+                "patch_attempts": new_patch_attempt,
+            },
+            goto=PatcherAgentName.BUILD_PATCH.value,
         )

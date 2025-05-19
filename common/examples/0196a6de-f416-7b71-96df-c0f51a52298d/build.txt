@@ -1,0 +1,6 @@
+engine: "libfuzzer"
+sanitizer: "address"
+task_dir: "/node_data/tasks_storage/0196a6de-f416-7b71-96df-c0f51a52298d"
+task_id: "0196a6de-f416-7b71-96df-c0f51a52298d"
+build_type: FUZZER
+apply_diff: true

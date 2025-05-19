@@ -69,11 +69,6 @@ def decode_bytes(b: bytes | None) -> str | None:
     return b.decode("utf-8", errors="ignore")
 
 
-def get_diff_content(challenge: ChallengeTask) -> str:
-    """Get the diff content for the challenge."""
-    return "\n".join(diff.read_text() for diff in challenge.get_diffs())
-
-
 def _map_container_path_to_local_path(challenge: ChallengeTask, file_path: Path) -> Path | None:
     """Map a container path (e.g. /src/libjpeg-turbo/jcapimin.c) to a path
     relative to the challenge source (e.g. jcapimin.c)."""

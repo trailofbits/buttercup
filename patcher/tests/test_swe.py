@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from unittest.mock import MagicMock, patch
 import os
+from langchain_core.language_models import BaseChatModel
 
 from buttercup.patcher.agents.common import ContextCodeSnippet
 from buttercup.patcher.patcher import PatchInput
@@ -15,10 +16,8 @@ from buttercup.patcher.agents.swe import (
     CodeSnippetChange,
     CodeSnippetChanges,
     CodeSnippetKey,
-    CreateUPatchInput,
     PatcherAgentState,
     SWEAgent,
-    PatchOutput,
 )
 
 PNGRUTIL_C_CODE = """
@@ -169,20 +168,6 @@ png_handle_iCCP(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
                                profile + (sizeof profile_header), &size, 0);
 """
 
-
-@pytest.fixture
-def mock_llm():
-    return MagicMock()
-
-
-@pytest.fixture
-def mock_chain(mock_llm: MagicMock):
-    res = MagicMock()
-    res.with_fallbacks.return_value = mock_llm
-    res.with_fallbacks.return_value.bind_tools.return_value = mock_llm
-    return res
-
-
 original_subprocess_run = subprocess.run
 
 
@@ -207,13 +192,21 @@ def mock_docker_run(challenge_task: ChallengeTask):
     return wrapped
 
 
+@pytest.fixture
+def mock_llm():
+    llm = MagicMock(spec=BaseChatModel)
+    llm.__or__.return_value = llm
+    return llm
+
+
 @pytest.fixture(autouse=True)
-def mock_llm_functions(mock_chain: MagicMock):
+def mock_llm_functions(mock_llm: MagicMock):
     """Mock LLM creation functions and environment variables."""
     with (
         patch.dict(os.environ, {"BUTTERCUP_LITELLM_HOSTNAME": "http://test-host", "BUTTERCUP_LITELLM_KEY": "test-key"}),
-        patch("buttercup.common.llm.create_default_llm", return_value=mock_chain),
-        patch("buttercup.common.llm.create_llm", return_value=mock_chain),
+        patch("buttercup.common.llm.create_default_llm", return_value=mock_llm),
+        patch("buttercup.common.llm.create_llm", return_value=mock_llm),
+        patch("langgraph.prebuilt.chat_agent_executor._get_prompt_runnable", return_value=mock_llm),
     ):
         yield
 
@@ -298,6 +291,8 @@ def patcher_agent_state(swe_agent: SWEAgent) -> PatcherAgentState:
     code_snippet = ContextCodeSnippet(
         key=CodeSnippetKey(file_path="/src/libpng/pngrutil.c", identifier="png_handle_iCCP"),
         code=PNGRUTIL_C_CODE,
+        start_line=1,
+        end_line=1,
     )
     return PatcherAgentState(
         context=swe_agent.input,
@@ -310,8 +305,8 @@ def test_code_snippet_change_parse_single_pair():
     """Test parsing a single old_code/new_code pair from a patch block."""
     patch_block = """
     <patch>
-    <identifier>test_identifier</identifier>
     <file_path>test/file/path.py</file_path>
+    <identifier>old_function</identifier>
     <old_code>
     def old_function():
         return "old"
@@ -327,8 +322,8 @@ def test_code_snippet_change_parse_single_pair():
 
     assert len(result) == 1
     change = result[0]
-    assert change.key.identifier == "test_identifier"
     assert change.key.file_path == "test/file/path.py"
+    assert change.key.identifier == "old_function"
     assert "def old_function():" in change.old_code
     assert "def new_function():" in change.code
     assert change.is_valid()
@@ -338,8 +333,8 @@ def test_code_snippet_change_parse_multiple_pairs():
     """Test parsing multiple old_code/new_code pairs from a patch block."""
     patch_block = """
     <patch>
-    <identifier>test_identifier</identifier>
     <file_path>test/file/path.py</file_path>
+    <identifier>old_function1</identifier>
     <old_code>
     def old_function1():
         return "old1"
@@ -365,7 +360,7 @@ def test_code_snippet_change_parse_multiple_pairs():
 
     # Check first pair
     change1 = result[0]
-    assert change1.key.identifier == "test_identifier"
+    assert change1.key.identifier == "old_function1"
     assert change1.key.file_path == "test/file/path.py"
     assert "def old_function1():" in change1.old_code
     assert "def new_function1():" in change1.code
@@ -373,7 +368,7 @@ def test_code_snippet_change_parse_multiple_pairs():
 
     # Check second pair
     change2 = result[1]
-    assert change2.key.identifier == "test_identifier"
+    assert change2.key.identifier == "old_function1"
     assert change2.key.file_path == "test/file/path.py"
     assert "def old_function2():" in change2.old_code
     assert "def new_function2():" in change2.code
@@ -404,7 +399,7 @@ def test_code_snippet_change_parse_missing_file_path():
     """Test parsing a patch block with missing file path."""
     patch_block = """
     <patch>
-    <identifier>test_identifier</identifier>
+    <identifier>old_function</identifier>
     <old_code>
     def old_function():
         return "old"
@@ -424,7 +419,7 @@ def test_code_snippet_change_parse_missing_code_pairs():
     """Test parsing a patch block with no code pairs."""
     patch_block = """
     <patch>
-    <identifier>test_identifier</identifier>
+    <identifier>old_function</identifier>
     <file_path>test/file/path.py</file_path>
     </patch>
     """
@@ -437,7 +432,7 @@ def test_code_snippet_change_oneline():
     """Test parsing a patch block where the msg is a single line."""
     msg = """
     <patch>
-    <identifier>test_identifier</identifier>
+    <identifier>old_function</identifier>
     <file_path>test/file/path.py</file_path>
     <old_code>
     int old_function() {
@@ -455,7 +450,7 @@ def test_code_snippet_change_oneline():
     msg = msg.replace("\n", "")
     result = CodeSnippetChange.parse(msg)
     assert len(result) == 1
-    assert result[0].key.identifier == "test_identifier"
+    assert result[0].key.identifier == "old_function"
     assert result[0].key.file_path == "test/file/path.py"
 
 
@@ -463,7 +458,7 @@ def test_code_snippet_changes_parse_multiple_patches():
     """Test parsing multiple patch blocks."""
     msg = """
     <patch>
-    <identifier>test_identifier1</identifier>
+    <identifier>old_function1</identifier>
     <file_path>test/file/path1.py</file_path>
     <old_code>
     def old_function1():
@@ -476,7 +471,7 @@ def test_code_snippet_changes_parse_multiple_patches():
     </patch>
     
     <patch>
-    <identifier>test_identifier2</identifier>
+    <identifier>old_function2</identifier>
     <file_path>test/file/path2.py</file_path>
     <old_code>
     def old_function2():
@@ -496,7 +491,7 @@ def test_code_snippet_changes_parse_multiple_patches():
 
     # Check first patch
     change1 = result.items[0]
-    assert change1.key.identifier == "test_identifier1"
+    assert change1.key.identifier == "old_function1"
     assert change1.key.file_path == "test/file/path1.py"
     assert "def old_function1():" in change1.old_code
     assert "def new_function1():" in change1.code
@@ -504,7 +499,7 @@ def test_code_snippet_changes_parse_multiple_patches():
 
     # Check second patch
     change2 = result.items[1]
-    assert change2.key.identifier == "test_identifier2"
+    assert change2.key.identifier == "old_function2"
     assert change2.key.file_path == "test/file/path2.py"
     assert "def old_function2():" in change2.old_code
     assert "def new_function2():" in change2.code
@@ -535,7 +530,7 @@ def test_code_snippet_change_is_valid():
     """Test the is_valid method of CodeSnippetChange."""
     # Valid case
     valid_change = CodeSnippetChange(
-        key=CodeSnippetKey(file_path="test/file/path.py", identifier="test_identifier"),
+        key=CodeSnippetKey(file_path="test/file/path.py", identifier="old_function"),
         old_code="def old_function(): return 'old'",
         code="def new_function(): return 'new'",
     )
@@ -543,7 +538,7 @@ def test_code_snippet_change_is_valid():
 
     # Missing file_path
     invalid_change1 = CodeSnippetChange(
-        key=CodeSnippetKey(file_path="", identifier="test_identifier"),
+        key=CodeSnippetKey(file_path="", identifier="old_function"),
         old_code="def old_function(): return 'old'",
         code="def new_function(): return 'new'",
     )
@@ -559,7 +554,7 @@ def test_code_snippet_change_is_valid():
 
     # Missing old_code
     invalid_change3 = CodeSnippetChange(
-        key=CodeSnippetKey(file_path="test/file/path.py", identifier="test_identifier"),
+        key=CodeSnippetKey(file_path="test/file/path.py", identifier="old_function"),
         old_code=None,
         code="def new_function(): return 'new'",
     )
@@ -567,7 +562,7 @@ def test_code_snippet_change_is_valid():
 
     # Missing code
     invalid_change4 = CodeSnippetChange(
-        key=CodeSnippetKey(file_path="test/file/path.py", identifier="test_identifier"),
+        key=CodeSnippetKey(file_path="test/file/path.py", identifier="old_function"),
         old_code="def old_function(): return 'old'",
         code=None,
     )
@@ -661,13 +656,5 @@ def test_create_upatch_no_oldcode(swe_agent: SWEAgent, patcher_agent_state: Patc
             ),
         ],
     )
-    upatch_input = CreateUPatchInput(
-        code_snippets=changes,
-        state=patcher_agent_state,
-    )
-    patch = swe_agent.create_upatch(upatch_input)
-    assert patch is not None
-    assert isinstance(patch, PatchOutput)
-    assert not patch.patch, "No patch should be generated if old code cannot be found in the original file"
-    assert patch.task_id == "task-id-challenge-task"
-    assert patch.submission_index == "submission-index-challenge-task"
+    patch = swe_agent.create_upatch(patcher_agent_state, changes)
+    assert patch is None
