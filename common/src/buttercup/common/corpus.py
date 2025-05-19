@@ -54,7 +54,12 @@ class InputDir:
         # this is only the local corpus size
         tot = 0
         for file in os.listdir(self.path):
-            tot += (Path(self.path) / file).lstat().st_size
+            try:
+                tot += (Path(self.path) / file).lstat().st_size
+            except Exception:
+                # Files can be renamed and deleted by other pods not an error,
+                # but it causes this function to fail. Just ignore them.
+                continue
         return tot
 
     def local_corpus_count(self) -> int:
