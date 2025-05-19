@@ -117,6 +117,30 @@ class TypeDefinition:
     file_path: Path
     """Path to the file containing the type definition."""
 
+    def __eq__(self, other: Any) -> bool:
+        """Two type definitions are equal if they have the same name, type, definition, definition line, and file path."""
+        if not isinstance(other, TypeDefinition):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.type == other.type
+            and self.definition == other.definition
+            and self.definition_line == other.definition_line
+            and self.file_path == other.file_path
+        )
+
+    def __hash__(self) -> int:
+        """Hash based on name, type, definition, definition line, and file path."""
+        return hash(
+            (
+                self.name,
+                str(self.type),
+                self.definition,
+                self.definition_line,
+                self.file_path,
+            )
+        )
+
 
 @dataclass
 class TypeUsageInfo:
@@ -130,3 +154,17 @@ class TypeUsageInfo:
 
     line_number: int
     """Line number of the type usage (1-based)."""
+
+    def __eq__(self, other: Any) -> bool:
+        """Two type usages are equal if they have the same name, file path, and line number."""
+        if not isinstance(other, TypeUsageInfo):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.file_path == other.file_path
+            and self.line_number == other.line_number
+        )
+
+    def __hash__(self) -> int:
+        """Hash based on name, file path, and line number."""
+        return hash((self.name, self.file_path, self.line_number))

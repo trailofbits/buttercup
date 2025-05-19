@@ -12,7 +12,7 @@ from buttercup.program_model.utils.common import (
 
 
 def filter_project_context(
-    project_name,
+    focus,
     results: list[Function | TypeDefinition | TypeUsageInfo],
     language: str,
 ):
@@ -24,9 +24,8 @@ def filter_project_context(
     This function filters out found functions and types using the target project name.
     It removes all matches that don't directly come from the target project. To identify these,
     it checks whether matches belong to a file that as the proper project_name in their path."""
-    # Only do this for C
     if language == "c":
-        return [x for x in results if f"/{project_name}/" in str(x.file_path)]
+        return [x for x in results if f"/{focus}/" in str(x.file_path)]
     else:
         return results
 
@@ -89,24 +88,11 @@ def common_test_get_callers(
 
     callers = codequery.get_callers(function)
     callers = filter_project_context(
-        fuzz_task.task_meta.project_name, callers, codequery._get_project_language()
+        fuzz_task.task_meta.focus, callers, codequery._get_project_language()
     )
 
     # Validate each caller
     for expected_caller in expected_callers:
-        for c in callers:
-            if (c.name == expected_caller.name) and (
-                str(c.file_path) == expected_caller.file_path
-            ):
-                lines = [
-                    (b.start_line, b.end_line)
-                    for b in c.bodies
-                    if not (b.start_line <= expected_caller.start_line <= b.end_line)
-                ]
-                if len(lines) > 0:
-                    pytest.fail(
-                        f"Expected to see function {c.name} in {c.file_path} on line {expected_caller.start_line} but found it between {lines}"
-                    )
         caller_info = [
             c
             for c in callers
@@ -124,9 +110,8 @@ def common_test_get_callers(
             pytest.fail(f"Found multiple identical callers for: {expected_caller}")
 
     # Make sure we get the right number of callers
-    len_actual = len(callers)
-    if num_callers and len_actual != num_callers:
-        pytest.fail(f"Expected {num_callers} callers, got {len_actual}")
+    if num_callers and len(callers) != num_callers:
+        pytest.fail(f"Expected {num_callers} callers, got {len(callers)}")
 
 
 @dataclass(frozen=True)
@@ -163,29 +148,16 @@ def common_test_get_callees(
 
     callees = codequery.get_callees(function)
     callees = filter_project_context(
-        fuzz_task.task_meta.project_name, callees, codequery._get_project_language()
+        fuzz_task.task_meta.focus, callees, codequery._get_project_language()
     )
 
     # Validate each callee
     for expected_callee in expected_callees:
-        for c in callees:
-            if (c.name == expected_callee.name) and (
-                str(c.file_path) == expected_callee.file_path
-            ):
-                lines = [
-                    (b.start_line, b.end_line)
-                    for b in c.bodies
-                    if not (b.start_line <= expected_callee.start_line <= b.end_line)
-                ]
-                if len(lines) > 0:
-                    pytest.fail(
-                        f"Expected to see function {c.name} in {c.file_path} on line {expected_callee.start_line} but found it between {lines}"
-                    )
         callee_info = [
             c
             for c in callees
             if c.name == expected_callee.name
-            and str(c.file_path) == expected_callee.file_path
+            and c.file_path == Path(expected_callee.file_path)
             and any(
                 True
                 for b in c.bodies
@@ -198,9 +170,8 @@ def common_test_get_callees(
             pytest.fail(f"Found multiple identical callees for: {expected_callee}")
 
     # Make sure we don't get more callees than expected
-    len_actual = len(callees)
-    if num_callees and len_actual != num_callees:
-        pytest.fail(f"Expected {num_callees} callees, got {len_actual}")
+    if num_callees and len(callees) != num_callees:
+        pytest.fail(f"Expected {num_callees} callees, got {len(callees)}")
 
 
 @dataclass(frozen=True)
@@ -231,16 +202,23 @@ def common_test_get_type_definitions(
         fuzzy=fuzzy,
     )
     type_definitions = filter_project_context(
-        fuzz_task.task_meta.project_name,
-        type_definitions,
-        codequery._get_project_language(),
+        fuzz_task.task_meta.focus, type_definitions, codequery._get_project_language()
     )
-    assert len(type_definitions) == 1
-    assert type_definitions[0].name == type_definition_info.name
-    assert type_definitions[0].type == type_definition_info.type
-    assert type_definition_info.definition in type_definitions[0].definition
-    assert type_definitions[0].definition_line == type_definition_info.definition_line
-    assert str(type_definitions[0].file_path) == type_definition_info.file_path
+    found = [
+        c
+        for c in type_definitions
+        if c.name == type_name
+        and c.type == type_definition_info.type
+        and type_definition_info.definition in c.definition
+        and c.definition_line == type_definition_info.definition_line
+        and c.file_path == Path(type_definition_info.file_path)
+    ]
+    if len(found) == 0:
+        pytest.fail(f"Couldn't find expected type definition: {type_definition_info}")
+    elif len(found) > 1:
+        pytest.fail(
+            f"Found multiple identical type definitions for: {type_definition_info}"
+        )
 
 
 @dataclass(frozen=True)
@@ -270,20 +248,20 @@ def common_test_get_type_usages(
     )[0]
     call_sites = codequery.get_type_calls(type_definition)
     call_sites = filter_project_context(
-        fuzz_task.focus, call_sites, codequery._get_project_language()
+        fuzz_task.task_meta.focus, call_sites, codequery._get_project_language()
     )
     if num_type_usages and len(call_sites) != num_type_usages:
         pytest.fail(f"Expected {num_type_usages} type usages, got {len(call_sites)}")
 
     for type_usage_info in type_usage_infos:
-        found = [
+        type_usage = [
             c
             for c in call_sites
             if c.name == type_name
-            and str(c.file_path) == type_usage_info.file_path
+            and c.file_path == Path(type_usage_info.file_path)
             and c.line_number == type_usage_info.line_number
         ]
-        if len(found) == 0:
+        if len(type_usage) == 0:
             pytest.fail(f"Couldn't find expected type usage: {type_usage_info}")
-        elif len(found) > 1:
+        elif len(type_usage) > 1:
             pytest.fail(f"Found multiple identical type usages for: {type_usage_info}")

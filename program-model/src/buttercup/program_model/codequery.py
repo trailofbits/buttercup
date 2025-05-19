@@ -430,36 +430,39 @@ class CodeQuery:
             )
 
         # FIXME(Evan): Sometimes cscope doesn't identify a function (option 2). They can be found by looking for symbols (option 1).
-        cqsearch_args = [
-            "-s",
-            self.CODEQUERY_DB,
-            "-p",
-            "1,2",
-            "-t",
-            function_name,
-            "-e",
-            "-u",
-        ]
-        if file_path:
-            cqsearch_args += ["-b", file_path.as_posix()]
+        results: list[CQSearchResult] = []
+        flags = ["1", "2"]
+        for flag in flags:
+            cqsearch_args = [
+                "-s",
+                self.CODEQUERY_DB,
+                "-p",
+                flag,
+                "-t",
+                function_name,
+                "-e",
+                "-u",
+            ]
+            if file_path:
+                cqsearch_args += ["-b", file_path.as_posix()]
 
-        # log telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("get_functions_with_codequery") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
-                crs_action_name="get_functions_with_codequery",
-                task_metadata=dict(self.challenge.task_meta.metadata),
-                extra_attributes={
-                    "crs.action.code.file": str(file_path) if file_path else "",
-                    "crs.action.code.lines": line_number if line_number else "",
-                    "crs.action.code.fuzzy": fuzzy if fuzzy else False,
-                    "crs.action.code.function_name": function_name,
-                },
-            )
-            results = self._run_cqsearch(*cqsearch_args)
-            span.set_status(Status(StatusCode.OK))
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("get_functions_with_codequery") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                    crs_action_name="get_functions_with_codequery",
+                    task_metadata=dict(self.challenge.task_meta.metadata),
+                    extra_attributes={
+                        "crs.action.code.file": str(file_path) if file_path else "",
+                        "crs.action.code.lines": line_number if line_number else "",
+                        "crs.action.code.fuzzy": fuzzy if fuzzy else False,
+                        "crs.action.code.function_name": function_name,
+                    },
+                )
+                results.extend(self._run_cqsearch(*cqsearch_args))
+                span.set_status(Status(StatusCode.OK))
 
         # Extended fuzzy matching
         if fuzzy and file_path is None:
@@ -556,33 +559,36 @@ class CodeQuery:
                 )
             file_path = function.file_path
 
-        cqsearch_args = [
-            "-s",
-            self.CODEQUERY_DB,
-            "-p",
-            "6",
-            "-t",
-            function_name,
-            "-e",
-            "-u",
-        ]
-        # NOTE: Querying for callers returns the function definitions of the callers.
-        # We don't add a file path to the cqsearch args because we don't want
-        # to assume all callers of the function will be in the same file as the function.
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("get_callers_with_codequery") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
-                crs_action_name="get_callers_with_codequery",
-                task_metadata=dict(self.challenge.task_meta.metadata),
-                extra_attributes={
-                    "crs.action.code.file": str(file_path) if file_path else "",
-                    "crs.action.code.function_name": function_name,
-                },
-            )
-            results = self._run_cqsearch(*cqsearch_args)
-            span.set_status(Status(StatusCode.OK))
+        results: list[CQSearchResult] = []
+        flags = ["6"]
+        for flag in flags:
+            cqsearch_args = [
+                "-s",
+                self.CODEQUERY_DB,
+                "-p",
+                flag,
+                "-t",
+                function_name,
+                "-e",
+                "-u",
+            ]
+            # NOTE: Querying for callers returns the function definitions of the callers.
+            # We don't add a file path to the cqsearch args because we don't want
+            # to assume all callers of the function will be in the same file as the function.
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("get_callers_with_codequery") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                    crs_action_name="get_callers_with_codequery",
+                    task_metadata=dict(self.challenge.task_meta.metadata),
+                    extra_attributes={
+                        "crs.action.code.file": str(file_path) if file_path else "",
+                        "crs.action.code.function_name": function_name,
+                    },
+                )
+                results.extend(self._run_cqsearch(*cqsearch_args))
+                span.set_status(Status(StatusCode.OK))
 
         callers: set[Function] = set()
         for result in results:
@@ -635,38 +641,42 @@ class CodeQuery:
                 )
             functions.append(function)
 
-        cqsearch_args = [
-            "-s",
-            self.CODEQUERY_DB,
-            "-p",
-            "7",
-            "-t",
-            function_name,
-            "-e",
-            "-u",
-        ]
-        # NOTE: Querying for callees returns the file path and line number of where
-        # the callees are called, not the callee function definition. We add a file
-        # path to cqsearch args because (by definition) the callees are called in
-        # the same file as the function.
-        if file_path:
-            cqsearch_args += ["-b", file_path.as_posix()]
-        # log telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("get_callees_with_codequery") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
-                crs_action_name="get_callees_with_codequery",
-                task_metadata=dict(self.challenge.task_meta.metadata),
-                extra_attributes={
-                    "crs.action.code.file": str(file_path) if file_path else "",
-                    "crs.action.code.lines": line_number if line_number else "",
-                    "crs.action.code.function_name": function_name,
-                },
-            )
-            results = self._run_cqsearch(*cqsearch_args)
-            span.set_status(Status(StatusCode.OK))
+        results: list[CQSearchResult] = []
+        flags = ["7"]
+        for flag in flags:
+            cqsearch_args = [
+                "-s",
+                self.CODEQUERY_DB,
+                "-p",
+                flag,
+                "-t",
+                function_name,
+                "-e",
+                "-u",
+            ]
+            # NOTE: Querying for callees returns the file path and line number of where
+            # the callees are called, not the callee function definition. We add a file
+            # path to cqsearch args because (by definition) the callees are called in
+            # the same file as the function.
+            if file_path:
+                cqsearch_args += ["-b", file_path.as_posix()]
+
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("get_callees_with_codequery") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                    crs_action_name="get_callees_with_codequery",
+                    task_metadata=dict(self.challenge.task_meta.metadata),
+                    extra_attributes={
+                        "crs.action.code.file": str(file_path) if file_path else "",
+                        "crs.action.code.lines": line_number if line_number else "",
+                        "crs.action.code.function_name": function_name,
+                    },
+                )
+                results.extend(self._run_cqsearch(*cqsearch_args))
+                span.set_status(Status(StatusCode.OK))
 
         # Create a dictionary of file path(s) and line ranges to filter callees by.
         callee_filter: dict[Path, list[tuple[int, int]]] = {}
@@ -705,21 +715,22 @@ class CodeQuery:
         # the function definitions of callees called from a function which is
         # contained at a specific file line number.
 
-        # Make sure we don't add the same function twice
-        unique_functions: dict[str, list[Function]] = {}
-        for f in callees:
-            root = "/".join(f.file_path.parts[:3])
-            if root not in unique_functions:
-                unique_functions[root] = []
-            if not any(x for x in unique_functions[root] if x.has_same_source(f)):
-                unique_functions[root].append(f)
-        callees = [f for fs in unique_functions.values() for f in fs]
+        # TODO(Evan): If we do this, then tests become non-deterministic. Which file path do we keep?
+        #       # Make sure we don't add the same function twice
+        #       unique_functions: dict[str, list[Function]] = {}
+        #       for f in callees:
+        #           root = "/".join(f.file_path.parts[:3])
+        #           if root not in unique_functions:
+        #               unique_functions[root] = []
+        #           if not any(x for x in unique_functions[root] if x.has_same_source(f)):
+        #               unique_functions[root].append(f)
+        #       callees = [f for fs in unique_functions.values() for f in fs]
 
         # TODO(boyan): if function is a str we should try to find the actual function
         # at the beginning of this function so we can use to do the filtering. If not
         # then we need the function file
         if isinstance(function, Function):
-            callees = self._filter_callees(function, list(callees))
+            callees = set(self._filter_callees(function, list(callees)))
 
         output_str = f"Found {len(callees)} callees for {function_name}"
         if file_path:
@@ -749,38 +760,42 @@ class CodeQuery:
                 file_path,
             )
 
-        cqsearch_args = [
-            "-s",
-            self.CODEQUERY_DB,
-            "-p",
-            "1,3",
-            "-t",
-            str(type_name),
-            "-e",
-            "-u",
-        ]
-        if file_path:
-            cqsearch_args += ["-b", file_path.as_posix()]
+        # Look for symbols (option 1) and class/struct (option 3)
         results: list[CQSearchResult] = []
-        # log telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("get_types_with_codequery") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
-                crs_action_name="get_types_with_codequery",
-                task_metadata=dict(self.challenge.task_meta.metadata),
-                extra_attributes={
-                    "crs.action.code.file": str(file_path) if file_path else "",
-                    "crs.action.code.fuzzy": fuzzy if fuzzy else False,
-                    "crs.action.code.type_name": type_name,
-                    "crs.action.code.function_name": function_name
-                    if function_name
-                    else "",
-                },
-            )
-            results = list(self._run_cqsearch(*cqsearch_args))
-            span.set_status(Status(StatusCode.OK))
+        flags = ["1", "3"]
+        for flag in flags:
+            cqsearch_args = [
+                "-s",
+                self.CODEQUERY_DB,
+                "-p",
+                flag,
+                "-t",
+                type_name,
+                "-e",
+                "-u",
+            ]
+            if file_path:
+                cqsearch_args += ["-b", file_path.as_posix()]
+
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("get_types_with_codequery") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                    crs_action_name="get_types_with_codequery",
+                    task_metadata=dict(self.challenge.task_meta.metadata),
+                    extra_attributes={
+                        "crs.action.code.file": str(file_path) if file_path else "",
+                        "crs.action.code.fuzzy": fuzzy if fuzzy else False,
+                        "crs.action.code.type_name": type_name,
+                        "crs.action.code.function_name": function_name
+                        if function_name
+                        else "",
+                    },
+                )
+                results.extend(self._run_cqsearch(*cqsearch_args))
+                span.set_status(Status(StatusCode.OK))
 
         # Extended fuzzy matching
         if fuzzy and file_path is None:
@@ -798,7 +813,7 @@ class CodeQuery:
             fuzzy_matches = [t for t, _ in fuzzy_matches]
             results.extend(fuzzy_matches)
 
-        res: list[TypeDefinition] = []
+        res: set[TypeDefinition] = set()
         results_by_file = groupby(results, key=lambda x: x.file)
         for file, file_results in results_by_file:
             file_results_list = list(file_results)
@@ -839,7 +854,7 @@ class CodeQuery:
                 else:
                     typedefs = {}
 
-            res.extend(typedefs.values())
+            res.update(typedefs.values())
 
         output_str = f"Found {len(res)} types for {type_name}"
         if file_path:
@@ -885,9 +900,9 @@ class CodeQuery:
 
         logger.debug("Found %d calls to type %s", len(results), type_definition.name)
 
-        calls: list[TypeUsageInfo] = []
+        calls: set[TypeUsageInfo] = set()
         for result in results:
-            calls.append(
+            calls.add(
                 TypeUsageInfo(
                     name=type_definition.name,
                     file_path=result.file,
@@ -895,7 +910,7 @@ class CodeQuery:
                 )
             )
 
-        return self._rebase_type_usages_file_paths(calls)
+        return self._rebase_type_usages_file_paths(list(calls))
 
 
 @dataclass

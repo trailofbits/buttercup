@@ -7,7 +7,12 @@ from ..common import (
     common_test_get_functions,
     common_test_get_callers,
     common_test_get_callees,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
     TestFunctionInfo,
+    TestTypeDefinitionInfo,
+    TestTypeUsageInfo,
+    TypeDefinitionType,
 )
 
 
@@ -28,7 +33,7 @@ from ..common import (
     ],
 )
 @pytest.mark.integration
-def test_log4j2_get_functions(
+def test_get_functions(
     log4j2_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
 ):
     """Test that we can get functions in challenge task code"""
@@ -112,7 +117,7 @@ def test_get_callers(
     ],
 )
 @pytest.mark.integration
-def test_log4j2_get_callees(
+def test_get_callees(
     log4j2_oss_fuzz_task: ChallengeTask,
     function_name,
     file_path,
@@ -130,4 +135,76 @@ def test_log4j2_get_callees(
         fuzzy,
         expected_callees,
         num_callees,
+    )
+
+
+@pytest.mark.parametrize(
+    "type_name,file_path,fuzzy,type_definition_info",
+    [
+        (
+            "LoggerContext",
+            None,
+            False,
+            TestTypeDefinitionInfo(
+                name="LoggerContext",
+                type=TypeDefinitionType.CLASS,
+                definition="public class LoggerContext extends AbstractLifeCycle",
+                definition_line=71,
+                file_path="/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java",
+            ),
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_get_type_definitions(
+    log4j2_oss_fuzz_task: ChallengeTask,
+    type_name,
+    file_path,
+    fuzzy,
+    type_definition_info,
+):
+    """Test that we can get type defs"""
+    common_test_get_type_definitions(
+        log4j2_oss_fuzz_task,
+        type_name,
+        file_path,
+        fuzzy,
+        type_definition_info,
+    )
+
+
+@pytest.mark.parametrize(
+    "type_name,file_path,fuzzy,type_usage_infos,num_type_usages",
+    [
+        (
+            "LoggerContext",
+            None,
+            False,
+            [
+                TestTypeUsageInfo(
+                    file_path="/src/log4j-core/src/main/java/org/apache/logging/log4j/core/osgi/BundleContextSelector.java",
+                    line_number=146,
+                ),
+            ],
+            12,
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_get_type_usages(
+    log4j2_oss_fuzz_task: ChallengeTask,
+    type_name,
+    file_path,
+    fuzzy,
+    type_usage_infos,
+    num_type_usages,
+):
+    """Test that we can get type usages"""
+    common_test_get_type_usages(
+        log4j2_oss_fuzz_task,
+        type_name,
+        file_path,
+        fuzzy,
+        type_usage_infos,
+        num_type_usages,
     )

@@ -42,7 +42,7 @@ from ..common import (
     ],
 )
 @pytest.mark.integration
-def test_zookeeper_get_functions(
+def test_get_functions(
     zookeeper_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
 ):
     """Test that we can get functions in challenge task code"""
@@ -112,7 +112,7 @@ def test_get_callers(
     ],
 )
 @pytest.mark.integration
-def test_zookeeper_get_callees(
+def test_get_callees(
     zookeeper_oss_fuzz_task: ChallengeTask,
     function_name,
     file_path,
@@ -207,7 +207,7 @@ def test_get_type_definitions(
     ],
 )
 @pytest.mark.integration
-def test_zookeeper_get_type_usages(
+def test_get_type_usages(
     zookeeper_oss_fuzz_task: ChallengeTask,
     type_name,
     file_path,
