@@ -109,11 +109,11 @@ def test_get_callers(
             [
                 TestCalleeInfo(
                     name="parseJavadocAsDetailNode",
-                    file_path="/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/JavadocDetailNodeParser.java",
-                    start_line=96,
+                    file_path="/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/DetailNodeTreeStringPrinter.java",
+                    start_line=66,
                 )
             ],
-            48,
+            2,
         ),
     ],
 )

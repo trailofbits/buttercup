@@ -97,7 +97,7 @@ def test_get_callers(
                     start_line=443,
                 )
             ],
-            337,
+            2,
         ),
     ],
 )

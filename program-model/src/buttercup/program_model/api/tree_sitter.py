@@ -175,6 +175,51 @@ QUERY_STR_TYPES_JAVA = """
 #    - name captured with @type.name
 
 
+QUERY_STR_CLASS_MEMBERS_JAVA = """;; Match field declarations without explicit modifiers
+(
+  (class_declaration
+    body: (class_body 
+      (field_declaration
+        type: (_) @type
+        declarator: (variable_declarator
+          name: (_) @name
+          value: (_)? @value)
+      ) @field_declaration
+    )
+  )
+)
+
+;; Match method declarations without explicit modifiers
+(
+  (class_declaration
+    body: (class_body 
+      (method_declaration
+        type_parameters: (_)? @method_type_params
+        type: (_) @method_return_type
+        name: (_) @method_name
+        parameters: (formal_parameters) @method_params
+        body: (_)? @method_body
+      ) @method_declaration
+    )
+  )
+)
+
+;; Match interface method declarations (without body)
+(
+  (interface_declaration
+    body: (interface_body
+      (method_declaration
+        type_parameters: (_)? @method_type_params
+        type: (_) @method_return_type
+        name: (_) @method_name
+        parameters: (formal_parameters) @method_params
+        body: (_)? @method_body
+      ) @method_declaration
+    )
+  )
+)"""
+
+
 @dataclass
 class CodeTS:
     """Class to extract information about functions in a challenge project using TreeSitter."""
@@ -191,11 +236,13 @@ class CodeTS:
             self.language = get_language("c")
             query_str = QUERY_STR_C
             types_query_str = QUERY_STR_TYPES_C
+            query_class_members = None
         elif self.project_yaml.language in ["java", "jvm"]:
             self.parser = get_parser("java")
             self.language = get_language("java")
             query_str = QUERY_STR_JAVA
             types_query_str = QUERY_STR_TYPES_JAVA
+            query_class_members = QUERY_STR_CLASS_MEMBERS_JAVA
         else:
             raise ValueError(f"Unsupported language: {self.project_yaml.language}")
 
@@ -205,6 +252,11 @@ class CodeTS:
         try:
             self.query = self.language.query(query_str)
             self.query_types = self.language.query(types_query_str)
+            self.query_class_members = (
+                self.language.query(query_class_members)
+                if query_class_members
+                else None
+            )
         except Exception:
             raise ValueError("Query string is invalid")
 
@@ -388,6 +440,8 @@ class CodeTS:
                 type_def_type = TypeDefinitionType.PREPROC_FUNCTION
             elif definition_node.type == "class_declaration":
                 type_def_type = TypeDefinitionType.CLASS
+            elif definition_node.type == "interface_declaration":
+                type_def_type = TypeDefinitionType.CLASS
             else:
                 continue  # Skip this define as it doesn't look like a type
 
@@ -481,3 +535,48 @@ class CodeTS:
             return False
 
         walk(root_node)
+
+    def get_field_type_name(
+        self, type_definition: bytes, field_name: str
+    ) -> str | None:
+        """
+        Get the type of a field of a type definition
+        """
+        if self.query_class_members is None:
+            return None
+        self.parser.parse(type_definition)
+        root_node = self.parser.parse(type_definition).root_node
+        captures = self.query_class_members.matches(root_node)
+        for match in captures:
+            if match[0] != 0:  # Skip if not a field declaration
+                continue
+            try:
+                name = match[1]["name"][0].text.decode()  # type: ignore[union-attr]
+                if name == field_name:
+                    return match[1]["type"][0].text.decode()  # type: ignore[union-attr]
+            except AttributeError:
+                continue
+        return None
+
+    def get_method_return_type_name(
+        self, type_definition: bytes, method_name: str
+    ) -> str | None:
+        """
+        Get the return type of a method of a type definition
+        """
+        if self.query_class_members is None:
+            return None
+        self.parser.parse(type_definition)
+        root_node = self.parser.parse(type_definition).root_node
+        captures = self.query_class_members.matches(root_node)
+        for match in captures:
+            # Skip if not a method declaration from a class (1) or interface (2)
+            if match[0] not in [1, 2]:
+                continue
+            try:
+                name = match[1]["method_name"][0].text.decode()  # type: ignore[union-attr]
+                if name == method_name:
+                    return match[1]["method_return_type"][0].text.decode()  # type: ignore[union-attr]
+            except AttributeError:
+                continue
+        return None

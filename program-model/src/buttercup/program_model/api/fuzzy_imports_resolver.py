@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 from typing import Set, Dict, Optional, List
-from buttercup.program_model.utils.common import Function
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from collections import defaultdict
 from buttercup.common.challenge_task import ChallengeTask
 
@@ -285,21 +285,233 @@ class FuzzyJavaImportsResolver:
     that it was given as input
     """
 
-    def __init__(self, challenge: ChallengeTask):
+    def __init__(self, challenge: ChallengeTask, codequery: "CodeQuery"):  # type: ignore # noqa: F821
         # TODO(boyan): make sure these paths hold for the competition
         # Path where the challenge source is mounted in the ossfuzz repo
         # according to docker file
-        self.container_code_path = Path(str(challenge.workdir_from_dockerfile())[1:])
-        # Path where the challenge source is on the local machine
-        self.local_code_path = challenge.task_dir / "container_src_dir" / "src"
-        # FIXME(boyan): currently we don't add focus for log4j2 because its
-        # folder structure in the container src dir doesn't match the src/focus
-        # pattern. This should be resolved later on when we get guarantees on paths
-        # in the challenge task dir (see other comments in this method)
-        if challenge.focus not in ["logging-log4j2"]:
-            self.local_code_path /= challenge.focus
+        if challenge:
+            self.container_code_path = Path(
+                str(challenge.workdir_from_dockerfile())[1:]
+            )
+            # Path where the challenge source is on the local machine
+            self.local_code_path = challenge.task_dir / "container_src_dir" / "src"
+            # FIXME(boyan): currently we don't add focus for log4j2 because its
+            # folder structure in the container src dir doesn't match the src/focus
+            # pattern. This should be resolved later on when we get guarantees on paths
+            # in the challenge task dir (see other comments in this method)
+            if challenge.focus not in ["logging-log4j2"]:
+                self.local_code_path /= challenge.focus
+        self.codequery = codequery
+
+    def get_package_from_file(self, file_path: Path) -> str | None:
+        """Get the package name from a file path"""
+        # Parse lines to find one that starts with "package"
+        with open(self._normalize_path(file_path), "r") as f:
+            for line in f.readlines():
+                if line.startswith("package"):
+                    return line.split(" ")[1].strip()
+        return None
+
+    def get_dotexpr_type(self, dotexpr: str, file_path: Path) -> TypeDefinition | None:
+        """
+        Get the type of a dot expression.
+        """
+        # If the dotexpr has no dots, see if it is an imported class
+        if "." not in dotexpr:
+            # Get imports from the caller file
+            imports = self.parse_imports_in_file(self._normalize_path(file_path))
+            file_package = self.get_package_from_file(file_path)
+            if file_package is None:
+                return None
+
+            # Keep only imports that end with the expression
+            imports = [imp for imp in imports if imp.endswith(f".{dotexpr}")]
+            if imports:
+                imp = imports[0]
+            else:
+                # No imports, maybe the type is in the same package and
+                # thus not explicitly imported.
+                # TODO(boyan): I think the proper way to do this would be
+                # to add all the files in the package instead of guessing
+                # the name of the file based on the class name
+                imp = file_package + "." + dotexpr
+
+            # Get path of file from where the import is made
+            # TODO(boyan): make sure we can assume files end with .java here
+            # First transform import statement to corresponding file in the code base
+            imported_file = (
+                "../" * (file_package.count(".") + 1) + imp.replace(".", "/") + ".java"
+            )
+            imported_file = (file_path.parent / imported_file).resolve()
+            # Then try to get type from that file and return it
+            return self.get_type_from_file(imported_file, dotexpr)
+
+        # If the dotexpr has dots, iteratively get the type of the prefix
+        else:
+            prefix, suffix, expr_type = self.split_rightmost_dotexpr(dotexpr)
+            prefix_type = self.get_dotexpr_type(prefix, file_path)
+            if prefix_type is None:
+                return None
+            # Parse the type definition to find the field/method type
+            if expr_type == "field":
+                field_type_name = self.get_field_type_name(prefix_type, suffix)
+                if field_type_name is None:
+                    return None
+                # Then get the actual type definition. Do do this we resolve the
+                # type of the field within the file where the prefix type is defined.
+                # E.G for Foo.a if we now type name of field a is Bar then we
+                # look for the type Bar that is imported in /path/to/Foo.java
+                res = self.get_dotexpr_type(field_type_name, prefix_type.file_path)
+                return res
+            elif expr_type == "method":
+                # TODO(boyan): resolve class methods, here we assume it's a method
+                method_return_type_name = self.get_method_return_type_name(
+                    prefix_type, suffix
+                )
+                if method_return_type_name is None:
+                    return None
+                res = self.get_dotexpr_type(
+                    method_return_type_name, prefix_type.file_path
+                )
+                return res
+            else:
+                # Should not happen
+                return None
+
+    def split_rightmost_dotexpr(self, expr: str) -> tuple[str, str, str | None]:
+        """
+        Splits a dot expression into two parts:
+        1. The rest of the left side of the expression unmodified
+        2. The rightmost toplevel field or method name after the last dot
+
+        Args:
+            expr: A string like "a.b(c).d(e())"
+
+        Returns:
+            A tuple of (left_part, right_part, type), e.g. ("a.b(c)", "d", <type>)
+            where type is either "field", "method", or None
+        """
+        if not expr:
+            return "", "", None
+
+        # Scan the expression from right to left, tracking parentheses levels
+        paren_level = 0
+        last_dot_index = -1
+        for i in range(len(expr) - 1, -1, -1):
+            char = expr[i]
+            if char == ")":
+                paren_level += 1
+            elif char == "(":
+                paren_level -= 1
+            elif char == "." and paren_level == 0:
+                # We found the last top-level dot
+                last_dot_index = i
+                break
+
+        # The left part is everything before the last dot
+        left_part = expr[:last_dot_index] if last_dot_index != -1 else ""
+
+        # For the right part, we need to extract just the identifier (until a parenthesis or end)
+        right_start = last_dot_index + 1
+        right_end = right_start
+        while right_end < len(expr) and expr[right_end] != "(":
+            right_end += 1
+        t = "method" if right_end < len(expr) and expr[right_end] == "(" else "field"
+        right_part = expr[right_start:right_end]
+        return left_part, right_part, t
+
+    def get_field_type_name(self, t: TypeDefinition, field_name: str) -> str | None:
+        """
+        Parse the type definition to find the field type name
+        """
+        type_body = t.definition.encode("utf-8")
+        type_name = self.codequery.ts.get_field_type_name(type_body, field_name)
+        return type_name  # type: ignore[no-any-return]
+
+    def get_method_return_type_name(
+        self, t: TypeDefinition, method_name: str
+    ) -> str | None:
+        """
+        Parse the type definition to find the method return type name
+        """
+        type_body = t.definition.encode("utf-8")
+        type_name = self.codequery.ts.get_method_return_type_name(
+            type_body, method_name
+        )
+        return type_name  # type: ignore[no-any-return]
+
+    def get_type_from_file(
+        self, file_path: Path, type_name: str
+    ) -> TypeDefinition | None:
+        """
+        Get the type definition given a type name and a file path
+        file_path must a container path (e.g. /src/log4j-core/...)
+        """
+        types = self.codequery.get_types(
+            type_name,
+            file_path,
+        )
+        if not types:
+            return None
+        # Return first type found
+        return types[0]  # type: ignore[no-any-return]
 
     def filter_callees(
+        self, caller_function: Function, callees: List[Function]
+    ) -> List[Function]:
+        callee_groups = defaultdict(list)
+        for callee in callees:
+            callee_groups[callee.name].append(callee)
+        res = []
+        # Filter all callees with the same name
+        for callee_name, group in callee_groups.items():
+            if len(group) <= 1:
+                # Only one callee with this name, no dedup needed
+                res += group
+            else:
+                added_at_least_one = False
+                # Multiple callees with same name, check which ones are the real ones
+                # Do only once per name...
+
+                # Get call "prefixes". If a method is called with a.b.c.d() the prefix
+                # is a.b.c. We use this to determine which class or file the d() method
+                # belongs to
+                prefixes = self.try_extract_call_expr_prefix(
+                    caller_function, callee_name
+                )
+                if not prefixes:
+                    continue
+
+                # Get all types for prefixes found
+                prefixes_types = [
+                    self.get_dotexpr_type(prefix, caller_function.file_path)
+                    for prefix in prefixes
+                ]
+                # Filter out None types (couldn't find the type)
+                prefixes_types = [t for t in prefixes_types if t is not None]
+                if not prefixes_types:
+                    continue
+                # Get all files where there is a definition of the callee within
+                # a type that matches a call prefix inside the caller.
+                prefixes_files = [t.file_path for t in prefixes_types]
+                # Get all callees that are defined in any of the prefix files
+                for callee in group:
+                    if callee.file_path in prefixes_files:
+                        res.append(callee)
+                        added_at_least_one = True
+
+                # If we couldn't find even one callee that is correctly imported
+                # by the caller, just return all of them as codequery originally
+                # found them. This scenario means that we have hit a shortcoming of
+                # the fuzzy import resolver. It is then better to add all found callees
+                # and assume the correct one is present, rather than none of them.
+                # At the end of the day we want to give the model some material to work with
+                if not added_at_least_one:
+                    res += group
+
+        return res
+
+    def filter_callees2(
         self, caller_function: Function, callees: List[Function]
     ) -> List[Function]:
         callee_groups = defaultdict(list)
@@ -378,6 +590,15 @@ class FuzzyJavaImportsResolver:
     def try_extract_call_expr_prefix(
         self, caller: Function, callee_name: str
     ) -> list[str]:
+        """
+        Try to extract all call prefixes of a function called in the caller body.
+        If the caller is:
+        public void foo() {
+            a.a.b(c.d.e());
+            foo.b(3);
+        }
+        and the callee_name is "b" then the result is ["a.a", "foo"]
+        """
         # TODO(boyan): handle the case where function is called directly
         # without a leading '.'
         call_marker = f".{callee_name}("
@@ -425,3 +646,14 @@ class FuzzyJavaImportsResolver:
         if not path.is_absolute():
             path = (self.local_code_path / path).resolve()
         return path
+
+    def _relative_path(self, path: Path) -> Path:
+        """Convert a path to a relative path"""
+        p = str(path)
+        # Remove local source path
+        if p.startswith(str(self.local_code_path)):
+            p = p[len(str(self.local_code_path)) + 2 :]
+        # And add container source path
+        if not p.startswith(str(self.container_code_path)):
+            p = str(self.container_code_path) + "/" + p
+        return Path(p)

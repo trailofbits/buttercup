@@ -101,7 +101,7 @@ class CodeQuery:
         if language in ["c", "c++"]:
             self.imports_resolver = FuzzyCImportsResolver(self._get_container_src_dir())
         elif language in ["java", "jvm"]:
-            self.imports_resolver = FuzzyJavaImportsResolver(self.challenge)
+            self.imports_resolver = FuzzyJavaImportsResolver(self.challenge, self)
         else:
             self.imports_resolver = None
 
