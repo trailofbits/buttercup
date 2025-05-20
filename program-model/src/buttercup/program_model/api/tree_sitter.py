@@ -443,6 +443,9 @@ class CodeTS:
             elif definition_node.type == "interface_declaration":
                 type_def_type = TypeDefinitionType.CLASS
             else:
+                logger.debug(
+                    f"Unknown type definition node type: {definition_node.type}"
+                )
                 continue  # Skip this define as it doesn't look like a type
 
             res[name] = TypeDefinition(
