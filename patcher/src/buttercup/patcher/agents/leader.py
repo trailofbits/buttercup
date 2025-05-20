@@ -53,7 +53,7 @@ class PatcherLeaderAgent:
             PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value, context_retriever_agent.get_initial_context
         )
         workflow.add_node(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, rootcause_agent.analyze_vulnerability)
-        # workflow.add_node(PatcherAgentName.PATCH_STRATEGY.value, swe_agent.select_patch_strategy)
+        workflow.add_node(PatcherAgentName.PATCH_STRATEGY.value, swe_agent.select_patch_strategy)
         workflow.add_node(PatcherAgentName.CREATE_PATCH.value, swe_agent.create_patch_node)
         workflow.add_node(PatcherAgentName.BUILD_PATCH.value, qe_agent.build_patch_node)
         workflow.add_node(PatcherAgentName.RUN_POV.value, qe_agent.run_pov_node)

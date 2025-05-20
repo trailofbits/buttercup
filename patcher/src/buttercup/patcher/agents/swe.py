@@ -26,8 +26,10 @@ from buttercup.patcher.agents.common import (
     PatcherAgentName,
     PatcherAgentBase,
     CodeSnippetKey,
+    CodeSnippetRequest,
     PatchAttempt,
     PatchStatus,
+    PatchStrategy,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
@@ -53,6 +55,12 @@ Code Snippets that may need modification:
 <code_snippets>
 {CODE_SNIPPETS}
 </code_snippets>
+
+Patch strategy:
+<patch_strategy>
+{PATCH_STRATEGY}
+</patch_strategy>
+
 {PREVIOUS_PATCH_PROMPT}
 {REFLECTION_GUIDANCE}
 
@@ -60,23 +68,9 @@ Instructions:
 
 1. Review the provided information carefully.
 
-2. Plan your patch approach. Wrap your analysis and solution planning inside <vulnerability_analysis_and_solution> tags. In this section:
-   a) List all vulnerable parts of the code
-   b) If available
-   b.1) consider the Quality Engineer review comments and focus on addressing them
-   b.2) consider the build failure analysis and focus on addressing it
-   b.3) consider the POV failure analysis and focus on addressing it
-   b.4) consider the tests failure analysis and focus on addressing it
-   c) Propose multiple potential solutions for the vulnerability
-   d) Evaluate each solution's pros and cons
-   e) Choose the best solution:
-        Consider:
-        - The specific part(s) of the code that need modification
-        - Potential solutions and their pros/cons
+2. Review the provided patch strategy and describe in more details the changes you intend to make to follow the strategy.
 
-3. Explain the changes you intend to make and how they fix the vulnerability. Use <explanation> tags for this section.
-
-4. Generate the patch based on your planning and explanation. Remember:
+3. Generate the patch based on the strategy, your planning and explanation. Remember:
    - Only fix the described vulnerability
    - You can modify one or more code snippets
    - You don't have to modify all code snippets
@@ -118,6 +112,83 @@ PROMPT = ChatPromptTemplate.from_messages(
         ("system", SYSTEM_MSG),
         ("user", USER_MSG),
         ("ai", "<vulnerability_analysis_and_solution>"),
+    ]
+)
+
+PATCH_STRATEGY_SYSTEM_MSG = """You are an AI agent in a multi-agent LLM-based autonomous patching system."""
+PATCH_STRATEGY_USER_MSG = """Your role is to develop a focused patch strategy for a specific vulnerability based on provided information and code snippets. Your task is to identify the exact changes needed to fix the vulnerability, nothing more.
+
+Here is the information you need to analyze:
+
+<project_name>
+{PROJECT_NAME}
+</project_name>
+
+<root_cause_analysis>
+{ROOT_CAUSE_ANALYSIS}
+</root_cause_analysis>
+
+<code_snippets>
+{CODE_SNIPPETS}
+</code_snippets>
+
+{REFLECTION_GUIDANCE}
+
+Your task is to develop a precise patch strategy that addresses ONLY the vulnerability. Follow these steps:
+
+1. Analyze the provided information and code snippets.
+2. Understand the intended behavior of the code.
+3. Identify the exact lines of code that need to be modified to fix the vulnerability.
+4. Determine the specific changes required to those lines.
+5. Consider any dependencies or side effects that might affect the fix.
+6. Ensure the fix directly addresses the root cause.
+
+If you need additional information to develop your patch strategy, you can request new code snippets. For example, you might need:
+- Code snippets defining functions referenced in the vulnerable code
+- Type definitions used in the vulnerable code
+- Context about how certain functions or variables are used
+
+To request additional information, use the following format:
+<request_information>
+[Describe the specific code snippet or information you need and why it's necessary for developing the patch strategy]
+</request_information>
+
+Before providing your final patch strategy, wrap your reasoning process in <patch_development_process> tags. This should include:
+- Relevant quotes from the root cause analysis and code snippets
+- Your understanding of the code's intended behavior
+- Analysis of the vulnerability, including potential vulnerability types
+- Enumeration and evaluation of possible fix approaches
+- Selection of the best approach with justification
+- Reasoning about potential fixes and their implications
+
+Once you have completed your analysis, provide your patch strategy in the following format:
+
+<patch_strategy>
+<full>
+[Explain your proposed patch strategy in detail. It is ok for this section to be long. Include:
+- The intended behavior of the code
+- The exact lines of code that need to be modified
+- The specific changes required to fix the vulnerability
+- Any dependencies or side effects that need to be considered
+- How these changes directly address the root cause]
+</full>
+<summary>[Short summary of the patch strategy, just one or two sentences, no more than 100 characters]</summary>
+</patch_strategy>
+
+Remember: Focus ONLY on fixing the specific vulnerability. Do not include:
+- General security improvements
+- Code style changes
+- Test implementations
+- Documentation updates
+- Performance optimizations
+- Any other changes not directly related to fixing the vulnerability
+"""
+
+PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", PATCH_STRATEGY_SYSTEM_MSG),
+        ("user", PATCH_STRATEGY_USER_MSG),
+        ("ai", "<patch_development_process>"),
     ]
 )
 
@@ -230,6 +301,7 @@ class SWEAgent(PatcherAgentBase):
     default_llm: BaseChatOpenAI = field(init=False)
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
+    patch_strategy_chain: Runnable = field(init=False)
 
     MATCH_RATIO_THRESHOLD: float = 0.8
 
@@ -244,6 +316,7 @@ class SWEAgent(PatcherAgentBase):
         self.llm = self.default_llm.with_fallbacks(fallback_llms)
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
+        self.patch_strategy_chain = PATCH_STRATEGY_PROMPT | self.llm | StrOutputParser()
 
     def _parse_description(self, patch_str: str) -> str | None:
         """Parse the description from the patch string."""
@@ -430,6 +503,8 @@ class SWEAgent(PatcherAgentBase):
             state.context.submission_index,
             self.challenge.name,
         )
+        if not state.patch_strategy:
+            raise ValueError("No patch strategy found, you should select a patch strategy first")
 
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.CREATE_PATCH
@@ -452,6 +527,7 @@ class SWEAgent(PatcherAgentBase):
                 "PROJECT_NAME": self.challenge.name,
                 "ROOT_CAUSE_ANALYSIS": str(state.root_cause),
                 "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
+                "PATCH_STRATEGY": state.patch_strategy.full,
                 "PREVIOUS_PATCH_PROMPT": previous_patch_prompt,
                 "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
                     REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
@@ -471,6 +547,7 @@ class SWEAgent(PatcherAgentBase):
             patch=self.create_upatch(state, code_snippet_changes),
             description=self._parse_description(patch_str),
             patch_str=patch_str,
+            strategy=state.patch_strategy.summary,
         )
         if not new_patch_attempt.patch or not new_patch_attempt.patch.patch:
             logger.error("Could not generate a patch")
@@ -509,4 +586,110 @@ class SWEAgent(PatcherAgentBase):
                 "patch_attempts": new_patch_attempt,
             },
             goto=PatcherAgentName.BUILD_PATCH.value,
+        )
+
+    def _parse_code_snippet_requests(self, patch_strategy_str: str) -> list[CodeSnippetRequest]:
+        """Parse the code snippet requests from the patch strategy string."""
+        requests = []
+        for request in re.findall(
+            r"<request_information>(.*?)</request_information>", patch_strategy_str, re.DOTALL | re.IGNORECASE
+        ):
+            requests.append(CodeSnippetRequest(request=request))
+        return requests
+
+    def _parse_patch_strategy(self, patch_strategy_str: str) -> PatchStrategy:
+        """Parse the patch strategy from the patch strategy string."""
+        # Extract content between <patch_strategy> tags
+        if "<patch_strategy>" not in patch_strategy_str:
+            return PatchStrategy(full=patch_strategy_str)
+
+        if "</patch_strategy>" not in patch_strategy_str:
+            patch_strategy_str += "</patch_strategy>"
+
+        start = patch_strategy_str.find("<patch_strategy>") + len("<patch_strategy>")
+        end = patch_strategy_str.find("</patch_strategy>")
+        strategy = patch_strategy_str[start:end].strip()
+
+        # Extract each field
+        def extract_field(field: str) -> str | list[str] | None:
+            start_tag = f"<{field}>"
+            end_tag = f"</{field}>"
+            start = strategy.find(start_tag) + len(start_tag)
+            end = strategy.find(end_tag)
+            if start == -1 or end == -1:
+                return None
+            content = strategy[start:end].strip()
+            if not content:
+                return None
+            return content
+
+        return PatchStrategy(
+            full=extract_field("full"),
+            summary=extract_field("summary"),
+        )
+
+    def select_patch_strategy(
+        self, state: PatcherAgentState, config: RunnableConfig
+    ) -> Command[  # type: ignore[name-defined]
+        Literal[
+            PatcherAgentName.CREATE_PATCH.value,
+            PatcherAgentName.REFLECTION.value,
+        ]
+    ]:
+        logger.info(
+            "[%s / %s] Selecting a patch strategy for Challenge Task %s",
+            state.context.task_id,
+            state.context.submission_index,
+            self.challenge.name,
+        )
+
+        execution_info = state.execution_info
+        execution_info.prev_node = PatcherAgentName.PATCH_STRATEGY
+
+        patch_strategy_str = self.patch_strategy_chain.invoke(
+            {
+                "PROJECT_NAME": self.challenge.name,
+                "ROOT_CAUSE_ANALYSIS": str(state.root_cause),
+                "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
+                "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
+                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
+                )
+                if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
+                else "",
+            },
+            default="",
+            config=RunnableConfig(
+                configurable={
+                    "llm_temperature": pick_temperature(),
+                },
+            ),
+        )
+        if "<request_information>" in patch_strategy_str:
+            new_code_snippet_requests = self._parse_code_snippet_requests(patch_strategy_str)
+            logger.info(
+                "[%s / %s] Requesting additional information", state.context.task_id, state.context.submission_index
+            )
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                    "code_snippet_requests": new_code_snippet_requests,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
+        patch_strategy = self._parse_patch_strategy(patch_strategy_str)
+        if not patch_strategy or not patch_strategy.full:
+            logger.warning("No patch strategy found in response")
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
+        return Command(
+            update={
+                "patch_strategy": patch_strategy,
+            },
+            goto=PatcherAgentName.CREATE_PATCH.value,
         )

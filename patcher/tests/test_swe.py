@@ -17,6 +17,7 @@ from buttercup.patcher.agents.swe import (
     CodeSnippetChanges,
     CodeSnippetKey,
     PatcherAgentState,
+    PatcherAgentName,
     SWEAgent,
 )
 
@@ -658,3 +659,27 @@ def test_create_upatch_no_oldcode(swe_agent: SWEAgent, patcher_agent_state: Patc
     )
     patch = swe_agent.create_upatch(patcher_agent_state, changes)
     assert patch is None
+
+
+def test_select_patch_strategy_basic(swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock):
+    """Test the select_patch_strategy method for a basic successful patch strategy selection."""
+    # Mock the LLM to return a valid patch strategy string
+    patch_strategy_str = (
+        "<patch_strategy>"
+        "<full>This is a detailed patch strategy.</full>"
+        "<summary>Short summary.</summary>"
+        "</patch_strategy>"
+    )
+    swe_agent.patch_strategy_chain = MagicMock()
+    swe_agent.patch_strategy_chain.invoke.return_value = patch_strategy_str
+
+    # Call the method
+    config = None  # Not used in the test
+    command = swe_agent.select_patch_strategy(patcher_agent_state, config)
+
+    # Check that the command is correct
+    assert hasattr(command, "update")
+    assert "patch_strategy" in command.update
+    assert command.update["patch_strategy"].full == "This is a detailed patch strategy."
+    assert command.update["patch_strategy"].summary == "Short summary."
+    assert command.goto == PatcherAgentName.CREATE_PATCH.value

@@ -90,11 +90,15 @@ To ensure a thorough and transparent reflection process, work through your analy
    - Fixing memory safety issues
    - Addressing race conditions
    - Fixing access control issues
+   - etc.
 6. Create a numbered list of patterns across multiple failed attempts. Look for similarities in code, error messages, and approach.
 7. For the next component, consider pros and cons for each available component.
 8. Rate each component's suitability on a scale of 1-5.
 9. Carefully consider if the next component might need additional information, and if so list the information needed. In that case, the next component should be the context_retriever.
-10. If multiple previous attempts were redirected to the same component (e.g., create_patch), consider to go back to an earlier component (e.g., root_cause_analysis) due to potential issues with the root cause analysis or patch strategy.
+10. If multiple previous attempts were redirected to the same component (e.g., \
+create_patch), consider to go back to an earlier component (e.g., \
+root_cause_analysis or patch_strategy) due to potential issues with the root \
+cause analysis or patch strategy.
 
 After your analysis, generate a structured reflection result using the following format:
 
@@ -133,6 +137,7 @@ PATCH_ATTEMPT_TMPL = """<patch_attempt>
 <raw_patch_str>
 {raw_patch_str}
 </raw_patch_str>
+<patch_strategy>{patch_strategy}</patch_strategy>
 <status>{status}</status>
 </patch_attempt>
 """
@@ -143,6 +148,7 @@ PREVIOUS_PATCH_ATTEMPTS_TMPL = """<previous_patch_attempt>
 <patch>{patch}</patch>
 <status>{status}</status>
 <partial_success>{partial_success}</partial_success>
+<patch_strategy>{patch_strategy}</patch_strategy>
 <failure_analysis>{failure_analysis}</failure_analysis>
 </previous_patch_attempt>
 """
@@ -316,6 +322,10 @@ class ReflectionAgent(PatcherAgentBase):
                 PatcherAgentName.CONTEXT_RETRIEVER.value,
                 "Retrieve additional code snippets that might be necessary to understand the root cause or to create a patch. Provide clear guidance on what exactly to retrieve.",
             ),
+            (
+                PatcherAgentName.PATCH_STRATEGY.value,
+                "Develop a patch strategy for the vulnerability given the provided code snippets and the previous patch attempts. Provide clear guidance on how to improve the patch strategy or to what approach to select.",
+            ),
         ]
 
     def _parse_reflection_result(self, result: str) -> ReflectionResult:
@@ -455,6 +465,7 @@ class ReflectionAgent(PatcherAgentBase):
                         if not patch_attempt.patch or not patch_attempt.patch.patch
                         else "",
                         status=patch_attempt.status,
+                        patch_strategy=patch_attempt.strategy,
                     ),
                     "FAILURE_TYPE": patch_attempt.status,
                     "FAILURE_DATA": failure_data,
@@ -483,6 +494,7 @@ class ReflectionAgent(PatcherAgentBase):
                                 if attempt.analysis
                                 else None,
                                 partial_success=attempt.analysis.partial_success if attempt.analysis else None,
+                                patch_strategy=attempt.strategy,
                             )
                             for attempt in state.patch_attempts[:-1]
                         ]
@@ -520,7 +532,7 @@ class ReflectionAgent(PatcherAgentBase):
             return Command(
                 update={
                     "execution_info": execution_info,
-                    "prev_node": PatcherAgentName.CREATE_PATCH.value,
+                    "prev_node": PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                     "relevant_code_snippets": state.relevant_code_snippets,
                     "code_snippet_requests": [
                         CodeSnippetRequest(
@@ -553,7 +565,7 @@ class ReflectionAgent(PatcherAgentBase):
                 state.context.task_id,
                 state.context.submission_index,
             )
-            return Command(goto=PatcherAgentName.CREATE_PATCH.value)
+            return Command(goto=PatcherAgentName.PATCH_STRATEGY.value)
 
         execution_info = state.execution_info
         execution_info.root_cause_analysis_tries += 1
@@ -586,6 +598,14 @@ class ReflectionAgent(PatcherAgentBase):
         configuration = PatcherConfig.from_configurable(config)
         self.challenge.restore()
 
+        if state.execution_info.prev_node is None:
+            logger.warning(
+                "[%s / %s] Previous node is not set, this is a developer error, assuming root cause analysis.",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            state.execution_info.prev_node = PatcherAgentName.ROOT_CAUSE_ANALYSIS
+
         if len(state.patch_attempts) >= configuration.max_patch_retries:
             logger.warning(
                 "[%s / %s] Reached max patch tries, terminating the patching process",
@@ -604,5 +624,26 @@ class ReflectionAgent(PatcherAgentBase):
                 state.context.submission_index,
             )
             return self._root_cause_analysis_failed(state, configuration)
+
+        # If a node has explicitly requested additional information, let's move
+        # to the context retriever to get the information and then come back to
+        # the same node
+        if state.execution_info.code_snippet_requests:
+            logger.info(
+                "[%s / %s] Requesting additional information",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            code_snippet_requests = state.execution_info.code_snippet_requests
+            state.execution_info.code_snippet_requests = []
+            return Command(
+                update={
+                    "code_snippet_requests": code_snippet_requests,
+                    "prev_node": state.execution_info.prev_node.value,
+                    "execution_info": state.execution_info,
+                    "relevant_code_snippets": state.relevant_code_snippets,
+                },
+                goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
+            )
 
         return self._analyze_failure(state, configuration, current_patch_attempt)

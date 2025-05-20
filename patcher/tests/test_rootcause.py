@@ -209,7 +209,7 @@ def test_analyze_vulnerability_success(
     result = root_cause_agent.analyze_vulnerability(state)
 
     assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.CREATE_PATCH.value
+    assert result.goto == PatcherAgentName.PATCH_STRATEGY.value
     assert "root_cause" in result.update
     assert isinstance(result.update["root_cause"], RootCauseAnalysis)
     assert result.update["root_cause"].classification == "Buffer Overflow / Stack Overflow"
@@ -315,7 +315,7 @@ def test_analyze_vulnerability_malformed_response(
     result = root_cause_agent.analyze_vulnerability(state)
 
     assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.CREATE_PATCH.value
+    assert result.goto == PatcherAgentName.PATCH_STRATEGY.value
     assert "root_cause" in result.update
     assert isinstance(result.update["root_cause"], RootCauseAnalysis)
     assert result.update["root_cause"].root_cause == "Invalid response format"
@@ -384,7 +384,7 @@ def test_analyze_vulnerability_malformed_but_structured_response(
     result = root_cause_agent.analyze_vulnerability(state)
 
     assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.CREATE_PATCH.value
+    assert result.goto == PatcherAgentName.PATCH_STRATEGY.value
     assert "root_cause" in result.update
     assert isinstance(result.update["root_cause"], RootCauseAnalysis)
 

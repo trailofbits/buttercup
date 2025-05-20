@@ -237,7 +237,7 @@ class QEAgent(PatcherAgentBase):
             goto=PatcherAgentName.RUN_TESTS.value,
         )
 
-    def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value, END]]:  # type: ignore[name-defined]
+    def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs tests against a currently built patch"""
         logger.info("Running tests on Challenge Task %s rebuilt with patch", self.challenge.name)
         last_patch_attempt = state.get_last_patch_attempt()

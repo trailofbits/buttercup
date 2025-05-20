@@ -69,6 +69,7 @@ def add_code_snippet(
 class PatcherAgentName(Enum):
     CONTEXT_RETRIEVER = "context_retriever_node"
     ROOT_CAUSE_ANALYSIS = "root_cause_analysis"
+    PATCH_STRATEGY = "patch_strategy_node"
     CREATE_PATCH = "create_patch"
     BUILD_PATCH = "build_patch"
     RUN_POV = "run_pov"
@@ -98,10 +99,19 @@ class PatchAnalysis(BaseModel):
     partial_success: bool | None = None
 
 
+class PatchStrategy(BaseModel):
+    """Patch strategy"""
+
+    full: str | None = None
+    summary: str | None = None
+
+
 class PatchAttempt(BaseModel):
     """Patch attempt"""
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    strategy: str | None = None
 
     description: str | None = None
     patch: PatchOutput | None = Field(default=None)
@@ -140,6 +150,7 @@ class ExecutionInfo(BaseModel):
     reflection_decision: PatcherAgentName | None = None
     reflection_guidance: str | None = None
     prev_node: PatcherAgentName | None = None
+    code_snippet_requests: list[CodeSnippetRequest] = Field(default_factory=list)
 
 
 class RootCauseAnalysis(BaseModel):
@@ -180,6 +191,7 @@ class PatcherAgentState(BaseModel):
     relevant_code_snippets: Annotated[set[ContextCodeSnippet], add_code_snippet] = Field(default_factory=set)
     root_cause: RootCauseAnalysis | None = None
 
+    patch_strategy: PatchStrategy | None = None
     patch_attempts: Annotated[list[PatchAttempt], add_or_mod_patch] = Field(default_factory=list)
     execution_info: ExecutionInfo = Field(default_factory=ExecutionInfo)
 
