@@ -1,12 +1,11 @@
 {{- if .Values.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: {{ .Release.Name }}-merger-bot
   labels:
     app: merger-bot
 spec:
-  replicas: {{ .Values.replicaCount | default 1 }}
   selector:
     matchLabels:
       app: merger-bot

@@ -27,7 +27,6 @@ class RedisSet:
         return self.redis.sismember(self.set_name, value)
 
     def __iter__(self) -> Iterator[str]:
-        logger.info(f"Iterating over {self.set_name}")
         try:
             for member in self.redis.smembers(self.set_name):
                 yield member.decode("utf-8")

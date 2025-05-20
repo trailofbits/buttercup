@@ -1,4 +1,3 @@
-import re
 import logging
 from typing import List
 import buttercup.common.node_local as node_local
@@ -7,10 +6,10 @@ import os
 import hashlib
 import shutil
 import subprocess
-import uuid
 from pathlib import Path
 from redis import Redis
 from buttercup.common.sets import MergedCorpusSet
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -78,19 +77,34 @@ class InputDir:
         except Exception as e:
             logger.error(f"Error removing file {file} from remote corpus {self.remote_path}: {e}")
 
-    def hash_new_corpus(self):
-        for file in os.listdir(self.path):
+    @classmethod
+    def has_hashed_name(cls, filename: str | Path) -> bool:
+        if not isinstance(filename, Path):
+            filename = Path(filename)
+        name = filename.name
+        return len(name) == 64 and all(c in "0123456789abcdef" for c in name)
+
+    @classmethod
+    def hash_corpus(cls, path: str) -> List[str]:
+        hashed_files = []
+        for file in os.listdir(path):
             # If the file is already a hash, skip it
-            if len(file) == 64 and all(c in "0123456789abcdef" for c in file):
+            if cls.has_hashed_name(file):
                 continue
-            path = os.path.join(self.path, file)
+            file_path = os.path.join(path, file)
             try:
-                with open(path, "rb") as f:
+                with open(file_path, "rb") as f:
                     hash_filename = hash_file(f)
-                os.rename(path, os.path.join(self.path, hash_filename))
-            except Exception:
+                os.rename(file_path, os.path.join(path, hash_filename))
+                hashed_files.append(hash_filename)
+            except Exception as e:
                 # Likely already hashed by another pod
+                logger.info(f"Error hashing file: {file} {e}")
                 continue
+        return hashed_files
+
+    def hash_new_corpus(self):
+        InputDir.hash_corpus(self.path)
 
     def _do_sync(self, src_path: str, dst_path: str):
         # Pattern to match SHA256 hashes (64 hex chars)
@@ -112,6 +126,37 @@ class InputDir:
         os.makedirs(self.remote_path, exist_ok=True)
         self._do_sync(self.path, self.remote_path)
 
+    def sync_specific_files_to_remote(self, files):
+        """
+        Sync only specific files to remote storage.
+
+        Args:
+            files: List of filenames (basename only, not full path) to sync to remote
+        """
+        self.hash_new_corpus()
+        os.makedirs(self.remote_path, exist_ok=True)
+
+        # Create a temporary file containing the list of files to sync
+        with tempfile.NamedTemporaryFile(mode="w", delete=True) as file_list:
+            # Write each filename to the temporary file
+            for file in files:
+                file_list.write(f"{file}\n")
+
+            # Flush the file to ensure it's written to disk
+            file_list.flush()
+
+            # Use rsync with --files-from to sync only the specified files
+            subprocess.call(
+                [
+                    "rsync",
+                    "-a",
+                    "--ignore-existing",
+                    f"--files-from={file_list.name}",
+                    str(self.path) + "/",
+                    str(self.remote_path) + "/",
+                ]
+            )
+
     def sync_from_remote(self):
         os.makedirs(self.remote_path, exist_ok=True)
         self._do_sync(self.remote_path, self.path)
@@ -119,8 +164,11 @@ class InputDir:
     def list_local_corpus(self) -> list[str]:
         return [os.path.join(self.path, f) for f in os.listdir(self.path)]
 
+    def list_remote_corpus(self) -> list[str]:
+        return [os.path.join(self.remote_path, f) for f in os.listdir(self.remote_path)]
+
     def list_corpus(self) -> list[str]:
-        return [os.path.join(self.path, f) for f in os.listdir(self.path)]
+        return self.list_local_corpus()
 
 
 class CrashDir:
@@ -176,29 +224,3 @@ class Corpus(InputDir):
                     logger.error(f"Error removing file {file} from local corpus {self.path}: {e}")
         if removed > 0:
             logger.info(f"Removed {removed} files from local corpus {self.path}")
-
-    @staticmethod
-    def locally_available(wdir: str) -> List["Corpus"]:
-        """
-        Returns a list of Corpus objects for all locally available corpora.
-
-        Args:
-            wdir (str): The directory containing the corpora.
-        Returns:
-            List[Corpus]: A list of Corpus objects for all locally available corpora.
-        """
-        corpus_re = re.compile(f"{CORPUS_DIR_NAME}_.*")
-        available_corpus = []
-        for file in os.listdir(wdir):
-            # task_id is a uuid
-            try:
-                uuid.UUID(file)
-            except ValueError:
-                continue
-            maybe_task = os.path.join(wdir, file)
-            task_id = file
-            for file in os.listdir(maybe_task):
-                if corpus_re.match(file):
-                    harness_name = file.lstrip(CORPUS_DIR_NAME + "_")
-                    available_corpus.append(Corpus(wdir, task_id, harness_name))
-        return available_corpus
