@@ -30,6 +30,10 @@ on:
         description: "Timeout for patch submission in minutes"
         required: false
         default: ""
+      seed_gen_timeout:
+        description: "Timeout for seed-gen submission in minutes"
+        required: false
+        default: ""
       bundle_timeout:
         description: "Timeout for bundle submission in minutes"
         required: false
@@ -45,6 +49,7 @@ env:
   PATCH_TIMEOUT: ${{ inputs.patch_timeout || 25 }}
   BUNDLE_TIMEOUT: ${{ inputs.bundle_timeout || 5 }}
   SARIF_TIMEOUT: ${{ inputs.sarif_timeout || 5 }}
+  SEED_GEN_TIMEOUT: ${{ inputs.seed_gen_timeout || 10 }}
   FUZZ_TOOLING_CONTAINER_ORG: ${{ inputs.fuzz_tooling_container_org || 'aixcc-afc' }}
 
 permissions:
@@ -162,6 +167,14 @@ jobs:
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_POV_PASS -> SUBMIT_PATCH" ; do
             sleep 10
           done
+
+      - name: Wait for seed-gen to submit at least 1 seed
+        timeout-minutes: ${{ fromJSON(env.SEED_GEN_TIMEOUT) }}
+        run: |
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen -c seed-gen | grep "Copying [1-9][0-9]* files to corpus"; do
+            sleep 10
+          done
+
       - name: Wait for patch to be submitted
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
@@ -216,13 +229,6 @@ jobs:
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_BUNDLE_PATCH -> STOP"; do
             sleep 10
           done
-      # TODO: re-enable seed-gen once it's fixed
-      # - name: Wait for seed-gen to find PoV
-      #   timeout-minutes: 10 # low timeout because already waiting for prior steps
-      #   run: |
-      #     while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen | grep "Valid PoV found:"; do
-      #       sleep 10
-      #     done
       
       - name: Collect logs
         run: |
