@@ -272,6 +272,17 @@ def selinux_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
 
 
 @pytest.fixture(scope="module")
+def sqlite_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
+    return oss_fuzz_task(
+        tmp_path_factory.mktemp("task_dir"),
+        "sqlite3",
+        "sqlite",
+        "https://github.com/sqlite/sqlite",
+        "5804da02182927dafae24a83bfe4176bb1746118",
+    )
+
+
+@pytest.fixture(scope="module")
 def zookeeper_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     return oss_fuzz_task(
         tmp_path_factory.mktemp("task_dir"),
