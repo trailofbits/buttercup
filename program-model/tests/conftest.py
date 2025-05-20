@@ -184,6 +184,17 @@ def commons_codec_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
 
 
 @pytest.fixture(scope="module")
+def dropbear_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
+    return oss_fuzz_task(
+        tmp_path_factory.mktemp("task_dir"),
+        "dropbear",
+        "dropbear",
+        "https://github.com/mkj/dropbear",
+        "16106997d11615e5e2dfe477def062aed7ed0bca",
+    )
+
+
+@pytest.fixture(scope="module")
 def graphql_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     return oss_fuzz_task(
         tmp_path_factory.mktemp("task_dir"),
