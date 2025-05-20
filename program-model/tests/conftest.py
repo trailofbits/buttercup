@@ -184,6 +184,17 @@ def commons_codec_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
 
 
 @pytest.fixture(scope="module")
+def freerdp_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
+    return oss_fuzz_task(
+        tmp_path_factory.mktemp("task_dir"),
+        "freerdp",
+        "FreeRDP",
+        "https://github.com/FreeRDP/FreeRDP",
+        "81e95e51cabfc2db201991b43c0b861b201e17f2",
+    )
+
+
+@pytest.fixture(scope="module")
 def dropbear_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     return oss_fuzz_task(
         tmp_path_factory.mktemp("task_dir"),

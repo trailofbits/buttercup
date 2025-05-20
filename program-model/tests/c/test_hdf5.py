@@ -93,7 +93,7 @@ def test_hdf5_get_functions(
                     start_line=2901,
                 ),
             ],
-            14,  # total num callers. Not all are included in the test
+            14,
         ),
     ],
 )

@@ -122,7 +122,7 @@ def test_libjpeg_get_functions(
                     start_line=533,
                 ),
             ],
-            3,  # num_callers
+            3,
         ),
     ],
 )

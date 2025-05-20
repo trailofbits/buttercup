@@ -20,17 +20,24 @@ from ..common import (
     "function_name,file_path,function_info",
     [
         (
-            "xmlParse3986Host",
-            "/src/libxml2/uri.c",
+            "freerdp_assistance_parse_file_buffer",
+            "/src/FreeRDP/libfreerdp/common/assistance.c",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """xmlParse3986Host(xmlURIPtr uri, const char **str)
-{
-    const char *cur = *str;
-    const char *host;
+                    """if (!file->PassStub)
+				return -1;
 
-    host = cur;"""
+			if (amp)
+			{
+				// just skip over "amp;" leaving "&"
+				CopyMemory(file->PassStub, p, amp - p + 1);
+				CopyMemory(file->PassStub + (amp - p + 1), amp + 5, q - amp + 5);
+			}
+			else
+			{
+				CopyMemory(file->PassStub, p, length);
+			}""",
                 ],
             ),
         ),
@@ -38,11 +45,11 @@ from ..common import (
 )
 @pytest.mark.integration
 def test_get_functions(
-    libxml2_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
+    freerdp_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
 ):
     """Test that we can get functions in challenge task code"""
     common_test_get_functions(
-        libxml2_oss_fuzz_task, function_name, file_path, function_info
+        freerdp_oss_fuzz_task, function_name, file_path, function_info
     )
 
 
@@ -50,24 +57,24 @@ def test_get_functions(
     "function_name,file_path,line_number,fuzzy,expected_callers,num_callers",
     [
         (
-            "xmlParse3986Host",
-            "/src/libxml2/uri.c",
+            "freerdp_assistance_parse_file_buffer",
+            "/src/FreeRDP/libfreerdp/common/assistance.c",
             None,
             False,
             [
                 TestCallerInfo(
-                    name="xmlParse3986Authority",
-                    file_path="/src/libxml2/uri.c",
-                    start_line=553,
+                    name="parse_file_buffer",
+                    file_path="/src/FreeRDP/libfreerdp/common/test/TestFuzzCommonAssistanceParseFileBuffer.c",
+                    start_line=3,
                 ),
             ],
-            1,
+            4,
         ),
     ],
 )
 @pytest.mark.integration
 def test_get_callers(
-    libxml2_oss_fuzz_task: ChallengeTask,
+    freerdp_oss_fuzz_task: ChallengeTask,
     function_name,
     file_path,
     line_number,
@@ -77,7 +84,7 @@ def test_get_callers(
 ):
     """Test that we can get function callers."""
     common_test_get_callers(
-        libxml2_oss_fuzz_task,
+        freerdp_oss_fuzz_task,
         function_name,
         file_path,
         line_number,
@@ -91,29 +98,24 @@ def test_get_callers(
     "function_name,file_path,line_number,fuzzy,expected_callees,num_callees",
     [
         (
-            "xmlParse3986Host",
-            "/src/libxml2/uri.c",
+            "freerdp_assistance_parse_file_buffer",
+            "/src/FreeRDP/libfreerdp/common/assistance.c",
             None,
             False,
             [
                 TestCalleeInfo(
-                    name="xmlURIUnescapeString",
-                    file_path="/src/libxml2/uri.c",
-                    start_line=1619,
-                ),
-                TestCalleeInfo(
-                    name="xmlParse3986DecOctet",
-                    file_path="/src/libxml2/uri.c",
-                    start_line=419,
+                    name="freerdp_assistance_parse_connection_string1",
+                    file_path="/src/FreeRDP/libfreerdp/common/assistance.c",
+                    start_line=214,
                 ),
             ],
-            2,
+            6,
         ),
     ],
 )
 @pytest.mark.integration
 def test_get_callees(
-    libxml2_oss_fuzz_task: ChallengeTask,
+    freerdp_oss_fuzz_task: ChallengeTask,
     function_name,
     file_path,
     line_number,
@@ -123,7 +125,7 @@ def test_get_callees(
 ):
     """Test that we can get function callees."""
     common_test_get_callees(
-        libxml2_oss_fuzz_task,
+        freerdp_oss_fuzz_task,
         function_name,
         file_path,
         line_number,
@@ -137,58 +139,65 @@ def test_get_callees(
     "type_name,file_path,fuzzy,type_definition_info",
     [
         (
-            "xmlURI",
+            "rdp_assistance_file",
             None,
             False,
             TestTypeDefinitionInfo(
-                name="xmlURI",
-                type=TypeDefinitionType.TYPEDEF,
-                definition="typedef struct _xmlURI xmlURI;",
-                definition_line=32,
-                file_path="/src/libxml2/include/libxml/uri.h",
-            ),
-        ),
-        (
-            "xmlURIPtr",
-            None,
-            False,
-            TestTypeDefinitionInfo(
-                name="xmlURIPtr",
-                type=TypeDefinitionType.TYPEDEF,
-                definition="typedef xmlURI *xmlURIPtr;",
-                definition_line=33,
-                file_path="/src/libxml2/include/libxml/uri.h",
-            ),
-        ),
-        (
-            "_xmlURI",
-            None,
-            False,
-            TestTypeDefinitionInfo(
-                name="_xmlURI",
+                name="rdp_assistance_file",
                 type=TypeDefinitionType.STRUCT,
-                definition="""struct _xmlURI {
-    char *scheme;	/* the URI scheme */
-    char *opaque;	/* opaque part */
-    char *authority;	/* the authority part */
-    char *server;	/* the server part */
-    char *user;		/* the user part */
-    int port;		/* the port number */
-    char *path;		/* the path string */
-    char *query;	/* the query string (deprecated - use with caution) */
-    char *fragment;	/* the fragment identifier */
-    int  cleanup;	/* parsing potentially unclean URI */
-    char *query_raw;	/* the query string (as it appears in the URI) */
+                definition="""struct rdp_assistance_file
+{
+	UINT32 Type;
+
+	char* Username;
+	char* LHTicket;
+	char* RCTicket;
+	char* PassStub;
+	UINT32 DtStart;
+	UINT32 DtLength;
+	BOOL LowSpeed;
+	BOOL RCTicketEncrypted;
+
+	char* ConnectionString1;
+	char* ConnectionString2;
+
+	BYTE* EncryptedPassStub;
+	size_t EncryptedPassStubLength;
+
+	BYTE* EncryptedLHTicket;
+	size_t EncryptedLHTicketLength;
+
+	UINT32 MachineCount;
+	char** MachineAddresses;
+	UINT32* MachinePorts;
+
+	char* RASessionId;
+	char* RASpecificParams;
+
+	char* filename;
+	char* password;
 }""",
-                definition_line=34,
-                file_path="/src/libxml2/include/libxml/uri.h",
+                definition_line=40,
+                file_path="/src/FreeRDP/libfreerdp/common/assistance.c",
+            ),
+        ),
+        (
+            "rdpAssistanceFile",
+            None,
+            False,
+            TestTypeDefinitionInfo(
+                name="rdpAssistanceFile",
+                type=TypeDefinitionType.TYPEDEF,
+                definition="""typedef struct rdp_assistance_file rdpAssistanceFile;""",
+                definition_line=32,
+                file_path="/src/FreeRDP/include/freerdp/assistance.h",
             ),
         ),
     ],
 )
 @pytest.mark.integration
 def test_get_type_definitions(
-    libxml2_oss_fuzz_task: ChallengeTask,
+    freerdp_oss_fuzz_task: ChallengeTask,
     type_name,
     file_path,
     fuzzy,
@@ -196,7 +205,7 @@ def test_get_type_definitions(
 ):
     """Test that we can get type defs"""
     common_test_get_type_definitions(
-        libxml2_oss_fuzz_task,
+        freerdp_oss_fuzz_task,
         type_name,
         file_path,
         fuzzy,
@@ -208,23 +217,25 @@ def test_get_type_definitions(
     "type_name,file_path,fuzzy,type_usage_infos,num_type_usages",
     [
         (
-            "xmlURIPtr",
+            "rdpAssistanceFile",
             None,
             False,
             [
                 TestTypeUsageInfo(
-                    file_path="/src/libxml2/uri.c",
-                    line_number=1085,
+                    file_path="/src/FreeRDP/server/shadow/Win/win_wds.c",
+                    line_number=531,
                 ),
             ],
             6,
         ),
     ],
 )
-@pytest.mark.skip(reason="Skipping because codequery doesn't think xmlURIPtr is a type")
+@pytest.mark.skip(
+    reason="Problem with codequery. Doesn't consider rdpAssistanceFile as being used"
+)
 @pytest.mark.integration
 def test_get_type_usages(
-    libxml2_oss_fuzz_task: ChallengeTask,
+    freerdp_oss_fuzz_task: ChallengeTask,
     type_name,
     file_path,
     fuzzy,
@@ -233,7 +244,7 @@ def test_get_type_usages(
 ):
     """Test that we can get function callees from zookeeper"""
     common_test_get_type_usages(
-        libxml2_oss_fuzz_task,
+        freerdp_oss_fuzz_task,
         type_name,
         file_path,
         fuzzy,

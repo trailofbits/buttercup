@@ -9,6 +9,9 @@ from buttercup.program_model.utils.common import (
     Function,
     TypeUsageInfo,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def filter_project_context(
@@ -91,6 +94,12 @@ def common_test_get_callers(
         fuzz_task.task_meta.focus, callers, codequery._get_project_language()
     )
 
+    # Output for debugging
+    for c in callers:
+        logger.info(
+            f"Caller: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}"
+        )
+
     # Validate each caller
     for expected_caller in expected_callers:
         caller_info = [
@@ -151,6 +160,12 @@ def common_test_get_callees(
         fuzz_task.task_meta.focus, callees, codequery._get_project_language()
     )
 
+    # Output for debugging
+    for c in callees:
+        logger.info(
+            f"Callee: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}"
+        )
+
     # Validate each callee
     for expected_callee in expected_callees:
         callee_info = [
@@ -204,6 +219,13 @@ def common_test_get_type_definitions(
     type_definitions = filter_project_context(
         fuzz_task.task_meta.focus, type_definitions, codequery._get_project_language()
     )
+
+    # Output for debugging
+    for c in type_definitions:
+        logger.info(
+            f"Type definition: {c.name} {c.type} {c.file_path} {c.definition_line}"
+        )
+
     found = [
         c
         for c in type_definitions
@@ -246,12 +268,15 @@ def common_test_get_type_usages(
         file_path=Path(file_path) if file_path else None,
         fuzzy=fuzzy,
     )[0]
+
     call_sites = codequery.get_type_calls(type_definition)
     call_sites = filter_project_context(
         fuzz_task.task_meta.focus, call_sites, codequery._get_project_language()
     )
-    if num_type_usages and len(call_sites) != num_type_usages:
-        pytest.fail(f"Expected {num_type_usages} type usages, got {len(call_sites)}")
+
+    # Output for debugging
+    for c in call_sites:
+        logger.info(f"Type usage: {c.name} {c.file_path} {c.line_number}")
 
     for type_usage_info in type_usage_infos:
         type_usage = [
@@ -265,3 +290,6 @@ def common_test_get_type_usages(
             pytest.fail(f"Couldn't find expected type usage: {type_usage_info}")
         elif len(type_usage) > 1:
             pytest.fail(f"Found multiple identical type usages for: {type_usage_info}")
+
+    if num_type_usages and len(call_sites) != num_type_usages:
+        pytest.fail(f"Expected {num_type_usages} type usages, got {len(call_sites)}")
