@@ -239,14 +239,12 @@ services:
     build:
       context: .
       dockerfile: ./seed-gen/Dockerfile
-    # TODO: Update seed-gen sleep once service is doing useful work
-    command: ["seed-gen", "server", "--redis_url", "redis://redis:6379", "--wdir", "/node_data/crs_scratch", "--sleep", "60", "--crash_dir_count_limit", "100"]
+    command: ["seed-gen", "server"]
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./node_data_storage/:/node_data
     env_file: env.dev.compose
     environment:
-      - LOG_LEVEL=DEBUG
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}

@@ -1,8 +1,5 @@
 enabled: true
 replicaCount: 1
-sleepTime: 60
-pythonPath: "/app/seed-gen/.venv/bin/python"
-logLevel: "DEBUG"
 
 resources:
   limits:

@@ -296,6 +296,19 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ int .Values.maxMinutesRunPOVs | default 30 | quote }}
 {{- end }}
 
+{{- define "buttercup.seedGenEnv" }}
+- name: BUTTERCUP_SEED_GEN_LOG_LEVEL
+  value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_SEED_GEN_SERVER__REDIS_URL
+  value: {{ include "buttercup.core.redisUrl" . }}
+- name: BUTTERCUP_SEED_GEN_SERVER__WDIR
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
+- name: BUTTERCUP_SEED_GEN_SERVER__SLEEP_TIME
+  value: "5"
+- name: BUTTERCUP_SEED_GEN_SERVER__CRASH_DIR_COUNT_LIMIT
+  value: {{ include "buttercup.core.crashDirCountLimit" . | quote }}
+{{- end }}
+
 {{- define "buttercup.buildBotEnv" }}
 - name: BUTTERCUP_FUZZER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}

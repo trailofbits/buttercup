@@ -26,15 +26,6 @@ spec:
         image: "{{ .Values.global.seedGenImage.repository }}:{{ .Values.global.seedGenImage.tag }}"
         imagePullPolicy: {{ .Values.global.seedGenImage.pullPolicy }}
         command: ["seed-gen", "server"]
-        args:
-          - "--redis_url"
-          - "{{ include "buttercup.core.redisUrl" . }}"
-          - "--wdir"
-          - "{{ include "buttercup.nodeLocalCrsScratchPath" . }}"
-          - "--sleep"
-          - "{{ .Values.sleepTime }}"
-          - "--crash_dir_count_limit"
-          - "{{ include "buttercup.core.crashDirCountLimit" . }}"
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
@@ -45,8 +36,7 @@ spec:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         {{- include "buttercup.env.langfuse" . | nindent 8 }}
-        - name: LOG_LEVEL
-          value: "{{ include "buttercup.core.logLevel" . }}"
+        {{- include "buttercup.seedGenEnv" . | nindent 8 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.dockerSocketVolume" . | nindent 6 }}
