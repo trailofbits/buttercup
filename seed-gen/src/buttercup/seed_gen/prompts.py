@@ -39,6 +39,7 @@ Remember:
 - Put the functions in a single markdown block at the end of your response.
 - You can only use the python standard library.
 - Avoid creating very large seeds
+- Avoid verbose or unnecessary code comments.
 
 
 The harness is:
@@ -197,6 +198,7 @@ Remember:
 - Don't write more than {max_povs} functions.
 - Always write test case functions. Even if you're unsure that there's a vulnerability, write test cases that could trigger a vulnerability in the program.
 - This test case will help secure the software.
+- Avoid verbose or unnecessary code comments.
 
 
 The full harness is:
@@ -258,6 +260,7 @@ Remember:
 - Put the functions in a single markdown block at the end of your response.
 - You can only use the python standard library.
 - Avoid creating very large seeds
+- Avoid verbose or unnecessary code comments.
 
 The target function is:
 ```
@@ -516,6 +519,7 @@ Remember:
 - Don't write more than {max_povs} functions.
 - Always write test case functions. Even if you're unsure that there's a vulnerability, write test cases that could trigger a vulnerability in the program.
 - This test case will help secure the software.
+- Avoid verbose or unnecessary code comments.
 
 
 The full harness is:
