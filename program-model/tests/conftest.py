@@ -184,6 +184,17 @@ def commons_codec_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
 
 
 @pytest.fixture(scope="module")
+def commons_compress_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
+    return oss_fuzz_task(
+        tmp_path_factory.mktemp("task_dir"),
+        "apache-commons-compress",
+        "commons-compress",
+        "https://gitbox.apache.org/repos/asf/commons-compress",
+        "3039bcc221d9f792c626230da4903f40b15bb72f",
+    )
+
+
+@pytest.fixture(scope="module")
 def freerdp_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
     return oss_fuzz_task(
         tmp_path_factory.mktemp("task_dir"),
