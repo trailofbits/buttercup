@@ -194,7 +194,7 @@ def test_reflect_on_patch_success(reflection_agent: ReflectionAgent, mock_runnab
             ),
         ],
         execution_info=ExecutionInfo(
-            prev_node=PatcherAgentName.CREATE_PATCH.value,
+            prev_node=PatcherAgentName.CREATE_PATCH,
         ),
     )
 
@@ -220,7 +220,7 @@ def test_reflect_on_patch_max_patch_attempts(reflection_agent: ReflectionAgent, 
             for i in range(config.max_patch_retries + 1)
         ],
         execution_info=ExecutionInfo(
-            prev_node=PatcherAgentName.CREATE_PATCH.value,
+            prev_node=PatcherAgentName.CREATE_PATCH,
         ),
     )
 
@@ -244,7 +244,7 @@ def test_reflect_on_patch_pending(reflection_agent: ReflectionAgent, mock_runnab
             ),
         ],
         execution_info=ExecutionInfo(
-            prev_node=PatcherAgentName.CREATE_PATCH.value,
+            prev_node=PatcherAgentName.CREATE_PATCH,
         ),
     )
 
@@ -276,7 +276,7 @@ def test_reflect_on_patch_zero_retries(reflection_agent: ReflectionAgent, tmp_pa
             ),
         ],
         execution_info=ExecutionInfo(
-            prev_node=PatcherAgentName.CREATE_PATCH.value,
+            prev_node=PatcherAgentName.CREATE_PATCH,
         ),
     )
 
@@ -317,7 +317,7 @@ def test_reflect_on_patch_high_retries(reflection_agent: ReflectionAgent, tmp_pa
             ),
         ],
         execution_info=ExecutionInfo(
-            prev_node=PatcherAgentName.CREATE_PATCH.value,
+            prev_node=PatcherAgentName.CREATE_PATCH,
         ),
     )
 
@@ -351,7 +351,7 @@ def test_reflect_on_patch_invalid_component(reflection_agent: ReflectionAgent, m
             ),
         ],
         execution_info=ExecutionInfo(
-            prev_node=PatcherAgentName.CREATE_PATCH.value,
+            prev_node=PatcherAgentName.CREATE_PATCH,
         ),
     )
 

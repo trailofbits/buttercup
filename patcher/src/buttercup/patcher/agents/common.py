@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-from dataclasses import dataclass
+from enum import Enum
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from typing import Annotated, Sequence
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+from langgraph.managed import RemainingSteps
+from dataclasses import dataclass, field
+from langchain_core.runnables import Runnable
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
 from buttercup.patcher.utils import PatchInput, PatchOutput, CHAIN_CALL_TYPE
 from buttercup.common.challenge_task import ChallengeTask
-from enum import Enum
 import re
 import uuid
 
@@ -195,6 +202,10 @@ class PatcherAgentState(BaseModel):
     patch_attempts: Annotated[list[PatchAttempt], add_or_mod_patch] = Field(default_factory=list)
     execution_info: ExecutionInfo = Field(default_factory=ExecutionInfo)
 
+    # Needed to use in create_react_agent
+    messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
+    remaining_steps: RemainingSteps = 25
+
     def get_successful_patch(self) -> PatchOutput | None:
         """Get the successful patch."""
         if not self.patch_attempts:
@@ -316,6 +327,43 @@ class ContextCodeSnippet(BaseModel):
         )
 
 
+UNDERSTAND_CODE_SNIPPET_SYSTEM_MSG = """You are an AI agent in a multi-agent LLM-based autonomous patching system. Your task is to provide focused, detailed descriptions of code snippets based on specific areas of interest."""
+UNDERSTAND_CODE_SNIPPET_USER_MSG = """Your role is to understand the provided code and provide a \
+natural language description focusing specifically on the requested area of interest. \
+The description should be detailed and relevant to the focus area, while still maintaining \
+awareness of the broader context.
+
+Here is the code:
+<code>
+{CODE}
+</code>
+
+Here is the focus area to analyze:
+<focus_area>
+{FOCUS_AREA}
+</focus_area>
+
+Provide a natural language description that specifically addresses the focus area, wrapped in <description> tags. \
+The description should be detailed enough to help understand the specific functionality or behavior \
+related to the focus area.
+"""
+
+UNDERSTAND_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", UNDERSTAND_CODE_SNIPPET_SYSTEM_MSG),
+        ("user", UNDERSTAND_CODE_SNIPPET_USER_MSG),
+    ]
+)
+
+
+def _create_understand_code_snippet_chain() -> Runnable:
+    return (  # type: ignore[no-any-return]
+        UNDERSTAND_CODE_SNIPPET_PROMPT
+        | create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O_MINI.value)
+        | StrOutputParser()
+    )
+
+
 @dataclass
 class PatcherAgentBase:
     """Patcher Agent."""
@@ -323,3 +371,57 @@ class PatcherAgentBase:
     challenge: ChallengeTask
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
+
+    understand_code_snippet_chain: Runnable = field(default_factory=_create_understand_code_snippet_chain)
+
+    def _understand_code_snippet(self, state: PatcherAgentState, code_snippet_id: str, focus_area: str) -> str:
+        """Understand a specific aspect of a code snippet based on a focus area.
+
+        This function provides a detailed natural language description of the code snippet,
+        specifically focusing on the requested area of interest. The focus area should be
+        a clear description of what aspect of the code needs to be understood.
+
+        Examples of good focus areas:
+        - "What's the purpose of function X?"
+        - "How is the memory buffer `secret` allocated and freed in this code?"
+        - "How is the variable `secret` used in this code?"
+        - "How does the code handle concurrent access to the shared resource `counter`?"
+        - "What are the error handling mechanisms in the network code that deals with the first 100 bytes of the incoming message?"
+        - "How does the code prevent SQL injection in the database query to extract the user's name?"
+        - "How is the variable `s` checked for validity?"
+
+        Args:
+            code_snippet_id: The identifier of the code snippet to analyze
+            focus_area: A specific area of interest to focus the analysis on. This should be
+                a clear description of what aspect of the code needs to be understood.
+
+        Returns:
+            A natural language description of the code snippet, focused on the specified area.
+
+        Raises:
+            ValueError: If the code snippet with the given identifier is not found
+        """
+        code_snippet = next((cs for cs in state.relevant_code_snippets if cs.key.identifier == code_snippet_id), None)
+        if not code_snippet:
+            raise ValueError(f"Code snippet with identifier {code_snippet_id} not found")
+
+        res = self.understand_code_snippet_chain.invoke(
+            {
+                "CODE": code_snippet.code,
+                "FOCUS_AREA": focus_area,
+            }
+        )
+        # Extract description from response
+        match = re.search(r"<description>(.*?)</description>", res, re.DOTALL | re.IGNORECASE)
+        if match is None:
+            return "No description found"
+
+        res = f"""<code_snippet_understanding>
+<identifier>{code_snippet.key.identifier}</identifier>
+<file_path>{code_snippet.key.file_path}</file_path>
+<description>
+{match.group(1).strip()}
+</description>
+</code_snippet_understanding>
+"""
+        return res

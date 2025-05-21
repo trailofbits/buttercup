@@ -153,7 +153,7 @@ class Patcher:
                     f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}"
                 )
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}: {e}"
             )
 

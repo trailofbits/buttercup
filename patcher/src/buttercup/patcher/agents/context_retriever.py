@@ -89,8 +89,6 @@ Do not make up any file paths.
 Remember to use the provided tools only as defined, and do not attempt to modify or extend their functionality. If you encounter any errors or cannot find the requested information, explain the issue in your answer and suggest potential next steps or alternative approaches.
 Try to use `get_function`, `get_type` tools as much as possible and rely on others only if these tools fail or do not work as expected.
 You can use `track_lines` tool to track a code snippet from a file, but only if you cannot use the other tools and you have tested them recently.
-
-Stop only if `check_code_snippets` tool returns that you have found all the code snippets you need, or if you are completely sure what was requested is not present in the code.
 """
 
 CHECK_CODE_SNIPPETS_USER_MSG = """You are an AI assistant. Your job is to provide code snippets to the software engineer that answers the original request.
@@ -301,16 +299,9 @@ You should try to find the most relevant code snippet. Reasoning: \
 with the newly discovered information?"""
 
 
-@tool
-def check_code_snippets(state: Annotated[CodeSnippetManagerState, InjectedState]) -> str:
-    """Check if you have found at least one code snippet. This tool MUST be called before stopping."""
-    if len(state.code_snippets) == 0:
-        return """The request has NOT been satisfied yet. You MUST keep going.
-
-You haven't found any code snippets yet. You must call \
-`get_function`, `get_type`, `track_lines` tools to keep track of the code snippets. \
-Also, think more about the problem and the tools available to you. \
-You should try to find the most relevant code snippet."""
+def _check_code_snippets(request: str, code_snippets: list[ContextCodeSnippet]) -> tuple[bool, str]:
+    if len(code_snippets) == 0:
+        return False, "No code snippets found. Please try again."
 
     llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O_MINI.value)
     fallback_llms = [
@@ -321,22 +312,15 @@ You should try to find the most relevant code snippet."""
     try:
         res: CheckCodeSnippetsOutput = check_code_snippets_chain.invoke(
             {
-                "REQUEST": state.request,
-                "CODE_SNIPPETS": "\n".join(str(code_snippet) for code_snippet in state.code_snippets),
+                "REQUEST": request,
+                "CODE_SNIPPETS": "\n".join(str(code_snippet) for code_snippet in code_snippets),
             }
         )
     except Exception as e:
         logger.error("Error checking code snippets: %s", e)
-        return "Error checking code snippets. Please try again."
+        return False, "Error checking code snippets. Please try again."
 
-    if not res.success:
-        return f"""The request has NOT been satisfied yet. You MUST keep going.
-
-Reasoning:
-{res.reasoning}
-"""
-
-    return "You have found all the code snippets you need. You can stop now."
+    return res.success, res.reasoning
 
 
 def _return_command_tool_message(
@@ -349,6 +333,20 @@ def _return_command_tool_message(
         update_state["code_snippets"] = new_code_snippets
 
     return Command(update=update_state)
+
+
+def _check_snippets_and_return(
+    state: CodeSnippetManagerState, code_snippets: list[ContextCodeSnippet], tool_call_id: str
+) -> Command:
+    assert code_snippets, "code_snippets must be non-empty"
+    success, reasoning = _check_code_snippets(state.request, state.code_snippets + code_snippets)
+    if not success:
+        msg = f"Found {len(code_snippets)} code snippets, but the request has NOT been satisfied yet. You MUST keep going. \n\nReasoning: {reasoning}"
+        return _return_command_tool_message(tool_call_id, msg, code_snippets)
+
+    return _return_command_tool_message(
+        tool_call_id, f"Found {len(code_snippets)} code snippets. You MUST STOP NOW.", code_snippets
+    )
 
 
 @tool
@@ -559,11 +557,7 @@ def get_function(
     the function or not, but it won't provide the code snippet directly. The \
     function should be considered as retrieved anyway."""
     code_snippets = _get_function(function_name, file_path, state)
-    return _return_command_tool_message(
-        tool_call_id,
-        f"Found {len(code_snippets)} code snippets for function {function_name}. Use `check_code_snippets` tool to verify if you have found all the code snippets you need.",
-        code_snippets,
-    )
+    return _check_snippets_and_return(state, code_snippets, tool_call_id)
 
 
 @tool
@@ -650,11 +644,7 @@ def get_type(
     provide the code snippet directly. The type should be considered as \
     retrieved anyway."""
     code_snippets = _get_type(type_name, file_path, state)
-    return _return_command_tool_message(
-        tool_call_id,
-        f"Found {len(code_snippets)} code snippets for type {type_name}. Use `check_code_snippets` tool to verify if you have found all the code snippets you need.",
-        code_snippets,
-    )
+    return _check_snippets_and_return(state, code_snippets, tool_call_id)
 
 
 @dataclass
@@ -684,7 +674,6 @@ class ContextRetrieverAgent(PatcherAgentBase):
             get_callees,
             track_lines,
             think,
-            check_code_snippets,
         ]
         checkpointer = InMemorySaver()
         default_agent = create_react_agent(

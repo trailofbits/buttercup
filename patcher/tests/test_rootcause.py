@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 from unittest.mock import MagicMock, patch
+from langchain_core.messages import AIMessage
 import os
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableSequence
@@ -49,6 +50,13 @@ def mock_docker_run(challenge_task: ChallengeTask):
 
 
 @pytest.fixture
+def mock_agent_llm():
+    llm = MagicMock(spec=BaseChatModel)
+    llm.__or__.return_value = llm
+    return llm
+
+
+@pytest.fixture
 def mock_llm():
     llm = MagicMock(spec=BaseChatModel)
     llm.with_fallbacks.return_value = llm
@@ -75,13 +83,13 @@ def mock_root_cause_prompt(mock_llm: MagicMock):
 
 
 @pytest.fixture(autouse=True)
-def mock_llm_functions(mock_llm: MagicMock, mock_root_cause_prompt: MagicMock):
+def mock_llm_functions(mock_llm: MagicMock, mock_agent_llm: MagicMock):
     """Mock LLM creation functions and environment variables."""
     with (
         patch.dict(os.environ, {"BUTTERCUP_LITELLM_HOSTNAME": "http://test-host", "BUTTERCUP_LITELLM_KEY": "test-key"}),
         patch("buttercup.common.llm.create_default_llm", return_value=mock_llm),
         patch("buttercup.common.llm.create_llm", return_value=mock_llm),
-        patch("langgraph.prebuilt.chat_agent_executor._get_prompt_runnable", return_value=mock_llm),
+        patch("langgraph.prebuilt.chat_agent_executor._get_prompt_runnable", return_value=mock_agent_llm),
     ):
         import buttercup.patcher.agents.rootcause
 
@@ -161,6 +169,7 @@ def root_cause_agent(mock_challenge: ChallengeTask, mock_llm: MagicMock, tmp_pat
         input=patch_input,
         chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
     )
+    agent.root_cause_chain = MagicMock()
     yield agent
 
 
@@ -194,7 +203,10 @@ def test_analyze_vulnerability_success(
     )
 
     # Mock LLM response with a complete root cause analysis
-    mock_llm.invoke.return_value = """
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = [
+        AIMessage(
+            content="""
 <vulnerability_analysis>
 <code_snippet_requests></code_snippet_requests>
 <classification>Buffer Overflow / Stack Overflow</classification>
@@ -205,6 +217,8 @@ def test_analyze_vulnerability_success(
 <security_constraints>Buffer size must be validated before copy</security_constraints>
 </vulnerability_analysis>
     """
+        ),
+    ]
 
     result = root_cause_agent.analyze_vulnerability(state)
 
@@ -244,7 +258,10 @@ def test_analyze_vulnerability_missing_info(
     )
 
     # Mock LLM response requesting more information
-    mock_llm.invoke.return_value = """
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = [
+        AIMessage(
+            content="""
 <vulnerability_analysis>
 <code_snippet_requests>Need to see the implementation of foo() to understand the vulnerability</code_snippet_requests>
 <classification></classification>
@@ -255,6 +272,8 @@ def test_analyze_vulnerability_missing_info(
 <security_constraints></security_constraints>
 </vulnerability_analysis>
     """
+        ),
+    ]
 
     result = root_cause_agent.analyze_vulnerability(state)
 
@@ -286,7 +305,8 @@ def test_analyze_vulnerability_no_root_cause(
     )
 
     # Mock LLM response returning None
-    mock_llm.invoke.return_value = None
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = []
 
     with pytest.raises(Exception):
         root_cause_agent.analyze_vulnerability(state)
@@ -310,7 +330,8 @@ def test_analyze_vulnerability_malformed_response(
     )
 
     # Mock LLM response with invalid data
-    mock_llm.invoke.return_value = "Invalid response format"
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = [AIMessage(content="""Invalid response format""")]
 
     result = root_cause_agent.analyze_vulnerability(state)
 
@@ -331,8 +352,10 @@ def test_analyze_vulnerability_empty_snippets(
     )
 
     # Mock LLM response requesting more information
-    mock_llm.invoke.return_value = """
-<vulnerability_analysis>
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = [
+        AIMessage(
+            content="""<vulnerability_analysis>
 <code_snippet_requests>Need code snippets to analyze the vulnerability</code_snippet_requests>
 <classification></classification>
 <root_cause></root_cause>
@@ -342,6 +365,8 @@ def test_analyze_vulnerability_empty_snippets(
 <security_constraints></security_constraints>
 </vulnerability_analysis>
     """
+        ),
+    ]
 
     result = root_cause_agent.analyze_vulnerability(state)
 
@@ -370,8 +395,10 @@ def test_analyze_vulnerability_malformed_but_structured_response(
     )
 
     # Mock LLM response with malformed but JSON-like data
-    mock_llm.invoke.return_value = """
-<vulnerability_analysis>
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = [
+        AIMessage(
+            content="""<vulnerability_analysis>
 <classification>Buffer Overflow / Stack Overflow</classification>
 <root_cause>The vulnerability occurs in the buffer copy operation where there is insufficient bounds checking. The code fails to validate the input size before copying data into a fixed-size buffer.</root_cause>
 <affected_variables>buffer: The destination buffer that gets overflowed, size: The input size parameter that isn't properly validated, input_data: The source data being copied</affected_variables>
@@ -380,6 +407,8 @@ def test_analyze_vulnerability_malformed_but_structured_response(
 <security_constraints>Buffer size must be validated before copy</security_constraints>
 </vulnerability_analysis>
     """
+        ),
+    ]
 
     result = root_cause_agent.analyze_vulnerability(state)
 

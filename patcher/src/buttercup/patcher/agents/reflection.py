@@ -95,10 +95,7 @@ To ensure a thorough and transparent reflection process, work through your analy
 7. For the next component, consider pros and cons for each available component.
 8. Rate each component's suitability on a scale of 1-5.
 9. Carefully consider if the next component might need additional information, and if so list the information needed. In that case, the next component should be the context_retriever.
-10. If multiple previous attempts were redirected to the same component (e.g., \
-create_patch), consider to go back to an earlier component (e.g., \
-root_cause_analysis or patch_strategy) due to potential issues with the root \
-cause analysis or patch strategy.
+10. If you have identified a pattern across multiple failures, consider to go back to an earlier component (e.g., root_cause_analysis or patch_strategy) due to potential issues with the root cause analysis or patch strategy.
 
 After your analysis, generate a structured reflection result using the following format:
 

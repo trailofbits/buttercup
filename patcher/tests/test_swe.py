@@ -7,7 +7,7 @@ import subprocess
 from unittest.mock import MagicMock, patch
 import os
 from langchain_core.language_models import BaseChatModel
-
+from langchain_core.messages import AIMessage
 from buttercup.patcher.agents.common import ContextCodeSnippet
 from buttercup.patcher.patcher import PatchInput
 from buttercup.common.challenge_task import ChallengeTask
@@ -671,7 +671,8 @@ def test_select_patch_strategy_basic(swe_agent: SWEAgent, patcher_agent_state: P
         "</patch_strategy>"
     )
     swe_agent.patch_strategy_chain = MagicMock()
-    swe_agent.patch_strategy_chain.invoke.return_value = patch_strategy_str
+    swe_agent.patch_strategy_chain.invoke.return_value = patcher_agent_state
+    patcher_agent_state.messages = [AIMessage(content=patch_strategy_str)]
 
     # Call the method
     config = None  # Not used in the test

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import difflib
+import uuid
+from langchain_core.messages import BaseMessage
+from langgraph.prebuilt import InjectedState
+from langchain_core.prompts import MessagesPlaceholder
 import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from langgraph.types import Command
 
@@ -16,7 +20,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
@@ -33,6 +37,8 @@ from buttercup.patcher.agents.common import (
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
+from langgraph.prebuilt import create_react_agent
+from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +143,7 @@ Here is the information you need to analyze:
 Your task is to develop a precise patch strategy that addresses ONLY the vulnerability. Follow these steps:
 
 1. Analyze the provided information and code snippets.
-2. Understand the intended behavior of the code.
+2. Call `understand_code_snippet` tool to understand the relevant code snippets in more detail.
 3. Identify the exact lines of code that need to be modified to fix the vulnerability.
 4. Determine the specific changes required to those lines.
 5. Consider any dependencies or side effects that might affect the fix.
@@ -166,7 +172,7 @@ Once you have completed your analysis, provide your patch strategy in the follow
 <patch_strategy>
 <full>
 [Explain your proposed patch strategy in detail. It is ok for this section to be long. Include:
-- The intended behavior of the code
+- The intended behavior of the code relevant to the vulnerability
 - The exact lines of code that need to be modified
 - The specific changes required to fix the vulnerability
 - Any dependencies or side effects that need to be considered
@@ -182,12 +188,15 @@ Remember: Focus ONLY on fixing the specific vulnerability. Do not include:
 - Documentation updates
 - Performance optimizations
 - Any other changes not directly related to fixing the vulnerability
+
+Use available tools to understand the code snippets.
 """
 
 PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", PATCH_STRATEGY_SYSTEM_MSG),
         ("user", PATCH_STRATEGY_USER_MSG),
+        MessagesPlaceholder(variable_name="messages"),
         ("ai", "<patch_development_process>"),
     ]
 )
@@ -206,7 +215,9 @@ When producing the patch, include these changes as well, because they are not ap
 
 <previous_patch>
 <description>{description}</description>
-<patch>{patch}</patch>
+<patch>
+{patch}
+</patch>
 <status>{status}</status>
 <failure_category>{failure_category}</failure_category>
 <failure_analysis>{failure_analysis}</failure_analysis>
@@ -307,6 +318,14 @@ class SWEAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
+
+        @tool(description=self._understand_code_snippet.__doc__)
+        def understand_code_snippet(
+            code_snippet_id: str, focus_area: str, *, state: Annotated[BaseModel, InjectedState]
+        ) -> str:
+            assert isinstance(state, PatcherAgentState)
+            return self._understand_code_snippet(state, code_snippet_id, focus_area)
+
         self.default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
         fallback_llms: list[Runnable] = []
         for fb_model in [
@@ -317,6 +336,39 @@ class SWEAgent(PatcherAgentBase):
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
         self.patch_strategy_chain = PATCH_STRATEGY_PROMPT | self.llm | StrOutputParser()
+
+        tools = [
+            understand_code_snippet,
+        ]
+        default_strategy_agent = create_react_agent(
+            model=self.default_llm,
+            state_schema=PatcherAgentState,
+            tools=tools,
+            prompt=self._patch_strategy_prompt,
+        )
+        fallback_strategy_agents = [
+            create_react_agent(
+                model=llm,
+                state_schema=PatcherAgentState,
+                tools=tools,
+                prompt=self._patch_strategy_prompt,
+            )
+            for llm in fallback_llms
+        ]
+        self.patch_strategy_chain = default_strategy_agent.with_fallbacks(fallback_strategy_agents)
+
+    def _patch_strategy_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
+        return PATCH_STRATEGY_PROMPT.format_messages(
+            PROJECT_NAME=self.challenge.name,
+            ROOT_CAUSE_ANALYSIS=str(state.root_cause),
+            CODE_SNIPPETS="\n".join(map(str, state.relevant_code_snippets)),
+            REFLECTION_GUIDANCE=REFLECTION_GUIDANCE_TMPL.format(
+                REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
+            )
+            if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
+            else "",
+            messages=state.messages,
+        )
 
     def _parse_description(self, patch_str: str) -> str | None:
         """Parse the description from the patch string."""
@@ -646,24 +698,37 @@ class SWEAgent(PatcherAgentBase):
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.PATCH_STRATEGY
 
-        patch_strategy_str = self.patch_strategy_chain.invoke(
-            {
-                "PROJECT_NAME": self.challenge.name,
-                "ROOT_CAUSE_ANALYSIS": str(state.root_cause),
-                "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
-                "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
-                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
-                )
-                if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
-                else "",
-            },
-            default="",
+        configurable = {
+            "llm_temperature": pick_temperature(),
+            "thread_id": str(uuid.uuid4()),
+        }
+        strategy_state_dict = self.patch_strategy_chain.invoke(
+            state,
             config=RunnableConfig(
-                configurable={
-                    "llm_temperature": pick_temperature(),
-                },
+                configurable=configurable,
             ),
         )
+        try:
+            strategy_state = PatcherAgentState.model_validate(strategy_state_dict)
+        except ValidationError as e:
+            logger.error("Invalid state dict for patch strategy: %s", e)
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
+        if not strategy_state or not strategy_state.messages:
+            logger.error("No messages returned from the patch strategy chain")
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
+        patch_strategy_str = str(strategy_state.messages[-1].content)
         if "<request_information>" in patch_strategy_str:
             new_code_snippet_requests = self._parse_code_snippet_requests(patch_strategy_str)
             logger.info(

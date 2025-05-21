@@ -1,10 +1,15 @@
 """Software Engineer LLM agent, analyzing the root cause of a vulnerability."""
 
 import logging
-from typing import Literal
+from typing import Annotated, Literal
+from langgraph.prebuilt import InjectedState
+from langchain_core.prompts import MessagesPlaceholder
+from pydantic import BaseModel, ValidationError
+from langchain_core.messages import BaseMessage
+from langgraph.prebuilt import create_react_agent
+from langchain_core.tools import tool
 from dataclasses import dataclass, field
 from buttercup.common.stack_parsing import parse_stacktrace
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
 )
@@ -55,7 +60,7 @@ Your task is to analyze this information and provide a detailed root cause analy
 
 Before providing your final output, wrap your thinking process inside <vulnerability_breakdown> tags. In this section:
 
-1. Understand the original intention of the code:
+1. Understand the original intention of the code (use the `understand_code_snippet` tool):
    - Analyze the purpose and functionality of the code involved in the vulnerability.
    - Identify key components and their intended interactions.
 
@@ -105,7 +110,7 @@ After your analysis, provide your final output in the following format:
 </classification>
 
 <root_cause>
-[Comprehensive explanation of how and why the vulnerability occurs. Include:
+[Comprehensive explanation of how and why the vulnerability occurs. It is fine for this section to be long. Include:
 1. The exact point of failure in the code
 2. The sequence of operations that leads to the vulnerability
 3. Why existing security controls fail to prevent it
@@ -158,6 +163,7 @@ ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", ROOT_CAUSE_SYSTEM_MSG),
         ("user", ROOT_CAUSE_USER_MSG),
+        MessagesPlaceholder(variable_name="messages"),
         ("ai", "<vulnerability_breakdown>"),
     ]
 )
@@ -186,7 +192,53 @@ class RootCauseAgent(PatcherAgentBase):
         ]
         self.llm = default_llm.with_fallbacks(fallback_llms)
 
-        self.root_cause_chain = ROOT_CAUSE_PROMPT | self.llm | StrOutputParser() | self._parse_root_cause_analysis
+        @tool(description=self._understand_code_snippet.__doc__)
+        def understand_code_snippet(
+            code_snippet_id: str, focus_area: str, *, state: Annotated[BaseModel, InjectedState]
+        ) -> str:
+            assert isinstance(state, PatcherAgentState)
+            return self._understand_code_snippet(state, code_snippet_id, focus_area)
+
+        tools = [
+            understand_code_snippet,
+        ]
+        default_agent = create_react_agent(
+            model=default_llm,
+            state_schema=PatcherAgentState,
+            tools=tools,
+            prompt=self._root_cause_prompt,
+        )
+        fallback_agents = [
+            create_react_agent(
+                model=llm,
+                state_schema=PatcherAgentState,
+                tools=tools,
+                prompt=self._root_cause_prompt,
+            )
+            for llm in fallback_llms
+        ]
+        self.root_cause_chain = default_agent.with_fallbacks(fallback_agents)
+
+    def _root_cause_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
+        diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
+        stacktrace = parse_stacktrace(state.context.sanitizer_output)
+        stacktrace_lines = [
+            (stackframe.filename, int(stackframe.fileline))
+            for frame in stacktrace.frames
+            for stackframe in frame
+            if stackframe.filename is not None and stackframe.fileline is not None
+        ]
+        return ROOT_CAUSE_PROMPT.format_messages(
+            DIFF=diff_content,
+            PROJECT_NAME=self.challenge.project_name,
+            SANITIZER=state.context.sanitizer,
+            SANITIZER_OUTPUT=state.cleaned_stacktrace,
+            CODE_SNIPPETS="\n".join(
+                [self._comment_code_snippet(state, stacktrace_lines, cs) for cs in state.relevant_code_snippets]
+            ),
+            REFLECTION_GUIDANCE=self._get_reflection_guidance_prompt(state),
+            messages=state.messages,
+        )
 
     def _parse_root_cause_analysis(self, response: str) -> RootCauseAnalysis:
         """Parse the root cause analysis from the response."""
@@ -270,32 +322,27 @@ class RootCauseAgent(PatcherAgentBase):
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.ROOT_CAUSE_ANALYSIS
 
-        stacktrace = parse_stacktrace(state.context.sanitizer_output)
-        stacktrace_lines = [
-            (stackframe.filename, int(stackframe.fileline))
-            for frame in stacktrace.frames
-            for stackframe in frame
-            if stackframe.filename is not None and stackframe.fileline is not None
-        ]
-
-        diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
-        root_cause: RootCauseAnalysis = self.root_cause_chain.invoke(
-            {
-                "DIFF": diff_content,
-                "PROJECT_NAME": self.challenge.project_name,
-                "SANITIZER": state.context.sanitizer,
-                "SANITIZER_OUTPUT": state.cleaned_stacktrace,
-                "CODE_SNIPPETS": "\n".join(
-                    [self._comment_code_snippet(state, stacktrace_lines, cs) for cs in state.relevant_code_snippets]
-                ),
-                "REFLECTION_GUIDANCE": self._get_reflection_guidance_prompt(state),
-            },
+        root_cause_dict = self.root_cause_chain.invoke(
+            state,
             config=RunnableConfig(
                 configurable={
                     "llm_temperature": pick_temperature(),
                 },
             ),
         )
+        try:
+            state = PatcherAgentState.model_validate(root_cause_dict)
+        except ValidationError as e:
+            logger.error("Invalid state dict for root cause: %s", e)
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
+        root_cause_str = str(state.messages[-1].content)
+        root_cause = self._parse_root_cause_analysis(root_cause_str)
         if root_cause.code_snippet_requests:
             return Command(
                 update={

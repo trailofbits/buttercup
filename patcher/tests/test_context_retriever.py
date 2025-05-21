@@ -11,7 +11,7 @@ import os
 from typing import Iterator
 
 from langchain_core.language_models import BaseChatModel
-from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
+from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent, CheckCodeSnippetsOutput
 from buttercup.patcher.agents.common import (
     ContextRetrieverState,
     CodeSnippetRequest,
@@ -63,6 +63,7 @@ def mock_cheap_llm():
     llm = MagicMock(spec=BaseChatModel)
     llm.with_fallbacks.return_value = llm
     llm.configurable_fields.return_value = llm
+    llm.with_structured_output.return_value = llm
 
     llm.invoke.return_value = "FALSE"
     return llm
@@ -86,20 +87,45 @@ def mock_duplicate_code_snippet_prompt(mock_cheap_llm: MagicMock):
     return prompt
 
 
+@pytest.fixture
+def mock_check_code_snippet_llm():
+    prompt = MagicMock(spec=Runnable)
+    llm = MagicMock(spec=BaseChatModel)
+    llm.with_fallbacks.return_value = llm
+    llm.configurable_fields.return_value = llm
+    llm.with_structured_output.return_value = llm
+
+    llm.invoke.return_value = CheckCodeSnippetsOutput(
+        reasoning="",
+        found_all=True,
+        fully_answered_request=True,
+        fully_implemented=True,
+        success=True,
+    )
+
+    prompt.__or__.side_effect = lambda other: llm
+    llm.__or__.side_effect = lambda other: llm
+    return prompt
+
+
 @pytest.fixture(autouse=True)
 def mock_llm_functions(
-    mock_agent_llm: MagicMock, mock_cheap_llm: MagicMock, mock_duplicate_code_snippet_prompt: MagicMock
+    mock_agent_llm: MagicMock,
+    mock_cheap_llm: MagicMock,
+    mock_check_code_snippet_llm: MagicMock,
+    mock_duplicate_code_snippet_prompt: MagicMock,
 ):
     """Mock LLM creation functions and environment variables."""
     with (
         patch.dict(os.environ, {"BUTTERCUP_LITELLM_HOSTNAME": "http://test-host", "BUTTERCUP_LITELLM_KEY": "test-key"}),
-        patch("buttercup.common.llm.create_default_llm", side_effect=[mock_cheap_llm, mock_cheap_llm, mock_cheap_llm]),
-        patch("buttercup.common.llm.create_llm", side_effect=[mock_cheap_llm, mock_cheap_llm, mock_cheap_llm]),
+        patch("buttercup.common.llm.create_default_llm", return_value=mock_cheap_llm),
+        patch("buttercup.common.llm.create_llm", return_value=mock_cheap_llm),
         patch("langgraph.prebuilt.chat_agent_executor._get_prompt_runnable", return_value=mock_agent_llm),
     ):
         import buttercup.patcher.agents.context_retriever
 
         buttercup.patcher.agents.context_retriever.DUPLICATE_CODE_SNIPPET_PROMPT = mock_duplicate_code_snippet_prompt
+        buttercup.patcher.agents.context_retriever.CHECK_CODE_SNIPPETS_PROMPT = mock_check_code_snippet_llm
         yield
 
 
@@ -332,6 +358,7 @@ def mock_runnable_config(tmp_path: Path) -> dict:
         "configurable": {
             "thread_id": "test-thread-id",
             "work_dir": tmp_path / "work_dir",
+            "max_concurrency": 1,
         },
     }
 
@@ -614,7 +641,9 @@ def test_dupped_code_snippets(
     assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
 
-def test_get_type(mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config) -> None:
+def test_get_type(
+    mock_agent: ContextRetrieverAgent, mock_cheap_llm: MagicMock, mock_agent_llm: MagicMock, mock_runnable_config
+) -> None:
     """Test that we can get the type definition."""
     state = ContextRetrieverState(
         code_snippet_requests=[
