@@ -4,8 +4,25 @@ from enum import Enum
 import uuid
 
 import openlit
+import opentelemetry.attributes
 from opentelemetry import trace
 from opentelemetry.trace import Span, Tracer, Status, StatusCode
+from langchain_core.prompt_values import ChatPromptValue
+
+# Monkey patch the _clean_attribute function to handle ChatPromptValue
+_clean_attribute_orig = opentelemetry.attributes._clean_attribute
+
+
+def _clean_attribute_wrapper(key: str, value, max_len=None):
+    """Wrapper around _clean_attribute to add custom behavior"""
+    if isinstance(value, ChatPromptValue):
+        value = value.to_string()
+
+    return _clean_attribute_orig(key, value, max_len)
+
+
+opentelemetry.attributes._clean_attribute = _clean_attribute_wrapper
+
 
 logger = logging.getLogger(__name__)
 service_instance_id = os.getenv("SERVICE_INSTANCE_ID", str(uuid.uuid4()))
