@@ -1,6 +1,7 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQuery
 from ..common import (
     common_test_get_callers,
     common_test_get_callees,
@@ -38,11 +39,15 @@ from ..common import (
 )
 @pytest.mark.integration
 def test_get_functions(
-    libxml2_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
+    libxml2_oss_fuzz_task: ChallengeTask,
+    libxml2_oss_fuzz_cq: CodeQuery,
+    function_name,
+    file_path,
+    function_info,
 ):
     """Test that we can get functions in challenge task code"""
     common_test_get_functions(
-        libxml2_oss_fuzz_task, function_name, file_path, function_info
+        libxml2_oss_fuzz_cq, function_name, file_path, function_info
     )
 
 
@@ -68,6 +73,7 @@ def test_get_functions(
 @pytest.mark.integration
 def test_get_callers(
     libxml2_oss_fuzz_task: ChallengeTask,
+    libxml2_oss_fuzz_cq: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -78,6 +84,7 @@ def test_get_callers(
     """Test that we can get function callers."""
     common_test_get_callers(
         libxml2_oss_fuzz_task,
+        libxml2_oss_fuzz_cq,
         function_name,
         file_path,
         line_number,
@@ -114,6 +121,7 @@ def test_get_callers(
 @pytest.mark.integration
 def test_get_callees(
     libxml2_oss_fuzz_task: ChallengeTask,
+    libxml2_oss_fuzz_cq: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -124,6 +132,7 @@ def test_get_callees(
     """Test that we can get function callees."""
     common_test_get_callees(
         libxml2_oss_fuzz_task,
+        libxml2_oss_fuzz_cq,
         function_name,
         file_path,
         line_number,
@@ -189,6 +198,7 @@ def test_get_callees(
 @pytest.mark.integration
 def test_get_type_definitions(
     libxml2_oss_fuzz_task: ChallengeTask,
+    libxml2_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -197,6 +207,7 @@ def test_get_type_definitions(
     """Test that we can get type defs"""
     common_test_get_type_definitions(
         libxml2_oss_fuzz_task,
+        libxml2_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,
@@ -225,6 +236,7 @@ def test_get_type_definitions(
 @pytest.mark.integration
 def test_get_type_usages(
     libxml2_oss_fuzz_task: ChallengeTask,
+    libxml2_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -234,6 +246,7 @@ def test_get_type_usages(
     """Test that we can get function callees from zookeeper"""
     common_test_get_type_usages(
         libxml2_oss_fuzz_task,
+        libxml2_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,

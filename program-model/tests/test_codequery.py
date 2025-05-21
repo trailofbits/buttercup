@@ -500,10 +500,9 @@ def test_get_types_java(mock_java_challenge_task: ChallengeTask):
 
 
 @pytest.mark.integration
-def test_antlr4_indexing(antlr4_oss_fuzz_task: ChallengeTask):
+def test_antlr4_indexing(antlr4_oss_fuzz_cq: CodeQuery):
     """Test that we can index antlr4 and files inside oss-fuzz repo"""
-    codequery = CodeQuery(antlr4_oss_fuzz_task)
-    functions = codequery.get_functions("fuzzerTestOneInput")
+    functions = antlr4_oss_fuzz_cq.get_functions("fuzzerTestOneInput")
     assert len(functions) == 1
     assert functions[0].name == "fuzzerTestOneInput"
     assert functions[0].file_path == Path("/src/GrammarFuzzer.java")

@@ -44,10 +44,9 @@ TestFunctionInfo.__test__ = False
 
 
 def common_test_get_functions(
-    fuzz_task: ChallengeTask, function_name, file_path, function_info
+    codequery: CodeQuery, function_name, file_path, function_info
 ):
     """Generic function for testing get_functions() in C codebases"""
-    codequery = CodeQuery(fuzz_task)
     if file_path:
         file_path = Path(file_path)
     functions = codequery.get_functions(function_name, file_path=file_path)
@@ -73,6 +72,7 @@ TestCallerInfo.__test__ = False
 
 def common_test_get_callers(
     fuzz_task: ChallengeTask,
+    codequery: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -81,7 +81,6 @@ def common_test_get_callers(
     num_callers: int | None = None,
 ):
     """Test that we can get function callers"""
-    codequery = CodeQuery(fuzz_task)
     function = codequery.get_functions(
         function_name=function_name,
         file_path=Path(file_path),
@@ -139,6 +138,7 @@ TestCalleeInfo.__test__ = False
 # make the tests diverge in the future
 def common_test_get_callees(
     fuzz_task: ChallengeTask,
+    codequery: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -147,7 +147,6 @@ def common_test_get_callees(
     num_callees: int | None = None,
 ):
     """Test that we can get function callees."""
-    codequery = CodeQuery(fuzz_task)
     function = codequery.get_functions(
         function_name=function_name,
         file_path=Path(file_path),
@@ -204,13 +203,13 @@ TestTypeDefinitionInfo.__test__ = False
 
 def common_test_get_type_definitions(
     fuzz_task: ChallengeTask,
+    codequery: CodeQuery,
     type_name,
     file_path,
     fuzzy,
     type_definition_info,
 ):
     """Test that we can get type defs"""
-    codequery = CodeQuery(fuzz_task)
     type_definitions = codequery.get_types(
         type_name=type_name,
         file_path=Path(file_path) if file_path else None,
@@ -255,6 +254,7 @@ TestTypeUsageInfo.__test__ = False
 
 def common_test_get_type_usages(
     fuzz_task: ChallengeTask,
+    codequery: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -262,7 +262,6 @@ def common_test_get_type_usages(
     num_type_usages: int | None = None,
 ):
     """Test that we can get type usages"""
-    codequery = CodeQuery(fuzz_task)
     type_definition = codequery.get_types(
         type_name=type_name,
         file_path=Path(file_path) if file_path else None,

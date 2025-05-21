@@ -3,6 +3,7 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQuery
 from .common import (
     common_test_get_functions,
     common_test_get_type_definitions,
@@ -45,11 +46,15 @@ from .common import (
 )
 @pytest.mark.integration
 def test_libpng_get_functions(
-    libpng_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
+    libpng_oss_fuzz_task: ChallengeTask,
+    libpng_oss_fuzz_cq: CodeQuery,
+    function_name,
+    file_path,
+    function_info,
 ):
     """Test that we can get functions in challenge task code"""
     common_test_get_functions(
-        libpng_oss_fuzz_task, function_name, file_path, function_info
+        libpng_oss_fuzz_cq, function_name, file_path, function_info
     )
 
 
@@ -85,6 +90,7 @@ def test_libpng_get_functions(
 @pytest.mark.integration
 def test_get_type_definitions(
     libpng_oss_fuzz_task: ChallengeTask,
+    libpng_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -93,6 +99,7 @@ def test_get_type_definitions(
     """Test that we can get type defs"""
     common_test_get_type_definitions(
         libpng_oss_fuzz_task,
+        libpng_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,

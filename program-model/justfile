@@ -13,7 +13,13 @@ lint:
     uv run mypy
 
 test:
+    # To debug
     # uv run pytest -svv --log-cli-level=DEBUG --runintegration
+
+    # To save unit test results
+    # PYTEST_DEBUG_TEMPROOT="/crs_scratch/" uv run pytest -svv --runintegration
+
+    # To run tests
     uv run pytest -svv --runintegration
 
 install-gh:

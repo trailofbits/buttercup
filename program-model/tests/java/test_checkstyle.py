@@ -3,6 +3,7 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQuery
 from ..common import (
     TestFunctionInfo,
     common_test_get_functions,
@@ -46,11 +47,15 @@ from ..common import (
 )
 @pytest.mark.integration
 def test_get_functions(
-    checkstyle_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
+    checkstyle_oss_fuzz_task: ChallengeTask,
+    checkstyle_oss_fuzz_cq: CodeQuery,
+    function_name,
+    file_path,
+    function_info,
 ):
     """Test that we can get functions in challenge task code"""
     common_test_get_functions(
-        checkstyle_oss_fuzz_task, function_name, file_path, function_info
+        checkstyle_oss_fuzz_cq, function_name, file_path, function_info
     )
 
 
@@ -79,6 +84,7 @@ def test_get_functions(
 @pytest.mark.integration
 def test_get_callers(
     checkstyle_oss_fuzz_task: ChallengeTask,
+    checkstyle_oss_fuzz_cq: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -89,6 +95,7 @@ def test_get_callers(
     """Test that we can get function callers"""
     common_test_get_callers(
         checkstyle_oss_fuzz_task,
+        checkstyle_oss_fuzz_cq,
         function_name,
         file_path,
         line_number,
@@ -120,6 +127,7 @@ def test_get_callers(
 @pytest.mark.integration
 def test_get_callees(
     checkstyle_oss_fuzz_task: ChallengeTask,
+    checkstyle_oss_fuzz_cq: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -130,6 +138,7 @@ def test_get_callees(
     """Test that we can get function callees."""
     common_test_get_callees(
         checkstyle_oss_fuzz_task,
+        checkstyle_oss_fuzz_cq,
         function_name,
         file_path,
         line_number,
@@ -159,6 +168,7 @@ def test_get_callees(
 @pytest.mark.integration
 def test_get_type_definitions(
     checkstyle_oss_fuzz_task: ChallengeTask,
+    checkstyle_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -167,6 +177,7 @@ def test_get_type_definitions(
     """Test that we can get type defs"""
     common_test_get_type_definitions(
         checkstyle_oss_fuzz_task,
+        checkstyle_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,
@@ -198,6 +209,7 @@ def test_get_type_definitions(
 @pytest.mark.integration
 def test_get_type_usages(
     checkstyle_oss_fuzz_task: ChallengeTask,
+    checkstyle_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -207,6 +219,7 @@ def test_get_type_usages(
     """Test that we can get type usages"""
     common_test_get_type_usages(
         checkstyle_oss_fuzz_task,
+        checkstyle_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,

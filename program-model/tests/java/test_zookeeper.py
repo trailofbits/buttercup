@@ -3,6 +3,7 @@
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQuery
 from buttercup.program_model.utils.common import TypeDefinitionType
 from ..common import (
     common_test_get_type_definitions,
@@ -43,11 +44,15 @@ from ..common import (
 )
 @pytest.mark.integration
 def test_get_functions(
-    zookeeper_oss_fuzz_task: ChallengeTask, function_name, file_path, function_info
+    zookeeper_oss_fuzz_task: ChallengeTask,
+    zookeeper_oss_fuzz_cq: CodeQuery,
+    function_name,
+    file_path,
+    function_info,
 ):
     """Test that we can get functions in challenge task code"""
     common_test_get_functions(
-        zookeeper_oss_fuzz_task, function_name, file_path, function_info
+        zookeeper_oss_fuzz_cq, function_name, file_path, function_info
     )
 
 
@@ -73,6 +78,7 @@ def test_get_functions(
 @pytest.mark.integration
 def test_get_callers(
     zookeeper_oss_fuzz_task: ChallengeTask,
+    zookeeper_oss_fuzz_cq: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -83,6 +89,7 @@ def test_get_callers(
     """Test that we can get function callers"""
     common_test_get_callers(
         zookeeper_oss_fuzz_task,
+        zookeeper_oss_fuzz_cq,
         function_name,
         file_path,
         line_number,
@@ -114,6 +121,7 @@ def test_get_callers(
 @pytest.mark.integration
 def test_get_callees(
     zookeeper_oss_fuzz_task: ChallengeTask,
+    zookeeper_oss_fuzz_cq: CodeQuery,
     function_name,
     file_path,
     line_number,
@@ -124,6 +132,7 @@ def test_get_callees(
     """Test that we can get function callees."""
     common_test_get_callees(
         zookeeper_oss_fuzz_task,
+        zookeeper_oss_fuzz_cq,
         function_name,
         file_path,
         line_number,
@@ -153,6 +162,7 @@ def test_get_callees(
 @pytest.mark.integration
 def test_get_type_definitions(
     zookeeper_oss_fuzz_task: ChallengeTask,
+    zookeeper_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
@@ -161,6 +171,7 @@ def test_get_type_definitions(
     """Test that we can get type defs"""
     common_test_get_type_definitions(
         zookeeper_oss_fuzz_task,
+        zookeeper_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,
@@ -209,15 +220,17 @@ def test_get_type_definitions(
 @pytest.mark.integration
 def test_get_type_usages(
     zookeeper_oss_fuzz_task: ChallengeTask,
+    zookeeper_oss_fuzz_cq: CodeQuery,
     type_name,
     file_path,
     fuzzy,
     type_usage_infos,
     num_type_usages,
 ):
-    """Test that we can get function callees from zookeeper"""
+    """Test that we can get type usages"""
     common_test_get_type_usages(
         zookeeper_oss_fuzz_task,
+        zookeeper_oss_fuzz_cq,
         type_name,
         file_path,
         fuzzy,
