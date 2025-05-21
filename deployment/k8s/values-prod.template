@@ -141,7 +141,7 @@ fuzzer-bot:
   resources:
     limits:
       cpu: 4000m
-      memory: 16Gi
+      memory: 32Gi
     requests:
       cpu: 500m
       memory: 2Gi
