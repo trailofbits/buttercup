@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 def _api_task_to_proto(task: Task) -> list[TaskProto]:
     res = []
     for task_detail in task.tasks:
+        if not task_detail.harnesses_included:
+            logger.debug("Skipping Unharnessed Task %s", task_detail.task_id.lower())
+            continue
         task_proto = TaskProto()
         task_proto.message_id = task.message_id
         task_proto.message_time = task.message_time
