@@ -180,10 +180,15 @@ class ReliableQueue(Generic[MsgType]):
             # Create consumer group if it doesn't exist
             try:
                 self.redis.xgroup_create(self.queue_name, self.group_name, mkstream=True, id="0")
-            except RedisError:
+            except RedisError as e:
                 # Group may already exist
-                logger.exception("Failed to create consumer group %s for queue %s", self.group_name, self.queue_name)
-                pass
+                if "BUSYGROUP Consumer Group name already exists" in str(e):
+                    pass
+                else:
+                    logger.exception(
+                        "Failed to create consumer group %s for queue %s", self.group_name, self.queue_name
+                    )
+                    pass
 
     def size(self) -> int:
         return self.redis.xlen(self.queue_name)
