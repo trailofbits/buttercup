@@ -16,7 +16,6 @@ class TestMergerBot(unittest.TestCase):
         self.lock_mock = MagicMock()
 
         # Common test parameters
-        self.wdir = "/tmp/test_wdir"
         self.python = "/usr/bin/python3"
         self.crs_scratch_dir = "/tmp/test_crs_scratch"
         self.timer_seconds = 10
@@ -25,9 +24,7 @@ class TestMergerBot(unittest.TestCase):
         # Create the MergerBot instance with mocked runner
         with patch("buttercup.fuzzing_infra.corpus_merger.Runner") as runner_class_mock:
             runner_class_mock.return_value = self.runner_mock
-            self.merger_bot = MergerBot(
-                self.redis_mock, self.timeout_seconds, self.wdir, self.python, self.crs_scratch_dir
-            )
+            self.merger_bot = MergerBot(self.redis_mock, self.timeout_seconds, self.python, self.crs_scratch_dir)
 
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
     @patch("buttercup.fuzzing_infra.corpus_merger.MergedCorpusSetLock")
@@ -102,12 +99,12 @@ class TestMergerBot(unittest.TestCase):
     @patch("buttercup.fuzzing_infra.corpus_merger.MergedCorpusSetLock")
     @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("buttercup.fuzzing_infra.corpus_merger.BaseCorpus")
-    @patch("buttercup.fuzzing_infra.corpus_merger.tempfile.TemporaryDirectory")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("buttercup.fuzzing_infra.corpus_merger.ChallengeTask")
     def test_run_task_successful_merge(
         self,
         challenge_task_mock,
-        temp_dir_mock,
+        scratch_dir_mock2,
         base_corpus_mock,
         scratch_dir_mock,
         lock_class_mock,
@@ -140,8 +137,9 @@ class TestMergerBot(unittest.TestCase):
         final_corpus_mock.delete_locally.return_value = 1  # 1 file deleted
         partitioned_corpus_mock.to_final.return_value = final_corpus_mock
 
-        # Setup temp directory
-        temp_dir_mock.return_value.__enter__.return_value = "/tmp/temp_dir"
+        # Setup scratch directory
+        scratch_dir_mock.return_value.__enter__.return_value = "/tmp/scratch_dir1"
+        scratch_dir_mock2.return_value.__enter__.return_value = "/tmp/scratch_dir2"
 
         # Setup challenge task
         task_instance = challenge_task_mock.return_value
@@ -185,10 +183,10 @@ class TestMergerBot(unittest.TestCase):
 
 class TestBaseCorpus(unittest.TestCase):
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
-    @patch("tempfile.TemporaryDirectory")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("os.path.join")
     @patch("os.path.basename")
-    def test_partition_corpus(self, basename_mock, path_join_mock, temp_dir_mock, corpus_mock):
+    def test_partition_corpus(self, basename_mock, path_join_mock, scratch_dir_mock, corpus_mock):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
@@ -268,11 +266,11 @@ class TestBaseCorpus(unittest.TestCase):
 
 class TestPartitionedCorpus(unittest.TestCase):
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
-    @patch("tempfile.TemporaryDirectory")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("shutil.copy")
     @patch("os.path.join")
     @patch("os.path.exists")
-    def test_initialization(self, path_exists_mock, path_join_mock, shutil_copy_mock, temp_dir_mock, corpus_mock):
+    def test_initialization(self, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
@@ -344,7 +342,7 @@ class TestPartitionedCorpus(unittest.TestCase):
         self.assertEqual(shutil_copy_mock.call_count, 3)
 
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
-    @patch("tempfile.TemporaryDirectory")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("os.path.join")
     @patch("os.listdir")
     @patch("shutil.copy")
@@ -357,7 +355,7 @@ class TestPartitionedCorpus(unittest.TestCase):
         shutil_copy_mock,
         listdir_mock,
         path_join_mock,
-        temp_dir_mock,
+        scratch_dir_mock,
         corpus_mock,
     ):
         # Setup mocks

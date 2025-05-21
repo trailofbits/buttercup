@@ -1,12 +1,10 @@
 from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-import os
 from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common import stack_parsing
 from buttercup.common.stack_parsing import CrashSet
-import tempfile
 from buttercup.common.logger import setup_package_logger
 from redis import Redis
 from clusterfuzz.fuzz import engine
@@ -20,6 +18,7 @@ from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 from buttercup.common.telemetry import init_telemetry, CRSActionCategory, set_crs_attributes
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
+from buttercup.common.node_local import scratch_dir
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +29,10 @@ class FuzzerBot(TaskLoop):
         redis: Redis,
         timer_seconds: int,
         timeout_seconds: int,
-        wdir: str,
         python: str,
         crs_scratch_dir: str,
         crash_dir_count_limit: int | None,
     ):
-        self.wdir = wdir
         self.runner = Runner(Conf(timeout_seconds))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
@@ -47,7 +44,7 @@ class FuzzerBot(TaskLoop):
         return [BuildType.FUZZER]
 
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]):
-        with tempfile.TemporaryDirectory(dir=self.wdir) as td:
+        with scratch_dir() as td:
             logger.info(f"Running fuzzer for {task.harness_name} | {task.package_name} | {task.task_id}")
 
             build = random.choice(builds[BuildType.FUZZER])
@@ -122,15 +119,13 @@ def main():
     args = FuzzerBotSettings()
     setup_package_logger("fuzzer-bot", __name__, args.log_level)
     init_telemetry("fuzzer")
-    os.makedirs(args.wdir, exist_ok=True)
-    logger.info(f"Starting fuzzer (wdir: {args.wdir} crs_scratch_dir: {args.crs_scratch_dir})")
+    logger.info(f"Starting fuzzer (crs_scratch_dir: {args.crs_scratch_dir})")
 
     seconds_sleep = args.timer // 1000
     fuzzer = FuzzerBot(
         Redis.from_url(args.redis_url),
         seconds_sleep,
         args.timeout,
-        args.wdir,
         args.python,
         args.crs_scratch_dir,
         crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),

@@ -7,7 +7,6 @@ from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.corpus import Corpus
 from buttercup.common.maps import HarnessWeights, BuildMap
 from buttercup.common.utils import serve_loop
-import tempfile
 from buttercup.common.logger import setup_package_logger
 from redis import Redis
 from typing import List
@@ -167,9 +166,8 @@ class BaseCorpus:
 
 
 class MergerBot:
-    def __init__(self, redis: Redis, timeout_seconds: int, wdir: str, python: str, crs_scratch_dir: str):
+    def __init__(self, redis: Redis, timeout_seconds: int, python: str, crs_scratch_dir: str):
         self.redis = redis
-        self.wdir = wdir
         self.runner = Runner(Conf(timeout_seconds))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
@@ -195,7 +193,7 @@ class MergerBot:
         Returns:
             No return value - files that add coverage will be moved to remote_dir
         """
-        with tempfile.TemporaryDirectory(dir=self.wdir) as td:
+        with node_local.scratch_dir() as td:
             tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 build_dir = local_tsk.get_build_dir()
@@ -362,10 +360,9 @@ def main():
     setup_package_logger("corpus-merger", __name__, args.log_level)
     init_telemetry("merger-bot")
 
-    os.makedirs(args.wdir, exist_ok=True)
-    logger.info(f"Starting merger (wdir: {args.wdir} crs_scratch_dir: {args.crs_scratch_dir})")
+    logger.info(f"Starting merger (crs_scratch_dir: {args.crs_scratch_dir})")
 
-    merger = MergerBot(Redis.from_url(args.redis_url), args.timeout, args.wdir, args.python, args.crs_scratch_dir)
+    merger = MergerBot(Redis.from_url(args.redis_url), args.timeout, args.python, args.crs_scratch_dir)
     merger.run()
 
 

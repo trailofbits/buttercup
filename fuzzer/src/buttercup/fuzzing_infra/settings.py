@@ -28,7 +28,7 @@ class BuilderSettings(ButtercupBaseSettings):
 class WorkerSettings(ButtercupBaseSettings):
     redis_url: Annotated[str, Field(default="redis://127.0.0.1:6379")]
     timer: Annotated[int, Field(default=1000)]
-    wdir: Annotated[str, Field(default=...)]
+    wdir: Annotated[str, Field(default="")]
     python: Annotated[str, Field(default="python")]
     log_level: Annotated[str, Field(default="INFO")]
 
