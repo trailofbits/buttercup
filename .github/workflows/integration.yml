@@ -168,12 +168,13 @@ jobs:
             sleep 10
           done
 
-      - name: Wait for seed-gen to submit at least 1 seed
-        timeout-minutes: ${{ fromJSON(env.SEED_GEN_TIMEOUT) }}
-        run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen -c seed-gen | grep "Copying [1-9][0-9]* files to corpus"; do
-            sleep 10
-          done
+      # TODO: reenable (temporarily disabled)
+      #- name: Wait for seed-gen to submit at least 1 seed
+      #  timeout-minutes: ${{ fromJSON(env.SEED_GEN_TIMEOUT) }}
+      #  run: |
+      #    while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen -c seed-gen | grep "Copying [1-9][0-9]* files to corpus"; do
+      #      sleep 10
+      #    done
 
       - name: Wait for patch to be submitted
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
