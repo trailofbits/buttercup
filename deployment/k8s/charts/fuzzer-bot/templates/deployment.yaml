@@ -23,6 +23,13 @@ spec:
         image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
         command: ["buttercup-fuzzer", "--crs_scratch_dir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}", "--crash_dir_count_limit", "{{ include "buttercup.core.crashDirCountLimit" . }}"]
+        livenessProbe:
+          exec:
+            command: {{- include "buttercup.healthCheck" (dict "maxStaleTime" .Values.healthCheck.maxStaleTime) | nindent 14 }}
+          initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds | default 60 }}
+          periodSeconds: {{ .Values.healthCheck.periodSeconds | default 300 }}
+          timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 10 }}
+          failureThreshold: {{ .Values.healthCheck.failureThreshold | default 2 }}
         env: 
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}

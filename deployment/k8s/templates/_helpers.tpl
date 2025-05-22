@@ -36,6 +36,37 @@ Define the LiteLLM health check init container template
   command: ['sh', '-c', 'until curl --silent -f http://{{ .Release.Name }}-litellm:4000/health/readiness; do echo waiting for litellm; sleep 2; done;']
 {{- end -}}
 
+{{/*
+Define a health check command that works with signal_alive_health_check() function
+It checks if /tmp/health_check_alive file exists and has a recent timestamp
+*/}}
+{{- define "buttercup.healthCheck" -}}
+- sh
+- -c
+- |
+  # Check if health file exists
+  if [ ! -f /tmp/health_check_alive ]; then
+    echo "Health file not found"
+    exit 1
+  fi
+  
+  # Read timestamp from file
+  TIMESTAMP=$(cat /tmp/health_check_alive)
+  NOW=$(date +%s)
+  ELAPSED=$((NOW - TIMESTAMP))
+  
+  # Maximum allowed time without updates (in seconds)
+  MAX_STALE_TIME={{ .maxStaleTime | default 600 }}
+  
+  # Check if timestamp is too old
+  if [ $ELAPSED -gt $MAX_STALE_TIME ]; then
+    echo "Health file is stale (last updated $ELAPSED seconds ago, max allowed: $MAX_STALE_TIME)"
+    exit 1
+  fi
+  
+  # Health check passed
+  exit 0
+{{- end -}}
 
 {{/*
 Define standard container volumeMounts for bots

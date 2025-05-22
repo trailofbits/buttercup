@@ -39,6 +39,14 @@ def get_diffs(path: Path | None) -> list[Path]:
     return sorted(diff_files)
 
 
+def signal_alive_health_check():
+    """Signal that the process is alive by writing the current time to a temporary file."""
+    tmp_file = "/tmp/health_check_alive.tmp"
+    with open(tmp_file, "w") as f:
+        f.write(str(int(time.time())))
+    shutil.move(tmp_file, "/tmp/health_check_alive")
+
+
 def serve_loop(func: Callable[[], bool], sleep_time: float = 1.0, report_time: float = 60.0) -> None:
     """Serve a function in a loop."""
     if sleep_time < 0:
@@ -51,6 +59,7 @@ def serve_loop(func: Callable[[], bool], sleep_time: float = 1.0, report_time: f
     start_time = time.time()
 
     while True:
+        signal_alive_health_check()
         if time.time() - start_time > report_time:
             logger.info("Sleeping, waiting for inputs")
             start_time = time.time()
