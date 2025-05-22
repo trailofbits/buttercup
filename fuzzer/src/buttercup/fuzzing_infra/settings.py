@@ -41,6 +41,7 @@ class FuzzerBotSettings(WorkerSettings):
     crs_scratch_dir: Annotated[str, Field(default="/crs_scratch")]
     timeout: Annotated[int, Field(default="")]
     crash_dir_count_limit: Annotated[int, Field(default=0)]
+    max_local_files: Annotated[int, Field(default=500)]
 
 
 class CoverageBotSettings(WorkerSettings, BuilderSettings):

@@ -85,14 +85,37 @@ class PartitionedCorpus:
     remote_dir: TemporaryDirectory
     local_only_files: set[str]
     remote_files: set[str]
+    max_local_files: int = 500
 
     def __post_init__(self):
-        # Copy the files to the correct directories
-        for file in self.local_only_files:
-            shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.local_dir, file))
+        # Shuffle and limit the local_only_files to max_local_files
+        local_files_list = list(self.local_only_files)
+        random.shuffle(local_files_list)
+
+        # Keep track of successfully copied files
+        new_local_only_files = set()
+
+        for file in local_files_list:
+            try:
+                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.local_dir, file))
+                new_local_only_files.add(file)
+                if len(new_local_only_files) >= self.max_local_files:
+                    break
+            except Exception as e:
+                logger.error(f"Error copying file {file} to local directory: {e}. Will be ignored in merge.")
+
+        # These are the files that will be processed in the merge operation,
+        # as we have limited the number of files to process to max_local_files.
+        # Also, if files failed to copy, they will be removed from the local_only_files set.
+        self.local_only_files = new_local_only_files
 
         for file in self.remote_files:
-            shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.remote_dir, file))
+            try:
+                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.remote_dir, file))
+            except Exception as e:
+                # Copy this from the remote storage instead (slow, but shouldn't dissappear from there)
+                shutil.copy(os.path.join(self.corpus.remote_path, file), os.path.join(self.remote_dir, file))
+                logger.debug(f"Error copying file {file} to remote directory: {e}. Copied from remote storage instead.")
 
     def to_final(self) -> FinalCorpus:
         """
@@ -137,6 +160,7 @@ class BaseCorpus:
     corpus: Corpus
     local_dir: TemporaryDirectory
     remote_dir: TemporaryDirectory
+    max_local_files: int = 500
 
     def partition_corpus(self) -> PartitionedCorpus:
         """
@@ -162,17 +186,21 @@ class BaseCorpus:
             remote_dir=self.remote_dir,
             local_only_files=local_only_files,
             remote_files=remote_files,
+            max_local_files=self.max_local_files,
         )
 
 
 class MergerBot:
-    def __init__(self, redis: Redis, timeout_seconds: int, python: str, crs_scratch_dir: str):
+    def __init__(
+        self, redis: Redis, timeout_seconds: int, python: str, crs_scratch_dir: str, max_local_files: int = 500
+    ):
         self.redis = redis
         self.runner = Runner(Conf(timeout_seconds))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.harness_weights = HarnessWeights(redis)
         self.builds = BuildMap(redis)
+        self.max_local_files = max_local_files
 
     def required_builds(self) -> List[BuildTypeHint]:
         return [BuildType.FUZZER]
@@ -266,7 +294,7 @@ class MergerBot:
                 # Create scratch directories for remote (R) and local-only (L) corpus parts, and copy files
                 with node_local.scratch_dir() as remote_dir, node_local.scratch_dir() as local_dir:
                     # Create BaseCorpus and partition it
-                    base_corpus = BaseCorpus(corp, local_dir, remote_dir)
+                    base_corpus = BaseCorpus(corp, local_dir, remote_dir, self.max_local_files)
                     partitioned_corpus = base_corpus.partition_corpus()
 
                     # If L is empty, the node is up to date
@@ -362,7 +390,9 @@ def main():
 
     logger.info(f"Starting merger (crs_scratch_dir: {args.crs_scratch_dir})")
 
-    merger = MergerBot(Redis.from_url(args.redis_url), args.timeout, args.python, args.crs_scratch_dir)
+    merger = MergerBot(
+        Redis.from_url(args.redis_url), args.timeout, args.python, args.crs_scratch_dir, args.max_local_files
+    )
     merger.run()
 
 

@@ -21,7 +21,7 @@ spec:
       - name: merger-bot
         image: "{{ .Values.global.fuzzerImage.repository }}:{{ .Values.global.fuzzerImage.tag }}"
         imagePullPolicy: {{ .Values.global.fuzzerImage.pullPolicy }}
-        command: ["buttercup-corpus-merger", "--crs_scratch_dir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}", "--crash_dir_count_limit", "{{ include "buttercup.core.crashDirCountLimit" . }}"]
+        command: ["buttercup-corpus-merger", "--crs_scratch_dir", "{{ include "buttercup.nodeLocalCrsScratchPath" . }}", "--redis_url", "{{ include "buttercup.core.redisUrl" . }}", "--timer", "{{ .Values.timer }}", "--timeout", "{{ .Values.timeout }}", "--crash_dir_count_limit", "{{ include "buttercup.core.crashDirCountLimit" . }}", "--max_local_files", "{{ .Values.max_local_files }}"]
         env: 
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}

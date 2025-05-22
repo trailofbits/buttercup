@@ -20,11 +20,14 @@ class TestMergerBot(unittest.TestCase):
         self.crs_scratch_dir = "/tmp/test_crs_scratch"
         self.timer_seconds = 10
         self.timeout_seconds = 30
+        self.max_local_files = 500
 
         # Create the MergerBot instance with mocked runner
         with patch("buttercup.fuzzing_infra.corpus_merger.Runner") as runner_class_mock:
             runner_class_mock.return_value = self.runner_mock
-            self.merger_bot = MergerBot(self.redis_mock, self.timeout_seconds, self.python, self.crs_scratch_dir)
+            self.merger_bot = MergerBot(
+                self.redis_mock, self.timeout_seconds, self.python, self.crs_scratch_dir, self.max_local_files
+            )
 
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
     @patch("buttercup.fuzzing_infra.corpus_merger.MergedCorpusSetLock")
@@ -56,7 +59,7 @@ class TestMergerBot(unittest.TestCase):
         # Verify behavior
         corpus_instance.hash_new_corpus.assert_called_once()
         base_corpus_mock.assert_called_once_with(
-            corpus_instance, scratch_dir_mock().__enter__(), scratch_dir_mock().__enter__()
+            corpus_instance, scratch_dir_mock().__enter__(), scratch_dir_mock().__enter__(), self.max_local_files
         )
         base_corpus_instance.partition_corpus.assert_called_once()
 
@@ -159,7 +162,9 @@ class TestMergerBot(unittest.TestCase):
 
         # Verify behavior
         corpus_instance.hash_new_corpus.assert_called_once()
-        base_corpus_mock.assert_called_once()
+        base_corpus_mock.assert_called_once_with(
+            corpus_instance, scratch_dir_mock().__enter__(), scratch_dir_mock().__enter__(), self.max_local_files
+        )
         base_corpus_instance.partition_corpus.assert_called_once()
 
         # Verify runner.merge_corpus was called
@@ -231,8 +236,8 @@ class TestBaseCorpus(unittest.TestCase):
         with patch("buttercup.fuzzing_infra.corpus_merger.Corpus.has_hashed_name") as has_hashed_name_mock:
             has_hashed_name_mock.return_value = True
 
-            # Create BaseCorpus instance
-            base_corpus = BaseCorpus(corpus_instance, local_dir, remote_dir)
+            # Create BaseCorpus instance with default max_local_files (500)
+            base_corpus = BaseCorpus(corpus_instance, local_dir, remote_dir, 500)
 
             # Test partition_corpus method
             with patch("buttercup.fuzzing_infra.corpus_merger.PartitionedCorpus") as partitioned_corpus_mock:
@@ -259,12 +264,77 @@ class TestBaseCorpus(unittest.TestCase):
                         "b123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     },
                 )
+                self.assertEqual(kwargs.get("max_local_files"), 500)
 
                 # Check result
                 self.assertEqual(result, partitioned_corpus_instance)
 
 
 class TestPartitionedCorpus(unittest.TestCase):
+    @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
+    @patch("shutil.copy")
+    @patch("os.path.join")
+    @patch("os.path.exists")
+    @patch("random.shuffle")
+    def test_initialization_with_file_limit(
+        self, shuffle_mock, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
+    ):
+        """Test that files are shuffled and limited to max_local_files."""
+        # Setup mocks
+        corpus_instance = corpus_mock.return_value
+        corpus_instance.path = "/corpus/path"
+        local_dir = MagicMock()
+        remote_dir = MagicMock()
+
+        # Mock os.path.exists to always return True
+        path_exists_mock.return_value = True
+
+        # Mock os.path.join to return predictable paths
+        def mock_path_join(*args):
+            if args[0] == "/corpus/path":
+                return f"/corpus/path/{args[1]}"
+            elif args[0] == local_dir:
+                return f"/tmp/local_dir/{args[1]}"
+            elif args[0] == remote_dir:
+                return f"/tmp/remote_dir/{args[1]}"
+            else:
+                return "/".join(args)
+
+        path_join_mock.side_effect = mock_path_join
+
+        # Create test data with more than the limit of files
+        local_only_files = set()
+        for i in range(10):  # Creating 10 files (more than our limit)
+            local_only_files.add(f"file{i}_123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+
+        remote_files = {
+            "remote_a_123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "remote_b_123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        }
+
+        # Set max_local_files to a value less than total files
+        max_local_files = 5
+
+        # Create PartitionedCorpus instance
+        partitioned_corpus = PartitionedCorpus(
+            corpus=corpus_instance,
+            local_dir=local_dir,
+            remote_dir=remote_dir,
+            local_only_files=local_only_files.copy(),
+            remote_files=remote_files,
+            max_local_files=max_local_files,
+        )
+
+        # Verify random.shuffle was called
+        shuffle_mock.assert_called_once()
+
+        # Verify that only max_local_files were attempted to copy
+        self.assertEqual(shutil_copy_mock.call_count, max_local_files + len(remote_files))
+
+        # Verify that local_only_files was limited
+        self.assertLessEqual(len(partitioned_corpus.local_only_files), max_local_files)
+
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
     @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("shutil.copy")
@@ -305,13 +375,13 @@ class TestPartitionedCorpus(unittest.TestCase):
         }
 
         # Create PartitionedCorpus instance
-
         partitioned_corpus = PartitionedCorpus(
             corpus=corpus_instance,
             local_dir=local_dir,
             remote_dir=remote_dir,
             local_only_files=local_only_files,
             remote_files=remote_files,
+            max_local_files=500,
         )
 
         # Verify attributes were set correctly
@@ -340,6 +410,162 @@ class TestPartitionedCorpus(unittest.TestCase):
         ]
         shutil_copy_mock.assert_has_calls(calls, any_order=True)
         self.assertEqual(shutil_copy_mock.call_count, 3)
+
+    @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
+    @patch("shutil.copy")
+    @patch("os.path.join")
+    @patch("os.path.exists")
+    def test_initialization_local_file_missing(
+        self, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
+    ):
+        """Test that local files that cannot be copied are removed from local_only_files."""
+        # Setup mocks
+        corpus_instance = corpus_mock.return_value
+        corpus_instance.path = "/corpus/path"
+        local_dir = MagicMock()
+        remote_dir = MagicMock()
+
+        # Mock os.path.exists to always return True
+        path_exists_mock.return_value = True
+
+        # Mock os.path.join to return predictable paths
+        def mock_path_join(*args):
+            if args[0] == "/corpus/path":
+                return f"/corpus/path/{args[1]}"
+            elif args[0] == local_dir:
+                return f"/tmp/local_dir/{args[1]}"
+            elif args[0] == remote_dir:
+                return f"/tmp/remote_dir/{args[1]}"
+            else:
+                return "/".join(args)
+
+        path_join_mock.side_effect = mock_path_join
+
+        # Mock shutil.copy to raise exception for a specific file
+        def mock_copy(src, dst):
+            if "missing_file" in src:
+                raise FileNotFoundError(f"File not found: {src}")
+
+        shutil_copy_mock.side_effect = mock_copy
+
+        # Create test data with one file that will fail to copy
+        local_only_files = {
+            "c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "missing_file_123456789abcdef0123456789abcdef0123456789abcdef0123",
+        }
+        remote_files = {
+            "a123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "b123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        }
+
+        # Create PartitionedCorpus instance
+        partitioned_corpus = PartitionedCorpus(
+            corpus=corpus_instance,
+            local_dir=local_dir,
+            remote_dir=remote_dir,
+            local_only_files=local_only_files.copy(),  # Copy to avoid modifying the original set
+            remote_files=remote_files,
+            max_local_files=500,
+        )
+
+        # Verify the missing file was removed from local_only_files
+        self.assertEqual(
+            partitioned_corpus.local_only_files, {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+        )
+
+        # The remote files should remain unchanged
+        self.assertEqual(partitioned_corpus.remote_files, remote_files)
+
+    @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
+    @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
+    @patch("shutil.copy")
+    @patch("os.path.join")
+    @patch("os.path.exists")
+    def test_initialization_remote_file_missing(
+        self, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
+    ):
+        """Test that when a file is missing from corpus.path but available in corpus.remote_path, it's copied from remote."""
+        # Setup mocks
+        corpus_instance = corpus_mock.return_value
+        corpus_instance.path = "/corpus/path"
+        corpus_instance.remote_path = "/remote/path"
+        local_dir = MagicMock()
+        remote_dir = MagicMock()
+
+        # Mock os.path.exists to always return True
+        path_exists_mock.return_value = True
+
+        # Mock os.path.join to return predictable paths
+        def mock_path_join(*args):
+            if args[0] == "/corpus/path":
+                return f"/corpus/path/{args[1]}"
+            elif args[0] == "/remote/path":
+                return f"/remote/path/{args[1]}"
+            elif args[0] == local_dir:
+                return f"/tmp/local_dir/{args[1]}"
+            elif args[0] == remote_dir:
+                return f"/tmp/remote_dir/{args[1]}"
+            else:
+                return "/".join(args)
+
+        path_join_mock.side_effect = mock_path_join
+
+        # Mock shutil.copy to fail for the first call to a specific file, then succeed for the second call
+
+        def mock_copy(src, dst):
+            # For a specific file in remote_files, fail on first attempt (corpus.path) but succeed on second (corpus.remote_path)
+            if "missing_remote" in src:
+                if "/corpus/path/" in src:
+                    raise FileNotFoundError(f"File not found in local corpus: {src}")
+                # Second call with corpus.remote_path should succeed
+                return None
+            return None
+
+        shutil_copy_mock.side_effect = mock_copy
+
+        # Create test data
+        local_only_files = {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+        remote_files = {
+            "a123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "missing_remote_89abcdef0123456789abcdef0123456789abcdef0123456789",
+        }
+
+        # Create PartitionedCorpus instance
+        partitioned_corpus = PartitionedCorpus(
+            corpus=corpus_instance,
+            local_dir=local_dir,
+            remote_dir=remote_dir,
+            local_only_files=local_only_files,
+            remote_files=remote_files.copy(),  # Copy to avoid modifying the original set
+            max_local_files=500,
+        )
+
+        # Verify remote_files remains unchanged (all files were successfully copied)
+        self.assertEqual(partitioned_corpus.remote_files, remote_files)
+
+        # Verify the expected copy calls including the fallback to remote_path
+        local_file_call = unittest.mock.call(
+            "/corpus/path/c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "/tmp/local_dir/c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        )
+        remote_file_call = unittest.mock.call(
+            "/corpus/path/a123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "/tmp/remote_dir/a123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        )
+        missing_file_corpus_path_call = unittest.mock.call(
+            "/corpus/path/missing_remote_89abcdef0123456789abcdef0123456789abcdef0123456789",
+            "/tmp/remote_dir/missing_remote_89abcdef0123456789abcdef0123456789abcdef0123456789",
+        )
+        missing_file_remote_path_call = unittest.mock.call(
+            "/remote/path/missing_remote_89abcdef0123456789abcdef0123456789abcdef0123456789",
+            "/tmp/remote_dir/missing_remote_89abcdef0123456789abcdef0123456789abcdef0123456789",
+        )
+
+        shutil_copy_mock.assert_has_calls(
+            [local_file_call, remote_file_call, missing_file_corpus_path_call, missing_file_remote_path_call],
+            any_order=True,
+        )
 
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
     @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
@@ -410,7 +636,7 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Create BaseCorpus instance
         from buttercup.fuzzing_infra.corpus_merger import BaseCorpus
 
-        _base_corpus = BaseCorpus(corpus_instance, local_dir, remote_dir)
+        _base_corpus = BaseCorpus(corpus_instance, local_dir, remote_dir, 500)
 
         # Create PartitionedCorpus instance and manually set its attributes
 
@@ -420,6 +646,7 @@ class TestPartitionedCorpus(unittest.TestCase):
         partitioned_corpus.remote_dir = remote_dir
         partitioned_corpus.local_only_files = local_only_files
         partitioned_corpus.remote_files = remote_files
+        partitioned_corpus.max_local_files = 500
 
         # Test to_final method
         final_corpus = partitioned_corpus.to_final()

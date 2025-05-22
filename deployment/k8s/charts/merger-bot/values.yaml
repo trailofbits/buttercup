@@ -10,3 +10,4 @@ resources:
 
 timeout: 900
 timer: 5000
+max_local_files: 500
