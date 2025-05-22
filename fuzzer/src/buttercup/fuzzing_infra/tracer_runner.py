@@ -24,10 +24,6 @@ class TracerRunner:
         self.wdir = wdir
         self.redis = redis
 
-    def does_crash(self, local_task: ChallengeTask, harness_name: str, crash_path: Path) -> bool:
-        res = local_task.reproduce_pov(harness_name, crash_path)
-        return res.did_crash()
-
     def _create_tracer_info(self, info: ReproduceResult) -> TracerInfo:
         crashed = info.did_crash()
         return TracerInfo(

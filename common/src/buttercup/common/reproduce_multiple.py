@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Generator
 from contextlib import contextmanager
 import contextlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ReproduceMultiple:
@@ -36,11 +39,29 @@ class ReproduceMultiple:
 
     def get_first_crash(self, pov: Path, harness_name: str) -> tuple[BuildOutput, ReproduceResult] | None:
         for build, result in self.attempt_reproduce(pov, harness_name):
-            if result.command_result.returncode is not None and result.stacktrace() is not None and result.did_crash():
+            if not result.did_run():
+                logger.warning("Failed to reproduce pov for task %s", build.task_id)
+                logger.debug(
+                    "Task %s, stdout: %s, stderr: %s",
+                    build.task_id,
+                    result.command_result.output,
+                    result.command_result.error,
+                )
+                continue
+            if result.did_crash():
                 return build, result
         return None
 
     def get_crashes(self, pov: Path, harness_name: str) -> Generator[tuple[BuildOutput, ReproduceResult], None, None]:
         for build, result in self.attempt_reproduce(pov, harness_name):
-            if result.command_result.returncode is not None and result.stacktrace() is not None and result.did_crash():
+            if not result.did_run():
+                logger.warning("Failed to reproduce pov for task %s", build.task_id)
+                logger.debug(
+                    "Task %s, stdout: %s, stderr: %s",
+                    build.task_id,
+                    result.command_result.output,
+                    result.command_result.error,
+                )
+                continue
+            if result.did_crash():
                 yield build, result
