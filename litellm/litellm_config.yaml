@@ -37,51 +37,71 @@ model_list:
     litellm_params:
       model: openai/gpt-4o
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 30000000
+      rpm: 10000
 
   - model_name: openai-gpt-4o-mini
     litellm_params:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 150000000
+      rpm: 30000
 
   - model_name: openai-o3-mini
     litellm_params:
       model: openai/o3-mini
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 150000000
+      rpm: 30000
 
   - model_name: openai-o1
     litellm_params:
       model: openai/o1
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 30000000
+      rpm: 10000
 
   - model_name: openai-gpt-4.1
     litellm_params:
       model: openai/gpt-4.1
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 30000000
+      rpm: 10000
 
   - model_name: openai-gpt-4.1-mini
     litellm_params:
       model: openai/gpt-4.1-mini
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 150000000
+      rpm: 30000
 
   - model_name: openai-gpt-4.1-nano
     litellm_params:
       model: openai/gpt-4.1-nano
       api_key: os.environ/OPENAI_API_KEY
+      tpm: 150000000
+      rpm: 30000
 
   - model_name: claude-3.5-sonnet
     litellm_params:
       model: anthropic/claude-3-5-sonnet-20241022
       api_key: os.environ/ANTHROPIC_API_KEY
+      tpm: 480000
+      rpm: 4000
 
   - model_name: claude-3.5-haiku
     litellm_params:
       model: anthropic/claude-3-5-haiku-20241022
       api_key: os.environ/ANTHROPIC_API_KEY
+      tpm: 480000
+      rpm: 4000
 
   - model_name: claude-3.7-sonnet
     litellm_params:
       model: anthropic/claude-3-7-sonnet-20250219
       api_key: os.environ/ANTHROPIC_API_KEY
+      tpm: 280000
+      rpm: 4000
 
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY
