@@ -297,7 +297,7 @@ class ReflectionAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
+        default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
         fallback_llms: list[Runnable] = []
         for fb_model in [
             ButtercupLLM.CLAUDE_3_7_SONNET,

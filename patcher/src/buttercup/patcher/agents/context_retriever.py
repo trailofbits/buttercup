@@ -303,7 +303,7 @@ def _check_code_snippets(request: str, code_snippets: list[ContextCodeSnippet]) 
     if len(code_snippets) == 0:
         return False, "No code snippets found. Please try again."
 
-    llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O_MINI.value)
+    llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1_MINI.value)
     fallback_llms = [
         create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_HAIKU.value),
     ]
@@ -658,7 +658,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        self.cheap_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4O_MINI.value)
+        self.cheap_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1_MINI.value)
         self.cheap_fallback_llms = [
             create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_HAIKU.value),
         ]

@@ -25,6 +25,9 @@ class ButtercupLLM(Enum):
     OPENAI_GPT_4O_MINI = "openai-gpt-4o-mini"
     OPENAI_O3_MINI = "openai-o3-mini"
     OPENAI_O1 = "openai-o1"
+    OPENAI_GPT_4_1_NANO = "openai-gpt-4.1-nano"
+    OPENAI_GPT_4_1_MINI = "openai-gpt-4.1-mini"
+    OPENAI_GPT_4_1 = "openai-gpt-4.1"
     CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
     CLAUDE_3_5_HAIKU = "claude-3.5-haiku"
     CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
@@ -88,7 +91,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
 def create_default_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration."""
     return create_llm(
-        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4O.value),
+        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,
@@ -99,7 +102,7 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
 def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration and temperature."""
     return create_llm(
-        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4O.value),
+        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,

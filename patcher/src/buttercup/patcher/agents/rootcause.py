@@ -186,7 +186,7 @@ class RootCauseAgent(PatcherAgentBase):
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
-        default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4O.value)
+        default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
         fallback_llms = [
             create_default_llm_with_temperature(model_name=ButtercupLLM.CLAUDE_3_7_SONNET.value),
         ]

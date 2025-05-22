@@ -104,7 +104,7 @@ class Task:
             callbacks=llm_callbacks,
         )
         fallback_llm = create_default_llm(
-            model_name=ButtercupLLM.OPENAI_GPT_4O.value, callbacks=llm_callbacks
+            model_name=ButtercupLLM.OPENAI_GPT_4_1.value, callbacks=llm_callbacks
         )
         return llm.with_fallbacks([fallback_llm])
 
