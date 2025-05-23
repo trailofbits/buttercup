@@ -65,7 +65,7 @@ class ToolCallResult(BaseModel):
 
 class ToolCall(BaseModel):
     tool_name: str
-    arguments: list[str]
+    arguments: dict[str, str]
 
 
 class BatchToolCalls(BaseModel):
@@ -524,6 +524,7 @@ class Task:
         state: Annotated[BaseModel, InjectedState],
         tool_call_id: Annotated[str, InjectedToolCallId],
     ) -> Command:
+        logger.info("Tool call: get_callers for %s in %s", function_name, file_path)
         call = f'get_callers("{function_name}", "{file_path}")'
         if call in state.retrieved_context:
             return Command(
@@ -537,7 +538,6 @@ class Task:
                 }
             )
         path = Path(file_path)
-        logger.info("Getting callers of %s in %s", function_name, path)
         function = state.task.get_function_def(function_name, function_paths=[path], fuzzy=False)
         if not function:
             return Command(
@@ -593,25 +593,29 @@ class Task:
         max_calls_in_batch = 10
         results = []
         for call in tool_calls.calls[:max_calls_in_batch]:
-            if call.tool_name == "get_function_definition":
-                function_name = call.arguments[0]
+            if call.tool_name == "get_function_definition" and "function_name" in call.arguments:
+                function_name = call.arguments["function_name"]
                 result = Task._get_function_definition(function_name, state, tool_call_id)
                 results.append(result)
-            elif call.tool_name == "get_type_definition":
-                type_name = call.arguments[0]
+            elif call.tool_name == "get_type_definition" and "type_name" in call.arguments:
+                type_name = call.arguments["type_name"]
                 result = Task._get_type_definition(type_name, state, tool_call_id)
                 results.append(result)
-            elif call.tool_name == "cat":
-                file_path = call.arguments[0]
+            elif call.tool_name == "cat" and "file_path" in call.arguments:
+                file_path = call.arguments["file_path"]
                 result = Task._cat(file_path, state, tool_call_id)
                 results.append(result)
-            elif call.tool_name == "get_callers":
-                function_name = call.arguments[0]
-                file_path = call.arguments[1]
+            elif (
+                call.tool_name == "get_callers"
+                and "function_name" in call.arguments
+                and "file_path" in call.arguments
+            ):
+                function_name = call.arguments["function_name"]
+                file_path = call.arguments["file_path"]
                 result = Task._get_callers(function_name, file_path, state, tool_call_id)
                 results.append(result)
             else:
-                logger.warning("Invalid tool call: %s", call.tool_name)
+                logger.warning("Invalid tool call: %s args: %s", call.tool_name, call.arguments)
 
         # Combine all results into a single Command
         combined_message = ""
