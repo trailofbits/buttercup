@@ -103,5 +103,12 @@ model_list:
       tpm: 280000
       rpm: 4000
 
+  - model_name: claude-4-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+      tpm: 280000
+      rpm: 4000
+
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY
