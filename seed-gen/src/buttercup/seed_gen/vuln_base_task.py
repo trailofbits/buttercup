@@ -20,7 +20,7 @@ from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import BaseTaskState, Task
-from buttercup.seed_gen.utils import extract_md
+from buttercup.seed_gen.utils import extract_code
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class VulnBaseTask(Task):
                 ("human", user_prompt),
             ]
         )
-        chain = prompt | self.llm | StrOutputParser()
+        chain = prompt | self.primary_llm | StrOutputParser()
         analysis = chain.invoke(prompt_vars)
         return Command(update={"analysis": analysis})
 
@@ -95,7 +95,7 @@ class VulnBaseTask(Task):
                 ("human", user_prompt),
             ]
         )
-        chain = prompt | self.llm | extract_md
+        chain = prompt | self.primary_llm | extract_code
         pov_funcs = chain.invoke(prompt_vars)
         return Command(update={"generated_functions": pov_funcs})
 
@@ -149,7 +149,7 @@ class VulnBaseTask(Task):
                     crs_action_name="seed_gen_vuln_discovery",
                     task_metadata=dict(self.challenge_task.task_meta.metadata),
                     extra_attributes={
-                        "gen_ai.request.model": self.llm.model_name,
+                        "gen_ai.request.model": self.primary_llm.model_name,
                     },
                 )
                 result = chain.invoke(state)

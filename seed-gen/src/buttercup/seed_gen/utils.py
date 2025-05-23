@@ -19,34 +19,34 @@ def resolve_module_subpath(subpath: str) -> Path:
     return Path(str(traversable)).resolve()
 
 
-def extract_md(msg: AIMessage) -> str:
-    """Extract last markdown block from the AI message."""
+def extract_code(msg: AIMessage) -> str:
+    """Extract last markdown block or partial block from the AIMessage"""
     if not isinstance(msg, AIMessage):
-        raise OutputParserException(
-            "extract_md: did not receive an AIMessage. Received: %s", type(msg)
-        )
+        raise OutputParserException("Did not receive an AIMessage. Received: %s", type(msg))
     content = msg.content
 
     if not isinstance(content, str):
-        raise OutputParserException(
-            "extract_md: content is not a string. Content is %s", type(content)
-        )
+        raise OutputParserException("Content is not a string. Content is %s", type(content))
 
-    # get last markdown block
+    # Try to get last complete markdown block
     find_iter = re.finditer(r"```([A-Za-z]*)\n(.*?)```", content, re.DOTALL)
     match = None
     for m in find_iter:
         match = m
 
     if match is not None:
-        content = match.group(2)
-    else:
-        logger.warning(
-            "extract_md: did not find a markdown block in the AI message. Content is %s...",
-            content[:250],
-        )
+        return match.group(2)
 
-    return content.strip("`")
+    # If no complete block found, try to get partial block
+    # Captures everything except the last function definition (likely incomplete)
+    partial_match = re.search(
+        r"```([A-Za-z]*)\n(.*)(?=\n\s*def\s+[A-Za-z0-9_]+\s*\([^)]*\))", content, re.DOTALL
+    )
+    if partial_match is not None:
+        logger.info("Found partial code block")
+        return partial_match.group(2)
+
+    raise OutputParserException("Failed to extract code from message")
 
 
 def get_diff_content(diffs: list[Path]) -> str | None:

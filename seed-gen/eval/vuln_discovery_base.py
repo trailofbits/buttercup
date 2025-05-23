@@ -26,7 +26,7 @@ from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.llm import create_llm, get_langfuse_callbacks
 from buttercup.common.logger import setup_package_logger
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
-from buttercup.seed_gen.utils import extract_md
+from buttercup.seed_gen.utils import extract_code
 
 logger = setup_package_logger("vuln-discovery-base", __name__, "DEBUG")
 
@@ -158,7 +158,7 @@ class VulnDiscoveryEvaluator(VulnDiscoveryEvaluatorBase):
     def generate_pov_funcs(self, config: TestConfig) -> tuple[str, str]:
         llm_callbacks = get_langfuse_callbacks()
         llm = create_llm(**config.llm_kwargs, callbacks=llm_callbacks)
-        chain = llm | extract_md
+        chain = llm | extract_code
         chain_config = chain.with_config(RunnableConfig(metadata=self.metadata))
         res = chain_config.invoke(self.prompt)
         trace_id = llm_callbacks[0].trace.trace_id

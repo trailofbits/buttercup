@@ -21,7 +21,7 @@ from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
-from buttercup.seed_gen.utils import extract_md
+from buttercup.seed_gen.utils import extract_code
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,8 @@ class Task:
     harness_name: str
     challenge_task: ChallengeTask
     codequery: CodeQueryPersistent
-    llm: BaseChatModel = field(init=False)
+    primary_llm: BaseChatModel = field(init=False)
+    context_llm: BaseChatModel = field(init=False)
     tools: list[BaseTool] = field(init=False)
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
@@ -86,7 +87,8 @@ class Task:
     MAX_TYPE_DEFS = 5
 
     def __post_init__(self) -> None:
-        self.llm = self.get_default_llm()
+        self.primary_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_7_SONNET, ButtercupLLM.OPENAI_GPT_4_1)
+        self.context_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_5_SONNET, ButtercupLLM.OPENAI_GPT_4_1)
         self.tools = [
             Task.get_function_definition,
             Task.get_type_definition,
@@ -94,18 +96,16 @@ class Task:
             Task.cat,
             Task.get_callers,
         ]
-        self.llm_with_tools = self.llm.bind_tools(self.tools)
+        self.llm_with_tools = self.context_llm.bind_tools(self.tools)
 
     @staticmethod
-    def get_default_llm() -> BaseChatModel:
+    def get_llm(llm: ButtercupLLM, fallback_llm: ButtercupLLM) -> BaseChatModel:
         llm_callbacks = get_langfuse_callbacks()
         llm = create_default_llm(
-            model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value,
+            model_name=llm.value,
             callbacks=llm_callbacks,
         )
-        fallback_llm = create_default_llm(
-            model_name=ButtercupLLM.OPENAI_GPT_4_1.value, callbacks=llm_callbacks
-        )
+        fallback_llm = create_default_llm(model_name=fallback_llm.value, callbacks=llm_callbacks)
         return llm.with_fallbacks([fallback_llm])
 
     def get_harness_source(self) -> str | None:
@@ -233,7 +233,7 @@ class Task:
                 ("human", user_prompt),
             ]
         )
-        chain = prompt | self.llm | extract_md
+        chain = prompt | self.primary_llm | extract_code
         generated_functions = ""
         try:
             generated_functions = chain.invoke(prompt_vars)
