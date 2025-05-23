@@ -313,7 +313,7 @@ class ChallengeTask:
             line_to_print = current_line[: current_line.index(b"\n")]
             current_line = current_line[current_line.index(b"\n") + 1 :]
             if log:
-                logger.debug(line_to_print.decode())
+                logger.debug(line_to_print.decode(errors="ignore"))
 
         return current_line
 
