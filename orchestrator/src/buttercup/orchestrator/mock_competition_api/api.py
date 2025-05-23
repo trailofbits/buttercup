@@ -442,25 +442,22 @@ class MockCompetitionAPI:
         # Sort tasks by created_at timestamp
         sorted_tasks = sorted(self.tasks, key=lambda x: x["created_at"])
 
-        # Create a task to send each task to the CRS with appropriate delays
-        async def send_tasks():
-            # Get the base timestamp from the earliest task
-            base_timestamp = datetime.fromisoformat(sorted_tasks[0]["created_at"].replace("Z", "+00:00"))
+        # Get the base timestamp from the earliest task
+        base_timestamp = datetime.fromisoformat(sorted_tasks[0]["created_at"].replace("Z", "+00:00"))
 
-            for task in sorted_tasks:
-                current_timestamp = datetime.fromisoformat(task["created_at"].replace("Z", "+00:00"))
-                # Calculate delay in seconds from the base timestamp
-                delay = (current_timestamp - base_timestamp).total_seconds()
+        async def send_task_with_delay(task, delay):
+            # Wait until the specific time when this task should be sent
+            if delay > 0:
+                logger.info(f"Scheduled task {task['id']} to be sent after {delay} seconds")
+                await asyncio.sleep(delay)
+            await self.send_task_to_crs(task)
 
-                if delay > 0:
-                    logger.info(f"Waiting {delay} seconds before sending task {task['id']}")
-                    await asyncio.sleep(delay)
-
-                # Send the task to the CRS
-                await self.send_task_to_crs(task)
-
-        # Start the task scheduling in the background
-        asyncio.create_task(send_tasks())
+        # Create independent tasks for each send operation
+        for task in sorted_tasks:
+            current_timestamp = datetime.fromisoformat(task["created_at"].replace("Z", "+00:00"))
+            delay = (current_timestamp - base_timestamp).total_seconds()
+            # Create an independent task that will execute at the right time
+            asyncio.create_task(send_task_with_delay(task, delay))
 
     async def send_task_to_crs(self, task: Dict[str, Any]):
         """Send a task to the CRS via its task server API."""
