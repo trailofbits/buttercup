@@ -67,9 +67,7 @@ spec:
         {{- include "buttercup.volumes.tasks" . | nindent 8 }}
         {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
         - name: dind-storage
-          hostPath:
-            path: /var/lib/docker-dind-{{ .Release.Namespace }}-{{ .Release.Name }}
-            type: DirectoryOrCreate
+          emptyDir: {}
         - name: tls-cert
           secret:
             secretName: registry-cache-tls
