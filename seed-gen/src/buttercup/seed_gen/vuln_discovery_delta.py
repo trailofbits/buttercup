@@ -5,7 +5,7 @@ from typing import override
 from langgraph.types import Command
 from pydantic import Field
 
-from buttercup.seed_gen.prompts import (
+from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT,
     VULN_DELTA_ANALYZE_BUG_USER_PROMPT,
     VULN_DELTA_GET_CONTEXT_SYSTEM_PROMPT,
@@ -36,8 +36,10 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         prompt_vars = {
             "diff": state.diff_content,
             "harness": state.harness,
-            "retrieved_code": state.format_retrieved_context(),
+            "retrieved_context": state.format_retrieved_context(),
             "sarif_hints": state.format_sarif_hints(),
+            "vuln_files": self.get_vuln_files(),
+            "fuzzer_name": self.get_fuzzer_name(),
         }
         res = self._get_context_base(
             VULN_DELTA_GET_CONTEXT_SYSTEM_PROMPT,
@@ -53,8 +55,10 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         prompt_vars = {
             "diff": state.diff_content,
             "harness": state.harness,
-            "retrieved_code": state.format_retrieved_context(),
+            "retrieved_context": state.format_retrieved_context(),
             "sarif_hints": state.format_sarif_hints(),
+            "vuln_files": self.get_vuln_files(),
+            "fuzzer_name": self.get_fuzzer_name(),
         }
         res = self._analyze_bug_base(
             VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT, VULN_DELTA_ANALYZE_BUG_USER_PROMPT, prompt_vars
@@ -69,7 +73,9 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
             "harness": state.harness,
             "diff": state.diff_content,
             "max_povs": self.VULN_DISCOVERY_MAX_POV_COUNT,
-            "retrieved_code": state.format_retrieved_context(),
+            "retrieved_context": state.format_retrieved_context(),
+            "pov_examples": self.get_pov_examples(),
+            "fuzzer_name": self.get_fuzzer_name(),
         }
         res = self._write_pov_base(
             VULN_DELTA_WRITE_POV_SYSTEM_PROMPT,

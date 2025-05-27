@@ -12,6 +12,7 @@ from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
+from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.sarif_store import SARIFStore
@@ -133,6 +134,7 @@ class SeedGenBot(TaskLoop):
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]):
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
+        project_yaml = ProjectYaml(ro_challenge_task, task.package_name)
 
         with (
             tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str,
@@ -164,7 +166,7 @@ class SeedGenBot(TaskLoop):
 
             if task_choice == TaskName.SEED_INIT.value:
                 seed_init = SeedInitTask(
-                    task.package_name, task.harness_name, challenge_task, codequery
+                    task.package_name, task.harness_name, challenge_task, codequery, project_yaml
                 )
                 seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY.value:
@@ -176,6 +178,7 @@ class SeedGenBot(TaskLoop):
                         task.harness_name,
                         challenge_task,
                         codequery,
+                        project_yaml,
                         sarifs,
                     )
                     vuln_discovery.do_task(out_dir)
@@ -185,13 +188,14 @@ class SeedGenBot(TaskLoop):
                         task.harness_name,
                         challenge_task,
                         codequery,
+                        project_yaml,
                         sarifs,
                     )
                     vuln_discovery.do_task(out_dir)
                 self.submit_valid_povs(task, builds, out_dir, temp_dir)
             elif task_choice == TaskName.SEED_EXPLORE.value:
                 seed_explore = SeedExploreTask(
-                    task.package_name, task.harness_name, challenge_task, codequery
+                    task.package_name, task.harness_name, challenge_task, codequery, project_yaml
                 )
 
                 function_selector = FunctionSelector(self.redis)

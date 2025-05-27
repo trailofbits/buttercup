@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
+from buttercup.common.project_yaml import ProjectYaml
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
@@ -78,6 +79,7 @@ class Task:
     harness_name: str
     challenge_task: ChallengeTask
     codequery: CodeQueryPersistent
+    project_yaml: ProjectYaml
     primary_llm: BaseChatModel = field(init=False)
     context_llm: BaseChatModel = field(init=False)
     tools: list[BaseTool] = field(init=False)

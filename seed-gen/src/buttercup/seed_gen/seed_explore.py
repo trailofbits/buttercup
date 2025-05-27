@@ -9,7 +9,7 @@ from pydantic import Field
 
 from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
-from buttercup.seed_gen.prompts import (
+from buttercup.seed_gen.prompt.seed_explore import (
     PYTHON_SEED_EXPLORE_SYSTEM_PROMPT,
     PYTHON_SEED_EXPLORE_USER_PROMPT,
     SEED_EXPLORE_GET_CONTEXT_SYSTEM_PROMPT,
@@ -57,7 +57,7 @@ class SeedExploreTask(SeedBaseTask):
         prompt_vars = {
             "target_function": str(state.target_function),
             "harness": state.harness,
-            "retrieved_code": state.format_retrieved_context(),
+            "retrieved_context": state.format_retrieved_context(),
         }
         res = self._get_context_base(
             SEED_EXPLORE_GET_CONTEXT_SYSTEM_PROMPT,

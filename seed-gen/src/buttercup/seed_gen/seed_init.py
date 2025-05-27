@@ -9,7 +9,7 @@ from opentelemetry import trace
 
 from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
-from buttercup.seed_gen.prompts import (
+from buttercup.seed_gen.prompt.seed_init import (
     PYTHON_SEED_INIT_SYSTEM_PROMPT,
     PYTHON_SEED_INIT_USER_PROMPT,
     SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT,
@@ -48,7 +48,7 @@ class SeedInitTask(SeedBaseTask):
         logger.info("Getting context")
         prompt_vars = {
             "harness": state.harness,
-            "retrieved_code": state.format_retrieved_context(),
+            "retrieved_context": state.format_retrieved_context(),
         }
         res = self._get_context_base(
             SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT,

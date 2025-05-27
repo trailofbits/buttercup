@@ -18,6 +18,7 @@ from pydantic import Field
 from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from buttercup.seed_gen.prompt.vuln_discovery import VULN_C_POV_EXAMPLES, VULN_JAVA_POV_EXAMPLES
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_code
@@ -166,3 +167,22 @@ class VulnBaseTask(Task):
             logger.info("Using %d SARIFs for challenge %s", len(self.sarifs), self.package_name)
             return self.sarifs
         return []
+
+    def get_pov_examples(self) -> str:
+        """Get PoV examples for the task"""
+        if self.project_yaml.language == "jvm":
+            return VULN_JAVA_POV_EXAMPLES
+        else:
+            return VULN_C_POV_EXAMPLES
+
+    def get_vuln_files(self) -> str:
+        if self.project_yaml.language == "jvm":
+            return ".java"
+        else:
+            return ".c, .h, .cpp, or .hpp"
+
+    def get_fuzzer_name(self) -> str:
+        if self.project_yaml.language == "jvm":
+            return "jazzer"
+        else:
+            return "libfuzzer"
