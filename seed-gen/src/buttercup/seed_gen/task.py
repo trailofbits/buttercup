@@ -1,4 +1,5 @@
 import logging
+import operator
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -336,7 +337,6 @@ class Task:
                         )
                     ],
                     "retrieved_context": {
-                        **state.retrieved_context,
                         call: call_result,
                     },
                 }
@@ -404,7 +404,6 @@ class Task:
                         )
                     ],
                     "retrieved_context": {
-                        **state.retrieved_context,
                         call: call_result,
                     },
                 }
@@ -482,7 +481,6 @@ class Task:
                     )
                 ],
                 "retrieved_context": {
-                    **state.retrieved_context,
                     call: call_result,
                 },
             }
@@ -568,7 +566,6 @@ class Task:
                     )
                 ],
                 "retrieved_context": {
-                    **state.retrieved_context,
                     call: call_result,
                 },
             }
@@ -621,7 +618,7 @@ class Task:
 
         # Combine all results into a single Command
         combined_message = ""
-        combined_context = {**state.retrieved_context}
+        combined_context = {}
         for i, result in enumerate(results):
             if isinstance(result, Command):
                 if "messages" in result.update:
@@ -651,7 +648,7 @@ class BaseTaskState(BaseModel):
 
     harness: str = Field(description="Harness code")
     messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
-    retrieved_context: dict[str, ToolCallResult] = Field(
+    retrieved_context: Annotated[dict[str, ToolCallResult], operator.or_] = Field(
         description="Context retrieved by tools, keyed by tool call", default_factory=dict
     )
     generated_functions: str = Field(description="The generated seed functions", default="")
