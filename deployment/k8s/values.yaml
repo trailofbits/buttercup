@@ -199,8 +199,8 @@ litellm-db:
   primary:
     resources:
       limits:
-        cpu: 200m
-        memory: 512Mi
+        cpu: 1000m
+        memory: 2Gi
       requests:
         cpu: 100m
         memory: 256Mi
