@@ -213,3 +213,7 @@ To reset or redeploy a running CRS cluster:
 ## Clean
 
 Optionally, you can run `make clean` to remove any generated files create from the included templates at runtime. This action is executed during `make up`.
+
+## Clean up Azure infrastructure
+
+See [CLEAN.md](CLEAN.md).

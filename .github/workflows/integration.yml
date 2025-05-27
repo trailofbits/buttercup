@@ -5,9 +5,6 @@ on:
     branches:
       - main
       - "ci/**"
-  pull_request:
-    branches:
-      - "*"
   workflow_dispatch:
     inputs:
       trigger_task_data:
@@ -144,55 +141,50 @@ jobs:
       - name: Wait for fuzzer build processing
         timeout-minutes: ${{ fromJSON(env.FUZZER_BUILD_TIMEOUT) }}
         run: |
-          count=0
-          while [ $count -lt 5 ]; do
-            if kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "buttercup.orchestrator.scheduler.scheduler - INFO - .* Processing build output for type FUZZER"; then
-              count=$((count + 1))
-              echo "Found FUZZER build processing pattern ($count/5)"
-              sleep 10
-            else
-              sleep 10
-            fi
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "buttercup.orchestrator.scheduler.scheduler - INFO - .* Processing build output for type FUZZER"; do
+            sleep 60
           done
-  
+
       - name: Wait for vuln to be found
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "  -> SUBMIT_PATCH_REQUEST" ; do
-            sleep 10
+            sleep 60
           done
       - name: Wait for vuln to enter the passed state in competition api
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_POV_PASS -> SUBMIT_PATCH" ; do
-            sleep 10
+            sleep 60
           done
 
       - name: Wait for seed-gen to submit at least 1 seed
         timeout-minutes: ${{ fromJSON(env.SEED_GEN_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen -c seed-gen | grep "Copying [1-9][0-9]* files to corpus"; do
-            sleep 10
+            sleep 60
           done
 
       - name: Wait for patch to be submitted
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_PATCH -> WAIT_PATCH_PASS"; do
-            sleep 10
+            sleep 60
           done
       - name: Wait for patch to enter the passed state in competition api
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"; do
-            sleep 10
+            sleep 60
           done
+
       - name: Wait for bundle to be submitted
         timeout-minutes: ${{ fromJSON(env.BUNDLE_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF"; do
-            sleep 10
+            sleep 60
           done
+
       - name: Send a SARIF broadcast
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
@@ -221,13 +213,13 @@ jobs:
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_MATCHING_SARIF -> SUBMIT_BUNDLE_PATCH"; do
-            sleep 10
+            sleep 60
           done
       - name: Wait for Bundle to be patched to include the SARIF
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler | grep "SUBMIT_BUNDLE_PATCH -> STOP"; do
-            sleep 10
+            sleep 60
           done
       
       - name: Collect logs
