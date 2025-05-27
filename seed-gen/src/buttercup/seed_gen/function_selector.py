@@ -50,6 +50,8 @@ class FunctionSelector:
 
         Will filter out functions with no lines.
 
+        Will filter out functions with 100% coverage, if there are functions with partial coverage.
+
         Args:
             function_coverage: List of FunctionCoverage objects
             temperature: Temperature parameter for softmax
@@ -63,6 +65,12 @@ class FunctionSelector:
         if not valid_functions:
             logger.warning("No valid functions found for probability calculation")
             return ([], [])
+
+        partial_functions = [fc for fc in function_coverage if fc.covered_lines < fc.total_lines]
+        if not partial_functions:
+            logger.info("All functions have 100% coverage, selecting one")
+        else:
+            valid_functions = partial_functions
 
         coverage_fractions = np.array([fc.covered_lines / fc.total_lines for fc in valid_functions])
 
