@@ -629,7 +629,13 @@ class Submissions:
         Returns:
             True if the patch was successfully recorded, False if the submission doesn't exist
         """
-        index = int(patch.submission_index)
+        try:
+            index = int(patch.submission_index)
+        except ValueError:
+            logger.error(f"Invalid submission index: {patch.submission_index}")
+            # We return True because we don't want to risk this erroneous patch to later be attached to a vulnerability.
+            return True
+
         try:
             e = self.entries[index]
         except IndexError:
