@@ -8,14 +8,17 @@ import uuid
 
 class PatcherConfig(BaseModel):
     work_dir: Path
+    tasks_storage: Path
     thread_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
-    max_patch_retries: int = Field(default=30)
+    max_patch_retries: int = Field(default=15)
     max_last_failure_retries: int = Field(default=3)
     max_minutes_run_povs: int = Field(default=30)
     max_root_cause_analysis_retries: int = Field(default=3)
+    max_tests_retries: int = Field(default=5)
     context_retriever_recursion_limit: int = Field(default=80)
     n_initial_stackframes: int = Field(default=4)
+    max_concurrency: int = Field(default=1)
 
     @classmethod
     def from_configurable(cls, config: RunnableConfig) -> Self:

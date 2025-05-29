@@ -209,6 +209,9 @@ def mock_llm_functions(mock_llm: MagicMock):
         patch("buttercup.common.llm.create_llm", return_value=mock_llm),
         patch("langgraph.prebuilt.chat_agent_executor._get_prompt_runnable", return_value=mock_llm),
     ):
+        import buttercup.patcher.agents.swe
+
+        buttercup.patcher.agents.swe.SUMMARIZE_PATCH_STRATEGY_PROMPT = mock_llm
         yield
 
 
@@ -665,14 +668,40 @@ def test_select_patch_strategy_basic(swe_agent: SWEAgent, patcher_agent_state: P
     """Test the select_patch_strategy method for a basic successful patch strategy selection."""
     # Mock the LLM to return a valid patch strategy string
     patch_strategy_str = (
-        "<patch_strategy>"
-        "<full>This is a detailed patch strategy.</full>"
-        "<summary>Short summary.</summary>"
-        "</patch_strategy>"
+        "<full_description>This is a detailed patch strategy.</full_description><summary>Short summary.</summary>"
     )
     swe_agent.patch_strategy_chain = MagicMock()
     swe_agent.patch_strategy_chain.invoke.return_value = patcher_agent_state
     patcher_agent_state.messages = [AIMessage(content=patch_strategy_str)]
+
+    mock_llm.invoke.side_effect = ["This is a summarized patch strategy."]
+
+    # Call the method
+    config = None  # Not used in the test
+    command = swe_agent.select_patch_strategy(patcher_agent_state, config)
+
+    # Check that the command is correct
+    assert hasattr(command, "update")
+    assert "patch_strategy" in command.update
+    assert command.update["patch_strategy"].full == "This is a detailed patch strategy."
+    assert command.update["patch_strategy"].summary == "This is a summarized patch strategy."
+    assert command.goto == PatcherAgentName.CREATE_PATCH.value
+
+
+def test_select_patch_strategy_summary_error(
+    swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock
+):
+    """Test the select_patch_strategy method for errors in summary generation."""
+    patch_strategy_str = (
+        "<full_description>This is a detailed patch strategy.</full_description><summary>Short summary.</summary>"
+    )
+    swe_agent.patch_strategy_chain = MagicMock()
+    swe_agent.patch_strategy_chain.invoke.return_value = patcher_agent_state
+    patcher_agent_state.messages = [AIMessage(content=patch_strategy_str)]
+
+    mock_llm.invoke.side_effect = [
+        None,
+    ]
 
     # Call the method
     config = None  # Not used in the test
@@ -683,4 +712,55 @@ def test_select_patch_strategy_basic(swe_agent: SWEAgent, patcher_agent_state: P
     assert "patch_strategy" in command.update
     assert command.update["patch_strategy"].full == "This is a detailed patch strategy."
     assert command.update["patch_strategy"].summary == "Short summary."
+    assert command.goto == PatcherAgentName.CREATE_PATCH.value
+
+
+def test_select_patch_strategy_no_full(
+    swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock
+):
+    """Test the select_patch_strategy method for incorrect output"""
+    patch_strategy_str = "This is a detailed patch strategy."
+    swe_agent.patch_strategy_chain = MagicMock()
+    swe_agent.patch_strategy_chain.invoke.return_value = patcher_agent_state
+    patcher_agent_state.messages = [AIMessage(content=patch_strategy_str)]
+
+    mock_llm.invoke.side_effect = [
+        None,
+    ]
+
+    # Call the method
+    config = None  # Not used in the test
+    command = swe_agent.select_patch_strategy(patcher_agent_state, config)
+
+    # Check that the command is correct
+    assert hasattr(command, "update")
+    assert "patch_strategy" in command.update
+    assert command.update["patch_strategy"].full == "This is a detailed patch strategy."
+    assert command.update["patch_strategy"].summary == "This is a detailed patch strategy."
+    assert command.goto == PatcherAgentName.CREATE_PATCH.value
+
+
+def test_select_patch_strategy_no_full_correct_summary(
+    swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock
+):
+    """Test that the summary generation is done on the correct full description"""
+    patch_strategy_str = "This is a detailed patch strategy."
+    swe_agent.patch_strategy_chain = MagicMock()
+    swe_agent.patch_strategy_chain.invoke.return_value = patcher_agent_state
+    patcher_agent_state.messages = [AIMessage(content=patch_strategy_str)]
+
+    mock_llm.invoke.side_effect = [
+        "Short description",
+    ]
+
+    # Call the method
+    config = None  # Not used in the test
+    command = swe_agent.select_patch_strategy(patcher_agent_state, config)
+
+    # Check that the command is correct
+    assert hasattr(command, "update")
+    assert "patch_strategy" in command.update
+    assert command.update["patch_strategy"].full == "This is a detailed patch strategy."
+    assert command.update["patch_strategy"].summary == "Short description"
+    mock_llm.invoke.assert_called_with({"patch_strategy": patch_strategy_str})
     assert command.goto == PatcherAgentName.CREATE_PATCH.value

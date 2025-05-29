@@ -275,7 +275,7 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_PATCHER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
 - name: BUTTERCUP_PATCHER_TASK_STORAGE_DIR
-  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
+  value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 - name: BUTTERCUP_PATCHER_SCRATCH_DIR
   value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
 - name: BUTTERCUP_PATCHER_SERVE__SLEEP_TIME

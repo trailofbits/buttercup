@@ -173,6 +173,7 @@ def mock_runnable_config(tmp_path: Path) -> dict:
     return {
         "configurable": PatcherConfig(
             work_dir=tmp_path / "work_dir",
+            tasks_storage=tmp_path / "tasks_storage",
             thread_id="test-thread-id",
             max_patch_retries=3,
         ).model_dump(),
@@ -258,6 +259,7 @@ def test_reflect_on_patch_zero_retries(reflection_agent: ReflectionAgent, tmp_pa
     config = {
         "configurable": PatcherConfig(
             work_dir=tmp_path / "work_dir",
+            tasks_storage=tmp_path / "tasks_storage",
             thread_id="test-thread-id",
             max_patch_retries=0,
         ).model_dump(),
@@ -290,6 +292,7 @@ def test_reflect_on_patch_high_retries(reflection_agent: ReflectionAgent, tmp_pa
     config = {
         "configurable": PatcherConfig(
             work_dir=tmp_path / "work_dir",
+            tasks_storage=tmp_path / "tasks_storage",
             thread_id="test-thread-id",
             max_patch_retries=100,
         ).model_dump(),

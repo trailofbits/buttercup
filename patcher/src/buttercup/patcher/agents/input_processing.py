@@ -22,5 +22,8 @@ class InputProcessingAgent(PatcherAgentBase):
             update={
                 "cleaned_stacktrace": stacktrace,
             },
-            goto=PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value,
+            goto=[
+                PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value,
+                PatcherAgentName.FIND_TESTS.value,
+            ],
         )

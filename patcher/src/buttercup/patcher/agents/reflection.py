@@ -33,30 +33,42 @@ from langchain_core.prompts import (
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_MSG = """You are the Reflection Engine in an autonomous vulnerability patching system."""
+SYSTEM_MSG = """You are an agent - please keep going until the user’s query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
+You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully.
 
-REFLECTION_PROMPT = """Your primary task is to analyze why a patch failed and determine the best next steps to unblock other agents in the system.
+You are the Reflection Engine in an autonomous vulnerability patching system."""
+
+REFLECTION_PROMPT = """You are a security-focused reflection engine in an autonomous vulnerability patching system. Your primary task is to analyze why a patch failed and determine the best next steps to unblock other agents in the system.
+
+CRITICAL: Your role is to prevent infinite loops and ensure forward progress. If you see repeated failures of the same type, you MUST redirect to a different component rather than continuing the same approach.
+
+Your thinking should be thorough and so it's fine if it's very long. You can think step by step before and after each action you decide to take.
 
 First, carefully review the following information about the failed patch attempt:
 
+Existing root cause analysis:
 <root_cause_analysis>
 {ROOT_CAUSE_ANALYSIS}
 </root_cause_analysis>
 
+Code snippets used until now:
 <code_snippets>
 {CODE_SNIPPETS}
 </code_snippets>
 
+Previous patch attempts, excluding the last one ({N_PREVIOUS_ATTEMPTS}):
 <previous_attempts>
 {PREVIOUS_ATTEMPTS}
 </previous_attempts>
 
 Now, analyze the specific failure information:
 
+Last patch attempt:
 <last_patch_attempt>
 {LAST_PATCH_ATTEMPT}
 </last_patch_attempt>
 
+Failure analysis:
 <failure_analysis>
 <failure_type>{FAILURE_TYPE}</failure_type>
 <failure_data>
@@ -77,34 +89,103 @@ Your task is to analyze the provided information and determine:
 5. Any patterns identified across multiple failed attempts
 6. What component should handle the next step and why
 
-To ensure a thorough and transparent reflection process, work through your analysis in <analysis_breakdown> tags inside your thinking block. Follow these steps:
+To ensure a thorough and transparent reflection process, work through your analysis *STEP BY STEP* in <analysis_breakdown> tags inside your thinking block.
+Do not jump directly to conclusions, always follow the steps and provide a detailed analysis in the <analysis_breakdown> tags.
+Follow these steps:
 
-1. Summarize key points from each input section (last patch attempt, root cause analysis, code snippets, previous attempts, failure analysis, extra information).
-2. Extract and quote relevant information from each input section for each point of analysis.
-3. For the failure category, consider arguments for each possible category: incomplete_fix, wrong_approach, misunderstood_root_cause, missing_code_snippet, build_error, regression_issue
-4. Rate the likelihood of each failure category on a scale of 1-5.
-5. List at least 3 potential improvements for the vulnerability fix. Focus ONLY on security-related improvements, such as:
-   - Adding missing security checks
-   - Fixing incorrect security checks
-   - Improving input validation
-   - Fixing memory safety issues
-   - Addressing race conditions
-   - Fixing access control issues
-   - etc.
-6. Create a numbered list of patterns across multiple failed attempts. Look for similarities in code, error messages, and approach.
-7. For the next component, consider pros and cons for each available component.
-8. Rate each component's suitability on a scale of 1-5.
-9. Carefully consider if the next component might need additional information, and if so list the information needed. In that case, the next component should be the context_retriever.
-10. If you have identified a pattern across multiple failures, consider to go back to an earlier component (e.g., root_cause_analysis or patch_strategy) due to potential issues with the root cause analysis or patch strategy.
+1. **Loop Detection Analysis**: FIRST, examine the previous attempts for patterns that indicate potential infinite loops:
+   - Count how many times each component has been called recently
+   - Identify if the same failure type is repeating (3+ times = loop risk)
+   - Check if the same error messages or failure modes keep occurring
+   - Look for oscillation between components without progress
+   - If a loop is detected, you MUST break it by choosing a different component
+
+2. **Failure Context Summary**: Summarize key points from each input section:
+   - Last patch attempt: Focus on what was changed and why it failed
+   - Root cause analysis: Identify the core vulnerability and its impact
+   - Code snippets: Note relevant security-sensitive code sections
+   - Previous attempts: Look for patterns in failed approaches
+   - Failure analysis: Understand the specific failure mode
+   - Extra information: Consider any additional context
+
+3. **Evidence Extraction**: Extract and quote relevant information from each input section for each point of analysis. Focus on:
+   - Security-critical code sections
+   - Error messages and failure patterns
+   - Previous patch attempts and their outcomes
+   - Root cause analysis insights
+
+4. **Failure Category Assessment**: For the failure category, consider arguments for each possible category:
+   - incomplete_fix: The patch addresses part but not all of the vulnerability
+   - wrong_approach: The patch strategy doesn't properly address the root cause
+   - misunderstood_root_cause: The vulnerability analysis was incorrect
+   - missing_code_snippet: Required code context is not available
+   - build_error: Technical issues preventing patch application
+   - regression_issue: The patch breaks existing functionality
+
+5. **Failure Category Scoring**: Rate the likelihood of each failure category on a scale of 1-5, considering:
+   - Security impact of each failure type
+   - Evidence from error messages and code
+   - Previous attempt patterns
+   - Root cause analysis alignment
+
+6. **Security Improvement Identification**: List at least 3 potential improvements for the vulnerability fix. Focus ONLY on security-related improvements:
+   - Input validation and sanitization
+   - Access control and authorization checks
+   - Memory safety and bounds checking
+   - Race condition prevention
+   - Resource cleanup and error handling
+   - Cryptographic implementation fixes
+   - Secure communication protocols
+   - Authentication mechanisms
+
+7. **Pattern Analysis**: Create a numbered list of patterns across multiple failed attempts:
+   - Similar error messages or failure modes
+   - Repeated security check omissions
+   - Common code paths or functions
+   - Consistent failure categories
+   - Related security mechanisms
+   - Component call frequency and outcomes
+
+8. **Component Selection Strategy**: For the next component, consider pros and cons for each available component based on:
+   - Current failure mode and what type of intervention is needed
+   - Available information and whether more context is required
+   - Previous attempt history and which components have been tried recently
+   - Security requirements and which component best addresses the vulnerability
+
+9. **Component Suitability Scoring**: Rate each component's suitability on a scale of 1-5, considering:
+   - Current failure mode
+   - Available information
+   - Previous attempt history
+   - Security requirements
+   - **CRITICAL**: Reduce score by 3 points if component was called in last 2 attempts with same failure type
+
+10. **Information Gap Analysis**: Carefully consider if the next component might need additional information:
+    - Required code snippets
+    - Security context
+    - Error details
+    - Previous attempt data
+    If critical information is missing, prioritize components that can gather this information.
+
+11. **Loop Breaking Decision**: If you have identified a pattern across multiple failures:
+    - If the same component failed 3+ times: MUST choose a different component
+    - If recently called components haven't made progress: MUST try an alternative approach
+    - If oscillating between components: MUST try a third option
+    - Document the pattern and its implications for future attempts
+
+12. **Progress Validation**: Before finalizing your decision:
+    - Ensure the selected component can make meaningful progress
+    - Verify you're not repeating a recently failed approach
+    - Confirm the guidance addresses the core security vulnerability
+    - Check that the path forward is different from recent attempts
 
 After your analysis, generate a structured reflection result using the following format:
 
 <reflection_result>
-<failure_reason>[Provide a detailed and specific reason for why the patch failed]</failure_reason>
+<failure_reason>[Provide a detailed and specific reason for why the patch failed, focusing on security implications]</failure_reason>
 <failure_category>[Choose one: incomplete_fix, wrong_approach, misunderstood_root_cause, missing_code_snippet, build_error, regression_issue]</failure_category>
-<pattern_identified>[Describe any patterns seen across multiple failures, or state "No clear pattern identified" if none are apparent]</pattern_identified>
-<next_component>[Select one of the available components listed below]</next_component>
-<component_guidance>[Provide detailed, specific, actionable guidance for the selected component. This should be a concrete suggestion for the next step, detailed enough to unblock other agents in the system.]</component_guidance>
+<pattern_identified>[Describe any patterns seen across multiple failures, including loop detection results, or state "No clear pattern identified" if none are apparent]</pattern_identified>
+<next_component>[Select one of the available components, ensuring it breaks any detected loops]</next_component>
+<component_guidance>[Provide detailed, specific, actionable guidance for the selected component. Focus on security requirements and concrete steps to address the vulnerability. If breaking a loop, explain why this approach is different.]</component_guidance>
 <partial_success>[True if the patch shows partial success, False if it is completely broken and should be discarded. If the next component guidance says to "improve the patch" or modify the patch in some way, then the patch is partially successful.]</partial_success>
 </reflection_result>
 
@@ -114,11 +195,16 @@ The available components for the next step are:
 </available_components>
 
 Remember:
-- Focus ONLY on fixing the security vulnerability
+- **PRIORITY 1**: Prevent infinite loops - if same failure type occurs 3+ times, MUST change component
+- **PRIORITY 2**: Focus ONLY on fixing the security vulnerability
 - Do NOT suggest adding tests, logging, or refactoring code
 - Do NOT suggest improvements unrelated to the security vulnerability
 - Your analysis and guidance should be thorough and specific enough to help unblock other agents in the autonomous patching system
 - Try to provide first simpler guidance and only if those do not work, provide more complex guidance
+- Always prioritize security-critical fixes over other improvements
+- Consider the full security context when analyzing failures
+- Look for patterns that might indicate deeper security issues
+- When breaking loops, clearly explain why the new approach is different and likely to succeed
 
 Your final output should consist only of the structured reflection result and should not duplicate or rehash any of the work you did in the analysis breakdown.
 """
@@ -147,6 +233,7 @@ PREVIOUS_PATCH_ATTEMPTS_TMPL = """<previous_patch_attempt>
 <partial_success>{partial_success}</partial_success>
 <patch_strategy>{patch_strategy}</patch_strategy>
 <failure_analysis>{failure_analysis}</failure_analysis>
+<resolution_component>{resolution_component}</resolution_component>
 </previous_patch_attempt>
 """
 
@@ -309,19 +396,41 @@ class ReflectionAgent(PatcherAgentBase):
         self.components = [
             (
                 PatcherAgentName.CREATE_PATCH.value,
-                "Given the root cause analysis, it defines a patching strategy and tries to create a patch for the available code snippets. Provide clear guidance on how to improve the patch creation.",
+                "Creates a patch based on the root cause analysis and available code snippets. "
+                "This should be used when the patch attempts do not follow completely the patch strategy or the last patch was a duplicate or the last patch could not be generated/applied. "
+                "When providing guidance: "
+                "1) Specify exactly which code snippets to modify and how (e.g., 'Add validation for SQL input in function X') "
+                "2) List any specific security checks that must be included (e.g., 'Add null pointer check before dereferencing variable Y') "
+                "3) Mention any edge cases that must be handled (e.g., 'Handle empty input case for variable Y in function Z')",
             ),
             (
                 PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-                "Re-analyze the root cause of the vulnerability given the provided code snippets and the previous patch attempts. Provide clear guidance on how to improve the root cause analysis.",
+                "Re-analyzes the vulnerability's root cause using the existing code snippets and previous attempts. "
+                "This should be used when the last few patch attempts fail even though they have different patch strategy and they implement the strategy correctly. "
+                "When providing guidance: "
+                "1) Identify specific code patterns that indicate the vulnerability (e.g., 'Missing bounds check in array access') "
+                "2) Explain the security impact of the vulnerability (e.g., 'Buffer overflow allows arbitrary code execution') "
+                "3) List all affected components and their relationships (e.g., 'Vulnerability spans functions X and Y') "
+                "4) Specify which code paths need to be analyzed (e.g., 'Focus on error handling path in function Z')",
             ),
             (
                 PatcherAgentName.CONTEXT_RETRIEVER.value,
-                "Retrieve additional code snippets that might be necessary to understand the root cause or to create a patch. Provide clear guidance on what exactly to retrieve.",
+                "Retrieves additional code snippets needed for analysis or patching. "
+                "This should be used when previous attempts failed because of missing information that need to be retrieved. "
+                "When providing guidance: "
+                "1) Specify exact file paths or function names to search for (e.g., 'Find all usages of function X in directory Y') "
+                "2) List specific code patterns to look for (e.g., 'Search for all array access operations in file Z') "
+                "3) Define the scope of the search (e.g., 'Look for error handling code in related modules') "
+                "4) Explain why each requested snippet is needed (e.g., 'Need to understand how function X handles its input')",
             ),
             (
                 PatcherAgentName.PATCH_STRATEGY.value,
-                "Develop a patch strategy for the vulnerability given the provided code snippets and the previous patch attempts. Provide clear guidance on how to improve the patch strategy or to what approach to select.",
+                "Develops a comprehensive approach to fix the vulnerability, given a root cause analysis and code snippets. "
+                "This only describes at a high level what to do, it does not provide any specific code changes. The root cause is assumed to be correct. "
+                "When providing guidance: "
+                "1) List required security mechanisms (e.g., 'Add input sanitization and bounds checking') "
+                "2) Define the scope of changes needed (e.g., 'Modify both the validation and error handling paths') "
+                "3) Explain how to maintain security invariants (e.g., 'Ensure all error paths properly clean up resources')",
             ),
         ]
 
@@ -441,12 +550,32 @@ class ReflectionAgent(PatcherAgentBase):
             patch_attempt.id,
         )
 
+        execution_info = state.execution_info
+        if execution_info.tests_tries >= configuration.max_tests_retries:
+            logger.warning(
+                "[%s / %s] Reached max tests tries, just accept the patch",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            patch_attempt.status = PatchStatus.SUCCESS
+            patch_attempt.tests_passed = True
+            return Command(
+                update={
+                    "patch_attempts": patch_attempt,
+                    "execution_info": execution_info,
+                },
+                goto=END,
+            )
+
         extra_information = ""
         last_attempts_status = [attempt.status for attempt in state.patch_attempts]
 
         # Group consecutive statuses
         grouped_statuses = [(status, len(list(group))) for status, group in groupby(last_attempts_status)]
         last_group_status = grouped_statuses[-1] if grouped_statuses else None
+
+        if patch_attempt.status == PatchStatus.TESTS_FAILED:
+            execution_info.tests_tries += 1
 
         failure_data = self._get_failure_data(state, patch_attempt)
         extra_information = self._get_extra_information(state, configuration, last_group_status)
@@ -462,23 +591,13 @@ class ReflectionAgent(PatcherAgentBase):
                         if not patch_attempt.patch or not patch_attempt.patch.patch
                         else "",
                         status=patch_attempt.status,
-                        patch_strategy=patch_attempt.strategy,
+                        patch_strategy=state.patch_strategy.full if state.patch_strategy else "",
                     ),
                     "FAILURE_TYPE": patch_attempt.status,
                     "FAILURE_DATA": failure_data,
                     "ROOT_CAUSE_ANALYSIS": str(state.root_cause),
-                    "CODE_SNIPPETS": "\n".join(
-                        [
-                            CODE_SNIPPET_SUMMARY_TMPL.format(
-                                identifier=cs.key.identifier,
-                                file_path=cs.key.file_path,
-                                description=cs.description,
-                                start_line=cs.start_line,
-                                end_line=cs.end_line,
-                            )
-                            for cs in state.relevant_code_snippets
-                        ]
-                    ),
+                    "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
+                    "N_PREVIOUS_ATTEMPTS": len(state.patch_attempts) - 1,
                     "PREVIOUS_ATTEMPTS": "\n".join(
                         [
                             PREVIOUS_PATCH_ATTEMPTS_TMPL.format(
@@ -521,7 +640,6 @@ class ReflectionAgent(PatcherAgentBase):
         patch_attempt.analysis.failure_category = result.failure_category
         patch_attempt.analysis.resolution_component = result.next_component
         patch_attempt.analysis.partial_success = result.partial_success
-        execution_info = state.execution_info
         execution_info.reflection_decision = result.next_component
         execution_info.reflection_guidance = result.component_guidance
         execution_info.root_cause_analysis_tries = 0
@@ -566,28 +684,14 @@ class ReflectionAgent(PatcherAgentBase):
 
         execution_info = state.execution_info
         execution_info.root_cause_analysis_tries += 1
-        if not state.root_cause or not state.root_cause.code_snippet_requests:
-            # This should not happen, but just in case
-            # This can only happen if we don't have any patch attempt yet and
-            # root cause is very broken
-            return Command(
-                update={
-                    "execution_info": execution_info,
-                },
-                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-            )
-
+        # This should not happen, but just in case
+        # This can only happen if we don't have any patch attempt yet and
+        # root cause is very broken
         return Command(
             update={
-                "code_snippet_requests": [
-                    CodeSnippetRequest(
-                        request=state.root_cause.code_snippet_requests,
-                    )
-                ],
-                "prev_node": PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                 "execution_info": execution_info,
             },
-            goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
+            goto=PatcherAgentName.INPUT_PROCESSING.value,
         )
 
     def reflect_on_patch(self, state: PatcherAgentState, config: RunnableConfig) -> Command:
@@ -613,15 +717,6 @@ class ReflectionAgent(PatcherAgentBase):
                 goto=END,
             )
 
-        current_patch_attempt = state.get_last_patch_attempt()
-        if not current_patch_attempt or state.execution_info.prev_node == PatcherAgentName.ROOT_CAUSE_ANALYSIS:
-            logger.warning(
-                "[%s / %s] No patch attempt found, the root cause analysis is probably wrong",
-                state.context.task_id,
-                state.context.submission_index,
-            )
-            return self._root_cause_analysis_failed(state, configuration)
-
         # If a node has explicitly requested additional information, let's move
         # to the context retriever to get the information and then come back to
         # the same node
@@ -642,5 +737,14 @@ class ReflectionAgent(PatcherAgentBase):
                 },
                 goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
             )
+
+        current_patch_attempt = state.get_last_patch_attempt()
+        if not current_patch_attempt or state.execution_info.prev_node == PatcherAgentName.ROOT_CAUSE_ANALYSIS:
+            logger.warning(
+                "[%s / %s] No patch attempt found, the root cause analysis is probably wrong",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            return self._root_cause_analysis_failed(state, configuration)
 
         return self._analyze_failure(state, configuration, current_patch_attempt)

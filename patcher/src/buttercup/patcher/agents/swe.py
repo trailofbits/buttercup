@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 SYSTEM_MSG = (
     """You are a skilled software engineer tasked with generating a patch for a specific vulnerability in a project."""
 )
-USER_MSG = """Your primary goal is to fix only the described vulnerability.
+USER_MSG = """Your goal is to fix only the described vulnerability without making any unrelated changes or improvements to the code.
 
 First, review the following project information and vulnerability analysis:
 
@@ -72,25 +72,26 @@ Patch strategy:
 
 Instructions:
 
-1. Review the provided information carefully.
+1. Analyze the vulnerability and plan your approach:
+   Wrap your patch planning inside <patch_planning> tags. Focus on implementing the provided patch strategy rather than performing a deep analysis. Include the following steps:
+   a. List the vulnerable code parts identified in the root cause analysis.
+   b. Map each vulnerable part to the corresponding code snippet, including specific line numbers where possible.
+   c. Outline the specific changes needed for each vulnerable part, based on the patch strategy.
+   d. Develop a step-by-step approach for implementing the patch.
 
-2. Review the provided patch strategy and describe in more details the changes you intend to make to follow the strategy.
+2. Describe the changes:
+   Provide a clear explanation of the changes you intend to make and why. Use <description> tags for this section.
 
-3. Generate the patch based on the strategy, your planning and explanation. Remember:
-   - Only fix the described vulnerability
-   - You can modify one or more code snippets
-   - You don't have to modify all code snippets
-   - You don't need to output snippets you haven't modified
-   - Do not make up any code, only use code that you know is present in the codebase.
-   - Do not put placeholders or TODOs in the code, if you suggest a change, you should know the exact code to put there.
+3. Generate the patch:
+   Based on your analysis, create the necessary code changes. Remember:
+   - Only fix the described vulnerability.
+   - Modify one or more code snippets as needed.
+   - You don't have to modify all code snippets.
+   - Only output snippets you have modified.
+   - Use only code that you know is present in the codebase.
+   - Do not include placeholders or TODOs; suggest only exact code changes.
 
-5. Provide a description of the changes you intend to make. Use <description> tags for this section.
-
-<description>
-[Description of the changes you intend to make]
-</description>
-
-6. Format your output as follows for each modified code snippet:
+4. Format your output as follows for each modified code snippet:
 
 <patch>
 <file_path>[File path of the code snippet]</file_path>
@@ -107,24 +108,25 @@ Instructions:
 </new_code>
 </patch>
 
-Remember to focus solely on fixing the described vulnerability.
-Do not make any unrelated changes or improvements to the code.
-Do not make up any code, only use code that you know is present in the codebase.
-Begin your vulnerability analysis and solution planning now.
+Remember to focus solely on fixing the described vulnerability. Do not make any unrelated changes or improvements to the code. Begin your patch planning and solution development now.
 """
 
 PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", SYSTEM_MSG),
         ("user", USER_MSG),
-        ("ai", "<vulnerability_analysis_and_solution>"),
+        ("ai", "<patch_planning>"),
     ]
 )
 
-PATCH_STRATEGY_SYSTEM_MSG = """You are an AI agent in a multi-agent LLM-based autonomous patching system."""
-PATCH_STRATEGY_USER_MSG = """Your role is to develop a focused patch strategy for a specific vulnerability based on provided information and code snippets. Your task is to identify the exact changes needed to fix the vulnerability, nothing more.
+PATCH_STRATEGY_SYSTEM_MSG = (
+    "You are part of an autonomous LLM-based system designed to generate precise patches for security vulnerabilities. "
+    "Your responsibility is to develop a targeted patch strategy based on provided root cause analysis and code context."
+)
 
-Here is the information you need to analyze:
+PATCH_STRATEGY_USER_MSG = """You are responsible for creating a precise and minimal patch strategy to address a specific vulnerability. Your output will be used in an automated patch generation system, so accuracy is critical.
+
+Here is the information available to you:
 
 <project_name>
 {PROJECT_NAME}
@@ -140,56 +142,34 @@ Here is the information you need to analyze:
 
 {REFLECTION_GUIDANCE}
 
-Your task is to develop a precise patch strategy that addresses ONLY the vulnerability. Follow these steps:
+---
 
-1. Analyze the provided information and code snippets.
-2. Call `understand_code_snippet` tool to understand the relevant code snippets in more detail.
-3. Identify the exact lines of code that need to be modified to fix the vulnerability.
-4. Determine the specific changes required to those lines.
-5. Consider any dependencies or side effects that might affect the fix.
-6. Ensure the fix directly addresses the root cause.
+Your objective is to fix ONLY the identified vulnerability — no general improvements or unrelated changes.
+Use the `understand_code_snippet` tool to gain a deeper understanding where necessary.
+Consider a few different approaches to fix the vulnerability, and evaluate pros and cons of each approach, then choose the best approach.
+You do not have to do any code changes, just propose a patch strategy.
+Put all your analysis and reasoning inside <patch_development_process> tags.
+Once you have chosen a patch strategy, write a detailed description under the <full_description> tag.
 
-If you need additional information to develop your patch strategy, you can request new code snippets. For example, you might need:
-- Code snippets defining functions referenced in the vulnerable code
-- Type definitions used in the vulnerable code
-- Context about how certain functions or variables are used
+### If additional code or context is needed:
+Use the format below to request it explicitly:
 
-To request additional information, use the following format:
+```xml
 <request_information>
-[Describe the specific code snippet or information you need and why it's necessary for developing the patch strategy]
+[Clearly describe what additional code snippet or information you need and why it's necessary.]
 </request_information>
+```
 
-Before providing your final patch strategy, wrap your reasoning process in <patch_development_process> tags. This should include:
-- Relevant quotes from the root cause analysis and code snippets
-- Your understanding of the code's intended behavior
-- Analysis of the vulnerability, including potential vulnerability types
-- Enumeration and evaluation of possible fix approaches
-- Selection of the best approach with justification
-- Reasoning about potential fixes and their implications
+### Important guidelines:
+- DO propose a fix for only the exact issue described in the root cause analysis.
+- DO NOT provide code changes, only the approach you will take to fix the vulnerability.
+- DO NOT include:
+    1. General security or refactoring changes
+    2. Code style or formatting adjustments
+    3. Tests, documentation, or performance optimizations
+- Stay laser-focused on fixing only the vulnerability.
 
-Once you have completed your analysis, provide your patch strategy in the following format:
-
-<patch_strategy>
-<full>
-[Explain your proposed patch strategy in detail. It is ok for this section to be long. Include:
-- The intended behavior of the code relevant to the vulnerability
-- The exact lines of code that need to be modified
-- The specific changes required to fix the vulnerability
-- Any dependencies or side effects that need to be considered
-- How these changes directly address the root cause]
-</full>
-<summary>[Short summary of the patch strategy, just one or two sentences, no more than 100 characters]</summary>
-</patch_strategy>
-
-Remember: Focus ONLY on fixing the specific vulnerability. Do not include:
-- General security improvements
-- Code style changes
-- Test implementations
-- Documentation updates
-- Performance optimizations
-- Any other changes not directly related to fixing the vulnerability
-
-Use available tools to understand the code snippets.
+Proceed carefully and precisely.
 """
 
 PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(
@@ -211,7 +191,8 @@ You have received additional guidance on what to do next, you should follow it a
 
 PATCH_PROMPT = """
 You previously tried the following patch, but it was not good enough.
-When producing the patch, include these changes as well, because they are not applied.
+Please incorporate these changes into your new patch proposal, as they still need to be implemented.
+Do not just copy the previous patch, but use the previous patch as a reference to generate a new patch.
 
 <previous_patch>
 <description>{description}</description>
@@ -223,6 +204,20 @@ When producing the patch, include these changes as well, because they are not ap
 <failure_analysis>{failure_analysis}</failure_analysis>
 </previous_patch>
 """
+
+SUMMARIZE_PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", "You are a helpful assistant that summarizes a patch strategy."),
+        (
+            "user",
+            """Summarize the following patch strategy in 1-2 sentences at most. Produce only the summary, no other text:
+<patch_strategy>
+{patch_strategy}
+</patch_strategy>
+""",
+        ),
+    ]
+)
 
 
 class CodeSnippetChange(BaseModel):
@@ -326,16 +321,22 @@ class SWEAgent(PatcherAgentBase):
             assert isinstance(state, PatcherAgentState)
             return self._understand_code_snippet(state, code_snippet_id, focus_area)
 
-        self.default_llm = create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
+        kwargs = {
+            "temperature": 1,
+            "max_tokens": 20000,
+        }
+        self.default_llm = create_default_llm_with_temperature(
+            model_name=ButtercupLLM.OPENAI_GPT_4_1.value,
+            **kwargs,
+        )
         fallback_llms: list[Runnable] = []
         for fb_model in [
             ButtercupLLM.CLAUDE_3_7_SONNET,
         ]:
-            fallback_llms.append(create_default_llm_with_temperature(model_name=fb_model.value))
+            fallback_llms.append(create_default_llm_with_temperature(model_name=fb_model.value, **kwargs))
         self.llm = self.default_llm.with_fallbacks(fallback_llms)
 
         self.code_snippets_chain = PROMPT | self.llm | StrOutputParser()
-        self.patch_strategy_chain = PATCH_STRATEGY_PROMPT | self.llm | StrOutputParser()
 
         tools = [
             understand_code_snippet,
@@ -356,6 +357,7 @@ class SWEAgent(PatcherAgentBase):
             for llm in fallback_llms
         ]
         self.patch_strategy_chain = default_strategy_agent.with_fallbacks(fallback_strategy_agents)
+        self.patch_strategy_summary_chain = SUMMARIZE_PATCH_STRATEGY_PROMPT | self.llm | StrOutputParser()
 
     def _patch_strategy_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
         return PATCH_STRATEGY_PROMPT.format_messages(
@@ -651,16 +653,7 @@ class SWEAgent(PatcherAgentBase):
 
     def _parse_patch_strategy(self, patch_strategy_str: str) -> PatchStrategy:
         """Parse the patch strategy from the patch strategy string."""
-        # Extract content between <patch_strategy> tags
-        if "<patch_strategy>" not in patch_strategy_str:
-            return PatchStrategy(full=patch_strategy_str)
-
-        if "</patch_strategy>" not in patch_strategy_str:
-            patch_strategy_str += "</patch_strategy>"
-
-        start = patch_strategy_str.find("<patch_strategy>") + len("<patch_strategy>")
-        end = patch_strategy_str.find("</patch_strategy>")
-        strategy = patch_strategy_str[start:end].strip()
+        strategy = patch_strategy_str
 
         # Extract each field
         def extract_field(field: str) -> str | list[str] | None:
@@ -675,10 +668,16 @@ class SWEAgent(PatcherAgentBase):
                 return None
             return content
 
-        return PatchStrategy(
-            full=extract_field("full"),
+        res = PatchStrategy(
+            full=extract_field("full_description"),
             summary=extract_field("summary"),
         )
+        if res.full is None:
+            res.full = strategy
+        if res.summary is None:
+            res.summary = res.full
+
+        return res
 
     def select_patch_strategy(
         self, state: PatcherAgentState, config: RunnableConfig
@@ -699,7 +698,6 @@ class SWEAgent(PatcherAgentBase):
         execution_info.prev_node = PatcherAgentName.PATCH_STRATEGY
 
         configurable = {
-            "llm_temperature": pick_temperature(),
             "thread_id": str(uuid.uuid4()),
         }
         strategy_state_dict = self.patch_strategy_chain.invoke(
@@ -743,6 +741,18 @@ class SWEAgent(PatcherAgentBase):
             )
 
         patch_strategy = self._parse_patch_strategy(patch_strategy_str)
+        try:
+            new_summary = self.patch_strategy_summary_chain.invoke(
+                {
+                    "patch_strategy": patch_strategy.full,
+                }
+            )
+            if new_summary:
+                patch_strategy.summary = new_summary
+        except Exception as e:
+            logger.error("Error parsing patch strategy summary: %s", e)
+            patch_strategy.summary = patch_strategy.full
+
         if not patch_strategy or not patch_strategy.full:
             logger.warning("No patch strategy found in response")
             return Command(

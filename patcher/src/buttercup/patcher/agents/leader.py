@@ -36,6 +36,7 @@ class PatcherLeaderAgent:
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
     work_dir: Path
+    tasks_storage: Path
     model_name: str | None = None
 
     def _init_patch_team(self) -> StateGraph:
@@ -48,6 +49,7 @@ class PatcherLeaderAgent:
         self.model_name = swe_agent.default_llm.model_name
 
         workflow = StateGraph(PatcherAgentState, PatcherConfig)
+        workflow.add_node(PatcherAgentName.FIND_TESTS.value, context_retriever_agent.find_tests_node)
         workflow.add_node(PatcherAgentName.INPUT_PROCESSING.value, input_processing_agent.process_input)
         workflow.add_node(
             PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value, context_retriever_agent.get_initial_context
@@ -81,6 +83,7 @@ class PatcherLeaderAgent:
                 recursion_limit=RECURSION_LIMIT,
                 configurable={
                     "work_dir": self.work_dir,
+                    "tasks_storage": self.tasks_storage,
                 },
             )
         )

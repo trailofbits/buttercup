@@ -10,13 +10,11 @@ from langchain_core.messages import AIMessage
 import os
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableSequence
-from langgraph.types import Command
 
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
-    RootCauseAnalysis,
     ContextCodeSnippet,
     CodeSnippetKey,
 )
@@ -184,109 +182,6 @@ def mock_runnable_config(tmp_path: Path) -> dict:
     }
 
 
-def test_analyze_vulnerability_success(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
-) -> None:
-    """Test successful vulnerability analysis."""
-    # Create a test state with code snippets
-    state = PatcherAgentState(
-        context=root_cause_agent.input,
-        relevant_code_snippets=[
-            ContextCodeSnippet(
-                key=CodeSnippetKey(file_path="/src/example_project/test.c", identifier="main"),
-                start_line=1,
-                end_line=1,
-                code="int main() { int a = foo(); return a; }",
-                code_context="",
-            ),
-        ],
-    )
-
-    # Mock LLM response with a complete root cause analysis
-    root_cause_agent.root_cause_chain.invoke.return_value = state
-    state.messages = [
-        AIMessage(
-            content="""
-<vulnerability_analysis>
-<code_snippet_requests></code_snippet_requests>
-<classification>Buffer Overflow / Stack Overflow</classification>
-<root_cause>The vulnerability occurs due to insufficient bounds checking in the buffer copy operation.</root_cause>
-<affected_variables>buffer, size</affected_variables>
-<trigger_conditions>Input size exceeds buffer capacity</trigger_conditions>
-<data_flow_analysis>Data is read from input, Data is copied to buffer without bounds check</data_flow_analysis>
-<security_constraints>Buffer size must be validated before copy</security_constraints>
-</vulnerability_analysis>
-    """
-        ),
-    ]
-
-    result = root_cause_agent.analyze_vulnerability(state)
-
-    assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.PATCH_STRATEGY.value
-    assert "root_cause" in result.update
-    assert isinstance(result.update["root_cause"], RootCauseAnalysis)
-    assert result.update["root_cause"].classification == "Buffer Overflow / Stack Overflow"
-    assert (
-        result.update["root_cause"].root_cause
-        == "The vulnerability occurs due to insufficient bounds checking in the buffer copy operation."
-    )
-    assert result.update["root_cause"].affected_variables == "buffer, size"
-    assert result.update["root_cause"].trigger_conditions == "Input size exceeds buffer capacity"
-    assert (
-        result.update["root_cause"].data_flow_analysis
-        == "Data is read from input, Data is copied to buffer without bounds check"
-    )
-    assert result.update["root_cause"].security_constraints == "Buffer size must be validated before copy"
-
-
-def test_analyze_vulnerability_missing_info(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
-) -> None:
-    """Test vulnerability analysis that requires additional information."""
-    state = PatcherAgentState(
-        context=root_cause_agent.input,
-        relevant_code_snippets=[
-            ContextCodeSnippet(
-                key=CodeSnippetKey(file_path="/src/example_project/test.c", identifier="main"),
-                start_line=1,
-                end_line=1,
-                code="int main() { int a = foo(); return a; }",
-                code_context="",
-            ),
-        ],
-    )
-
-    # Mock LLM response requesting more information
-    root_cause_agent.root_cause_chain.invoke.return_value = state
-    state.messages = [
-        AIMessage(
-            content="""
-<vulnerability_analysis>
-<code_snippet_requests>Need to see the implementation of foo() to understand the vulnerability</code_snippet_requests>
-<classification></classification>
-<root_cause></root_cause>
-<affected_variables></affected_variables>
-<trigger_conditions></trigger_conditions>
-<data_flow_analysis></data_flow_analysis>
-<security_constraints></security_constraints>
-</vulnerability_analysis>
-    """
-        ),
-    ]
-
-    result = root_cause_agent.analyze_vulnerability(state)
-
-    assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.REFLECTION.value
-    assert "root_cause" in result.update
-    assert isinstance(result.update["root_cause"], RootCauseAnalysis)
-    assert (
-        result.update["root_cause"].code_snippet_requests
-        == "Need to see the implementation of foo() to understand the vulnerability"
-    )
-
-
 def test_analyze_vulnerability_no_root_cause(
     root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
 ) -> None:
@@ -312,10 +207,8 @@ def test_analyze_vulnerability_no_root_cause(
         root_cause_agent.analyze_vulnerability(state)
 
 
-def test_analyze_vulnerability_malformed_response(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
-) -> None:
-    """Test vulnerability analysis with malformed LLM response."""
+def test_rootcause_requests(root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict) -> None:
+    """Test vulnerability analysis when snippet requests are found."""
     state = PatcherAgentState(
         context=root_cause_agent.input,
         relevant_code_snippets=[
@@ -329,58 +222,23 @@ def test_analyze_vulnerability_malformed_response(
         ],
     )
 
-    # Mock LLM response with invalid data
-    root_cause_agent.root_cause_chain.invoke.return_value = state
-    state.messages = [AIMessage(content="""Invalid response format""")]
-
-    result = root_cause_agent.analyze_vulnerability(state)
-
-    assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.PATCH_STRATEGY.value
-    assert "root_cause" in result.update
-    assert isinstance(result.update["root_cause"], RootCauseAnalysis)
-    assert result.update["root_cause"].root_cause == "Invalid response format"
-
-
-def test_analyze_vulnerability_empty_snippets(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
-) -> None:
-    """Test vulnerability analysis with no code snippets."""
-    state = PatcherAgentState(
-        context=root_cause_agent.input,
-        relevant_code_snippets=[],
-    )
-
-    # Mock LLM response requesting more information
     root_cause_agent.root_cause_chain.invoke.return_value = state
     state.messages = [
         AIMessage(
-            content="""<vulnerability_analysis>
-<code_snippet_requests>Need code snippets to analyze the vulnerability</code_snippet_requests>
-<classification></classification>
-<root_cause></root_cause>
-<affected_variables></affected_variables>
-<trigger_conditions></trigger_conditions>
-<data_flow_analysis></data_flow_analysis>
-<security_constraints></security_constraints>
-</vulnerability_analysis>
-    """
-        ),
+            content="<code_snippet_requests><code_snippet_request>Request 1</code_snippet_request><code_snippet_request>Request 2</code_snippet_request></code_snippet_requests>"
+        )
     ]
 
-    result = root_cause_agent.analyze_vulnerability(state)
+    root_cause_agent.analyze_vulnerability(state)
+    assert state.root_cause is None
+    assert state.execution_info.code_snippet_requests is not None
+    assert len(state.execution_info.code_snippet_requests) == 2
+    assert state.execution_info.code_snippet_requests[0].request == "Request 1"
+    assert state.execution_info.code_snippet_requests[1].request == "Request 2"
 
-    assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.REFLECTION.value
-    assert "root_cause" in result.update
-    assert isinstance(result.update["root_cause"], RootCauseAnalysis)
-    assert result.update["root_cause"].code_snippet_requests == "Need code snippets to analyze the vulnerability"
 
-
-def test_analyze_vulnerability_malformed_but_structured_response(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
-) -> None:
-    """Test vulnerability analysis with malformed but structured LLM response."""
+def test_rootcause_success(root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict) -> None:
+    """Test vulnerability analysis when a root cause is found."""
     state = PatcherAgentState(
         context=root_cause_agent.input,
         relevant_code_snippets=[
@@ -394,38 +252,10 @@ def test_analyze_vulnerability_malformed_but_structured_response(
         ],
     )
 
-    # Mock LLM response with malformed but JSON-like data
     root_cause_agent.root_cause_chain.invoke.return_value = state
-    state.messages = [
-        AIMessage(
-            content="""<vulnerability_analysis>
-<classification>Buffer Overflow / Stack Overflow</classification>
-<root_cause>The vulnerability occurs in the buffer copy operation where there is insufficient bounds checking. The code fails to validate the input size before copying data into a fixed-size buffer.</root_cause>
-<affected_variables>buffer: The destination buffer that gets overflowed, size: The input size parameter that isn't properly validated, input_data: The source data being copied</affected_variables>
-<trigger_conditions>Input size exceeds buffer capacity, No bounds checking before copy operation, Input validation is missing</trigger_conditions>
-<data_flow_analysis>Data is read from input, Data is copied to buffer without bounds check</data_flow_analysis>
-<security_constraints>Buffer size must be validated before copy</security_constraints>
-</vulnerability_analysis>
-    """
-        ),
-    ]
+    state.messages = [AIMessage(content="Root cause")]
 
-    result = root_cause_agent.analyze_vulnerability(state)
-
-    assert isinstance(result, Command)
-    assert result.goto == PatcherAgentName.PATCH_STRATEGY.value
-    assert "root_cause" in result.update
-    assert isinstance(result.update["root_cause"], RootCauseAnalysis)
-
-    root_cause = result.update["root_cause"]
-    assert "Buffer Overflow / Stack Overflow" in root_cause.classification
-    assert "insufficient bounds checking" in root_cause.root_cause.lower()
-    assert "buffer" in root_cause.affected_variables
-    assert "size" in root_cause.affected_variables
-    assert "input_data" in root_cause.affected_variables
-    assert "Input size exceeds buffer capacity" in root_cause.trigger_conditions
-    assert "No bounds checking before copy operation" in root_cause.trigger_conditions
-    assert "Input validation is missing" in root_cause.trigger_conditions
-    assert "Data is read from input" in root_cause.data_flow_analysis
-    assert "Data is copied to buffer without bounds check" in root_cause.data_flow_analysis
-    assert "Buffer size must be validated before copy" in root_cause.security_constraints
+    command = root_cause_agent.analyze_vulnerability(state)
+    assert command.goto == PatcherAgentName.PATCH_STRATEGY.value
+    assert "root_cause" in command.update
+    assert command.update["root_cause"] == "Root cause"

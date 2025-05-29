@@ -11,6 +11,7 @@ from buttercup.common.corpus import CrashDir
 from buttercup.common.challenge_task import ChallengeTaskError, CommandResult
 import buttercup.common.node_local as node_local
 from langchain_core.runnables import RunnableConfig
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 class QEAgent(PatcherAgentBase):
     """Quality Engineer LLM agent, handling the testing of patches."""
 
-    def _patch_challenge(self, patch_attempt: PatchAttempt) -> bool:
+    def _patch_challenge(self, challenge: ChallengeTask, patch_attempt: PatchAttempt) -> bool:
         assert patch_attempt.patch
         with tempfile.NamedTemporaryFile(mode="w+") as patch_file:
             patch_file.write(patch_attempt.patch.patch)
@@ -39,7 +40,7 @@ class QEAgent(PatcherAgentBase):
                 "Applying patch to task %s / submission index %s", self.input.task_id, self.input.submission_index
             )
             try:
-                return self.challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
+                return challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
             except ChallengeTaskError:
                 if logger.getEffectiveLevel() == logging.DEBUG:
                     logger.exception("Failed to apply patch to Challenge Task %s", self.challenge.name)
@@ -86,7 +87,7 @@ class QEAgent(PatcherAgentBase):
 
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.BUILD_PATCH
-        if not self._patch_challenge(last_patch_attempt):
+        if not self._patch_challenge(self.challenge, last_patch_attempt):
             logger.error("Failed to apply patch to Challenge Task %s", self.challenge.name)
             last_patch_attempt.status = PatchStatus.APPLY_FAILED
             return Command(
@@ -237,24 +238,101 @@ class QEAgent(PatcherAgentBase):
             goto=PatcherAgentName.RUN_TESTS.value,
         )
 
-    def run_tests_node(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
+    def run_tests_node(
+        self, state: PatcherAgentState, config: RunnableConfig
+    ) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs tests against a currently built patch"""
-        logger.info("Running tests on Challenge Task %s rebuilt with patch", self.challenge.name)
+        logger.info(
+            "[%s / %s] Running tests on Challenge Task %s rebuilt with patch",
+            self.input.task_id,
+            self.input.submission_index,
+            self.challenge.name,
+        )
+        configuration = PatcherConfig.from_configurable(config)
+
         last_patch_attempt = state.get_last_patch_attempt()
         if not last_patch_attempt:
-            logger.fatal("No patch to run tests on, this should never happen")
+            logger.fatal(
+                "[%s / %s] No patch to run tests on, this should never happen",
+                self.input.task_id,
+                self.input.submission_index,
+            )
             raise RuntimeError("No patch to run tests on, this should never happen")
 
-        # TODO: implement tests
-        logger.warning("Tests are not implemented yet")
-        logger.info("Tests for Challenge Task %s ran successfully", self.challenge.name)
-        last_patch_attempt.tests_passed = True
-        last_patch_attempt.tests_stdout = None
-        last_patch_attempt.tests_stderr = None
-        last_patch_attempt.status = PatchStatus.SUCCESS
+        execution_info = state.execution_info
+        execution_info.prev_node = PatcherAgentName.RUN_TESTS
+
+        if not last_patch_attempt.build_succeeded or not last_patch_attempt.pov_fixed:
+            logger.error(
+                "[%s / %s] The patch needs to be built and PoV needs to be fixed before running tests",
+                self.input.task_id,
+                self.input.submission_index,
+            )
+            last_patch_attempt.status = PatchStatus.TESTS_FAILED
+            return Command(
+                update={
+                    "patch_attempts": last_patch_attempt,
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
+        tests_passed = False
+        if state.tests_instructions:
+            clean_challenge = self.challenge.get_clean_task(configuration.tasks_storage)
+            with clean_challenge.get_rw_copy(configuration.work_dir) as clean_rw_challenge:
+                clean_rw_challenge.apply_patch_diff()
+                self._patch_challenge(clean_rw_challenge, last_patch_attempt)
+
+                with tempfile.NamedTemporaryFile(dir=clean_rw_challenge.task_dir, delete=False) as f:
+                    f.write(state.tests_instructions.encode("utf-8"))
+                    f.flush()
+
+                    test_file_path = Path(f.name)
+                    test_file_path.chmod(0o755)
+
+                sh_cmd_res = clean_rw_challenge.exec_docker_cmd(
+                    clean_rw_challenge.get_test_sh_script("/tmp/test.sh"),
+                    mount_dirs={
+                        test_file_path: Path("/tmp/test.sh"),
+                    },
+                )
+
+            tests_passed = sh_cmd_res.success
+            last_patch_attempt.tests_passed = tests_passed
+            last_patch_attempt.tests_stdout = sh_cmd_res.output
+            last_patch_attempt.tests_stderr = sh_cmd_res.error
+        else:
+            logger.warning(
+                "[%s / %s] No tests instructions found, just accept the patch",
+                self.input.task_id,
+                self.input.submission_index,
+            )
+            tests_passed = True
+
+        if tests_passed:
+            logger.info(
+                "[%s / %s] Tests for Challenge Task %s ran successfully",
+                self.input.task_id,
+                self.input.submission_index,
+                self.challenge.name,
+            )
+            last_patch_attempt.status = PatchStatus.SUCCESS
+            next_node = END
+        else:
+            logger.error(
+                "[%s / %s] Tests failed for Challenge Task %s",
+                self.input.task_id,
+                self.input.submission_index,
+                self.challenge.name,
+            )
+            last_patch_attempt.status = PatchStatus.TESTS_FAILED
+            next_node = PatcherAgentName.REFLECTION.value
+
         return Command(
             update={
                 "patch_attempts": last_patch_attempt,
+                "execution_info": execution_info,
             },
-            goto=END,
+            goto=next_node,
         )

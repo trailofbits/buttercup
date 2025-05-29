@@ -116,4 +116,15 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
 
 def pick_temperature() -> float:
     """Pick a temperature for the LLM."""
-    return random.choices([0.1, 0.2, 0.3, 0.4, 0.5], weights=[0.4, 0.2, 0.15, 0.15, 0.1])[0]
+    return random.choices([0.1, 0.2, 0.3, 0.4, 0.5], weights=[0.1, 0.15, 0.5, 0.15, 0.1])[0]
+
+
+def truncate_output(output: str, max_length: int) -> str:
+    """Truncate the output to the maximum length.
+    If the output is longer than the maximum length, truncate it in the middle and add
+    ellipses to indicate that the output was truncated.
+    """
+    if len(output) <= max_length:
+        return output
+
+    return output[: max_length // 2] + "\n...\n" + output[-max_length // 2 :]

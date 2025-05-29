@@ -1,27 +1,34 @@
 """Tests for the ContextRetrieverAgent."""
 
-from langchain_core.tools import tool
 import pytest
+import os
+from unittest.mock import patch
+from contextlib import contextmanager
+from langchain_core.tools import tool
 from pathlib import Path
 import shutil
 import subprocess
 from langchain_core.runnables import Runnable, RunnableSequence
-from unittest.mock import MagicMock, patch
-import os
+from unittest.mock import MagicMock
 from typing import Iterator
 
 from langchain_core.language_models import BaseChatModel
-from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent, CheckCodeSnippetsOutput
+from buttercup.patcher.agents.context_retriever import (
+    ContextRetrieverAgent,
+    CheckCodeSnippetsOutput,
+)
+
 from buttercup.patcher.agents.common import (
     ContextRetrieverState,
     CodeSnippetRequest,
     PatcherAgentState,
+    PatcherAgentName,
     ContextCodeSnippet,
     CodeSnippetKey,
 )
 from buttercup.patcher.patcher import PatchInput
 from langgraph.types import Command
-from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.common.task_meta import TaskMeta
 from langchain_core.messages import AIMessage
 from langchain_core.messages.tool import ToolCall
@@ -358,6 +365,7 @@ def mock_runnable_config(tmp_path: Path) -> dict:
         "configurable": {
             "thread_id": "test-thread-id",
             "work_dir": tmp_path / "work_dir",
+            "tasks_storage": tmp_path / "tasks_storage",
             "max_concurrency": 1,
         },
     }
@@ -474,6 +482,23 @@ def test_missing_arg_tool_call(
             ],
         ),
         AIMessage(
+            content="Let's track the definition",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call_1",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
             content="I'm done <END>",
         ),
     ]
@@ -546,7 +571,24 @@ def test_recursion_limit_tmp_code_snippets(
                     },
                 )
             ],
-        )
+        ),
+        AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
     ]
     llm_invoke_side_effect += [
         AIMessage(
@@ -596,6 +638,23 @@ def test_dupped_code_snippets(
             ],
         ),
         AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
             content="I'm done <END>",
         ),
     ]
@@ -619,12 +678,36 @@ def test_dupped_code_snippets(
             ],
         ),
         AIMessage(
-            content="I'll get the function definition.",
+            content="I'll track the function definition.",
             tool_calls=[
                 ToolCall(
-                    id="get_function_call",
-                    name="get_function",
-                    args={"function_name": "main", "file_path": "test.c"},
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition 2",
+                    },
                 )
             ],
         ),
@@ -659,6 +742,23 @@ def test_get_type(
                     id="get_type_call",
                     name="get_type",
                     args={"type_name": "ebitmap_t", "file_path": "test.h"},
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'll get the type definition tracked.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.h",
+                        "start_line": None,
+                        "end_line": None,
+                        "function_name": None,
+                        "type_name": "ebitmap_t",
+                        "code_snippet_description": "ebitmap_t type definition",
+                    },
                 )
             ],
         ),
@@ -704,6 +804,40 @@ def test_get_definitions_no_paths(
                     id="get_type_call",
                     name="get_type",
                     args={"type_name": "ebitmap_t", "file_path": None},
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "function_name": "main",
+                        "type_name": None,
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'll track the type definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.h",
+                        "start_line": None,
+                        "end_line": None,
+                        "function_name": None,
+                        "type_name": "ebitmap_t",
+                        "code_snippet_description": "ebitmap_t type definition",
+                    },
                 )
             ],
         ),
@@ -850,7 +984,27 @@ def test_low_recursion_limit_with_results(
                     },
                 )
             ],
-        )
+        ),
+        AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'm done <END>",
+        ),
     ]
     llm_invoke_side_effect += [
         AIMessage(
@@ -906,6 +1060,23 @@ def test_multiple_code_snippet_requests(
                 )
             ],
         ),
+        AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "main",
+                        "code_snippet_description": "main function definition",
+                    },
+                )
+            ],
+        ),
         AIMessage(content="I'm done <END>"),
         # Second request - get ebitmap_t type
         AIMessage(
@@ -917,6 +1088,23 @@ def test_multiple_code_snippet_requests(
                     args={
                         "type_name": "ebitmap_t",
                         "file_path": "test.h",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'll track the type definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.h",
+                        "start_line": None,
+                        "end_line": None,
+                        "function_name": None,
+                        "type_name": "ebitmap_t",
+                        "code_snippet_description": "ebitmap_t type definition",
                     },
                 )
             ],
@@ -1113,6 +1301,19 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
                 )
             ],
         ),
+        AIMessage(
+            content="I'll track the function definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.c",
+                        # Missing required args
+                    },
+                )
+            ],
+        ),
         AIMessage(content="I'm done <END>"),
         # Second request - succeeds
         AIMessage(
@@ -1124,6 +1325,23 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
                     args={
                         "type_name": "ebitmap_t",
                         "file_path": "test.h",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'll track the type definition.",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call",
+                    name="track_snippet",
+                    args={
+                        "file_path": "test.h",
+                        "start_line": None,
+                        "end_line": None,
+                        "function_name": None,
+                        "type_name": "ebitmap_t",
+                        "code_snippet_description": "ebitmap_t type definition",
                     },
                 )
             ],
@@ -1516,3 +1734,106 @@ def test_get_initial_context_handles_multiple_stackframes(
     )
     # Verify that process_request was called exactly 5 times (1 from first stackframe, 4 from second stackframe)
     assert mock_agent.process_request.call_count == 5
+
+
+def test_find_tests_agent_success(
+    mock_agent: ContextRetrieverAgent, mock_runnable_config: dict, mock_challenge: ChallengeTask
+) -> None:
+    """Test that the find tests agent successfully discovers and validates test instructions."""
+    state = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id="test-task",
+            submission_index="1",
+            harness_name="test-harness",
+            pov=Path("test.pov"),
+            pov_variants_path=Path("test.pov.variants"),
+            pov_token="test-token",
+            sanitizer_output="test output",
+            engine="libfuzzer",
+            sanitizer="address",
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    # Create a mock for find_tests_agent
+    mock_find_tests_agent = MagicMock()
+    mock_find_tests_agent.invoke.return_value = AIMessage(
+        content="I found test instructions in the README.",
+        tool_calls=[
+            ToolCall(
+                id="test_instructions_call_1",
+                name="test_instructions",
+                args={
+                    "instructions": [
+                        "cd /src",
+                        "make test",
+                    ],
+                },
+            )
+        ],
+    )
+    # Mock the state with all required fields
+    mock_find_tests_agent.get_state.return_value.values = {
+        "tests_instructions": "#!/bin/bash\ncd /src\nmake test\n",
+        "messages": [],  # Required field
+        "challenge_task_dir": Path("/test/dir"),  # Required field
+        "work_dir": mock_runnable_config["configurable"]["work_dir"],  # Required field
+    }
+    mock_agent.find_tests_agent = mock_find_tests_agent
+
+    # Mock the docker command execution for test_instructions
+    with (
+        patch("buttercup.common.challenge_task.ChallengeTask.exec_docker_cmd") as mock_exec,
+        patch("buttercup.common.challenge_task.ChallengeTask.get_clean_task") as mock_clean_task,
+    ):
+
+        @contextmanager
+        def yield_challenge(*args, **kwargs):
+            yield mock_challenge
+
+        mock_clean_task.return_value = mock_challenge
+        mock_challenge.apply_patch_diff = MagicMock(return_value=True)
+        mock_challenge.get_rw_copy = MagicMock(side_effect=yield_challenge)
+        mock_exec.return_value = CommandResult(
+            success=True,
+            returncode=0,
+            output=b"Tests passed",
+            error=b"",
+        )
+
+        result = mock_agent.find_tests_node(state, mock_runnable_config)
+
+        # Verify the agent found and validated test instructions
+        assert result.update["tests_instructions"] == "#!/bin/bash\ncd /src\nmake test\n"
+        assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+
+
+def test_find_tests_agent_uses_existing_test_sh(mock_agent: ContextRetrieverAgent, mock_runnable_config: dict) -> None:
+    """Test that the find tests agent uses an existing test.sh script if available."""
+    state = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id="test-task",
+            submission_index="1",
+            harness_name="test-harness",
+            pov=Path("test.pov"),
+            pov_variants_path=Path("test.pov.variants"),
+            pov_token="test-token",
+            sanitizer_output="test output",
+            engine="libfuzzer",
+            sanitizer="address",
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    # Create a mock test.sh file in the oss-fuzz project directory
+    test_sh_content = "#!/bin/bash\ncd /src\n./run_tests.sh\n"
+    with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.read_text", return_value=test_sh_content):
+        result = mock_agent.find_tests_node(state, mock_runnable_config)
+
+        # Verify that the agent used the existing test.sh script
+        assert result.update["tests_instructions"] == test_sh_content
+        assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value

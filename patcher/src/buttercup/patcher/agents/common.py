@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from typing import Annotated, Sequence
+from buttercup.common.clusterfuzz_parser import CrashInfo
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from langgraph.managed import RemainingSteps
@@ -84,6 +85,7 @@ class PatcherAgentName(Enum):
     INITIAL_CODE_SNIPPET_REQUESTS = "initial_code_snippet_requests"
     REFLECTION = "reflection"
     INPUT_PROCESSING = "input_processing"
+    FIND_TESTS = "find_tests"
 
 
 class PatchStatus(Enum):
@@ -153,39 +155,11 @@ class ExecutionInfo(BaseModel):
     """Execution info"""
 
     root_cause_analysis_tries: int = Field(default=0)
-    patch_creation_tries: int = Field(default=0)
+    tests_tries: int = Field(default=0)
     reflection_decision: PatcherAgentName | None = None
     reflection_guidance: str | None = None
     prev_node: PatcherAgentName | None = None
     code_snippet_requests: list[CodeSnippetRequest] = Field(default_factory=list)
-
-
-class RootCauseAnalysis(BaseModel):
-    """Structured analysis of a security vulnerability's root cause and characteristics.
-    This class captures the key aspects needed to fully understand a vulnerability,
-    including its classification, trigger conditions, affected components, and security implications.
-    The analysis is used to guide the autonomous patching process."""
-
-    code_snippet_requests: str | None = Field(default=None)
-    classification: str | None = Field(default=None)
-    root_cause: str | None = Field(default=None)
-    affected_variables: str | None = Field(default=None)
-    trigger_conditions: str | None = Field(default=None)
-    data_flow_analysis: str | None = Field(default=None)
-    security_constraints: str | None = Field(default=None)
-
-    def __str__(self) -> str:
-        """String representation of the RootCauseAnalysis"""
-        return f"""<root_cause_analysis>
-<code_snippet_requests>{self.code_snippet_requests}</code_snippet_requests>
-<classification>{self.classification}</classification>
-<root_cause>{self.root_cause}</root_cause>
-<affected_variables>{self.affected_variables}</affected_variables>
-<trigger_conditions>{self.trigger_conditions}</trigger_conditions>
-<data_flow_analysis>{self.data_flow_analysis}</data_flow_analysis>
-<security_constraints>{self.security_constraints}</security_constraints>
-</root_cause_analysis>
-"""
 
 
 class PatcherAgentState(BaseModel):
@@ -194,9 +168,10 @@ class PatcherAgentState(BaseModel):
     context: PatchInput
 
     cleaned_stacktrace: str | None = None
+    tests_instructions: str | None = None
 
     relevant_code_snippets: Annotated[set[ContextCodeSnippet], add_code_snippet] = Field(default_factory=set)
-    root_cause: RootCauseAnalysis | None = None
+    root_cause: str | None = None
 
     patch_strategy: PatchStrategy | None = None
     patch_attempts: Annotated[list[PatchAttempt], add_or_mod_patch] = Field(default_factory=list)
@@ -311,6 +286,33 @@ class ContextCodeSnippet(BaseModel):
 </code_snippet>
 """
 
+    def commented_code(self, stacktrace: CrashInfo) -> str:
+        """Get a commented version of the code snippet"""
+        stacktrace_lines = [
+            (stackframe.filename, int(stackframe.fileline))
+            for frame in stacktrace.frames
+            for stackframe in frame
+            if stackframe.filename is not None and stackframe.fileline is not None
+        ]
+        code = []
+        for lineno, line in enumerate(self.code.split("\n"), start=self.start_line):
+            if (self.key.file_path, lineno) in stacktrace_lines:
+                code.append(f"{line} // LINE {lineno} | CRASH INFO")
+            else:
+                code.append(line)
+
+        return f"""<code_snippet>
+<identifier>{self.key.identifier}</identifier>
+<file_path>{self.key.file_path}</file_path>
+<description>{self.description}</description>
+<start_line>{self.start_line}</start_line>
+<end_line>{self.end_line}</end_line>
+<code>
+{"\n".join(code)}
+</code>
+</code_snippet>
+"""
+
     def __hash__(self) -> int:
         """Hash the code snippet"""
         return hash((type(self),) + tuple([self.key.file_path, self.code, self.code_context]))
@@ -359,7 +361,7 @@ UNDERSTAND_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
 def _create_understand_code_snippet_chain() -> Runnable:
     return (  # type: ignore[no-any-return]
         UNDERSTAND_CODE_SNIPPET_PROMPT
-        | create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4_1_MINI.value)
+        | create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
         | StrOutputParser()
     )
 

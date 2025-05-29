@@ -74,6 +74,7 @@ class Patcher:
                 input,
                 chain_call=self._chain_call,
                 work_dir=self.scratch_dir,
+                tasks_storage=self.task_storage_dir,
             )
             patch = patcher_agent.run_patch_task()
             if patch is None:

@@ -39,7 +39,7 @@ def create_tmp_dir(
         except PermissionError as e:
             logger.warning("Issues while creating/deleting a temporary directory, trying from docker...")
             if global_tmp_dir:
-                res = challenge.exec_docker_cmd(
+                res = challenge.exec_docker_cmd_rw(
                     ["rm", "-rf", f"/mnt/{global_tmp_dir.name}"],
                     mount_dirs={global_tmp_dir.parent: Path("/mnt")},
                     container_image="ubuntu:24.04",
@@ -379,15 +379,22 @@ class ChallengeTask:
     def container_image(self) -> str:
         return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
 
+    @read_write_decorator
     def exec_docker_cmd(
+        self, cmd: list[str], mount_dirs: dict[Path, Path] | None = None, container_image: str | None = None
+    ) -> CommandResult:
+        """Execute a command inside a docker container. If not specified, the
+        docker container is the oss-fuzz one."""
+        return self.exec_docker_cmd_rw(cmd, mount_dirs, container_image, always_build_image=True)
+
+    def exec_docker_cmd_rw(
         self,
-        cmd: list[str],
+        cmd: list[str] | str,
         mount_dirs: dict[Path, Path] | None = None,
         container_image: str | None = None,
         always_build_image: bool = False,
     ) -> CommandResult:
-        """Execute a command inside a docker container. If not specified, the
-        docker container is the oss-fuzz one."""
+        """Execute a command inside a docker container. Allow to run even on non rw Challenge Tasks."""
         if container_image is None:
             if not self._image_built or always_build_image:
                 res = self.build_image(cache=True)
@@ -406,7 +413,8 @@ class ChallengeTask:
             for src, dst in mount_dirs.items():
                 docker_cmd += ["-v", f"{src.resolve().as_posix()}:{dst.as_posix()}"]
 
-        docker_cmd += [container_image, "bash", "-c", shlex.join(cmd)]
+        cmd_str = cmd if isinstance(cmd, str) else shlex.join(cmd)
+        docker_cmd += [container_image, "bash", "-c", cmd_str]
         return self._run_cmd(docker_cmd, log=False)
 
     @read_write_decorator
@@ -808,3 +816,16 @@ class ChallengeTask:
             if not res.success:
                 logger.error("Failed to remove directory from docker: %s", res.output)
                 raise ChallengeTaskError(f"Failed to remove directory from docker: {res.output}")
+
+    def get_test_sh_script(self, test_sh_path: str) -> str:
+        return f"""cp {test_sh_path} $SRC/test.sh && $SRC/test.sh"""
+
+    def get_clean_task(self, tasks_storage: Path) -> ChallengeTask:
+        task_id = self.task_meta.task_id
+
+        clean_challenge_task_dir = tasks_storage / task_id
+        node_local.remote_archive_to_dir(clean_challenge_task_dir)
+        return ChallengeTask(
+            read_only_task_dir=clean_challenge_task_dir,
+            python_path=self.python_path,
+        )
