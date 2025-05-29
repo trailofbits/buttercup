@@ -9,7 +9,7 @@ from buttercup.common.datastructures.msg_pb2 import TracedCrash
 from buttercup.common.task_registry import TaskRegistry
 from pathlib import Path
 from buttercup.common import stack_parsing
-from buttercup.common.utils import serve_loop
+from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
 import buttercup.common.node_local as node_local
 from buttercup.common.telemetry import init_telemetry
 
@@ -84,6 +84,8 @@ def main():
 
     setup_package_logger("tracer-bot", __name__, "DEBUG")
     init_telemetry("tracer-bot")
+
+    setup_periodic_zombie_reaper()
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting tracer-bot (wdir: {args.wdir})")

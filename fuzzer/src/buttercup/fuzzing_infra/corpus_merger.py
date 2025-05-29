@@ -6,7 +6,7 @@ from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.corpus import Corpus
 from buttercup.common.maps import HarnessWeights, BuildMap
-from buttercup.common.utils import serve_loop
+from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
 from buttercup.common.logger import setup_package_logger
 from redis import Redis
 from typing import List
@@ -387,6 +387,8 @@ def main():
 
     setup_package_logger("corpus-merger", __name__, args.log_level)
     init_telemetry("merger-bot")
+
+    setup_periodic_zombie_reaper()
 
     logger.info(f"Starting merger (crs_scratch_dir: {args.crs_scratch_dir})")
 

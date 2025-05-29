@@ -14,6 +14,7 @@ from buttercup.common.corpus import Corpus
 from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
 from buttercup.fuzzing_infra.settings import CoverageBotSettings
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.utils import setup_periodic_zombie_reaper
 import shutil
 import buttercup.common.node_local as node_local
 from contextlib import contextmanager
@@ -216,6 +217,8 @@ def main():
 
     setup_package_logger("coverage-bot", __name__, args.log_level)
     init_telemetry("coverage-bot")
+
+    setup_periodic_zombie_reaper()
 
     os.makedirs(args.wdir, exist_ok=True)
     logger.info(f"Starting coverage bot (wdir: {args.wdir})")

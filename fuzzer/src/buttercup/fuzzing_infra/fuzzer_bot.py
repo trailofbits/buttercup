@@ -6,6 +6,7 @@ from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common import stack_parsing
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.logger import setup_package_logger
+from buttercup.common.utils import setup_periodic_zombie_reaper
 from redis import Redis
 from clusterfuzz.fuzz import engine
 from buttercup.common.default_task_loop import TaskLoop
@@ -119,6 +120,9 @@ def main():
     args = FuzzerBotSettings()
     setup_package_logger("fuzzer-bot", __name__, args.log_level)
     init_telemetry("fuzzer")
+
+    setup_periodic_zombie_reaper()
+
     logger.info(f"Starting fuzzer (crs_scratch_dir: {args.crs_scratch_dir})")
 
     seconds_sleep = args.timer // 1000
