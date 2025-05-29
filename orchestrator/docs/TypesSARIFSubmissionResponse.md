@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  | 
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded | 
 **submitted_sarif_id** | **str** |  | 
 
 ## Example

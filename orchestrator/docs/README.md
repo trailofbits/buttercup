@@ -5,6 +5,7 @@ Welcome to the documentation page for the AIxCC Final Competition.
 ## Table of Contents
 
 - [Changelog](api/CHANGELOG.md#changelog)
+  - [1.3.0](api/CHANGELOG.md#130)
   - [1.2.0](api/CHANGELOG.md#120)
   - [v1.1.1](api/CHANGELOG.md#v111)
   - [v1.1](api/CHANGELOG.md#v11)
@@ -37,5 +38,19 @@ Welcome to the documentation page for the AIxCC Final Competition.
 - [General telemetry guidance](telemetry/telemetry_best_practices.md#general-telemetry-guidance)
   - [Improving the structure of OTEL data](telemetry/telemetry_best_practices.md#improving-the-structure-of-otel-data)
   - [Verifying telemetry](telemetry/telemetry_best_practices.md#verifying-telemetry)
+- [Source File Language Determination](source_language_determination)
 - [Tailnet-accessible hosted Competitor Test Server](tailscale-hosted-competitor-test-server/hosted_competitor_test_server.md#tailnet-accessible-hosted-competitor-test-server)
 - [Tailscale Management Tools](tailscale-hosted-competitor-test-server/tailscale_management_tools.md#tailscale-management-tools)
+- [Round Information](round_info/README.md#round-information)
+
+  - [Exhibition Round 1](round_info/exhibition-round-1.md#exhibition-round-1)
+
+    - [Repositories](round_info/exhibition-round-1.md#repositories)
+    - [Challenge Sequencing](round_info/exhibition-round-1.md#challenge-sequencing)
+
+  - [Exhibition Round 2](round_info/exhibition-round-2.md#exhibition-round-2)
+    - [Repositories](round_info/exhibition-round-2.md#repositories)
+    - [Sequencing](round_info/exhibition-round-2.md#sequencing)
+    - [Notes](round_info/exhibition-round-2.md#notes)
+
+- [LLM Models](llm-models/README.md#llm-providers-and-models)

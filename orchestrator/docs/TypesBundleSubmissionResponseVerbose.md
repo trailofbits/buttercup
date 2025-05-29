@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 **freeform_id** | **str** |  | [optional] 
 **patch_id** | **str** |  | [optional] 
 **pov_id** | **str** |  | [optional] 
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  | 
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded | 
 **submitted_sarif_id** | **str** |  | [optional] 
 
 ## Example

@@ -441,6 +441,7 @@ class Submissions:
        - V_PATCH_REQUESTED → V_PASSED: Competition API confirms the vulnerability is valid
        - V_PATCH_REQUESTED → V_FAILED: Competition API rejects the vulnerability
        - V_PATCH_REQUESTED → V_ERRORED: Competition API reports an error with the vulnerability
+       - V_PATCH_REQUESTED → V_INCONCLUSIVE: Competition API reports that the vulnerability is inconclusive, mark it as V_PASSED (it is going to be reviewed manually)
        - V_ERRORED → V_ACCEPTED: When resubmission succeeds via _resubmit_errored_submissions()
 
     Patch States:
@@ -457,6 +458,7 @@ class Submissions:
        - P_ACCEPTED → P_PASSED: Competition API confirms the patch is valid
        - P_ACCEPTED → P_FAILED: Competition API rejects the patch
        - P_ACCEPTED → P_ERRORED: Competition API reports an error with the patch
+       - P_ACCEPTED -> P_INCONCLUSIVE: Competition API reports that the patch is inconclusive, mark it as P_FAILED and move to next patch
        - P_ERRORED → P_ACCEPTED: When resubmission succeeds via _resubmit_errored_patches()
        - P_ERRORED → P_FAILED: If patch submission fails too many times (patch_submission_attempt_limit reached)
 
@@ -703,7 +705,11 @@ class Submissions:
         """
         status = self.competition_api.get_pov_status(_task_id(e), e.pov_id)
         match status:
-            case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
+            case (
+                TypesSubmissionStatus.SubmissionStatusFailed
+                | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                | TypesSubmissionStatus.SubmissionStatusInconclusive
+            ):
                 e.state = SubmissionEntry.STOP
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -755,8 +761,12 @@ class Submissions:
                         logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV resubmitted, waiting for pass"
                     )
 
+            case TypesSubmissionStatus.SubmissionStatusAccepted:
+                pass
             case _:
-                assert status == TypesSubmissionStatus.SubmissionStatusAccepted, f"Unexpected POV status: {status}"
+                log_structured(
+                    logger.error, _task_id(e), index=i, pov_id=e.pov_id, msg=f"Unexpected POV status: {status}"
+                )
 
     def _submit_patch(self, i, e):
         """
@@ -804,6 +814,7 @@ class Submissions:
                 case (
                     TypesSubmissionStatus.SubmissionStatusFailed
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                    | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
                     # Deadline exceeded or failed, move on to next patch (for exceeded we won't try again due to deadline check)
                     e.patch_idx += 1
@@ -841,7 +852,14 @@ class Submissions:
                             msg=f"Patch submission failed ({status}), will attempt this patch again (attempt={e.patch_submission_attempt}).",
                         )
                 case _:
-                    raise ValueError(f"Unexpected patch status: {status}")
+                    log_structured(
+                        logger.error,
+                        _task_id(e),
+                        index=i,
+                        pov_id=e.pov_id,
+                        patch_idx=e.patch_idx,
+                        msg=f"Unexpected patch status: {status}",
+                    )
 
     def _wait_patch_pass(self, i, e):
         """
@@ -859,7 +877,11 @@ class Submissions:
         match status:
             case TypesSubmissionStatus.SubmissionStatusAccepted:
                 return  # No change.
-            case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
+            case (
+                TypesSubmissionStatus.SubmissionStatusFailed
+                | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                | TypesSubmissionStatus.SubmissionStatusInconclusive
+            ):
                 _advance_patch_idx(e)
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
@@ -897,7 +919,14 @@ class Submissions:
                     msg="Patch passed, submitting bundle",
                 )
             case _:
-                raise ValueError(f"Unexpected patch status: {status}")
+                log_structured(
+                    logger.error,
+                    _task_id(e),
+                    index=i,
+                    pov_id=e.pov_id,
+                    patch_idx=e.patch_idx,
+                    msg=f"Unexpected patch status: {status}",
+                )
 
     def _submit_bundle(self, i: int, e: SubmissionEntry) -> None:
         """
@@ -917,6 +946,7 @@ class Submissions:
                 case (
                     TypesSubmissionStatus.SubmissionStatusFailed
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                    | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
                     e.state = SubmissionEntry.STOP
                     self._persist(self.redis, i, e)
@@ -1018,6 +1048,7 @@ class Submissions:
                 case (
                     TypesSubmissionStatus.SubmissionStatusFailed
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                    | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
                     e.state = SubmissionEntry.STOP
                     self._persist(self.redis, i, e)
@@ -1075,6 +1106,7 @@ class Submissions:
                 case (
                     TypesSubmissionStatus.SubmissionStatusFailed
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
+                    | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
                     e.state = SubmissionEntry.STOP
                     self._persist(self.redis, i, e)
