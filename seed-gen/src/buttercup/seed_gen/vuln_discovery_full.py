@@ -33,6 +33,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
+            "cwe_list": self.get_cwe_list(),
         }
         res = self._get_context_base(
             VULN_FULL_GET_CONTEXT_SYSTEM_PROMPT,
@@ -51,6 +52,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
+            "cwe_list": self.get_cwe_list(),
         }
         res = self._analyze_bug_base(
             VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT, VULN_FULL_ANALYZE_BUG_USER_PROMPT, prompt_vars

@@ -18,7 +18,13 @@ from pydantic import Field
 from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
-from buttercup.seed_gen.prompt.vuln_discovery import VULN_C_POV_EXAMPLES, VULN_JAVA_POV_EXAMPLES
+from buttercup.seed_gen.prompt.vuln_discovery import (
+    C_CWE_LIST,
+    COMMON_CWE_LIST,
+    JAVA_CWE_LIST,
+    VULN_C_POV_EXAMPLES,
+    VULN_JAVA_POV_EXAMPLES,
+)
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_code
@@ -186,3 +192,9 @@ class VulnBaseTask(Task):
             return "jazzer"
         else:
             return "libfuzzer"
+
+    def get_cwe_list(self) -> str:
+        if self.project_yaml.language == "jvm":
+            return JAVA_CWE_LIST + "\n" + COMMON_CWE_LIST
+        else:
+            return C_CWE_LIST + "\n" + COMMON_CWE_LIST

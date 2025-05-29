@@ -63,6 +63,29 @@ def test_path_traversal() -> bytes:
 </example>
 """
 
+COMMON_CWE_LIST = """CWE-476: NULL Pointer Dereference
+CWE-400: Uncontrolled Resource Consumption"""
+
+JAVA_CWE_LIST = """CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')
+CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+CWE-502: Deserialization of Untrusted Data
+CWE-77: Improper Neutralization of Special Elements used in a Command ('Command Injection')
+CWE-94: Improper Control of Generation of Code ('Code Injection')
+CWE-917: Improper Neutralization of Special Elements used in an Expression Language Statement ('Expression Language Injection')
+CWE-90: Improper Neutralization of Special Elements used in an LDAP Query ('LDAP Injection')
+CWE-470: Use of Externally-Controlled Input to Select Classes or Code ('Unsafe Reflection')
+CWE-918: Server-Side Request Forgery (SSRF)
+CWE-643: Improper Neutralization of Data within XPath Expressions ('XPath Injection')"""
+
+C_CWE_LIST = """CWE-787: Out-of-bounds Write
+CWE-125: Out-of-bounds Read
+CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer
+CWE-416: Use After Free
+CWE-415: Double Free
+CWE-190: Integer Overflow or Wraparound
+CWE-191: Integer Underflow (Wrap or Wraparound)"""
+
 VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT = """
 You are an expert security engineer. Your job is to analyze the vulnerability introduced by a commit diff in a project.
 """
@@ -102,12 +125,18 @@ The vulnerability will have the following properties:
 - It can cause a crash, trigger a {fuzzer_name} sanitizer, or cause a timeout.
 - It must be in a {vuln_files} file.
 
+Consider CWEs when identifying the vulnerability. The following CWEs are the most common ones to look for:
+<common_cwe_list>
+{cwe_list}
+</common_cwe_list>
+It's possible a vulnerability is related to a different CWE, so consider other CWEs that aren't listed as well.
+
 Please analyze how this diff introduces a security vulnerability(s). Consider:
 1. How the changes introduce a new bug
 2. How the changes might be reached through the test harness
 3. What conditions are required for the bug to be triggered
 
-Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability.
+Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability and list the CWE(s) it belongs to.
 """
 
 VULN_DELTA_WRITE_POV_SYSTEM_PROMPT = """
@@ -221,6 +250,12 @@ The vulnerability will have the following properties:
 - It can cause a crash, trigger a {fuzzer_name} sanitizer, or cause a timeout.
 - It must be in a {vuln_files} file.
 
+Consider CWEs when looking for vulnerabilities. The following CWEs are the most common ones to look for:
+<common_cwe_list>
+{cwe_list}
+</common_cwe_list>
+It's possible a vulnerability is related to a different CWE, so consider other CWEs that aren't listed as well.
+
 Remember:
 - You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - You can select functions that are in the diff but not included in full. These may be especially helpful.
@@ -274,6 +309,12 @@ The vulnerability will have the following properties:
 - It can cause a crash, trigger a {fuzzer_name} sanitizer, or cause a timeout.
 - It must be in a {vuln_files} file.
 
+Consider CWEs when looking for vulnerabilities. The following CWEs are the most common ones to look for:
+<common_cwe_list>
+{cwe_list}
+</common_cwe_list>
+It's possible a vulnerability is related to a different CWE, so consider other CWEs that aren't listed as well.
+
 Remember:
 - You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - Your goal is to understand the vulnerability and write test cases that reach it
@@ -312,12 +353,18 @@ The vulnerability will have the following properties:
 - It can cause a crash, trigger a {fuzzer_name} sanitizer, or cause a timeout.
 - It must be in a {vuln_files} file.
 
+Consider CWEs when identifying the vulnerability. The following CWEs are the most common ones to look for:
+<common_cwe_list>
+{cwe_list}
+</common_cwe_list>
+It's possible a vulnerability is related to a different CWE, so consider other CWEs that aren't listed as well.
+
 Please identify and analyze a security vulnerability(s). Consider:
 1. What code has the vulnerability
 2. How the vulnerability might be reached through the test harness
 3. What conditions are required for the bug to be triggered
 
-Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability.
+Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability and list the CWE(s) it belongs to.
 """
 
 VULN_FULL_WRITE_POV_SYSTEM_PROMPT = """
