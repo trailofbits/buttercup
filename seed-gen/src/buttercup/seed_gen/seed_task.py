@@ -19,7 +19,7 @@ class SeedBaseTask(Task):
         pass
 
     def _build_workflow(self, task_state_cls: type[BaseTaskState]) -> StateGraph:
-        """Build the workflow for the SeedExplore task"""
+        """Build the workflow"""
         workflow = StateGraph(task_state_cls)
 
         workflow.add_node("get_context", self._get_context)
@@ -28,6 +28,8 @@ class SeedBaseTask(Task):
         workflow.add_node("tools", tool_node)
 
         workflow.add_node("generate_seeds", self._generate_seeds)
+
+        workflow.add_node("execute_python_funcs", self._execute_python_funcs)
 
         workflow.set_entry_point("get_context")
         workflow.add_edge("get_context", "tools")
@@ -40,5 +42,7 @@ class SeedBaseTask(Task):
                 False: "generate_seeds",
             },
         )
-        workflow.add_edge("generate_seeds", END)
+
+        workflow.add_edge("generate_seeds", "execute_python_funcs")
+        workflow.add_edge("execute_python_funcs", END)
         return workflow

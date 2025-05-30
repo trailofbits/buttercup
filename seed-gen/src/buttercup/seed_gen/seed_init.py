@@ -15,7 +15,6 @@ from buttercup.seed_gen.prompt.seed_init import (
     SEED_INIT_GET_CONTEXT_SYSTEM_PROMPT,
     SEED_INIT_GET_CONTEXT_USER_PROMPT,
 )
-from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.seed_task import SeedBaseTask
 from buttercup.seed_gen.task import BaseTaskState
 
@@ -58,11 +57,12 @@ class SeedInitTask(SeedBaseTask):
         )
         return res
 
-    def generate_seed_funcs(self, harness: str) -> str:
+    def generate_seeds(self, harness: str, output_dir: Path) -> None:
         """Generate a python file of seed-generation functions"""
         state = BaseTaskState(
             harness=harness,
             task=self,
+            output_dir=output_dir,
         )
         workflow = self._build_workflow(BaseTaskState)
         llm_callbacks = get_langfuse_callbacks()
@@ -80,9 +80,7 @@ class SeedInitTask(SeedBaseTask):
                     "gen_ai.request.model": self.primary_llm.model_name,
                 },
             )
-            result = chain.invoke(state)
-
-        return result["generated_functions"]
+            chain.invoke(state)
 
     def do_task(self, output_dir: Path) -> None:
         """Do seed-init task"""
@@ -91,9 +89,7 @@ class SeedInitTask(SeedBaseTask):
         if harness is None:
             return
         try:
-            logger.info("Generating seed functions for challenge %s", self.package_name)
-            funcs = self.generate_seed_funcs(harness)
-            logger.info("Executing seed functions for challenge %s", self.package_name)
-            sandbox_exec_funcs(funcs, output_dir)
+            logger.info("Generating seeds for challenge %s", self.package_name)
+            self.generate_seeds(harness, output_dir)
         except Exception as err:
             logger.error("Failed seed-init for challenge %s: %s", self.package_name, str(err))

@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import override
 
 from langgraph.types import Command
@@ -78,7 +79,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         return res
 
     @override
-    def _init_state(self) -> VulnBaseState:
+    def _init_state(self, out_dir: Path) -> VulnBaseState:
         harness = self.get_harness_source()
         if harness is None:
             raise ValueError("No harness found for challenge %s", self.package_name)
@@ -87,5 +88,6 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             harness=harness,
             task=self,
             sarifs=self.sample_sarifs(),
+            output_dir=out_dir,
         )
         return state

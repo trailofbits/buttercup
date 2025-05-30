@@ -15,7 +15,6 @@ from buttercup.seed_gen.prompt.seed_explore import (
     SEED_EXPLORE_GET_CONTEXT_SYSTEM_PROMPT,
     SEED_EXPLORE_GET_CONTEXT_USER_PROMPT,
 )
-from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.seed_task import SeedBaseTask
 from buttercup.seed_gen.task import BaseTaskState, CodeSnippet
 
@@ -67,13 +66,14 @@ class SeedExploreTask(SeedBaseTask):
         )
         return res
 
-    def generate_seed_funcs(self, harness: str, target_function: CodeSnippet) -> str:
-        """Generate a python file of seed-generation functions"""
+    def generate_seeds(self, harness: str, target_function: CodeSnippet, output_dir: Path) -> None:
+        """Generate seeds"""
 
         state = SeedExploreState(
             target_function=target_function,
             harness=harness,
             task=self,
+            output_dir=output_dir,
         )
         workflow = self._build_workflow(SeedExploreState)
         llm_callbacks = get_langfuse_callbacks()
@@ -91,9 +91,7 @@ class SeedExploreTask(SeedBaseTask):
                     "gen_ai.request.model": self.primary_llm.model_name,
                 },
             )
-            result = chain.invoke(state)
-
-        return result["generated_functions"]
+            chain.invoke(state)
 
     def do_task(
         self, target_function_name: str, target_function_paths: list[Path], output_dir: Path
@@ -123,13 +121,11 @@ class SeedExploreTask(SeedBaseTask):
             return
         try:
             logger.info(
-                "Generating seed functions for challenge %s and target function %s at %s",
+                "Generating seeds for challenge %s and target function %s at %s",
                 self.package_name,
                 target_function_name,
                 function_snippet.file_path,
             )
-            funcs = self.generate_seed_funcs(harness, function_snippet)
-            logger.info("Executing seed functions for challenge %s", self.package_name)
-            sandbox_exec_funcs(funcs, output_dir)
+            self.generate_seeds(harness, function_snippet, output_dir)
         except Exception as err:
             logger.error("Failed seed-explore for challenge %s: %s", self.package_name, str(err))

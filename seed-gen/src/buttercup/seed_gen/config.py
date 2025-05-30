@@ -7,7 +7,6 @@ from pydantic_settings import BaseSettings, CliSubCommand
 
 class ServerCommand(BaseModel):
     redis_url: Annotated[str, Field(default="redis://127.0.0.1:6379", description="Redis URL")]
-    wdir: Annotated[Path, Field(description="Working directory")]
     corpus_root: Annotated[Path | None, Field(default=None, description="Corpus root directory")]
     sleep_time: Annotated[int, Field(default=5, description="Sleep between runs (seconds)")]
     crash_dir_count_limit: Annotated[
@@ -19,10 +18,28 @@ class ServerCommand(BaseModel):
     ]
 
 
+class ProcessCommand(BaseModel):
+    challenge_task_dir: Annotated[Path, Field(description="Challenge task directory")]
+    harness_name: Annotated[str, Field(description="Harness name")]
+    package_name: Annotated[str, Field(description="Package name")]
+    task_type: Annotated[
+        str, Field(description="Task type (seed-init, seed-explore, vuln-discovery)")
+    ]
+    target_function: Annotated[
+        str | None, Field(default=None, description="Target function for seed-explore")
+    ]
+    target_function_paths: Annotated[
+        list[Path] | None, Field(default=None, description="Target function paths for seed-explore")
+    ]
+    output_dir: Annotated[Path, Field(description="Output directory for generated seeds")]
+
+
 class Settings(BaseSettings):
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    wdir: Annotated[Path, Field(description="Working directory")]
 
     server: CliSubCommand[ServerCommand]
+    process: CliSubCommand[ProcessCommand]
 
     model_config = {
         "env_prefix": "BUTTERCUP_SEED_GEN_",

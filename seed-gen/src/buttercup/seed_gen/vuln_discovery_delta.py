@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import override
 
 from langgraph.types import Command
@@ -87,7 +88,7 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         return res
 
     @override
-    def _init_state(self) -> VulnDiscoveryDeltaState:
+    def _init_state(self, out_dir: Path) -> VulnDiscoveryDeltaState:
         harness = self.get_harness_source()
         if harness is None:
             raise ValueError("No harness found for challenge %s", self.package_name)
@@ -102,5 +103,6 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
             diff_content=diff_content,
             task=self,
             sarifs=self.sample_sarifs(),
+            output_dir=out_dir,
         )
         return state

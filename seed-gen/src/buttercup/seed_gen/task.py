@@ -23,6 +23,7 @@ from buttercup.common.project_yaml import ProjectYaml
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import get_harness_source_candidates
+from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
 
 logger = logging.getLogger(__name__)
@@ -269,6 +270,11 @@ class Task:
     def _continue_context_retrieval(self, state: "BaseTaskState") -> bool:
         """Determine if we should continue the context retrieval iteration"""
         return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
+
+    def _execute_python_funcs(self, state: "BaseTaskState") -> None:
+        """Execute python functions"""
+        logger.info("Executing python functions")
+        sandbox_exec_funcs(state.generated_functions, state.output_dir)
 
     def _do_get_type_defs(self, type_name: str) -> list[TypeDefinition]:
         """Get type definitions"""
@@ -654,6 +660,7 @@ class BaseTaskState(BaseModel):
     generated_functions: str = Field(description="The generated seed functions", default="")
     context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
     task: Task = Field(description="The task instance")
+    output_dir: Path = Field(description="Directory to save generated seeds")
 
     def format_retrieved_context(self) -> str:
         """Format retrieved context for prompt"""

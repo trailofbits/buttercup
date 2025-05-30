@@ -25,7 +25,6 @@ from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_C_POV_EXAMPLES,
     VULN_JAVA_POV_EXAMPLES,
 )
-from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_code
 
@@ -115,6 +114,7 @@ class VulnBaseTask(Task):
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_bug", self._analyze_bug)
         workflow.add_node("write_pov", self._write_pov)
+        workflow.add_node("execute_python_funcs", self._execute_python_funcs)
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")
@@ -128,21 +128,22 @@ class VulnBaseTask(Task):
         )
 
         workflow.add_edge("analyze_bug", "write_pov")
-        workflow.add_edge("write_pov", END)
+        workflow.add_edge("write_pov", "execute_python_funcs")
+        workflow.add_edge("execute_python_funcs", END)
 
         return workflow
 
     @abstractmethod
-    def _init_state(self) -> BaseTaskState:
+    def _init_state(self, out_dir: Path) -> BaseTaskState:
         """Set up State"""
         pass
 
-    def do_task(self, output_dir: Path) -> None:
+    def do_task(self, out_dir: Path) -> None:
         """Do vuln-discovery task"""
         mode = "delta" if self.challenge_task.is_delta_mode() else "full"
         logger.info("Doing vuln-discovery for challenge %s (mode: %s)", self.package_name, mode)
         try:
-            state = self._init_state()
+            state = self._init_state(out_dir)
             workflow = self._build_workflow()
             llm_callbacks = get_langfuse_callbacks()
             chain = workflow.compile().with_config(
@@ -159,10 +160,7 @@ class VulnBaseTask(Task):
                         "gen_ai.request.model": self.primary_llm.model_name,
                     },
                 )
-                result = chain.invoke(state)
-
-            logger.info("Executing PoV functions for challenge %s", self.package_name)
-            sandbox_exec_funcs(result["generated_functions"], output_dir)
+                chain.invoke(state)
 
         except Exception as err:
             logger.error("Failed vuln-discovery for challenge %s: %s", self.package_name, str(err))
