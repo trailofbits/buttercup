@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import Mock
-from buttercup.common.task_registry import TaskRegistry, CANCELLED_TASKS_SET
+from buttercup.common.task_registry import TaskRegistry, CANCELLED_TASKS_SET, SUCCEEDED_TASKS_SET, ERRORED_TASKS_SET
 from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 import time
 from typing import Set
@@ -549,3 +549,79 @@ def test_should_stop_processing_expired_task(task_registry, redis_client):
     finally:
         # Restore original method
         task_registry.is_expired = original_is_expired
+
+
+def test_mark_successful(task_registry, sample_task, redis_client):
+    # Setup
+    redis_client.sismember.return_value = False
+
+    # Add the task
+    task_registry.set(sample_task)
+    assert not task_registry.is_successful("test123")
+
+    # Mark as successful
+    task_registry.mark_successful(sample_task)
+
+    # Check that the task_id is in the successful tasks set
+    redis_client.sadd.assert_called_once_with(SUCCEEDED_TASKS_SET, "test123")
+
+    # Make is_successful return True now
+    redis_client.sismember.return_value = True
+
+    # Check that is_successful reports the task as successful
+    assert task_registry.is_successful("test123")
+
+
+def test_is_successful_with_set(task_registry, sample_task, redis_client):
+    # Setup
+    redis_client.sismember.return_value = False
+
+    # Add the task
+    task_registry.set(sample_task)
+
+    # Initially not successful
+    assert not task_registry.is_successful(sample_task)
+
+    # Add to the successful set directly (mock it)
+    redis_client.sismember.return_value = True
+
+    # Should now report as successful because of the set
+    assert task_registry.is_successful(sample_task)
+
+
+def test_mark_errored(task_registry, sample_task, redis_client):
+    # Setup
+    redis_client.sismember.return_value = False
+
+    # Add the task
+    task_registry.set(sample_task)
+    assert not task_registry.is_errored("test123")
+
+    # Mark as errored
+    task_registry.mark_errored(sample_task)
+
+    # Check that the task_id is in the errored tasks set
+    redis_client.sadd.assert_called_once_with(ERRORED_TASKS_SET, "test123")
+
+    # Make is_errored return True now
+    redis_client.sismember.return_value = True
+
+    # Check that is_errored reports the task as errored
+    assert task_registry.is_errored("test123")
+
+
+def test_is_errored_with_set(task_registry, sample_task, redis_client):
+    # Setup
+    redis_client.sismember.return_value = False
+
+    # Add the task
+    task_registry.set(sample_task)
+
+    # Initially not errored
+    assert not task_registry.is_errored(sample_task)
+
+    # Add to the errored set directly (mock it)
+    redis_client.sismember.return_value = True
+
+    # Should now report as errored because of the set
+    assert task_registry.is_errored(sample_task)

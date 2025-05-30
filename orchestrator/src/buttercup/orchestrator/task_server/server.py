@@ -14,8 +14,14 @@ from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
-from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast, StatusState, StatusTasksState
-from buttercup.orchestrator.task_server.backend import delete_task, new_task, delete_all_tasks, store_sarif_broadcast
+from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast, StatusState
+from buttercup.orchestrator.task_server.backend import (
+    delete_task,
+    new_task,
+    delete_all_tasks,
+    store_sarif_broadcast,
+    get_status_tasks_state,
+)
 from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.task_server.dependencies import (
     get_delete_task_queue,
@@ -167,20 +173,13 @@ def get_status_(
 
         return is_ready
 
-    ready: bool = is_competition_api_ready()
-
-    details = {}
-    tasks = StatusTasksState(
-        canceled=0,
-        errored=0,
-        failed=0,
-        pending=0,
-        processing=0,
-        succeeded=0,
-        waiting=0,
+    return Status(
+        details={},
+        ready=is_competition_api_ready(),
+        since=0,
+        state=StatusState(tasks=get_status_tasks_state(settings.redis_url)),
+        version=__version__,
     )
-    state = StatusState(tasks=tasks)
-    return Status(details=details, ready=ready, since=0, state=state, version=__version__)
 
 
 @app.delete("/status/", response_model=str, tags=["status"])

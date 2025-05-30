@@ -721,6 +721,7 @@ class Submissions:
                     msg=f"POV failed (status={status}), stopping",
                 )
             case TypesSubmissionStatus.SubmissionStatusPassed:
+                self.task_registry.mark_successful(_task_id(e))
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -732,6 +733,7 @@ class Submissions:
                     msg="POV passed, ready to submit patch when the patch is ready",
                 )
             case TypesSubmissionStatus.SubmissionStatusErrored:
+                self.task_registry.mark_errored(_task_id(e))
                 log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV errored, will resubmit")
 
                 pov_id, status = self.competition_api.submit_pov(e.crash)
@@ -895,6 +897,7 @@ class Submissions:
                     msg=f"Patch submission failed ({status}), will not attempt this patch again, moving on to next patch.",
                 )
             case TypesSubmissionStatus.SubmissionStatusErrored:
+                self.task_registry.mark_errored(_task_id(e))
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
                 log_structured(
@@ -907,6 +910,7 @@ class Submissions:
                     msg=f"Patch submission errored ({status}), will attempt this patch again.",
                 )
             case TypesSubmissionStatus.SubmissionStatusPassed:
+                self.task_registry.mark_successful(_task_id(e))
                 e.state = SubmissionEntry.SUBMIT_BUNDLE
                 self._persist(self.redis, i, e)
                 log_structured(

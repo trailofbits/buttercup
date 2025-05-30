@@ -4,6 +4,7 @@ from buttercup.orchestrator.task_server.models.types import (
     Task,
     TaskType,
     SourceType,
+    StatusTasksState,
     SARIFBroadcast,
 )
 from buttercup.common.datastructures.msg_pb2 import (
@@ -14,6 +15,8 @@ from buttercup.common.datastructures.msg_pb2 import (
 )
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
+from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
 import logging
 
 
@@ -120,3 +123,42 @@ def store_sarif_broadcast(broadcast: SARIFBroadcast, sarif_store: SARIFStore) ->
         sarif_store.store(sarif_detail)
 
     return ""
+
+
+def get_status_tasks_state(redis_url: str) -> StatusTasksState:
+    """
+    Get the current state of tasks in the system.
+
+    Returns:
+        StatusTasksState: The current state of tasks in the system
+    """
+    redis = Redis.from_url(redis_url)
+    registry = TaskRegistry(redis)
+
+    tasks_cancelled = 0
+    tasks_errored = 0
+    tasks_failed = 0
+    tasks_processing = 0
+    tasks_succeeded = 0
+
+    for task in registry:
+        if registry.is_cancelled(task):
+            tasks_cancelled += 1
+        elif not registry.is_expired(task):
+            tasks_processing += 1
+        elif registry.is_successful(task):
+            tasks_succeeded += 1
+        elif registry.is_errored(task):
+            tasks_errored += 1
+        else:
+            tasks_failed += 1
+
+    return StatusTasksState(
+        canceled=tasks_cancelled,
+        errored=tasks_errored,
+        failed=tasks_failed,
+        pending=0,
+        processing=tasks_processing,
+        succeeded=tasks_succeeded,
+        waiting=0,
+    )

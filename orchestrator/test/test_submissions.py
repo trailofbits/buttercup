@@ -428,7 +428,9 @@ class TestStateTransitions:
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.WAIT_POV_PASS
 
-    def test_wait_pov_pass_to_submit_patch(self, submissions, sample_submission_entry, mock_competition_api):
+    def test_wait_pov_pass_to_submit_patch(
+        self, submissions, sample_submission_entry, mock_competition_api, mock_task_registry
+    ):
         # Setup entry in WAIT_POV_PASS state
         sample_submission_entry.state = SubmissionEntry.WAIT_POV_PASS
         submissions.entries = [sample_submission_entry]
@@ -441,6 +443,8 @@ class TestStateTransitions:
 
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.SUBMIT_PATCH
+        # Verify mark_successful was called
+        mock_task_registry.mark_successful.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
 
     def test_wait_pov_pass_to_stop_when_failed(self, submissions, sample_submission_entry, mock_competition_api):
         # Setup entry in WAIT_POV_PASS state
@@ -456,7 +460,9 @@ class TestStateTransitions:
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.STOP
 
-    def test_wait_pov_pass_resubmit_when_errored(self, submissions, sample_submission_entry, mock_competition_api):
+    def test_wait_pov_pass_resubmit_when_errored(
+        self, submissions, sample_submission_entry, mock_competition_api, mock_task_registry
+    ):
         # Setup entry in WAIT_POV_PASS state
         sample_submission_entry.state = SubmissionEntry.WAIT_POV_PASS
         submissions.entries = [sample_submission_entry]
@@ -473,6 +479,8 @@ class TestStateTransitions:
         assert sample_submission_entry.pov_id == "new-pov-456"
         # State remains the same as we're waiting for the new submission to be processed
         assert sample_submission_entry.state == SubmissionEntry.WAIT_POV_PASS
+        # Verify mark_errored was called
+        mock_task_registry.mark_errored.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
 
     def test_submit_patch_successful(self, submissions, sample_submission_entry, mock_competition_api):
         # Setup entry in SUBMIT_PATCH state with a patch
@@ -498,7 +506,9 @@ class TestStateTransitions:
             assert sample_submission_entry.patch_id == "test-patch-123"
             assert sample_submission_entry.patch_submission_attempt == 1  # Incremented
 
-    def test_wait_patch_pass_to_submit_bundle(self, submissions, sample_submission_entry, mock_competition_api):
+    def test_wait_patch_pass_to_submit_bundle(
+        self, submissions, sample_submission_entry, mock_competition_api, mock_task_registry
+    ):
         # Setup entry in WAIT_PATCH_PASS state
         sample_submission_entry.state = SubmissionEntry.WAIT_PATCH_PASS
         sample_submission_entry.patch_id = "test-patch-123"
@@ -512,6 +522,8 @@ class TestStateTransitions:
 
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.SUBMIT_BUNDLE
+        # Verify mark_successful was called
+        mock_task_registry.mark_successful.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
 
     def test_wait_patch_pass_to_submit_patch_when_failed(
         self, submissions, sample_submission_entry, mock_competition_api
@@ -537,6 +549,27 @@ class TestStateTransitions:
 
             # Verify state transition
             assert sample_submission_entry.state == SubmissionEntry.SUBMIT_PATCH
+
+    def test_wait_patch_pass_when_errored(
+        self, submissions, sample_submission_entry, mock_competition_api, mock_task_registry
+    ):
+        # Setup entry in WAIT_PATCH_PASS state
+        sample_submission_entry.state = SubmissionEntry.WAIT_PATCH_PASS
+        sample_submission_entry.patch_id = "test-patch-123"
+        sample_submission_entry.patch_idx = 0
+        sample_submission_entry.patches.append("test patch content")
+        submissions.entries = [sample_submission_entry]
+
+        # Mock competition API to return ERRORED
+        mock_competition_api.get_patch_status.return_value = TypesSubmissionStatus.SubmissionStatusErrored
+
+        # Simulate process_cycle
+        submissions.process_cycle()
+
+        # Verify state transition
+        assert sample_submission_entry.state == SubmissionEntry.SUBMIT_PATCH
+        # Verify mark_errored was called
+        mock_task_registry.mark_errored.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
 
     def test_submit_bundle_successful(self, submissions, sample_submission_entry, mock_competition_api):
         # Setup entry in SUBMIT_BUNDLE state

@@ -7,8 +7,10 @@ from google.protobuf import text_format
 import time
 from typing import Set
 
-# Redis set key for tracking cancelled task IDs
+# Redis set keys for tracking task states
 CANCELLED_TASKS_SET = "cancelled_tasks"
+SUCCEEDED_TASKS_SET = "succeeded_tasks"
+ERRORED_TASKS_SET = "errored_tasks"
 
 
 @dataclass
@@ -204,6 +206,68 @@ class TaskRegistry:
             return True
 
         return False
+
+    def mark_successful(self, task_or_id: str | Task):
+        """Add the task ID to the successful tasks set
+
+        This method does not modify the task object or update it in the registry.
+        It only adds the task ID to the successful tasks set for efficient lookup.
+
+        Args:
+            task_or_id: Either a Task object or a task ID string to be added to the successful set
+        """
+        # Extract task_id based on the type of input
+        task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
+
+        # Add the task ID to the successful tasks set
+        self.redis.sadd(SUCCEEDED_TASKS_SET, self._prepare_key(task_id))
+
+    def is_successful(self, task_or_id: str | Task) -> bool:
+        """Check if a task is successful by checking if its ID is in the successful tasks set
+
+        Args:
+            task_or_id: Either a Task object or task ID string
+
+        Returns:
+            True if the task is in the successful tasks set, False otherwise
+        """
+        # Get task_id
+        task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
+        prepared_key = self._prepare_key(task_id)
+
+        # A task is successful if and only if it's in the successful tasks set
+        return self.redis.sismember(SUCCEEDED_TASKS_SET, prepared_key)
+
+    def mark_errored(self, task_or_id: str | Task):
+        """Add the task ID to the errored tasks set
+
+        This method does not modify the task object or update it in the registry.
+        It only adds the task ID to the errored tasks set for efficient lookup.
+
+        Args:
+            task_or_id: Either a Task object or a task ID string to be added to the errored set
+        """
+        # Extract task_id based on the type of input
+        task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
+
+        # Add the task ID to the errored tasks set
+        self.redis.sadd(ERRORED_TASKS_SET, self._prepare_key(task_id))
+
+    def is_errored(self, task_or_id: str | Task) -> bool:
+        """Check if a task is errored by checking if its ID is in the errored tasks set
+
+        Args:
+            task_or_id: Either a Task object or task ID string
+
+        Returns:
+            True if the task is in the errored tasks set, False otherwise
+        """
+        # Get task_id
+        task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
+        prepared_key = self._prepare_key(task_id)
+
+        # A task is errored if and only if it's in the errored tasks set
+        return self.redis.sismember(ERRORED_TASKS_SET, prepared_key)
 
 
 def task_registry_cli():
