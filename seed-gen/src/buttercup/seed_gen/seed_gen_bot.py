@@ -149,7 +149,11 @@ class SeedGenBot(TaskLoop):
             out_dir.mkdir()
 
             logger.info("Initializing codequery")
-            codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
+            try:
+                codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
+            except Exception as e:
+                logger.error(f"Failed to initialize codequery: {e}.")
+                return
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)
             override_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
