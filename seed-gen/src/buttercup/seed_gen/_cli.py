@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def command_server(settings: Settings) -> None:
     """Seed-gen worker server"""
-    os.makedirs(settings.server.wdir, exist_ok=True)
+    os.makedirs(settings.wdir, exist_ok=True)
     if settings.server.corpus_root:
         os.makedirs(settings.server.corpus_root, exist_ok=True)
     init_telemetry("seed-gen")
@@ -35,7 +35,7 @@ def command_server(settings: Settings) -> None:
     seed_gen_bot = SeedGenBot(
         redis,
         settings.server.sleep_time,
-        settings.server.wdir,
+        settings.wdir,
         corpus_root=settings.server.corpus_root,
         crash_dir_count_limit=settings.server.crash_dir_count_limit,
     )
