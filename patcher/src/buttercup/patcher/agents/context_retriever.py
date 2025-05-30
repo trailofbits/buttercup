@@ -1209,7 +1209,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
             self.agent.invoke(
                 input_state,
                 config=RunnableConfig(
-                    recursion_limit=configuration.context_retriever_recursion_limit,
+                    recursion_limit=configuration.ctx_retriever_recursion_limit,
                     configurable=configuration.model_dump(),
                 ),
             )
@@ -1403,7 +1403,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 self.find_tests_agent.invoke(
                     input_state,
                     config=RunnableConfig(
-                        recursion_limit=configuration.context_retriever_recursion_limit,
+                        recursion_limit=configuration.ctx_retriever_recursion_limit,
                         configurable=configuration.model_dump(),
                     ),
                 )

@@ -16,7 +16,7 @@ class PatcherConfig(BaseModel):
     max_minutes_run_povs: int = Field(default=30)
     max_root_cause_analysis_retries: int = Field(default=3)
     max_tests_retries: int = Field(default=5)
-    context_retriever_recursion_limit: int = Field(default=80)
+    ctx_retriever_recursion_limit: int = Field(default=80)
     n_initial_stackframes: int = Field(default=4)
     max_concurrency: int = Field(default=1)
 

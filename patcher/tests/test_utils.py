@@ -2,7 +2,11 @@ from pathlib import Path
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.patcher.utils import find_file_in_source_dir
+from buttercup.patcher.agents.config import PatcherConfig
+from langchain_core.runnables import RunnableConfig
+from unittest.mock import patch
 import pytest
+import os
 
 
 @pytest.fixture
@@ -97,3 +101,29 @@ def test_find_file_fuzzy_search(mock_challenge_task: ChallengeTask):
     # The path is wrong, we don't want to match this
     res = find_file_in_source_dir(mock_challenge_task, Path("d2/d3/test-nonexistent.txt"))
     assert res is None
+
+
+def test_config_from_env():
+    """Test that PatcherConfig correctly reads from environment variables"""
+    runnable_config = RunnableConfig(
+        configurable={
+            "work_dir": Path("/tmp/work"),
+            "tasks_storage": Path("/tmp/tasks"),
+        }
+    )
+    config = PatcherConfig.from_configurable(runnable_config)
+    assert config.ctx_retriever_recursion_limit == 80
+    assert config.max_patch_retries == 15
+
+    with patch.dict(os.environ, {"TOB_PATCHER_CTX_RETRIEVER_RECURSION_LIMIT": "200"}):
+        config = PatcherConfig.from_configurable(runnable_config)
+        assert config.ctx_retriever_recursion_limit == 200
+        assert config.max_patch_retries == 15
+
+    with patch.dict(os.environ, {"TOB_PATCHER_MAX_PATCH_RETRIES": "1234"}):
+        config = PatcherConfig.from_configurable(runnable_config)
+        assert config.max_patch_retries == 1234
+
+    with patch.dict(os.environ, {"TOB_PATCHER_MAX_MINUTES_RUN_POVS": "333"}):
+        config = PatcherConfig.from_configurable(runnable_config)
+        assert config.max_minutes_run_povs == 333

@@ -950,7 +950,7 @@ def test_low_recursion_limit_empty(
         for i in range(1, 10)  # Small number to hit recursion limit quickly
     ]
     # Set a very low recursion limit
-    mock_runnable_config["configurable"]["context_retriever_recursion_limit"] = 5
+    mock_runnable_config["configurable"]["ctx_retriever_recursion_limit"] = 5
     result = mock_agent.retrieve_context(state, mock_runnable_config)
 
     assert isinstance(result, Command)
@@ -1023,7 +1023,7 @@ def test_low_recursion_limit_with_results(
     ]
     mock_agent_llm.invoke.side_effect = llm_invoke_side_effect
     # Set a very low recursion limit
-    mock_runnable_config["configurable"]["context_retriever_recursion_limit"] = 5
+    mock_runnable_config["configurable"]["ctx_retriever_recursion_limit"] = 5
     result = mock_agent.retrieve_context(state, mock_runnable_config)
 
     assert isinstance(result, Command)
