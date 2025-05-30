@@ -3,7 +3,7 @@ from clusterfuzz.fuzz.engine import Engine, FuzzResult, FuzzOptions
 from buttercup.common.queues import FuzzConfiguration
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
-from buttercup.fuzzing_infra.temp_dir import patched_temp_dir
+from buttercup.fuzzing_infra.temp_dir import patched_temp_dir, scratch_cwd
 import typing
 import os
 from dataclasses import dataclass
@@ -28,7 +28,7 @@ class Runner:
         logger.info(f"Running fuzzer with {conf.engine} | {conf.sanitizer} | {conf.target_path}")
         job_name = f"{conf.engine}_{conf.sanitizer}"
 
-        with patched_temp_dir() as _td:
+        with patched_temp_dir() as _td, scratch_cwd() as _cwd_temp:
             engine = typing.cast(Engine, get_engine(conf.engine))
             target = conf.target_path
             build_dir = os.path.dirname(target)
@@ -48,7 +48,7 @@ class Runner:
         logger.info(f"Merging corpus with {conf.engine} | {conf.sanitizer} | {conf.target_path}")
         job_name = f"{conf.engine}_{conf.sanitizer}"
         os.environ["JOB_NAME"] = job_name
-        with patched_temp_dir() as _td:
+        with patched_temp_dir() as _td, scratch_cwd() as _cwd_temp:
             engine = typing.cast(Engine, get_engine(conf.engine))
             # Temporary directory ignores crashes
             with scratch_dir() as td:

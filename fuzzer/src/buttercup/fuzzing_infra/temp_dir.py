@@ -55,3 +55,23 @@ def patched_temp_dir() -> Iterator[TmpDir]:
         finally:
             # Reset the context variable to its previous value
             _scratch_path_var.reset(token)
+
+
+@contextmanager
+def scratch_cwd() -> Iterator[TmpDir]:
+    """Context manager that creates a node-local scratch directory and changes
+    the current working directory to it.
+
+    While the context is active, the current working directory will be the scratch
+    directory. Upon exit, the original working directory is restored.
+    """
+    original_cwd = os.getcwd()
+
+    with scratch_dir() as scratch:
+        try:
+            os.chdir(scratch.path)
+            logger.debug(f"Changed working directory to scratch: {scratch.path}")
+            yield scratch
+        finally:
+            os.chdir(original_cwd)
+            logger.debug(f"Restored working directory to: {original_cwd}")
