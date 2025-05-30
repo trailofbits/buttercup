@@ -15,6 +15,7 @@ class PatcherConfig(BaseModel):
     max_last_failure_retries: int = Field(default=3)
     max_minutes_run_povs: int = Field(default=30)
     max_root_cause_analysis_retries: int = Field(default=3)
+    max_patch_strategy_retries: int = Field(default=3)
     max_tests_retries: int = Field(default=5)
     ctx_retriever_recursion_limit: int = Field(default=80)
     n_initial_stackframes: int = Field(default=4)

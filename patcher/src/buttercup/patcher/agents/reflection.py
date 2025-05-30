@@ -24,6 +24,7 @@ from buttercup.patcher.agents.common import (
     PatchAttempt,
     CodeSnippetRequest,
     PatchAnalysis,
+    PatchStrategy,
 )
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.common.llm import ButtercupLLM, create_default_llm
@@ -680,7 +681,16 @@ class ReflectionAgent(PatcherAgentBase):
                 state.context.task_id,
                 state.context.submission_index,
             )
-            return Command(goto=PatcherAgentName.PATCH_STRATEGY.value)
+            root_cause = state.root_cause
+            if root_cause is None:
+                root_cause = "No root cause found, figure out a root cause"
+
+            return Command(
+                update={
+                    "root_cause": root_cause,
+                },
+                goto=PatcherAgentName.PATCH_STRATEGY.value,
+            )
 
         execution_info = state.execution_info
         execution_info.root_cause_analysis_tries += 1
@@ -691,7 +701,35 @@ class ReflectionAgent(PatcherAgentBase):
             update={
                 "execution_info": execution_info,
             },
-            goto=PatcherAgentName.INPUT_PROCESSING.value,
+            goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+        )
+
+    def _patch_strategy_failed(self, state: PatcherAgentState, configuration: PatcherConfig) -> Command:
+        """Patch strategy failed, reflect on the failure."""
+        if state.execution_info.patch_strategy_tries >= configuration.max_patch_strategy_retries:
+            logger.warning(
+                "[%s / %s] Reached max patch strategy failures, just move forward with what we have",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            strategy = state.patch_strategy
+            if strategy is None:
+                strategy = PatchStrategy(full="Figure out a patch strategy", summary="Figure out a patch strategy")
+
+            return Command(
+                update={
+                    "patch_strategy": strategy,
+                },
+                goto=PatcherAgentName.CREATE_PATCH.value,
+            )
+
+        execution_info = state.execution_info
+        execution_info.patch_strategy_tries += 1
+        return Command(
+            update={
+                "execution_info": execution_info,
+            },
+            goto=PatcherAgentName.PATCH_STRATEGY.value,
         )
 
     def reflect_on_patch(self, state: PatcherAgentState, config: RunnableConfig) -> Command:
@@ -738,13 +776,29 @@ class ReflectionAgent(PatcherAgentBase):
                 goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
             )
 
-        current_patch_attempt = state.get_last_patch_attempt()
-        if not current_patch_attempt or state.execution_info.prev_node == PatcherAgentName.ROOT_CAUSE_ANALYSIS:
+        if state.execution_info.prev_node == PatcherAgentName.ROOT_CAUSE_ANALYSIS:
             logger.warning(
                 "[%s / %s] No patch attempt found, the root cause analysis is probably wrong",
                 state.context.task_id,
                 state.context.submission_index,
             )
             return self._root_cause_analysis_failed(state, configuration)
+
+        if state.execution_info.prev_node == PatcherAgentName.PATCH_STRATEGY:
+            logger.warning(
+                "[%s / %s] Patch strategy failed, reflecting on it",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            return self._patch_strategy_failed(state, configuration)
+
+        current_patch_attempt = state.get_last_patch_attempt()
+        if not current_patch_attempt:
+            logger.error(
+                "[%s / %s] No patch attempt found, this should never happen, going back to input processing",
+                state.context.task_id,
+                state.context.submission_index,
+            )
+            return Command(goto=PatcherAgentName.INPUT_PROCESSING.value)
 
         return self._analyze_failure(state, configuration, current_patch_attempt)

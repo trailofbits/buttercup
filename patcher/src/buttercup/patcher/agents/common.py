@@ -155,6 +155,7 @@ class ExecutionInfo(BaseModel):
     """Execution info"""
 
     root_cause_analysis_tries: int = Field(default=0)
+    patch_strategy_tries: int = Field(default=0)
     tests_tries: int = Field(default=0)
     reflection_decision: PatcherAgentName | None = None
     reflection_guidance: str | None = None

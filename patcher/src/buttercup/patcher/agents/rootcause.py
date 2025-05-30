@@ -2,6 +2,7 @@
 
 import logging
 import re
+import langgraph.errors
 from typing import Annotated, Literal
 from langgraph.prebuilt import InjectedState
 from langchain_core.prompts import MessagesPlaceholder
@@ -225,6 +226,18 @@ class RootCauseAgent(PatcherAgentBase):
 
         try:
             root_cause_dict = self.root_cause_chain.invoke(state)
+        except langgraph.errors.GraphRecursionError:
+            logger.error(
+                "Reached recursion limit for root cause analysis in Challenge Task %s/%s",
+                state.context.task_id,
+                self.challenge.name,
+            )
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
         except Exception as e:
             logger.exception("Error parsing root cause: %s", e)
             return Command(

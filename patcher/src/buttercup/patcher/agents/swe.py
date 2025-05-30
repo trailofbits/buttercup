@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 import uuid
+import langgraph.errors
 from langchain_core.messages import BaseMessage
 from langgraph.prebuilt import InjectedState
 from langchain_core.prompts import MessagesPlaceholder
@@ -700,12 +701,26 @@ class SWEAgent(PatcherAgentBase):
         configurable = {
             "thread_id": str(uuid.uuid4()),
         }
-        strategy_state_dict = self.patch_strategy_chain.invoke(
-            state,
-            config=RunnableConfig(
-                configurable=configurable,
-            ),
-        )
+        try:
+            strategy_state_dict = self.patch_strategy_chain.invoke(
+                state,
+                config=RunnableConfig(
+                    configurable=configurable,
+                ),
+            )
+        except langgraph.errors.GraphRecursionError:
+            logger.error(
+                "Reached recursion limit for patch strategy in Challenge Task %s/%s",
+                state.context.task_id,
+                self.challenge.name,
+            )
+            return Command(
+                update={
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
+
         try:
             strategy_state = PatcherAgentState.model_validate(strategy_state_dict)
         except ValidationError as e:
@@ -729,13 +744,13 @@ class SWEAgent(PatcherAgentBase):
         patch_strategy_str = str(strategy_state.messages[-1].content)
         if "<request_information>" in patch_strategy_str:
             new_code_snippet_requests = self._parse_code_snippet_requests(patch_strategy_str)
+            execution_info.code_snippet_requests = new_code_snippet_requests
             logger.info(
                 "[%s / %s] Requesting additional information", state.context.task_id, state.context.submission_index
             )
             return Command(
                 update={
                     "execution_info": execution_info,
-                    "code_snippet_requests": new_code_snippet_requests,
                 },
                 goto=PatcherAgentName.REFLECTION.value,
             )
