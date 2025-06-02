@@ -13,10 +13,6 @@ dependencies:
   - name: litellm-helm
     version: "0.1.615"
     repository: "oci://ghcr.io/berriai"
-  - name: postgresql
-    version: "16.x.x"
-    repository: "https://charts.bitnami.com/bitnami"
-    alias: litellm-db
   - name: task-server
     version: "0.0.1"
     repository: "file://charts/task-server"

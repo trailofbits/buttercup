@@ -185,32 +185,6 @@ registry-cache:
     enabled: true
     size: 10Gi
 
-# PostgreSQL configuration for LiteLLM
-litellm-db:
-  enabled: true
-  image:
-    tag: "17.2.0"  # Use major.minor.patch format without specific OS details
-  auth:
-    username: litellm_user
-    password: litellm_password11
-    database: litellm
-    enablePostgresUser: true
-    postgresPassword: litellm_password11  # Set a postgres admin password
-  primary:
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 2Gi
-      requests:
-        cpu: 100m
-        memory: 256Mi
-  readReplicas:
-    replicaCount: 0  # No read replicas needed for this simple setup
-  global:
-    imagePullSecrets:
-      - ghcr-auth
-      - docker-auth
-
 # LiteLLM configuration
 litellm-helm:
   # Override the name to ensure it matches our references
@@ -223,21 +197,49 @@ litellm-helm:
   service:
     port: 4000
   
-  # Environment variables
+  # Image pull secrets for all containers (main, init, and PostgreSQL)
+  imagePullSecrets:
+    - name: ghcr-auth
+    - name: docker-auth
+  
+  # Configure the built-in PostgreSQL with our desired settings
+  postgresql:
+    enabled: true
+    image:
+      tag: "17.2.0"
+    auth:
+      username: litellm_user
+      password: litellm_password11
+      database: litellm
+      enablePostgresUser: true
+      postgresPassword: litellm_password11
+    primary:
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+        requests:
+          cpu: 100m
+          memory: 256Mi
+    readReplicas:
+      replicaCount: 0
+  
+  # Configure database connection properly
+  db:
+    deployStandalone: true
+    endpoint: "buttercup-litellm-postgresql"
+    database: "litellm"
+    url: "postgresql://litellm_user:litellm_password11@buttercup-litellm-postgresql:5432/litellm"
+  
+  # Environment variables - only keep DATABASE_URL as backup
   envVars:
-    DATABASE_URL: "postgresql://litellm_user:litellm_password11@buttercup-litellm-db-postgresql:5432/litellm"
+    DATABASE_URL: "postgresql://litellm_user:litellm_password11@buttercup-litellm-postgresql:5432/litellm"
     # API keys are now provided through Kubernetes secrets
   
   # Use environment secrets for API keys
   # For subcharts, we need to use a static name that will be templated at the parent level
   environmentSecrets:
     - "buttercup-litellm-api-secrets"
-  
-  # Docker authentication
-  global:
-    imagePullSecrets:
-      - ghcr-auth
-      - docker-auth
   
   # Direct inclusion of the litellm_config.yaml content
   proxy_config:
@@ -355,4 +357,9 @@ litellm-helm:
 
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
+      database_url: "postgresql://litellm_user:litellm_password11@buttercup-postgresql:5432/litellm"
+      store_model_in_db: true
+      # store_prompts_in_spend_logs: true
+
+restartPolicy: Always
 

@@ -32,7 +32,7 @@ kubectl exec -n crs -it buttercup-redis-master-0 -- redis-cli save
 kubectl cp -n crs buttercup-redis-master-0:/data/dump.rdb ./redis-backup.rdb
 
 echo "Collecting data from postgres"
-kubectl exec -n crs -it buttercup-postgresql-0 -- env PGPASSWORD="NoTaGrEaTpAsSwOrD" pg_dump -U litellm litellm -f /tmp/litellm_backup.sql
+kubectl exec -n crs -it buttercup-postgresql-0 -- env PGPASSWORD="litellm_password11" pg_dump -U litellm_user litellm -f /tmp/litellm_backup.sql
 kubectl cp -n crs buttercup-postgresql-0:/tmp/litellm_backup.sql ./litellm_backup.sql
 
 echo "Collecting logs from pods"
