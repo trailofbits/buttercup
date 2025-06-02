@@ -39,7 +39,7 @@ class TracerSettings(WorkerSettings):
 
 class FuzzerBotSettings(WorkerSettings):
     crs_scratch_dir: Annotated[str, Field(default="/crs_scratch")]
-    timeout: Annotated[int, Field(default="")]
+    timeout: Annotated[int, Field(default=1000)]
     crash_dir_count_limit: Annotated[int, Field(default=0)]
     max_local_files: Annotated[int, Field(default=500)]
 
