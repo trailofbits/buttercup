@@ -91,8 +91,9 @@ class Task:
     MAX_TYPE_DEFS = 5
 
     def __post_init__(self) -> None:
-        self.primary_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_7_SONNET, ButtercupLLM.OPENAI_GPT_4_1)
-        self.context_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_5_SONNET, ButtercupLLM.OPENAI_GPT_4_1)
+        fallbacks = [ButtercupLLM.CLAUDE_4_SONNET, ButtercupLLM.OPENAI_GPT_4_1]
+        self.primary_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_7_SONNET, fallbacks)
+        self.context_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_5_SONNET, fallbacks)
         self.tools = [
             Task.get_function_definition,
             Task.get_type_definition,
@@ -103,14 +104,17 @@ class Task:
         self.llm_with_tools = self.context_llm.bind_tools(self.tools)
 
     @staticmethod
-    def get_llm(llm: ButtercupLLM, fallback_llm: ButtercupLLM) -> BaseChatModel:
+    def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
         llm_callbacks = get_langfuse_callbacks()
         llm = create_default_llm(
             model_name=llm.value,
             callbacks=llm_callbacks,
         )
-        fallback_llm = create_default_llm(model_name=fallback_llm.value, callbacks=llm_callbacks)
-        return llm.with_fallbacks([fallback_llm])
+        fallbacks = []
+        for fallback_llm in fallback_llms:
+            fallback = create_default_llm(model_name=fallback_llm.value, callbacks=llm_callbacks)
+            fallbacks.append(fallback)
+        return llm.with_fallbacks(fallbacks)
 
     def get_harness_source(self) -> str | None:
         logger.info("Getting harness source for %s | %s", self.package_name, self.harness_name)
