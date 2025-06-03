@@ -13,18 +13,18 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# Resources for the DinD sidecar
-dind:
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: 1000m
-      memory: 2Gi
-
 # List of images to pull
 imagesToPull:
+  - ghcr.io/aixcc-finals/base-runner:v1.2.0
+  - ghcr.io/aixcc-finals/base-builder:v1.2.0
+  - ghcr.io/aixcc-finals/base-image:v1.2.0
+  - ghcr.io/aixcc-finals/base-clang:v1.2.0
+  - ghcr.io/aixcc-finals/base-runner-debug:v1.2.0
+  - ghcr.io/aixcc-finals/base-builder-jvm:v1.2.0
+  - ghcr.io/aixcc-finals/base-builder-ruby:v1.2.0
+  - ghcr.io/aixcc-finals/base-builder-go:v1.2.0
+  - ghcr.io/aixcc-finals/base-builder-python:v1.2.0
+  - ghcr.io/aixcc-finals/base-builder-rust:v1.2.0
   - ghcr.io/aixcc-finals/base-runner:v1.1.0
   - ghcr.io/aixcc-finals/base-builder:v1.1.0
   - ghcr.io/aixcc-finals/base-image:v1.1.0

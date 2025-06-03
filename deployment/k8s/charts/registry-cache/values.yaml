@@ -23,7 +23,7 @@ persistence:
   enabled: true
   storageClass: ""  # Use cluster default
   accessMode: ReadWriteOnce
-  size: 10Gi
+  size: 20Gi
 
 # Registry configuration for caching
 registry:
