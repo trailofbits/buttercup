@@ -180,7 +180,7 @@ tracer-bot:
 
 seed-gen:
   enabled: true
-  replicaCount: 16
+  replicaCount: 10
   resources:
     limits:
       cpu: 2000m
