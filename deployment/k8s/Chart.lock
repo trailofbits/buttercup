@@ -5,9 +5,6 @@ dependencies:
 - name: litellm-helm
   repository: oci://ghcr.io/berriai
   version: 0.1.615
-- name: postgresql
-  repository: https://charts.bitnami.com/bitnami
-  version: 16.5.6
 - name: task-server
   repository: file://charts/task-server
   version: 0.0.1
