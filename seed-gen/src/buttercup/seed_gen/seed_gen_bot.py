@@ -6,11 +6,10 @@ from pathlib import Path
 
 from redis import Redis
 
-from buttercup.common import stack_parsing
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.queues import QueueFactory, QueueNames
@@ -23,6 +22,7 @@ from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
 from buttercup.seed_gen.task_counter import TaskCounter
+from buttercup.seed_gen.vuln_base_task import CrashSubmit
 from buttercup.seed_gen.vuln_discovery_delta import VulnDiscoveryDeltaTask
 from buttercup.seed_gen.vuln_discovery_full import VulnDiscoveryFullTask
 
@@ -84,53 +84,6 @@ class SeedGenBot(TaskLoop):
         tasks, weights = zip(*task_distribution)
         return random.choices(tasks, weights=weights, k=1)[0]
 
-    def submit_valid_povs(
-        self,
-        task: WeightedHarness,
-        builds: dict[BuildTypeHint, BuildOutput],
-        out_dir: Path,
-        temp_dir: Path,
-    ):
-        fbuilds = builds[BuildType.FUZZER]
-        reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
-
-        crash_dir = CrashDir(
-            self.wdir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
-        )
-
-        with reproduce_multiple.open() as mult:
-            for pov in out_dir.iterdir():
-                try:
-                    for build, result in mult.get_crashes(pov, task.harness_name):
-                        logger.info(f"Valid PoV found: {pov}")
-                        stacktrace = result.stacktrace()
-                        ctoken = stack_parsing.get_crash_data(stacktrace)
-                        dst = crash_dir.copy_file(pov, ctoken)
-                        if self.crash_set.add(
-                            task.package_name,
-                            task.harness_name,
-                            task.task_id,
-                            build.sanitizer,
-                            stacktrace,
-                        ):
-                            logger.info(f"PoV with crash {stacktrace} already in crash set")
-                            continue
-                        logger.info("Submitting PoV to crash queue")
-
-                        crash = Crash(
-                            target=build,
-                            harness_name=task.harness_name,
-                            crash_input_path=dst,
-                            stacktrace=stacktrace,
-                            crash_token=ctoken,
-                        )
-                        self.crash_queue.push(crash)
-
-                        logger.debug("PoV stdout: %s", result.command_result.output)
-                        logger.debug("PoV stderr: %s", result.command_result.error)
-                except ChallengeTaskError as exc:
-                    logger.error(f"Error reproducing PoV {pov}: {exc}")
-
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]):
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
@@ -147,6 +100,8 @@ class SeedGenBot(TaskLoop):
             logger.debug(f"Temp dir: {temp_dir}")
             out_dir = temp_dir / "seedgen-out"
             out_dir.mkdir()
+            current_dir = temp_dir / "seedgen-current"
+            current_dir.mkdir()
 
             logger.info("Initializing codequery")
             try:
@@ -176,27 +131,42 @@ class SeedGenBot(TaskLoop):
             elif task_choice == TaskName.VULN_DISCOVERY.value:
                 sarif_store = SARIFStore(self.redis)
                 sarifs = sarif_store.get_by_task_id(challenge_task.task_meta.task_id)
-                if challenge_task.is_delta_mode():
-                    vuln_discovery = VulnDiscoveryDeltaTask(
-                        task.package_name,
+                fbuilds = builds[BuildType.FUZZER]
+                reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
+                crash_submit = CrashSubmit(
+                    crash_queue=self.crash_queue,
+                    crash_set=self.crash_set,
+                    crash_dir=CrashDir(
+                        self.wdir,
+                        task.task_id,
                         task.harness_name,
-                        challenge_task,
-                        codequery,
-                        project_yaml,
-                        sarifs,
-                    )
-                    vuln_discovery.do_task(out_dir)
-                else:
-                    vuln_discovery = VulnDiscoveryFullTask(
-                        task.package_name,
-                        task.harness_name,
-                        challenge_task,
-                        codequery,
-                        project_yaml,
-                        sarifs,
-                    )
-                    vuln_discovery.do_task(out_dir)
-                self.submit_valid_povs(task, builds, out_dir, temp_dir)
+                        count_limit=self.crash_dir_count_limit,
+                    ),
+                )
+                with reproduce_multiple.open() as mult:
+                    if challenge_task.is_delta_mode():
+                        vuln_discovery = VulnDiscoveryDeltaTask(
+                            task.package_name,
+                            task.harness_name,
+                            challenge_task,
+                            codequery,
+                            project_yaml,
+                            mult,
+                            sarifs,
+                            crash_submit=crash_submit,
+                        )
+                    else:
+                        vuln_discovery = VulnDiscoveryFullTask(
+                            task.package_name,
+                            task.harness_name,
+                            challenge_task,
+                            codequery,
+                            project_yaml,
+                            mult,
+                            sarifs,
+                            crash_submit=crash_submit,
+                        )
+                    vuln_discovery.do_task(out_dir, current_dir)
             elif task_choice == TaskName.SEED_EXPLORE.value:
                 seed_explore = SeedExploreTask(
                     task.package_name, task.harness_name, challenge_task, codequery, project_yaml

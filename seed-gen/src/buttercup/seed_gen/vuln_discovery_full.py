@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VulnDiscoveryFullTask(VulnBaseTask):
     TaskStateClass = VulnBaseState
-    VULN_DISCOVERY_MAX_POV_COUNT = 8
+    VULN_DISCOVERY_MAX_POV_COUNT = 5
     MAX_CONTEXT_ITERATIONS = 8
 
     @override
@@ -54,6 +54,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
+            "previous_attempts": state.format_pov_attempts(),
         }
         res = self._analyze_bug_base(
             VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT, VULN_FULL_ANALYZE_BUG_USER_PROMPT, prompt_vars
@@ -70,6 +71,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "retrieved_context": state.format_retrieved_context(),
             "pov_examples": self.get_pov_examples(),
             "fuzzer_name": self.get_fuzzer_name(),
+            "previous_attempts": state.format_pov_attempts(),
         }
         res = self._write_pov_base(
             VULN_FULL_WRITE_POV_SYSTEM_PROMPT,
@@ -79,7 +81,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         return res
 
     @override
-    def _init_state(self, out_dir: Path) -> VulnBaseState:
+    def _init_state(self, out_dir: Path, current_dir: Path) -> VulnBaseState:
         harness = self.get_harness_source()
         if harness is None:
             raise ValueError("No harness found for challenge %s", self.package_name)
@@ -89,5 +91,6 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             task=self,
             sarifs=self.sample_sarifs(),
             output_dir=out_dir,
+            current_dir=current_dir,
         )
         return state

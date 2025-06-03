@@ -10,8 +10,10 @@ from pydantic_settings import get_subcommand
 from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.telemetry import init_telemetry
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.seed_gen.config import ProcessCommand, Settings
@@ -58,7 +60,9 @@ def command_process(settings: Settings) -> None:
     ):
         temp_dir = Path(temp_dir_str)
         out_dir = temp_dir / "out"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        out_dir.mkdir()
+        current_dir = temp_dir / "seedgen-current"
+        current_dir.mkdir()
         codequery = CodeQueryPersistent(challenge_task, work_dir=Path(settings.wdir))
         project_yaml = ProjectYaml(challenge_task, command.package_name)
 
@@ -85,31 +89,43 @@ def command_process(settings: Settings) -> None:
             )
             task.do_task(command.target_function, command.target_function_paths, out_dir)
         elif command.task_type == TaskName.VULN_DISCOVERY.value:
-            if challenge_task.is_delta_mode():
-                task = VulnDiscoveryDeltaTask(
-                    command.package_name,
-                    command.harness_name,
-                    challenge_task,
-                    codequery,
-                    project_yaml,
-                    [],
-                )
-            else:
-                task = VulnDiscoveryFullTask(
-                    command.package_name,
-                    command.harness_name,
-                    challenge_task,
-                    codequery,
-                    project_yaml,
-                    [],  # skipping sarifs for now
-                )
-            task.do_task(out_dir)
+            if not command.build_output:
+                raise ValueError("build_outputs required for vuln-discovery task")
 
-            # Only reproduces against current challenge project, instead of all builds
-            for pov in out_dir.iterdir():
-                result = challenge_task.reproduce_pov(command.harness_name, pov)
-                if result.did_crash():
-                    logger.info(f"Valid PoV found: {pov}")
+            fbuilds = []
+            # can only specify one build output currently
+            build = command.build_output
+            build_output = BuildOutput()
+            build_output.task_dir = build["task_dir"]
+            build_output.build_type = build["build_type"]
+            build_output.engine = build["engine"]
+            build_output.sanitizer = build["sanitizer"]
+            build_output.apply_diff = build["apply_diff"]
+            fbuilds.append(build_output)
+
+            reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
+            with reproduce_multiple.open() as mult:
+                if challenge_task.is_delta_mode():
+                    task = VulnDiscoveryDeltaTask(
+                        command.package_name,
+                        command.harness_name,
+                        challenge_task,
+                        codequery,
+                        project_yaml,
+                        mult,
+                        [],  # skipping sarifs for now
+                    )
+                else:
+                    task = VulnDiscoveryFullTask(
+                        command.package_name,
+                        command.harness_name,
+                        challenge_task,
+                        codequery,
+                        project_yaml,
+                        mult,
+                        [],  # skipping sarifs for now
+                    )
+                task.do_task(out_dir, current_dir)
         else:
             raise ValueError(f"Unknown task type: {command.task_type}")
 

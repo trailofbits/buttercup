@@ -33,6 +33,10 @@ class ProcessCommand(BaseModel):
     ]
     output_dir: Annotated[Path, Field(description="Output directory for generated seeds")]
 
+    build_output: Annotated[
+        dict | None, Field(default=None, description="Build output for vuln-discovery task")
+    ]
+
 
 class Settings(BaseSettings):
     log_level: Annotated[str, Field(default="info", description="Log level")]

@@ -111,11 +111,17 @@ Optional, potentially incorrect SARIF hints:
 {sarif_hints}
 </sarif_hints>
 
+Previous attempts at test cases that failed to trigger the vulnerability:
+<previous_attempts>
+{previous_attempts}
+</previous_attempts>
+
 You will analyze a diff to identify the security vulnerability it introduced in a program. You are provided:
 1. Retrieved context about the codebase.
 2. The test harness
 3. The diff which introduces a security vulnerability
 4. (Optional) SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+5. Any previous attempts that analyzed a vulnerability and wrote python test cases to trigger it. These test cases failed to trigger a vulnerability.
 
 You will identify a vulnerability introduced by the diff that is reachable from the test harness.
 
@@ -137,6 +143,10 @@ Please analyze how this diff introduces a security vulnerability(s). Consider:
 3. What conditions are required for the bug to be triggered
 
 Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability and list the CWE(s) it belongs to.
+
+If previous attempts are provided, do the following instead of performing an initial analysis:
+1. Concisely explain why previous test cases failed to trigger a vulnerability
+2. Suggest specific improvements to the test strategy
 """
 
 VULN_DELTA_WRITE_POV_SYSTEM_PROMPT = """
@@ -159,16 +169,22 @@ The diff that introduced the vulnerability is:
 {diff}
 </diff>
 
-An analysis of the vulnerability:
-<analysis>
+Previous attempts at test cases that failed to trigger the vulnerability:
+<previous_attempts>
+{previous_attempts}
+</previous_attempts>
+
+The latest analysis of the vulnerability:
+<latest_analysis>
 {analysis}
-</analysis>
+</latest_analysis>
 
 You will write deterministic Python functions that trigger a vulnerability introduced by a diff. You are provided:
 1. Retrieved context about the codebase
 2. The test harness
 3. The diff which introduces a security vulnerability
-4. An analysis of the vulnerability
+4. Previous attempts at test cases which failed to trigger the vulnerability and corresponding analysis from those attempts.
+5. The latest analysis of the vulnerability.
 
 Triggering the vulnerability means causing a crash, triggering a {fuzzer_name} sanitizer, or causing a timeout.
 
@@ -343,10 +359,16 @@ Optional, potentially incorrect SARIF hints:
 {sarif_hints}
 </sarif_hints>
 
+Previous attempts at test cases that failed to trigger the vulnerability:
+<previous_attempts>
+{previous_attempts}
+</previous_attempts>
+
 You will identify a vulnerability in the program that is reachable from the test harness. You are provided:
 1. Retrieved context about the codebase.
 2. The test harness
 3. (Optional) SARIF reports. These reports are hints about vulnerabilities in the codebase and may be incorrect.
+4. Any previous attempts that analyzed a vulnerability and wrote python test cases to trigger it. These test cases failed to trigger a vulnerability.
 
 The vulnerability will have the following properties:
 - It must be reachable from the test harness
@@ -365,6 +387,10 @@ Please identify and analyze a security vulnerability(s). Consider:
 3. What conditions are required for the bug to be triggered
 
 Provide a detailed analysis of any security issues you find. You must identify a specific vulnerability and list the CWE(s) it belongs to.
+
+If previous attempts are provided, do the following instead of performing an initial analysis:
+1. Concisely explain why previous test cases failed to trigger a vulnerability
+2. Suggest specific improvements to the test strategy
 """
 
 VULN_FULL_WRITE_POV_SYSTEM_PROMPT = """
@@ -382,15 +408,21 @@ The harness is:
 {harness}
 </harness>
 
-An analysis of the vulnerability:
-<analysis>
+Previous attempts at test cases that failed to trigger the vulnerability:
+<previous_attempts>
+{previous_attempts}
+</previous_attempts>
+
+The latest analysis of the vulnerability:
+<latest_analysis>
 {analysis}
-</analysis>
+</latest_analysis>
 
 You will write deterministic Python functions that trigger a vulnerability identified in a program. You are provided:
 1. Retrieved context about the codebase
 2. The test harness
-3. An analysis of the vulnerability
+3. Previous attempts at test cases which failed to trigger the vulnerability and corresponding analysis from those attempts.
+4. The latest analysis of the vulnerability.
 
 Triggering the vulnerability means causing a crash, triggering a {fuzzer_name} sanitizer, or causing a timeout.
 
