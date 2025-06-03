@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from typing import Annotated, Sequence
 from buttercup.common.clusterfuzz_parser import CrashInfo
@@ -16,6 +17,7 @@ from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
 from buttercup.patcher.utils import PatchInput, PatchOutput, CHAIN_CALL_TYPE
 from buttercup.common.challenge_task import ChallengeTask
+from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
 import re
 import uuid
 
@@ -161,6 +163,14 @@ class ExecutionInfo(BaseModel):
     reflection_guidance: str | None = None
     prev_node: PatcherAgentName | None = None
     code_snippet_requests: list[CodeSnippetRequest] = Field(default_factory=list)
+
+
+class BaseCtxState(AgentStatePydantic):
+    """Base state for the context retriever agents"""
+
+    challenge_task_dir: Path
+    work_dir: Path
+    challenge_task_dir_ro: Path | None = None
 
 
 class PatcherAgentState(BaseModel):

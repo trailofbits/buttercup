@@ -15,7 +15,6 @@ from typing import Iterator
 from langchain_core.language_models import BaseChatModel
 from buttercup.patcher.agents.context_retriever import (
     ContextRetrieverAgent,
-    CheckCodeSnippetsOutput,
 )
 
 from buttercup.patcher.agents.common import (
@@ -94,32 +93,10 @@ def mock_duplicate_code_snippet_prompt(mock_cheap_llm: MagicMock):
     return prompt
 
 
-@pytest.fixture
-def mock_check_code_snippet_llm():
-    prompt = MagicMock(spec=Runnable)
-    llm = MagicMock(spec=BaseChatModel)
-    llm.with_fallbacks.return_value = llm
-    llm.configurable_fields.return_value = llm
-    llm.with_structured_output.return_value = llm
-
-    llm.invoke.return_value = CheckCodeSnippetsOutput(
-        reasoning="",
-        found_all=True,
-        fully_answered_request=True,
-        fully_implemented=True,
-        success=True,
-    )
-
-    prompt.__or__.side_effect = lambda other: llm
-    llm.__or__.side_effect = lambda other: llm
-    return prompt
-
-
 @pytest.fixture(autouse=True)
 def mock_llm_functions(
     mock_agent_llm: MagicMock,
     mock_cheap_llm: MagicMock,
-    mock_check_code_snippet_llm: MagicMock,
     mock_duplicate_code_snippet_prompt: MagicMock,
 ):
     """Mock LLM creation functions and environment variables."""
@@ -132,7 +109,6 @@ def mock_llm_functions(
         import buttercup.patcher.agents.context_retriever
 
         buttercup.patcher.agents.context_retriever.DUPLICATE_CODE_SNIPPET_PROMPT = mock_duplicate_code_snippet_prompt
-        buttercup.patcher.agents.context_retriever.CHECK_CODE_SNIPPETS_PROMPT = mock_check_code_snippet_llm
         yield
 
 
@@ -1358,7 +1334,7 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
     assert code_snippet.code == "struct ebitmap_t { int a; }"
 
 
-@patch("buttercup.patcher.agents.context_retriever._get_challenge")
+@patch("buttercup.patcher.agents.context_retriever.get_challenge")
 def test_get_initial_context_filters_llvm_frames(
     mock_get_challenge: MagicMock,
     mock_agent: ContextRetrieverAgent,
@@ -1428,7 +1404,7 @@ def test_get_initial_context_filters_llvm_frames(
     )
 
 
-@patch("buttercup.patcher.agents.context_retriever._get_challenge")
+@patch("buttercup.patcher.agents.context_retriever.get_challenge")
 def test_get_initial_context_includes_llvm_frames(
     mock_get_challenge: MagicMock,
     mock_agent: ContextRetrieverAgent,
@@ -1512,7 +1488,7 @@ def test_get_initial_context_includes_llvm_frames(
     )
 
 
-@patch("buttercup.patcher.agents.context_retriever._get_challenge")
+@patch("buttercup.patcher.agents.context_retriever.get_challenge")
 def test_get_initial_context_respects_n_initial_stackframes(
     mock_get_challenge: MagicMock,
     mock_agent: ContextRetrieverAgent,
@@ -1608,7 +1584,7 @@ def test_get_initial_context_respects_n_initial_stackframes(
     assert mock_agent.process_request.call_count == 2
 
 
-@patch("buttercup.patcher.agents.context_retriever._get_challenge")
+@patch("buttercup.patcher.agents.context_retriever.get_challenge")
 def test_get_initial_context_handles_multiple_stackframes(
     mock_get_challenge: MagicMock,
     mock_agent: ContextRetrieverAgent,
