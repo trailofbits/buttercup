@@ -30,10 +30,16 @@ logger = logging.getLogger(__name__)
 
 
 class SeedGenBot(TaskLoop):
-    TASK_SEED_INIT_PROB = 0.1
-    TASK_VULN_DISCOVERY_PROB = 0.3
-    TASK_SEED_EXPLORE_PROB = 0.6
+    TASK_SEED_INIT_PROB_FULL = 0.05
+    TASK_VULN_DISCOVERY_PROB_FULL = 0.35
+    TASK_SEED_EXPLORE_PROB_FULL = 0.60
+
+    TASK_SEED_INIT_PROB_DELTA = 0.05
+    TASK_VULN_DISCOVERY_PROB_DELTA = 0.45
+    TASK_SEED_EXPLORE_PROB_DELTA = 0.50
+
     MIN_SEED_INIT_RUNS = 3
+    MIN_VULN_DISCOVERY_RUNS = 1
 
     def __init__(
         self,
@@ -55,32 +61,52 @@ class SeedGenBot(TaskLoop):
     def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER]
 
-    def sample_task(self, task: WeightedHarness) -> str:
-        """Sample a task to run, prioritizing SEED_INIT if it hasn't been run enough times.
+    def sample_task(self, task: WeightedHarness, is_delta: bool) -> str:
+        """Sample a task to run
+
+        Prioritizes seed-init and vuln-discovery if they haven't been run enough times.
 
         Args:
             task: The WeightedHarness task to sample for
+            is_delta: Whether the challenge is in delta mode
 
         Returns:
             The selected task name
         """
-        # Check if SEED_INIT has been run enough times
+        # Check if seed-init has been run enough times
         seed_init_count = self.task_counter.get_count(
             task.harness_name, task.package_name, task.task_id, TaskName.SEED_INIT.value
         )
 
         if seed_init_count < self.MIN_SEED_INIT_RUNS:
-            logger.info(
-                f"SEED_INIT has only been run {seed_init_count} times, forcing SEED_INIT task"
-            )
+            logger.info(f"seed-init has only been run {seed_init_count} times, forcing task")
             return TaskName.SEED_INIT.value
 
+        # Check if vuln-discovery has been run enough times
+        vuln_discovery_count = self.task_counter.get_count(
+            task.harness_name, task.package_name, task.task_id, TaskName.VULN_DISCOVERY.value
+        )
+
+        if vuln_discovery_count < self.MIN_VULN_DISCOVERY_RUNS:
+            logger.info(
+                f"vuln-discovery has only been run {vuln_discovery_count} times, forcing task"
+            )
+            return TaskName.VULN_DISCOVERY.value
+
         # If SEED_INIT has been run enough times, use normal probability distribution
-        task_distribution = [
-            (TaskName.SEED_INIT.value, self.TASK_SEED_INIT_PROB),
-            (TaskName.VULN_DISCOVERY.value, self.TASK_VULN_DISCOVERY_PROB),
-            (TaskName.SEED_EXPLORE.value, self.TASK_SEED_EXPLORE_PROB),
-        ]
+        if is_delta:
+            task_distribution = [
+                (TaskName.SEED_INIT.value, self.TASK_SEED_INIT_PROB_DELTA),
+                (TaskName.VULN_DISCOVERY.value, self.TASK_VULN_DISCOVERY_PROB_DELTA),
+                (TaskName.SEED_EXPLORE.value, self.TASK_SEED_EXPLORE_PROB_DELTA),
+            ]
+        else:
+            task_distribution = [
+                (TaskName.SEED_INIT.value, self.TASK_SEED_INIT_PROB_FULL),
+                (TaskName.VULN_DISCOVERY.value, self.TASK_VULN_DISCOVERY_PROB_FULL),
+                (TaskName.SEED_EXPLORE.value, self.TASK_SEED_EXPLORE_PROB_FULL),
+            ]
+
         tasks, weights = zip(*task_distribution)
         return random.choices(tasks, weights=weights, k=1)[0]
 
@@ -114,7 +140,8 @@ class SeedGenBot(TaskLoop):
             override_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
             if override_task:
                 logger.info("Only testing task: %s", override_task)
-            task_choice = override_task if override_task else self.sample_task(task)
+            is_delta = challenge_task.is_delta_mode()
+            task_choice = override_task if override_task else self.sample_task(task, is_delta)
 
             logger.info(f"Running seed-gen task: {task_choice}")
 
@@ -144,7 +171,7 @@ class SeedGenBot(TaskLoop):
                     ),
                 )
                 with reproduce_multiple.open() as mult:
-                    if challenge_task.is_delta_mode():
+                    if is_delta:
                         vuln_discovery = VulnDiscoveryDeltaTask(
                             task.package_name,
                             task.harness_name,
