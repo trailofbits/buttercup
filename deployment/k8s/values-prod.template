@@ -137,7 +137,7 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 240
+  replicaCount: 300
   resources:
     limits:
       cpu: 16000m
