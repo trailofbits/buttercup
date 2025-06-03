@@ -38,6 +38,9 @@ class Runner:
             os.environ["JOB_NAME"] = job_name
             logger.debug(f"Calling engine.prepare with {conf.corpus_dir} | {target} | {build_dir}")
             opts: FuzzOptions = engine.prepare(conf.corpus_dir, target, build_dir)
+            logger.debug(f"Fuzz option corpus_dir: {opts.corpus_dir}")
+            logger.debug(f"Fuzz option arguments: {opts.arguments}")
+            logger.debug(f"Fuzz option strategies: {opts.strategies}")
             logger.debug(f"Calling engine.fuzz with {target} | {repro_dir} | {self.conf.timeout}")
             results: FuzzResult = engine.fuzz(target, opts, repro_dir, self.conf.timeout)
             os.environ["JOB_NAME"] = ""
