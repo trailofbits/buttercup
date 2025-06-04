@@ -1,6 +1,6 @@
 
 
-ARG BASE_IMAGE=ghcr.io/aixcc-finals/base-runner:v1.2.0
+ARG BASE_IMAGE=ghcr.io/aixcc-finals/base-runner:v1.2.1
 
 FROM $BASE_IMAGE AS runner-base
 RUN apt-get update

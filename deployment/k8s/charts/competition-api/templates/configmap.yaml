@@ -43,6 +43,6 @@ data:
         base_ref: "5ac0917575e20464b5aa86434dff2a7626b558b4"
         head_ref: "challenges/integration-test-delta-01"
         fuzz_tooling_url: "https://github.com/aixcc-finals/oss-fuzz-aixcc.git"
-        fuzz_tooling_ref: "v1.1.0"
+        fuzz_tooling_ref: "v1.2.1"
         fuzz_tooling_project_name: "integration-test"
 {{- end }}
