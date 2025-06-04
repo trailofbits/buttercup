@@ -96,7 +96,7 @@ declare -A libpng_delta_1=(
     ["challenge_repo_base_ref"]="5bf8da2d7953974e5dfbd778429c3affd461f51a"
     ["challenge_repo_head_ref"]="challenges/lp-delta-01"
     ["fuzz_tooling_url"]="git@github.com:aixcc-finals/oss-fuzz-aixcc.git"
-    ["fuzz_tooling_ref"]="challenges/lp-delta-01"
+    ["fuzz_tooling_ref"]="challenge-state/lp-delta-01"
     ["fuzz_tooling_project_name"]="libpng"
     ["duration"]=$delta_set_duration
 )
