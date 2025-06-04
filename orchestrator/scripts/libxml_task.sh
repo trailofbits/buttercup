@@ -6,5 +6,6 @@ curl -X 'POST' 'http://127.0.0.1:31323/webhook/trigger_task' -H 'Content-Type: a
     "fuzz_tooling_url": "git@github.com:aixcc-finals/oss-fuzz-aixcc.git",
     "fuzz_tooling_ref": "challenge-state/lx-ex1-delta-01",
     "fuzz_tooling_project_name": "libxml2",
+    "harnesses_included": true,
     "duration": 1800
 }'
