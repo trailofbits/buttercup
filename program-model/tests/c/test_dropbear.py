@@ -105,7 +105,7 @@ def test_get_callers(
                     start_line=120,
                 ),
             ],
-            11,
+            10,
         ),
     ],
 )

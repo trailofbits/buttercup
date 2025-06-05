@@ -22,7 +22,7 @@ from buttercup.program_model.utils.common import (
     TypeDefinition,
     TypeUsageInfo,
 )
-from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.project_yaml import ProjectYaml, Language
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -98,9 +98,9 @@ class CodeQuery:
         self._verify_requirements()
         self.ts = CodeTS(self.challenge)
         language = self._get_project_language()
-        if language in ["c", "c++"]:
+        if language == Language.C:
             self.imports_resolver = FuzzyCImportsResolver(self._get_container_src_dir())
-        elif language in ["java", "jvm"]:
+        elif language == Language.JAVA:
             self.imports_resolver = FuzzyJavaImportsResolver(self.challenge, self)
         else:
             self.imports_resolver = None
@@ -133,11 +133,11 @@ class CodeQuery:
             )
             raise RuntimeError("No code query package")
 
-    def _get_project_language(self) -> str:
+    def _get_project_language(self) -> Language:
         project_yaml = ProjectYaml(
             self.challenge, self.challenge.task_meta.project_name
         )
-        return str(project_yaml.language)
+        return project_yaml.unified_language
 
     def _is_already_indexed(self) -> bool:
         """Check if the codequery database already exists."""
@@ -158,9 +158,9 @@ class CodeQuery:
         src_dir = self.challenge.get_source_path()
 
         language = self._get_project_language()
-        if language in ["c", "c++"]:
+        if language == Language.C:
             return False
-        elif language in ["java", "jvm"]:
+        elif language == Language.JAVA:
             return any(src_dir.glob("**/*.g4"))
         else:
             raise ValueError(f"Unsupported language: {language}")
@@ -254,7 +254,7 @@ class CodeQuery:
             project_yaml = ProjectYaml(
                 self.challenge, self.challenge.task_meta.project_name
             )
-            if project_yaml.language == "c" or project_yaml.language == "c++":
+            if project_yaml.unified_language == Language.C:
                 extensions = [
                     "*.c",
                     "*.cpp",
@@ -265,7 +265,7 @@ class CodeQuery:
                     "*.hxx",
                     "*.hh",
                 ]
-            elif project_yaml.language == "jvm":
+            elif project_yaml.unified_language == Language.JAVA:
                 extensions = ["*.java"]
             else:
                 raise ValueError(f"Unsupported language: {project_yaml.language}")

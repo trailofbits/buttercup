@@ -103,21 +103,13 @@ jobs:
         if: ${{ matrix.component }} == 'seed-gen'
         working-directory: seed-gen
 
-      - name: Install ripgrep
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ripgrep
-        if: ${{ matrix.component }} == 'seed-gen'
-        working-directory: seed-gen
-
-      - name: Prepare CodeQuery
+      - name: Install dependencies
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GHCR_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y codequery
-          sudo apt-get install -y just
+          sudo apt-get install -y codequery just ripgrep git-lfs
           echo ${{ env.GHCR_TOKEN }} | docker login ghcr.io -u ${{ env.GHCR_USERNAME }} --password-stdin
           just download-cscope
           just install-cscope

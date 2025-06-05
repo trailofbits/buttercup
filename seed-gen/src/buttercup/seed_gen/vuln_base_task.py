@@ -22,6 +22,7 @@ from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import CrashDir
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash
 from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.project_yaml import Language
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.reproduce_multiple import ReproduceMultiple, ReproduceResult
 from buttercup.common.sarif_store import SARIFBroadcastDetail
@@ -331,25 +332,25 @@ class VulnBaseTask(Task):
 
     def get_pov_examples(self) -> str:
         """Get PoV examples for the task"""
-        if self.project_yaml.language == "jvm":
+        if self.project_yaml.unified_language == Language.JAVA:
             return VULN_JAVA_POV_EXAMPLES
         else:
             return VULN_C_POV_EXAMPLES
 
     def get_vuln_files(self) -> str:
-        if self.project_yaml.language == "jvm":
+        if self.project_yaml.unified_language == Language.JAVA:
             return ".java"
         else:
             return ".c, .h, .cpp, or .hpp"
 
     def get_fuzzer_name(self) -> str:
-        if self.project_yaml.language == "jvm":
+        if self.project_yaml.unified_language == Language.JAVA:
             return "jazzer"
         else:
             return "libfuzzer"
 
     def get_cwe_list(self) -> str:
-        if self.project_yaml.language == "jvm":
+        if self.project_yaml.unified_language == Language.JAVA:
             return JAVA_CWE_LIST + "\n" + COMMON_CWE_LIST
         else:
             return C_CWE_LIST + "\n" + COMMON_CWE_LIST

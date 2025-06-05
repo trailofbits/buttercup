@@ -899,3 +899,17 @@ def test_reproduce_result_methods():
     )
     assert result5.did_run() is True
     assert result5.did_crash() is False
+
+
+@pytest.mark.integration
+def test_exec_docker_cmd_grep_after_build(libjpeg_oss_fuzz_task_rw: ChallengeTask):
+    """Test exec_docker_cmd running grep after build_fuzzers has been called."""
+    # First call build_fuzzers to set up container
+    libjpeg_oss_fuzz_task_rw.build_fuzzers()
+
+    # Then test grep command
+    result = libjpeg_oss_fuzz_task_rw.exec_docker_cmd(["ls", "-lah", "wrjpgcom"])
+
+    assert result.success is True
+    assert result.returncode == 0
+    assert b"-rwxr-xr-x" in result.output and b"wrjpgcom" in result.output

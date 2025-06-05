@@ -4,7 +4,7 @@ import subprocess
 import json
 import logging
 from dataclasses import dataclass
-from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.project_yaml import ProjectYaml, Language
 from bs4 import BeautifulSoup
 from typing import Any
 
@@ -84,10 +84,10 @@ class CoverageRunner:
         return function_coverage
 
     def run(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
-        lang = ProjectYaml(self.tool, self.tool.project_name).language
-        if lang == "c" or lang == "c++":
+        lang = ProjectYaml(self.tool, self.tool.project_name).unified_language
+        if lang == Language.C:
             ret = self.run_c(harness_name, corpus_dir)
-        elif lang == "jvm":
+        elif lang == Language.JAVA:
             ret = self.run_java(harness_name, corpus_dir)
         else:
             logger.error(f"Unsupported language: {lang}")

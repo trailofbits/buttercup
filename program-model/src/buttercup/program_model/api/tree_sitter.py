@@ -12,7 +12,7 @@ from buttercup.program_model.utils.common import (
     TypeDefinitionType,
 )
 from tree_sitter_language_pack import get_language, get_parser
-from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.project_yaml import ProjectYaml, Language
 import re
 from typing import Any
 
@@ -231,13 +231,13 @@ class CodeTS:
         self.project_yaml = ProjectYaml(
             self.challenge_task, self.challenge_task.task_meta.project_name
         )
-        if self.project_yaml.language in ["c", "c++"]:
+        if self.project_yaml.unified_language == Language.C:
             self.parser = get_parser("c")
             self.language = get_language("c")
             query_str = QUERY_STR_C
             types_query_str = QUERY_STR_TYPES_C
             query_class_members = None
-        elif self.project_yaml.language in ["java", "jvm"]:
+        elif self.project_yaml.unified_language == Language.JAVA:
             self.parser = get_parser("java")
             self.language = get_language("java")
             query_str = QUERY_STR_JAVA
@@ -287,7 +287,7 @@ class CodeTS:
         self, code: bytes, file_path: Path
     ) -> dict[str, Function]:
         """Parse the functions in a piece of code and return a dictionary of function names/body"""
-        if self.project_yaml.language in ["c", "c++"]:
+        if self.project_yaml.unified_language == Language.C:
             code_no_preproc = self._get_code_no_preproc(code)
             tree = self.parser.parse(code_no_preproc)
         else:
@@ -375,7 +375,7 @@ class CodeTS:
         """Parse the definition of a type in a piece of code."""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
 
-        if self.project_yaml.language in ["c", "c++"]:
+        if self.project_yaml.unified_language == Language.C:
             code_no_preproc = self._get_code_no_preproc(code)
             tree = self.parser.parse(code_no_preproc)
         else:

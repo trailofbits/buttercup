@@ -8,6 +8,7 @@ Follow the install instructions for the required dependencies:
  * [kubectl install guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
  * [helm install guide](https://helm.sh/docs/intro/install/):
  * [minikube install guide](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fdebian+package)
+ * Git LFS for some tests
 
 ## Configuration
 

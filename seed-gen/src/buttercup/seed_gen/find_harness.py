@@ -7,7 +7,7 @@ from pathlib import Path
 import rapidfuzz
 
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.project_yaml import Language, ProjectYaml
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,9 @@ def get_harness_source_candidates(
     of fuzzy similarity to the harness name.
     """
     project_yaml = ProjectYaml(task, project_name)
-    language = project_yaml.language
+    language = project_yaml.unified_language
     harnesses = []
-    if language == "jvm":
+    if language == Language.JAVA:
         harnesses = find_jazzer_harnesses(task)
     else:
         harnesses = find_libfuzzer_harnesses(task)

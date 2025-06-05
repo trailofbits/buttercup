@@ -379,6 +379,13 @@ class ChallengeTask:
     def container_image(self) -> str:
         return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
 
+    def container_src_dir(self) -> str:
+        """
+        Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
+        This assumes that the src directory is the same as the workdir.
+        """
+        return self.workdir_from_dockerfile().parts[-1]
+
     @read_write_decorator
     def exec_docker_cmd(
         self, cmd: list[str], mount_dirs: dict[Path, Path] | None = None, container_image: str | None = None

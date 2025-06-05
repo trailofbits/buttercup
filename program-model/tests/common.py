@@ -1,6 +1,7 @@
 from pathlib import Path
 from dataclasses import dataclass
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import Language
 from buttercup.program_model.codequery import CodeQuery
 import pytest
 from buttercup.program_model.utils.common import (
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def filter_project_context(
-    focus,
+    container_src_dir: str,
     results: list[Function | TypeDefinition | TypeUsageInfo],
-    language: str,
+    language: Language,
 ):
     """Some challenge tasks result in multiple instances of the target project to
     be built in the /src/ directory. This in turn causes Codequery to return multiple
@@ -27,8 +28,8 @@ def filter_project_context(
     This function filters out found functions and types using the target project name.
     It removes all matches that don't directly come from the target project. To identify these,
     it checks whether matches belong to a file that as the proper project_name in their path."""
-    if language == "c":
-        return [x for x in results if f"/{focus}/" in str(x.file_path)]
+    if language == Language.C:
+        return [x for x in results if f"/{container_src_dir}/" in str(x.file_path)]
     else:
         return results
 
@@ -90,7 +91,7 @@ def common_test_get_callers(
 
     callers = codequery.get_callers(function)
     callers = filter_project_context(
-        fuzz_task.task_meta.focus, callers, codequery._get_project_language()
+        fuzz_task.container_src_dir(), callers, codequery._get_project_language()
     )
 
     # Output for debugging
@@ -156,7 +157,7 @@ def common_test_get_callees(
 
     callees = codequery.get_callees(function)
     callees = filter_project_context(
-        fuzz_task.task_meta.focus, callees, codequery._get_project_language()
+        fuzz_task.container_src_dir(), callees, codequery._get_project_language()
     )
 
     # Output for debugging
@@ -216,7 +217,9 @@ def common_test_get_type_definitions(
         fuzzy=fuzzy,
     )
     type_definitions = filter_project_context(
-        fuzz_task.task_meta.focus, type_definitions, codequery._get_project_language()
+        fuzz_task.container_src_dir(),
+        type_definitions,
+        codequery._get_project_language(),
     )
 
     # Output for debugging
@@ -270,7 +273,7 @@ def common_test_get_type_usages(
 
     call_sites = codequery.get_type_calls(type_definition)
     call_sites = filter_project_context(
-        fuzz_task.task_meta.focus, call_sites, codequery._get_project_language()
+        fuzz_task.container_src_dir(), call_sites, codequery._get_project_language()
     )
 
     # Output for debugging
