@@ -51,21 +51,31 @@ Create a production environment file with the following variables:
    git clean -dxff deployment/k8s/charts
    ```
 
-2. Update storage configuration:
+2. Delete old terraform directory:
+   ```bash
+   rm -rf deployment/.terraform
+   ```
+
+3. Update storage configuration:
    - Modify `storage_account_name` in `deployment/backend.tf` to point to production storage
 
-3. Ensure `deployment/env` points to the right environment file
+4. Ensure `deployment/env` points to the right environment file
    ```bash
    ls -lah deployment/env
    ```
 
-4. Deploy:
+5. Deploy:
    ```bash
    cd deployment
    make up
    ```
 
 ## Post-deployment Verification
+- Check `/status` works well:
+   ```bash
+   curl -u $COMP_API_ID:$COMP_API_TOKEN https://<team-moniker>.tasker.aixcc.tech/crs/status/<team-moniker>-exhibition3
+   ```
+
 - Monitor deployment logs for any errors
 - Verify all services are running correctly
 - Test API endpoints and functionality

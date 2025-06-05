@@ -91,6 +91,15 @@ declare -A integration_test_delta_1=(
     ["duration"]=$delta_set_duration
 )
 
+declare -A integration_test_full=(
+    ["challenge_repo_url"]="git@github.com:aixcc-finals/integration-test.git"
+    ["challenge_repo_head_ref"]="challenges/integration-test-delta-01"
+    ["fuzz_tooling_url"]="git@github.com:aixcc-finals/oss-fuzz-aixcc.git"
+    ["fuzz_tooling_ref"]="challenge-state/integration-test-delta-01"
+    ["fuzz_tooling_project_name"]="integration-test"
+    ["duration"]=$delta_set_duration
+)
+
 declare -A libpng_delta_1=(
     ["challenge_repo_url"]="git@github.com:aixcc-finals/example-libpng.git"
     ["challenge_repo_base_ref"]="5bf8da2d7953974e5dfbd778429c3affd461f51a"
