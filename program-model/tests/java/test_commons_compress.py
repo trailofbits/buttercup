@@ -22,7 +22,7 @@ from ..common import (
     [
         (
             "createHuffmanDecodingTables",
-            "/src/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
+            "/src/commons-compress/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -62,7 +62,7 @@ def test_get_functions(
     [
         (
             "createHuffmanDecodingTables",
-            "/src/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
+            "/src/commons-compress/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
             None,
             False,
             [
@@ -108,13 +108,13 @@ def test_get_callers(
     [
         (
             "createHuffmanDecodingTables",
-            "/src/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
+            "/src/commons-compress/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
             None,
             False,
             [
                 TestCalleeInfo(
                     name="hbCreateDecodeTables",
-                    file_path="/src/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
+                    file_path="/src/commons-compress/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
                     start_line=158,
                 ),
             ],
@@ -158,7 +158,7 @@ def test_get_callees(
                 type=TypeDefinitionType.CLASS,
                 definition="private static final class Data {",
                 definition_line=44,
-                file_path="/src/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
+                file_path="/src/commons-compress/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
             ),
         ),
     ],
@@ -192,7 +192,7 @@ def test_get_type_definitions(
             False,
             [
                 TestTypeUsageInfo(
-                    file_path="/src/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
+                    file_path="/src/commons-compress/src/main/java/org/apache/commons/compress/compressors/bzip2/BZip2CompressorInputStream.java",
                     line_number=593,
                 ),
             ],

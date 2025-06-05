@@ -210,7 +210,7 @@ def test_get_type_definitions(
                 # This one is not present in the source but created in the ossfuzz container source dir
                 TestTypeUsageInfo(
                     file_path="/src/MessageTrackerPeekReceivedFuzzer.java",
-                    line_number=29,
+                    line_number=30,
                 ),
             ],
             6,
