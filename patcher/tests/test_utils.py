@@ -80,6 +80,15 @@ def test_find_file_in_source_dir_relative(mock_challenge_task: ChallengeTask):
     assert res == Path("test.txt")
 
 
+def test_find_file_in_source_dir_outside(mock_challenge_task: ChallengeTask):
+    res = find_file_in_source_dir(mock_challenge_task, Path("/var/lib/fuzz_vuln.c"))
+    assert res is None
+    res = find_file_in_source_dir(mock_challenge_task, Path("/src/extra_folder/fuzz_vuln.c"))
+    assert res is None
+    res = find_file_in_source_dir(mock_challenge_task, Path("/src/fuzz_vuln.c"))
+    assert res is None
+
+
 def test_find_file_in_source_dir_relative_subdir(mock_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(mock_challenge_task, Path("src/example_project/subdir/test.txt"))
     assert res == Path("subdir/test.txt")

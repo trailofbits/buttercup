@@ -394,6 +394,10 @@ class SWEAgent(PatcherAgentBase):
             file_content = self.challenge.get_source_path().joinpath(relative_file_path).read_text()
             return str(file_content), relative_file_path
         except FileNotFoundError:
+            logger.warning("_get_file_content: File %s(%s) not found", file_path, relative_file_path)
+            return None
+        except Exception:
+            logger.exception("_get_file_content: Error reading file %s(%s)", file_path, relative_file_path)
             return None
 
     def _find_closest_match(

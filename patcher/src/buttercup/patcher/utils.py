@@ -78,7 +78,12 @@ def _map_container_path_to_local_path(challenge: ChallengeTask, file_path: Path)
     if file_path.parts[1] != "src":
         return None
 
-    if len(file_path.parts) < 3:
+    # There should be at least 4 parts in the path:
+    # - /
+    # - src
+    # - <src-dir>
+    # - <in-src-dir-file-path>
+    if len(file_path.parts) < 4:
         return None
 
     rel_path = Path(*file_path.parts[3:])
@@ -91,7 +96,6 @@ def _map_container_path_to_local_path(challenge: ChallengeTask, file_path: Path)
 
 def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path | None:
     """Find a file path in the challenge source directory."""
-
     # Strategy 1: Path as is
     res = _map_container_path_to_local_path(challenge, file_path)
     if res:
