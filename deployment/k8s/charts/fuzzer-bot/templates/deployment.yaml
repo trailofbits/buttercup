@@ -32,6 +32,7 @@ spec:
           failureThreshold: {{ .Values.healthCheck.failureThreshold | default 2 }}
         env: 
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
+        {{- include "buttercup.fuzzerBotEnv" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}

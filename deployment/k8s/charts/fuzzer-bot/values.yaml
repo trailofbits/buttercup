@@ -10,6 +10,7 @@ resources:
 
 timeout: 900
 timer: 5000
+logLevel: "DEBUG"
 
 # Health check configuration
 healthCheck:

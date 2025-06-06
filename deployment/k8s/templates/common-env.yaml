@@ -310,3 +310,7 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ include "buttercup.core.logLevel" . }}
 {{- end }}
 
+{{- define "buttercup.fuzzerBotEnv" }}
+- name: BUTTERCUP_FUZZER_LOG_LEVEL
+  value: {{ include "buttercup.core.logLevel" . }}
+{{- end }}
