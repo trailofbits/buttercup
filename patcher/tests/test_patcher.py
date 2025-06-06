@@ -4,6 +4,7 @@ from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Cras
 from buttercup.patcher.agents.common import CodeSnippetRequest
 from buttercup.common.queues import RQItem
 from buttercup.common.task_registry import TaskRegistry
+from buttercup.patcher.agents.common import PatcherAgentState, PatchInput, PatchAttempt, PatchStatus
 import pytest
 from unittest.mock import patch, MagicMock
 import re
@@ -343,3 +344,65 @@ def test_process_item_should_skip_tasks_marked_for_stopping(
         mock_ack.assert_called_once_with("item-id-to-skip")
         # Verify registry was called with the correct task ID
         patcher.registry.should_stop_processing.assert_called_once_with(task_id)
+
+
+def test_get_successful_patch():
+    """Test getting successful patches from PatcherAgentState."""
+    state = PatcherAgentState(
+        messages=[],
+        context=PatchInput(
+            challenge_task_dir=Path("/tmp"),
+            task_id="test",
+            submission_index="1",
+            harness_name="test",
+            pov=Path("/tmp/pov"),
+            pov_token="token",
+            pov_variants_path=Path("/tmp/variants"),
+            sanitizer_output="output",
+            engine="libfuzzer",
+            sanitizer="address",
+        ),
+    )
+
+    # Add a mix of successful and failed patches
+    patches = [
+        PatchAttempt(build_succeeded=True, pov_fixed=True, tests_passed=True, status=PatchStatus.SUCCESS),
+        PatchAttempt(build_succeeded=False, pov_fixed=False, tests_passed=False, status=PatchStatus.BUILD_FAILED),
+        PatchAttempt(build_succeeded=True, pov_fixed=True, tests_passed=True, status=PatchStatus.SUCCESS),
+    ]
+    state.patch_attempts = patches
+
+    # Should get the last successful patch
+    successful = state.get_successful_patch()
+    assert successful == patches[2].patch
+
+
+def test_get_successful_patch_with_validation_failure():
+    """Test getting successful patches when validation fails."""
+    state = PatcherAgentState(
+        messages=[],
+        context=PatchInput(
+            challenge_task_dir=Path("/tmp"),
+            task_id="test",
+            submission_index="1",
+            harness_name="test",
+            pov=Path("/tmp/pov"),
+            pov_token="token",
+            pov_variants_path=Path("/tmp/variants"),
+            sanitizer_output="output",
+            engine="libfuzzer",
+            sanitizer="address",
+        ),
+    )
+
+    # Create patches with a good one in the middle that failed validation
+    patches = [
+        PatchAttempt(build_succeeded=False, pov_fixed=False, tests_passed=False, status=PatchStatus.BUILD_FAILED),
+        PatchAttempt(build_succeeded=True, pov_fixed=True, tests_passed=True, status=PatchStatus.VALIDATION_FAILED),
+        PatchAttempt(build_succeeded=False, pov_fixed=False, tests_passed=False, status=PatchStatus.POV_FAILED),
+    ]
+    state.patch_attempts = patches
+
+    # Should still get the patch that passed build/pov/tests even though validation failed
+    successful = state.get_successful_patch()
+    assert successful == patches[1].patch

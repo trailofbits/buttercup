@@ -335,6 +335,19 @@ because the patch did not pass the tests. Reflect on the patch from a broader \
 perspective to understand what went wrong. Consider providing better information \
 to the patch generation component or re-evaluate the patch strategy used."""
 
+VALIDATION_FAILED_FAILURE_DATA = """The patch did not pass the validation. It \
+means that it was patching tests/fuzz harnesses instead of the actual project's \
+code that has the vulnerability or it is patching files that are not in the \
+target project's language (C or Java). """
+
+VALIDATION_FAILED_EXTRA_INFORMATION = """The last few patch attempts all failed \
+because the patch did not pass the validation. It means the patches were patching \
+tests/fuzz harnesses instead of the actual project's code that has the \
+vulnerability or they were patching files that are not in the target project's \
+language (C or Java). Reflect on the patch from a broader perspective to \
+understand what went wrong. Consider looking for new code snippets or \
+re-evaluating the root cause analysis/patch strategy."""
+
 CODE_SNIPPET_SUMMARY_TMPL = """<code_snippet>
 <identifier>{identifier}</identifier>
 <file_path>{file_path}</file_path>
@@ -501,6 +514,8 @@ class ReflectionAgent(PatcherAgentBase):
             return self._get_pov_failure_data(patch_attempt)
         elif patch_attempt.status == PatchStatus.TESTS_FAILED:
             return self._get_tests_failure_data(patch_attempt)
+        elif patch_attempt.status == PatchStatus.VALIDATION_FAILED:
+            return VALIDATION_FAILED_FAILURE_DATA
         else:
             logger.warning(
                 "[%s / %s] Patch is pending, we should not be here, let's move back to root cause analysis",
@@ -529,6 +544,8 @@ class ReflectionAgent(PatcherAgentBase):
                 return POV_FAILED_EXTRA_INFORMATION
             case PatchStatus.TESTS_FAILED:
                 return TESTS_FAILED_EXTRA_INFORMATION
+            case PatchStatus.VALIDATION_FAILED:
+                return VALIDATION_FAILED_EXTRA_INFORMATION
             case _:
                 return ""
 

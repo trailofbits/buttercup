@@ -3,11 +3,13 @@
 import pytest
 import os
 from unittest.mock import patch
+from pydantic import BaseModel
 from contextlib import contextmanager
 from langchain_core.tools import tool
 from pathlib import Path
 import shutil
 import subprocess
+from langchain_core.tools import StructuredTool
 from langchain_core.runnables import Runnable, RunnableSequence
 from unittest.mock import MagicMock
 from typing import Iterator
@@ -165,6 +167,70 @@ def mock_challenge(task_dir: Path) -> ChallengeTask:
 
 
 @pytest.fixture
+def example_libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
+    """Create a challenge task using a real OSS-Fuzz repository."""
+    tmp_path = tmp_path / "libpng"
+    tmp_path.mkdir(parents=True)
+
+    oss_fuzz_dir = tmp_path / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = tmp_path / "src"
+    source_dir.mkdir(parents=True)
+
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir),
+            "clone",
+            "git@github.com:aixcc-finals/oss-fuzz-aixcc.git",
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir / "oss-fuzz-aixcc"),
+            "checkout",
+            "39d4001a08bde23d9f78188013a1836904d94e27",
+            "--",
+            "projects/libpng",
+        ],
+        check=True,
+    )
+
+    # Download selinux source code
+    url = "git@github.com:aixcc-finals/example-libpng.git"
+    subprocess.run(["git", "-C", str(source_dir), "clone", url], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(source_dir / "example-libpng"),
+            "checkout",
+            "a5bf8a9719a7203742fbdd413423b3802bfa0f5b",
+        ],
+        check=True,
+    )
+
+    # Create task metadata
+    TaskMeta(
+        project_name="libpng",
+        focus="example-libpng",
+        task_id="task-id-libpng",
+        metadata={"task_id": "task-id-libpng", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
+
+    challenge_task = ChallengeTask(
+        read_only_task_dir=tmp_path,
+        local_task_dir=tmp_path,
+    )
+    challenge_task.OSS_FUZZ_CONTAINER_ORG = "aixcc-afc"
+    return challenge_task
+
+
+@pytest.fixture
 def selinux_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
     """Create a challenge task using a real OSS-Fuzz repository."""
     tmp_path = tmp_path / "selinux"
@@ -250,6 +316,44 @@ def selinux_agent(selinux_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Conte
         chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
         challenge=selinux_oss_fuzz_task,
     )
+
+
+@pytest.fixture
+def libpng_agent(example_libpng_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Iterator[ContextRetrieverAgent]:
+    """Create a ContextRetrieverAgent instance."""
+    patch_input = PatchInput(
+        challenge_task_dir=example_libpng_oss_fuzz_task.task_dir,
+        task_id=example_libpng_oss_fuzz_task.task_meta.task_id,
+        submission_index="1",
+        harness_name="libpng_read_fuzzer",
+        # not used by the context retriever
+        pov=Path("pov-path-libpng"),
+        pov_variants_path=Path("pov-variants-path-libpng"),
+        pov_token="pov-token-libpng",
+        sanitizer_output="sanitizer-output-libpng",
+        engine="libfuzzer",
+        sanitizer="address",
+    )
+    wdir = tmp_path / "work_dir"
+    wdir.mkdir(parents=True)
+    with patch("buttercup.patcher.agents.context_retriever.grep", spec=StructuredTool) as mock_grep:
+
+        class MockSchema(BaseModel):
+            pass
+
+        mock_grep.__name__ = "grep"
+        mock_grep.name = "grep"
+        mock_grep.get_input_schema.return_value = MockSchema
+        mock_grep.get_output_schema.return_value = MockSchema
+        mock_grep.return_direct = False
+
+        res = ContextRetrieverAgent(
+            input=patch_input,
+            chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
+            challenge=example_libpng_oss_fuzz_task,
+        )
+        res.mock_grep = mock_grep
+        yield res
 
 
 @pytest.fixture
@@ -1813,3 +1917,48 @@ def test_find_tests_agent_uses_existing_test_sh(mock_agent: ContextRetrieverAgen
         # Verify that the agent used the existing test.sh script
         assert result.update["tests_instructions"] == test_sh_content
         assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+
+
+@pytest.mark.integration
+def test_grep_libpng(libpng_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config) -> None:
+    """Test the grep command on Makefile in libpng."""
+    state = ContextRetrieverState(
+        code_snippet_requests=[
+            CodeSnippetRequest(
+                request="Grep 'check' in Makefile",
+            )
+        ],
+        prev_node="test_node",
+    )
+
+    # Execute the retrieve_context method
+    mock_agent_llm.invoke.side_effect = [
+        # First response: Agent decides to use grep to search for the function
+        AIMessage(
+            content="I'll search for the string 'check' in Makefile using grep.",
+            tool_calls=[
+                ToolCall(
+                    id="grep_call_1",
+                    name="grep",
+                    args={
+                        "pattern": "check",
+                        "file_path": "Makefile",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="I'm done <END>",
+        ),
+    ]
+    result = libpng_agent.retrieve_context(state, mock_runnable_config)
+
+    # Verify the result
+    assert isinstance(result, Command)
+    assert result.goto == "test_node"
+
+    # Verify that grep was called with the correct arguments
+    libpng_agent.mock_grep.invoke.assert_called_once()
+    call_args = libpng_agent.mock_grep.invoke.call_args[0][0]  # Get the first positional argument
+    assert call_args["name"] == "grep"
+    assert call_args["args"] == {"pattern": "check", "file_path": "Makefile"}

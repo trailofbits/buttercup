@@ -276,6 +276,7 @@ At each major step, wrap your findings in:
 (2) Build/test commands
 (3) Evaluation
 (4) Confirmation you're following all rules
+(5) If you have found the test instructions, ensure you have called `test_instructions` tool with the test instructions. Do not terminate your turn otherwise.
 </project_analysis>
 
 At the end, summarize using:

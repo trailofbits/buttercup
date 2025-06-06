@@ -62,6 +62,7 @@ class PatcherLeaderAgent:
         workflow.add_node(PatcherAgentName.RUN_TESTS.value, qe_agent.run_tests_node)
         workflow.add_node(PatcherAgentName.REFLECTION.value, reflection_agent.reflect_on_patch)
         workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)
+        workflow.add_node(PatcherAgentName.PATCH_VALIDATION.value, qe_agent.validate_patch_node)
 
         workflow.set_entry_point(PatcherAgentName.INPUT_PROCESSING.value)
         return workflow

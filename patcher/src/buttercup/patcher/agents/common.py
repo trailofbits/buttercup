@@ -88,6 +88,7 @@ class PatcherAgentName(Enum):
     REFLECTION = "reflection"
     INPUT_PROCESSING = "input_processing"
     FIND_TESTS = "find_tests"
+    PATCH_VALIDATION = "patch_validation"
 
 
 class PatchStatus(Enum):
@@ -99,6 +100,7 @@ class PatchStatus(Enum):
     POV_FAILED = "pov_failed"
     TESTS_FAILED = "tests_failed"
     SUCCESS = "success"
+    VALIDATION_FAILED = "validation_failed"
 
 
 class PatchAnalysis(BaseModel):
@@ -193,13 +195,14 @@ class PatcherAgentState(BaseModel):
     remaining_steps: RemainingSteps = 25
 
     def get_successful_patch(self) -> PatchOutput | None:
-        """Get the successful patch."""
+        """Get the last successful patch.
+        This gets a patch that builds, fixes the PoV and passes the tests, even if it does not seem to be valid."""
         if not self.patch_attempts:
             return None
 
-        last_patch = self.patch_attempts[-1]
-        if last_patch.build_succeeded and last_patch.pov_fixed and last_patch.tests_passed:
-            return last_patch.patch
+        for patch_attempt in self.patch_attempts[::-1]:
+            if patch_attempt.build_succeeded and patch_attempt.pov_fixed and patch_attempt.tests_passed:
+                return patch_attempt.patch
 
         return None
 

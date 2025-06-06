@@ -15,6 +15,7 @@ dependencies = [
     "program-model",
     "pydantic-settings>=2.7.1",
     "python-dotenv>=1.0.1",
+    "unidiff>=0.7.5",
 ]
 
 [project.scripts]
