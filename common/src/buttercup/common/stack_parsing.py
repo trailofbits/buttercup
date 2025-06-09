@@ -1,9 +1,10 @@
 import re
 from buttercup.common.clusterfuzz_parser import StackParser, CrashInfo
+from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 import logging
 from buttercup.common.sets import RedisSet
 from redis import Redis
-from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
+from bson.json_util import dumps, loads, CANONICAL_JSON_OPTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,31 @@ class CrashSet:
     # Returns True if the crash was already in the set
     def add(self, project: str, harness_name: str, task_id: str, sanitizer: str, stacktrace: str) -> bool:
         crash_data = get_crash_data(stacktrace)
-        key = dumps([project, harness_name, task_id, sanitizer, crash_data], json_options=CANONICAL_JSON_OPTIONS)
+        inst_key: str = get_inst_key(stacktrace)
+
+        # Fuzzy duplicate checks against crash_state / instrumentation keys
+        for _crash in self.set:
+            [_project, _harness_name, _task_id, _sanitizer, _crash_data, _inst_key] = loads(
+                _crash, json_options=CANONICAL_JSON_OPTIONS
+            )
+            cf_comparator = CrashComparer(crash_data, _crash_data)
+            if cf_comparator.is_similar():
+                logger.debug(f"Duplicate crash filtered by crash comparison: {crash_data}")
+                # TODO: MBROWN / HBRODIN: check that the "duplicate" PoV here is also fixed by the patch for the "non-duplicate" PoV
+                #       This likely needs to exist as a separate queue of tasks handled by the orchestrator
+                return True
+
+            instkey_comparator = CrashComparer(inst_key, _inst_key)
+            if instkey_comparator.is_similar():
+                logger.debug(f"Duplicate crash filtered by instrumentation key: {crash_data}")
+                # TODO: MBROWN / HBRODIN: check that the "duplicate" PoV here is also fixed by the patch for the "non-duplicate" PoV
+                #       This likely needs to exist as a separate queue of tasks handled by the orchestrator
+                return True
+
+        # Rough corollary to organizer's exact match check
+        key = dumps(
+            [project, harness_name, task_id, sanitizer, crash_data, inst_key], json_options=CANONICAL_JSON_OPTIONS
+        )
         return self.set.add(key)
 
 
@@ -34,3 +59,10 @@ def get_crash_data(stacktrace: str, symbolized: bool = False) -> str:
     prs = parse_stacktrace(stacktrace, symbolized)
     logger.info(f"Crash data: {prs.crash_state}")
     return prs.crash_state
+
+
+def get_inst_key(stacktrace: str) -> str:
+    # vendored code from afc-finals/example-crs-architecture
+    inst_pattern = re.compile(pattern=r"Instrumented\s(?P<fragment>[A-Za-z0-9\.]*)\s")
+    matches = inst_pattern.findall(stacktrace)
+    return "\n".join(sorted(matches)) if matches else ""
