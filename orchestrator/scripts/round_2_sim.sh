@@ -25,6 +25,15 @@ declare -A libxml2_full=(
     ["duration"]=$full_set_duration
 )
 
+declare -A libxml2_full_updated=(
+    ["challenge_repo_url"]="git@github.com:aixcc-finals/afc-libxml2.git"
+    ["challenge_repo_head_ref"]="challenges/lx-full-01"
+    ["fuzz_tooling_url"]="git@github.com:aixcc-finals/oss-fuzz-aixcc.git"
+    ["fuzz_tooling_ref"]="aixcc-afc"
+    ["fuzz_tooling_project_name"]="libxml2"
+    ["duration"]=$full_set_duration
+)
+
 declare -A sqlite_full=(
     ["challenge_repo_url"]="git@github.com:aixcc-finals/afc-sqlite3.git"
     ["challenge_repo_head_ref"]="challenges/sq-full-01"
@@ -247,6 +256,8 @@ usage() {
     echo "  libxml2_full | libxml2_delta_1 | libxml2_delta_2"
     echo "  sqlite_full | sqlite_delta_1"
     echo "  zookeeper_full | zookeeper_delta_1"
+    echo ""
+    echo "  libxml2_full_updated -> using the most recent version of helper.py"
 }
 
 main() {

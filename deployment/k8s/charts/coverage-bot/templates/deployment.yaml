@@ -33,6 +33,7 @@ spec:
         env:
         - name: BUTTERCUP_FUZZER_SAMPLE_SIZE
           value: "{{ .Values.global.coverageBot.sampleSize }}"
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
         {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}

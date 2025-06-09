@@ -38,6 +38,7 @@ spec:
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
         {{- include "buttercup.dockerSocketVolumeMount" . | nindent 8 }}
         env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}

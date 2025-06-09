@@ -17,6 +17,7 @@ from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import copyanything, get_diffs
 from typing import Iterator
 import buttercup.common.node_local as node_local
+from packaging.version import Version
 
 logger = logging.getLogger(__name__)
 
@@ -376,6 +377,28 @@ class ChallengeTask:
     def _run_helper_cmd(self, cmd: list[str], env_helper: Dict[str, str] | None = None) -> CommandResult:
         return self._run_cmd(cmd, cwd=self.task_dir / self.get_oss_fuzz_subpath(), env_helper=env_helper)
 
+    def _get_base_runner_version(self) -> Version | None:
+        """The base-runner image tag is hardcoded in infra/helper.py."""
+        grep_cmd = ["grep", "BASE_IMAGE_TAG =", str(self._helper_path)]
+        try:
+            result = self._run_helper_cmd(grep_cmd)
+        except Exception as e:
+            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {str(e)}")
+            return None
+        if not result.success:
+            return None
+
+        m = re.search(r"BASE_IMAGE_TAG = '([^']+)'", result.output.decode("utf-8"))
+        if not m:
+            return None
+
+        try:
+            base_runner_str = m.group(1).strip(":v")
+            return Version(base_runner_str)
+        except Exception as e:
+            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {str(e)}")
+            return None
+
     def container_image(self) -> str:
         return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
 
@@ -610,6 +633,15 @@ class ChallengeTask:
         if "aixcc" in self.OSS_FUZZ_CONTAINER_ORG:
             kwargs["propagate_exit_code"] = True
             kwargs["err_result"] = FAILURE_ERR_RESULT
+
+            # Get base-runner version
+            base_runner_version = self._get_base_runner_version()
+
+            # NOTE: This feature was added in v1.2.0 of infra/helper.py
+            if base_runner_version and base_runner_version >= Version("1.2.0"):
+                # Set timeout (in seconds) in the case it hangs
+                # We use 120 seconds, which is larger than the suggested 65 seconds in the FAQ
+                kwargs["timeout"] = 120
 
         cmd = self._get_helper_cmd(
             "reproduce",
