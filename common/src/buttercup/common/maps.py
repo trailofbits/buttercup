@@ -46,33 +46,35 @@ class BuildMap:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-    def san_set_key(self, task_id: str, build_type: BuildType) -> str:
+    def _san_set_key(self, task_id: str, build_type: BuildType) -> str:
         return dumps([task_id, BUILD_MAP_NAME, build_type], json_options=CANONICAL_JSON_OPTIONS)
 
-    def build_output_key(self, task_id: str, build_type: BuildType, san: str) -> str:
-        return dumps([task_id, BUILD_SAN_MAP_NAME, build_type, san], json_options=CANONICAL_JSON_OPTIONS)
+    def _build_output_key(self, task_id: str, build_type: BuildType, san: str, patch_id: str) -> str:
+        return dumps([task_id, BUILD_SAN_MAP_NAME, build_type, san, patch_id], json_options=CANONICAL_JSON_OPTIONS)
 
     def add_build(self, build: BuildOutput) -> None:
         btype = build.build_type
-        san_set = self.san_set_key(build.task_id, btype)
+        san_set = self._san_set_key(build.task_id, btype)
         pipe = self.redis.pipeline()
         pipe.sadd(san_set, build.sanitizer)
         serialized = build.SerializeToString()
-        boutput_key = self.build_output_key(build.task_id, btype, build.sanitizer)
+        boutput_key = self._build_output_key(build.task_id, btype, build.sanitizer, build.patch_id)
         pipe.set(boutput_key, serialized)
         pipe.execute()
 
-    def get_builds(self, task_id: str, build_type: BuildType) -> list[BuildOutput]:
-        sanitizer_set = RedisSet(self.redis, self.san_set_key(task_id, build_type))
+    def get_builds(self, task_id: str, build_type: BuildType, patch_id: str = "") -> list[BuildOutput]:
+        sanitizer_set = RedisSet(self.redis, self._san_set_key(task_id, build_type))
         builds = []
         for san in list(sanitizer_set):
-            build = self.get_build_from_san(task_id, build_type, san)
+            build = self.get_build_from_san(task_id, build_type, san, patch_id)
             if build is not None:
                 builds.append(build)
         return builds
 
-    def get_build_from_san(self, task_id: str, build_type: BuildType, san: str) -> BuildOutput | None:
-        build_output_key = self.build_output_key(task_id, build_type, san)
+    def get_build_from_san(
+        self, task_id: str, build_type: BuildType, san: str, patch_id: str = ""
+    ) -> BuildOutput | None:
+        build_output_key = self._build_output_key(task_id, build_type, san, patch_id)
         it = self.redis.get(build_output_key)
         if it is None:
             return None

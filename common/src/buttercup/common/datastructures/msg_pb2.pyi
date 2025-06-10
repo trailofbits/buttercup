@@ -7,39 +7,46 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 COVERAGE: BuildType
 DESCRIPTOR: _descriptor.FileDescriptor
 FUZZER: BuildType
+PATCH: BuildType
 TRACER_NO_DIFF: BuildType
 
 class BuildOutput(_message.Message):
-    __slots__ = ["apply_diff", "build_type", "engine", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_type", "engine", "patch_id", "sanitizer", "task_dir", "task_id"]
     APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
+    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
     build_type: BuildType
     engine: str
+    patch_id: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch_id: _Optional[str] = ...) -> None: ...
 
 class BuildRequest(_message.Message):
-    __slots__ = ["apply_diff", "build_type", "engine", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_type", "engine", "patch", "patch_id", "sanitizer", "task_dir", "task_id"]
     APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
+    PATCH_FIELD_NUMBER: _ClassVar[int]
+    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
     build_type: BuildType
     engine: str
+    patch: str
+    patch_id: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., patch_id: _Optional[str] = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "submission_index"]

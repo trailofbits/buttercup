@@ -19,6 +19,7 @@ from buttercup.orchestrator.scheduler.scheduler import Scheduler
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.submissions import Submissions
 from buttercup.common.queues import QueueFactory
+from buttercup.common.maps import BuildMap
 
 import tempfile
 from pathlib import Path
@@ -27,6 +28,13 @@ from pathlib import Path
 @pytest.fixture
 def mock_redis():
     return Mock(spec=Redis)
+
+
+@pytest.fixture
+def redis_client():
+    res = Redis(host="localhost", port=6379, db=14)
+    yield res
+    res.flushdb()
 
 
 @pytest.fixture
@@ -694,3 +702,121 @@ def test_competition_api_interactions_failed_submissions(scheduler):
     scheduler.submissions.process_cycle.assert_called_once()
 
     assert result is False
+
+
+def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redis_client):
+    """Test that serve_build_output correctly stores builds with and without patches and they can be retrieved."""
+    # Set up a real BuildMap for testing storage and retrieval using scheduler's redis
+    real_build_map = BuildMap(redis_client)
+    scheduler.build_map = real_build_map
+
+    # Create BuildOutput objects - one without patch, one with patch
+    build_without_patch = BuildOutput(
+        engine="libfuzzer",
+        sanitizer="address",
+        task_dir="/path/to/task1",
+        task_id="test-task-1",
+        build_type=BuildType.FUZZER,
+        patch_id="",  # No patch
+    )
+
+    build_with_patch = BuildOutput(
+        engine="libfuzzer",
+        sanitizer="address",
+        task_dir="/path/to/task1",
+        task_id="test-task-1",
+        build_type=BuildType.FUZZER,
+        patch_id="patch-123",  # With patch
+    )
+
+    # Create another build with different sanitizer for the same task
+    build_different_san = BuildOutput(
+        engine="libfuzzer",
+        sanitizer="memory",
+        task_dir="/path/to/task1",
+        task_id="test-task-1",
+        build_type=BuildType.FUZZER,
+        patch_id="",
+    )
+
+    # Create mock RQItems
+    mock_item1 = RQItem(item_id="build-item-1", deserialized=build_without_patch)
+    mock_item2 = RQItem(item_id="build-item-2", deserialized=build_with_patch)
+    mock_item3 = RQItem(item_id="build-item-3", deserialized=build_different_san)
+
+    # Mock the queue to return items sequentially, then None
+    scheduler.build_output_queue.pop.side_effect = [mock_item1, mock_item2, mock_item3, None]
+
+    # Mock should_stop_processing to return False (task is not cancelled/expired)
+    original_should_stop_processing = scheduler.should_stop_processing
+    scheduler.should_stop_processing = Mock(return_value=False)
+
+    # Mock harness_map and process_build_output to focus on build storage
+    scheduler.harness_map = Mock()
+    scheduler.process_build_output = Mock(return_value=[])
+
+    # Call serve_build_output multiple times to process all items
+    result1 = scheduler.serve_build_output()
+    result2 = scheduler.serve_build_output()
+    result3 = scheduler.serve_build_output()
+    result4 = scheduler.serve_build_output()  # This should return False (no more items)
+
+    # Verify results
+    assert result1 is True, "First call should return True"
+    assert result2 is True, "Second call should return True"
+    assert result3 is True, "Third call should return True"
+    assert result4 is False, "Fourth call should return False (no items)"
+
+    # Verify all items were acknowledged
+    scheduler.build_output_queue.ack_item.assert_any_call("build-item-1")
+    scheduler.build_output_queue.ack_item.assert_any_call("build-item-2")
+    scheduler.build_output_queue.ack_item.assert_any_call("build-item-3")
+    assert scheduler.build_output_queue.ack_item.call_count == 3
+
+    # Test retrieval of builds from BuildMap
+
+    # 1. Get all builds for the task (non-patched) - should return 2 builds (address and memory sanitizers)
+    non_patched_builds = real_build_map.get_builds("test-task-1", BuildType.FUZZER, "")
+    assert len(non_patched_builds) == 2, "Should have 2 non-patched builds"
+
+    # Verify the builds are correct
+    sanitizers = {build.sanitizer for build in non_patched_builds}
+    assert sanitizers == {"address", "memory"}, "Should have address and memory sanitizer builds"
+
+    for build in non_patched_builds:
+        assert build.task_id == "test-task-1"
+        assert build.build_type == BuildType.FUZZER
+        assert build.patch_id == ""
+
+    # 2. Get patched builds - should return 1 build
+    patched_builds = real_build_map.get_builds("test-task-1", BuildType.FUZZER, "patch-123")
+    assert len(patched_builds) == 1, "Should have 1 patched build"
+
+    patched_build = patched_builds[0]
+    assert patched_build.task_id == "test-task-1"
+    assert patched_build.sanitizer == "address"
+    assert patched_build.build_type == BuildType.FUZZER
+    assert patched_build.patch_id == "patch-123"
+
+    # 3. Test getting specific build by sanitizer
+    specific_build = real_build_map.get_build_from_san("test-task-1", BuildType.FUZZER, "address", "")
+    assert specific_build is not None
+    assert specific_build.sanitizer == "address"
+    assert specific_build.patch_id == ""
+
+    specific_patched_build = real_build_map.get_build_from_san("test-task-1", BuildType.FUZZER, "address", "patch-123")
+    assert specific_patched_build is not None
+    assert specific_patched_build.sanitizer == "address"
+    assert specific_patched_build.patch_id == "patch-123"
+
+    # 4. Test getting non-existent build
+    non_existent = real_build_map.get_build_from_san("test-task-1", BuildType.FUZZER, "undefined", "")
+    assert non_existent is None
+
+    non_existent_patch = real_build_map.get_build_from_san(
+        "test-task-1", BuildType.FUZZER, "address", "non-existent-patch"
+    )
+    assert non_existent_patch is None
+
+    # Restore original method
+    scheduler.should_stop_processing = original_should_stop_processing

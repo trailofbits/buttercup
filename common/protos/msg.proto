@@ -25,6 +25,7 @@ enum BuildType {
     FUZZER = 0;
     COVERAGE = 1;
     TRACER_NO_DIFF = 2;
+    PATCH = 3;
 }
 
 message SourceDetail {
@@ -62,7 +63,11 @@ message BuildRequest {
     string task_dir = 3;
     string task_id = 4;
     BuildType build_type = 5;
+    // If true, apply the Challenge Task diff before building (for delta-mode)
     bool apply_diff = 6;
+    // Extra patch to apply to the task directory before building
+    string patch = 7;
+    string patch_id = 8;
 }
 
 message BuildOutput {
@@ -72,6 +77,7 @@ message BuildOutput {
     string task_id = 4;
     BuildType build_type = 5;
     bool apply_diff = 6;
+    string patch_id = 7;
 }
 
 message WeightedHarness {

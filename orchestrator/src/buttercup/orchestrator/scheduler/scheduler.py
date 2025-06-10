@@ -244,35 +244,56 @@ class Scheduler:
 
         return False
 
+    def _process_patched_build_output(self, build_output: BuildOutput) -> bool:
+        """Process the BuildOutput for a patched build"""
+        logger.info(f"Processing patched build output for task {build_output.task_id}")
+        # TODO: implement me
+        return True
+
+    def _process_regular_build_output(self, build_output: BuildOutput) -> bool:
+        """Process the BuildOutput for a regular build (for fuzzing, coverage, etc.)"""
+        try:
+            targets = self.process_build_output(build_output)
+            for target in targets:
+                self.harness_map.push_harness(target)
+            logger.info(
+                f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}"
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                f"Failed to process build output for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}"
+            )
+            return False
+
     def serve_build_output(self) -> bool:
         """Handle a build output"""
-        build_output_item: RQItem[BuildOutput] | None = self.build_output_queue.pop()
-        if build_output_item is not None:
-            build_output: BuildOutput = build_output_item.deserialized
+        build_output_item = self.build_output_queue.pop()
+        if build_output_item is None:
+            return False
 
-            # Check if the task should be stopped (cancelled or expired)
-            if self.should_stop_processing(build_output.task_id):
-                logger.info(
-                    f"Skipping build output processing for task {build_output.task_id} as it is cancelled or expired"
-                )
-                self.build_output_queue.ack_item(build_output_item.item_id)
-                return True
+        build_output = build_output_item.deserialized
 
-            self.build_map.add_build(build_output)
-            try:
-                targets = self.process_build_output(build_output)
-                for target in targets:
-                    self.harness_map.push_harness(target)
-                self.build_output_queue.ack_item(build_output_item.item_id)
-                logger.info(
-                    f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}"
-                )
-                return True
-            except Exception as e:
-                logger.error(
-                    f"Failed to process build output for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}"
-                )
-                return False
+        # Check if the task should be stopped (cancelled or expired)
+        if self.should_stop_processing(build_output.task_id):
+            logger.info(
+                f"Skipping build output processing for task {build_output.task_id} as it is cancelled or expired"
+            )
+            self.build_output_queue.ack_item(build_output_item.item_id)
+            return True
+
+        self.build_map.add_build(build_output)
+        if build_output.patch_id:
+            res = self._process_patched_build_output(build_output)
+        else:
+            res = self._process_regular_build_output(build_output)
+
+        if res:
+            logger.info(
+                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.patch_id}"
+            )
+            self.build_output_queue.ack_item(build_output_item.item_id)
+            return True
 
         return False
 
