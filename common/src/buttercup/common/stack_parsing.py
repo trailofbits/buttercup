@@ -66,3 +66,9 @@ def get_inst_key(stacktrace: str) -> str:
     inst_pattern = re.compile(pattern=r"Instrumented\s(?P<fragment>[A-Za-z0-9\.]*)\s")
     matches = inst_pattern.findall(stacktrace)
     return "\n".join(sorted(matches)) if matches else ""
+
+
+# Convenience function for getting crash tokens. For a given crash we expect only one of these two functions
+# to return a trace, this makes sure we get something.
+def get_crash_token(stacktrace: str) -> str:
+    return get_crash_data(stacktrace) + get_inst_key(stacktrace)

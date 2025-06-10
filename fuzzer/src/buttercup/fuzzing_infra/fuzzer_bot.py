@@ -87,7 +87,7 @@ class FuzzerBot(TaskLoop):
                     )
                     for crash_ in result.crashes:
                         crash: engine.Crash = crash_
-                        cdata = stack_parsing.get_crash_data(crash.stacktrace)
+                        cdata = stack_parsing.get_crash_token(crash.stacktrace)
                         dst = crash_dir.copy_file(crash.input_path, cdata)
                         if crash_set.add(
                             task.package_name,
