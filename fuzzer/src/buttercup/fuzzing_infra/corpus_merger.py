@@ -385,7 +385,7 @@ class MergerBot:
 def main():
     args = FuzzerBotSettings()
 
-    setup_package_logger("corpus-merger", __name__, args.log_level)
+    setup_package_logger("corpus-merger", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("merger-bot")
 
     setup_periodic_zombie_reaper()

@@ -26,7 +26,9 @@ def prepare_task(command: ProcessCommand) -> IndexRequest:
 def main() -> None:
     settings = Settings()
     command = get_subcommand(settings)
-    setup_package_logger("program-model", __name__, settings.log_level)
+    setup_package_logger(
+        "program-model", __name__, settings.log_level, settings.log_max_line_length
+    )
     if isinstance(command, ServeCommand):
         init_telemetry("program-model")  # type: ignore[unreachable]
         redis = Redis.from_url(command.redis_url, decode_responses=False)

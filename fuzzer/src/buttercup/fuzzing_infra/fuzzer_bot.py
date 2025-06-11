@@ -118,7 +118,7 @@ class FuzzerBot(TaskLoop):
 
 def main():
     args = FuzzerBotSettings()
-    setup_package_logger("fuzzer-bot", __name__, args.log_level)
+    setup_package_logger("fuzzer-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("fuzzer")
 
     setup_periodic_zombie_reaper()

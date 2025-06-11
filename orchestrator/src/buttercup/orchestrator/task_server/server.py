@@ -38,7 +38,7 @@ from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
 from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
 
 settings = get_settings()
-logger = setup_package_logger("task-server", __name__, settings.log_level)
+logger = setup_package_logger("task-server", __name__, settings.log_level, settings.log_max_line_length)
 logger.info("Redis URL: %s", settings.redis_url)
 logger.info("Competition API URL: %s", settings.competition_api_url)
 logger.info("Competition API Key ID: %s", settings.competition_api_username)

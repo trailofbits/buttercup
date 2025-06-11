@@ -14,6 +14,10 @@ redis://{{ .Release.Name }}-redis-master:6379
 {{- .Values.logLevel | default "debug" -}}
 {{- end -}}
 
+{{- define "buttercup.core.logMaxLineLength" -}}
+{{ int .Values.logMaxLineLength | default .Values.global.logMaxLineLength }}
+{{- end -}}
+
 {{- define "buttercup.core.dockerEndpoint" -}}
 tcp://localhost:2375
 {{- end -}}
@@ -24,7 +28,6 @@ Define a unique Docker socket path using the release name and namespace
 {{- define "buttercup.core.uniqueDockerSocketDir" -}}
 /var/run/dind-{{ .Release.Namespace }}-{{ .Release.Name }}
 {{- end -}}
-
 
 {{- define "buttercup.core.dockerSocketPath" -}}
 {{ include "buttercup.core.uniqueDockerSocketDir" . }}/docker.sock
@@ -173,13 +176,14 @@ Define Langfuse environment variables
 {{- end }}
 {{- end }}
 
-
 {{/*
 Service-specific environment variables that utilize the standardized variables
 */}}
 {{- define "buttercup.programModelEnv" }}
 - name: BUTTERCUP_PROGRAM_MODEL_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_PROGRAM_MODEL_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__REDIS_URL
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_PROGRAM_MODEL_SERVE__SLEEP_TIME
@@ -197,6 +201,8 @@ Service-specific environment variables that utilize the standardized variables
 {{- define "buttercup.downloaderEnv" }}
 - name: BUTTERCUP_DOWNLOADER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_DOWNLOADER_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_DOWNLOADER_DOWNLOAD_DIR
   value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 - name: BUTTERCUP_DOWNLOADER_SERVE__SLEEP_TIME
@@ -210,6 +216,8 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_TASK_SERVER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_TASK_SERVER_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_TASK_SERVER_HOST
   value: "0.0.0.0"
 - name: BUTTERCUP_TASK_SERVER_PORT
@@ -246,6 +254,8 @@ Service-specific environment variables that utilize the standardized variables
 {{- define "buttercup.schedulerEnv" }}
 - name: BUTTERCUP_SCHEDULER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_SCHEDULER_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_SCHEDULER_TASKS_STORAGE_DIR
   value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 - name: BUTTERCUP_SCHEDULER_SCRATCH_DIR
@@ -274,6 +284,8 @@ Service-specific environment variables that utilize the standardized variables
 {{- define "buttercup.patcherEnv" }}
 - name: BUTTERCUP_PATCHER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_PATCHER_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_PATCHER_TASK_STORAGE_DIR
   value: {{ include "buttercup.nodeLocalTasksStoragePath" . }}
 - name: BUTTERCUP_PATCHER_SCRATCH_DIR
@@ -295,6 +307,8 @@ Service-specific environment variables that utilize the standardized variables
 {{- define "buttercup.seedGenEnv" }}
 - name: BUTTERCUP_SEED_GEN_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_SEED_GEN_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_SEED_GEN_SERVER__REDIS_URL
   value: {{ include "buttercup.core.redisUrl" . }}
 - name: BUTTERCUP_SEED_GEN_WDIR
@@ -308,9 +322,13 @@ Service-specific environment variables that utilize the standardized variables
 {{- define "buttercup.buildBotEnv" }}
 - name: BUTTERCUP_FUZZER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_FUZZER_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 {{- end }}
 
 {{- define "buttercup.fuzzerBotEnv" }}
 - name: BUTTERCUP_FUZZER_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_FUZZER_LOG_MAX_LINE_LENGTH
+  value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 {{- end }}

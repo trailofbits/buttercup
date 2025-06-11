@@ -3,6 +3,7 @@ global:
   # Set environment: "minikube" or "aks"
   environment: "minikube"
   ossFuzzContainerOrg: "aixcc-afc"
+  logMaxLineLength: 10240
   orchestratorImage:
     repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-orchestrator
     tag: "main"
@@ -168,6 +169,7 @@ tracer-bot:
 
 seed-gen:
   enabled: true
+  logMaxLineLength: 10240
 
 patcher:
   enabled: true

@@ -40,6 +40,9 @@ class ProcessCommand(BaseModel):
 
 class Settings(BaseSettings):
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    log_max_line_length: Annotated[
+        int | None, Field(default=None, description="Log max line length")
+    ]
     wdir: Annotated[Path, Field(description="Working directory")]
 
     server: CliSubCommand[ServerCommand]

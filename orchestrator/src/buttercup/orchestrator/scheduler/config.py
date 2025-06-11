@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     tasks_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for Tasks storage")]
     scratch_dir: Annotated[Path, Field(default="/tmp/crs_scratch", description="Directory for CRS scratch")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    log_max_line_length: Annotated[int | None, Field(default=None, description="Log max line length")]
 
     serve: CliSubCommand[ServeCommand]
     process_ready_task: CliSubCommand[ProcessReadyTaskCommand]

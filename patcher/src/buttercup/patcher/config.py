@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     task_storage_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for task storage")]
     scratch_dir: Annotated[Path, Field(default="/tmp/scratch", description="Directory for scratch space")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    log_max_line_length: Annotated[int | None, Field(default=None, description="Log max line length")]
     dev_mode: CliImplicitFlag[bool] = Field(default=False, description="Dev mode")
 
     serve: CliSubCommand[ServeCommand]

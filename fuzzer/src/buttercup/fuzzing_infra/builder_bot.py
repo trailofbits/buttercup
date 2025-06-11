@@ -185,7 +185,7 @@ class BuilderBot:
 def main():
     args = BuilderBotSettings()
 
-    setup_package_logger("builder-bot", __name__, args.log_level)
+    setup_package_logger("builder-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("builder-bot")
 
     logger.info(f"Starting builder bot ({args.wdir})")

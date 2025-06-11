@@ -46,6 +46,9 @@ class Settings(BaseSettings):
         Path, Field(default="/tmp/scratch", description="Directory for scratch space")
     ]
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    log_max_line_length: Annotated[
+        int | None, Field(default=None, description="Log max line length")
+    ]
     graphdb_url: Annotated[
         str,
         Field(description="Graph database URL", default="ws://graphdb:8182/gremlin"),

@@ -8,6 +8,7 @@ class TaskServerSettings(BaseSettings):
     # Server configuration
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    log_max_line_length: Annotated[int | None, Field(default=None, description="Log max line length")]
     host: Annotated[str, Field(default="127.0.0.1", description="Host")]
     port: Annotated[int, Field(default=8000, description="Port")]
     reload: CliImplicitFlag[bool] = Field(default=False, description="Reload source code on change")

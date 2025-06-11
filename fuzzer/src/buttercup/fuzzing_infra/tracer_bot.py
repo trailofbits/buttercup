@@ -82,7 +82,7 @@ class TracerBot:
 def main():
     args = TracerSettings()
 
-    setup_package_logger("tracer-bot", __name__, "DEBUG")
+    setup_package_logger("tracer-bot", __name__, "DEBUG", None)
     init_telemetry("tracer-bot")
 
     setup_periodic_zombie_reaper()

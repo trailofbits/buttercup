@@ -215,7 +215,7 @@ class CoverageBot(TaskLoop):
 def main():
     args = CoverageBotSettings()
 
-    setup_package_logger("coverage-bot", __name__, args.log_level)
+    setup_package_logger("coverage-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("coverage-bot")
 
     setup_periodic_zombie_reaper()

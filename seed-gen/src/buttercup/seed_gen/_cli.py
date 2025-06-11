@@ -134,7 +134,9 @@ def command_process(settings: Settings) -> None:
 
 def main() -> None:
     settings = Settings()
-    setup_package_logger("seed-gen", __name__, settings.log_level.upper())
+    setup_package_logger(
+        "seed-gen", __name__, settings.log_level.upper(), settings.log_max_line_length
+    )
     command = get_subcommand(settings)
     if isinstance(command, ProcessCommand):
         command_process(settings)

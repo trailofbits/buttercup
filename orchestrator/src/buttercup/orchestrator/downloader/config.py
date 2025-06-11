@@ -55,6 +55,7 @@ class DownloaderProcessCommand(BaseModel):
 class DownloaderSettings(BaseSettings):
     download_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for downloaded files")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
+    log_max_line_length: Annotated[int | None, Field(default=None, description="Log max line length")]
     serve: CliSubCommand[DownloaderServeCommand]
     process: CliSubCommand[DownloaderProcessCommand]
 

@@ -29,6 +29,7 @@ class TestSettings:
         "$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A$wa/85ttk17bBsIASSwdR/uGz5UKN/bZuu4wu+JIy1iA"
     )
     log_level: str = "debug"
+    log_max_line_length: int | None = None
     redis_url: str = "redis://localhost:6379"
 
     # Competition API configuration

@@ -50,7 +50,7 @@ def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -
 
 def main():
     settings = DownloaderSettings()
-    setup_package_logger("task-downloader", __name__, settings.log_level)
+    setup_package_logger("task-downloader", __name__, settings.log_level, settings.log_max_line_length)
     command = get_subcommand(settings)
     if isinstance(command, DownloaderServeCommand):
         redis = Redis.from_url(command.redis_url, decode_responses=False)

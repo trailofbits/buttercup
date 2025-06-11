@@ -18,17 +18,20 @@ PACKAGE_LOGGER_NAME = "buttercup"
 
 
 class MaxLengthFormatter(logging.Formatter):
-    def __init__(self, max_length=80):
+    def __init__(self, max_length: int | None = None):
         super().__init__("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         self.max_length = max_length
 
     def format(self, record):
         msg = super().format(record)
-        msg = msg[: self.max_length]
+        if self.max_length:
+            msg = msg[: self.max_length]
         return msg
 
 
-def setup_package_logger(application_name: str, logger_name: str, log_level: str = "info") -> logging.Logger:
+def setup_package_logger(
+    application_name: str, logger_name: str, log_level: str = "info", max_line_length: int | None = None
+) -> logging.Logger:
     global _is_initialized
 
     if not _is_initialized:
@@ -74,9 +77,8 @@ def setup_package_logger(application_name: str, logger_name: str, log_level: str
         if otlp_handler:
             handlers.append(otlp_handler)
 
-        length = int(os.getenv("BUTTERCUP_LOG_MAX_LENGTH", "1024"))
         for handler in handlers:
-            handler.setFormatter(MaxLengthFormatter(max_length=length))
+            handler.setFormatter(MaxLengthFormatter(max_length=max_line_length))
 
         # Configure root logger
         logging.basicConfig(

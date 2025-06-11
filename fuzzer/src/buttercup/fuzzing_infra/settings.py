@@ -31,6 +31,7 @@ class WorkerSettings(ButtercupBaseSettings):
     wdir: Annotated[str, Field(default="")]
     python: Annotated[str, Field(default="python")]
     log_level: Annotated[str, Field(default="INFO")]
+    log_max_line_length: Annotated[int | None, Field(default=None)]
 
 
 class TracerSettings(WorkerSettings):
