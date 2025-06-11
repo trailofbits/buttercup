@@ -119,6 +119,7 @@ class Scheduler:
                 redis=self.redis,
                 competition_api=CompetitionAPI(api_client, self.task_registry),
                 task_registry=self.task_registry,
+                tasks_storage_dir=self.tasks_storage_dir,
                 patch_submission_retry_limit=self.patch_submission_retry_limit,
                 patch_requests_per_vulnerability=self.patch_requests_per_vulnerability,
             )
@@ -247,7 +248,10 @@ class Scheduler:
     def _process_patched_build_output(self, build_output: BuildOutput) -> bool:
         """Process the BuildOutput for a patched build"""
         logger.info(f"Processing patched build output for task {build_output.task_id}")
-        # TODO: implement me
+        if not self.submissions.record_patched_build(build_output):
+            logger.error(f"Failed to record patched build output for task {build_output.task_id}")
+            return False
+
         return True
 
     def _process_regular_build_output(self, build_output: BuildOutput) -> bool:
@@ -283,14 +287,14 @@ class Scheduler:
             return True
 
         self.build_map.add_build(build_output)
-        if build_output.patch_id:
+        if build_output.build_type == BuildType.PATCH:
             res = self._process_patched_build_output(build_output)
         else:
             res = self._process_regular_build_output(build_output)
 
         if res:
             logger.info(
-                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.patch_id}"
+                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.build_patch_id}"
             )
             self.build_output_queue.ack_item(build_output_item.item_id)
             return True

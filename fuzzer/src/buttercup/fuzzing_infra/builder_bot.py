@@ -64,7 +64,7 @@ class BuilderBot:
         return True
 
     def _apply_patch(self, task: ChallengeTask, msg: BuildRequest) -> bool:
-        if msg.patch and msg.patch_id:
+        if msg.patch and msg.build_patch_id:
             with tempfile.NamedTemporaryFile(mode="w+") as patch_file:
                 patch_file.write(msg.patch)
                 patch_file.flush()
@@ -128,7 +128,7 @@ class BuilderBot:
             if not self._apply_patch(task, msg):
                 if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
                     logger.error(
-                        f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff} | patch {msg.patch_id}"
+                        f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff} | patch {msg.build_patch_id}"
                     )
                     self._build_requests_queue.ack_item(rqit.item_id)
 
@@ -169,7 +169,7 @@ class BuilderBot:
                     task_id=msg.task_id,
                     build_type=msg.build_type,
                     apply_diff=msg.apply_diff,
-                    patch_id=msg.patch_id,
+                    build_patch_id=msg.build_patch_id,
                 )
             )
             logger.info(

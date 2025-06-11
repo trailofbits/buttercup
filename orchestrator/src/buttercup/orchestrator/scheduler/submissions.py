@@ -7,14 +7,19 @@ from typing import Iterator, List, Set, Tuple
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 import buttercup.common.node_local as node_local
+from pathlib import Path
+from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames
 from buttercup.common.datastructures.msg_pb2 import (
     TracedCrash,
     ConfirmedVulnerability,
     SubmissionEntry,
     Patch,
+    SubmissionEntryPatch,
+    BuildRequest,
+    BuildType,
+    BuildOutput,
 )
 from buttercup.common.sarif_store import SARIFStore
-from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
@@ -30,6 +35,8 @@ from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment
 from buttercup.orchestrator.competition_api_client.models.types_assessment import TypesAssessment
 from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.api import PovApi, PatchApi, BundleApi, BroadcastSarifAssessmentApi
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import ProjectYaml
 
 logger = logging.getLogger(__name__)
 
@@ -509,11 +516,13 @@ class Submissions:
     redis: Redis
     competition_api: CompetitionAPI
     task_registry: TaskRegistry
+    tasks_storage_dir: Path
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
     entries: List[SubmissionEntry] = field(init=False)
     sarif_store: SARIFStore = field(init=False)
     matched_sarifs: Set[str] = field(default_factory=set)
+    build_requests_queue: ReliableQueue[BuildRequest] = field(init=False)
 
     def __post_init__(self):
         logger.info(
@@ -522,6 +531,8 @@ class Submissions:
         self.entries = self._get_stored_submissions()
         self.sarif_store = SARIFStore(self.redis)
         self.matched_sarifs = self._get_matched_sarifs(self.redis)
+        queue_factory = QueueFactory(self.redis)
+        self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
 
     def _insert_matched_sarif(self, redis: Redis, sarif_id: str):
         """Insert a matched SARIF ID into Redis."""
@@ -612,6 +623,78 @@ class Submissions:
         )
         return True
 
+    def _build_patch_id(self, patch: SubmissionEntryPatch) -> str:
+        return f"{patch.submission_index}/{patch.idx}"
+
+    def _key_from_build_patch_id(self, build_patch_id: str) -> tuple[int, int] | None:
+        try:
+            submission_index, patch_idx = build_patch_id.split("/")
+            return int(submission_index), int(patch_idx)
+        except ValueError:
+            logger.error(f"Invalid build patch ID: {build_patch_id}")
+            return None
+
+    def _request_patched_builds(self, task_id: str, patch: SubmissionEntryPatch) -> None:
+        """Request patched builds for a patch"""
+        task = ChallengeTask(read_only_task_dir=self.tasks_storage_dir / task_id)
+
+        project_yaml = ProjectYaml(task, task.task_meta.project_name)
+        engine = "libfuzzer"
+        if engine not in project_yaml.fuzzing_engines:
+            engine = project_yaml.fuzzing_engines[0]
+
+        sanitizers = project_yaml.sanitizers
+        build_patch_id = self._build_patch_id(patch)
+
+        for san in sanitizers:
+            build_req = BuildRequest(
+                engine=engine,
+                task_dir=str(task.task_dir),
+                task_id=task_id,
+                build_type=BuildType.PATCH,
+                sanitizer=san,
+                apply_diff=True,
+                patch=patch.patch,
+                build_patch_id=build_patch_id,
+            )
+            self.build_requests_queue.push(build_req)
+            logger.info(
+                f"[{task_id}] Pushed build request {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff} | {build_patch_id}"
+            )
+
+    def record_patched_build(self, build_output: BuildOutput) -> bool:
+        """Record a patched build"""
+        key = self._key_from_build_patch_id(build_output.build_patch_id)
+        if key is None:
+            logger.error(f"Invalid build patch ID: {build_output.build_patch_id}")
+            return False
+
+        submission_index, patch_idx = key
+        try:
+            e = self.entries[submission_index]
+        except IndexError:
+            logger.error(f"Submission index {submission_index} not found")
+            return False
+
+        try:
+            ep = e.patches[patch_idx]
+        except IndexError:
+            logger.error(f"Patch index {patch_idx} not found")
+            return False
+
+        ep.build_outputs.append(build_output)
+
+        self._persist(self.redis, submission_index, e)
+        log_structured(
+            logger.info,
+            _task_id(e),
+            index=submission_index,
+            pov_id=e.pov_id,
+            patch_idx=patch_idx,
+            msg="Patched build recorded",
+        )
+        return True
+
     def record_patch(self, patch: Patch) -> bool:
         """
         Record a patch for a previously submitted vulnerability.
@@ -655,11 +738,12 @@ class Submissions:
                 f"[{index}:{task_id}] expired or cancelled. Patch for PoV {e.pov_id} will never be submitted."
             )
 
-        e.patches.append(patch.patch)
+        patch_idx = len(e.patches)
+        entry_patch = SubmissionEntryPatch(patch=patch.patch, submission_index=index, idx=patch_idx)
+        self._request_patched_builds(task_id, entry_patch)
+        e.patches.append(entry_patch)
         self._persist(self.redis, index, e)
-        log_structured(
-            logger.info, task_id, index=index, pov_id=e.pov_id, patch_idx=len(e.patches) - 1, msg="Patch added"
-        )
+        log_structured(logger.info, task_id, index=index, pov_id=e.pov_id, patch_idx=patch_idx, msg="Patch added")
         return True
 
     def _submit_patch_request(self, i, e):
@@ -788,7 +872,7 @@ class Submissions:
             return
 
         have_more_patches = _have_more_patches(e)
-        patch = e.patches[e.patch_idx]
+        patch = e.patches[e.patch_idx].patch
         log_structured(
             logger.info, _task_id(e), index=i, pov_id=e.pov_id, patch_idx=e.patch_idx, msg="Submitting patch"
         )
@@ -799,6 +883,7 @@ class Submissions:
         if patch_id:
             e.patch_id = patch_id
             e.patch_submission_attempt += 1
+            e.patches[e.patch_idx].patch_id = patch_id
             e.state = SubmissionEntry.WAIT_PATCH_PASS
             self._persist(self.redis, i, e)
             log_structured(

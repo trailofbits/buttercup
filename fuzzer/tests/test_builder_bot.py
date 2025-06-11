@@ -91,7 +91,7 @@ class TestBuilderBot(unittest.TestCase):
         task_mock.apply_patch_diff.return_value = True
 
         patch_content = "--- a/file.c\n+++ b/file.c\n@@ -1,3 +1,3 @@\n-old line\n+new line"
-        msg = BuildRequest(patch=patch_content, patch_id="123")
+        msg = BuildRequest(patch=patch_content, build_patch_id="123")
 
         # Mock the temporary file
         temp_file_instance = MagicMock()
@@ -112,7 +112,7 @@ class TestBuilderBot(unittest.TestCase):
         task_mock.apply_patch_diff.return_value = False
 
         patch_content = "--- a/file.c\n+++ b/file.c\n@@ -1,3 +1,3 @@\n-old line\n+new line"
-        msg = BuildRequest(patch=patch_content, patch_id="123")
+        msg = BuildRequest(patch=patch_content, build_patch_id="123")
 
         # Mock the temporary file
         temp_file_instance = MagicMock()
@@ -151,7 +151,7 @@ class TestBuilderBot(unittest.TestCase):
             task_dir="/path/to/task",
             apply_diff=False,
             patch="",
-            patch_id="",
+            build_patch_id="",
         )
         self.build_requests_queue_mock.pop.return_value = queue_item_mock
 
@@ -210,7 +210,7 @@ class TestBuilderBot(unittest.TestCase):
         self.assertEqual(build_output_call.sanitizer, "address")
         self.assertEqual(build_output_call.build_type, BuildType.FUZZER)
         self.assertEqual(build_output_call.task_dir, "/tmp/test_task_dir")
-        self.assertEqual(build_output_call.patch_id, "")
+        self.assertEqual(build_output_call.build_patch_id, "")
 
         # Verify item was acked
         self.build_requests_queue_mock.ack_item.assert_called_once_with("test_item_id")
@@ -302,7 +302,7 @@ class TestBuilderBot(unittest.TestCase):
             task_dir="/path/to/task",
             apply_diff=False,
             patch="",
-            patch_id="",
+            build_patch_id="",
         )
         self.build_requests_queue_mock.pop.return_value = queue_item_mock
 
@@ -364,7 +364,7 @@ class TestBuilderBot(unittest.TestCase):
             task_dir="/path/to/task",
             apply_diff=False,
             patch="some patch content",
-            patch_id="",
+            build_patch_id="",
         )
         self.build_requests_queue_mock.pop.return_value = queue_item_mock
 
@@ -422,7 +422,7 @@ class TestBuilderBot(unittest.TestCase):
             task_dir="/path/to/task",
             apply_diff=True,
             patch="some patch content",
-            patch_id="patch123",
+            build_patch_id="patch123",
         )
         self.build_requests_queue_mock.pop.return_value = queue_item_mock
 
@@ -468,9 +468,9 @@ class TestBuilderBot(unittest.TestCase):
         task_mock.build_fuzzers_with_cache.assert_called_once()
         task_mock.commit.assert_called_once()
 
-        # Verify build output includes patch_id
+        # Verify build output includes build_patch_id
         build_output_call = self.build_outputs_queue_mock.push.call_args[0][0]
-        self.assertEqual(build_output_call.patch_id, "patch123")
+        self.assertEqual(build_output_call.build_patch_id, "patch123")
 
     @patch("buttercup.fuzzing_infra.builder_bot.ChallengeTask")
     def test_max_tries_for_diff_and_patch(self, challenge_task_mock):
@@ -486,7 +486,7 @@ class TestBuilderBot(unittest.TestCase):
             task_dir="/path/to/task",
             apply_diff=True,
             patch="",  # No patch for this test
-            patch_id="",
+            build_patch_id="",
         )
         self.build_requests_queue_mock.pop.return_value = queue_item_mock
 
@@ -541,7 +541,7 @@ class TestBuilderBot(unittest.TestCase):
             task_dir="/path/to/task",
             apply_diff=False,  # No diff for this test
             patch="some patch content",
-            patch_id="patch123",
+            build_patch_id="patch123",
         )
 
         # Patch always fails

@@ -717,7 +717,7 @@ def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redi
         task_dir="/path/to/task1",
         task_id="test-task-1",
         build_type=BuildType.FUZZER,
-        patch_id="",  # No patch
+        build_patch_id="",  # No patch
     )
 
     build_with_patch = BuildOutput(
@@ -725,8 +725,8 @@ def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redi
         sanitizer="address",
         task_dir="/path/to/task1",
         task_id="test-task-1",
-        build_type=BuildType.FUZZER,
-        patch_id="patch-123",  # With patch
+        build_type=BuildType.PATCH,
+        build_patch_id="patch-123",  # With patch
     )
 
     # Create another build with different sanitizer for the same task
@@ -736,7 +736,7 @@ def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redi
         task_dir="/path/to/task1",
         task_id="test-task-1",
         build_type=BuildType.FUZZER,
-        patch_id="",
+        build_patch_id="",
     )
 
     # Create mock RQItems
@@ -786,35 +786,35 @@ def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redi
     for build in non_patched_builds:
         assert build.task_id == "test-task-1"
         assert build.build_type == BuildType.FUZZER
-        assert build.patch_id == ""
+        assert build.build_patch_id == ""
 
     # 2. Get patched builds - should return 1 build
-    patched_builds = real_build_map.get_builds("test-task-1", BuildType.FUZZER, "patch-123")
+    patched_builds = real_build_map.get_builds("test-task-1", BuildType.PATCH, "patch-123")
     assert len(patched_builds) == 1, "Should have 1 patched build"
 
     patched_build = patched_builds[0]
     assert patched_build.task_id == "test-task-1"
     assert patched_build.sanitizer == "address"
-    assert patched_build.build_type == BuildType.FUZZER
-    assert patched_build.patch_id == "patch-123"
+    assert patched_build.build_type == BuildType.PATCH
+    assert patched_build.build_patch_id == "patch-123"
 
     # 3. Test getting specific build by sanitizer
     specific_build = real_build_map.get_build_from_san("test-task-1", BuildType.FUZZER, "address", "")
     assert specific_build is not None
     assert specific_build.sanitizer == "address"
-    assert specific_build.patch_id == ""
+    assert specific_build.build_patch_id == ""
 
-    specific_patched_build = real_build_map.get_build_from_san("test-task-1", BuildType.FUZZER, "address", "patch-123")
+    specific_patched_build = real_build_map.get_build_from_san("test-task-1", BuildType.PATCH, "address", "patch-123")
     assert specific_patched_build is not None
     assert specific_patched_build.sanitizer == "address"
-    assert specific_patched_build.patch_id == "patch-123"
+    assert specific_patched_build.build_patch_id == "patch-123"
 
     # 4. Test getting non-existent build
     non_existent = real_build_map.get_build_from_san("test-task-1", BuildType.FUZZER, "undefined", "")
     assert non_existent is None
 
     non_existent_patch = real_build_map.get_build_from_san(
-        "test-task-1", BuildType.FUZZER, "address", "non-existent-patch"
+        "test-task-1", BuildType.PATCH, "address", "non-existent-patch"
     )
     assert non_existent_patch is None
 

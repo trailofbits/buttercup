@@ -67,7 +67,9 @@ message BuildRequest {
     bool apply_diff = 6;
     // Extra patch to apply to the task directory before building
     string patch = 7;
-    string patch_id = 8;
+    // A unique identifier for the patch.
+    // It can be used to match the BuildRequest and the BuildOutput.
+    string build_patch_id = 8;
 }
 
 message BuildOutput {
@@ -77,7 +79,8 @@ message BuildOutput {
     string task_id = 4;
     BuildType build_type = 5;
     bool apply_diff = 6;
-    string patch_id = 7;
+    // A unique identifier for the patch, coming from the BuildRequest.
+    string build_patch_id = 7;
 }
 
 message WeightedHarness {
@@ -134,6 +137,14 @@ message FunctionCoverage {
     int32 covered_lines = 4;
 }
 
+message SubmissionEntryPatch {
+    string patch = 1;
+    int32 submission_index = 2;
+    int32 idx = 3;
+    string patch_id = 4;
+    repeated BuildOutput build_outputs = 5;
+}
+
 message SubmissionEntry {
     enum SubmissionState {
         SUBMIT_PATCH_REQUEST = 0;
@@ -156,7 +167,7 @@ message SubmissionEntry {
     string sarif_id = 6;
 
     // Content of patches targeting this vulnerability 
-    repeated string patches = 7;
+    repeated SubmissionEntryPatch patches = 7;
 
     // Current patch being considered
     int32 patch_idx = 8;

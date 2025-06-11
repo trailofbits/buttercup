@@ -11,42 +11,42 @@ PATCH: BuildType
 TRACER_NO_DIFF: BuildType
 
 class BuildOutput(_message.Message):
-    __slots__ = ["apply_diff", "build_type", "engine", "patch_id", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_patch_id", "build_type", "engine", "sanitizer", "task_dir", "task_id"]
     APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
+    BUILD_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
-    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
+    build_patch_id: str
     build_type: BuildType
     engine: str
-    patch_id: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., build_patch_id: _Optional[str] = ...) -> None: ...
 
 class BuildRequest(_message.Message):
-    __slots__ = ["apply_diff", "build_type", "engine", "patch", "patch_id", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_patch_id", "build_type", "engine", "patch", "sanitizer", "task_dir", "task_id"]
     APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
+    BUILD_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     PATCH_FIELD_NUMBER: _ClassVar[int]
-    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
+    build_patch_id: str
     build_type: BuildType
     engine: str
     patch: str
-    patch_id: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., patch_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., build_patch_id: _Optional[str] = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crash", "submission_index"]
@@ -161,11 +161,25 @@ class SubmissionEntry(_message.Message):
     patch_id: str
     patch_idx: int
     patch_submission_attempt: int
-    patches: _containers.RepeatedScalarFieldContainer[str]
+    patches: _containers.RepeatedCompositeFieldContainer[SubmissionEntryPatch]
     pov_id: str
     sarif_id: str
     state: SubmissionEntry.SubmissionState
-    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., pov_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[str]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
+    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., pov_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
+
+class SubmissionEntryPatch(_message.Message):
+    __slots__ = ["build_outputs", "idx", "patch", "patch_id", "submission_index"]
+    BUILD_OUTPUTS_FIELD_NUMBER: _ClassVar[int]
+    IDX_FIELD_NUMBER: _ClassVar[int]
+    PATCH_FIELD_NUMBER: _ClassVar[int]
+    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
+    build_outputs: _containers.RepeatedCompositeFieldContainer[BuildOutput]
+    idx: int
+    patch: str
+    patch_id: str
+    submission_index: int
+    def __init__(self, patch: _Optional[str] = ..., submission_index: _Optional[int] = ..., idx: _Optional[int] = ..., patch_id: _Optional[str] = ..., build_outputs: _Optional[_Iterable[_Union[BuildOutput, _Mapping]]] = ...) -> None: ...
 
 class Task(_message.Message):
     __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "metadata", "project_name", "sources", "task_id", "task_type"]
