@@ -759,7 +759,7 @@ class Submissions:
         """
         log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="Submitting patch request")
         confirmed = ConfirmedVulnerability()
-        confirmed.crash.CopyFrom(e.crash)
+        confirmed.crashes.append(e.crash)
         confirmed.submission_index = str(i)
 
         with self.redis.pipeline() as pipe:

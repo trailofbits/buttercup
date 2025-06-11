@@ -104,7 +104,7 @@ message TracedCrash {
 }
 
 message ConfirmedVulnerability {
-    TracedCrash crash = 1;
+    repeated TracedCrash crashes = 1;
     string submission_index = 2;
 }
 

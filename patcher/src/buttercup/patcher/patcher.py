@@ -103,21 +103,21 @@ class Patcher:
         return res
 
     def _create_patch_input(self, vuln: ConfirmedVulnerability) -> PatchInput:
-        pov_path = node_local.make_locally_available(vuln.crash.crash.crash_input_path)
+        pov_path = node_local.make_locally_available(vuln.crashes[0].crash.crash_input_path)
         pov_variants_path = pov_path.parent
         return PatchInput(
-            challenge_task_dir=Path(vuln.crash.crash.target.task_dir),
-            task_id=vuln.crash.crash.target.task_id,
+            challenge_task_dir=Path(vuln.crashes[0].crash.target.task_dir),
+            task_id=vuln.crashes[0].crash.target.task_id,
             submission_index=vuln.submission_index,
-            harness_name=vuln.crash.crash.harness_name,
+            harness_name=vuln.crashes[0].crash.harness_name,
             pov=pov_path,
-            pov_token=vuln.crash.crash.crash_token,
+            pov_token=vuln.crashes[0].crash.crash_token,
             pov_variants_path=pov_variants_path,
-            sanitizer_output=vuln.crash.tracer_stacktrace
-            if vuln.crash.tracer_stacktrace
-            else vuln.crash.crash.stacktrace,
-            engine=vuln.crash.crash.target.engine,
-            sanitizer=vuln.crash.crash.target.sanitizer,
+            sanitizer_output=vuln.crashes[0].tracer_stacktrace
+            if vuln.crashes[0].tracer_stacktrace
+            else vuln.crashes[0].crash.stacktrace,
+            engine=vuln.crashes[0].crash.target.engine,
+            sanitizer=vuln.crashes[0].crash.target.sanitizer,
         )
 
     @_check_redis
@@ -127,7 +127,16 @@ class Patcher:
         assert self.registry is not None
 
         vuln = rq_item.deserialized
-        task_id = vuln.crash.crash.target.task_id
+        if len(vuln.crashes) == 0:
+            logger.error(f"No crashes found for vulnerability {vuln.submission_index}")
+            self.vulnerability_queue.ack_item(rq_item.item_id)
+            return
+
+        task_id = vuln.crashes[0].crash.target.task_id
+        if not all(x.crash.target.task_id == task_id for x in vuln.crashes):
+            logger.error(f"Mismatching task ids for vulnerability {vuln.submission_index}")
+            self.vulnerability_queue.ack_item(rq_item.item_id)
+            return
 
         # Check if task should not be processed (expired or cancelled)
         if self.registry.should_stop_processing(task_id):

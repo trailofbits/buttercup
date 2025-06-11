@@ -70,20 +70,22 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
 
     vuln = ConfirmedVulnerability(
         submission_index="1",
-        crash=TracedCrash(
-            crash=Crash(
-                target=BuildOutput(
-                    task_id="test-task-id-1",
-                    engine="test-engine-1",
-                    sanitizer="test-sanitizer-1",
-                    task_dir=str(task_dir),
+        crashes=[
+            TracedCrash(
+                crash=Crash(
+                    target=BuildOutput(
+                        task_id="test-task-id-1",
+                        engine="test-engine-1",
+                        sanitizer="test-sanitizer-1",
+                        task_dir=str(task_dir),
+                    ),
+                    harness_name="test-harness-name-1",
+                    crash_input_path=str(tmp_path / "test-crash-input.txt"),
+                    stacktrace="test-stacktrace-1",
                 ),
-                harness_name="test-harness-name-1",
-                crash_input_path=str(tmp_path / "test-crash-input.txt"),
-                stacktrace="test-stacktrace-1",
-            ),
-            tracer_stacktrace="test-tracer-stacktrace-1",
-        ),
+                tracer_stacktrace="test-tracer-stacktrace-1",
+            )
+        ],
     )
 
     # Test patch generation
@@ -251,20 +253,22 @@ def test_process_item_should_process_normal_task(
     # Create a vulnerability for processing
     vuln = ConfirmedVulnerability(
         submission_index="1",
-        crash=TracedCrash(
-            crash=Crash(
-                target=BuildOutput(
-                    task_id=task_id,
-                    engine="test-engine-1",
-                    sanitizer="test-sanitizer-1",
-                    task_dir=str(task_dir),
+        crashes=[
+            TracedCrash(
+                crash=Crash(
+                    target=BuildOutput(
+                        task_id=task_id,
+                        engine="test-engine-1",
+                        sanitizer="test-sanitizer-1",
+                        task_dir=str(task_dir),
+                    ),
+                    harness_name="test-harness-name-1",
+                    crash_input_path=str(tmp_path / "test-crash-input.txt"),
+                    stacktrace="test-stacktrace-1",
                 ),
-                harness_name="test-harness-name-1",
-                crash_input_path=str(tmp_path / "test-crash-input.txt"),
-                stacktrace="test-stacktrace-1",
-            ),
-            tracer_stacktrace="test-tracer-stacktrace-1",
-        ),
+                tracer_stacktrace="test-tracer-stacktrace-1",
+            )
+        ],
     )
 
     # Create an RQItem with the vulnerability
@@ -311,20 +315,22 @@ def test_process_item_should_skip_tasks_marked_for_stopping(
     task_id = "skip-task-id"
     vuln = ConfirmedVulnerability(
         submission_index="1",
-        crash=TracedCrash(
-            crash=Crash(
-                target=BuildOutput(
-                    task_id=task_id,
-                    engine="test-engine-1",
-                    sanitizer="test-sanitizer-1",
-                    task_dir=str(task_dir),
+        crashes=[
+            TracedCrash(
+                crash=Crash(
+                    target=BuildOutput(
+                        task_id=task_id,
+                        engine="test-engine-1",
+                        sanitizer="test-sanitizer-1",
+                        task_dir=str(task_dir),
+                    ),
+                    harness_name="test-harness-name-1",
+                    crash_input_path=str(tmp_path / "test-crash-input.txt"),
+                    stacktrace="test-stacktrace-1",
                 ),
-                harness_name="test-harness-name-1",
-                crash_input_path=str(tmp_path / "test-crash-input.txt"),
-                stacktrace="test-stacktrace-1",
-            ),
-            tracer_stacktrace="test-tracer-stacktrace-1",
-        ),
+                tracer_stacktrace="test-tracer-stacktrace-1",
+            )
+        ],
     )
 
     # Create an RQItem with the vulnerability

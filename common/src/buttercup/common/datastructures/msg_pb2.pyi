@@ -49,12 +49,12 @@ class BuildRequest(_message.Message):
     def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., build_patch_id: _Optional[str] = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
-    __slots__ = ["crash", "submission_index"]
-    CRASH_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["crashes", "submission_index"]
+    CRASHES_FIELD_NUMBER: _ClassVar[int]
     SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
-    crash: TracedCrash
+    crashes: _containers.RepeatedCompositeFieldContainer[TracedCrash]
     submission_index: str
-    def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., submission_index: _Optional[str] = ...) -> None: ...
+    def __init__(self, crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., submission_index: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "crash_token", "harness_name", "stacktrace", "target"]
