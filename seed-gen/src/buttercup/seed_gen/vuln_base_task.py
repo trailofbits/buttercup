@@ -215,7 +215,7 @@ class VulnBaseTask(Task):
         task_id = self.challenge_task.task_meta.task_id
         stacktrace = result.stacktrace()
         ctoken = stack_parsing.get_crash_token(stacktrace)
-        dst = self.crash_submit.crash_dir.copy_file(pov, ctoken)
+        dst = self.crash_submit.crash_dir.copy_file(pov, ctoken, build.sanitizer)
         if self.crash_submit.crash_set.add(
             self.package_name,
             self.harness_name,

@@ -271,7 +271,10 @@ class QEAgent(PatcherAgentBase):
 
         try:
             crash_dir = CrashDir(configuration.work_dir, self.input.task_id, self.input.harness_name)
-            crashes_for_token = crash_dir.list_crashes_for_token(self.input.pov_token, get_remote=True)
+            # TODO: test all sanitizers under this same crash-token
+            crashes_for_token = crash_dir.list_crashes_for_token(
+                self.input.pov_token, state.context.sanitizer, get_remote=True
+            )
             if not crashes_for_token:
                 logger.warning("No crashes found for PoV token %s", self.input.pov_token)
                 crashes_for_token = []

@@ -3,7 +3,7 @@ Define core system variables that are consistent across services
 */}}
 
 {{- define "buttercup.core.crashDirCountLimit" -}}
-100
+20
 {{- end -}}
 
 {{- define "buttercup.core.redisUrl" -}}

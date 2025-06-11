@@ -177,12 +177,15 @@ class CrashDir:
         self.crash_dir = os.path.join(task_id, f"{CRASH_DIR_NAME}_{harness_name}")
         self.count_limit = count_limit
 
-    def input_dir_for_token(self, token: str) -> InputDir:
+    def _input_dir_for_token(self, token: str, sanitizer: str | None = None) -> InputDir:
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        return InputDir(self.wdir, os.path.join(self.crash_dir, token_hash))
+        input_dir = os.path.join(self.crash_dir, token_hash)
+        if sanitizer:
+            input_dir = os.path.join(input_dir, sanitizer)
+        return InputDir(self.wdir, input_dir)
 
-    def copy_file(self, src_file: str, crash_token: str) -> str:
-        idir = self.input_dir_for_token(crash_token)
+    def copy_file(self, src_file: str, crash_token: str, sanitizer: str) -> str:
+        idir = self._input_dir_for_token(crash_token, sanitizer)
         first_elem = next(iter(idir.list_corpus()), None)
         if (
             (self.count_limit is not None)
@@ -192,12 +195,8 @@ class CrashDir:
             return first_elem
         return idir.copy_file(src_file)
 
-    def sync_token(self, token: str):
-        idir = self.input_dir_for_token(token)
-        idir.sync_from_remote()
-
-    def list_crashes_for_token(self, token: str, get_remote: bool = True) -> list[str]:
-        idir = self.input_dir_for_token(token)
+    def list_crashes_for_token(self, token: str, sanitizer: str, *, get_remote: bool = True) -> list[str]:
+        idir = self._input_dir_for_token(token, sanitizer)
         if get_remote:
             idir.sync_from_remote()
         return idir.list_corpus()
