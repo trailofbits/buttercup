@@ -4,11 +4,11 @@
 
 Follow the install instructions for the required dependencies:
 
- * [Docker install guide](https://docs.docker.com/engine/install/ubuntu/)
- * [kubectl install guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
- * [helm install guide](https://helm.sh/docs/intro/install/):
- * [minikube install guide](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fdebian+package)
- * Git LFS for some tests
+* [Docker install guide](https://docs.docker.com/engine/install/ubuntu/)
+* [kubectl install guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+* [helm install guide](https://helm.sh/docs/intro/install/):
+* [minikube install guide](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fdebian+package)
+* Git LFS for some tests
 
 ## Configuration
 
@@ -119,7 +119,7 @@ kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 ```
 
 ```shell
-./orchestrator/scripts/round_2_sim.sh
+./orchestrator/scripts/challenge.sh
 ```
 
 Check that patches get submitted to the bundler.
@@ -135,3 +135,7 @@ kubectl get pods -n crs
 
 kubectl exec -it -n crs <pod-name> -- /bin/bash
 ```
+
+## Run Unscored Challenges
+
+See [UNSCORED.md](UNSCORED.md)
