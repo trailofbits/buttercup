@@ -914,11 +914,11 @@ class ContextRetrieverAgent(PatcherAgentBase):
     ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Get the initial context for the diff analysis."""
         configuration = PatcherConfig.from_configurable(config)
-        stacktrace = parse_stacktrace(state.context.sanitizer_output)
-        challenge = get_challenge(state.context.challenge_task_dir)
+        stacktrace = parse_stacktrace(state.context.povs[0].sanitizer_output)
+        challenge = get_challenge(state.context.povs[0].challenge_task_dir)
 
         # Request code snippet for the first two functions in the stacktrace
-        logger.info("[%s] Getting initial context from stacktrace", self.challenge.task_meta.task_id)
+        logger.info("[%s] Getting initial context from stacktrace", challenge.task_meta.task_id)
         res: list[ContextCodeSnippet] = []
 
         def process_request(request: CodeSnippetRequest | str) -> list:
@@ -927,14 +927,14 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     request = CodeSnippetRequest(request=request)
                 logger.info(
                     "[%s] Processing request %s",
-                    self.challenge.task_meta.task_id,
+                    challenge.task_meta.task_id,
                     request.request,
                 )
                 return self.process_request(state.relevant_code_snippets, request, configuration)
             except Exception:
                 logger.warning(
                     "[%s] Error processing request %s, continuing",
-                    self.challenge.task_meta.task_id,
+                    challenge.task_meta.task_id,
                     request.request if isinstance(request, CodeSnippetRequest) else request,
                 )
                 return []

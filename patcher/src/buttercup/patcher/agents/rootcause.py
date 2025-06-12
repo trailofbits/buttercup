@@ -161,11 +161,11 @@ class RootCauseAgent(PatcherAgentBase):
 
     def _root_cause_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
         diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
-        stacktrace = parse_stacktrace(state.context.sanitizer_output)
+        stacktrace = parse_stacktrace(state.context.povs[0].sanitizer_output)
         return ROOT_CAUSE_PROMPT.format_messages(
             DIFF=diff_content,
             PROJECT_NAME=self.challenge.project_name,
-            SANITIZER=state.context.sanitizer,
+            SANITIZER=state.context.povs[0].sanitizer,
             SANITIZER_OUTPUT=state.cleaned_stacktrace,
             CODE_SNIPPETS="\n".join([cs.commented_code(stacktrace) for cs in state.relevant_code_snippets]),
             REFLECTION_GUIDANCE=self._get_reflection_guidance_prompt(state),

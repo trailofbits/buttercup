@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from functools import reduce
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
-from buttercup.patcher.utils import PatchInput, PatchOutput
+from buttercup.patcher.utils import PatchInput, PatchOutput, PatchInputPoV
 import buttercup.common.node_local as node_local
 from langchain_core.runnables import Runnable, RunnableConfig
 from redis import Redis
@@ -67,7 +67,7 @@ class Patcher:
         return res
 
     def _process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
-        challenge_task = ChallengeTask(input.challenge_task_dir)
+        challenge_task = ChallengeTask(input.povs[0].challenge_task_dir)
         with challenge_task.get_rw_copy(work_dir=self.scratch_dir) as rw_task:
             patcher_agent = PatcherLeaderAgent(
                 rw_task,
@@ -103,21 +103,22 @@ class Patcher:
         return res
 
     def _create_patch_input(self, vuln: ConfirmedVulnerability) -> PatchInput:
-        pov_path = node_local.make_locally_available(vuln.crashes[0].crash.crash_input_path)
-        pov_variants_path = pov_path.parent
+        povs = [
+            PatchInputPoV(
+                challenge_task_dir=Path(crash.crash.target.task_dir),
+                pov=node_local.make_locally_available(crash.crash.crash_input_path),
+                pov_token=crash.crash.crash_token,
+                sanitizer=crash.crash.target.sanitizer,
+                engine=crash.crash.target.engine,
+                harness_name=crash.crash.harness_name,
+                sanitizer_output=crash.tracer_stacktrace if crash.tracer_stacktrace else crash.crash.stacktrace,
+            )
+            for crash in vuln.crashes
+        ]
         return PatchInput(
-            challenge_task_dir=Path(vuln.crashes[0].crash.target.task_dir),
             task_id=vuln.crashes[0].crash.target.task_id,
             submission_index=vuln.submission_index,
-            harness_name=vuln.crashes[0].crash.harness_name,
-            pov=pov_path,
-            pov_token=vuln.crashes[0].crash.crash_token,
-            pov_variants_path=pov_variants_path,
-            sanitizer_output=vuln.crashes[0].tracer_stacktrace
-            if vuln.crashes[0].tracer_stacktrace
-            else vuln.crashes[0].crash.stacktrace,
-            engine=vuln.crashes[0].crash.target.engine,
-            sanitizer=vuln.crashes[0].crash.target.sanitizer,
+            povs=povs,
         )
 
     @_check_redis
@@ -132,6 +133,7 @@ class Patcher:
             self.vulnerability_queue.ack_item(rq_item.item_id)
             return
 
+        assert vuln.crashes, "No crashes found for vulnerability"
         task_id = vuln.crashes[0].crash.target.task_id
         if not all(x.crash.target.task_id == task_id for x in vuln.crashes):
             logger.error(f"Mismatching task ids for vulnerability {vuln.submission_index}")

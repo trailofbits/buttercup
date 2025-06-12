@@ -22,6 +22,7 @@ import buttercup.common.node_local as node_local
 from langchain_core.runnables import RunnableConfig
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.patcher.utils import PatchInputPoV
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
@@ -182,9 +183,12 @@ class QEAgent(PatcherAgentBase):
                 return False
 
     def _rebuild_challenge(self, challenge: ChallengeTask, sanitizer: str) -> CommandResult:
+        # NOTE: for the sake of simplicity, we're using the engine of the first PoV for now.
+        #       In AIxCC only libfuzzer is supported, so we can use the engine of the first PoV.
+        engine = self.input.povs[0].engine
         try:
             cp_output = challenge.build_fuzzers(
-                engine=self.input.engine,
+                engine=engine,
                 sanitizer=sanitizer,
             )
         except ChallengeTaskError as exc:
@@ -388,27 +392,35 @@ class QEAgent(PatcherAgentBase):
             goto=PatcherAgentName.RUN_POV.value,
         )
 
-    def _get_pov_variants(self, configuration: PatcherConfig) -> list[tuple[str, Path]]:
+    def _get_pov_variants(self, configuration: PatcherConfig, povs: list[PatchInputPoV]) -> list[PatchInputPoV]:
         """Get the variants of the PoV"""
         res = []
         sanitizers = self._get_sanitizers()
-        try:
-            crash_dir = CrashDir(configuration.work_dir, self.input.task_id, self.input.harness_name)
-            for sanitizer in sanitizers:
-                crashes_for_token = crash_dir.list_crashes_for_token(self.input.pov_token, sanitizer, get_remote=True)
-                if not crashes_for_token:
-                    logger.info("No crashes found for PoV token %s and sanitizer %s", self.input.pov_token, sanitizer)
-                    crashes_for_token = []
+        for pov in povs:
+            try:
+                crash_dir = CrashDir(configuration.work_dir, self.input.task_id, pov.harness_name)
+                for sanitizer in sanitizers:
+                    crashes_for_token = crash_dir.list_crashes_for_token(pov.pov_token, sanitizer, get_remote=True)
+                    if not crashes_for_token:
+                        logger.info("No crashes found for PoV token %s and sanitizer %s", pov.pov_token, sanitizer)
+                        crashes_for_token = []
 
-                res.extend(
-                    [
-                        (sanitizer, Path(crash))
-                        for crash in crashes_for_token[: configuration.max_pov_variants_per_token_sanitizer]
-                    ]
-                )
-        except Exception as e:
-            logger.error("Failed to list PoV variants for token %s", self.input.pov_token)
-            logger.exception(e)
+                    res.extend(
+                        [
+                            PatchInputPoV(
+                                challenge_task_dir=pov.challenge_task_dir,
+                                sanitizer=sanitizer,
+                                pov=Path(crash),
+                                engine=pov.engine,
+                                pov_token=pov.pov_token,
+                                harness_name=pov.harness_name,
+                            )
+                            for crash in crashes_for_token[: configuration.max_pov_variants_per_token_sanitizer]
+                        ]
+                    )
+            except Exception as e:
+                logger.error("Failed to list PoV variants for token %s", pov.pov_token)
+                logger.exception(e)
 
         return res
 
@@ -425,13 +437,13 @@ class QEAgent(PatcherAgentBase):
 
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.RUN_POV
-        pov_variants = [(state.context.sanitizer, self.input.pov)]
-        pov_variants += self._get_pov_variants(configuration)
+        pov_variants = state.context.povs
+        pov_variants += self._get_pov_variants(configuration, state.context.povs)
 
         start_time = time.time()
         run_once = False
 
-        for sanitizer, pov_variant in pov_variants:
+        for pov_variant in pov_variants:
             # Check if we've exceeded the max_minutes_run_povs timeout
             if time.time() - start_time > configuration.max_minutes_run_povs * 60:
                 logger.error("PoV processing lasted more than %d minutes", configuration.max_minutes_run_povs)
@@ -456,43 +468,34 @@ class QEAgent(PatcherAgentBase):
                     goto=PatcherAgentName.REFLECTION.value,
                 )
 
-            pov_variant = node_local.make_locally_available(pov_variant)
+            pov_variant_crash = node_local.make_locally_available(pov_variant.pov)
             try:
-                challenge_to_use = last_patch_attempt.get_built_challenge(sanitizer)
+                challenge_to_use = last_patch_attempt.get_built_challenge(pov_variant.sanitizer)
                 if not challenge_to_use:
-                    if state.context.sanitizer == sanitizer:
-                        challenge_to_use = self.challenge
-                        logger.warning(
-                            "[%s / %s] Using original challenge for sanitizer %s (no pre-built version available)",
-                            self.challenge.task_meta.task_id,
-                            self.input.submission_index,
-                            sanitizer,
-                        )
-                    else:
-                        logger.error(
-                            "[%s / %s] No pre-built challenge for sanitizer %s, skipping PoV",
-                            self.challenge.task_meta.task_id,
-                            self.input.submission_index,
-                            sanitizer,
-                        )
-                        continue
+                    logger.error(
+                        "[%s / %s] No pre-built challenge for sanitizer %s, skipping PoV",
+                        self.challenge.task_meta.task_id,
+                        self.input.submission_index,
+                        pov_variant.sanitizer,
+                    )
+                    continue
 
-                pov_output = challenge_to_use.reproduce_pov(self.input.harness_name, pov_variant)
+                pov_output = challenge_to_use.reproduce_pov(pov_variant.harness_name, pov_variant_crash)
                 logger.info(
                     "Ran PoV %s/%s for harness %s",
                     challenge_to_use.name,
-                    pov_variant,
-                    self.input.harness_name,
+                    pov_variant_crash,
+                    pov_variant.harness_name,
                 )
                 logger.debug("PoV stdout: %s", pov_output.command_result.output)
                 logger.debug("PoV stderr: %s", pov_output.command_result.error)
 
                 if not pov_output.did_run():
-                    logger.warning("PoV %s did not run, skipping", pov_variant)
+                    logger.warning("PoV %s did not run, skipping", pov_variant_crash)
                     continue
 
                 if pov_output.did_crash():
-                    logger.error("PoV %s still crashes", pov_variant)
+                    logger.error("PoV %s still crashes", pov_variant_crash)
                     last_patch_attempt.pov_fixed = False
                     last_patch_attempt.pov_stdout = pov_output.command_result.output
                     last_patch_attempt.pov_stderr = pov_output.command_result.error

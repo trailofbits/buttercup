@@ -20,6 +20,7 @@ from buttercup.patcher.agents.qe import QEAgent, PatchValidationState
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.project_yaml import Language
 import subprocess
 
@@ -71,13 +72,17 @@ def mock_patch_input(tmp_path: Path) -> PatchInput:
         challenge_task_dir=tmp_path,
         task_id="test-task-id",
         submission_index="test-submission",
-        harness_name="test-harness",
-        pov=tmp_path / "pov.c",
-        pov_token="test-token",
-        pov_variants_path=tmp_path / "pov-variants",
-        sanitizer_output="test-sanitizer-output",
-        engine="libfuzzer",
-        sanitizer="address",
+        povs=[
+            PatchInputPoV(
+                challenge_task_dir=tmp_path,
+                sanitizer="address",
+                pov=tmp_path / "pov.c",
+                pov_token="test-token",
+                sanitizer_output="test-sanitizer-output",
+                engine="libfuzzer",
+                harness_name="test-harness",
+            )
+        ],
     )
 
 

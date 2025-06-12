@@ -28,6 +28,7 @@ from buttercup.patcher.agents.common import (
     CodeSnippetKey,
 )
 from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 from langgraph.types import Command
 from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.common.task_meta import TaskMeta
@@ -300,14 +301,17 @@ def selinux_agent(selinux_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Conte
         challenge_task_dir=selinux_oss_fuzz_task.task_dir,
         task_id=selinux_oss_fuzz_task.task_meta.task_id,
         submission_index="1",
-        harness_name="secilc-fuzzer",
-        # not used by the context retriever
-        pov=Path("pov-path-selinux"),
-        pov_variants_path=Path("pov-variants-path-selinux"),
-        pov_token="pov-token-selinux",
-        sanitizer_output="sanitizer-output-selinux",
-        engine="libfuzzer",
-        sanitizer="address",
+        povs=[
+            PatchInputPoV(
+                challenge_task_dir=selinux_oss_fuzz_task.task_dir,
+                sanitizer="address",
+                pov=Path("pov-path-selinux"),
+                pov_token="pov-token-selinux",
+                sanitizer_output="sanitizer-output-selinux",
+                engine="libfuzzer",
+                harness_name="secilc-fuzzer",
+            )
+        ],
     )
     wdir = tmp_path / "work_dir"
     wdir.mkdir(parents=True)
@@ -325,14 +329,17 @@ def libpng_agent(example_libpng_oss_fuzz_task: ChallengeTask, tmp_path: Path) ->
         challenge_task_dir=example_libpng_oss_fuzz_task.task_dir,
         task_id=example_libpng_oss_fuzz_task.task_meta.task_id,
         submission_index="1",
-        harness_name="libpng_read_fuzzer",
-        # not used by the context retriever
-        pov=Path("pov-path-libpng"),
-        pov_variants_path=Path("pov-variants-path-libpng"),
-        pov_token="pov-token-libpng",
-        sanitizer_output="sanitizer-output-libpng",
-        engine="libfuzzer",
-        sanitizer="address",
+        povs=[
+            PatchInputPoV(
+                challenge_task_dir=example_libpng_oss_fuzz_task.task_dir,
+                sanitizer="address",
+                pov=Path("pov-path-libpng"),
+                pov_token="pov-token-libpng",
+                sanitizer_output="sanitizer-output-libpng",
+                engine="libfuzzer",
+                harness_name="libpng_read_fuzzer",
+            )
+        ],
     )
     wdir = tmp_path / "work_dir"
     wdir.mkdir(parents=True)
@@ -363,14 +370,17 @@ def mock_patch_input(mock_challenge: ChallengeTask) -> Iterator[PatchInput]:
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
         submission_index="1",
-        harness_name="mock-harness",
-        # not used by the context retriever
-        pov=Path("pov-path-mock"),
-        pov_variants_path=Path("pov-variants-path-mock"),
-        pov_token="pov-token-mock",
-        sanitizer_output="sanitizer-output-mock",
-        engine="libfuzzer",
-        sanitizer="address",
+        povs=[
+            PatchInputPoV(
+                challenge_task_dir=mock_challenge.task_dir,
+                sanitizer="address",
+                pov=Path("pov-path-mock"),
+                pov_token="pov-token-mock",
+                sanitizer_output="sanitizer-output-mock",
+                engine="libfuzzer",
+                harness_name="mock-harness",
+            )
+        ],
     )
 
 
@@ -1452,16 +1462,20 @@ def test_get_initial_context_filters_llvm_frames(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
             submission_index="1",
-            harness_name="test-harness",
-            pov=Path("test.pov"),
-            pov_variants_path=Path("test.pov.variants"),
-            pov_token="test-token",
-            sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
-#0 0x123456 in test_func /src/test/file.c:10
-#1 0x234567 in llvm_func /src/llvm-project/compiler-rt/test.c:20
-#2 0x345678 in another_func /src/test/another.c:30""",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
+ #0 0x123456 in test_func /src/test/file.c:10
+ #1 0x234567 in llvm_func /src/llvm-project/compiler-rt/test.c:20
+ #2 0x345678 in another_func /src/test/another.c:30""",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
         ),
         relevant_code_snippets=set(),
         execution_info={},
@@ -1522,16 +1536,20 @@ def test_get_initial_context_includes_llvm_frames(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
             submission_index="1",
-            harness_name="test-harness",
-            pov=Path("test.pov"),
-            pov_variants_path=Path("test.pov.variants"),
-            pov_token="test-token",
-            sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
-#0 0x123456 in test_func /src/llvm-project/file.c:10
-#1 0x234567 in llvm_func /src/llvm-project/compiler-rt/test.c:20
-#2 0x345678 in another_func /src/llvm-project/another.c:30""",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
+ #0 0x123456 in test_func /src/llvm-project/file.c:10
+ #1 0x234567 in llvm_func /src/llvm-project/compiler-rt/test.c:20
+ #2 0x345678 in another_func /src/llvm-project/another.c:30""",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
         ),
         relevant_code_snippets=set(),
         execution_info={},
@@ -1606,17 +1624,21 @@ def test_get_initial_context_respects_n_initial_stackframes(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
             submission_index="1",
-            harness_name="test-harness",
-            pov=Path("test.pov"),
-            pov_variants_path=Path("test.pov.variants"),
-            pov_token="test-token",
-            sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
-#0 0x123456 in test_func1 /src/test/file1.c:10
-#1 0x234567 in test_func2 /src/test/file2.c:20
-#2 0x345678 in test_func3 /src/test/file3.c:30
-#3 0x456789 in test_func4 /src/test/file4.c:40""",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
+ #0 0x123456 in test_func1 /src/test/file1.c:10
+ #1 0x234567 in test_func2 /src/test/file2.c:20
+ #2 0x345678 in test_func3 /src/test/file3.c:30
+ #3 0x456789 in test_func4 /src/test/file4.c:40""",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
         ),
         relevant_code_snippets=set(),
         execution_info={},
@@ -1703,23 +1725,27 @@ def test_get_initial_context_handles_multiple_stackframes(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
             submission_index="1",
-            harness_name="test-harness",
-            pov=Path("test.pov"),
-            pov_variants_path=Path("test.pov.variants"),
-            pov_token="test-token",
-            sanitizer_output="""==1==ERROR: AddressSanitizer: heap-use-after-free
-#0 0x123456 in crash_func /src/test/crash.c:10
-#1 0x234567 in use_after_free /src/llvm-project/compiler-rt/uaf.c:20
-#2 0x345678 in free_memory /src/llvm-project/compiler-rt/memory.c:30
-
-==2==ERROR: AddressSanitizer: heap-use-after-free
-#0 0x456789 in allocate_memory /src/test/memory.c:40
-#1 0x567890 in init_data /src/test/init.c:50
-#2 0x678901 in setup_test /src/test/setup.c:60
-#3 0x789012 in main /src/test/main.c:70
-#4 0x890123 in __libc_start_main /src/glibc/libc-start.c:308""",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-use-after-free
+ #0 0x123456 in crash_func /src/test/crash.c:10
+ #1 0x234567 in use_after_free /src/llvm-project/compiler-rt/uaf.c:20
+ #2 0x345678 in free_memory /src/llvm-project/compiler-rt/memory.c:30
+ 
+ ==2==ERROR: AddressSanitizer: heap-use-after-free
+ #0 0x456789 in allocate_memory /src/test/memory.c:40
+ #1 0x567890 in init_data /src/test/init.c:50
+ #2 0x678901 in setup_test /src/test/setup.c:60
+ #3 0x789012 in main /src/test/main.c:70
+ #4 0x890123 in __libc_start_main /src/glibc/libc-start.c:308""",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
         ),
         relevant_code_snippets=set(),
         execution_info={},
@@ -1825,13 +1851,17 @@ def test_find_tests_agent_success(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
             submission_index="1",
-            harness_name="test-harness",
-            pov=Path("test.pov"),
-            pov_variants_path=Path("test.pov.variants"),
-            pov_token="test-token",
-            sanitizer_output="test output",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="test output",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
         ),
         relevant_code_snippets=set(),
         execution_info={},
@@ -1897,13 +1927,17 @@ def test_find_tests_agent_uses_existing_test_sh(mock_agent: ContextRetrieverAgen
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
             submission_index="1",
-            harness_name="test-harness",
-            pov=Path("test.pov"),
-            pov_variants_path=Path("test.pov.variants"),
-            pov_token="test-token",
-            sanitizer_output="test output",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="test output",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
         ),
         relevant_code_snippets=set(),
         execution_info={},

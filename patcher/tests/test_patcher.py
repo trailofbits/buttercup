@@ -5,6 +5,7 @@ from buttercup.patcher.agents.common import CodeSnippetRequest
 from buttercup.common.queues import RQItem
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.patcher.agents.common import PatcherAgentState, PatchInput, PatchAttempt, PatchStatus
+from buttercup.patcher.utils import PatchInputPoV
 import pytest
 from unittest.mock import patch, MagicMock
 import re
@@ -95,11 +96,15 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
     assert patch_input is not None
     assert patch_input.task_id == "test-task-id-1"
     assert patch_input.submission_index == "1"
-    assert patch_input.harness_name == "test-harness-name-1"
-    assert patch_input.pov == tmp_path / "test-crash-input.txt"
-    assert patch_input.sanitizer_output == "test-tracer-stacktrace-1"
-    assert patch_input.engine == "test-engine-1"
-    assert patch_input.sanitizer == "test-sanitizer-1"
+
+    # Check the povs list structure
+    assert len(patch_input.povs) == 1
+    pov = patch_input.povs[0]
+    assert pov.harness_name == "test-harness-name-1"
+    assert pov.pov == tmp_path / "test-crash-input.txt"
+    assert pov.sanitizer_output == "test-tracer-stacktrace-1"
+    assert pov.engine == "test-engine-1"
+    assert pov.sanitizer == "test-sanitizer-1"
 
 
 def test_code_snippet_request_parse_single_request():
@@ -360,13 +365,17 @@ def test_get_successful_patch():
             challenge_task_dir=Path("/tmp"),
             task_id="test",
             submission_index="1",
-            harness_name="test",
-            pov=Path("/tmp/pov"),
-            pov_token="token",
-            pov_variants_path=Path("/tmp/variants"),
-            sanitizer_output="output",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/tmp"),
+                    sanitizer="address",
+                    pov=Path("/tmp/pov"),
+                    pov_token="token",
+                    sanitizer_output="output",
+                    engine="libfuzzer",
+                    harness_name="test",
+                )
+            ],
         ),
     )
 
@@ -391,13 +400,17 @@ def test_get_successful_patch_with_validation_failure():
             challenge_task_dir=Path("/tmp"),
             task_id="test",
             submission_index="1",
-            harness_name="test",
-            pov=Path("/tmp/pov"),
-            pov_token="token",
-            pov_variants_path=Path("/tmp/variants"),
-            sanitizer_output="output",
-            engine="libfuzzer",
-            sanitizer="address",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/tmp"),
+                    sanitizer="address",
+                    pov=Path("/tmp/pov"),
+                    pov_token="token",
+                    sanitizer_output="output",
+                    engine="libfuzzer",
+                    harness_name="test",
+                )
+            ],
         ),
     )
 

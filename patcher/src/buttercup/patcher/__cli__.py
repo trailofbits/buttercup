@@ -7,7 +7,7 @@ from google.protobuf.text_format import Parse
 from buttercup.common.logger import setup_package_logger
 import logging
 from redis import Redis
-from buttercup.patcher.utils import PatchInput
+from buttercup.patcher.utils import PatchInput, PatchInputPoV
 from pathlib import Path
 from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
 from buttercup.common.telemetry import init_telemetry
@@ -37,14 +37,18 @@ def main() -> None:
     elif isinstance(command, ProcessCommand):
         logger.info("Processing task")  # type: ignore[unreachable]
         patch_input = PatchInput(
-            challenge_task_dir=command.challenge_task_dir,
             task_id=command.task_id,
             submission_index=command.submission_index,
-            harness_name=command.harness_name,
-            engine=command.engine,
-            sanitizer=command.sanitizer,
-            pov=Path(command.crash_input_path).read_bytes(),
-            sanitizer_output=Path(command.stacktrace_path).read_bytes(),
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=command.challenge_task_dir,
+                    harness_name=command.harness_name,
+                    engine=command.engine,
+                    sanitizer=command.sanitizer,
+                    pov=Path(command.crash_input_path).read_bytes(),
+                    sanitizer_output=Path(command.stacktrace_path).read_bytes(),
+                )
+            ],
         )
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,

@@ -10,6 +10,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from buttercup.patcher.agents.common import ContextCodeSnippet
 from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.patcher.agents.swe import (
@@ -274,13 +275,17 @@ def swe_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> SWEAgent:
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
         submission_index="submission-index-challenge-task",
-        harness_name="my-harness",
-        pov=tmp_path / "pov.c",
-        pov_token="pov-token-challenge-task",
-        pov_variants_path=tmp_path / "pov-variants",
-        sanitizer_output="sanitizer-output-challenge-task",
-        engine="libfuzzer",
-        sanitizer="address",
+        povs=[
+            PatchInputPoV(
+                challenge_task_dir=mock_challenge.task_dir,
+                sanitizer="address",
+                pov=tmp_path / "pov.c",
+                pov_token="pov-token-challenge-task",
+                sanitizer_output="sanitizer-output-challenge-task",
+                engine="libfuzzer",
+                harness_name="my-harness",
+            )
+        ],
     )
     return SWEAgent(
         challenge=mock_challenge,

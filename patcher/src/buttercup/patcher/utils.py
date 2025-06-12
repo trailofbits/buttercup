@@ -17,19 +17,22 @@ VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 CHAIN_CALL_TYPE = Callable[[Callable, Runnable, dict[str, Any], RunnableConfig | None, Any], Any]
 
 
-class PatchInput(BaseModel):
-    """Input for the patching process."""
-
+class PatchInputPoV(BaseModel):
     challenge_task_dir: Path
-    task_id: str
-    submission_index: str
-    harness_name: str
-    engine: str
     sanitizer: str
     pov: Path
     pov_token: str
-    pov_variants_path: Path
     sanitizer_output: str | None = None
+    engine: str
+    harness_name: str
+
+
+class PatchInput(BaseModel):
+    """Input for the patching process."""
+
+    task_id: str
+    submission_index: str
+    povs: list[PatchInputPoV]
 
     def __getitem__(self, key: str) -> Any:
         return self.get(key)

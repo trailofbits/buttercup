@@ -19,6 +19,7 @@ from buttercup.patcher.agents.common import (
     CodeSnippetKey,
 )
 from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 
@@ -154,13 +155,17 @@ def root_cause_agent(mock_challenge: ChallengeTask, mock_llm: MagicMock, tmp_pat
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
         submission_index="1",
-        harness_name="mock-harness",
-        pov=Path("pov-path-mock"),
-        pov_variants_path=Path("pov-variants-path-mock"),
-        pov_token="pov-token-mock",
-        sanitizer_output="sanitizer-output-mock",
-        engine="libfuzzer",
-        sanitizer="address",
+        povs=[
+            PatchInputPoV(
+                challenge_task_dir=mock_challenge.task_dir,
+                sanitizer="address",
+                pov=Path("pov-path-mock"),
+                pov_token="pov-token-mock",
+                sanitizer_output="sanitizer-output-mock",
+                engine="libfuzzer",
+                harness_name="mock-harness",
+            )
+        ],
     )
     agent = RootCauseAgent(
         challenge=mock_challenge,
