@@ -158,11 +158,11 @@ class SourceDetail(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
 
 class SubmissionEntry(_message.Message):
-    __slots__ = ["bundle_id", "crash", "patch_id", "patch_idx", "patch_submission_attempt", "patches", "pov_id", "sarif_id", "state"]
+    __slots__ = ["bundle_id", "crashes", "patch_id", "patch_idx", "patch_submission_attempt", "patches", "pov_id", "sarif_id", "state"]
     class SubmissionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
-    CRASH_FIELD_NUMBER: _ClassVar[int]
+    CRASHES_FIELD_NUMBER: _ClassVar[int]
     PATCHES_FIELD_NUMBER: _ClassVar[int]
     PATCH_IDX_FIELD_NUMBER: _ClassVar[int]
     PATCH_ID_FIELD_NUMBER: _ClassVar[int]
@@ -179,7 +179,7 @@ class SubmissionEntry(_message.Message):
     WAIT_PATCH_PASS: SubmissionEntry.SubmissionState
     WAIT_POV_PASS: SubmissionEntry.SubmissionState
     bundle_id: str
-    crash: TracedCrash
+    crashes: _containers.RepeatedCompositeFieldContainer[TracedCrash]
     patch_id: str
     patch_idx: int
     patch_submission_attempt: int
@@ -187,7 +187,7 @@ class SubmissionEntry(_message.Message):
     pov_id: str
     sarif_id: str
     state: SubmissionEntry.SubmissionState
-    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., pov_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
+    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., pov_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
 
 class SubmissionEntryPatch(_message.Message):
     __slots__ = ["build_outputs", "idx", "patch", "patch_id", "submission_index"]

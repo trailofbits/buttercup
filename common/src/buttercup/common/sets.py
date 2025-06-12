@@ -3,7 +3,6 @@ from redis import Redis
 from redis.exceptions import ResponseError
 from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from contextlib import contextmanager
-import logging
 import random
 import json
 
@@ -12,7 +11,6 @@ from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVRepr
 
 MERGED_CORPUS_SET_NAME = "merged_corpus_set"
 MERGED_CORPUS_SET_LOCK_NAME = "merged_corpus_set_lock"
-logger = logging.getLogger(__name__)
 
 
 class RedisSet:
@@ -129,7 +127,6 @@ class PoVReproduceStatus:
         pipeline.sismember(POV_REPRODUCE_MITIGATED_SET_NAME, key)
         pipeline.sismember(POV_REPRODUCE_NON_MITIGATED_SET_NAME, key)
         result = pipeline.execute()
-
         if result[0]:
             return None  # Pending
         elif result[1]:

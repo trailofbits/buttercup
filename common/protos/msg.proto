@@ -159,7 +159,7 @@ message SubmissionEntry {
     
     SubmissionState state = 1;
 
-    TracedCrash crash = 2;
+    repeated TracedCrash crashes = 2;
 
     string pov_id = 3;
     string patch_id = 4;

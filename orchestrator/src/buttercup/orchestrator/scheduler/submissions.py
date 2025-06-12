@@ -20,6 +20,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildType,
     BuildOutput,
     POVReproduceRequest,
+    POVReproduceResponse,
 )
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.task_registry import TaskRegistry
@@ -39,7 +40,8 @@ from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.api import PovApi, PatchApi, BundleApi, BroadcastSarifAssessmentApi
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import ProjectYaml
-
+from buttercup.common.stack_parsing import get_crash_data, get_inst_key
+from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +86,7 @@ def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     if isinstance(e, TracedCrash):
         return e.crash.target.task_id
     elif isinstance(e, SubmissionEntry):
-        return e.crash.crash.target.task_id
+        return e.crashes[0].crash.target.task_id
     else:
         raise ValueError(f"Unknown submission entry type: {type(e)}")
 
@@ -593,6 +595,48 @@ class Submissions:
             logger.debug(f"CrashInfo: {crash}")
             return True
 
+        crash_data = get_crash_data(crash.crash.stacktrace)
+        inst_key = get_inst_key(crash.crash.stacktrace)
+        task_id = _task_id(crash)
+
+        # Check if the crash is a variant of an existing submission
+        similar_submissions = 0
+        for i, e in self._enumerate_submissions():
+            # Only check submissions for the same task
+            if _task_id(e) != task_id:
+                continue
+
+            for existing_crash in e.crashes:
+                submission_crash_data = get_crash_data(existing_crash.crash.stacktrace)
+                submission_inst_key = get_inst_key(existing_crash.crash.stacktrace)
+
+                cf_comparator = CrashComparer(crash_data, submission_crash_data)
+                instkey_comparator = CrashComparer(inst_key, submission_inst_key)
+
+                if cf_comparator.is_similar() or instkey_comparator.is_similar():
+                    e.crashes.append(crash)
+                    log_structured(
+                        logger.info,
+                        _task_id(e),
+                        index=i,
+                        msg=f"Adding a duplicate PoV based on similarity check. (n={len(e.crashes)})",
+                    )
+
+                    self._persist(self.redis, i, e)
+
+                    similar_submissions += 1
+                    # No need to check other crashes in this submission
+                    break
+
+        if similar_submissions > 1:
+            logger.error(
+                f"Found {similar_submissions} similar submissions. This is a indication that our deduplication logic isn't good enough."
+            )
+
+        if similar_submissions > 0:
+            # No need to submit the crash, we already have a similar submission
+            return True
+
         pov_id, status = self.competition_api.submit_pov(crash)
         if not pov_id:
             log_structured(
@@ -610,7 +654,7 @@ class Submissions:
             return stop
 
         e = SubmissionEntry()
-        e.crash.CopyFrom(crash)
+        e.crashes.append(crash)
         e.pov_id = pov_id
         e.state = SubmissionEntry.SUBMIT_PATCH_REQUEST
 
@@ -748,56 +792,51 @@ class Submissions:
         self._request_patched_builds(task_id, entry_patch)
         e.patches.append(entry_patch)
 
-        # Now that we have a patch available, we can request a POV reproduction.
-        # This will setup the PoV for testing against the harness/patch/sanitizer build.
-        # Currently this will only reproduce the first POV for each confirmed vulnerability,
-        # but we will expand this to reproduce all similar POVs in the future.
-        self._request_reproduce(e.patches[-1])
-
         self._persist(self.redis, index, e)
         log_structured(logger.info, task_id, index=index, pov_id=e.pov_id, patch_idx=patch_idx, msg="Patch added")
         return True
 
-    def _request_reproduce(self, ep: SubmissionEntryPatch):
-        """
-        Request a POV reproduction for all confirmed vulnerabilities.
+    def _pov_reproduce_status_request(self, e: SubmissionEntry, patch_idx: int) -> List[POVReproduceResponse | None]:
+        patch = e.patches[patch_idx]
+        task_id = _task_id(e)
+        result = []
+        for crash in e.crashes:
+            request = POVReproduceRequest()
+            request.task_id = task_id
+            request.patch_id = self._build_patch_id(patch)
+            request.harness_name = crash.crash.harness_name
+            request.sanitizer = crash.crash.target.sanitizer
+            request.pov_path = crash.crash.crash_input_path
 
-        Args:
-            ep: SubmissionEntryPatch to process
-        """
-        e = self.entries[ep.submission_index]
-        build_patch_id = self._build_patch_id(ep)
+            logger.debug(f"Requesting status for {request}")
+            status = self.pov_reproduce_status.request_status(request)
+            logger.debug(f"Status: {status}")
+            result.append(status)
 
-        # This will setup the PoV for testing against the harness/patch/sanitizer build.
-        # TODO: This should in the future be a loop over all similar POVs.
-        request = POVReproduceRequest()
-        request.task_id = _task_id(e)
-        request.patch_id = build_patch_id
-        request.harness_name = e.crash.crash.harness_name
-        request.sanitizer = e.crash.crash.target.sanitizer
-        request.pov_path = e.crash.crash.crash_input_path
-
-        self.pov_reproduce_status.request_status(request)
+        return result
 
     def _check_all_povs_are_mitigated(self, e: SubmissionEntry, patch_idx: int) -> bool | None:
         """
         Check if all POVs for a confirmed vulnerability are mitigated.
 
-        Returns None if pending, True if all mitigated, False if any not mitigated.
+        Returns None if anyone is pending, returns True if all mitigated, returns False if any are failing.
         """
-        patch = e.patches[patch_idx]
-        # TODO: This needs to be a loop over all similar POVs later on.
-        request = POVReproduceRequest()
-        request.task_id = _task_id(e)
-        request.patch_id = self._build_patch_id(patch)
-        request.harness_name = e.crash.crash.harness_name
-        request.sanitizer = e.crash.crash.target.sanitizer
-        request.pov_path = e.crash.crash.crash_input_path
+        logger.debug(f"Checking if all POVs for patch {patch_idx} are mitigated")
+        statuses = self._pov_reproduce_status_request(e, patch_idx)
+        logger.debug(f"Statuses: {statuses}")
 
-        status = self.pov_reproduce_status.request_status(request)
-        if status is None:
+        # If any patch is failing, we need to create a new patch.
+        any_failing = any(status is not None and status.did_crash for status in statuses)
+        if any_failing:
+            return False
+
+        # TODO: Add a parameter to ignore any "None" responses to be used when approaching the end of the task window
+        # If any patch is pending, we need to wait for it.
+        any_pending = any(status is None for status in statuses)
+        if any_pending:
             return None
-        return not status.did_crash
+
+        return True
 
     def _submit_patch_request(self, i, e):
         """
@@ -812,7 +851,8 @@ class Submissions:
         """
         log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="Submitting patch request")
         confirmed = ConfirmedVulnerability()
-        confirmed.crashes.append(e.crash)
+        for crash in e.crashes:
+            confirmed.crashes.append(crash)
         confirmed.submission_index = str(i)
 
         with self.redis.pipeline() as pipe:
@@ -873,7 +913,8 @@ class Submissions:
                 self.task_registry.mark_errored(_task_id(e))
                 log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV errored, will resubmit")
 
-                pov_id, status = self.competition_api.submit_pov(e.crash)
+                # NOTE: Currently only submitting the first crash. This might need to be changed in the future.
+                pov_id, status = self.competition_api.submit_pov(e.crashes[0])
                 if not pov_id:
                     log_structured(
                         logger.error,
@@ -1184,17 +1225,18 @@ class Submissions:
 
         matching_sarif_id = None
         for sarif in sarif_list:
-            match_result = match(sarif, e.crash)
-            if match_result:
-                logger.debug(
-                    f"[{i}:{_task_id(e)}] Found matching SARIF: {sarif.sarif_id}: {match_result}. Will check if it's a good enough match."
-                )
-                # We require a match on lines to be confident that the SARIF is a good match.
-                if not match_result.matches_lines:
-                    continue
-                logger.info(f"[{i}:{_task_id(e)}] Found matching SARIF: {sarif.sarif_id}: {match_result}")
-                matching_sarif_id = sarif.sarif_id
-                break
+            for crash in e.crashes:
+                match_result = match(sarif, crash)
+                if match_result:
+                    logger.debug(
+                        f"[{i}:{_task_id(e)}] Found matching SARIF: {sarif.sarif_id}: {match_result}. Will check if it's a good enough match."
+                    )
+                    # We require a match on lines to be confident that the SARIF is a good match.
+                    if not match_result.matches_lines:
+                        continue
+                    logger.info(f"[{i}:{_task_id(e)}] Found matching SARIF: {sarif.sarif_id}: {match_result}")
+                    matching_sarif_id = sarif.sarif_id
+                    break
         if not matching_sarif_id:
             return
 

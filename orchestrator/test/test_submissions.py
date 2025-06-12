@@ -134,7 +134,7 @@ def submissions(mock_redis, mock_competition_api, mock_task_registry):
 @pytest.fixture
 def sample_submission_entry(sample_crash):
     entry = SubmissionEntry()
-    entry.crash.CopyFrom(sample_crash)
+    entry.crashes.append(sample_crash)  # Use crashes (repeated field) instead of crash
     entry.pov_id = "test-pov-123"
     entry.state = SubmissionEntry.SUBMIT_PATCH_REQUEST
     return entry
@@ -371,6 +371,9 @@ class TestSubmissions:
         assert len(submissions.entries) == 1
         assert submissions.entries[0].pov_id == "test-pov-123"
         assert submissions.entries[0].state == SubmissionEntry.SUBMIT_PATCH_REQUEST
+        # Verify crashes field is populated correctly
+        assert len(submissions.entries[0].crashes) == 1
+        assert submissions.entries[0].crashes[0] == sample_crash
 
     def test_submit_vulnerability_failed(self, submissions, mock_competition_api, sample_crash):
         # Setup mock to return an error
@@ -410,7 +413,7 @@ class TestSubmissions:
 
         # Set task_id in both sample_submission_entry and sample_patch to match
         task_id = "test-task-123"
-        sample_submission_entry.crash.crash.target.task_id = task_id
+        sample_submission_entry.crashes[0].crash.target.task_id = task_id  # Access first crash in crashes list
         sample_patch.task_id = task_id
 
         # Mock ChallengeTask and ProjectYaml dependencies for _request_patched_builds
@@ -425,7 +428,6 @@ class TestSubmissions:
         with (
             patch("buttercup.orchestrator.scheduler.submissions.ChallengeTask", return_value=mock_task),
             patch("buttercup.orchestrator.scheduler.submissions.ProjectYaml", return_value=mock_project_yaml),
-            patch.object(submissions, "_request_reproduce"),  # Mock this to avoid pov_path issues
         ):
             # Call the method
             result = submissions.record_patch(sample_patch)
@@ -468,17 +470,14 @@ class TestSubmissions:
 
         # Set task_id in both sample_submission_entry and sample_patch to match
         task_id = "test-task-123"
-        sample_submission_entry.crash.crash.target.task_id = task_id
+        sample_submission_entry.crashes[0].crash.target.task_id = task_id  # Access first crash in crashes list
         sample_patch.task_id = task_id
 
         # Configure mock to return True for should_stop_processing
         mock_task_registry.should_stop_processing.return_value = True
 
         # Mock the _request_patched_builds method to avoid ChallengeTask initialization
-        with (
-            patch.object(submissions, "_request_patched_builds") as mock_request_builds,
-            patch.object(submissions, "_request_reproduce"),  # Mock this to avoid pov_path issues
-        ):
+        with patch.object(submissions, "_request_patched_builds") as mock_request_builds:
             # Call the method
             result = submissions.record_patch(sample_patch)
 
@@ -537,7 +536,9 @@ class TestStateTransitions:
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.SUBMIT_PATCH
         # Verify mark_successful was called
-        mock_task_registry.mark_successful.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
+        mock_task_registry.mark_successful.assert_called_once_with(
+            sample_submission_entry.crashes[0].crash.target.task_id
+        )
 
     def test_wait_pov_pass_to_stop_when_failed(self, submissions, sample_submission_entry, mock_competition_api):
         # Setup entry in WAIT_POV_PASS state
@@ -568,12 +569,12 @@ class TestStateTransitions:
         submissions.process_cycle()
 
         # Verify POV was resubmitted with new ID
-        mock_competition_api.submit_pov.assert_called_once_with(sample_submission_entry.crash)
+        mock_competition_api.submit_pov.assert_called_once_with(sample_submission_entry.crashes[0])
         assert sample_submission_entry.pov_id == "new-pov-456"
         # State remains the same as we're waiting for the new submission to be processed
         assert sample_submission_entry.state == SubmissionEntry.WAIT_POV_PASS
         # Verify mark_errored was called
-        mock_task_registry.mark_errored.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
+        mock_task_registry.mark_errored.assert_called_once_with(sample_submission_entry.crashes[0].crash.target.task_id)
 
     def test_submit_patch_successful(self, submissions, sample_submission_entry, mock_competition_api):
         # Setup entry in SUBMIT_PATCH state with a patch
@@ -619,7 +620,9 @@ class TestStateTransitions:
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.SUBMIT_BUNDLE
         # Verify mark_successful was called
-        mock_task_registry.mark_successful.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
+        mock_task_registry.mark_successful.assert_called_once_with(
+            sample_submission_entry.crashes[0].crash.target.task_id
+        )
 
     def test_wait_patch_pass_to_submit_patch_when_failed(
         self, submissions, sample_submission_entry, mock_competition_api
@@ -667,7 +670,7 @@ class TestStateTransitions:
         # Verify state transition
         assert sample_submission_entry.state == SubmissionEntry.SUBMIT_PATCH
         # Verify mark_errored was called
-        mock_task_registry.mark_errored.assert_called_once_with(sample_submission_entry.crash.crash.target.task_id)
+        mock_task_registry.mark_errored.assert_called_once_with(sample_submission_entry.crashes[0].crash.target.task_id)
 
     def test_submit_bundle_successful(self, submissions, sample_submission_entry, mock_competition_api):
         # Setup entry in SUBMIT_BUNDLE state
@@ -834,7 +837,7 @@ class TestStateTransitions:
         sample_submission_entry.patches.append(SubmissionEntryPatch(patch="test patch content"))
         sample_submission_entry.patch_idx = 0
         sample_submission_entry.patch_submission_attempt = 0
-        sample_submission_entry.crash.crash.target.task_id = task_id
+        sample_submission_entry.crashes[0].crash.target.task_id = task_id
         submissions.entries = [sample_submission_entry]
 
         # Mock the _task_id function to verify it's being called with the right arguments
@@ -863,7 +866,7 @@ class TestStateTransitions:
 
             # First argument should be the task_id, not the crash
             assert args[0] == task_id
-            assert args[0] != sample_submission_entry.crash
+            assert args[0] != sample_submission_entry.crashes[0]
 
             # Second argument should be the patch content
             assert args[1] == "test patch content"
