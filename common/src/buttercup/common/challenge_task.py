@@ -859,6 +859,17 @@ class ChallengeTask:
     def get_test_sh_script(self, test_sh_path: str) -> str:
         return f"""cp {test_sh_path} $SRC/test.sh && $SRC/test.sh"""
 
+    @read_write_decorator
+    def cleanup(self, directory: Path | None = None) -> None:
+        """Clean up a ChallengeTask local directory."""
+        directory = Path(self.local_task_dir)
+        if not directory.exists():
+            logger.warning("Directory %s does not exist, nothing to cleanup", directory)
+            return
+
+        logger.info("[task %s] Cleaning up task directory %s", self.task_meta.task_id, self.local_task_dir)
+        self._remove_dir(directory)
+
     def get_clean_task(self, tasks_storage: Path) -> ChallengeTask:
         task_id = self.task_meta.task_id
 

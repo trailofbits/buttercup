@@ -174,13 +174,11 @@ def get_function_tool_impl(function_name: str, file_path: str | None, state: Bas
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
     functions = codequery.get_functions(function_name, path)
     if not functions:
-        functions = codequery.get_functions(function_name, path, fuzzy=True)
+        functions = codequery.get_functions(function_name, None)
         if not functions:
-            functions = codequery.get_functions(function_name, None)
+            functions = codequery.get_functions(function_name, None, fuzzy=True)
             if not functions:
-                functions = codequery.get_functions(function_name, None, fuzzy=True)
-                if not functions:
-                    raise ValueError(f"No definition found for function {function_name} in {path}")
+                raise ValueError(f"No definition found for function {function_name} in {path}")
 
     return _add_functions_code_snippets(functions)
 
@@ -246,9 +244,11 @@ def get_type_tool_impl(type_name: str, file_path: str | None, state: BaseCtxStat
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
     types = codequery.get_types(type_name, path)
     if not types:
-        types = codequery.get_types(type_name, path, fuzzy=True)
+        types = codequery.get_types(type_name, None)
         if not types:
-            raise ValueError(f"No definition found for type {type_name} in {path}")
+            types = codequery.get_types(type_name, None, fuzzy=True)
+            if not types:
+                raise ValueError(f"No definition found for type {type_name} in {path}")
 
     return _add_type_definitions_code_snippets(types)
 

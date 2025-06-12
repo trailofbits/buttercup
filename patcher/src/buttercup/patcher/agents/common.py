@@ -144,8 +144,22 @@ class PatchAttempt(BaseModel):
     tests_stdout: bytes | None = None
     tests_stderr: bytes | None = None
 
+    # Store built challenge task directories for each sanitizer to avoid rebuilding
+    built_challenges: dict[str, Path] = Field(default_factory=dict)
+
     status: PatchStatus = Field(default=PatchStatus.PENDING)
     analysis: PatchAnalysis | None = Field(default=None)
+
+    def get_built_challenge(self, sanitizer: str) -> ChallengeTask | None:
+        """Get the built challenge task for a given sanitizer"""
+        if sanitizer in self.built_challenges:
+            built_task_dir = self.built_challenges[sanitizer]
+            return ChallengeTask(
+                read_only_task_dir=built_task_dir,
+                local_task_dir=built_task_dir,
+            )
+
+        return None
 
 
 class ReflectionResult(BaseModel):

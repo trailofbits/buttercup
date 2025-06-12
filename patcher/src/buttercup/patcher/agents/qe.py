@@ -46,12 +46,13 @@ from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import create_react_agent
 from langchain_core.prompts import MessagesPlaceholder
 import time
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
 
 CHECK_HARNESS_CHANGES_SYSTEM_MSG = """
-You are an agent - please keep going until the user’s query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
-If you are not sure about file content or codebase structure pertaining to the user’s request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
+You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
+If you are not sure about file content or codebase structure pertaining to the user's request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
 You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully.
 You are a quality engineer agent tasked with checking the validity of a patch.
 """
@@ -180,14 +181,18 @@ class QEAgent(PatcherAgentBase):
 
                 return False
 
-    def _rebuild_challenge(self) -> CommandResult:
+    def _rebuild_challenge(self, challenge: ChallengeTask, sanitizer: str) -> CommandResult:
         try:
-            cp_output = self.challenge.build_fuzzers(
+            cp_output = challenge.build_fuzzers(
                 engine=self.input.engine,
-                sanitizer=self.input.sanitizer,
+                sanitizer=sanitizer,
             )
         except ChallengeTaskError as exc:
-            logger.error("Failed to run build_fuzzers on Challenge Task %s with patch", self.challenge.name)
+            logger.error(
+                "Failed to run build_fuzzers on Challenge Task %s with patch and sanitizer %s",
+                challenge.name,
+                sanitizer,
+            )
             return CommandResult(
                 success=False,
                 output=exc.stdout,
@@ -195,7 +200,7 @@ class QEAgent(PatcherAgentBase):
             )
 
         if not cp_output.success:
-            logger.error("Failed to build Challenge Task %s with patch", self.challenge.name)
+            logger.error("Failed to build Challenge Task %s with patch and sanitizer %s", challenge.name, sanitizer)
             return CommandResult(
                 success=False,
                 output=cp_output.output,
@@ -208,11 +213,75 @@ class QEAgent(PatcherAgentBase):
             error=cp_output.error,
         )
 
+    def _get_sanitizers(self) -> list[str]:
+        """Get the sanitizers for the challenge task"""
+        project_yaml = ProjectYaml(self.challenge, self.challenge.project_name)
+        return project_yaml.sanitizers  # type: ignore[no-any-return]
+
+    def _build_with_sanitizer(
+        self,
+        clean_challenge: ChallengeTask,
+        configuration: PatcherConfig,
+        last_patch_attempt: PatchAttempt,
+        sanitizer: str,
+    ) -> tuple[bool, bool, CommandResult, Path | None]:
+        """Build the challenge with a specific sanitizer. Returns (patch_success, build_success, result, sanitizer, built_task_dir)"""
+        logger.info("Building Challenge Task %s with sanitizer %s", clean_challenge.name, sanitizer)
+        with clean_challenge.get_rw_copy(configuration.work_dir, delete=False) as built_challenge:
+            logger.info(
+                "Patching Challenge Task %s with sanitizer %s (%s)",
+                built_challenge.name,
+                sanitizer,
+                built_challenge.task_dir,
+            )
+            built_challenge.apply_patch_diff()
+            patch_success = self._patch_challenge(built_challenge, last_patch_attempt)
+            if not patch_success:
+                logger.error(
+                    "Failed to apply patch to Challenge Task %s with sanitizer %s (%s)",
+                    self.challenge.name,
+                    sanitizer,
+                    built_challenge.task_dir,
+                )
+                return (
+                    False,
+                    False,
+                    CommandResult(success=False, output=b"", error=b"Patch application failed"),
+                    None,
+                )
+
+            logger.info(
+                "Rebuilding Challenge Task %s with sanitizer %s (%s)",
+                built_challenge.name,
+                sanitizer,
+                built_challenge.task_dir,
+            )
+            cp_output = self._rebuild_challenge(built_challenge, sanitizer)
+            if cp_output.success:
+                logger.info(
+                    "Rebuilt Challenge Task %s with sanitizer %s (%s)",
+                    built_challenge.name,
+                    sanitizer,
+                    built_challenge.task_dir,
+                )
+                # Return the task directory path for later reuse
+                return True, True, cp_output, built_challenge.task_dir
+            else:
+                logger.error(
+                    "Failed to rebuild Challenge Task %s with sanitizer %s (%s)",
+                    built_challenge.name,
+                    sanitizer,
+                    built_challenge.task_dir,
+                )
+                return True, False, cp_output, None
+
     def build_patch_node(
-        self, state: PatcherAgentState
+        self, state: PatcherAgentState, config: RunnableConfig
     ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that builds a patch"""
         logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
+        configuration = PatcherConfig.from_configurable(config)
+
         last_patch_attempt = state.get_last_patch_attempt()
         if not last_patch_attempt or not last_patch_attempt.patch:
             logger.fatal("No patch to build, this should never happen")
@@ -220,30 +289,95 @@ class QEAgent(PatcherAgentBase):
 
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.BUILD_PATCH
-        if not self._patch_challenge(self.challenge, last_patch_attempt):
-            logger.error("Failed to apply patch to Challenge Task %s", self.challenge.name)
-            last_patch_attempt.status = PatchStatus.APPLY_FAILED
-            return Command(
-                update={
-                    "patch_attempts": last_patch_attempt,
-                    "execution_info": execution_info,
-                },
-                goto=PatcherAgentName.REFLECTION.value,
-            )
 
-        cp_output = self._rebuild_challenge()
-        last_patch_attempt.build_stdout = cp_output.output
-        last_patch_attempt.build_stderr = cp_output.error
-        if not cp_output.success:
-            logger.error("Failed to rebuild Challenge Task %s with patch", self.challenge.name)
-            last_patch_attempt.status = PatchStatus.BUILD_FAILED
-            return Command(
-                update={
-                    "patch_attempts": last_patch_attempt,
-                    "execution_info": execution_info,
-                },
-                goto=PatcherAgentName.REFLECTION.value,
-            )
+        sanitizers = self._get_sanitizers()
+        clean_challenge = self.challenge.get_clean_task(configuration.tasks_storage)
+        last_patch_attempt.built_challenges = {}
+
+        # Run builds in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit all build tasks
+            future_to_sanitizer = {
+                executor.submit(
+                    self._build_with_sanitizer, clean_challenge, configuration, last_patch_attempt, sanitizer
+                ): sanitizer
+                for sanitizer in sanitizers
+            }
+
+            # Process completed builds and return immediately on first failure
+            for future in concurrent.futures.as_completed(future_to_sanitizer):
+                sanitizer = future_to_sanitizer[future]
+                try:
+                    patch_success, build_success, cp_output, built_task_dir = future.result()
+                    last_patch_attempt.build_stdout = cp_output.output
+                    last_patch_attempt.build_stderr = cp_output.error
+
+                    if not patch_success or not build_success:
+                        if not patch_success:
+                            logger.error(
+                                "Failed to apply patch to Challenge Task %s with sanitizer %s",
+                                self.challenge.name,
+                                sanitizer,
+                            )
+                            last_patch_attempt.status = PatchStatus.APPLY_FAILED
+                        else:  # not build_success
+                            logger.error(
+                                "Failed to rebuild Challenge Task %s with patch and sanitizer %s",
+                                self.challenge.name,
+                                sanitizer,
+                            )
+                            last_patch_attempt.status = PatchStatus.BUILD_FAILED
+
+                        # Cancel remaining futures and clean up any built challenges
+                        for remaining_future in future_to_sanitizer:
+                            remaining_future.cancel()
+
+                        # Clean up any successfully built challenge directories since we're failing
+                        for built_dir in last_patch_attempt.built_challenges.values():
+                            try:
+                                ChallengeTask(read_only_task_dir=built_dir, local_task_dir=built_dir).cleanup()
+                            except Exception:
+                                pass  # Ignore cleanup errors
+
+                        last_patch_attempt.built_challenges = {}
+
+                        return Command(
+                            update={
+                                "patch_attempts": last_patch_attempt,
+                                "execution_info": execution_info,
+                            },
+                            goto=PatcherAgentName.REFLECTION.value,
+                        )
+                    else:
+                        # Store the successfully built challenge directory
+                        if built_task_dir:
+                            last_patch_attempt.built_challenges[sanitizer] = built_task_dir
+
+                except Exception as exc:
+                    logger.error("Build with sanitizer %s generated an exception: %s", sanitizer, exc)
+                    last_patch_attempt.status = PatchStatus.BUILD_FAILED
+                    last_patch_attempt.build_stderr = str(exc).encode()
+
+                    # Cancel remaining futures and clean up any built challenges
+                    for remaining_future in future_to_sanitizer:
+                        remaining_future.cancel()
+
+                    # Clean up any successfully built challenge directories since we're failing
+                    for built_dir in last_patch_attempt.built_challenges.values():
+                        try:
+                            ChallengeTask(read_only_task_dir=built_dir, local_task_dir=built_dir).cleanup()
+                        except Exception:
+                            pass  # Ignore cleanup errors
+
+                    last_patch_attempt.built_challenges = {}
+
+                    return Command(
+                        update={
+                            "patch_attempts": last_patch_attempt,
+                            "execution_info": execution_info,
+                        },
+                        goto=PatcherAgentName.REFLECTION.value,
+                    )
 
         logger.info("Challenge Task %s rebuilt with patch", self.challenge.name)
         last_patch_attempt.build_succeeded = True
@@ -253,6 +387,30 @@ class QEAgent(PatcherAgentBase):
             },
             goto=PatcherAgentName.RUN_POV.value,
         )
+
+    def _get_pov_variants(self, configuration: PatcherConfig) -> list[tuple[str, Path]]:
+        """Get the variants of the PoV"""
+        res = []
+        sanitizers = self._get_sanitizers()
+        try:
+            crash_dir = CrashDir(configuration.work_dir, self.input.task_id, self.input.harness_name)
+            for sanitizer in sanitizers:
+                crashes_for_token = crash_dir.list_crashes_for_token(self.input.pov_token, sanitizer, get_remote=True)
+                if not crashes_for_token:
+                    logger.info("No crashes found for PoV token %s and sanitizer %s", self.input.pov_token, sanitizer)
+                    crashes_for_token = []
+
+                res.extend(
+                    [
+                        (sanitizer, Path(crash))
+                        for crash in crashes_for_token[: configuration.max_pov_variants_per_token_sanitizer]
+                    ]
+                )
+        except Exception as e:
+            logger.error("Failed to list PoV variants for token %s", self.input.pov_token)
+            logger.exception(e)
+
+        return res
 
     def run_pov_node(
         self, state: PatcherAgentState, config: RunnableConfig
@@ -267,27 +425,13 @@ class QEAgent(PatcherAgentBase):
 
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.RUN_POV
-        pov_variants = [self.input.pov]
-
-        try:
-            crash_dir = CrashDir(configuration.work_dir, self.input.task_id, self.input.harness_name)
-            # TODO: test all sanitizers under this same crash-token
-            crashes_for_token = crash_dir.list_crashes_for_token(
-                self.input.pov_token, state.context.sanitizer, get_remote=True
-            )
-            if not crashes_for_token:
-                logger.warning("No crashes found for PoV token %s", self.input.pov_token)
-                crashes_for_token = []
-
-            pov_variants.extend([Path(crash) for crash in crashes_for_token])
-        except Exception as e:
-            logger.error("Failed to list PoV variants for token %s", self.input.pov_token)
-            logger.exception(e)
+        pov_variants = [(state.context.sanitizer, self.input.pov)]
+        pov_variants += self._get_pov_variants(configuration)
 
         start_time = time.time()
         run_once = False
 
-        for pov_variant in pov_variants:
+        for sanitizer, pov_variant in pov_variants:
             # Check if we've exceeded the max_minutes_run_povs timeout
             if time.time() - start_time > configuration.max_minutes_run_povs * 60:
                 logger.error("PoV processing lasted more than %d minutes", configuration.max_minutes_run_povs)
@@ -314,10 +458,29 @@ class QEAgent(PatcherAgentBase):
 
             pov_variant = node_local.make_locally_available(pov_variant)
             try:
-                pov_output = self.challenge.reproduce_pov(self.input.harness_name, pov_variant)
+                challenge_to_use = last_patch_attempt.get_built_challenge(sanitizer)
+                if not challenge_to_use:
+                    if state.context.sanitizer == sanitizer:
+                        challenge_to_use = self.challenge
+                        logger.warning(
+                            "[%s / %s] Using original challenge for sanitizer %s (no pre-built version available)",
+                            self.challenge.task_meta.task_id,
+                            self.input.submission_index,
+                            sanitizer,
+                        )
+                    else:
+                        logger.error(
+                            "[%s / %s] No pre-built challenge for sanitizer %s, skipping PoV",
+                            self.challenge.task_meta.task_id,
+                            self.input.submission_index,
+                            sanitizer,
+                        )
+                        continue
+
+                pov_output = challenge_to_use.reproduce_pov(self.input.harness_name, pov_variant)
                 logger.info(
                     "Ran PoV %s/%s for harness %s",
-                    self.challenge.name,
+                    challenge_to_use.name,
                     pov_variant,
                     self.input.harness_name,
                 )
@@ -421,6 +584,7 @@ class QEAgent(PatcherAgentBase):
         tests_passed = False
         if state.tests_instructions:
             clean_challenge = self.challenge.get_clean_task(configuration.tasks_storage)
+            sh_cmd_res = None
             with clean_challenge.get_rw_copy(configuration.work_dir) as clean_rw_challenge:
                 clean_rw_challenge.apply_patch_diff()
                 self._patch_challenge(clean_rw_challenge, last_patch_attempt)
@@ -439,10 +603,17 @@ class QEAgent(PatcherAgentBase):
                     },
                 )
 
-            tests_passed = sh_cmd_res.success
-            last_patch_attempt.tests_passed = tests_passed
-            last_patch_attempt.tests_stdout = sh_cmd_res.output
-            last_patch_attempt.tests_stderr = sh_cmd_res.error
+            if sh_cmd_res is not None:
+                tests_passed = sh_cmd_res.success
+                last_patch_attempt.tests_passed = tests_passed
+                last_patch_attempt.tests_stdout = sh_cmd_res.output
+                last_patch_attempt.tests_stderr = sh_cmd_res.error
+            else:
+                logger.error("Failed to run tests for Challenge Task %s", clean_challenge.name)
+                last_patch_attempt.status = PatchStatus.TESTS_FAILED
+                last_patch_attempt.tests_passed = False
+                last_patch_attempt.tests_stdout = None
+                last_patch_attempt.tests_stderr = None
         else:
             logger.warning(
                 "[%s / %s] No tests instructions found, just accept the patch",

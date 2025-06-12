@@ -21,6 +21,7 @@ class PatcherConfig(BaseModel):
     patch_validation_recursion_limit: int = Field(default=30)
     n_initial_stackframes: int = Field(default=4)
     max_concurrency: int = Field(default=5)
+    max_pov_variants_per_token_sanitizer: int = Field(default=15)
 
     @classmethod
     def from_configurable(cls, config: RunnableConfig) -> Self:
