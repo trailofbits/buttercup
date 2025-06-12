@@ -20,29 +20,38 @@ class CrashSet:
         crash_data = get_crash_data(stacktrace)
         inst_key: str = get_inst_key(stacktrace)
 
+        key = dumps(
+            [project, harness_name, task_id, sanitizer, crash_data, inst_key], json_options=CANONICAL_JSON_OPTIONS
+        )
+
+        # Exit early if the crash is already in the set, rough corollary to organizer's exact match check
+        if self.set.contains(key):
+            logger.debug(f"Duplicate crash filtered by crash set: `{crash_data} / `{sanitizer}` / `{inst_key}`")
+            return True
+
         # Fuzzy duplicate checks against crash_state / instrumentation keys
         for _crash in self.set:
-            [_project, _harness_name, _task_id, _sanitizer, _crash_data, _inst_key] = loads(
-                _crash, json_options=CANONICAL_JSON_OPTIONS
-            )
+            _, _, _, _sanitizer, _crash_data, _inst_key = loads(_crash, json_options=CANONICAL_JSON_OPTIONS)
             cf_comparator = CrashComparer(crash_data, _crash_data)
             if cf_comparator.is_similar():
-                logger.debug(f"Duplicate crash filtered by crash comparison: {crash_data}")
+                logger.debug(
+                    f"Duplicate crash filtered by crash comparison: `{crash_data} | {sanitizer}` / `{_crash_data} | {_sanitizer}`"
+                )
                 # TODO: MBROWN / HBRODIN: check that the "duplicate" PoV here is also fixed by the patch for the "non-duplicate" PoV
                 #       This likely needs to exist as a separate queue of tasks handled by the orchestrator
+
                 return True
 
             instkey_comparator = CrashComparer(inst_key, _inst_key)
             if instkey_comparator.is_similar():
-                logger.debug(f"Duplicate crash filtered by instrumentation key: {crash_data}")
+                logger.debug(
+                    f"Duplicate crash filtered by instrumentation key: `{inst_key} | {sanitizer}` / `{_inst_key} | {_sanitizer}`"
+                )
                 # TODO: MBROWN / HBRODIN: check that the "duplicate" PoV here is also fixed by the patch for the "non-duplicate" PoV
                 #       This likely needs to exist as a separate queue of tasks handled by the orchestrator
+
                 return True
 
-        # Rough corollary to organizer's exact match check
-        key = dumps(
-            [project, harness_name, task_id, sanitizer, crash_data, inst_key], json_options=CANONICAL_JSON_OPTIONS
-        )
         return self.set.add(key)
 
 
