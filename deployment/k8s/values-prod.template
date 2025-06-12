@@ -179,6 +179,17 @@ tracer-bot:
       cpu: 500m
       memory: 4Gi
 
+pov-reproducer:
+  enabled: true
+  replicaCount: 8
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 4Gi
+
 seed-gen:
   enabled: true
   replicaCount: 10

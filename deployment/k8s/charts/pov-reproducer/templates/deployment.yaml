@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-pov-reproducer
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: pov-reproducer
+  template:
+    metadata:
+      labels:
+        app: pov-reproducer
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      volumes:
+        {{- include "buttercup.volumes.scratch" . | nindent 8 }}
+        {{- include "buttercup.volumes.tasks" . | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
+        {{- include "buttercup.dockerSocketVolume" . | nindent 8 }}
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      {{- include "buttercup.waitForDocker" . | nindent 6 }}
+      containers:
+        - name: pov-reproducer
+          image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+          imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+          command: ["buttercup-pov-reproducer"]
+          env:
+          {{- include "buttercup.commonEnv" . | nindent 10 }}
+          {{- include "buttercup.env.dockerSocket" . | nindent 10 }}
+          {{- include "buttercup.povReproducerEnv" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 12 }}
+            {{- include "buttercup.nodeLocalVolumeMount" . | nindent 12 }}
+            {{- include "buttercup.dockerSocketVolumeMount" . | nindent 12 }} 

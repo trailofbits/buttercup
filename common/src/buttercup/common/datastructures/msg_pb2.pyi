@@ -110,6 +110,28 @@ class IndexRequest(_message.Message):
     task_id: str
     def __init__(self, build_type: _Optional[_Union[BuildType, str]] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
+class POVReproduceRequest(_message.Message):
+    __slots__ = ["harness_name", "patch_id", "pov_path", "sanitizer", "task_id"]
+    HARNESS_NAME_FIELD_NUMBER: _ClassVar[int]
+    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    POV_PATH_FIELD_NUMBER: _ClassVar[int]
+    SANITIZER_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    harness_name: str
+    patch_id: str
+    pov_path: str
+    sanitizer: str
+    task_id: str
+    def __init__(self, task_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., harness_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., pov_path: _Optional[str] = ...) -> None: ...
+
+class POVReproduceResponse(_message.Message):
+    __slots__ = ["did_crash", "request"]
+    DID_CRASH_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    did_crash: bool
+    request: POVReproduceRequest
+    def __init__(self, request: _Optional[_Union[POVReproduceRequest, _Mapping]] = ..., did_crash: bool = ...) -> None: ...
+
 class Patch(_message.Message):
     __slots__ = ["patch", "submission_index", "task_id"]
     PATCH_FIELD_NUMBER: _ClassVar[int]

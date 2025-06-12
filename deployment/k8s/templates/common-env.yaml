@@ -332,3 +332,16 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_FUZZER_LOG_MAX_LINE_LENGTH
   value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 {{- end }}
+
+{{- define "buttercup.povReproducerEnv" }}
+- name: BUTTERCUP_POV_REPRODUCER_REDIS_URL
+  value: {{ include "buttercup.core.redisUrl" . }}
+- name: BUTTERCUP_POV_REPRODUCER_LOG_LEVEL
+  value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_POV_REPRODUCER_SLEEP_TIME
+  value: {{ .Values.povReproducer.sleepTime | quote }}
+- name: BUTTERCUP_POV_REPRODUCER_MAX_RETRIES
+  value: {{ .Values.povReproducer.maxRetries | quote }}
+{{- end }}
+
+

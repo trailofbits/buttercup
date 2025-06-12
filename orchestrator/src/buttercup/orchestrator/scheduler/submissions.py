@@ -9,6 +9,7 @@ from opentelemetry.trace import Status, StatusCode
 import buttercup.common.node_local as node_local
 from pathlib import Path
 from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames
+from buttercup.common.sets import PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import (
     TracedCrash,
     ConfirmedVulnerability,
@@ -18,6 +19,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     BuildRequest,
     BuildType,
     BuildOutput,
+    POVReproduceRequest,
 )
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.task_registry import TaskRegistry
@@ -37,6 +39,7 @@ from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.api import PovApi, PatchApi, BundleApi, BroadcastSarifAssessmentApi
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import ProjectYaml
+
 
 logger = logging.getLogger(__name__)
 
@@ -523,6 +526,7 @@ class Submissions:
     sarif_store: SARIFStore = field(init=False)
     matched_sarifs: Set[str] = field(default_factory=set)
     build_requests_queue: ReliableQueue[BuildRequest] = field(init=False)
+    pov_reproduce_status: PoVReproduceStatus = field(init=False)
 
     def __post_init__(self):
         logger.info(
@@ -533,6 +537,7 @@ class Submissions:
         self.matched_sarifs = self._get_matched_sarifs(self.redis)
         queue_factory = QueueFactory(self.redis)
         self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
+        self.pov_reproduce_status = PoVReproduceStatus(self.redis)
 
     def _insert_matched_sarif(self, redis: Redis, sarif_id: str):
         """Insert a matched SARIF ID into Redis."""
@@ -742,9 +747,57 @@ class Submissions:
         entry_patch = SubmissionEntryPatch(patch=patch.patch, submission_index=index, idx=patch_idx)
         self._request_patched_builds(task_id, entry_patch)
         e.patches.append(entry_patch)
+
+        # Now that we have a patch available, we can request a POV reproduction.
+        # This will setup the PoV for testing against the harness/patch/sanitizer build.
+        # Currently this will only reproduce the first POV for each confirmed vulnerability,
+        # but we will expand this to reproduce all similar POVs in the future.
+        self._request_reproduce(e.patches[-1])
+
         self._persist(self.redis, index, e)
         log_structured(logger.info, task_id, index=index, pov_id=e.pov_id, patch_idx=patch_idx, msg="Patch added")
         return True
+
+    def _request_reproduce(self, ep: SubmissionEntryPatch):
+        """
+        Request a POV reproduction for all confirmed vulnerabilities.
+
+        Args:
+            ep: SubmissionEntryPatch to process
+        """
+        e = self.entries[ep.submission_index]
+        build_patch_id = self._build_patch_id(ep)
+
+        # This will setup the PoV for testing against the harness/patch/sanitizer build.
+        # TODO: This should in the future be a loop over all similar POVs.
+        request = POVReproduceRequest()
+        request.task_id = _task_id(e)
+        request.patch_id = build_patch_id
+        request.harness_name = e.crash.crash.harness_name
+        request.sanitizer = e.crash.crash.target.sanitizer
+        request.pov_path = e.crash.crash.crash_input_path
+
+        self.pov_reproduce_status.request_status(request)
+
+    def _check_all_povs_are_mitigated(self, e: SubmissionEntry, patch_idx: int) -> bool | None:
+        """
+        Check if all POVs for a confirmed vulnerability are mitigated.
+
+        Returns None if pending, True if all mitigated, False if any not mitigated.
+        """
+        patch = e.patches[patch_idx]
+        # TODO: This needs to be a loop over all similar POVs later on.
+        request = POVReproduceRequest()
+        request.task_id = _task_id(e)
+        request.patch_id = self._build_patch_id(patch)
+        request.harness_name = e.crash.crash.harness_name
+        request.sanitizer = e.crash.crash.target.sanitizer
+        request.pov_path = e.crash.crash.crash_input_path
+
+        status = self.pov_reproduce_status.request_status(request)
+        if status is None:
+            return None
+        return not status.did_crash
 
     def _submit_patch_request(self, i, e):
         """
@@ -871,8 +924,39 @@ class Submissions:
             # There are no patches to submit, or we've already submitted all patches
             return
 
+        status = self._check_all_povs_are_mitigated(e, e.patch_idx)
+        if status is None:
+            # We haven't checked all POVs for this patch yet, so we can't submit the patch
+            log_structured(
+                logger.debug,
+                _task_id(e),
+                index=i,
+                pov_id=e.pov_id,
+                patch_idx=e.patch_idx,
+                msg="Pending POV check, will not submit patch yet.",
+            )
+            return
+
+        if status is False:
+            # All POVs for this patch are not mitigated, so we can't submit the patch
+            log_structured(
+                logger.info,
+                _task_id(e),
+                index=i,
+                pov_id=e.pov_id,
+                patch_idx=e.patch_idx,
+                msg="Not all POVs for this patch are mitigated, will not submit patch",
+            )
+            e.patch_idx += 1
+            # TODO: Should probably request a new patch here.
+            self._persist(self.redis, i, e)
+            return
+
+        # All good, all PoVs for this patch are mitigated.
+
         have_more_patches = _have_more_patches(e)
         patch = e.patches[e.patch_idx].patch
+
         log_structured(
             logger.info, _task_id(e), index=i, pov_id=e.pov_id, patch_idx=e.patch_idx, msg="Submitting patch"
         )

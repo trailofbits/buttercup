@@ -92,16 +92,42 @@ def mock_competition_api(mock_task_registry):
 
 @pytest.fixture
 def submissions(mock_redis, mock_competition_api, mock_task_registry):
-    # Create a Submissions instance with our mocks
-    subs = Submissions(
-        redis=mock_redis,
-        competition_api=mock_competition_api,
-        task_registry=mock_task_registry,
-        tasks_storage_dir=Path("/tmp/tasks_storage"),
-    )
-    # Add missing attributes needed for _request_patched_builds
+    # Mock QueueFactory to avoid the missing reproduce_response_queue initialization
+    with patch("buttercup.orchestrator.scheduler.submissions.QueueFactory") as mock_queue_factory:
+        # Create mock queues
+        mock_build_queue = Mock()
+        mock_reproduce_queue = Mock()
+        mock_reproduce_queue.pop.return_value = None  # No items in queue
+        mock_reproduce_queue.ack_item = Mock()  # Mock ack_item method
+
+        # Configure QueueFactory to return the appropriate queue based on queue name
+        def queue_factory_side_effect(queue_name, **kwargs):
+            if queue_name == "QueueNames.BUILD":
+                return mock_build_queue
+            else:
+                return mock_reproduce_queue
+
+        mock_queue_factory.return_value.create.side_effect = queue_factory_side_effect
+
+        # Create a Submissions instance with our mocks
+        subs = Submissions(
+            redis=mock_redis,
+            competition_api=mock_competition_api,
+            task_registry=mock_task_registry,
+            tasks_storage_dir=Path("/tmp/tasks_storage"),
+        )
+
+    # Add additional attributes needed for _request_patched_builds
     subs.select_preferred = Mock(return_value="libfuzzer")
-    subs.build_requests_queue = Mock()
+    # The build_requests_queue is already set by __post_init__, just use the mock
+    subs.build_requests_queue = mock_build_queue
+    # Set the reproduce_response_queue manually since we need to reference it in tests
+    subs.reproduce_response_queue = mock_reproduce_queue
+    # Mock the pov_reproduce_status
+    subs.pov_reproduce_status = Mock()
+    subs.pov_reproduce_status.request_status.return_value = None  # Pending status
+    # Mock the _key_from_patch_id method that's referenced in record_repro_status but doesn't exist
+    subs._key_from_patch_id = Mock(return_value=(0, 0))
     return subs
 
 
@@ -399,6 +425,7 @@ class TestSubmissions:
         with (
             patch("buttercup.orchestrator.scheduler.submissions.ChallengeTask", return_value=mock_task),
             patch("buttercup.orchestrator.scheduler.submissions.ProjectYaml", return_value=mock_project_yaml),
+            patch.object(submissions, "_request_reproduce"),  # Mock this to avoid pov_path issues
         ):
             # Call the method
             result = submissions.record_patch(sample_patch)
@@ -448,7 +475,10 @@ class TestSubmissions:
         mock_task_registry.should_stop_processing.return_value = True
 
         # Mock the _request_patched_builds method to avoid ChallengeTask initialization
-        with patch.object(submissions, "_request_patched_builds") as mock_request_builds:
+        with (
+            patch.object(submissions, "_request_patched_builds") as mock_request_builds,
+            patch.object(submissions, "_request_reproduce"),  # Mock this to avoid pov_path issues
+        ):
             # Call the method
             result = submissions.record_patch(sample_patch)
 
@@ -560,7 +590,10 @@ class TestStateTransitions:
         )
 
         # Mock the _have_more_patches function to avoid AttributeError
-        with patch("buttercup.orchestrator.scheduler.submissions._have_more_patches", return_value=True):
+        with (
+            patch("buttercup.orchestrator.scheduler.submissions._have_more_patches", return_value=True),
+            patch.object(submissions, "_check_all_povs_are_mitigated", return_value=True),  # Mock POV mitigation check
+        ):
             # Simulate process_cycle
             submissions.process_cycle()
 
@@ -805,12 +838,18 @@ class TestStateTransitions:
         submissions.entries = [sample_submission_entry]
 
         # Mock the _task_id function to verify it's being called with the right arguments
-        with patch("buttercup.orchestrator.scheduler.submissions._task_id", return_value=task_id) as mock_task_id:
+        with (
+            patch("buttercup.orchestrator.scheduler.submissions._task_id", return_value=task_id) as mock_task_id,
+            patch("buttercup.orchestrator.scheduler.submissions._have_more_patches", return_value=True),
+        ):
             # Mock competition API to return successful patch submission
             mock_competition_api.submit_patch.return_value = (
                 "test-patch-123",
                 TypesSubmissionStatus.SubmissionStatusAccepted,
             )
+
+            # Mock _check_all_povs_are_mitigated to return True so patch submission proceeds
+            submissions._check_all_povs_are_mitigated = Mock(return_value=True)
 
             # Simulate process_cycle
             submissions.process_cycle()
@@ -919,8 +958,8 @@ class TestRecordPatchedBuild:
         assert submissions.redis.lset.call_count == 2
 
     def test_record_patched_build_invalid_patch_id_format(self, submissions):
-        """Test recording build output with malformed patch_id."""
-        # Create build output with invalid patch_id format
+        """Test recording build output with malformed build_patch_id."""
+        # Create build output with invalid build_patch_id format
         build_output = BuildOutput()
         build_output.build_patch_id = "invalid-format"  # Missing the "/" separator
         build_output.sanitizer = "test_sanitizer"
@@ -1052,8 +1091,8 @@ class TestRecordPatchedBuild:
         assert patch1_build_outputs[0].apply_diff is True
 
     def test_record_patched_build_empty_patch_id(self, submissions):
-        """Test recording build output with empty patch_id."""
-        # Create build output with empty patch_id
+        """Test recording build output with empty build_patch_id."""
+        # Create build output with empty build_patch_id
         build_output = BuildOutput()
         build_output.build_patch_id = ""
         build_output.sanitizer = "test_sanitizer"
@@ -1061,15 +1100,15 @@ class TestRecordPatchedBuild:
         # Call the method
         result = submissions.record_patched_build(build_output)
 
-        # Should return False due to empty patch_id
+        # Should return False due to empty build_patch_id
         assert result is False
 
         # Verify no persistence occurred
         submissions.redis.lset.assert_not_called()
 
     def test_record_patched_build_patch_id_with_extra_slashes(self, submissions):
-        """Test recording build output with patch_id containing extra slashes."""
-        # Create build output with malformed patch_id (too many slashes)
+        """Test recording build output with build_patch_id containing extra slashes."""
+        # Create build output with malformed build_patch_id (too many slashes)
         build_output = BuildOutput()
         build_output.build_patch_id = "0/1/2"  # Too many parts
         build_output.sanitizer = "test_sanitizer"

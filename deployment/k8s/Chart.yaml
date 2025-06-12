@@ -49,3 +49,6 @@ dependencies:
   - name: registry-cache
     version: "0.1.0"
     repository: "file://charts/registry-cache"
+  - name: pov-reproducer
+    version: "*"
+    repository: "file://charts/pov-reproducer"

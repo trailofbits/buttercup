@@ -16,6 +16,8 @@ from buttercup.common.datastructures.msg_pb2 import (
     IndexRequest,
     IndexOutput,
     TracedCrash,
+    POVReproduceRequest,
+    POVReproduceResponse,
 )
 import logging
 from typing import Type, Generic, TypeVar, Literal, overload
@@ -40,6 +42,8 @@ class QueueNames(str, Enum):
     INDEX = "index_queue"
     INDEX_OUTPUT = "index_output_queue"
     TRACED_VULNERABILITIES = "traced_vulnerabilities_queue"
+    POV_REPRODUCER_REQUESTS = "pov_reproducer_requests_queue"
+    POV_REPRODUCER_RESPONSES = "pov_reproducer_responses_queue"
 
 
 class GroupNames(str, Enum):
@@ -67,6 +71,8 @@ CONFIRMED_VULNERABILITIES_TASK_TIMEOUT_MS = int(os.getenv("CONFIRMED_VULNERABILI
 INDEX_TASK_TIMEOUT_MS = int(os.getenv("INDEX_TASK_TIMEOUT_MS", 30 * 60 * 1000))
 INDEX_OUTPUT_TASK_TIMEOUT_MS = int(os.getenv("INDEX_OUTPUT_TASK_TIMEOUT_MS", 3 * 60 * 1000))
 TRACED_VULNERABILITIES_TASK_TIMEOUT_MS = int(os.getenv("TRACED_VULNERABILITIES_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+POV_REPRODUCER_REQUESTS_TASK_TIMEOUT_MS = int(os.getenv("POV_REPRODUCER_REQUESTS_TASK_TIMEOUT_MS", 10 * 60 * 1000))
+POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS = int(os.getenv("POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS", 10 * 60 * 1000))
 
 logger = logging.getLogger(__name__)
 
@@ -348,6 +354,18 @@ class QueueFactory:
                 INDEX_OUTPUT_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
+            QueueNames.POV_REPRODUCER_REQUESTS: QueueConfig(
+                QueueNames.POV_REPRODUCER_REQUESTS,
+                POVReproduceRequest,
+                POV_REPRODUCER_REQUESTS_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
+            ),
+            QueueNames.POV_REPRODUCER_RESPONSES: QueueConfig(
+                QueueNames.POV_REPRODUCER_RESPONSES,
+                POVReproduceResponse,
+                POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS,
+                [GroupNames.ORCHESTRATOR],
+            ),
         }
     )
 
@@ -405,6 +423,16 @@ class QueueFactory:
     def create(
         self, queue_name: Literal[QueueNames.INDEX_OUTPUT], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[IndexOutput]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.POV_REPRODUCER_REQUESTS], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[POVReproduceRequest]: ...
+
+    @overload
+    def create(
+        self, queue_name: Literal[QueueNames.POV_REPRODUCER_RESPONSES], group_name: GroupNames, **kwargs: Any
+    ) -> ReliableQueue[POVReproduceResponse]: ...
 
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any

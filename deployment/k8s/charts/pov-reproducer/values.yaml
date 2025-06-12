@@ -1,0 +1,16 @@
+# Default values for pov-reproducer
+enabled: true
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 8Gi
+  requests:
+    cpu: 100m
+    memory: 1Gi
+
+# POV Reproducer specific configuration
+povReproducer:
+  sleepTime: 5.0
+  maxRetries: 100000

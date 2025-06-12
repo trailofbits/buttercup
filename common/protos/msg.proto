@@ -173,3 +173,16 @@ message SubmissionEntry {
     int32 patch_idx = 8;
     int32 patch_submission_attempt = 9;
 }
+
+message POVReproduceRequest {
+    string task_id = 1;
+    string patch_id = 2;
+    string harness_name = 3;
+    string sanitizer = 4;
+    string pov_path = 5;
+}
+
+message POVReproduceResponse {
+    POVReproduceRequest request = 1;
+    bool did_crash = 2;
+}
