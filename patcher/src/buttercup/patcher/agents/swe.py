@@ -56,7 +56,9 @@ Project Name:
 </project_name>
 
 Root Cause Analysis:
+<root_cause_analysis>
 {ROOT_CAUSE_ANALYSIS}
+</root_cause_analysis>
 
 Code Snippets that may need modification:
 <code_snippets>

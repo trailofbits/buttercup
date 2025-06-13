@@ -411,11 +411,15 @@ class ChallengeTask:
 
     @read_write_decorator
     def exec_docker_cmd(
-        self, cmd: list[str], mount_dirs: dict[Path, Path] | None = None, container_image: str | None = None
+        self,
+        cmd: list[str],
+        mount_dirs: dict[Path, Path] | None = None,
+        container_image: str | None = None,
+        always_build_image: bool = False,
     ) -> CommandResult:
         """Execute a command inside a docker container. If not specified, the
         docker container is the oss-fuzz one."""
-        return self.exec_docker_cmd_rw(cmd, mount_dirs, container_image, always_build_image=True)
+        return self.exec_docker_cmd_rw(cmd, mount_dirs, container_image, always_build_image=always_build_image)
 
     def exec_docker_cmd_rw(
         self,
