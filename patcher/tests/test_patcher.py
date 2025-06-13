@@ -1,10 +1,11 @@
 from pathlib import Path
 from buttercup.patcher.patcher import Patcher
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash, Task
+from buttercup.common.challenge_task import ChallengeTask, TaskMeta
 from buttercup.patcher.agents.common import CodeSnippetRequest
 from buttercup.common.queues import RQItem
 from buttercup.common.task_registry import TaskRegistry
-from buttercup.patcher.agents.common import PatcherAgentState, PatchInput, PatchAttempt, PatchStatus
+from buttercup.patcher.agents.common import PatcherAgentState, PatchInput, PatchAttempt, PatchStatus, add_or_mod_patch
 from buttercup.patcher.utils import PatchInputPoV
 import pytest
 from unittest.mock import patch, MagicMock
@@ -50,6 +51,13 @@ def task_dir(tmp_path: Path) -> Path:
 
     # Create a mock test.txt file
     (source / "test.txt").write_text("mock test content")
+
+    TaskMeta(
+        project_name="test-project-name",
+        focus="test-focus",
+        task_id="test-task-id-1",
+        metadata={"task_id": "test-task-id-1", "round_id": "testing", "team_id": "tob"},
+    ).save(task_dir)
 
     yield task_dir
 
@@ -502,3 +510,61 @@ def test_get_successful_patch_with_validation_failure():
     # Should still get the patch that passed build/pov/tests even though validation failed
     successful = state.get_successful_patch()
     assert successful == patches[1].patch
+
+
+def test_clean_built_challenges_on_new_patch(tmp_path: Path, task_dir: Path):
+    """Test that built challenges are cleaned when a new patch attempt is made."""
+    state = PatcherAgentState(
+        messages=[],
+        context=PatchInput(
+            challenge_task_dir=Path("/tmp"),
+            task_id="test",
+            submission_index="1",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/tmp"),
+                    sanitizer="address",
+                    pov=Path("/tmp/pov"),
+                    pov_token="token",
+                    sanitizer_output="output",
+                    engine="libfuzzer",
+                    harness_name="test",
+                )
+            ],
+        ),
+    )
+
+    challenge_task = ChallengeTask(task_dir, local_task_dir=task_dir)
+
+    # Create first patch attempt with a built challenge
+    patch1 = PatchAttempt(
+        build_succeeded=True,
+        pov_fixed=True,
+        tests_passed=True,
+        status=PatchStatus.SUCCESS,
+        built_challenges={"address": challenge_task.local_task_dir},
+    )
+
+    # Add first patch attempt
+    state.patch_attempts = [patch1]
+
+    # Create second patch attempt
+    patch2 = PatchAttempt(
+        build_succeeded=True,
+        pov_fixed=True,
+        tests_passed=True,
+        status=PatchStatus.SUCCESS,
+        built_challenges={"address": Path(tmp_path / "new-task")},
+    )
+
+    # Add second patch attempt through the add_patch_attempt method
+    state.patch_attempts = add_or_mod_patch(state.patch_attempts, patch2)
+
+    # Verify that the first patch's built challenges were cleaned
+    assert patch1.built_challenges == {}
+
+    # Verify that the second patch's built challenges are still present
+    assert patch2.built_challenges == {"address": Path(tmp_path / "new-task")}
+
+    # Verify that the first directory and its contents were actually deleted
+    assert not challenge_task.local_task_dir.exists()

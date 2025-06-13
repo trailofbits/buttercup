@@ -99,6 +99,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
 
                 output_state_dict: dict = chain.invoke(state)
                 output_state = PatcherAgentState(**output_state_dict)
+                output_state.clean_built_challenges()
                 return output_state.get_successful_patch()
         except openai.OpenAIError:
             logger.exception("OpenAI error")

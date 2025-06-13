@@ -27,8 +27,11 @@ from buttercup.common.challenge_task import ChallengeTask
 from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
 import re
 import uuid
+import logging
 
 MAX_STACKTRACE_LENGTH = 5000
+
+logger = logging.getLogger(__name__)
 
 
 def add_or_mod_patch(patches: list[PatchAttempt], patch: PatchAttempt | list[PatchAttempt]) -> list[PatchAttempt]:
@@ -43,6 +46,9 @@ def add_or_mod_patch(patches: list[PatchAttempt], patch: PatchAttempt | list[Pat
                 break
 
         if not replaced:
+            if patches:
+                patches[-1].clean_built_challenges()
+
             patches.append(patch)
 
     if isinstance(patch, list):
@@ -170,6 +176,16 @@ class PatchAttempt(BaseModel):
 
         return None
 
+    def clean_built_challenges(self) -> None:
+        """Clean the built challenges"""
+        for task_dir in self.built_challenges.values():
+            try:
+                ChallengeTask(task_dir, local_task_dir=task_dir).cleanup()
+            except Exception:
+                logger.exception("Failed to clean up built challenge %s", task_dir)
+
+        self.built_challenges = {}
+
 
 class ReflectionResult(BaseModel):
     """Reflection result"""
@@ -234,6 +250,11 @@ class PatcherAgentState(BaseModel):
             return self.patch_attempts[-1]
 
         return None
+
+    def clean_built_challenges(self) -> None:
+        """Clean the built challenges"""
+        for patch_attempt in self.patch_attempts:
+            patch_attempt.clean_built_challenges()
 
 
 class ContextRetrieverState(BaseModel):
