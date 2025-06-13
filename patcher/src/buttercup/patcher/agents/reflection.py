@@ -752,8 +752,6 @@ class ReflectionAgent(PatcherAgentBase):
     def reflect_on_patch(self, state: PatcherAgentState, config: RunnableConfig) -> Command:
         """Reflect on the patch."""
         configuration = PatcherConfig.from_configurable(config)
-        self.challenge.restore()
-
         if state.execution_info.prev_node is None:
             logger.warning(
                 "[%s / %s] Previous node is not set, this is a developer error, assuming root cause analysis.",

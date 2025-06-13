@@ -28,7 +28,7 @@ from buttercup.common.challenge_task import ChallengeTask
 
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from buttercup.patcher.utils import truncate_output
+from buttercup.patcher.utils import truncate_output, get_challenge
 from buttercup.patcher.agents.common import (
     PatcherAgentBase,
     ContextRetrieverState,
@@ -43,7 +43,6 @@ from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langgraph.types import Command
 from langgraph.prebuilt.chat_agent_executor import create_react_agent
 from buttercup.patcher.agents.tools import (
-    get_challenge,
     ls,
     grep,
     cat,
@@ -594,8 +593,6 @@ class ContextRetrieverAgent(PatcherAgentBase):
     cheap_fallback_llms: list[BaseChatOpenAI] = field(init=False)
     initial_snippets_chain: Runnable = field(init=False)
     find_tests_agent: Runnable = field(init=False)
-    ls_cwd: str = field(init=False)
-    ls_src: str = field(init=False)
 
     def __post_init__(self) -> None:
         """Initialize a few fields"""
@@ -685,14 +682,14 @@ class ContextRetrieverAgent(PatcherAgentBase):
         ]
         self.find_tests_agent = default_find_tests_agent.with_fallbacks(fallback_find_tests_agents)
 
-        ls_cwd = self.challenge.exec_docker_cmd(["ls", "-la"])
-        if ls_cwd.success:
-            self.ls_cwd = ls_cwd.output.decode("utf-8")
-        else:
-            self.ls_cwd = "ls cwd failed"
-
     def _prompt(self, state: CodeSnippetManagerState) -> list[AnyMessage]:
         challenge = get_challenge(state.challenge_task_dir)
+        ls_cwd = challenge.exec_docker_cmd(["ls", "-la"])
+        if ls_cwd.success:
+            ls_cwd = ls_cwd.output.decode("utf-8")
+        else:
+            ls_cwd = "ls cwd failed"
+
         return [
             SystemMessage(content=SYSTEM_TMPL),
             HumanMessage(
@@ -711,7 +708,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                             for code_snippet in state.code_snippets
                         ]
                     ),
-                    LS_CWD=self.ls_cwd,
+                    LS_CWD=ls_cwd,
                     CWD=challenge.workdir_from_dockerfile(),
                 )
             ),
@@ -845,7 +842,11 @@ class ContextRetrieverAgent(PatcherAgentBase):
         return res
 
     def process_request(
-        self, relevant_code_snippets: set[ContextCodeSnippet], request: CodeSnippetRequest, configuration: PatcherConfig
+        self,
+        challenge_task_dir: Path,
+        relevant_code_snippets: set[ContextCodeSnippet],
+        request: CodeSnippetRequest,
+        configuration: PatcherConfig,
     ) -> list[ContextCodeSnippet]:
         """Process a request for a code snippet."""
         if self.is_code_snippet_already_retrieved(relevant_code_snippets, request):
@@ -855,7 +856,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         logger.info("Retrieving code snippet for request '%s'", request.request)
         input_state = {
             "request": request.request,
-            "challenge_task_dir": self.challenge.task_dir,
+            "challenge_task_dir": challenge_task_dir,
             "work_dir": configuration.work_dir,
         }
         configuration = configuration.clone()
@@ -886,20 +887,32 @@ class ContextRetrieverAgent(PatcherAgentBase):
         logger.info("Retrieving the context for the diff analysis in Challenge Task %s", self.challenge.name)
         logger.debug("Code snippet requests: %s", state.code_snippet_requests)
 
-        res = []
-        with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
-            futures = [
-                executor.submit(self.process_request, state.relevant_code_snippets, request, configuration)
-                for request in state.code_snippet_requests
-            ]
+        # NOTE: We create a read-write copy of the challenge task directory
+        # because the agent's tools use `exec_docker_cmd` which requires write
+        # access (marked with `read_write_decorator`).  While these tools only
+        # perform read operations (ls, cat, grep), we create the copy to satisfy
+        # the decorator's requirements and maintain consistency.
+        with self.challenge.get_rw_copy(configuration.work_dir) as challenge_rw:
+            res = []
+            with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
+                futures = [
+                    executor.submit(
+                        self.process_request,
+                        challenge_rw.task_dir,
+                        state.relevant_code_snippets,
+                        request,
+                        configuration,
+                    )
+                    for request in state.code_snippet_requests
+                ]
 
-            for future in as_completed(futures):
-                try:
-                    new_snippets = future.result()
-                    res.extend(new_snippets)
-                except Exception as e:
-                    logger.exception("Error processing request: %s", e)
-                    continue
+                for future in as_completed(futures):
+                    try:
+                        new_snippets = future.result()
+                        res.extend(new_snippets)
+                    except Exception as e:
+                        logger.exception("Error processing request: %s", e)
+                        continue
 
         return Command(
             update={
@@ -921,7 +934,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         logger.info("[%s] Getting initial context from stacktrace", challenge.task_meta.task_id)
         res: list[ContextCodeSnippet] = []
 
-        def process_request(request: CodeSnippetRequest | str) -> list:
+        def process_request(challenge_task_dir: Path, request: CodeSnippetRequest | str) -> list:
             try:
                 if isinstance(request, str):
                     request = CodeSnippetRequest(request=request)
@@ -930,7 +943,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     challenge.task_meta.task_id,
                     request.request,
                 )
-                return self.process_request(state.relevant_code_snippets, request, configuration)
+                return self.process_request(challenge_task_dir, state.relevant_code_snippets, request, configuration)
             except Exception:
                 logger.warning(
                     "[%s] Error processing request %s, continuing",
@@ -978,41 +991,54 @@ class ContextRetrieverAgent(PatcherAgentBase):
             if stackframe.function_name
         ]
 
-        with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
-            futures = [
-                executor.submit(
-                    process_request,
-                    request,
-                )
-                for request in requests
-            ]
-            for future in as_completed(futures):
-                try:
-                    new_snippets = future.result()
-                    res.extend(new_snippets)
-                except Exception as e:
-                    logger.exception("Error processing request: %s", e)
-                    continue
+        # NOTE: We create a read-write copy of the challenge task directory
+        # because the agent's tools use `exec_docker_cmd` which requires write
+        # access (marked with `read_write_decorator`).  While these tools only
+        # perform read operations (ls, cat, grep), we create the copy to satisfy
+        # the decorator's requirements and maintain consistency.
+        with self.challenge.get_rw_copy(configuration.work_dir) as challenge_rw:
+            with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
+                futures = [
+                    executor.submit(
+                        process_request,
+                        challenge_rw.task_dir,
+                        request,
+                    )
+                    for request in requests
+                ]
+                for future in as_completed(futures):
+                    try:
+                        new_snippets = future.result()
+                        res.extend(new_snippets)
+                    except Exception as e:
+                        logger.exception("Error processing request: %s", e)
+                        continue
 
-        initial_code_snippet_requests = self.initial_snippets_chain.invoke(
-            {
-                "STACKTRACE": state.cleaned_stacktrace,
-                "CODE_SNIPPETS": "\n".join(code_snippet.commented_code(stacktrace) for code_snippet in res),
-            }
-        )
-        with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
-            futures = [
-                executor.submit(self.process_request, set(res), request, configuration)
-                for request in initial_code_snippet_requests
-            ]
+            initial_code_snippet_requests = self.initial_snippets_chain.invoke(
+                {
+                    "STACKTRACE": state.cleaned_stacktrace,
+                    "CODE_SNIPPETS": "\n".join(code_snippet.commented_code(stacktrace) for code_snippet in res),
+                }
+            )
+            with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
+                futures = [
+                    executor.submit(
+                        self.process_request,
+                        challenge_rw.task_dir,
+                        set(res),
+                        request,
+                        configuration,
+                    )
+                    for request in initial_code_snippet_requests
+                ]
 
-            for future in as_completed(futures):
-                try:
-                    new_snippets = future.result()
-                    res.extend(new_snippets)
-                except Exception as e:
-                    logger.exception("Error processing request: %s", e)
-                    continue
+                for future in as_completed(futures):
+                    try:
+                        new_snippets = future.result()
+                        res.extend(new_snippets)
+                    except Exception as e:
+                        logger.exception("Error processing request: %s", e)
+                        continue
 
         return Command(
             update={

@@ -9,18 +9,16 @@ from opentelemetry import trace
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 
-from buttercup.patcher.utils import CHAIN_CALL_TYPE
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName
+from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName, PatcherAgentBase
 from buttercup.patcher.agents.qe import QEAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
 from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
 from buttercup.patcher.agents.reflection import ReflectionAgent
 from buttercup.patcher.agents.input_processing import InputProcessingAgent
-from buttercup.patcher.utils import PatchInput, PatchOutput
+from buttercup.patcher.utils import PatchOutput
 from buttercup.common.llm import get_langfuse_callbacks
 
 logger = logging.getLogger(__name__)
@@ -29,12 +27,9 @@ RECURSION_LIMIT = 200
 
 
 @dataclass
-class PatcherLeaderAgent:
+class PatcherLeaderAgent(PatcherAgentBase):
     """LLM-based Patcher Agent."""
 
-    challenge: ChallengeTask
-    input: PatchInput
-    chain_call: CHAIN_CALL_TYPE
     work_dir: Path
     tasks_storage: Path
     model_name: str | None = None
@@ -79,7 +74,6 @@ class PatcherLeaderAgent:
                     "task_id": self.input.task_id,
                     "submission_index": self.input.submission_index,
                     "challenge_project_name": self.challenge.name,
-                    "challenge_task_dir": self.challenge.task_dir,
                 },
                 recursion_limit=RECURSION_LIMIT,
                 configurable={

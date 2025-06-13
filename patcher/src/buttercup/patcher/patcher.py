@@ -67,25 +67,22 @@ class Patcher:
         return res
 
     def _process_vulnerability(self, input: PatchInput) -> PatchOutput | None:
-        challenge_task = ChallengeTask(input.povs[0].challenge_task_dir)
-        with challenge_task.get_rw_copy(work_dir=self.scratch_dir) as rw_task:
-            patcher_agent = PatcherLeaderAgent(
-                rw_task,
-                input,
-                chain_call=self._chain_call,
-                work_dir=self.scratch_dir,
-                tasks_storage=self.task_storage_dir,
-            )
-            patch = patcher_agent.run_patch_task()
-            if patch is None:
-                logger.error(
-                    "Could not generate a patch for vulnerability %s/%s", input.task_id, input.submission_index
-                )
-                return None
+        ro_task = ChallengeTask(input.povs[0].challenge_task_dir)
+        patcher_agent = PatcherLeaderAgent(
+            ro_task,
+            input,
+            chain_call=self._chain_call,
+            work_dir=self.scratch_dir,
+            tasks_storage=self.task_storage_dir,
+        )
+        patch = patcher_agent.run_patch_task()
+        if patch is None:
+            logger.error("Could not generate a patch for vulnerability %s/%s", input.task_id, input.submission_index)
+            return None
 
-            logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.submission_index)
-            logger.debug(f"Patch: {patch}")
-            return patch
+        logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.submission_index)
+        logger.debug(f"Patch: {patch}")
+        return patch
 
     def process_patch_input(self, input: PatchInput) -> PatchOutput | None:
         logger.info(f"Processing vulnerability {input.task_id}/{input.submission_index}")

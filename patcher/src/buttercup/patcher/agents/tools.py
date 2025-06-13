@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
 from buttercup.common.challenge_task import CommandResult
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
@@ -11,27 +10,12 @@ from typing import Annotated
 from pathlib import Path
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.patcher.utils import truncate_output
+from buttercup.patcher.utils import truncate_output, get_challenge, get_codequery
 from buttercup.patcher.agents.common import BaseCtxState, ContextCodeSnippet, CodeSnippetKey
 
 logger = logging.getLogger(__name__)
 
 MAX_OUTPUT_LENGTH = 10000
-
-
-@lru_cache(maxsize=100)
-def get_challenge(task_dir: Path, task_dir_ro: Path | None = None) -> ChallengeTask:
-    if task_dir_ro:
-        return ChallengeTask(task_dir, local_task_dir=task_dir_ro)
-
-    return ChallengeTask(task_dir, local_task_dir=task_dir)
-
-
-@lru_cache(maxsize=100)
-def get_codequery(task_dir: Path, work_dir: Path) -> CodeQueryPersistent:
-    challenge = get_challenge(task_dir)
-    return CodeQueryPersistent(challenge, work_dir=work_dir)
 
 
 def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, output: str | None = None) -> str:

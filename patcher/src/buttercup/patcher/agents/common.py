@@ -402,7 +402,7 @@ class PatcherAgentBase:
     input: PatchInput
     chain_call: CHAIN_CALL_TYPE
 
-    understand_code_snippet_chain: Runnable = field(default_factory=_create_understand_code_snippet_chain)
+    understand_code_snippet_chain: Runnable = field(default_factory=_create_understand_code_snippet_chain, init=False)
 
     def _understand_code_snippet(self, state: PatcherAgentState, code_snippet_id: str, focus_area: str) -> str:
         """Understand a specific aspect of a code snippet based on a focus area.

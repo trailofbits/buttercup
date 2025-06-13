@@ -22,7 +22,7 @@ import buttercup.common.node_local as node_local
 from langchain_core.runnables import RunnableConfig
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.patcher.utils import PatchInputPoV
+from buttercup.patcher.utils import PatchInputPoV, get_challenge
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
@@ -51,8 +51,7 @@ import concurrent.futures
 
 logger = logging.getLogger(__name__)
 
-CHECK_HARNESS_CHANGES_SYSTEM_MSG = """
-You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
+CHECK_HARNESS_CHANGES_SYSTEM_MSG = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
 If you are not sure about file content or codebase structure pertaining to the user's request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
 You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully.
 You are a quality engineer agent tasked with checking the validity of a patch.
@@ -150,16 +149,17 @@ class QEAgent(PatcherAgentBase):
         self.check_harness_changes_chain = default_agent.with_fallbacks(fallback_agents)
 
     def _check_harness_changes_prompt(self, state: PatchValidationState) -> list[BaseMessage]:
-        ls_cwd = self.challenge.exec_docker_cmd(["ls", "-la"])
+        challenge = get_challenge(state.challenge_task_dir)
+        ls_cwd = challenge.exec_docker_cmd(["ls", "-la"])
         if ls_cwd.success:
             ls_cwd = ls_cwd.output.decode("utf-8")
         else:
             ls_cwd = "ls cwd failed"
 
         return CHECK_HARNESS_CHANGES_CHAIN.format_messages(
-            PROJECT_NAME=self.challenge.name,
+            PROJECT_NAME=challenge.name,
             PATCH=state.patch.patch.patch,  # type: ignore[union-attr]
-            CWD=self.challenge.workdir_from_dockerfile(),
+            CWD=challenge.workdir_from_dockerfile(),
             LS_CWD=ls_cwd,
             messages=state.messages,
         )

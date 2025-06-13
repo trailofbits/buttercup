@@ -7,7 +7,7 @@ from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
 )
-from buttercup.patcher.agents.tools import get_codequery
+from buttercup.patcher.utils import get_codequery
 
 
 @dataclass

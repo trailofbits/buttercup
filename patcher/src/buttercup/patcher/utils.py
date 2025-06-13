@@ -3,7 +3,8 @@
 import re
 import random
 from typing import Any, cast
-
+from functools import lru_cache
+from buttercup.program_model.codequery import CodeQueryPersistent
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
@@ -135,3 +136,17 @@ def truncate_output(output: str, max_length: int) -> str:
         return output
 
     return output[: max_length // 2] + "\n...\n" + output[-max_length // 2 :]
+
+
+@lru_cache(maxsize=100)
+def get_challenge(task_dir: Path, task_dir_ro: Path | None = None) -> ChallengeTask:
+    if task_dir_ro:
+        return ChallengeTask(task_dir, local_task_dir=task_dir_ro)
+
+    return ChallengeTask(task_dir, local_task_dir=task_dir)
+
+
+@lru_cache(maxsize=100)
+def get_codequery(task_dir: Path, work_dir: Path) -> CodeQueryPersistent:
+    challenge = get_challenge(task_dir)
+    return CodeQueryPersistent(challenge, work_dir=work_dir)
