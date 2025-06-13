@@ -1,0 +1,14 @@
+# Default values for scratch-cleaner
+enabled: true
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Scratch Cleaner specific configuration
+sleepTime: 1200 # 20 minutes
+deleteOldTasksScratchDeltaSeconds: 1800 # 30 minutes

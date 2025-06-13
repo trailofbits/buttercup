@@ -344,4 +344,17 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ .Values.povReproducer.maxRetries | quote }}
 {{- end }}
 
+{{- define "buttercup.scratchCleanerEnv" }}
+- name: BUTTERCUP_SCRATCH_CLEANER_REDIS_URL
+  value: {{ include "buttercup.core.redisUrl" . }}
+- name: BUTTERCUP_SCRATCH_CLEANER_LOG_LEVEL
+  value: {{ include "buttercup.core.logLevel" . }}
+- name: BUTTERCUP_SCRATCH_CLEANER_SLEEP_TIME
+  value: {{ .Values.sleepTime | quote }}
+- name: BUTTERCUP_SCRATCH_CLEANER_DELETE_OLD_TASKS_SCRATCH_DELTA_SECONDS
+  value: {{ .Values.deleteOldTasksScratchDeltaSeconds | quote }}
+- name: BUTTERCUP_SCRATCH_CLEANER_SCRATCH_DIR
+  value: {{ include "buttercup.nodeLocalCrsScratchPath" . }}
+{{- end }}
+
 

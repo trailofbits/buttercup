@@ -928,7 +928,7 @@ class CodeQueryPersistent(CodeQuery):
     def __post_init__(self) -> None:
         """Post init the persistent codequery db"""
         task_id = self.challenge.task_meta.task_id
-        cqdb_path = self.work_dir.joinpath(task_id + ".cqdb")
+        cqdb_path = self.work_dir / task_id / (task_id + ".cqdb")
         try:
             self.challenge = ChallengeTask(cqdb_path, local_task_dir=cqdb_path)
         except ChallengeTaskError:

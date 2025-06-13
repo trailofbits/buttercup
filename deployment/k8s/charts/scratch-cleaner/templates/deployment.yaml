@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-scratch-cleaner
+spec:
+  selector:
+    matchLabels:
+      app: scratch-cleaner
+  template:
+    metadata:
+      labels:
+        app: scratch-cleaner
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      volumes:
+        {{- include "buttercup.nodeLocalVolume" . | nindent 8 }}
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      containers:
+        - name: scratch-cleaner
+          image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+          imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+          command: ["buttercup-scratch-cleaner"]
+          env:
+          {{- include "buttercup.commonEnv" . | nindent 10 }}
+          {{- include "buttercup.scratchCleanerEnv" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "buttercup.nodeLocalVolumeMount" . | nindent 12 }}

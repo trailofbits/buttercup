@@ -16,6 +16,7 @@ from buttercup.common.telemetry import init_telemetry
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+from buttercup.common.task_registry import TaskRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,13 @@ class BuilderBot:
 
     _build_requests_queue: ReliableQueue[BuildRequest] = field(init=False)
     _build_outputs_queue: ReliableQueue[BuildOutput] = field(init=False)
+    _registry: TaskRegistry | None = field(init=False, default=None)
 
     def __post_init__(self):
         queue_factory = QueueFactory(self.redis)
         self._build_requests_queue = queue_factory.create(QueueNames.BUILD, GroupNames.BUILDER_BOT)
         self._build_outputs_queue = queue_factory.create(QueueNames.BUILD_OUTPUT)
+        self._registry = TaskRegistry(self.redis)
 
     def _apply_challenge_diff(self, task: ChallengeTask, msg: BuildRequest) -> bool:
         if msg.apply_diff and task.is_delta_mode():
@@ -102,6 +105,13 @@ class BuilderBot:
         logger.info(
             f"Received build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
         )
+
+        # Check if task should not be processed (expired or cancelled)
+        if self._registry.should_stop_processing(msg.task_id):
+            logger.info(f"Skipping expired or cancelled task {msg.task_id}")
+            self._build_requests_queue.ack_item(rqit.item_id)
+            return
+
         task_dir = Path(msg.task_dir)
         if self.allow_caching:
             origin_task = ChallengeTask(

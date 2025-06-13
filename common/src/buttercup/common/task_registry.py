@@ -123,11 +123,14 @@ class TaskRegistry:
         # A task is cancelled if and only if it's in the cancelled tasks set
         return self.redis.sismember(CANCELLED_TASKS_SET, prepared_key)
 
-    def is_expired(self, task_or_id: str | Task) -> bool:
-        """Check if a task is expired based on its deadline
+    def is_expired(self, task_or_id: str | Task, delta_seconds: int = 0) -> bool:
+        """Check if a task is expired based on its deadline. If delta_seconds is
+        provided, it will be added to the deadline to consider the task expired
+        only if enough time has passed since the deadline.
 
         Args:
             task_or_id: Either a Task object or task ID string
+            delta_seconds: Optional delta in seconds to add to the deadline (default 0)
 
         Returns:
             True if the task is expired (deadline has passed), False otherwise.
@@ -148,7 +151,7 @@ class TaskRegistry:
             deadline = task_or_id.deadline
 
         current_time = int(time.time())
-        return deadline <= current_time
+        return deadline + delta_seconds <= current_time
 
     def get_live_tasks(self) -> list[Task]:
         """Get all tasks that are not cancelled or expired

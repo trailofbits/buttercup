@@ -781,9 +781,10 @@ class ChallengeTask:
             with task.get_rw_copy(work_dir) as local_task:
                 local_task.build_fuzzers()
         """
-        work_dir = Path(work_dir) if work_dir else None
-        if work_dir:
-            work_dir.mkdir(parents=True, exist_ok=True)
+        work_dir = Path(work_dir) if work_dir else Path(node_local.scratch_path())
+        work_dir = work_dir / self.task_meta.task_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+
         with create_tmp_dir(self, work_dir, delete, prefix=self.task_dir.name + "-") as tmp_dir:
             # Copy the entire task directory to the temporary location
             logger.info(f"Copying task directory {self.task_dir} to {tmp_dir}")

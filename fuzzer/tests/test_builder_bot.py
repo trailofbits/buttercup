@@ -5,6 +5,7 @@ from pathlib import Path
 
 from buttercup.fuzzing_infra.builder_bot import BuilderBot
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput, BuildType
+from buttercup.common.task_registry import TaskRegistry
 
 
 class TestBuilderBot(unittest.TestCase):
@@ -22,10 +23,16 @@ class TestBuilderBot(unittest.TestCase):
         self.build_outputs_queue_mock = Mock()
 
         self.queue_factory_mock.create.side_effect = [self.build_requests_queue_mock, self.build_outputs_queue_mock]
+        self.task_registry_mock = MagicMock(spec=TaskRegistry)
+        self.task_registry_mock.should_stop_processing.return_value = False
 
         # Create BuilderBot instance with mocked dependencies
-        with patch("buttercup.fuzzing_infra.builder_bot.QueueFactory") as queue_factory_class_mock:
+        with (
+            patch("buttercup.fuzzing_infra.builder_bot.QueueFactory") as queue_factory_class_mock,
+            patch("buttercup.fuzzing_infra.builder_bot.TaskRegistry") as task_registry_class_mock,
+        ):
             queue_factory_class_mock.return_value = self.queue_factory_mock
+            task_registry_class_mock.return_value = self.task_registry_mock
             self.builder_bot = BuilderBot(
                 redis=self.redis_mock,
                 seconds_sleep=self.seconds_sleep,

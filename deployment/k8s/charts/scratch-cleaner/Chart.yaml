@@ -1,0 +1,12 @@
+apiVersion: v2
+name: scratch-cleaner
+description: A Helm chart for Scratch Cleaner service
+type: application
+version: 0.0.1
+appVersion: "1.0.0"
+keywords:
+  - scratch
+  - cleaner
+  - orchestrator
+maintainers:
+  - name: Trail of Bits 

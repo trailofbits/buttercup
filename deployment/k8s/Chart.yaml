@@ -52,3 +52,6 @@ dependencies:
   - name: pov-reproducer
     version: "*"
     repository: "file://charts/pov-reproducer"
+  - name: scratch-cleaner
+    version: "0.0.1"
+    repository: "file://charts/scratch-cleaner"

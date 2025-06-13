@@ -17,6 +17,7 @@ import tempfile
 def task_dir(tmp_path: Path) -> Path:
     """Create a mock challenge task directory structure."""
     # Create the main directories
+    tmp_path = tmp_path / "task-id-challenge-task"
     oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
     source = tmp_path / "src" / "my-source"
     diffs = tmp_path / "diff" / "my-diff"
@@ -666,15 +667,17 @@ def mock_node_data_dir():
 
 
 @pytest.fixture(autouse=True)
-def mock_node_local(monkeypatch):
+def mock_node_local(monkeypatch, tmp_path: Path):
     """Mock the node_local module functions used by ChallengeTask."""
     # Create a patch for buttercup.common.node_local's _get_root_path to return a valid path
     with patch("buttercup.common.node_local._get_root_path", return_value=Path("/test/node/data/dir")):
         # Create a patch for remote_archive_to_dir that just returns the path
         with patch("buttercup.common.node_local.remote_archive_to_dir") as mock_remote_archive:
-            # The remote_archive_to_dir function should just return the input path
-            mock_remote_archive.side_effect = lambda p: p
-            yield
+            # Create a patch for scratch_path to return a valid path
+            with patch("buttercup.common.node_local.scratch_path", return_value=tmp_path / "node-local-scratch"):
+                # The remote_archive_to_dir function should just return the input path
+                mock_remote_archive.side_effect = lambda p: p
+                yield
 
 
 @patch("buttercup.common.node_local._get_root_path")

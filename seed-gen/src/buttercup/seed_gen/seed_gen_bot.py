@@ -114,9 +114,10 @@ class SeedGenBot(TaskLoop):
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
         project_yaml = ProjectYaml(ro_challenge_task, task.package_name)
+        task_id = ro_challenge_task.task_meta.task_id
 
         with (
-            tempfile.TemporaryDirectory(dir=self.wdir, prefix="seedgen-") as temp_dir_str,
+            tempfile.TemporaryDirectory(dir=self.wdir / task_id, prefix="seedgen-") as temp_dir_str,
             ro_challenge_task.get_rw_copy(work_dir=temp_dir_str) as challenge_task,
         ):
             logger.info(

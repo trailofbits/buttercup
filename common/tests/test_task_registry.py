@@ -5,6 +5,7 @@ from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 import time
 from typing import Set
 from redis import Redis
+from unittest.mock import patch
 
 
 @pytest.fixture
@@ -625,3 +626,180 @@ def test_is_errored_with_set(task_registry, sample_task, redis_client):
 
     # Should now report as errored because of the set
     assert task_registry.is_errored(sample_task)
+
+
+def test_is_expired_with_delta(task_registry, redis_client):
+    """Test the is_expired function with different delta_seconds values.
+
+    When delta_seconds is positive, the task's deadline is effectively extended by that amount.
+    When delta_seconds is negative, the task's deadline is effectively moved earlier by that amount.
+    """
+    current_time = 1000000000  # Fixed timestamp for testing
+
+    with patch("time.time", return_value=current_time):
+        # Create a task that just expired (deadline = current_time)
+        just_expired_task = Task(
+            task_id="just-expired",
+            deadline=current_time,
+        )
+
+        # Create a task that will expire in 100 seconds
+        soon_expired_task = Task(
+            task_id="soon-expired",
+            deadline=current_time + 100,
+        )
+
+        # Create a task that will expire in 1000 seconds
+        future_task = Task(
+            task_id="future-task",
+            deadline=current_time + 1000,
+        )
+
+        # Mock the get method for different task IDs
+        def mock_hget(hash_name, key):
+            if key == "just-expired":
+                return just_expired_task.SerializeToString()
+            elif key == "soon-expired":
+                return soon_expired_task.SerializeToString()
+            elif key == "future-task":
+                return future_task.SerializeToString()
+            return None
+
+        redis_client.hget.side_effect = mock_hget
+
+        # Test just_expired_task with different deltas
+        assert task_registry.is_expired(just_expired_task) is True  # No delta
+        assert task_registry.is_expired(just_expired_task, delta_seconds=0) is True  # Zero delta
+        assert (
+            task_registry.is_expired(just_expired_task, delta_seconds=-60) is True
+        )  # Negative delta (deadline moved earlier)
+        assert (
+            task_registry.is_expired(just_expired_task, delta_seconds=60) is False
+        )  # Positive delta (deadline extended by 60s)
+
+        # Test soon_expired_task with different deltas
+        assert task_registry.is_expired(soon_expired_task) is False  # No delta
+        assert task_registry.is_expired(soon_expired_task, delta_seconds=0) is False  # Zero delta
+        assert (
+            task_registry.is_expired(soon_expired_task, delta_seconds=-60) is False
+        )  # Negative delta (deadline moved earlier by 60s)
+        assert (
+            task_registry.is_expired(soon_expired_task, delta_seconds=-100) is True
+        )  # Negative delta (deadline moved earlier by 100s)
+        assert (
+            task_registry.is_expired(soon_expired_task, delta_seconds=60) is False
+        )  # Positive delta (deadline extended by 60s)
+        assert (
+            task_registry.is_expired(soon_expired_task, delta_seconds=200) is False
+        )  # Large positive delta (deadline extended by 200s)
+
+        # Test future_task with different deltas
+        assert task_registry.is_expired(future_task) is False  # No delta
+        assert task_registry.is_expired(future_task, delta_seconds=0) is False  # Zero delta
+        assert (
+            task_registry.is_expired(future_task, delta_seconds=-60) is False
+        )  # Negative delta (deadline moved earlier by 60s)
+        assert (
+            task_registry.is_expired(future_task, delta_seconds=1000) is False
+        )  # Positive delta (deadline extended by 1000s)
+        assert (
+            task_registry.is_expired(future_task, delta_seconds=2000) is False
+        )  # Large positive delta (deadline extended by 2000s)
+
+
+def test_is_expired_with_delta_edge_cases(task_registry, redis_client):
+    """Test edge cases for is_expired with delta_seconds.
+
+    When delta_seconds is positive, the task's deadline is effectively extended by that amount.
+    When delta_seconds is negative, the task's deadline is effectively moved earlier by that amount.
+    """
+    current_time = 1000000000  # Fixed timestamp for testing
+
+    with patch("time.time", return_value=current_time):
+        # Create a task that expired 1 second ago
+        one_second_expired = Task(
+            task_id="one-second-expired",
+            deadline=current_time - 1,
+        )
+
+        # Create a task that will expire in 1 second
+        one_second_future = Task(
+            task_id="one-second-future",
+            deadline=current_time + 1,
+        )
+
+        # Mock the get method
+        def mock_hget(hash_name, key):
+            if key == "one-second-expired":
+                return one_second_expired.SerializeToString()
+            elif key == "one-second-future":
+                return one_second_future.SerializeToString()
+            return None
+
+        redis_client.hget.side_effect = mock_hget
+
+        # Test with very small deltas
+        assert task_registry.is_expired(one_second_expired, delta_seconds=0) is True  # No change to deadline
+        assert task_registry.is_expired(one_second_expired, delta_seconds=1) is True  # Deadline extended by 1s
+        assert task_registry.is_expired(one_second_expired, delta_seconds=2) is False  # Deadline extended by 2s
+        assert task_registry.is_expired(one_second_expired, delta_seconds=-1) is True  # Deadline moved earlier by 1s
+        assert task_registry.is_expired(one_second_future, delta_seconds=0) is False  # No change to deadline
+        assert task_registry.is_expired(one_second_future, delta_seconds=1) is False  # Deadline extended by 1s
+        assert task_registry.is_expired(one_second_future, delta_seconds=2) is False  # Deadline extended by 2s
+
+        # Test with very large deltas
+        assert (
+            task_registry.is_expired(one_second_expired, delta_seconds=1000000) is False
+        )  # Deadline extended by 1000000s
+        assert (
+            task_registry.is_expired(one_second_future, delta_seconds=1000000) is False
+        )  # Deadline extended by 1000000s
+
+        # Test with negative deltas
+        assert task_registry.is_expired(one_second_expired, delta_seconds=-1) is True  # Deadline moved earlier by 1s
+        assert task_registry.is_expired(one_second_future, delta_seconds=-1) is True  # Deadline moved earlier by 1s
+        assert task_registry.is_expired(one_second_future, delta_seconds=-2) is True  # Deadline moved earlier by 2s
+
+
+def test_is_expired_with_delta_time_changes(task_registry, redis_client):
+    """Test is_expired behavior when time changes between calls.
+
+    When delta_seconds is positive, the task's deadline is effectively extended by that amount.
+    When delta_seconds is negative, the task's deadline is effectively moved earlier by that amount.
+    """
+    base_time = 1000000000  # Fixed base timestamp for testing
+
+    # Create a task that will expire in 100 seconds from base_time
+    task = Task(
+        task_id="time-sensitive-task",
+        deadline=base_time + 100,
+    )
+
+    # Mock the get method
+    redis_client.hget.return_value = task.SerializeToString()
+
+    # Test with different time points
+    with patch("time.time") as mock_time:
+        # First check: current time = base_time
+        mock_time.return_value = base_time
+        assert task_registry.is_expired(task) is False  # Not expired
+        assert task_registry.is_expired(task, delta_seconds=50) is False  # Deadline extended by 50s
+        assert task_registry.is_expired(task, delta_seconds=100) is False  # Deadline extended by 100s
+
+        # Second check: current time = base_time + 50
+        mock_time.return_value = base_time + 50
+        assert task_registry.is_expired(task) is False  # Not expired
+        assert task_registry.is_expired(task, delta_seconds=50) is False  # Deadline extended by 50s
+        assert task_registry.is_expired(task, delta_seconds=100) is False  # Deadline extended by 100s
+
+        # Third check: current time = base_time + 100
+        mock_time.return_value = base_time + 100
+        assert task_registry.is_expired(task) is True  # Expired
+        assert task_registry.is_expired(task, delta_seconds=50) is False  # Deadline extended by 50s
+        assert task_registry.is_expired(task, delta_seconds=100) is False  # Deadline extended by 100s
+
+        # Fourth check: current time = base_time + 150
+        mock_time.return_value = base_time + 150
+        assert task_registry.is_expired(task) is True  # Expired
+        assert task_registry.is_expired(task, delta_seconds=50) is True  # Deadline extended by 50s
+        assert task_registry.is_expired(task, delta_seconds=100) is False  # Deadline extended by 100s
