@@ -614,6 +614,13 @@ class Submissions:
                 instkey_comparator = CrashComparer(inst_key, submission_inst_key)
 
                 if cf_comparator.is_similar() or instkey_comparator.is_similar():
+                    log_structured(
+                        logger.debug,
+                        _task_id(e),
+                        index=i,
+                        msg=f"Orig crash_data: {crash_data}, inst_key: {inst_key}, new crash_data: {submission_crash_data}, new inst_key: {submission_inst_key} are duplicates. ",
+                    )
+
                     e.crashes.append(crash)
                     log_structured(
                         logger.info,
@@ -811,6 +818,7 @@ class Submissions:
             logger.debug(f"Requesting status for {request}")
             status = self.pov_reproduce_status.request_status(request)
             logger.debug(f"Status: {status}")
+
             result.append(status)
 
         return result
@@ -838,6 +846,63 @@ class Submissions:
 
         return True
 
+    def _generate_patch_request(self, i: int, e: SubmissionEntry) -> ConfirmedVulnerability:
+        """Create ConfirmedVulnerability from submission entry with all crashes and index."""
+        confirmed = ConfirmedVulnerability()
+        for crash in e.crashes:
+            confirmed.crashes.append(crash)
+        confirmed.submission_index = str(i)
+
+        return confirmed
+
+    def _enqueue_patch_requests(
+        self, confirmed_vulnerability: ConfirmedVulnerability, q: ReliableQueue[ConfirmedVulnerability] | None
+    ) -> None:
+        """Push N copies of vulnerability to queue for parallel patch generation."""
+        if q is None:
+            q = QueueFactory(self.redis).create(QueueNames.CONFIRMED_VULNERABILITIES, block_time=None)
+
+        for _ in range(self.patch_requests_per_vulnerability):
+            q.push(confirmed_vulnerability)
+
+    def _persist_and_enqueue_patch_request_transaction(self, i, e):
+        """
+        Request patch generation for a confirmed vulnerability.
+
+        Pushes the vulnerability to the confirmed_vulnerabilities_queue and persists the submission entry, all in a single transaction.
+
+        Args:
+            i: Index of the submission entry
+            e: SubmissionEntry to process
+        """
+        log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="Submitting patch request")
+
+        confirmed = self._generate_patch_request(i, e)
+
+        with self.redis.pipeline() as pipe:
+            q = QueueFactory(pipe).create(QueueNames.CONFIRMED_VULNERABILITIES, block_time=None)
+            self._enqueue_patch_requests(confirmed_vulnerability=confirmed, q=q)
+            self._persist(pipe, i, e)
+            pipe.execute()
+
+        log_structured(
+            logger.info, _task_id(e), pov_id=e.pov_id, index=i, state_change=("SUBMIT_PATCH_REQUEST", "WAIT_POV_PASS")
+        )
+
+    def _attempt_next_patch(self, i, e):
+        """
+        Attempts to use any additional patch available. If none, requests a new one.
+
+        This will also persist the SubmissionEntry
+        """
+        # NOTE: Don't advance patch index before checking if we have more patches.
+        if _have_more_patches(e):
+            _advance_patch_idx(e)
+            self._persist(self.redis, i, e)
+        else:
+            _advance_patch_idx(e)
+            self._persist_and_enqueue_patch_request_transaction(i, e)
+
     def _submit_patch_request(self, i, e):
         """
         Request patch generation for a confirmed vulnerability.
@@ -849,23 +914,8 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="Submitting patch request")
-        confirmed = ConfirmedVulnerability()
-        for crash in e.crashes:
-            confirmed.crashes.append(crash)
-        confirmed.submission_index = str(i)
-
-        with self.redis.pipeline() as pipe:
-            q = QueueFactory(pipe).create(QueueNames.CONFIRMED_VULNERABILITIES, block_time=None)
-            for _ in range(self.patch_requests_per_vulnerability):
-                q.push(confirmed)
-            e.state = SubmissionEntry.WAIT_POV_PASS
-            self._persist(pipe, i, e)
-            pipe.execute()
-
-        log_structured(
-            logger.info, _task_id(e), pov_id=e.pov_id, index=i, state_change=("SUBMIT_PATCH_REQUEST", "WAIT_POV_PASS")
-        )
+        e.state = SubmissionEntry.WAIT_POV_PASS
+        self._persist_and_enqueue_patch_request_transaction(i, e)
 
     def _wait_pov_pass(self, i, e):
         """
@@ -988,9 +1038,7 @@ class Submissions:
                 patch_idx=e.patch_idx,
                 msg="Not all POVs for this patch are mitigated, will not submit patch",
             )
-            e.patch_idx += 1
-            # TODO: Should probably request a new patch here.
-            self._persist(self.redis, i, e)
+            self._attempt_next_patch(i, e)
             return
 
         # All good, all PoVs for this patch are mitigated.
@@ -1023,14 +1071,21 @@ class Submissions:
             )
         else:
             match status:
-                case (
-                    TypesSubmissionStatus.SubmissionStatusFailed
-                    | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
-                    | TypesSubmissionStatus.SubmissionStatusInconclusive
-                ):
-                    # Deadline exceeded or failed, move on to next patch (for exceeded we won't try again due to deadline check)
-                    e.patch_idx += 1
+                case TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
+                    # Deadline exceeded, move on to next patch (we won't try again due to deadline check)
+                    _advance_patch_idx(e)
                     self._persist(self.redis, i, e)
+                    log_structured(
+                        logger.info,
+                        _task_id(e),
+                        index=i,
+                        pov_id=e.pov_id,
+                        patch_idx=e.patch_idx,
+                        msg="Patch submission deadline exceeded, will not attempt this patch again.",
+                    )
+                case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusInconclusive:
+                    # The patch failed for some reason. Try generating a new patch
+                    self._attempt_next_patch(i, e)
                     log_structured(
                         logger.info,
                         _task_id(e),
@@ -1041,8 +1096,7 @@ class Submissions:
                     )
                 case TypesSubmissionStatus.SubmissionStatusErrored:
                     if have_more_patches and e.patch_submission_attempt >= self.patch_submission_retry_limit:
-                        _advance_patch_idx(e)
-                        self._persist(self.redis, i, e)
+                        self._attempt_next_patch(i, e)
                         log_structured(
                             logger.info,
                             _task_id(e),
@@ -1089,14 +1143,21 @@ class Submissions:
         match status:
             case TypesSubmissionStatus.SubmissionStatusAccepted:
                 return  # No change.
-            case (
-                TypesSubmissionStatus.SubmissionStatusFailed
-                | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
-                | TypesSubmissionStatus.SubmissionStatusInconclusive
-            ):
-                _advance_patch_idx(e)
+            case TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
                 e.state = SubmissionEntry.SUBMIT_PATCH
-                self._persist(self.redis, i, e)
+                _advance_patch_idx(e)
+                log_structured(
+                    logger.info,
+                    _task_id(e),
+                    index=i,
+                    pov_id=e.pov_id,
+                    patch_idx=e.patch_idx,
+                    state_change=("WAIT_PATCH_PASS", "SUBMIT_PATCH"),
+                    msg="Patch submission deadline exceeded, will not attempt this patch again, moving on to next patch.",
+                )
+            case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusInconclusive:
+                e.state = SubmissionEntry.SUBMIT_PATCH
+                self._attempt_next_patch(i, e)
                 log_structured(
                     logger.info,
                     _task_id(e),

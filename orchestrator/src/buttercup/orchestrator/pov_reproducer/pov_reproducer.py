@@ -80,7 +80,7 @@ class POVReproducer:
                 return False
 
             logger.debug(
-                "stdout: %s, stderr: %s for task %s did crash.",
+                "stdout: %s, stderr: %s for task %s",
                 info.command_result.output,
                 info.command_result.error,
                 task_id,
