@@ -1556,6 +1556,7 @@ def test_get_initial_context_includes_llvm_frames(
     )
 
     # Mock the challenge task to be llvm-project
+    mock_agent.challenge.task_meta.project_name = "llvm-project"
     mock_get_challenge.return_value = MagicMock(project_name="llvm-project")
 
     mock_agent.process_request = MagicMock(
@@ -1840,6 +1841,266 @@ def test_get_initial_context_handles_multiple_stackframes(
     )
     # Verify that process_request was called exactly 5 times (1 from first stackframe, 4 from second stackframe)
     assert mock_agent.process_request.call_count == 5
+
+
+@patch("buttercup.patcher.agents.context_retriever.get_challenge")
+def test_get_initial_context_multiple_povs(
+    mock_get_challenge: MagicMock,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config: dict,
+) -> None:
+    """Test that get_initial_context correctly handles multiple POVs in the PatchInput."""
+    # Create a test state with multiple POVs, each with their own stacktrace
+    state = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id="test-task",
+            submission_index="1",
+            povs=[
+                # First POV - heap buffer overflow
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test1.pov"),
+                    pov_token="test-token-1",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
+ #0 0x123456 in overflow_func /src/test/overflow.c:10
+ #1 0x234567 in process_data /src/test/process.c:20
+ #2 0x345678 in handle_input /src/test/input.c:30""",
+                    engine="libfuzzer",
+                    harness_name="test-harness-1",
+                ),
+                # Second POV - use after free
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test2.pov"),
+                    pov_token="test-token-2",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-use-after-free
+ #0 0x456789 in uaf_func /src/test/uaf.c:40
+ #1 0x567890 in free_memory /src/test/memory.c:50
+ #2 0x678901 in cleanup /src/test/cleanup.c:60""",
+                    engine="libfuzzer",
+                    harness_name="test-harness-2",
+                ),
+            ],
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    # Mock the challenge task
+    mock_get_challenge.return_value = MagicMock(project_name="test-project")
+
+    # Set n_initial_stackframes to 2 in the configuration
+    mock_runnable_config["configurable"]["n_initial_stackframes"] = 2
+
+    # Mock process_request to return code snippets for each function
+    mock_agent.process_request = MagicMock(
+        side_effect=[
+            # First POV stackframes
+            [
+                ContextCodeSnippet(
+                    code="void overflow_func() { /* overflow */ }",
+                    key=CodeSnippetKey(file_path="/src/test/overflow.c", function_name="overflow_func"),
+                    start_line=10,
+                    end_line=10,
+                )
+            ],
+            [
+                ContextCodeSnippet(
+                    code="void process_data() { /* process */ }",
+                    key=CodeSnippetKey(file_path="/src/test/process.c", function_name="process_data"),
+                    start_line=20,
+                    end_line=20,
+                )
+            ],
+            # Second POV stackframes
+            [
+                ContextCodeSnippet(
+                    code="void uaf_func() { /* uaf */ }",
+                    key=CodeSnippetKey(file_path="/src/test/uaf.c", function_name="uaf_func"),
+                    start_line=40,
+                    end_line=40,
+                )
+            ],
+            [
+                ContextCodeSnippet(
+                    code="void free_memory() { /* free */ }",
+                    key=CodeSnippetKey(file_path="/src/test/memory.c", function_name="free_memory"),
+                    start_line=50,
+                    end_line=50,
+                )
+            ],
+        ]
+    )
+
+    result = mock_agent.get_initial_context(state, mock_runnable_config)
+
+    # Verify that we got code snippets from both POVs
+    assert isinstance(result, Command)
+    assert "relevant_code_snippets" in result.update
+    assert len(result.update["relevant_code_snippets"]) == 4, "2 from first POV, 2 from second POV"
+
+    # Verify the specific code snippets that were included
+    code_snippets = result.update["relevant_code_snippets"]
+    assert any(
+        snippet.code == "void overflow_func() { /* overflow */ }" and snippet.key.file_path == "/src/test/overflow.c"
+        for snippet in code_snippets
+    )
+    assert any(
+        snippet.code == "void process_data() { /* process */ }" and snippet.key.file_path == "/src/test/process.c"
+        for snippet in code_snippets
+    )
+    assert any(
+        snippet.code == "void uaf_func() { /* uaf */ }" and snippet.key.file_path == "/src/test/uaf.c"
+        for snippet in code_snippets
+    )
+    assert any(
+        snippet.code == "void free_memory() { /* free */ }" and snippet.key.file_path == "/src/test/memory.c"
+        for snippet in code_snippets
+    )
+
+    # Verify that process_request was called exactly 4 times (2 from each POV)
+    assert mock_agent.process_request.call_count == 4
+
+
+@patch("buttercup.patcher.agents.context_retriever.get_challenge")
+def test_get_initial_context_multiple_povs_deduplication(
+    mock_get_challenge: MagicMock,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config: dict,
+) -> None:
+    """Test that get_initial_context deduplicates code snippet requests when the same functions appear in multiple POVs."""
+    # Create a test state with multiple POVs that share some functions in their stacktraces
+    state = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id="test-task",
+            submission_index="1",
+            povs=[
+                # First POV - heap buffer overflow
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test1.pov"),
+                    pov_token="test-token-1",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
+ #0 0x123456 in crash_func /src/test/crash.c:10
+ #1 0x234567 in process_data /src/test/process.c:20
+ #2 0x345678 in handle_input /src/test/input.c:30""",
+                    engine="libfuzzer",
+                    harness_name="test-harness-1",
+                ),
+                # Second POV - use after free, shares some functions with first POV
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test2.pov"),
+                    pov_token="test-token-2",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-use-after-free
+ #0 0x456789 in crash_func /src/test/crash.c:10
+ #1 0x567890 in process_data /src/test/process.c:20
+ #2 0x678901 in cleanup /src/test/cleanup.c:60""",
+                    engine="libfuzzer",
+                    harness_name="test-harness-2",
+                ),
+            ],
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    # Mock the challenge task
+    mock_get_challenge.return_value = MagicMock(project_name="test-project")
+
+    # Set n_initial_stackframes to 3 in the configuration
+    mock_runnable_config["configurable"]["n_initial_stackframes"] = 3
+
+    # Mock process_request to return code snippets for each function
+    # Note: We expect only 3 calls total, not 4, because crash_func and process_data appear in both POVs
+    mock_agent.process_request = MagicMock(
+        side_effect=[
+            # First unique function from first POV
+            [
+                ContextCodeSnippet(
+                    code="void crash_func() { /* crash */ }",
+                    key=CodeSnippetKey(file_path="/src/test/crash.c", function_name="crash_func"),
+                    start_line=10,
+                    end_line=10,
+                )
+            ],
+            # Second unique function from first POV
+            [
+                ContextCodeSnippet(
+                    code="void process_data() { /* process */ }",
+                    key=CodeSnippetKey(file_path="/src/test/process.c", function_name="process_data"),
+                    start_line=20,
+                    end_line=20,
+                )
+            ],
+            # Third unique function from first POV
+            [
+                ContextCodeSnippet(
+                    code="void handle_input() { /* handle input */ }",
+                    key=CodeSnippetKey(file_path="/src/test/input.c", function_name="handle_input"),
+                    start_line=60,
+                    end_line=60,
+                )
+            ],
+            # Unique function from second POV
+            [
+                ContextCodeSnippet(
+                    code="void cleanup() { /* cleanup */ }",
+                    key=CodeSnippetKey(file_path="/src/test/cleanup.c", function_name="cleanup"),
+                    start_line=60,
+                    end_line=60,
+                )
+            ],
+        ]
+    )
+
+    result = mock_agent.get_initial_context(state, mock_runnable_config)
+
+    # Verify that we got code snippets from both POVs, but without duplicates
+    assert isinstance(result, Command)
+    assert "relevant_code_snippets" in result.update
+    assert len(result.update["relevant_code_snippets"]) == 4, "4 unique functions across both POVs"
+
+    # Verify the specific code snippets that were included
+    code_snippets = result.update["relevant_code_snippets"]
+    assert any(
+        snippet.code == "void crash_func() { /* crash */ }" and snippet.key.file_path == "/src/test/crash.c"
+        for snippet in code_snippets
+    )
+    assert any(
+        snippet.code == "void process_data() { /* process */ }" and snippet.key.file_path == "/src/test/process.c"
+        for snippet in code_snippets
+    )
+    assert any(
+        snippet.code == "void cleanup() { /* cleanup */ }" and snippet.key.file_path == "/src/test/cleanup.c"
+        for snippet in code_snippets
+    )
+
+    # Verify that process_request was called exactly 3 times (once for each unique function)
+    assert mock_agent.process_request.call_count == 4
+
+    # Verify that process_request was called with the correct function names and file paths
+    calls = mock_agent.process_request.call_args_list
+    assert any(
+        call.args[2].request.startswith("Implementation of `crash_func` in `/src/test/crash.c`") for call in calls
+    )
+    assert any(
+        call.args[2].request.startswith("Implementation of `process_data` in `/src/test/process.c`") for call in calls
+    )
+    assert any(
+        call.args[2].request.startswith("Implementation of `cleanup` in `/src/test/cleanup.c`") for call in calls
+    )
+    assert any(
+        call.args[2].request.startswith("Implementation of `handle_input` in `/src/test/input.c`") for call in calls
+    )
 
 
 def test_find_tests_agent_success(

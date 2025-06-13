@@ -394,7 +394,7 @@ class QEAgent(PatcherAgentBase):
 
     def _get_pov_variants(self, configuration: PatcherConfig, povs: list[PatchInputPoV]) -> list[PatchInputPoV]:
         """Get the variants of the PoV"""
-        res = []
+        res = {}
         sanitizers = self._get_sanitizers()
         for pov in povs:
             try:
@@ -405,9 +405,9 @@ class QEAgent(PatcherAgentBase):
                         logger.info("No crashes found for PoV token %s and sanitizer %s", pov.pov_token, sanitizer)
                         crashes_for_token = []
 
-                    res.extend(
-                        [
-                            PatchInputPoV(
+                    res.update(
+                        {
+                            Path(crash).absolute(): PatchInputPoV(
                                 challenge_task_dir=pov.challenge_task_dir,
                                 sanitizer=sanitizer,
                                 pov=Path(crash),
@@ -416,13 +416,16 @@ class QEAgent(PatcherAgentBase):
                                 harness_name=pov.harness_name,
                             )
                             for crash in crashes_for_token[: configuration.max_pov_variants_per_token_sanitizer]
-                        ]
+                        }
                     )
             except Exception as e:
                 logger.error("Failed to list PoV variants for token %s", pov.pov_token)
                 logger.exception(e)
 
-        return res
+        # Remove original POVs from the result and move them to the beginning so they get tested first
+        for pov in povs:
+            res.pop(pov.pov.absolute())
+        return povs + list(res.values())
 
     def run_pov_node(
         self, state: PatcherAgentState, config: RunnableConfig
@@ -437,8 +440,8 @@ class QEAgent(PatcherAgentBase):
 
         execution_info = state.execution_info
         execution_info.prev_node = PatcherAgentName.RUN_POV
-        pov_variants = state.context.povs
-        pov_variants += self._get_pov_variants(configuration, state.context.povs)
+        pov_variants = self._get_pov_variants(configuration, state.context.povs)
+        logger.info("Running %d PoV variants", len(pov_variants))
 
         start_time = time.time()
         run_once = False

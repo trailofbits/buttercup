@@ -18,17 +18,9 @@ class InputProcessingAgent(PatcherAgentBase):
         """Process the input and return the processed input."""
         configuration = PatcherConfig.from_configurable(config)
         # Run this to make sure the codequery is initialized with the correct challenge task
-        get_codequery(state.context.povs[0].challenge_task_dir, configuration.work_dir)
-
-        stacktrace = ""
-        if state.context.povs[0].sanitizer_output:
-            lines_stacktrace = state.context.povs[0].sanitizer_output.splitlines()[-200:]
-            stacktrace = "\n".join(lines_stacktrace)
+        get_codequery(self.challenge.task_dir, configuration.work_dir)
 
         return Command(
-            update={
-                "cleaned_stacktrace": stacktrace,
-            },
             goto=[
                 PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value,
                 PatcherAgentName.FIND_TESTS.value,

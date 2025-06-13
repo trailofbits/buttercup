@@ -107,6 +107,83 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
     assert pov.sanitizer == "test-sanitizer-1"
 
 
+@patch("buttercup.common.node_local.make_locally_available")
+def test_vuln_to_patch_input_multiple_povs(mock_make_locally_available, task_dir: Path, tmp_path: Path):
+    # Mock make_locally_available to return the path unchanged
+    mock_make_locally_available.side_effect = lambda path: Path(path)
+
+    # Ensure all paths are absolute
+    task_dir = task_dir.absolute()
+    tmp_path = tmp_path.absolute()
+
+    patcher = Patcher(
+        task_storage_dir=tmp_path,
+        scratch_dir=tmp_path,
+        redis=None,
+    )
+
+    vuln = ConfirmedVulnerability(
+        submission_index="1",
+        crashes=[
+            TracedCrash(
+                crash=Crash(
+                    target=BuildOutput(
+                        task_id="test-task-id-1",
+                        engine="test-engine-1",
+                        sanitizer="test-sanitizer-1",
+                        task_dir=str(task_dir),
+                    ),
+                    harness_name="test-harness-name-1",
+                    crash_input_path=str(tmp_path / "test-crash-input-1.txt"),
+                    stacktrace="test-stacktrace-1",
+                ),
+                tracer_stacktrace="test-tracer-stacktrace-1",
+            ),
+            TracedCrash(
+                crash=Crash(
+                    target=BuildOutput(
+                        task_id="test-task-id-1",
+                        engine="test-engine-2",
+                        sanitizer="test-sanitizer-2",
+                        task_dir=str(task_dir),
+                    ),
+                    harness_name="test-harness-name-2",
+                    crash_input_path=str(tmp_path / "test-crash-input-2.txt"),
+                    stacktrace="test-stacktrace-2",
+                ),
+                tracer_stacktrace="test-tracer-stacktrace-2",
+            ),
+        ],
+    )
+
+    # Test patch generation
+    patch_input = patcher._create_patch_input(vuln)
+
+    # Verify the patch was generated
+    assert patch_input is not None
+    assert patch_input.task_id == "test-task-id-1"
+    assert patch_input.submission_index == "1"
+
+    # Check the povs list structure
+    assert len(patch_input.povs) == 2
+
+    # Verify first POV
+    pov1 = patch_input.povs[0]
+    assert pov1.harness_name == "test-harness-name-1"
+    assert pov1.pov == tmp_path / "test-crash-input-1.txt"
+    assert pov1.sanitizer_output == "test-tracer-stacktrace-1"
+    assert pov1.engine == "test-engine-1"
+    assert pov1.sanitizer == "test-sanitizer-1"
+
+    # Verify second POV
+    pov2 = patch_input.povs[1]
+    assert pov2.harness_name == "test-harness-name-2"
+    assert pov2.pov == tmp_path / "test-crash-input-2.txt"
+    assert pov2.sanitizer_output == "test-tracer-stacktrace-2"
+    assert pov2.engine == "test-engine-2"
+    assert pov2.sanitizer == "test-sanitizer-2"
+
+
 def test_code_snippet_request_parse_single_request():
     """Test parsing a single code snippet request."""
     msg = """

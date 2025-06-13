@@ -7,6 +7,8 @@ import tempfile
 import langgraph.errors
 import operator
 import re
+from itertools import groupby
+from operator import itemgetter
 from langgraph.graph import END
 from langchain_openai.chat_models.base import BaseChatOpenAI
 from concurrent.futures import as_completed
@@ -25,7 +27,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 from langchain_core.tools.base import InjectedToolCallId
 from buttercup.common.challenge_task import ChallengeTask
-
+from buttercup.common.stack_parsing import CrashInfo
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
 from buttercup.patcher.utils import truncate_output, get_challenge
@@ -38,6 +40,7 @@ from buttercup.patcher.agents.common import (
     PatcherAgentName,
     PatcherAgentState,
     BaseCtxState,
+    get_stacktraces_from_povs,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langgraph.types import Command
@@ -150,12 +153,12 @@ DUPLICATE_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
 INITIAL_CODE_SNIPPET_REQUESTS_USER_MSG = """You are an AI assistant tasked with identifying additional code snippets needed to understand a security vulnerability.
 
 You have access to:
-1. A stacktrace showing where the vulnerability occurred
+1. One or more stacktraces showing where the vulnerability occurred
 2. Any code snippets already retrieved
 
-<stacktrace>
-{STACKTRACE}
-</stacktrace>
+<stacktraces>
+{STACKTRACES}
+</stacktraces>
 
 <code_snippets>
 {CODE_SNIPPETS}
@@ -922,16 +925,79 @@ class ContextRetrieverAgent(PatcherAgentBase):
             goto=state.prev_node,
         )
 
+    def _get_code_requests_from_stacktrace(
+        self, stacktraces: list[CrashInfo], configuration: PatcherConfig
+    ) -> list[CodeSnippetRequest]:
+        """Return a list of code snippet requests based on the stacktraces,
+        grouping them together by function name and filename.
+
+        This is used to retrieve the initial context for the root cause analysis.
+        """
+        # Extract stack frames from the various stacktraces we have, but ignore
+        # common functions that are not relevant to the challenge (e.g.
+        # __libc_start_main, __gmon_start__, _start, etc.)
+        stackframes = []
+        for stacktrace in stacktraces:
+            for frame in stacktrace.frames:
+                frames = []
+                for stackframe in frame:
+                    if (
+                        self.challenge.project_name != "llvm-project"
+                        and stackframe.filename
+                        and stackframe.filename.startswith("/src/llvm-project/compiler-rt")
+                    ):
+                        continue
+                    if (
+                        self.challenge.project_name != "glibc"
+                        and stackframe.filename
+                        and stackframe.filename.startswith("/lib/x86_64-linux-gnu")
+                    ):
+                        continue
+
+                    skip_names = ["__libc_start_main", "__gmon_start__", "_start"]
+                    skip_name = any(func in stackframe.function_name for func in skip_names if stackframe.function_name)
+                    if skip_name:
+                        continue
+
+                    frames.append(stackframe)
+                stackframes.append(frames)
+
+        # We consider only the first `n_initial_stackframes` stackframes for each stacktrace
+        stackframes = [
+            stackframe for frame in stackframes for stackframe in frame[: configuration.n_initial_stackframes]
+        ]
+
+        # Return the code snippet requests, making sure there are no duplicates
+        # (e.g. same function name and filename)
+        requests_data = sorted(
+            [
+                (stackframe.function_name, stackframe.filename, stackframe.fileline)
+                for stackframe in stackframes
+                if stackframe.function_name
+            ],
+            key=itemgetter(0, 1),
+        )
+
+        requests = []
+        for (func_name, filename), group in groupby(requests_data, key=itemgetter(0, 1)):
+            filelines = sorted(set(line for _, _, line in group))
+            requests.append(
+                CodeSnippetRequest(
+                    request=f"Implementation of `{func_name}` in `{filename}` (around lines {', '.join(map(str, filelines))})"
+                )
+            )
+
+        return requests
+
     def get_initial_context(
         self, state: PatcherAgentState, config: RunnableConfig
     ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Get the initial context for the diff analysis."""
         configuration = PatcherConfig.from_configurable(config)
-        stacktrace = parse_stacktrace(state.context.povs[0].sanitizer_output)
-        challenge = get_challenge(state.context.povs[0].challenge_task_dir)
+        stacktraces = [parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs]
 
         # Request code snippet for the first two functions in the stacktrace
-        logger.info("[%s] Getting initial context from stacktrace", challenge.task_meta.task_id)
+        logger.info("[%s] Getting initial context from stacktrace", self.challenge.task_meta.task_id)
         res: list[ContextCodeSnippet] = []
 
         def process_request(challenge_task_dir: Path, request: CodeSnippetRequest | str) -> list:
@@ -940,57 +1006,19 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     request = CodeSnippetRequest(request=request)
                 logger.info(
                     "[%s] Processing request %s",
-                    challenge.task_meta.task_id,
+                    self.challenge.task_meta.task_id,
                     request.request,
                 )
                 return self.process_request(challenge_task_dir, state.relevant_code_snippets, request, configuration)
             except Exception:
                 logger.warning(
                     "[%s] Error processing request %s, continuing",
-                    challenge.task_meta.task_id,
+                    self.challenge.task_meta.task_id,
                     request.request if isinstance(request, CodeSnippetRequest) else request,
                 )
                 return []
 
-        # Get only the first few stackframes that are not in the llvm-project to
-        # avoid looking for common functions that are not relevant to the
-        # challenge
-        stackframes = []
-        for frame in stacktrace.frames:
-            frames = []
-            for stackframe in frame:
-                if (
-                    challenge.project_name != "llvm-project"
-                    and stackframe.filename
-                    and stackframe.filename.startswith("/src/llvm-project/compiler-rt")
-                ):
-                    continue
-                if (
-                    challenge.project_name != "glibc"
-                    and stackframe.filename
-                    and stackframe.filename.startswith("/lib/x86_64-linux-gnu")
-                ):
-                    continue
-
-                skip_names = ["__libc_start_main", "__gmon_start__", "_start"]
-                skip_name = any(func in stackframe.function_name for func in skip_names if stackframe.function_name)
-                if skip_name:
-                    continue
-
-                frames.append(stackframe)
-            stackframes.append(frames)
-
-        stackframes = [
-            stackframe for frame in stackframes for stackframe in frame[: configuration.n_initial_stackframes]
-        ]
-        requests = [
-            CodeSnippetRequest(
-                request=f"Implementation of `{stackframe.function_name}` in `{stackframe.filename}`(around line {stackframe.fileline})"
-            )
-            for stackframe in stackframes
-            if stackframe.function_name
-        ]
-
+        requests = self._get_code_requests_from_stacktrace(stacktraces, configuration)
         # NOTE: We create a read-write copy of the challenge task directory
         # because the agent's tools use `exec_docker_cmd` which requires write
         # access (marked with `read_write_decorator`).  While these tools only
@@ -1016,8 +1044,8 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
             initial_code_snippet_requests = self.initial_snippets_chain.invoke(
                 {
-                    "STACKTRACE": state.cleaned_stacktrace,
-                    "CODE_SNIPPETS": "\n".join(code_snippet.commented_code(stacktrace) for code_snippet in res),
+                    "STACKTRACES": "\n".join(get_stacktraces_from_povs(state.context.povs)),
+                    "CODE_SNIPPETS": "\n".join(code_snippet.commented_code(stacktraces) for code_snippet in res),
                 }
             )
             with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:

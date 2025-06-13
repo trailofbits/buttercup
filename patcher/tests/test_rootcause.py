@@ -152,7 +152,6 @@ def mock_challenge(task_dir: Path) -> ChallengeTask:
 def root_cause_agent(mock_challenge: ChallengeTask, mock_llm: MagicMock, tmp_path: Path) -> Iterator[RootCauseAgent]:
     """Create a RootCauseAgent instance."""
     patch_input = PatchInput(
-        challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
         submission_index="1",
         povs=[
@@ -264,3 +263,94 @@ def test_rootcause_success(root_cause_agent: RootCauseAgent, mock_llm: MagicMock
     assert command.goto == PatcherAgentName.PATCH_STRATEGY.value
     assert "root_cause" in command.update
     assert command.update["root_cause"] == "Root cause"
+
+
+def test_rootcause_multiple_povs(
+    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
+) -> None:
+    """Test vulnerability analysis with multiple POVs."""
+    # Create a state with multiple POVs and their corresponding code snippets
+    state = PatcherAgentState(
+        context=PatchInput(
+            task_id=root_cause_agent.input.task_id,
+            submission_index=root_cause_agent.input.submission_index,
+            povs=[
+                # First POV - heap buffer overflow
+                PatchInputPoV(
+                    challenge_task_dir=root_cause_agent.input.povs[0].challenge_task_dir,
+                    sanitizer="address",
+                    pov=Path("test1.pov"),
+                    pov_token="test-token-1",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-buffer-overflow
+ #0 0x123456 in crash_func /src/test/crash.c:10
+ #1 0x234567 in process_data /src/test/process.c:20""",
+                    engine="libfuzzer",
+                    harness_name="test-harness-1",
+                ),
+                # Second POV - use after free
+                PatchInputPoV(
+                    challenge_task_dir=root_cause_agent.input.povs[0].challenge_task_dir,
+                    sanitizer="address",
+                    pov=Path("test2.pov"),
+                    pov_token="test-token-2",
+                    sanitizer_output="""==1==ERROR: AddressSanitizer: heap-use-after-free
+ #0 0x456789 in crash_func /src/test/crash.c:10
+ #1 0x567890 in process_data /src/test/process.c:20""",
+                    engine="libfuzzer",
+                    harness_name="test-harness-2",
+                ),
+            ],
+        ),
+        relevant_code_snippets=[
+            # Code snippets from both POVs
+            ContextCodeSnippet(
+                key=CodeSnippetKey(file_path="/src/test/crash.c", identifier="crash_func"),
+                start_line=10,
+                end_line=10,
+                code="void crash_func() { /* crash */ }",
+                code_context="",
+            ),
+            ContextCodeSnippet(
+                key=CodeSnippetKey(file_path="/src/test/process.c", identifier="process_data"),
+                start_line=20,
+                end_line=20,
+                code="void process_data() { /* process */ }",
+                code_context="",
+            ),
+        ],
+    )
+
+    # Mock the root cause chain to return a state with a root cause
+    root_cause_agent.root_cause_chain.invoke.return_value = state
+    state.messages = [
+        AIMessage(
+            content="""Root cause analysis:
+1. Both POVs crash in crash_func() which is called by process_data()
+2. The heap buffer overflow and use-after-free suggest memory management issues
+3. The common path through process_data() indicates a shared vulnerability"""
+        )
+    ]
+
+    # Test the analyze_vulnerability method
+    command = root_cause_agent.analyze_vulnerability(state)
+
+    # Verify the result
+    assert command.goto == PatcherAgentName.PATCH_STRATEGY.value
+    assert "root_cause" in command.update
+    assert "Both POVs crash" in command.update["root_cause"]
+    assert "process_data" in command.update["root_cause"]
+    assert "memory management" in command.update["root_cause"]
+
+    # Verify that the root cause chain was called with the correct state
+    root_cause_agent.root_cause_chain.invoke.assert_called_once()
+    call_args = root_cause_agent.root_cause_chain.invoke.call_args[0][0]
+    assert call_args.context == state.context
+    assert len(call_args.relevant_code_snippets) == 2
+    assert any(
+        snippet.key.file_path == "/src/test/crash.c" and snippet.key.identifier == "crash_func"
+        for snippet in call_args.relevant_code_snippets
+    )
+    assert any(
+        snippet.key.file_path == "/src/test/process.c" and snippet.key.identifier == "process_data"
+        for snippet in call_args.relevant_code_snippets
+    )

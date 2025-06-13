@@ -4,6 +4,7 @@ import re
 import random
 from typing import Any, cast
 from functools import lru_cache
+from enum import Enum
 from buttercup.program_model.codequery import CodeQueryPersistent
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
@@ -48,6 +49,14 @@ class PatchOutput(BaseModel):
     task_id: str
     submission_index: str
     patch: str
+
+
+class TruncatePosition(str, Enum):
+    """Position to truncate the output."""
+
+    START = "start"
+    MIDDLE = "middle"
+    END = "end"
 
 
 def extract_md(content: AIMessage | str) -> str:
@@ -127,15 +136,25 @@ def pick_temperature() -> float:
     return random.choices([0.1, 0.2, 0.3, 0.4, 0.5], weights=[0.1, 0.15, 0.5, 0.15, 0.1])[0]
 
 
-def truncate_output(output: str, max_length: int) -> str:
+def truncate_output(
+    output: str | None, max_length: int, truncate_position: TruncatePosition = TruncatePosition.MIDDLE
+) -> str:
     """Truncate the output to the maximum length.
     If the output is longer than the maximum length, truncate it in the middle and add
     ellipses to indicate that the output was truncated.
     """
+    if output is None:
+        return ""
+
     if len(output) <= max_length:
         return output
 
-    return output[: max_length // 2] + "\n...\n" + output[-max_length // 2 :]
+    if truncate_position == TruncatePosition.START:
+        return "\n[...TRUNCATED...]\n" + output[-max_length:]
+    elif truncate_position == TruncatePosition.MIDDLE:
+        return output[: max_length // 2] + "\n[...TRUNCATED...]\n" + output[-max_length // 2 :]
+    elif truncate_position == TruncatePosition.END:
+        return output[:max_length] + "\n[...TRUNCATED...]\n"
 
 
 @lru_cache(maxsize=100)

@@ -22,6 +22,7 @@ from buttercup.patcher.agents.common import (
     PatcherAgentBase,
     ContextCodeSnippet,
     CodeSnippetRequest,
+    get_stacktraces_from_povs,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from langgraph.types import Command
@@ -49,15 +50,12 @@ You also have access to the following context:
 {CODE_SNIPPETS}
 </code_snippets>
 
-Sanitizer output:
-<sanitizer_output>
-{SANITIZER_OUTPUT}
-</sanitizer_output>
+The vulnerability has triggered one or more sanitizers, with the following stacktraces:
+<stacktraces>
+{STACKTRACES}
+</stacktraces>
 
-Sanitizer used:
-<sanitizer_used>
-{SANITIZER}
-</sanitizer_used>
+If there are multiple stacktraces, consider them as part of the same vulnerability.
 
 {REFLECTION_GUIDANCE}
 
@@ -79,7 +77,7 @@ Request additional code snippets if they are *critical* to understand the root c
    You can include multiple requests by using multiple sets of these tags.
 
 Guidelines:
-* Stay focused on the vulnerability in the stack trace/crash.
+* Stay focused on the vulnerability in the stack traces/crashes.
 * Be specific and technically rigorous.
 * Avoid general context unless it's essential to root cause.
 * Don't request additional code unless it's clearly necessary.
@@ -161,13 +159,12 @@ class RootCauseAgent(PatcherAgentBase):
 
     def _root_cause_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
         diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
-        stacktrace = parse_stacktrace(state.context.povs[0].sanitizer_output)
+        stacktraces = [parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs]
         return ROOT_CAUSE_PROMPT.format_messages(
             DIFF=diff_content,
             PROJECT_NAME=self.challenge.project_name,
-            SANITIZER=state.context.povs[0].sanitizer,
-            SANITIZER_OUTPUT=state.cleaned_stacktrace,
-            CODE_SNIPPETS="\n".join([cs.commented_code(stacktrace) for cs in state.relevant_code_snippets]),
+            STACKTRACES="\n".join(get_stacktraces_from_povs(state.context.povs)),
+            CODE_SNIPPETS="\n".join([cs.commented_code(stacktraces) for cs in state.relevant_code_snippets]),
             REFLECTION_GUIDANCE=self._get_reflection_guidance_prompt(state),
             messages=state.messages,
         )

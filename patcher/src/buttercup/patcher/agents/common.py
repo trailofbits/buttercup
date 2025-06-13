@@ -15,11 +15,20 @@ from langchain_core.runnables import Runnable
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
-from buttercup.patcher.utils import PatchInput, PatchOutput, CHAIN_CALL_TYPE
+from buttercup.patcher.utils import (
+    PatchInput,
+    PatchOutput,
+    CHAIN_CALL_TYPE,
+    PatchInputPoV,
+    truncate_output,
+    TruncatePosition,
+)
 from buttercup.common.challenge_task import ChallengeTask
 from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
 import re
 import uuid
+
+MAX_STACKTRACE_LENGTH = 5000
 
 
 def add_or_mod_patch(patches: list[PatchAttempt], patch: PatchAttempt | list[PatchAttempt]) -> list[PatchAttempt]:
@@ -194,7 +203,6 @@ class PatcherAgentState(BaseModel):
 
     context: PatchInput
 
-    cleaned_stacktrace: str | None = None
     tests_instructions: str | None = None
 
     relevant_code_snippets: Annotated[set[ContextCodeSnippet], add_code_snippet] = Field(default_factory=set)
@@ -314,10 +322,11 @@ class ContextCodeSnippet(BaseModel):
 </code_snippet>
 """
 
-    def commented_code(self, stacktrace: CrashInfo) -> str:
+    def commented_code(self, stacktraces: list[CrashInfo]) -> str:
         """Get a commented version of the code snippet"""
         stacktrace_lines = [
             (stackframe.filename, int(stackframe.fileline))
+            for stacktrace in stacktraces
             for frame in stacktrace.frames
             for stackframe in frame
             if stackframe.filename is not None and stackframe.fileline is not None
@@ -325,7 +334,7 @@ class ContextCodeSnippet(BaseModel):
         code = []
         for lineno, line in enumerate(self.code.split("\n"), start=self.start_line):
             if (self.key.file_path, lineno) in stacktrace_lines:
-                code.append(f"{line} // LINE {lineno} | CRASH INFO")
+                code.append(f"{line} // LINE {lineno} | STACKTRACE INFO")
             else:
                 code.append(line)
 
@@ -455,3 +464,21 @@ class PatcherAgentBase:
 </code_snippet_understanding>
 """
         return res
+
+
+STACKTRACE_TMPL = """<stacktrace>
+<sanitizer_name>{SANITIZER_NAME}</sanitizer_name>
+<sanitizer_output>
+{SANITIZER_OUTPUT}
+</sanitizer_output>
+</stacktrace>"""
+
+
+def get_stacktraces_from_povs(povs: list[PatchInputPoV]) -> list[str]:
+    return [
+        STACKTRACE_TMPL.format(
+            SANITIZER_NAME=pov.sanitizer,
+            SANITIZER_OUTPUT=truncate_output(pov.sanitizer_output, MAX_STACKTRACE_LENGTH, TruncatePosition.START),
+        )
+        for pov in povs
+    ]
