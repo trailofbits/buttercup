@@ -3,7 +3,7 @@ from buttercup.common.maps import (
     BuildMap,
     HarnessWeights,
 )
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness, SubmissionEntry
 from buttercup.common.queues import QueueFactory, QueueNames, ReliableQueue
 from uuid import uuid4
 from redis import Redis
@@ -16,6 +16,30 @@ from google.protobuf.text_format import Parse
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def truncate_stacktraces(submission: SubmissionEntry, max_length: int = 80) -> SubmissionEntry:
+    """Create a copy of the submission with truncated stacktraces for display purposes."""
+    # Create a new submission and copy the fields manually to ensure proper truncation
+    from google.protobuf import text_format
+
+    # Serialize to text and then parse back to create a proper copy
+    submission_text = text_format.MessageToString(submission)
+    truncated_submission = SubmissionEntry()
+    text_format.Parse(submission_text, truncated_submission)
+
+    # Now truncate the stacktraces and crash token
+    for crash in truncated_submission.crashes:
+        if crash.crash.stacktrace and len(crash.crash.stacktrace) > max_length:
+            crash.crash.stacktrace = crash.crash.stacktrace[:max_length] + "... (truncated)"
+
+        if crash.tracer_stacktrace and len(crash.tracer_stacktrace) > max_length:
+            crash.tracer_stacktrace = crash.tracer_stacktrace[:max_length] + "... (truncated)"
+
+        if crash.crash.crash_token and len(crash.crash.crash_token) > max_length:
+            crash.crash.crash_token = crash.crash.crash_token[:max_length] + "... (truncated)"
+
+    return truncated_submission
 
 
 def get_queue_names():
@@ -49,6 +73,10 @@ class ReadBuildsSettings(BaseModel):
     build_type: CliPositionalArg[str] = Field(description="Build type (one of " + ", ".join(get_build_types()) + ")")
 
 
+class ReadSubmissionsSettings(BaseModel):
+    verbose: bool = Field(False, description="Show full stacktraces instead of truncated versions")
+
+
 class AddHarnessWeightSettings(BaseModel):
     msg_path: CliPositionalArg[Path] = Field(description="Path to WeightedHarness file in Protobuf text format")
 
@@ -73,6 +101,7 @@ class Settings(BaseSettings):
     add_build: CliSubCommand[AddBuildSettings]
     read_harnesses: CliSubCommand[ReadHarnessWeightSettings]
     read_builds: CliSubCommand[ReadBuildsSettings]
+    read_submissions: CliSubCommand[ReadSubmissionsSettings]
 
     class Config:
         env_prefix = "BUTTERCUP_MSG_PUBLISHER_"
@@ -145,6 +174,31 @@ def main():
         build_type = BuildType.Value(command.build_type)
         for build in BuildMap(redis).get_builds(command.task_id, build_type):
             print(build)
+        logger.info("Done")
+    elif isinstance(command, ReadSubmissionsSettings):
+        # Read submissions from Redis using the same key as the Submissions class
+        SUBMISSIONS_KEY = "submissions"
+        raw_submissions = redis.lrange(SUBMISSIONS_KEY, 0, -1)
+
+        if not raw_submissions:
+            logger.info("No submissions found")
+            return
+
+        logger.info(f"Found {len(raw_submissions)} submissions:")
+        for i, raw in enumerate(raw_submissions):
+            try:
+                submission = SubmissionEntry.FromString(raw)
+
+                # Apply stacktrace truncation unless verbose mode is enabled
+                if not command.verbose:
+                    submission = truncate_stacktraces(submission)
+
+                print(f"--- Submission {i} ---")
+                print(submission)
+                print()
+            except Exception as e:
+                logger.error(f"Failed to parse submission {i}: {e}")
+
         logger.info("Done")
     elif isinstance(command, ListSettings):
         print("Available queues:")
