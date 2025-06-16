@@ -82,8 +82,7 @@ class Task:
     challenge_task: ChallengeTask
     codequery: CodeQueryPersistent
     project_yaml: ProjectYaml
-    primary_llm: BaseChatModel = field(init=False)
-    context_llm: BaseChatModel = field(init=False)
+    llm: BaseChatModel = field(init=False)
     tools: list[BaseTool] = field(init=False)
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
@@ -91,9 +90,12 @@ class Task:
     MAX_TYPE_DEFS = 5
 
     def __post_init__(self) -> None:
-        fallbacks = [ButtercupLLM.CLAUDE_4_SONNET, ButtercupLLM.OPENAI_GPT_4_1]
-        self.primary_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_7_SONNET, fallbacks)
-        self.context_llm = Task.get_llm(ButtercupLLM.CLAUDE_3_5_SONNET, fallbacks)
+        fallbacks = [
+            ButtercupLLM.CLAUDE_3_7_SONNET,
+            ButtercupLLM.CLAUDE_3_5_SONNET,
+            ButtercupLLM.OPENAI_GPT_4_1,
+        ]
+        self.llm = Task.get_llm(ButtercupLLM.CLAUDE_4_SONNET, fallbacks)
         self.tools = [
             Task.get_function_definition,
             Task.get_type_definition,
@@ -101,7 +103,7 @@ class Task:
             Task.cat,
             Task.get_callers,
         ]
-        self.llm_with_tools = self.context_llm.bind_tools(self.tools)
+        self.llm_with_tools = self.llm.bind_tools(self.tools)
 
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
@@ -241,7 +243,7 @@ class Task:
                 ("human", user_prompt),
             ]
         )
-        chain = prompt | self.primary_llm | extract_code
+        chain = prompt | self.llm | extract_code
         generated_functions = ""
         try:
             generated_functions = chain.invoke(prompt_vars)

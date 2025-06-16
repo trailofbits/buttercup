@@ -128,7 +128,7 @@ class VulnBaseTask(Task):
                 ("human", user_prompt),
             ]
         )
-        chain = prompt | self.primary_llm | StrOutputParser()
+        chain = prompt | self.llm | StrOutputParser()
         analysis = chain.invoke(prompt_vars)
         return Command(update={"analysis": analysis})
 
@@ -150,7 +150,7 @@ class VulnBaseTask(Task):
                 ("human", user_prompt),
             ]
         )
-        chain = prompt | self.primary_llm | extract_code
+        chain = prompt | self.llm | extract_code
         pov_funcs = chain.invoke(prompt_vars)
         return Command(update={"generated_functions": pov_funcs})
 
@@ -315,7 +315,7 @@ class VulnBaseTask(Task):
                     crs_action_name="seed_gen_vuln_discovery",
                     task_metadata=dict(self.challenge_task.task_meta.metadata),
                     extra_attributes={
-                        "gen_ai.request.model": self.primary_llm.model_name,
+                        "gen_ai.request.model": self.llm.model_name,
                     },
                 )
                 chain.invoke(state)
