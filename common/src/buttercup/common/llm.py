@@ -29,7 +29,6 @@ class ButtercupLLM(Enum):
     OPENAI_GPT_4_1_MINI = "openai-gpt-4.1-mini"
     OPENAI_GPT_4_1 = "openai-gpt-4.1"
     CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
-    CLAUDE_3_5_HAIKU = "claude-3.5-haiku"
     CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
     CLAUDE_4_SONNET = "claude-4-sonnet"
 
