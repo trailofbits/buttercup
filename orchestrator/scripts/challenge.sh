@@ -338,10 +338,18 @@ declare -A zk_delta_02=(
 
 submit_task() {
     task_name=$1
+    key=$2
+    value=$3
     declare -n task_data_ref=$task_name
+
+    # Update the array if value is provided
+    if [ ! -z "$value" ]; then
+        task_data_ref[$key]=$value
+    fi
+
     echo $task_name
     echo "${task_data_ref[@]}"
-    
+
     # Convert associative array to JSON
     json_data="{"
     for key in "${!task_data_ref[@]}"; do
@@ -354,7 +362,7 @@ submit_task() {
         fi
     done
     json_data="${json_data%,}}"  # Remove trailing comma
-    
+
     echo $json_data | jq -C '.'
     curl -X 'POST' 'http://127.0.0.1:31323/webhook/trigger_task' -H 'Content-Type: application/json' -d "$json_data"
 }
@@ -363,8 +371,8 @@ submit_task() {
 sim1() {
     delta_set_duration=$((48 * $hours))
 
-    submit_task "zk_ex1_delta_01"
-    submit_task "lx_ex1_delta_01"
+    submit_task "zk_ex1_delta_01" "duration" $delta_set_duration
+    submit_task "lx_ex1_delta_01" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 }
@@ -374,33 +382,33 @@ sim2() {
     full_set_duration=$((24 * $hours))
     delta_set_duration=$((8 * $hours))
 
-    submit_task "fp_full_01"
-    submit_task "lx_full_01"
-    submit_task "sq_full_01"
+    submit_task "fp_full_01" "duration" $full_set_duration
+    submit_task "lx_full_01" "duration" $full_set_duration
+    submit_task "sq_full_01" "duration" $full_set_duration
 
     sleep $full_set_duration
 
-    submit_task "cc_full_01"
-    submit_task "zk_full_01"
-    submit_task "db_full_01"
+    submit_task "cc_full_01" "duration" $full_set_duration
+    submit_task "zk_full_01" "duration" $full_set_duration
+    submit_task "db_full_01" "duration" $full_set_duration
 
     sleep $full_set_duration
 
-    submit_task "fp_delta_01"
-    submit_task "lx_delta_02"
-    submit_task "integration_test_delta_01"
-    submit_task "lp_delta_01"
+    submit_task "fp_delta_01" "duration" $delta_set_duration
+    submit_task "lx_delta_02" "duration" $delta_set_duration
+    submit_task "integration_test_delta_01" "duration" $delta_set_duration
+    submit_task "lp_delta_01" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 
-    submit_task "sq_delta_01"
-    submit_task "lx_delta_01"
+    submit_task "sq_delta_01" "duration" $delta_set_duration
+    submit_task "lx_delta_01" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 
-    submit_task "zk_delta_01"
-    submit_task "cc_delta_02"
-    submit_task "cc_delta_03"
+    submit_task "zk_delta_01" "duration" $delta_set_duration
+    submit_task "cc_delta_02" "duration" $delta_set_duration
+    submit_task "cc_delta_03" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 }
@@ -411,71 +419,74 @@ sim2() {
 sim3() {
     delta_set_duration=$((15 * $minutes))
 
-    submit_task "integration_test_delta_01"
+    submit_task "integration_test_delta_01" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 
     full_set_duration=$((12 * $hours))
     delta_set_duration=$((6 * $hours))
 
-    submit_task "db_full_01"
-    submit_task "fp_full_01"
-    submit_task "lo_full_01"
-    submit_task "cu_full_01"
-    submit_task "sq_full_01"
-    submit_task "zk_full_01"
-    submit_task "cc_full_01"
-    submit_task "tk_full_01"
+    submit_task "db_full_01" "duration" $full_set_duration
+    submit_task "fp_full_01" "duration" $full_set_duration
+    submit_task "lo_full_01" "duration" $full_set_duration
+    submit_task "cu_full_01" "duration" $full_set_duration
+    submit_task "sq_full_01" "duration" $full_set_duration
+    submit_task "zk_full_01" "duration" $full_set_duration
+    submit_task "cc_full_01" "duration" $full_set_duration
+    submit_task "tk_full_01" "duration" $full_set_duration
 
     sleep $full_set_duration
 
-    submit_task "integration_test_delta_01"
-    submit_task "ex_delta_01"
-    submit_task "lp_delta_01"
-    submit_task "fp_delta_01"
-    submit_task "cu_delta_01"
-    submit_task "lx_delta_01"
-    submit_task "lx_delta_02"
-    submit_task "sq_delta_01"
-    submit_task "sq_delta_02"
-    submit_task "sq_delta_03"
-    submit_task "tk_delta_01"
-    submit_task "tk_delta_02"
-    submit_task "tk_delta_03"
-    submit_task "tk_delta_04"
-    submit_task "tk_delta_05"
-    submit_task "zk_delta_01"
-    submit_task "cc_delta_02"
-    submit_task "cc_delta_03"
-    submit_task "zk_delta_02"
+    submit_task "integration_test_delta_01" "duration" $delta_set_duration
+    submit_task "ex_delta_01" "duration" $delta_set_duration
+    submit_task "lp_delta_01" "duration" $delta_set_duration
+    submit_task "fp_delta_01" "duration" $delta_set_duration
+    submit_task "cu_delta_01" "duration" $delta_set_duration
+    submit_task "lx_delta_01" "duration" $delta_set_duration
+    submit_task "lx_delta_02" "duration" $delta_set_duration
+    submit_task "sq_delta_01" "duration" $delta_set_duration
+    submit_task "sq_delta_02" "duration" $delta_set_duration
+    submit_task "sq_delta_03" "duration" $delta_set_duration
+    submit_task "tk_delta_01" "duration" $delta_set_duration
+    submit_task "tk_delta_02" "duration" $delta_set_duration
+    submit_task "tk_delta_03" "duration" $delta_set_duration
+    submit_task "tk_delta_04" "duration" $delta_set_duration
+    submit_task "tk_delta_05" "duration" $delta_set_duration
+    submit_task "zk_delta_01" "duration" $delta_set_duration
+    submit_task "cc_delta_02" "duration" $delta_set_duration
+    submit_task "cc_delta_03" "duration" $delta_set_duration
+    submit_task "zk_delta_02" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 
-    submit_task "s2n_full_01"
-    submit_task "ipf_full_01"
+    submit_task "s2n_full_01" "duration" $full_set_duration
+    submit_task "ipf_full_01" "duration" $full_set_duration
 
     sleep $full_set_duration
 
-    submit_task "integration_test_unharnessed_delta_01"
+    submit_task "integration_test_unharnessed_delta_01" "duration" $delta_set_duration
 
     sleep $delta_set_duration
 }
 
 all() {
-    submit_task "cc_full_01"
-    submit_task "cu_full_01"
-    submit_task "db_full_01"
-    submit_task "ex_delta_01"
-    submit_task "fp_full_01"
-    submit_task "integration_test_delta_01"
-    submit_task "ipf_full_01"
-    submit_task "lo_full_01"
-    submit_task "lp_delta_01"
-    submit_task "lx_full_01"
-    submit_task "s2n_full_01"
-    submit_task "sq_full_01"
-    submit_task "tk_full_01"
-    submit_task "zk_full_01"
+    full_set_duration=$((12 * $hours))
+    delta_set_duration=$((6 * $hours))
+
+    submit_task "cc_full_01" "duration" $full_set_duration
+    submit_task "cu_full_01" "duration" $full_set_duration
+    submit_task "db_full_01" "duration" $full_set_duration
+    submit_task "ex_delta_01" "duration" $delta_set_duration
+    submit_task "fp_full_01" "duration" $full_set_duration
+    submit_task "integration_test_delta_01" "duration" $delta_set_duration
+    submit_task "ipf_full_01" "duration" $full_set_duration
+    submit_task "lo_full_01" "duration" $full_set_duration
+    submit_task "lp_delta_01" "duration" $delta_set_duration
+    submit_task "lx_full_01" "duration" $full_set_duration
+    submit_task "s2n_full_01" "duration" $full_set_duration
+    submit_task "sq_full_01" "duration" $full_set_duration
+    submit_task "tk_full_01" "duration" $full_set_duration
+    submit_task "zk_full_01" "duration" $full_set_duration
 }
 
 # Check if the tasks are being processed:
@@ -489,73 +500,73 @@ testing() {
     full_set_duration=$((1 * $minutes))
     delta_set_duration=$((1 * $minutes))
 
-    submit_task "cc_full_01"
+    submit_task "cc_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "cc_delta_02"
+    submit_task "cc_delta_02" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "cc_delta_03"
+    submit_task "cc_delta_03" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "cu_full_01"
+    submit_task "cu_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "cu_delta_01"
+    submit_task "cu_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "db_full_01"
+    submit_task "db_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "ex_delta_01"
+    submit_task "ex_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "fp_full_01"
+    submit_task "fp_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "fp_delta_01"
+    submit_task "fp_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "integration_test_delta_01"
+    submit_task "integration_test_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "integration_test_unharnessed_delta_01"
+    submit_task "integration_test_unharnessed_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "ipf_full_01"
+    submit_task "ipf_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "lo_full_01"
+    submit_task "lo_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "lp_delta_01"
+    submit_task "lp_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "lx_full_01"
+    submit_task "lx_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "lx_delta_01"
+    submit_task "lx_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "lx_ex1_delta_01"
+    submit_task "lx_ex1_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "lx_delta_02"
+    submit_task "lx_delta_02" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "lx_full_updated"
+    submit_task "lx_full_updated" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "s2n_full_01"
+    submit_task "s2n_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "sq_full_01"
+    submit_task "sq_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "sq_delta_01"
+    submit_task "sq_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "sq_delta_02"
+    submit_task "sq_delta_02" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "sq_delta_03"
+    submit_task "sq_delta_03" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "tk_full_01"
+    submit_task "tk_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "tk_delta_01"
+    submit_task "tk_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "tk_delta_02"
+    submit_task "tk_delta_02" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "tk_delta_03"
+    submit_task "tk_delta_03" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "tk_delta_04"
+    submit_task "tk_delta_04" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "tk_delta_05"
+    submit_task "tk_delta_05" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "zk_full_01"
+    submit_task "zk_full_01" "duration" $full_set_duration
     sleep $full_set_duration
-    submit_task "zk_ex1_delta_01"
+    submit_task "zk_ex1_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "zk_delta_01"
+    submit_task "zk_delta_01" "duration" $delta_set_duration
     sleep $full_set_duration
-    submit_task "zk_delta_02"
+    submit_task "zk_delta_02" "duration" $delta_set_duration
     sleep $full_set_duration
 }
 
