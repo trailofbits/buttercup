@@ -411,7 +411,7 @@ class ChallengeTask:
     @read_write_decorator
     def exec_docker_cmd(
         self,
-        cmd: list[str],
+        cmd: list[str] | str,
         mount_dirs: dict[Path, Path] | None = None,
         container_image: str | None = None,
         always_build_image: bool = False,
@@ -842,11 +842,11 @@ class ChallengeTask:
 
     def _remove_dir(self, path: Path) -> None:
         try:
-            shutil.rmtree(path)
+            shutil.rmtree(path, ignore_errors=True)
         except Exception:
             logger.warning("Error removing directory %s, trying from within the container...", path)
             res = self.exec_docker_cmd(
-                ["rm", "-rf", f"/mnt/{path.name}"],
+                f"rm -rf /mnt/{path.name}",
                 mount_dirs={path.parent: Path("/mnt")},
                 container_image="ubuntu:24.04",
             )
@@ -858,7 +858,7 @@ class ChallengeTask:
         return f"""cp {test_sh_path} $SRC/test.sh && $SRC/test.sh"""
 
     @read_write_decorator
-    def cleanup(self, directory: Path | None = None) -> None:
+    def cleanup(self) -> None:
         """Clean up a ChallengeTask local directory."""
         directory = Path(self.local_task_dir)
         if not directory.exists():

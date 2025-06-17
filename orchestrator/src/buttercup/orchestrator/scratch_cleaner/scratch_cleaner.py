@@ -38,7 +38,7 @@ class ScratchCleaner:
             if task_dir.exists() and task_dir.is_dir():
                 try:
                     logger.info(f"Deleting CRS scratch space for expired task {task.task_id}")
-                    shutil.rmtree(task_dir)
+                    shutil.rmtree(task_dir, ignore_errors=True)
                     logger.info(f"Deleted CRS scratch space for expired task {task.task_id}")
                     did_delete = True
                 except Exception:

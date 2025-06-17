@@ -157,7 +157,7 @@ class MockCompetitionAPI:
             # Create a clean directory for extracted files
             extract_dir = os.path.join(self.temp_dir, "extracted")
             if os.path.exists(extract_dir):
-                shutil.rmtree(extract_dir)
+                shutil.rmtree(extract_dir, ignore_errors=True)
             os.makedirs(extract_dir, exist_ok=True)
 
             logger.info(f"Extracting tarball from {tarball_path} to {extract_dir}")

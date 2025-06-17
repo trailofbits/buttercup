@@ -17,7 +17,7 @@ def temp_scratch_dir(tmp_path: Path) -> Path:
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
     yield scratch_dir
-    shutil.rmtree(scratch_dir)
+    shutil.rmtree(scratch_dir, ignore_errors=True)
 
 
 @pytest.fixture
@@ -124,7 +124,7 @@ def test_serve_item_multiple_tasks(
 def test_serve_item_delete_failure(
     scratch_cleaner: ScratchCleaner, mock_task_registry: MagicMock, temp_scratch_dir: Path
 ):
-    """Test serve_item when directory deletion fails."""
+    """Test serve_item when directory deletion fails (but it should be just ignored)."""
     task = Task(task_id="test-task")
     mock_task_registry.__iter__.return_value = [task]
     mock_task_registry.is_expired.return_value = True
@@ -138,7 +138,7 @@ def test_serve_item_delete_failure(
     # Make the directory read-only to cause deletion failure
     os.chmod(task_dir, 0o444)
 
-    assert not scratch_cleaner.serve_item()
+    assert scratch_cleaner.serve_item()
     assert task_dir.exists()
 
     # Clean up

@@ -178,13 +178,16 @@ class PatchAttempt(BaseModel):
 
     def clean_built_challenges(self) -> None:
         """Clean the built challenges"""
-        for task_dir in self.built_challenges.values():
+        to_remove = []
+        for key, task_dir in self.built_challenges.items():
             try:
                 ChallengeTask(task_dir, local_task_dir=task_dir).cleanup()
+                to_remove.append(key)
             except Exception:
-                logger.exception("Failed to clean up built challenge %s", task_dir)
+                logger.warning("Failed to clean up built challenge %s", task_dir, exc_info=True)
 
-        self.built_challenges = {}
+        for key in to_remove:
+            self.built_challenges.pop(key)
 
 
 class ReflectionResult(BaseModel):
