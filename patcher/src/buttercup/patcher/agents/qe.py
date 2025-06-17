@@ -192,7 +192,7 @@ class QEAgent(PatcherAgentBase):
                 sanitizer=sanitizer,
             )
         except ChallengeTaskError as exc:
-            logger.error(
+            logger.warning(
                 "Failed to run build_fuzzers on Challenge Task %s with patch and sanitizer %s",
                 challenge.name,
                 sanitizer,
@@ -204,7 +204,7 @@ class QEAgent(PatcherAgentBase):
             )
 
         if not cp_output.success:
-            logger.error("Failed to build Challenge Task %s with patch and sanitizer %s", challenge.name, sanitizer)
+            logger.warning("Failed to build Challenge Task %s with patch and sanitizer %s", challenge.name, sanitizer)
             return CommandResult(
                 success=False,
                 output=cp_output.output,
@@ -241,7 +241,7 @@ class QEAgent(PatcherAgentBase):
             built_challenge.apply_patch_diff()
             patch_success = self._patch_challenge(built_challenge, last_patch_attempt)
             if not patch_success:
-                logger.error(
+                logger.warning(
                     "Failed to apply patch to Challenge Task %s with sanitizer %s (%s)",
                     self.challenge.name,
                     sanitizer,
@@ -271,7 +271,7 @@ class QEAgent(PatcherAgentBase):
                 # Return the task directory path for later reuse
                 return True, True, cp_output, built_challenge.task_dir
             else:
-                logger.error(
+                logger.warning(
                     "Failed to rebuild Challenge Task %s with sanitizer %s (%s)",
                     built_challenge.name,
                     sanitizer,
@@ -318,14 +318,14 @@ class QEAgent(PatcherAgentBase):
 
                     if not patch_success or not build_success:
                         if not patch_success:
-                            logger.error(
+                            logger.warning(
                                 "Failed to apply patch to Challenge Task %s with sanitizer %s",
                                 self.challenge.name,
                                 sanitizer,
                             )
                             last_patch_attempt.status = PatchStatus.APPLY_FAILED
                         else:  # not build_success
-                            logger.error(
+                            logger.warning(
                                 "Failed to rebuild Challenge Task %s with patch and sanitizer %s",
                                 self.challenge.name,
                                 sanitizer,
@@ -449,7 +449,7 @@ class QEAgent(PatcherAgentBase):
         for pov_variant in pov_variants:
             # Check if we've exceeded the max_minutes_run_povs timeout
             if time.time() - start_time > configuration.max_minutes_run_povs * 60:
-                logger.error("PoV processing lasted more than %d minutes", configuration.max_minutes_run_povs)
+                logger.warning("PoV processing lasted more than %d minutes", configuration.max_minutes_run_povs)
                 if run_once:
                     logger.info(
                         "PoV processing lasted more than %d minutes, but we already ran one PoV successfully, so we'll stop here",
@@ -498,7 +498,7 @@ class QEAgent(PatcherAgentBase):
                     continue
 
                 if pov_output.did_crash():
-                    logger.error("PoV %s still crashes", pov_variant_crash)
+                    logger.warning("PoV %s still crashes", pov_variant_crash)
                     last_patch_attempt.pov_fixed = False
                     last_patch_attempt.pov_stdout = pov_output.command_result.output
                     last_patch_attempt.pov_stderr = pov_output.command_result.error
@@ -615,7 +615,7 @@ class QEAgent(PatcherAgentBase):
                 last_patch_attempt.tests_stdout = sh_cmd_res.output
                 last_patch_attempt.tests_stderr = sh_cmd_res.error
             else:
-                logger.error("Failed to run tests for Challenge Task %s", clean_challenge.name)
+                logger.warning("Failed to run tests for Challenge Task %s", clean_challenge.name)
                 last_patch_attempt.status = PatchStatus.TESTS_FAILED
                 last_patch_attempt.tests_passed = False
                 last_patch_attempt.tests_stdout = None
@@ -637,7 +637,7 @@ class QEAgent(PatcherAgentBase):
             )
             next_node = PatcherAgentName.PATCH_VALIDATION.value
         else:
-            logger.error(
+            logger.warning(
                 "[%s / %s] Tests failed for Challenge Task %s",
                 self.input.task_id,
                 self.input.submission_index,
