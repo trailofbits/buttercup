@@ -46,41 +46,6 @@ from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 logger = logging.getLogger(__name__)
 
 
-def log_structured(
-    fn,
-    task_id: str,
-    index: int | None = None,
-    pov_id: str | None = None,
-    patch_id: str | None = None,
-    bundle_id: str | None = None,
-    patch_idx: int | None = None,
-    sarif_id: str | None = None,
-    state_change: Tuple[str, str] | None = None,
-    msg: str = "",
-):
-    """Log a structured message for easy grepping and filtering."""
-    log_msg = f"[{index}:{task_id}]"
-    if pov_id:
-        log_msg += f" pov_id={pov_id}"
-    if patch_id:
-        log_msg += f" patch_id={patch_id}"
-    if bundle_id:
-        log_msg += f" bundle_id={bundle_id}"
-    if patch_idx:
-        log_msg += f" patch_idx={patch_idx}"
-    if sarif_id:
-        log_msg += f" sarif_id={sarif_id}"
-
-    if state_change:
-        old_state, new_state = state_change
-        log_msg += f" {old_state} -> {new_state}"
-
-    if msg:
-        log_msg += f" {msg}"
-
-    fn(log_msg)
-
-
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     """Get the task_id from the SubmissionEntry or TracedCrash."""
     if isinstance(e, TracedCrash):
@@ -89,6 +54,43 @@ def _task_id(e: SubmissionEntry | TracedCrash) -> str:
         return e.crashes[0].crash.target.task_id
     else:
         raise ValueError(f"Unknown submission entry type: {type(e)}")
+
+
+def log_entry(
+    e: SubmissionEntry,
+    msg: str = "",
+    i: int | None = None,
+    old_state: int | None = None,
+    fn: logging.Logger = logger.info,
+):
+    """Log a structured message for easy grepping and filtering."""
+    task_id = e.crashes[0].crash.target.task_id
+    idx_msg = f"{i}:" if i is not None else ""
+
+    log_msg = f"[{idx_msg}:{task_id}]"
+
+    curr_state = SubmissionEntry.SubmissionState.Name(e.state)
+    if old_state:
+        old_state_name = SubmissionEntry.SubmissionState.Name(old_state)
+        log_msg += f" {old_state_name} -> {curr_state}"
+    else:
+        log_msg += f" {curr_state}"
+
+    if e.pov_id:
+        log_msg += f" pov_id={e.pov_id}"
+    if e.patch_id:
+        log_msg += f" patch_id={e.patch_id}"
+    if e.bundle_id:
+        log_msg += f" bundle_id={e.bundle_id}"
+    if e.patch_idx:
+        log_msg += f" patch_idx={e.patch_idx}"
+    if e.sarif_id:
+        log_msg += f" sarif_id={e.sarif_id}"
+
+    if msg:
+        log_msg += f" {msg}"
+
+    fn(log_msg)
 
 
 def _have_more_patches(e: SubmissionEntry) -> bool:
@@ -577,16 +579,10 @@ class Submissions:
 
     def _stop(self, i: int, e: SubmissionEntry, msg: str):
         """Stop a SubmissionEntry from further processing."""
-        current_state = SubmissionEntry.SubmissionState.Name(e.state)
+        old_state = e.state
         e.state = SubmissionEntry.STOP
         self._persist(self.redis, i, e)
-        log_structured(
-            logger.info,
-            _task_id(e),
-            index=i,
-            state_change=(current_state, "STOP"),
-            msg=msg,
-        )
+        log_entry(e, msg, i, old_state=old_state)
 
     def submit_vulnerability(self, crash: TracedCrash) -> bool:
         """
@@ -627,19 +623,19 @@ class Submissions:
                 instkey_comparator = CrashComparer(inst_key, submission_inst_key)
 
                 if cf_comparator.is_similar() or instkey_comparator.is_similar():
-                    log_structured(
-                        logger.debug,
-                        _task_id(e),
-                        index=i,
-                        msg=f"Orig crash_data: {crash_data}, inst_key: {inst_key}, new crash_data: {submission_crash_data}, new inst_key: {submission_inst_key} are duplicates. ",
+                    log_entry(
+                        e,
+                        f"Incoming PoV crash_data: {crash_data}, inst_key: {inst_key}, existing crash_data: {submission_crash_data}, existing inst_key: {submission_inst_key} are duplicates. ",
+                        i,
+                        fn=logger.debug,
                     )
 
                     e.crashes.append(crash)
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        msg=f"Adding a duplicate PoV based on similarity check. (n={len(e.crashes)})",
+                    log_entry(
+                        e,
+                        f"Adding a duplicate PoV based on similarity check. (n={len(e.crashes)})",
+                        i,
+                        fn=logger.info,
                     )
 
                     self._persist(self.redis, i, e)
@@ -659,11 +655,8 @@ class Submissions:
 
         pov_id, status = self.competition_api.submit_pov(crash)
         if not pov_id:
-            log_structured(
-                logger.error,
-                _task_id(crash),
-                msg=f"Failed to submit vulnerability. Competition API returned {status}.",
-            )
+            logger.error(f"[{_task_id(crash)}] Failed to submit vulnerability. Competition API returned {status}.")
+            logger.debug(f"CrashInfo: {crash}")
 
             # If the API returned ERRORED, we want to retry.
             stop = status != TypesSubmissionStatus.SubmissionStatusErrored
@@ -687,9 +680,7 @@ class Submissions:
 
         # Keep the entries list in sync
         self.entries.append(e)
-        log_structured(
-            logger.info, _task_id(e), index=index, pov_id=e.pov_id, state_change=("", "SUBMIT_PATCH_REQUEST")
-        )
+        log_entry(e, i=index)
         return True
 
     def _build_patch_id(self, patch: SubmissionEntryPatch) -> str:
@@ -754,14 +745,7 @@ class Submissions:
         ep.build_outputs.append(build_output)
 
         self._persist(self.redis, submission_index, e)
-        log_structured(
-            logger.info,
-            _task_id(e),
-            index=submission_index,
-            pov_id=e.pov_id,
-            patch_idx=patch_idx,
-            msg="Patched build recorded",
-        )
+        log_entry(e, i=submission_index, msg="Patched build recorded")
         return True
 
     def record_patch(self, patch: Patch) -> bool:
@@ -813,7 +797,7 @@ class Submissions:
         e.patches.append(entry_patch)
 
         self._persist(self.redis, index, e)
-        log_structured(logger.info, task_id, index=index, pov_id=e.pov_id, patch_idx=patch_idx, msg="Patch added")
+        log_entry(e, i=index, msg="Patch added")
         return True
 
     def _pov_reproduce_status_request(self, e: SubmissionEntry, patch_idx: int) -> List[POVReproduceResponse | None]:
@@ -828,9 +812,7 @@ class Submissions:
             request.sanitizer = crash.crash.target.sanitizer
             request.pov_path = crash.crash.crash_input_path
 
-            logger.debug(f"Requesting status for {request}")
             status = self.pov_reproduce_status.request_status(request)
-            logger.debug(f"Status: {status}")
 
             result.append(status)
 
@@ -878,7 +860,7 @@ class Submissions:
         for _ in range(self.patch_requests_per_vulnerability):
             q.push(confirmed_vulnerability)
 
-    def _persist_and_enqueue_patch_request_transaction(self, i, e):
+    def _persist_and_enqueue_patch_request_transaction(self, i, e, old_state: int | None = None):
         """
         Request patch generation for a confirmed vulnerability.
 
@@ -888,7 +870,7 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="Submitting patch request")
+        log_entry(e, i=i, msg="Submitting patch request")
 
         confirmed = self._generate_patch_request(i, e)
 
@@ -898,9 +880,7 @@ class Submissions:
             self._persist(pipe, i, e)
             pipe.execute()
 
-        log_structured(
-            logger.info, _task_id(e), pov_id=e.pov_id, index=i, state_change=("SUBMIT_PATCH_REQUEST", "WAIT_POV_PASS")
-        )
+        log_entry(e, i=i, msg="Patch request submitted", old_state=old_state)
 
     def _attempt_next_patch(self, i, e):
         """
@@ -927,8 +907,9 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
+        old_state = e.state
         e.state = SubmissionEntry.WAIT_POV_PASS
-        self._persist_and_enqueue_patch_request_transaction(i, e)
+        self._persist_and_enqueue_patch_request_transaction(i, e, old_state=old_state)
 
     def _wait_pov_pass(self, i, e):
         """
@@ -954,27 +935,22 @@ class Submissions:
 
             case TypesSubmissionStatus.SubmissionStatusPassed:
                 self.task_registry.mark_successful(_task_id(e))
+                old_state = e.state
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
-                log_structured(
-                    logger.info,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    state_change=("WAIT_POV_PASS", "SUBMIT_PATCH"),
-                    msg="POV passed, ready to submit patch when the patch is ready",
-                )
+                log_entry(e, i=i, msg="POV passed, ready to submit patch when the patch is ready", old_state=old_state)
             case TypesSubmissionStatus.SubmissionStatusErrored:
                 self.task_registry.mark_errored(_task_id(e))
-                log_structured(logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV errored, will resubmit")
+                log_entry(e, i=i, msg="POV errored, will resubmit")
 
                 # NOTE: Currently only submitting the first crash. This might need to be changed in the future.
                 pov_id, status = self.competition_api.submit_pov(e.crashes[0])
                 if not pov_id:
-                    log_structured(
-                        logger.error,
-                        _task_id(e),
+                    log_entry(
+                        e,
+                        i=i,
                         msg=f"Failed to submit vulnerability. Competition API returned {status}.",
+                        fn=logger.error,
                     )
 
                     # If the API returned ERRORED, we want to retry.
@@ -983,16 +959,12 @@ class Submissions:
                 else:
                     e.pov_id = pov_id
                     self._persist(self.redis, i, e)
-                    log_structured(
-                        logger.info, _task_id(e), index=i, pov_id=e.pov_id, msg="POV resubmitted, waiting for pass"
-                    )
+                    log_entry(e, i=i, msg="POV resubmitted, waiting for pass")
 
             case TypesSubmissionStatus.SubmissionStatusAccepted:
                 pass
             case _:
-                log_structured(
-                    logger.error, _task_id(e), index=i, pov_id=e.pov_id, msg=f"Unexpected POV status: {status}"
-                )
+                log_entry(e, i=i, msg=f"Unexpected POV status: {status}", fn=logger.error)
 
     def _submit_patch(self, i, e):
         """
@@ -1014,26 +986,12 @@ class Submissions:
         status = self._check_all_povs_are_mitigated(e, e.patch_idx)
         if status is None:
             # We haven't checked all POVs for this patch yet, so we can't submit the patch
-            log_structured(
-                logger.debug,
-                _task_id(e),
-                index=i,
-                pov_id=e.pov_id,
-                patch_idx=e.patch_idx,
-                msg="Pending POV check, will not submit patch yet.",
-            )
+            log_entry(e, i=i, msg="Pending POV check, will not submit patch yet.", fn=logger.debug)
             return
 
         if status is False:
             # All POVs for this patch are not mitigated, so we can't submit the patch
-            log_structured(
-                logger.info,
-                _task_id(e),
-                index=i,
-                pov_id=e.pov_id,
-                patch_idx=e.patch_idx,
-                msg="Not all POVs for this patch are mitigated, will not submit patch",
-            )
+            log_entry(e, i=i, msg="Patch does not mitigate all POVs, will not submit patch")
             self._attempt_next_patch(i, e)
             return
 
@@ -1042,29 +1000,19 @@ class Submissions:
         have_more_patches = _have_more_patches(e)
         patch = e.patches[e.patch_idx].patch
 
-        log_structured(
-            logger.info, _task_id(e), index=i, pov_id=e.pov_id, patch_idx=e.patch_idx, msg="Submitting patch"
-        )
+        log_entry(e, i=i, msg="Submitting patch")
         logger.debug(f"patch: {patch[:512]}...")
 
         patch_id, status = self.competition_api.submit_patch(_task_id(e), patch)
 
         if patch_id:
+            old_state = e.state
             e.patch_id = patch_id
             e.patch_submission_attempt += 1
             e.patches[e.patch_idx].patch_id = patch_id
             e.state = SubmissionEntry.WAIT_PATCH_PASS
             self._persist(self.redis, i, e)
-            log_structured(
-                logger.info,
-                _task_id(e),
-                index=i,
-                pov_id=e.pov_id,
-                patch_idx=e.patch_idx,
-                patch_id=patch_id,
-                state_change=("SUBMIT_PATCH", "WAIT_PATCH_PASS"),
-                msg="Patch accepted",
-            )
+            log_entry(e, i=i, msg="Patch accepted", old_state=old_state)
         else:
             match status:
                 case TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
@@ -1072,46 +1020,24 @@ class Submissions:
                 case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusInconclusive:
                     # The patch failed for some reason. Try generating a new patch
                     self._attempt_next_patch(i, e)
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_idx=e.patch_idx,
-                        msg=f"Patch submission failed ({status}), will not attempt this patch again.",
-                    )
+                    log_entry(e, i=i, msg=f"Patch submission failed ({status}), will not attempt this patch again.")
                 case TypesSubmissionStatus.SubmissionStatusErrored:
                     if have_more_patches and e.patch_submission_attempt >= self.patch_submission_retry_limit:
                         self._attempt_next_patch(i, e)
-                        log_structured(
-                            logger.info,
-                            _task_id(e),
-                            index=i,
-                            pov_id=e.pov_id,
-                            patch_idx=e.patch_idx,
-                            msg=f"Patch submission errored too many times ({status}), moved on to next patch.",
+                        log_entry(
+                            e, i=i, msg=f"Patch submission errored too many times ({status}), moved on to next patch."
                         )
                     else:
                         # Keep trying the same patch (if we don't have more patches or we haven't tried too many times)
                         e.patch_submission_attempt += 1
                         self._persist(self.redis, i, e)
-                        log_structured(
-                            logger.info,
-                            _task_id(e),
-                            index=i,
-                            pov_id=e.pov_id,
-                            patch_idx=e.patch_idx,
+                        log_entry(
+                            e,
+                            i=i,
                             msg=f"Patch submission failed ({status}), will attempt this patch again (attempt={e.patch_submission_attempt}).",
                         )
                 case _:
-                    log_structured(
-                        logger.error,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_idx=e.patch_idx,
-                        msg=f"Unexpected patch status: {status}",
-                    )
+                    log_entry(e, i=i, msg=f"Unexpected patch status: {status}", fn=logger.error)
 
     def _wait_patch_pass(self, i, e):
         """
@@ -1132,52 +1058,34 @@ class Submissions:
             case TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
                 self._stop(i, e, "Patch submission deadline exceeded, stopping")
             case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusInconclusive:
+                old_state = e.state
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._attempt_next_patch(i, e)
-                log_structured(
-                    logger.info,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    patch_idx=e.patch_idx,
-                    state_change=("WAIT_PATCH_PASS", "SUBMIT_PATCH"),
+                log_entry(
+                    e,
+                    i=i,
                     msg=f"Patch submission failed ({status}), will not attempt this patch again, moving on to next patch.",
+                    old_state=old_state,
                 )
             case TypesSubmissionStatus.SubmissionStatusErrored:
                 self.task_registry.mark_errored(_task_id(e))
+                old_state = e.state
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._persist(self.redis, i, e)
-                log_structured(
-                    logger.info,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    patch_idx=e.patch_idx,
-                    state_change=("WAIT_PATCH_PASS", "SUBMIT_PATCH"),
+                log_entry(
+                    e,
+                    i=i,
                     msg=f"Patch submission errored ({status}), will attempt this patch again.",
+                    old_state=old_state,
                 )
             case TypesSubmissionStatus.SubmissionStatusPassed:
                 self.task_registry.mark_successful(_task_id(e))
+                old_state = e.state
                 e.state = SubmissionEntry.SUBMIT_BUNDLE
                 self._persist(self.redis, i, e)
-                log_structured(
-                    logger.info,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    patch_idx=e.patch_idx,
-                    state_change=("WAIT_PATCH_PASS", "SUBMIT_BUNDLE"),
-                    msg="Patch passed, submitting bundle",
-                )
+                log_entry(e, i=i, msg="Patch passed, submitting bundle", old_state=old_state)
             case _:
-                log_structured(
-                    logger.error,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    patch_idx=e.patch_idx,
-                    msg=f"Unexpected patch status: {status}",
-                )
+                log_entry(e, i=i, msg=f"Unexpected patch status: {status}", fn=logger.error)
 
     def _submit_bundle(self, i: int, e: SubmissionEntry) -> None:
         """
@@ -1201,38 +1109,16 @@ class Submissions:
                 ):
                     self._stop(i, e, f"Bundle submission failed ({status}), not much else to do but stop.")
                 case TypesSubmissionStatus.SubmissionStatusErrored:
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        msg="Bundle submission failed, will retry",
-                    )
+                    log_entry(e, i=i, msg="Bundle submission failed, will retry")
                 case _:
                     # This should never happen, but we log it and hope to recover later? Not sure what else to do.
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        msg=f"Unknown bundle status: {status}",
-                    )
+                    log_entry(e, i=i, msg=f"Unknown bundle status: {status}", fn=logger.info)
         else:
+            old_state = e.state
             e.bundle_id = bundle_id
             e.state = SubmissionEntry.SUBMIT_MATCHING_SARIF
             self._persist(self.redis, i, e)
-            log_structured(
-                logger.info,
-                _task_id(e),
-                index=i,
-                pov_id=e.pov_id,
-                patch_id=e.patch_id,
-                bundle_id=bundle_id,
-                state_change=("SUBMIT_BUNDLE", "SUBMIT_MATCHING_SARIF"),
-                msg="Bundle submitted successfully",
-            )
+            log_entry(e, i=i, msg="Bundle submitted successfully", old_state=old_state)
 
     def _submit_matching_sarif(self, i: int, e: SubmissionEntry) -> None:
         """
@@ -1269,22 +1155,14 @@ class Submissions:
 
         success, status = self.competition_api.submit_matching_sarif(_task_id(e), matching_sarif_id)
         if success:
+            old_state = e.state
             with self.redis.pipeline() as pipe:
                 e.sarif_id = matching_sarif_id
                 e.state = SubmissionEntry.SUBMIT_BUNDLE_PATCH
                 self._persist(pipe, i, e)
                 self._insert_matched_sarif(pipe, matching_sarif_id)
                 pipe.execute()
-            log_structured(
-                logger.info,
-                _task_id(e),
-                index=i,
-                pov_id=e.pov_id,
-                patch_id=e.patch_id,
-                bundle_id=e.bundle_id,
-                state_change=("SUBMIT_MATCHING_SARIF", "SUBMIT_BUNDLE_PATCH"),
-                msg="Matching SARIF submitted successfully",
-            )
+            log_entry(e, i=i, msg="Matching SARIF submitted successfully", old_state=old_state)
         else:
             match status:
                 case (
@@ -1294,15 +1172,7 @@ class Submissions:
                 ):
                     self._stop(i, e, f"Matching SARIF submission failed ({status}), not much else to do but stop.")
                 case _:
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        bundle_id=e.bundle_id,
-                        msg=f"Submitting matching SARIF failed ({status}), will retry.",
-                    )
+                    log_entry(e, i=i, msg=f"Submitting matching SARIF failed ({status}), will retry.")
 
     def _submit_bundle_patch(self, i: int, e: SubmissionEntry) -> None:
         """
@@ -1329,16 +1199,7 @@ class Submissions:
                 ):
                     self._stop(i, e, f"Bundle patch submission failed ({status}), not much else to do but stop.")
                 case _:
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        bundle_id=e.bundle_id,
-                        sarif_id=e.sarif_id,
-                        msg=f"Submitting bundle patch failed ({status}), will retry.",
-                    )
+                    log_entry(e, i=i, msg=f"Submitting bundle patch failed ({status}), will retry.")
 
     def process_cycle(self):
         """
