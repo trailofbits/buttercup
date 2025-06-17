@@ -177,12 +177,12 @@ class VulnBaseTask(Task):
                     final_path, self.harness_name
                 ):
                     logger.info(
-                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | apply_diff: %s)",  # noqa: E501
+                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s)",  # noqa: E501
                         self.challenge_task.task_meta.task_id,
                         self.package_name,
                         self.harness_name,
                         build.sanitizer,
-                        build.apply_diff,
+                        self.challenge_task.is_delta_mode(),
                     )
                     if self.crash_submit is not None:
                         self.submit_valid_pov(final_path, build, result)
@@ -224,22 +224,22 @@ class VulnBaseTask(Task):
             stacktrace,
         ):
             logger.info(
-                "PoV already in crash set (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | apply_diff: %s | crash_token: %s)",  # noqa: E501
+                "PoV already in crash set (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | crash_token: %s)",  # noqa: E501
                 task_id,
                 self.package_name,
                 self.harness_name,
                 build.sanitizer,
-                build.apply_diff,
+                self.challenge_task.is_delta_mode(),
                 ctoken,
             )
             return
         logger.info(
-            "Submitting PoV to crash queue (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | apply_diff: %s | crash_token: %s)",  # noqa: E501
+            "Submitting PoV to crash queue (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | crash_token: %s)",  # noqa: E501
             task_id,
             self.package_name,
             self.harness_name,
             build.sanitizer,
-            build.apply_diff,
+            self.challenge_task.is_delta_mode(),
             ctoken,
         )
 
