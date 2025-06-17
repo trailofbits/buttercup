@@ -394,7 +394,8 @@ class QEAgent(PatcherAgentBase):
 
     def _get_pov_variants(self, configuration: PatcherConfig, povs: list[PatchInputPoV]) -> list[PatchInputPoV]:
         """Get the variants of the PoV"""
-        res = {}
+        res = {pov.pov.absolute(): pov for pov in povs}
+
         sanitizers = self._get_sanitizers()
         for pov in povs:
             try:
@@ -424,7 +425,13 @@ class QEAgent(PatcherAgentBase):
 
         # Remove original POVs from the result and move them to the beginning so they get tested first
         for pov in povs:
-            res.pop(pov.pov.absolute())
+            try:
+                res.pop(pov.pov.absolute())
+            except KeyError:
+                logger.warning(
+                    "PoV %s not found in res, this should never happen. Skipping it, but continuing.", pov.pov
+                )
+
         return povs + list(res.values())
 
     def run_pov_node(
