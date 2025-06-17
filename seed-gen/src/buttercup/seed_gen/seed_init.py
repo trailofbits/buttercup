@@ -92,4 +92,4 @@ class SeedInitTask(SeedBaseTask):
             logger.info("Generating seeds for challenge %s", self.package_name)
             self.generate_seeds(harness, output_dir)
         except Exception as err:
-            logger.error("Failed seed-init for challenge %s: %s", self.package_name, str(err))
+            logger.exception("Failed seed-init for challenge %s: %s", self.package_name, str(err))

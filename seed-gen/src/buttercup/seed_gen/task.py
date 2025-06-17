@@ -244,11 +244,7 @@ class Task:
             ]
         )
         chain = prompt | self.llm | extract_code
-        generated_functions = ""
-        try:
-            generated_functions = chain.invoke(prompt_vars)
-        except Exception as e:
-            logger.error("Error generating python functions: %s", str(e))
+        generated_functions = chain.invoke(prompt_vars)
         return generated_functions
 
     def _get_context_base(

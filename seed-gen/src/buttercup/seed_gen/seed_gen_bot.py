@@ -134,7 +134,7 @@ class SeedGenBot(TaskLoop):
             try:
                 codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
             except Exception as e:
-                logger.error(f"Failed to initialize codequery: {e}.")
+                logger.exception(f"Failed to initialize codequery: {e}.")
                 return
 
             corp = Corpus(self.wdir, task.task_id, task.harness_name)

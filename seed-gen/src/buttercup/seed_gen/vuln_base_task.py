@@ -321,7 +321,9 @@ class VulnBaseTask(Task):
                 chain.invoke(state)
 
         except Exception as err:
-            logger.error("Failed vuln-discovery for challenge %s: %s", self.package_name, str(err))
+            logger.exception(
+                "Failed vuln-discovery for challenge %s: %s", self.package_name, str(err)
+            )
 
     def sample_sarifs(self) -> bool:
         """Sample SARIFs for the task"""

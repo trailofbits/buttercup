@@ -128,4 +128,6 @@ class SeedExploreTask(SeedBaseTask):
             )
             self.generate_seeds(harness, function_snippet, output_dir)
         except Exception as err:
-            logger.error("Failed seed-explore for challenge %s: %s", self.package_name, str(err))
+            logger.exception(
+                "Failed seed-explore for challenge %s: %s", self.package_name, str(err)
+            )
