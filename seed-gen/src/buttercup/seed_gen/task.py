@@ -121,7 +121,9 @@ class Task:
     def get_harness_source(self) -> str | None:
         logger.info("Getting harness source for %s | %s", self.package_name, self.harness_name)
         harnesses = get_harness_source_candidates(
-            self.challenge_task, self.package_name, self.harness_name
+            self.codequery,
+            self.package_name,
+            self.harness_name,
         )
         logger.info("Found %d harness candidates", len(harnesses))
         logger.debug("Harness candidates: %s", [h for h in harnesses])
@@ -131,9 +133,10 @@ class Task:
             return None
         if len(harnesses) > 1:
             logger.warning(
-                "Multiple harnesses found for %s | %s. Returning first one.",
+                "Multiple harnesses found for %s | %s. Returning first one %s.",
                 self.package_name,
                 self.harness_name,
+                harnesses[0],
             )
 
         return harnesses[0].read_text()

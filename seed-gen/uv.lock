@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = "==3.12.*"
 resolution-markers = [
     "python_full_version >= '3.12.4'",
@@ -1403,6 +1404,7 @@ dependencies = [
     { name = "numpy" },
     { name = "program-model" },
     { name = "pydantic" },
+    { name = "python-dotenv" },
     { name = "rapidfuzz" },
     { name = "redis" },
     { name = "wasmtime" },
@@ -1425,12 +1427,14 @@ requires-dist = [
     { name = "program-model", editable = "../program-model" },
     { name = "pydantic", specifier = "~=2.10.6" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "~=8.3.4" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "rapidfuzz", specifier = "~=3.12.2" },
     { name = "redis", specifier = "~=5.2.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "~=0.6.2" },
     { name = "tqdm", marker = "extra == 'dev'", specifier = "~=4.67.1" },
     { name = "wasmtime", specifier = "~=29.0.0" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "setuptools"

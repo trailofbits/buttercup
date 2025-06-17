@@ -1,11 +1,16 @@
 """Tests for finding libfuzzer and jazzer harnesses in source code."""
 
+import subprocess
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
+from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
 from buttercup.seed_gen.find_harness import (
     find_jazzer_harnesses,
     find_libfuzzer_harnesses,
@@ -102,9 +107,10 @@ public class MultilineFuzzer {
 def task_dir(tmp_path: Path) -> Path:
     """Create a mock challenge task directory structure."""
     # Create the main directories
-    oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
-    source = tmp_path / "src" / "my-source"
-    diffs = tmp_path / "diff" / "my-diff"
+    task_dir = tmp_path / "task-dir"
+    oss_fuzz = task_dir / "fuzz-tooling" / "my-oss-fuzz"
+    source = task_dir / "src" / "my-source"
+    diffs = task_dir / "diff" / "my-diff"
 
     oss_fuzz.mkdir(parents=True, exist_ok=True)
     source.mkdir(parents=True, exist_ok=True)
@@ -118,15 +124,16 @@ def task_dir(tmp_path: Path) -> Path:
     project_name = "my-project"
     project_yaml_path = oss_fuzz / "projects" / project_name / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.write_text("language: c\n")
     # Create task metadata
     TaskMeta(
         project_name=project_name,
         focus="my-source",
         task_id="task-id-challenge-task",
         metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
-    ).save(tmp_path)
+    ).save(task_dir)
 
-    return tmp_path
+    return task_dir
 
 
 @pytest.fixture
@@ -134,12 +141,22 @@ def challenge_task(task_dir: Path) -> ChallengeTask:
     """Create a mock challenge task for testing."""
     return ChallengeTask(
         read_only_task_dir=task_dir,
+        local_task_dir=task_dir,
     )
 
 
-def test_find_libfuzzer_harnesses(challenge_task: ChallengeTask):
+@pytest.fixture
+def codequery(challenge_task: ChallengeTask) -> CodeQuery:
+    """Create a mock codequery for testing."""
+    with patch.object(CodeQuery, "_create_codequery_db"):
+        return CodeQuery(
+            challenge=challenge_task,
+        )
+
+
+def test_find_libfuzzer_harnesses(codequery: CodeQuery):
     """Test finding libfuzzer harnesses in source code."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     subdir = source_path / "subdir"
     subdir.mkdir(parents=True, exist_ok=True)
 
@@ -150,7 +167,7 @@ def test_find_libfuzzer_harnesses(challenge_task: ChallengeTask):
     (source_path / "multiline_fuzzer.cpp").write_text(MULTILINE_FUZZER_CPP)
 
     # Find harnesses
-    harnesses = find_libfuzzer_harnesses(challenge_task)
+    harnesses = find_libfuzzer_harnesses(codequery)
 
     # Verify results
     assert len(harnesses) == 3
@@ -160,9 +177,9 @@ def test_find_libfuzzer_harnesses(challenge_task: ChallengeTask):
     assert "multiline_fuzzer.cpp" in harness_paths
 
 
-def test_find_jazzer_harnesses(challenge_task: ChallengeTask):
+def test_find_jazzer_harnesses(codequery: CodeQuery):
     """Test finding jazzer harnesses in source code."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     subdir = source_path / "subdir"
     subdir.mkdir(parents=True, exist_ok=True)
     (source_path / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
@@ -170,7 +187,7 @@ def test_find_jazzer_harnesses(challenge_task: ChallengeTask):
     (subdir / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
     (source_path / "MultilineFuzzer.java").write_text(MULTILINE_FUZZER_JAVA)
     # Find harnesses
-    harnesses = find_jazzer_harnesses(challenge_task)
+    harnesses = find_jazzer_harnesses(codequery)
 
     # Verify results
     assert len(harnesses) == 2
@@ -179,27 +196,31 @@ def test_find_jazzer_harnesses(challenge_task: ChallengeTask):
     assert "MultilineFuzzer.java" in harness_paths
 
 
-def test_find_harnesses_with_comments(challenge_task: ChallengeTask):
+def test_find_harnesses_with_comments(codequery: CodeQuery):
     """Test finding harnesses when the target string appears in comments."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    source_path.mkdir(parents=True, exist_ok=True)
 
     # Create files with target strings in comments
     (source_path / "commented.cpp").write_text(NORMAL_CPP_WITH_COMMENT)
     (source_path / "commented.java").write_text(NORMAL_JAVA_WITH_COMMENT)
 
     # Find harnesses
-    libfuzzer_harnesses = find_libfuzzer_harnesses(challenge_task)
-    jazzer_harnesses = find_jazzer_harnesses(challenge_task)
+    libfuzzer_harnesses = find_libfuzzer_harnesses(codequery)
+    jazzer_harnesses = find_jazzer_harnesses(codequery)
 
     # Verify results - should not match since strings are in comments
     assert len(libfuzzer_harnesses) == 0
     assert len(jazzer_harnesses) == 0
 
 
-def test_find_harnesses_in_oss_fuzz_project(challenge_task: ChallengeTask):
+def test_find_harnesses_in_oss_fuzz_project(codequery: CodeQuery):
     """Test finding harnesses when they are in the oss-fuzz project directory."""
-    source_path = challenge_task.get_source_path()
-    oss_fuzz_path = challenge_task.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project"
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    oss_fuzz_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project"
+
+    source_path.mkdir(parents=True, exist_ok=True)
+    oss_fuzz_path.mkdir(parents=True, exist_ok=True)
 
     # Create files with target strings in comments
     (oss_fuzz_path / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
@@ -207,22 +228,24 @@ def test_find_harnesses_in_oss_fuzz_project(challenge_task: ChallengeTask):
     (oss_fuzz_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
     # Find harnesses
-    libfuzzer_harnesses = find_libfuzzer_harnesses(challenge_task)
-    jazzer_harnesses = find_jazzer_harnesses(challenge_task)
+    libfuzzer_harnesses = find_libfuzzer_harnesses(codequery)
+    jazzer_harnesses = find_jazzer_harnesses(codequery)
 
-    assert len(libfuzzer_harnesses) == 2
-    assert "fuzz_target.cpp" in {h.name for h in libfuzzer_harnesses}
+    # Only expect harnesses from container_src_dir
+    assert len(libfuzzer_harnesses) == 1
     assert "fuzz_target1.cpp" in {h.name for h in libfuzzer_harnesses}
-    assert len(jazzer_harnesses) == 1
-    assert "FuzzTarget.java" in {h.name for h in jazzer_harnesses}
+    assert len(jazzer_harnesses) == 0  # No Java harnesses in container_src_dir
 
 
-def test_get_harness_source_candidates_cpp(challenge_task: ChallengeTask):
+def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
     """Test getting harness source candidates for C++ project."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     project_yaml_path = (
-        challenge_task.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
+        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
     )
+
+    source_path.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: cpp\n")
 
     # Create test files
@@ -232,28 +255,31 @@ def test_get_harness_source_candidates_cpp(challenge_task: ChallengeTask):
     (source_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
     # Test one candidate is similar
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "fuzz_target")
+    candidates = get_harness_source_candidates(codequery, "my-project", "fuzz_target")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["fuzz_target.cpp", "another_fuzzer.c"]
 
     # Test case-insensitive candidate is similar
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "AnotherFuzzer")
+    candidates = get_harness_source_candidates(codequery, "my-project", "AnotherFuzzer")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["another_fuzzer.c", "fuzz_target.cpp"]
 
     # Test no match
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "nonexistent")
+    candidates = get_harness_source_candidates(codequery, "my-project", "nonexistent")
     assert len(candidates) == 2
     assert "another_fuzzer.c" in candidate_names
     assert "fuzz_target.cpp" in candidate_names
 
 
-def test_get_harness_source_candidates_java(challenge_task: ChallengeTask):
+def test_get_harness_source_candidates_java(codequery: CodeQuery):
     """Test getting harness source candidates for Java project."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     project_yaml_path = (
-        challenge_task.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
+        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
     )
+
+    source_path.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: jvm\n")
 
     # Create test files
@@ -263,25 +289,26 @@ def test_get_harness_source_candidates_java(challenge_task: ChallengeTask):
     (source_path / "FuzzTarget1.java").write_text(FUZZ_TARGET_JAVA)
 
     # Test one candidate is similar
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "FuzzTarget")
+    candidates = get_harness_source_candidates(codequery, "my-project", "FuzzTarget")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["FuzzTarget.java", "FuzzTarget1.java"]
 
     # Test case-insensitive candidate is similar
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "fuzztarget1")
+    candidates = get_harness_source_candidates(codequery, "my-project", "fuzztarget1")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["FuzzTarget1.java", "FuzzTarget.java"]
 
     # Test no match
-    candidates = get_harness_source_candidates(challenge_task, "my-project", "nonexistent")
+    candidates = get_harness_source_candidates(codequery, "my-project", "nonexistent")
     assert len(candidates) == 2
     assert "FuzzTarget.java" in candidate_names
     assert "FuzzTarget1.java" in candidate_names
 
 
-def test_weird_libfuzzer_harnesses(challenge_task: ChallengeTask):
+def test_weird_libfuzzer_harnesses(codequery: CodeQuery):
     """Test finding libfuzzer harnesses with unusual but valid signatures."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    source_path.mkdir(parents=True, exist_ok=True)
 
     # Test case 1: Function signature split across multiple lines with weird indentation
     weird_signature_cpp = """
@@ -343,7 +370,7 @@ extern "C" int LLVMFuzzerTestOneInput(\
     (source_path / "line_continuation.cpp").write_text(line_continuation_cpp)
 
     # Find harnesses
-    harnesses = find_libfuzzer_harnesses(challenge_task)
+    harnesses = find_libfuzzer_harnesses(codequery)
 
     # Verify results
     assert len(harnesses) == 4
@@ -354,9 +381,10 @@ extern "C" int LLVMFuzzerTestOneInput(\
     assert "line_continuation.cpp" in harness_paths
 
 
-def test_weird_jazzer_harnesses(challenge_task: ChallengeTask):
+def test_weird_jazzer_harnesses(codequery: CodeQuery):
     """Test finding jazzer harnesses with unusual but valid signatures."""
-    source_path = challenge_task.get_source_path()
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    source_path.mkdir(parents=True, exist_ok=True)
 
     # Test case 1: Annotation and method split across multiple lines
     split_annotation_java = """
@@ -420,7 +448,7 @@ public class LineContinuationFuzzer {
     (source_path / "LineContinuationFuzzer.java").write_text(line_continuation_java)
 
     # Find harnesses
-    harnesses = find_jazzer_harnesses(challenge_task)
+    harnesses = find_jazzer_harnesses(codequery)
 
     # Verify results
     assert len(harnesses) == 4
@@ -429,3 +457,115 @@ public class LineContinuationFuzzer {
     assert "ExtraSpacesFuzzer.java" in harness_paths
     assert "InlineCommentsFuzzer.java" in harness_paths
     assert "LineContinuationFuzzer.java" in harness_paths
+
+
+@pytest.fixture(scope="module")
+def curl_oss_fuzz_ct() -> Iterator[ChallengeTask]:
+    # Clone real oss-fuzz repo into temp dir
+    with tempfile.TemporaryDirectory() as td:
+        tmp_path = Path(td)
+        tmp_path = tmp_path / "curl-oss-fuzz"
+        tmp_path.mkdir(parents=True)
+
+        oss_fuzz_dir = tmp_path / "fuzz-tooling"
+        oss_fuzz_dir.mkdir(parents=True)
+        source_dir = tmp_path / "src"
+        source_dir.mkdir(parents=True)
+
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(oss_fuzz_dir),
+                "clone",
+                "git@github.com:aixcc-finals/oss-fuzz-aixcc.git",
+            ],
+            check=True,
+        )
+        # Restore curl project directory to specific commit
+        cmd = [
+            "git",
+            "-C",
+            str(oss_fuzz_dir / "oss-fuzz-aixcc"),
+            "checkout",
+            "challenge-state/cu-full-01",
+        ]
+        subprocess.run(cmd, check=True)
+
+        # Download curl source code
+        curl_url = "git@github.com:aixcc-finals/afc-curl.git"
+        focus = "afc-curl"
+        # Checkout specific curl commit for reproducibility
+        subprocess.run(["git", "-C", str(source_dir), "clone", curl_url], check=True)
+        subprocess.run(
+            ["git", "-C", str(source_dir / focus), "checkout", "challenges/cu-full-01"],
+            check=True,
+        )
+
+        # Create task metadata
+        TaskMeta(
+            project_name="curl",
+            focus=focus,
+            task_id="task-id-curl",
+            metadata={"task_id": "task-id-curl", "round_id": "testing", "team_id": "tob"},
+        ).save(tmp_path)
+
+        yield ChallengeTask(
+            read_only_task_dir=tmp_path,
+            local_task_dir=tmp_path,
+        )
+
+
+@pytest.fixture(scope="module")
+def curl_oss_fuzz_cq(curl_oss_fuzz_ct: ChallengeTask) -> Iterator[CodeQuery]:
+    yield CodeQuery(challenge=curl_oss_fuzz_ct)
+
+
+@pytest.mark.integration
+def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
+    harnesses = find_libfuzzer_harnesses(curl_oss_fuzz_cq)
+    assert len(harnesses) == 8
+    assert "curl_fuzzer.cc" in {h.name for h in harnesses}
+    assert "fuzz_url.cc" in {h.name for h in harnesses}
+    assert "fuzz_bufq.cc" in {h.name for h in harnesses}
+    assert "fuzz_fnmatch.cc" in {h.name for h in harnesses}
+    # nghttp2 harnesses
+    assert "fuzz_target_fdp.cc" in {h.name for h in harnesses}
+    assert "fuzz_frames.cc" in {h.name for h in harnesses}
+    assert "fuzz_target.cc" in {h.name for h in harnesses}
+    # openssl harnesses
+    assert "driver.c" in {h.name for h in harnesses}
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "harness_name,expected_first_match",
+    [
+        ("curl_fuzzer_https", "curl_fuzzer.cc"),
+        ("curl_fuzzer_ftp", "curl_fuzzer.cc"),
+        ("curl_fuzzer_tftp", "curl_fuzzer.cc"),
+        ("curl_fuzzer_rtsp", "curl_fuzzer.cc"),
+        ("curl_fuzzer", "curl_fuzzer.cc"),
+        ("curl_fuzzer_pop3", "curl_fuzzer.cc"),
+        ("curl_fuzzer_ws", "curl_fuzzer.cc"),
+        ("curl_fuzzer_gopher", "curl_fuzzer.cc"),
+        ("curl_fuzzer_dict", "curl_fuzzer.cc"),
+        ("curl_fuzzer_smb", "curl_fuzzer.cc"),
+        ("curl_fuzzer_mqtt", "curl_fuzzer.cc"),
+        ("curl_fuzzer_smtp", "curl_fuzzer.cc"),
+        ("curl_fuzzer_file", "curl_fuzzer.cc"),
+        ("curl_fuzzer_imap", "curl_fuzzer.cc"),
+        ("curl_fuzzer_http", "curl_fuzzer.cc"),
+        ("fuzz_url", "fuzz_url.cc"),
+        # TODO: We need CoverageMap info to detect these harnesses
+        # ("curl_fuzzer_fnmatch", "fuzz_fnmatch.cc"),
+        # ("curl_fuzzer_bufq", "fuzz_bufq.cc"),
+    ],
+)
+def test_get_harness_source_candidates_curl(
+    curl_oss_fuzz_cq: CodeQuery, harness_name: str, expected_first_match: str
+):
+    harnesses = get_harness_source_candidates(
+        curl_oss_fuzz_cq, curl_oss_fuzz_cq.challenge.task_meta.project_name, harness_name
+    )
+    assert expected_first_match == harnesses[0].name

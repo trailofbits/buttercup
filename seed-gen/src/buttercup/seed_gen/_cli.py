@@ -9,6 +9,7 @@ from pathlib import Path
 from pydantic_settings import get_subcommand
 from redis import Redis
 
+import buttercup.seed_gen.cli_load_dotenv  # noqa: F401
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.logger import setup_package_logger
