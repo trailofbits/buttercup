@@ -82,6 +82,7 @@ def add_code_snippet(
                 if (
                     existing_code_snippet.start_line >= new_code_snippet.start_line
                     and existing_code_snippet.end_line <= new_code_snippet.end_line
+                    and existing_code_snippet in res
                 ):
                     res.remove(existing_code_snippet)
 
