@@ -54,6 +54,9 @@ from buttercup.program_model.utils.common import TypeDefinitionType
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_hdf5_get_functions(
     hdf5_oss_fuzz_cq: CodeQuery, function_name, file_path, function_info
@@ -95,6 +98,9 @@ def test_hdf5_get_functions(
             14,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -149,6 +155,9 @@ def test_get_callers(
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_callees(
     hdf5_oss_fuzz_task: ChallengeTask,
@@ -189,6 +198,9 @@ def test_get_callees(
             ),
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_definitions(

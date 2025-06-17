@@ -37,6 +37,9 @@ from ..common import (
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_functions(
     dropbear_oss_fuzz_cq: CodeQuery, function_name, file_path, function_info
@@ -65,6 +68,9 @@ def test_get_functions(
             1,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -108,6 +114,9 @@ def test_get_callers(
             10,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callees(
@@ -153,6 +162,9 @@ def test_get_callees(
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_type_definitions(
     dropbear_oss_fuzz_task: ChallengeTask,
@@ -190,7 +202,9 @@ def test_get_type_definitions(
         ),
     ],
 )
-@pytest.mark.skip(reason="Issue with codequery. Considers the type is unused")
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_type_usages(
     dropbear_oss_fuzz_task: ChallengeTask,

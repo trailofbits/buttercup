@@ -112,7 +112,6 @@ class ChallengeTask:
     task_meta: TaskMeta = field(init=False)
     python_path: PathLike = Path("python")
     local_task_dir: PathLike | None = None
-    clean: bool = True
 
     SRC_DIR = "src"
     DIFF_DIR = "diff"
@@ -513,8 +512,6 @@ class ChallengeTask:
             # AIxCC guarantees `build_fuzzers <local-path>` to just work.
             # https://github.com/google/oss-fuzz/blob/80a57ca6da03069afabb5116cae0b338d19f9f27/infra/helper.py#L870-L872
             kwargs["mount_path"] = Path(f"/src/{self.focus}")
-        if not self.clean:
-            kwargs["no-clean"] = True
 
         cmd = self._get_helper_cmd(
             "build_fuzzers",
@@ -535,6 +532,7 @@ class ChallengeTask:
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
         env: Dict[str, str] | None = None,
+        env_helper: Dict[str, str] | None = None,
     ) -> CommandResult:
         check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
         if check_build_res.success:
@@ -549,6 +547,7 @@ class ChallengeTask:
             engine=engine,
             sanitizer=sanitizer,
             env=env,
+            env_helper=env_helper,
         )
 
     @read_write_decorator
@@ -563,17 +562,11 @@ class ChallengeTask:
         pull_latest_base_image: bool = True,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
-        check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
-        if check_build_res.success:
-            logger.info("Build is up to date, skipping building fuzzers")
-            return check_build_res
-
-        self.build_image(pull_latest_base_image=pull_latest_base_image, architecture=architecture)
-
         env_helper = {
             "OSS_FUZZ_SAVE_CONTAINERS_NAME": container_name,
         }
 
+        self.build_image(pull_latest_base_image=pull_latest_base_image, architecture=architecture)
         return self.build_fuzzers(
             use_source_dir=use_source_dir,
             architecture=architecture,

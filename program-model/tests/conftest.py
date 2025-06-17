@@ -230,9 +230,9 @@ def commons_compress_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "apache-commons-compress",
         "challenge-state/cc-full-01",
-        "commons-compress",
-        "https://gitbox.apache.org/repos/asf/commons-compress",
-        "3039bcc221d9f792c626230da4903f40b15bb72f",
+        "afc-commons-compress",
+        "https://github.com/aixcc-finals/afc-commons-compress.git",
+        "challenges/cc-full-01",
     )
 
 
@@ -247,9 +247,9 @@ def dropbear_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "dropbear",
         "challenge-state/db-full-01",
-        "dropbear",
-        "https://github.com/mkj/dropbear",
-        "16106997d11615e5e2dfe477def062aed7ed0bca",
+        "afc-dropbear",
+        "https://github.com/aixcc-finals/afc-dropbear.git",
+        "challenges/db-full-01",
     )
 
 
@@ -264,9 +264,9 @@ def freerdp_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "freerdp",
         "challenge-state/fp-full-01",
-        "FreeRDP",
-        "https://github.com/FreeRDP/FreeRDP",
-        "81e95e51cabfc2db201991b43c0b861b201e17f2",
+        "afc-freerdp",
+        "https://github.com/aixcc-finals/afc-freerdp.git",
+        "challenges/fp-full-01",
     )
 
 
@@ -366,9 +366,9 @@ def libxml2_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "libxml2",
         "challenge-state/lx-full-01",
-        "libxml2",
-        "https://gitlab.gnome.org/GNOME/libxml2",
-        "1c82bca6bd23d0f0858d7fc228ec3a91fda3e0e2",
+        "afc-libxml2",
+        "https://github.com/aixcc-finals/afc-libxml2.git",
+        "challenges/lx-full-01",
     )
 
 
@@ -434,9 +434,9 @@ def zookeeper_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "zookeeper",
         "challenge-state/zk-full-01",
-        "zookeeper",
-        "https://github.com/apache/zookeeper",
-        "b86ccf19cf6c32f7e58e36754b6f3534be567727",
+        "afc-zookeeper",
+        "https://github.com/aixcc-finals/afc-zookeeper.git",
+        "challenges/zk-full-01",
     )
 
 

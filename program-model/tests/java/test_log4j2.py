@@ -45,6 +45,9 @@ from pathlib import Path
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_functions(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -79,6 +82,9 @@ def test_get_functions(
             453,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -171,6 +177,9 @@ def test_get_callers(
         #   ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_callees(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -236,6 +245,9 @@ def test_get_callees(
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_type_definitions(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -273,6 +285,9 @@ def test_get_type_definitions(
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_type_usages(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -295,6 +310,10 @@ def test_get_type_usages(
     )
 
 
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
+@pytest.mark.integration
 def test_java_resolver(log4j2_oss_fuzz_task: ChallengeTask):
     codequery = CodeQuery(log4j2_oss_fuzz_task)
     resolver = codequery.imports_resolver

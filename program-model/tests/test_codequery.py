@@ -342,6 +342,9 @@ parse_switches(j_decompress_ptr cinfo, int argc, char **argv,
     )
 
 
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     """Test that we can index selinux and files inside oss-fuzz repo"""

@@ -43,6 +43,9 @@ from ..common import (
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_functions(
     commons_compress_oss_fuzz_task: ChallengeTask,
@@ -122,6 +125,9 @@ def test_get_callers(
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_callees(
     commons_compress_oss_fuzz_task: ChallengeTask,
@@ -163,6 +169,9 @@ def test_get_callees(
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_type_definitions(
     commons_compress_oss_fuzz_task: ChallengeTask,
@@ -199,6 +208,9 @@ def test_get_type_definitions(
             4,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_usages(

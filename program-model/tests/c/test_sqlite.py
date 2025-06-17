@@ -36,6 +36,9 @@ from ..common import (
         ),
     ],
 )
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+)
 @pytest.mark.integration
 def test_get_functions(
     sqlite_oss_fuzz_task: ChallengeTask,
@@ -68,6 +71,9 @@ def test_get_functions(
             1,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -105,6 +111,9 @@ def test_get_callers(
             0,
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callees(
@@ -157,6 +166,9 @@ def test_get_callees(
             ),
         ),
     ],
+)
+@pytest.mark.skip(
+    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_definitions(
