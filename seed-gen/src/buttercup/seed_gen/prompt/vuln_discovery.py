@@ -304,7 +304,7 @@ Optional, potentially incorrect SARIF hints:
 {sarif_hints}
 </sarif_hints>
 
-You need to reason about vulnerabilities that could be reached by the test harness and collect context to identify the vulnerability.
+You need to reason about vulnerabilities that could be reached by the test harness and collect context to identify the vulnerabilities.
 
 You are provided:
 1. The history of tool calls made so far
@@ -315,12 +315,12 @@ You are provided:
 You must make a tool call to retrieve context.
 
 Prioritize code that:
-1) Helps you understand what vulnerability(s) could exist
+1) Helps you understand what vulnerabilities could exist
 2) Is related to functionality that is exercised by the test harness
 3) Helps you understand how to reach the vulnerability from the test harness
 4) Helps you assess whether any provided SARIF hints describe real vulnerabilities
 
-The vulnerability will have the following properties:
+All vulnerabilities you identify must have the following properties:
 - It must be reachable from the test harness
 - It can cause a crash, trigger a {fuzzer_name} sanitizer, or cause a timeout.
 - It must be in a {vuln_files} file.
@@ -334,6 +334,8 @@ It's possible a vulnerability is related to a different CWE, so consider other C
 Remember:
 - You must make a tool call to gather context. Use the batch tool if you want to make multiple calls at once.
 - Your goal is to understand the vulnerability and write test cases that reach it
+- You should continue gathering context after finding a vulnerability in order to find other vulnerabilities.
+- There could be multiple vulnerabilities reachable from the harness.
 - Avoid selecting code that is already provided in full (in the harness or in the previously retrieved context)
 
 Your response:
