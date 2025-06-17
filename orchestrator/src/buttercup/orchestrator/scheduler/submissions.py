@@ -575,6 +575,19 @@ class Submissions:
                 continue
             yield i, e
 
+    def _stop(self, i: int, e: SubmissionEntry, msg: str):
+        """Stop a SubmissionEntry from further processing."""
+        current_state = SubmissionEntry.SubmissionState.Name(e.state)
+        e.state = SubmissionEntry.STOP
+        self._persist(self.redis, i, e)
+        log_structured(
+            logger.info,
+            _task_id(e),
+            index=i,
+            state_change=(current_state, "STOP"),
+            msg=msg,
+        )
+
     def submit_vulnerability(self, crash: TracedCrash) -> bool:
         """
         Submit a vulnerability to the competition API and store the result in Redis.
@@ -937,16 +950,8 @@ class Submissions:
                 | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
                 | TypesSubmissionStatus.SubmissionStatusInconclusive
             ):
-                e.state = SubmissionEntry.STOP
-                self._persist(self.redis, i, e)
-                log_structured(
-                    logger.info,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    state_change=("WAIT_POV_PASS", "STOP"),
-                    msg=f"POV failed (status={status}), stopping",
-                )
+                self._stop(i, e, f"POV failed (status={status}), stopping")
+
             case TypesSubmissionStatus.SubmissionStatusPassed:
                 self.task_registry.mark_successful(_task_id(e))
                 e.state = SubmissionEntry.SUBMIT_PATCH
@@ -974,16 +979,7 @@ class Submissions:
 
                     # If the API returned ERRORED, we want to retry.
                     if status != TypesSubmissionStatus.SubmissionStatusErrored:
-                        e.state = SubmissionEntry.STOP
-                        self._persist(self.redis, i, e)
-                        log_structured(
-                            logger.info,
-                            _task_id(e),
-                            index=i,
-                            pov_id=e.pov_id,
-                            state_change=("WAIT_POV_PASS", "STOP"),
-                            msg=f"POV failed (status={status}), stopping",
-                        )
+                        self._stop(i, e, f"POV failed (status={status}), stopping")
                 else:
                     e.pov_id = pov_id
                     self._persist(self.redis, i, e)
@@ -1072,17 +1068,7 @@ class Submissions:
         else:
             match status:
                 case TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
-                    # Deadline exceeded, move on to next patch (we won't try again due to deadline check)
-                    _advance_patch_idx(e)
-                    self._persist(self.redis, i, e)
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_idx=e.patch_idx,
-                        msg="Patch submission deadline exceeded, will not attempt this patch again.",
-                    )
+                    self._stop(i, e, "Patch submission deadline exceeded, stopping")
                 case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusInconclusive:
                     # The patch failed for some reason. Try generating a new patch
                     self._attempt_next_patch(i, e)
@@ -1144,17 +1130,7 @@ class Submissions:
             case TypesSubmissionStatus.SubmissionStatusAccepted:
                 return  # No change.
             case TypesSubmissionStatus.SubmissionStatusDeadlineExceeded:
-                e.state = SubmissionEntry.SUBMIT_PATCH
-                _advance_patch_idx(e)
-                log_structured(
-                    logger.info,
-                    _task_id(e),
-                    index=i,
-                    pov_id=e.pov_id,
-                    patch_idx=e.patch_idx,
-                    state_change=("WAIT_PATCH_PASS", "SUBMIT_PATCH"),
-                    msg="Patch submission deadline exceeded, will not attempt this patch again, moving on to next patch.",
-                )
+                self._stop(i, e, "Patch submission deadline exceeded, stopping")
             case TypesSubmissionStatus.SubmissionStatusFailed | TypesSubmissionStatus.SubmissionStatusInconclusive:
                 e.state = SubmissionEntry.SUBMIT_PATCH
                 self._attempt_next_patch(i, e)
@@ -1223,17 +1199,7 @@ class Submissions:
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
                     | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
-                    e.state = SubmissionEntry.STOP
-                    self._persist(self.redis, i, e)
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        state_change=("SUBMIT_BUNDLE", "STOP"),
-                        msg=f"Bundle submission failed ({status}), not much else to do but stop.",
-                    )
+                    self._stop(i, e, f"Bundle submission failed ({status}), not much else to do but stop.")
                 case TypesSubmissionStatus.SubmissionStatusErrored:
                     log_structured(
                         logger.info,
@@ -1326,18 +1292,7 @@ class Submissions:
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
                     | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
-                    e.state = SubmissionEntry.STOP
-                    self._persist(self.redis, i, e)
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        bundle_id=e.bundle_id,
-                        state_change=("SUBMIT_MATCHING_SARIF", "STOP"),
-                        msg=f"Matching SARIF submission failed ({status}), not much else to do but stop.",
-                    )
+                    self._stop(i, e, f"Matching SARIF submission failed ({status}), not much else to do but stop.")
                 case _:
                     log_structured(
                         logger.info,
@@ -1364,19 +1319,7 @@ class Submissions:
         """
         success, status = self.competition_api.patch_bundle(_task_id(e), e.bundle_id, e.pov_id, e.patch_id, e.sarif_id)
         if success:
-            e.state = SubmissionEntry.STOP
-            self._persist(self.redis, i, e)
-            log_structured(
-                logger.info,
-                _task_id(e),
-                index=i,
-                pov_id=e.pov_id,
-                patch_id=e.patch_id,
-                bundle_id=e.bundle_id,
-                sarif_id=e.sarif_id,
-                state_change=("SUBMIT_BUNDLE_PATCH", "STOP"),
-                msg="Bundle patch submitted successfully. No more work to be done. Will stop.",
-            )
+            self._stop(i, e, "Bundle patch submitted successfully. No more work to be done. Will stop.")
         else:
             match status:
                 case (
@@ -1384,19 +1327,7 @@ class Submissions:
                     | TypesSubmissionStatus.SubmissionStatusDeadlineExceeded
                     | TypesSubmissionStatus.SubmissionStatusInconclusive
                 ):
-                    e.state = SubmissionEntry.STOP
-                    self._persist(self.redis, i, e)
-                    log_structured(
-                        logger.info,
-                        _task_id(e),
-                        index=i,
-                        pov_id=e.pov_id,
-                        patch_id=e.patch_id,
-                        bundle_id=e.bundle_id,
-                        sarif_id=e.sarif_id,
-                        state_change=("SUBMIT_BUNDLE_PATCH", "STOP"),
-                        msg=f"Bundle patch submission failed ({status}), not much else to do but stop.",
-                    )
+                    self._stop(i, e, f"Bundle patch submission failed ({status}), not much else to do but stop.")
                 case _:
                     log_structured(
                         logger.info,
