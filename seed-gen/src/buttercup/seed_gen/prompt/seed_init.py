@@ -10,9 +10,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The harness is:
-<harness>
 {harness}
-</harness>
 
 You are creating seed inputs to bootstrap the fuzzing corpus for a program's test harness. You are provided:
 1. Retrieved context about the codebase
@@ -71,9 +69,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The harness is:
-<harness>
 {harness}
-</harness>
 
 You are creating seed inputs to bootstrap the fuzzing corpus for a program's test harness. You are provided:
 1. The history of tool calls made so far

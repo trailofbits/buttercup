@@ -16,7 +16,7 @@ from buttercup.seed_gen.prompt.seed_explore import (
     SEED_EXPLORE_GET_CONTEXT_USER_PROMPT,
 )
 from buttercup.seed_gen.seed_task import SeedBaseTask
-from buttercup.seed_gen.task import BaseTaskState, CodeSnippet
+from buttercup.seed_gen.task import BaseTaskState, CodeSnippet, HarnessInfo
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class SeedExploreTask(SeedBaseTask):
         logger.info("Generating seeds")
         prompt_vars = {
             "count": self.SEED_EXPLORE_SEED_COUNT,
-            "harness": state.harness,
+            "harness": str(state.harness),
             "target_function": str(state.target_function),
             "retrieved_context": state.format_retrieved_context(),
         }
@@ -55,7 +55,7 @@ class SeedExploreTask(SeedBaseTask):
         logger.info("Getting context")
         prompt_vars = {
             "target_function": str(state.target_function),
-            "harness": state.harness,
+            "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
         }
         res = self._get_context_base(
@@ -66,7 +66,9 @@ class SeedExploreTask(SeedBaseTask):
         )
         return res
 
-    def generate_seeds(self, harness: str, target_function: CodeSnippet, output_dir: Path) -> None:
+    def generate_seeds(
+        self, harness: HarnessInfo, target_function: CodeSnippet, output_dir: Path
+    ) -> None:
         """Generate seeds"""
 
         state = SeedExploreState(

@@ -36,7 +36,7 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         logger.info("Gathering context")
         prompt_vars = {
             "diff": state.diff_content,
-            "harness": state.harness,
+            "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
             "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
@@ -56,7 +56,7 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         """Analyze the diff for vulnerabilities"""
         prompt_vars = {
             "diff": state.diff_content,
-            "harness": state.harness,
+            "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
             "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
@@ -74,7 +74,7 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         """Write PoV functions for the vulnerability"""
         prompt_vars = {
             "analysis": state.analysis,
-            "harness": state.harness,
+            "harness": str(state.harness),
             "diff": state.diff_content,
             "max_povs": self.VULN_DISCOVERY_MAX_POV_COUNT,
             "retrieved_context": state.format_retrieved_context(),

@@ -29,7 +29,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
         prompt_vars = {
-            "harness": state.harness,
+            "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
             "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
@@ -48,7 +48,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     def _analyze_bug(self, state: VulnBaseState) -> Command:
         """Analyze the diff for vulnerabilities"""
         prompt_vars = {
-            "harness": state.harness,
+            "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
             "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
@@ -66,7 +66,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         """Write PoV functions for the vulnerability"""
         prompt_vars = {
             "analysis": state.analysis,
-            "harness": state.harness,
+            "harness": str(state.harness),
             "max_povs": self.VULN_DISCOVERY_MAX_POV_COUNT,
             "retrieved_context": state.format_retrieved_context(),
             "pov_examples": self.get_pov_examples(),

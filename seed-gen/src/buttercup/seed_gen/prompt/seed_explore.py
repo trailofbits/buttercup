@@ -11,9 +11,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The harness is:
-<harness>
 {harness}
-</harness>
 
 The target function is:
 <target_function>
@@ -71,9 +69,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The harness is:
-<harness>
 {harness}
-</harness>
 
 The target function is:
 <target_function>

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import rapidfuzz
+from pydantic import BaseModel
 from redis import Redis
 
 from buttercup.common.maps import CoverageMap
@@ -13,6 +14,24 @@ from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
 
 logger = logging.getLogger(__name__)
+
+
+class HarnessInfo(BaseModel):
+    """Harness info"""
+
+    file_path: Path
+    code: str
+    harness_name: str
+
+    def __str__(self) -> str:
+        return f"""<harness>
+<harness_binary_name>{self.harness_name}</harness_binary_name>
+<source_file_path>{self.file_path}</source_file_path>
+<code>
+{self.code}
+</code>
+</harness>
+"""
 
 
 @dataclass
@@ -29,7 +48,7 @@ class HarnessSourceCacheKey:
         return self.task_id == other.task_id and self.harness_name == other.harness_name
 
 
-_harness_source_cache: dict[HarnessSourceCacheKey, str] = {}
+_harness_source_cache: dict[HarnessSourceCacheKey, HarnessInfo] = {}
 
 
 def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path) -> list[Path]:
@@ -157,7 +176,9 @@ def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> li
     return harnesses
 
 
-def get_harness_source(redis: Redis | None, codequery: CodeQuery, harness_name: str) -> str | None:
+def get_harness_source(
+    redis: Redis | None, codequery: CodeQuery, harness_name: str
+) -> HarnessInfo | None:
     task_id = codequery.challenge.task_meta.task_id
     logger.info("Getting harness source for %s | %s", task_id, harness_name)
     key = HarnessSourceCacheKey(
@@ -179,7 +200,12 @@ def get_harness_source(redis: Redis | None, codequery: CodeQuery, harness_name: 
 
     if len(harnesses) == 1:
         logger.info("Found single harness for %s | %s: %s", task_id, harness_name, harnesses[0])
-        return harnesses[0].read_text()
+        harness_info = HarnessInfo(
+            file_path=_rebase_path(codequery.challenge.task_dir, harnesses[0]),
+            code=harnesses[0].read_text(),
+            harness_name=harness_name,
+        )
+        return harness_info
 
     if redis is None:
         logger.warning(
@@ -202,7 +228,12 @@ def get_harness_source(redis: Redis | None, codequery: CodeQuery, harness_name: 
         for harness_path in harnesses:
             rebased_harness_path = _rebase_path(codequery.challenge.task_dir, harness_path)
             if any(str(rebased_harness_path) == path for path in function_coverage.function_paths):
-                _harness_source_cache[key] = harness_path.read_text()
+                harness_info = HarnessInfo(
+                    file_path=rebased_harness_path,
+                    code=harness_path.read_text(),
+                    harness_name=harness_name,
+                )
+                _harness_source_cache[key] = harness_info
                 logger.info(
                     "Harness source for %s | %s matched through coverage map: %s",
                     task_id,
@@ -220,4 +251,10 @@ def get_harness_source(redis: Redis | None, codequery: CodeQuery, harness_name: 
         harness_name,
         harnesses[0],
     )
-    return harnesses[0].read_text()
+    rebased_harness_path = _rebase_path(codequery.challenge.task_dir, harnesses[0])
+    harness_info = HarnessInfo(
+        file_path=rebased_harness_path,
+        code=harnesses[0].read_text(),
+        harness_name=harness_name,
+    )
+    return harness_info

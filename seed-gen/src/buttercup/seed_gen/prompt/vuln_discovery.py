@@ -97,9 +97,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The test harness is:
-<harness>
 {harness}
-</harness>
 
 The diff that introduced the vulnerability is:
 <diff>
@@ -160,9 +158,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The harness is:
-<harness>
 {harness}
-</harness>
 
 The diff that introduced the vulnerability is:
 <diff>
@@ -230,9 +226,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The test harness is:
-<harness>
 {harness}
-</harness>
 
 The diff that introduced the vulnerability is:
 <diff>
@@ -295,9 +289,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The test harness is:
-<harness>
 {harness}
-</harness>
 
 Optional, potentially incorrect SARIF hints:
 <sarif_hints>
@@ -352,9 +344,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The test harness is:
-<harness>
 {harness}
-</harness>
 
 Optional, potentially incorrect SARIF hints:
 <sarif_hints>
@@ -406,9 +396,7 @@ Retrieved context about the codebase:
 </retrieved_context>
 
 The harness is:
-<harness>
 {harness}
-</harness>
 
 Previous attempts at test cases that failed to trigger the vulnerability:
 <previous_attempts>

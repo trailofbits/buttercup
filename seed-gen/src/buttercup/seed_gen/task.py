@@ -23,7 +23,7 @@ from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
-from buttercup.seed_gen.find_harness import get_harness_source
+from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
 
@@ -121,7 +121,7 @@ class Task:
             fallbacks.append(fallback)
         return llm.with_fallbacks(fallbacks)
 
-    def get_harness_source(self) -> str | None:
+    def get_harness_source(self) -> HarnessInfo | None:
         return get_harness_source(self.redis, self.codequery, self.harness_name)
 
     @staticmethod
@@ -640,7 +640,7 @@ class Task:
 class BaseTaskState(BaseModel):
     """Base state for all tasks."""
 
-    harness: str = Field(description="Harness code")
+    harness: HarnessInfo = Field(description="Harness info")
     messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
     retrieved_context: Annotated[dict[str, ToolCallResult], operator.or_] = Field(
         description="Context retrieved by tools, keyed by tool call", default_factory=dict

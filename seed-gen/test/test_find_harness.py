@@ -302,14 +302,20 @@ def test_get_harness_source_cpp(codequery: CodeQuery):
 
     redis = MagicMock(spec=Redis)
     with patch("buttercup.seed_gen.find_harness.CoverageMap") as coverage_map:
-        harness_source = get_harness_source(redis, codequery, "fuzz_target")
-        assert harness_source == FUZZ_TARGET_CPP
+        harness_name = "fuzz_target"
+        harness_info = get_harness_source(redis, codequery, harness_name)
+        assert harness_info.code == FUZZ_TARGET_CPP
+        assert harness_info.file_path == Path("/src/fuzz_target.cpp")
+        assert harness_info.harness_name == harness_name
 
         coverage_map.assert_not_called()
 
+        another_harness_name = "AnotherFuzzer"
         (source_path / "src/another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
-        harness_source = get_harness_source(redis, codequery, "AnotherFuzzer")
-        assert harness_source == FUZZ_TARGET_CPP
+        harness_info = get_harness_source(redis, codequery, another_harness_name)
+        assert harness_info.code == FUZZ_TARGET_CPP
+        assert harness_info.file_path == Path("/src/another_fuzzer.c")
+        assert harness_info.harness_name == another_harness_name
 
         coverage_map.assert_called_once()
 
@@ -353,11 +359,15 @@ def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
 
         coverage_map.side_effect = side_effect
 
-        harness_source = get_harness_source(redis, codequery, "curl_common_fuzz_https")
-        assert harness_source == FUZZ_TARGET_CPP
+        harness_info = get_harness_source(redis, codequery, "curl_common_fuzz_https")
+        assert harness_info.code == FUZZ_TARGET_CPP
+        assert harness_info.file_path == Path("/src/curl_common_fuzz.cpp")
+        assert harness_info.harness_name == "curl_common_fuzz_https"
 
-        harness_source = get_harness_source(redis, codequery, "curl_common_bufq")
-        assert harness_source == FUZZ_TARGET_CPP_1
+        harness_info = get_harness_source(redis, codequery, "curl_common_bufq")
+        assert harness_info.code == FUZZ_TARGET_CPP_1
+        assert harness_info.file_path == Path("/src/bufq.c")
+        assert harness_info.harness_name == "curl_common_bufq"
 
 
 def test_get_harness_source_candidates_java(codequery: CodeQuery):
@@ -763,7 +773,9 @@ def test_get_harness_source(
         ]
         coverage_map.return_value = coverage_map_mock
 
-        harness_source = get_harness_source(redis, curl_oss_fuzz_cq, harness_name)
+        harness_info = get_harness_source(redis, curl_oss_fuzz_cq, harness_name)
         relative_source_path = expected_harness_source_path.lstrip("/")
         actual_file = curl_oss_fuzz_cq.challenge.task_dir / CONTAINER_SRC_DIR / relative_source_path
-        assert harness_source == actual_file.read_text()
+        assert harness_info.code == actual_file.read_text()
+        assert harness_info.file_path == Path("/") / relative_source_path
+        assert harness_info.harness_name == harness_name
