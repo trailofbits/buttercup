@@ -11,7 +11,7 @@ class PatcherConfig(BaseModel):
     tasks_storage: Path
     thread_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
-    max_patch_retries: int = Field(default=15)
+    max_patch_retries: int = Field(default=10)
     max_last_failure_retries: int = Field(default=3)
     max_minutes_run_povs: int = Field(default=30)
     max_root_cause_analysis_retries: int = Field(default=3)

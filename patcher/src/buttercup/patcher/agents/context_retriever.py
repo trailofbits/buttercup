@@ -30,7 +30,7 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.stack_parsing import CrashInfo
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from buttercup.patcher.utils import truncate_output, get_challenge
+from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition
 from buttercup.patcher.agents.common import (
     PatcherAgentBase,
     ContextRetrieverState,
@@ -539,6 +539,8 @@ def test_instructions(
                 },
             )
 
+        # We truncate the output at the start so we can see, in the worst case,
+        # the last lines of the output, which hopefully contain the test results
         msg = f"""<command>
 {instructions}
 </command>
@@ -546,10 +548,10 @@ def test_instructions(
 {sh_cmd_res.returncode}
 </return_code>
 <output>
-{truncate_output(sh_cmd_res.output.decode("utf-8"), MAX_OUTPUT_LENGTH)}
+{truncate_output(sh_cmd_res.output.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START)}
 </output>
 <error>
-{truncate_output(sh_cmd_res.error.decode("utf-8"), MAX_OUTPUT_LENGTH)}
+{truncate_output(sh_cmd_res.error.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START)}
 </error>
     """
         if sh_cmd_res.success:

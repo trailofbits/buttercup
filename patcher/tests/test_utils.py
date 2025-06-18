@@ -122,12 +122,12 @@ def test_config_from_env():
     )
     config = PatcherConfig.from_configurable(runnable_config)
     assert config.ctx_retriever_recursion_limit == 80
-    assert config.max_patch_retries == 15
+    assert config.max_patch_retries == 10
 
     with patch.dict(os.environ, {"TOB_PATCHER_CTX_RETRIEVER_RECURSION_LIMIT": "200"}):
         config = PatcherConfig.from_configurable(runnable_config)
         assert config.ctx_retriever_recursion_limit == 200
-        assert config.max_patch_retries == 15
+        assert config.max_patch_retries == 10
 
     with patch.dict(os.environ, {"TOB_PATCHER_MAX_PATCH_RETRIES": "1234"}):
         config = PatcherConfig.from_configurable(runnable_config)
