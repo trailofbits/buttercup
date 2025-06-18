@@ -96,11 +96,19 @@ def mock_duplicate_code_snippet_prompt(mock_cheap_llm: MagicMock):
     return prompt
 
 
+@pytest.fixture
+def mock_test_instructions_prompt():
+    prompt = MagicMock(spec=Runnable)
+    prompt.__or__.return_value = prompt
+    return prompt
+
+
 @pytest.fixture(autouse=True)
 def mock_llm_functions(
     mock_agent_llm: MagicMock,
     mock_cheap_llm: MagicMock,
     mock_duplicate_code_snippet_prompt: MagicMock,
+    mock_test_instructions_prompt: MagicMock,
 ):
     """Mock LLM creation functions and environment variables."""
     with (
@@ -112,6 +120,7 @@ def mock_llm_functions(
         import buttercup.patcher.agents.context_retriever
 
         buttercup.patcher.agents.context_retriever.DUPLICATE_CODE_SNIPPET_PROMPT = mock_duplicate_code_snippet_prompt
+        buttercup.patcher.agents.context_retriever.TEST_INSTRUCTIONS_PROMPT = mock_test_instructions_prompt
         yield
 
 
@@ -2257,3 +2266,106 @@ def test_grep_libpng(libpng_agent: ContextRetrieverAgent, mock_agent_llm: MagicM
     call_args = libpng_agent.mock_grep.invoke.call_args[0][0]  # Get the first positional argument
     assert call_args["name"] == "grep"
     assert call_args["args"] == {"pattern": "check", "file_path": "Makefile"}
+
+
+def test_find_tests_parallel(
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config: dict,
+    mock_challenge: ChallengeTask,
+) -> None:
+    """Test that the find tests agent can run multiple test_instructions tool calls in parallel."""
+    state = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id="test-task",
+            internal_patch_id="1",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="test output",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    # Create a mock for find_tests_agent
+    mock_agent_llm.invoke.return_value = AIMessage(
+        content="I found test instructions in the README.",
+        tool_calls=[
+            ToolCall(
+                id="test_instructions_call_1",
+                name="test_instructions",
+                args={
+                    "instructions": [
+                        "cd /src",
+                        "make test",
+                    ],
+                },
+            ),
+            ToolCall(
+                id="test_instructions_call_2",
+                name="test_instructions",
+                args={
+                    "instructions": [
+                        "cd /src2",
+                        "make test2",
+                    ]
+                },
+            ),
+        ],
+    )
+
+    # Mock the docker command execution for test_instructions
+    with (
+        patch("buttercup.common.challenge_task.ChallengeTask.exec_docker_cmd") as mock_exec,
+        patch("buttercup.common.challenge_task.ChallengeTask.get_clean_task") as mock_clean_task,
+    ):
+
+        @contextmanager
+        def yield_challenge(*args, **kwargs):
+            yield mock_challenge
+
+        mock_clean_task.return_value = mock_challenge
+        mock_challenge.apply_patch_diff = MagicMock(return_value=True)
+        mock_challenge.get_rw_copy = MagicMock(side_effect=yield_challenge)
+
+        def test_instructions_exec(*args, **kwargs):
+            if "mount_dirs" in kwargs:
+                mount_dirs = kwargs["mount_dirs"]
+                mount_dirs_list = list(mount_dirs.items())
+                test_file_path = mount_dirs_list[0][0]
+                test_file_content = test_file_path.read_text()
+                if "cd /src" in test_file_content:
+                    return CommandResult(
+                        success=True,
+                        returncode=0,
+                        output=b"Tests passed",
+                        error=b"",
+                    )
+                else:
+                    return CommandResult(
+                        success=False,
+                        returncode=1,
+                        output=b"",
+                        error=b"",
+                    )
+
+            return CommandResult(success=True, returncode=0, output=b"", error=b"")
+
+        mock_exec.side_effect = test_instructions_exec
+
+        result = mock_agent.find_tests_node(state, mock_runnable_config)
+
+        # Verify the agent found and validated test instructions
+        assert result is not None
+        assert result.update is not None
+        assert result.update["tests_instructions"] == "#!/bin/bash\ncd /src2\nmake test2\n"
+        assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value

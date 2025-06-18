@@ -271,6 +271,7 @@ Follow these steps:
    - Search for documented test instructions or test-related files
    - Run actual tests (not just linting or setup)
    - Troubleshoot if they fail to run
+   - Make sure tests actually ran and passed
 
 At each major step, wrap your findings in:
 <project_analysis>
@@ -305,7 +306,17 @@ class CodeSnippetManagerState(BaseCtxState):
 class FindTestsState(BaseCtxState):
     """State for the find tests agent."""
 
-    tests_instructions: str | None = None
+    tests_instructions: Annotated[str | None, reduce_test_instructions] = Field(default=None)
+
+
+def reduce_test_instructions(cur_instr: str | None, new_instr: str | None) -> str | None:
+    if not cur_instr:
+        return new_instr
+    if not new_instr:
+        return cur_instr
+
+    # Both test instructions succeeded (to run, at least), select the last one
+    return new_instr
 
 
 @tool
