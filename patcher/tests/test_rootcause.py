@@ -153,7 +153,7 @@ def root_cause_agent(mock_challenge: ChallengeTask, mock_llm: MagicMock, tmp_pat
     """Create a RootCauseAgent instance."""
     patch_input = PatchInput(
         task_id=mock_challenge.task_meta.task_id,
-        submission_index="1",
+        internal_patch_id="1",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=mock_challenge.task_dir,
@@ -273,7 +273,7 @@ def test_rootcause_multiple_povs(
     state = PatcherAgentState(
         context=PatchInput(
             task_id=root_cause_agent.input.task_id,
-            submission_index=root_cause_agent.input.submission_index,
+            internal_patch_id=root_cause_agent.input.internal_patch_id,
             povs=[
                 # First POV - heap buffer overflow
                 PatchInputPoV(

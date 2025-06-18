@@ -143,7 +143,7 @@ def sample_submission_entry(sample_crash):
 @pytest.fixture
 def sample_patch():
     patch = Patch()
-    patch.submission_index = "0"
+    patch.internal_patch_id = "0"
     patch.task_id = "test-task-123"
     patch.patch = "test patch content"
     return patch
@@ -152,7 +152,7 @@ def sample_patch():
 @pytest.fixture
 def sample_build_output():
     build_output = BuildOutput()
-    build_output.build_patch_id = "0/0"  # submission_index/patch_idx format
+    build_output.internal_patch_id = "0"  # internal_patch_id format
     build_output.sanitizer = "test_sanitizer"
     build_output.engine = "test_engine"
     build_output.task_id = "test-task-123"
@@ -416,6 +416,12 @@ class TestSubmissions:
         sample_submission_entry.crashes[0].crash.target.task_id = task_id  # Access first crash in crashes list
         sample_patch.task_id = task_id
 
+        # Add a patch entry that matches the sample_patch's internal_patch_id
+        patch_entry = SubmissionEntryPatch()
+        patch_entry.internal_patch_id = sample_patch.internal_patch_id  # "0"
+        # Don't set patch content - this is the first time we're recording a patch for this tracker
+        sample_submission_entry.patches.append(patch_entry)
+
         # Mock ChallengeTask and ProjectYaml dependencies for _request_patched_builds
         mock_task = Mock()
         mock_task.task_dir = Path("/tmp/tasks_storage") / task_id
@@ -446,7 +452,7 @@ class TestSubmissions:
             assert build_req.sanitizer in ["asan", "msan", "ubsan"]
             assert build_req.apply_diff is True
             assert build_req.patch == sample_patch.patch
-            assert build_req.build_patch_id == "0/0"  # submission_index=0, patch_idx=0
+            assert build_req.internal_patch_id == "0"  # internal_patch_id format
 
         # Verify all sanitizers were used
         used_sanitizers = {
@@ -457,7 +463,7 @@ class TestSubmissions:
         # Verify _persist was called
         submissions.redis.lset.assert_called_once()
 
-        # Verify patch was added to entries
+        # Verify patch was updated in entries
         assert len(submissions.entries[0].patches) == 1
         assert submissions.entries[0].patches[0].patch == sample_patch.patch
 
@@ -473,26 +479,30 @@ class TestSubmissions:
         sample_submission_entry.crashes[0].crash.target.task_id = task_id  # Access first crash in crashes list
         sample_patch.task_id = task_id
 
+        # Add a patch entry that matches the sample_patch's internal_patch_id
+        patch_entry = SubmissionEntryPatch()
+        patch_entry.internal_patch_id = sample_patch.internal_patch_id  # "0"
+        # Don't set patch content - this is the first time we're recording a patch for this tracker
+        sample_submission_entry.patches.append(patch_entry)
+
+        # Set the task_registry on the submissions object
+        submissions.task_registry = mock_task_registry
+
         # Configure mock to return True for should_stop_processing
         mock_task_registry.should_stop_processing.return_value = True
 
-        # Mock the _request_patched_builds method to avoid ChallengeTask initialization
-        with patch.object(submissions, "_request_patched_builds") as mock_request_builds:
-            # Call the method
-            result = submissions.record_patch(sample_patch)
+        # Call the method
+        result = submissions.record_patch(sample_patch)
 
-            # Verify _request_patched_builds was called
-            mock_request_builds.assert_called_once()
-
-        # Verify _persist was still called
-        submissions.redis.lset.assert_called_once()
-
-        # Verify patch was added to entries
-        assert len(submissions.entries[0].patches) == 1
-        assert submissions.entries[0].patches[0].patch == sample_patch.patch
-
-        # Verify return value
+        # Verify that the method returns True (acknowledges the patch)
         assert result is True
+
+        # Verify _persist was NOT called since task is stopped
+        submissions.redis.lset.assert_not_called()
+
+        # Verify patch was NOT updated since task is stopped
+        assert len(submissions.entries[0].patches) == 1
+        assert submissions.entries[0].patches[0].patch == ""  # Empty since we didn't set it
 
         # Verify should_stop_processing was called with the task_id
         mock_task_registry.should_stop_processing.assert_called_once_with(task_id)
@@ -600,7 +610,7 @@ class TestStateTransitions:
 
             # Verify state transition and patch ID
             assert sample_submission_entry.state == SubmissionEntry.WAIT_PATCH_PASS
-            assert sample_submission_entry.patch_id == "test-patch-123"
+            assert sample_submission_entry.competition_patch_id == "test-patch-123"
             assert sample_submission_entry.patch_submission_attempt == 1  # Incremented
 
     def test_wait_patch_pass_to_submit_bundle(
@@ -608,7 +618,7 @@ class TestStateTransitions:
     ):
         # Setup entry in WAIT_PATCH_PASS state
         sample_submission_entry.state = SubmissionEntry.WAIT_PATCH_PASS
-        sample_submission_entry.patch_id = "test-patch-123"
+        sample_submission_entry.competition_patch_id = "test-patch-123"
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return PASSED
@@ -629,7 +639,7 @@ class TestStateTransitions:
     ):
         # Setup entry in WAIT_PATCH_PASS state
         sample_submission_entry.state = SubmissionEntry.WAIT_PATCH_PASS
-        sample_submission_entry.patch_id = "test-patch-123"
+        sample_submission_entry.competition_patch_id = "test-patch-123"
         sample_submission_entry.patch_idx = 0
         sample_submission_entry.patches.append(SubmissionEntryPatch(patch="test patch content"))
         sample_submission_entry.patches.append(
@@ -656,7 +666,7 @@ class TestStateTransitions:
     ):
         # Setup entry in WAIT_PATCH_PASS state
         sample_submission_entry.state = SubmissionEntry.WAIT_PATCH_PASS
-        sample_submission_entry.patch_id = "test-patch-123"
+        sample_submission_entry.competition_patch_id = "test-patch-123"
         sample_submission_entry.patch_idx = 0
         sample_submission_entry.patches.append(SubmissionEntryPatch(patch="test patch content"))
         submissions.entries = [sample_submission_entry]
@@ -676,7 +686,7 @@ class TestStateTransitions:
         # Setup entry in SUBMIT_BUNDLE state
         sample_submission_entry.state = SubmissionEntry.SUBMIT_BUNDLE
         sample_submission_entry.pov_id = "test-pov-123"
-        sample_submission_entry.patch_id = "test-patch-456"
+        sample_submission_entry.competition_patch_id = "test-patch-456"
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return successful bundle submission
@@ -696,7 +706,7 @@ class TestStateTransitions:
         # Setup entry in SUBMIT_BUNDLE state
         sample_submission_entry.state = SubmissionEntry.SUBMIT_BUNDLE
         sample_submission_entry.pov_id = "test-pov-123"
-        sample_submission_entry.patch_id = "test-patch-456"
+        sample_submission_entry.competition_patch_id = "test-patch-456"
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return failed bundle submission
@@ -712,7 +722,7 @@ class TestStateTransitions:
         # Setup entry in SUBMIT_BUNDLE state
         sample_submission_entry.state = SubmissionEntry.SUBMIT_BUNDLE
         sample_submission_entry.pov_id = "test-pov-123"
-        sample_submission_entry.patch_id = "test-patch-456"
+        sample_submission_entry.competition_patch_id = "test-patch-456"
         submissions.entries = [sample_submission_entry]
 
         # Mock competition API to return error
@@ -728,7 +738,7 @@ class TestStateTransitions:
         # Setup entry in SUBMIT_MATCHING_SARIF state
         sample_submission_entry.state = SubmissionEntry.SUBMIT_MATCHING_SARIF
         sample_submission_entry.pov_id = "test-pov-123"
-        sample_submission_entry.patch_id = "test-patch-456"
+        sample_submission_entry.competition_patch_id = "test-patch-456"
         sample_submission_entry.bundle_id = "test-bundle-789"
         submissions.entries = [sample_submission_entry]
 
@@ -753,7 +763,7 @@ class TestStateTransitions:
         # Setup entry in SUBMIT_BUNDLE_PATCH state
         sample_submission_entry.state = SubmissionEntry.SUBMIT_BUNDLE_PATCH
         sample_submission_entry.pov_id = "test-pov-123"
-        sample_submission_entry.patch_id = "test-patch-456"
+        sample_submission_entry.competition_patch_id = "test-patch-456"
         sample_submission_entry.bundle_id = "test-bundle-789"
         sample_submission_entry.sarif_id = "test-sarif-123"
         submissions.entries = [sample_submission_entry]
@@ -873,7 +883,7 @@ class TestStateTransitions:
 
             # Verify state transition and patch ID set correctly
             assert sample_submission_entry.state == SubmissionEntry.WAIT_PATCH_PASS
-            assert sample_submission_entry.patch_id == "test-patch-123"
+            assert sample_submission_entry.competition_patch_id == "test-patch-123"
             assert sample_submission_entry.patch_submission_attempt == 1  # Incremented
 
 
@@ -884,7 +894,7 @@ class TestRecordPatchedBuild:
         # Setup submission entry with a patch
         patch_entry = SubmissionEntryPatch()
         patch_entry.patch = "test patch content"
-        patch_entry.patch_id = "0/0"
+        patch_entry.internal_patch_id = "0"
         sample_submission_entry.patches.append(patch_entry)
         submissions.entries = [sample_submission_entry]
 
@@ -897,7 +907,7 @@ class TestRecordPatchedBuild:
         # Verify build output was added to the patch
         assert len(submissions.entries[0].patches) == 1
         assert len(submissions.entries[0].patches[0].build_outputs) == 1
-        assert submissions.entries[0].patches[0].build_outputs[0].build_patch_id == "0/0"
+        assert submissions.entries[0].patches[0].build_outputs[0].internal_patch_id == "0"
         assert submissions.entries[0].patches[0].build_outputs[0].sanitizer == "test_sanitizer"
         assert submissions.entries[0].patches[0].build_outputs[0].engine == "test_engine"
         assert submissions.entries[0].patches[0].build_outputs[0].build_type == BuildType.PATCH
@@ -913,13 +923,13 @@ class TestRecordPatchedBuild:
         # Setup submission entry with a patch
         patch_entry = SubmissionEntryPatch()
         patch_entry.patch = "test patch content"
-        patch_entry.patch_id = "0/0"
+        patch_entry.internal_patch_id = "0"
         sample_submission_entry.patches.append(patch_entry)
         submissions.entries = [sample_submission_entry]
 
-        # Create multiple build outputs with the same patch_id but different properties
+        # Create multiple build outputs with the same patch_idx but different properties
         build_output1 = BuildOutput()
-        build_output1.build_patch_id = "0/0"
+        build_output1.internal_patch_id = "0"
         build_output1.task_id = "test-task-123"
         build_output1.sanitizer = "asan"
         build_output1.engine = "libfuzzer"
@@ -927,7 +937,7 @@ class TestRecordPatchedBuild:
         build_output1.apply_diff = True
 
         build_output2 = BuildOutput()
-        build_output2.build_patch_id = "0/0"
+        build_output2.internal_patch_id = "0"
         build_output2.task_id = "test-task-123"
         build_output2.sanitizer = "msan"
         build_output2.engine = "afl"
@@ -960,76 +970,18 @@ class TestRecordPatchedBuild:
         # Verify persistence was called twice
         assert submissions.redis.lset.call_count == 2
 
-    def test_record_patched_build_invalid_patch_id_format(self, submissions):
-        """Test recording build output with malformed build_patch_id."""
-        # Create build output with invalid build_patch_id format
-        build_output = BuildOutput()
-        build_output.build_patch_id = "invalid-format"  # Missing the "/" separator
-        build_output.sanitizer = "test_sanitizer"
-
-        # Call the method
-        result = submissions.record_patched_build(build_output)
-
-        # Should return False due to invalid format
-        assert result is False
-
-        # Verify no persistence occurred
-        submissions.redis.lset.assert_not_called()
-
-    def test_record_patched_build_non_numeric_submission_index(self, submissions):
-        """Test recording build output with non-numeric submission index."""
-        # Create build output with non-numeric submission index
-        build_output = BuildOutput()
-        build_output.build_patch_id = "abc/0"  # Non-numeric submission index
-        build_output.sanitizer = "test_sanitizer"
-
-        # Call the method
-        result = submissions.record_patched_build(build_output)
-
-        # Should return False due to non-numeric index
-        assert result is False
-
-        # Verify no persistence occurred
-        submissions.redis.lset.assert_not_called()
-
-    def test_record_patched_build_invalid_submission_index(self, submissions, sample_submission_entry):
-        """Test recording build output with out-of-bounds submission index."""
-        # Setup one submission entry (index 0 only)
-        submissions.entries = [sample_submission_entry]
-
-        # Create build output with out-of-bounds submission index
-        build_output = BuildOutput()
-        build_output.build_patch_id = "5/0"  # Index 5 doesn't exist
-        build_output.sanitizer = "test_sanitizer"
-
-        # Call the method
-        result = submissions.record_patched_build(build_output)
-
-        # Should return False due to invalid submission index
-        assert result is False
-
-        # Verify no persistence occurred
-        submissions.redis.lset.assert_not_called()
-
-    def test_record_patched_build_invalid_patch_index(self, submissions, sample_submission_entry):
+    def test_record_patched_build_invalid_patch_idx(self, submissions):
         """Test recording build output with out-of-bounds patch index."""
-        # Setup submission entry with one patch (index 0 only)
-        patch_entry = SubmissionEntryPatch()
-        patch_entry.patch = "test patch content"
-        patch_entry.patch_id = "0/0"
-        sample_submission_entry.patches.append(patch_entry)
-        submissions.entries = [sample_submission_entry]
-
         # Create build output with out-of-bounds patch index
         build_output = BuildOutput()
-        build_output.build_patch_id = "0/5"  # Patch index 5 doesn't exist
+        build_output.internal_patch_id = "nonexistent"  # Patch that doesn't exist
         build_output.sanitizer = "test_sanitizer"
 
         # Call the method
         result = submissions.record_patched_build(build_output)
 
-        # Should return False due to invalid patch index
-        assert result is False
+        # Should return True (acknowledged but discarded)
+        assert result is True
 
         # Verify no persistence occurred
         submissions.redis.lset.assert_not_called()
@@ -1039,33 +991,33 @@ class TestRecordPatchedBuild:
         # Setup submission entry with multiple patches
         patch_entry1 = SubmissionEntryPatch()
         patch_entry1.patch = "patch 1 content"
-        patch_entry1.patch_id = "0/0"
+        patch_entry1.internal_patch_id = "patch1"
         sample_submission_entry.patches.append(patch_entry1)
 
         patch_entry2 = SubmissionEntryPatch()
         patch_entry2.patch = "patch 2 content"
-        patch_entry2.patch_id = "0/1"
+        patch_entry2.internal_patch_id = "patch2"
         sample_submission_entry.patches.append(patch_entry2)
 
         submissions.entries = [sample_submission_entry]
 
         # Create different build outputs for different patches
         build_output_patch0_1 = BuildOutput()
-        build_output_patch0_1.build_patch_id = "0/0"
+        build_output_patch0_1.internal_patch_id = "patch1"
         build_output_patch0_1.task_id = "test-task-123"
         build_output_patch0_1.sanitizer = "asan"
         build_output_patch0_1.build_type = BuildType.PATCH
         build_output_patch0_1.apply_diff = True
 
         build_output_patch0_2 = BuildOutput()
-        build_output_patch0_2.build_patch_id = "0/0"
+        build_output_patch0_2.internal_patch_id = "patch1"
         build_output_patch0_2.task_id = "test-task-123"
         build_output_patch0_2.sanitizer = "msan"
         build_output_patch0_2.build_type = BuildType.FUZZER
         build_output_patch0_2.apply_diff = False
 
         build_output_patch1 = BuildOutput()
-        build_output_patch1.build_patch_id = "0/1"
+        build_output_patch1.internal_patch_id = "patch2"
         build_output_patch1.task_id = "test-task-123"
         build_output_patch1.sanitizer = "ubsan"
         build_output_patch1.build_type = BuildType.COVERAGE
@@ -1093,34 +1045,70 @@ class TestRecordPatchedBuild:
         assert patch1_build_outputs[0].build_type == BuildType.COVERAGE
         assert patch1_build_outputs[0].apply_diff is True
 
-    def test_record_patched_build_empty_patch_id(self, submissions):
-        """Test recording build output with empty build_patch_id."""
-        # Create build output with empty build_patch_id
+    def test_record_patched_build_empty_patch_idx(self, submissions):
+        """Test recording build output with empty internal_patch_id."""
+        # Create build output with empty internal_patch_id
         build_output = BuildOutput()
-        build_output.build_patch_id = ""
+        build_output.internal_patch_id = ""
         build_output.sanitizer = "test_sanitizer"
 
         # Call the method
         result = submissions.record_patched_build(build_output)
 
-        # Should return False due to empty build_patch_id
-        assert result is False
+        # Should return True (acknowledged but discarded)
+        assert result is True
 
         # Verify no persistence occurred
         submissions.redis.lset.assert_not_called()
 
-    def test_record_patched_build_patch_id_with_extra_slashes(self, submissions):
-        """Test recording build output with build_patch_id containing extra slashes."""
-        # Create build output with malformed build_patch_id (too many slashes)
+    def test_record_patched_build_internal_patch_id_with_extra_slashes(self, submissions):
+        """Test recording build output with internal_patch_id containing extra slashes."""
+        # Create build output with malformed internal_patch_id (too many slashes)
         build_output = BuildOutput()
-        build_output.build_patch_id = "0/1/2"  # Too many parts
+        build_output.internal_patch_id = "another-nonexistent"  # Another non-existent patch
         build_output.sanitizer = "test_sanitizer"
 
         # Call the method
         result = submissions.record_patched_build(build_output)
 
-        # Should return False due to invalid format
-        assert result is False
+        # Should return True (acknowledged but discarded)
+        assert result is True
 
         # Verify no persistence occurred
         submissions.redis.lset.assert_not_called()
+
+    def test_record_patched_build_duplicate_filtering(self, submissions, sample_submission_entry):
+        """Test that duplicate build outputs are filtered out and not added twice."""
+        # Setup submission entry with a patch
+        patch_entry = SubmissionEntryPatch()
+        patch_entry.patch = "test patch content"
+        patch_entry.internal_patch_id = "duplicate-test"
+        sample_submission_entry.patches.append(patch_entry)
+        submissions.entries = [sample_submission_entry]
+
+        # Create a build output
+        build_output = BuildOutput()
+        build_output.internal_patch_id = "duplicate-test"
+        build_output.task_id = "test-task-123"
+        build_output.sanitizer = "asan"
+        build_output.engine = "libfuzzer"
+        build_output.build_type = BuildType.PATCH
+        build_output.apply_diff = True
+
+        # Record the build output for the first time
+        result1 = submissions.record_patched_build(build_output)
+        assert result1 is True
+
+        # Verify it was added
+        assert len(submissions.entries[0].patches[0].build_outputs) == 1
+        assert submissions.entries[0].patches[0].build_outputs[0].sanitizer == "asan"
+
+        # Try to record the exact same build output again
+        result2 = submissions.record_patched_build(build_output)
+        assert result2 is True  # Should still return True (acknowledged)
+
+        # Verify it was NOT added again (duplicate filtered out)
+        assert len(submissions.entries[0].patches[0].build_outputs) == 1
+
+        # Verify persistence was only called once (for the first addition)
+        assert submissions.redis.lset.call_count == 1

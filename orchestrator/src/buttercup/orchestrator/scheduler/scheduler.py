@@ -294,7 +294,7 @@ class Scheduler:
 
         if res:
             logger.info(
-                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.build_patch_id}"
+                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.internal_patch_id}"
             )
             self.build_output_queue.ack_item(build_output_item.item_id)
             return True

@@ -20,7 +20,7 @@ def sample_params():
     """Fixture with sample parameters for PoV reproduction testing."""
     return {
         "task_id": "task-123",
-        "build_patch_id": "0/1",
+        "internal_patch_id": "0/1",
         "pov_path": "/path/to/pov.bin",
         "sanitizer": "asan",
         "harness_name": "test_harness",
@@ -32,7 +32,7 @@ def sample_request(sample_params):
     """Fixture with sample POVReproduceRequest for testing."""
     request = POVReproduceRequest()
     request.task_id = sample_params["task_id"]
-    request.patch_id = sample_params["build_patch_id"]  # Note: field is patch_id, not build_patch_id
+    request.internal_patch_id = sample_params["internal_patch_id"]
     request.pov_path = sample_params["pov_path"]
     request.sanitizer = sample_params["sanitizer"]
     request.harness_name = sample_params["harness_name"]
@@ -43,7 +43,7 @@ def _create_request_from_params(params):
     """Helper function to create POVReproduceRequest from parameter dict."""
     request = POVReproduceRequest()
     request.task_id = params["task_id"]
-    request.patch_id = params["build_patch_id"]  # Note: field is patch_id, not build_patch_id
+    request.internal_patch_id = params["internal_patch_id"]
     request.pov_path = params["pov_path"]
     request.sanitizer = params["sanitizer"]
     request.harness_name = params["harness_name"]
@@ -231,7 +231,7 @@ class TestPoVReproduceStatus:
         assert isinstance(result, POVReproduceRequest)
         # Compare the key fields to verify it's the same request
         assert result.task_id == sample_request.task_id
-        assert result.patch_id == sample_request.patch_id
+        assert result.internal_patch_id == sample_request.internal_patch_id
         assert result.pov_path == sample_request.pov_path
         assert result.sanitizer == sample_request.sanitizer
         assert result.harness_name == sample_request.harness_name
@@ -337,7 +337,7 @@ class TestPoVReproduceStatus:
         """Test that different parameter sets are tracked as separate items."""
         params1 = {
             "task_id": "task-1",
-            "build_patch_id": "0/1",
+            "internal_patch_id": "0/1",
             "pov_path": "/path1.bin",
             "sanitizer": "asan",
             "harness_name": "harness1",
@@ -345,7 +345,7 @@ class TestPoVReproduceStatus:
 
         params2 = {
             "task_id": "task-2",
-            "build_patch_id": "0/2",
+            "internal_patch_id": "0/2",
             "pov_path": "/path2.bin",
             "sanitizer": "msan",
             "harness_name": "harness2",
@@ -384,7 +384,7 @@ class TestPoVReproduceStatus:
         # Test that changing each parameter individually creates new entries
         for param_name in sample_params.keys():
             modified_params = sample_params.copy()
-            if param_name == "build_patch_id":
+            if param_name == "internal_patch_id":
                 modified_params[param_name] = f"modified_{sample_params[param_name]}"
             else:
                 modified_params[param_name] = f"modified_{sample_params[param_name]}"
@@ -427,7 +427,7 @@ class TestPoVReproduceStatus:
         # (Create another pending item to test this)
         other_params = {
             "task_id": "other-task",
-            "build_patch_id": "0/1",
+            "internal_patch_id": "0/1",
             "pov_path": "/path/to/pov.bin",
             "sanitizer": "asan",
             "harness_name": "test_harness",
@@ -510,7 +510,7 @@ class TestPoVReproduceStatus:
         for i in range(6):  # Increased to 6 to test expired status
             params = {
                 "task_id": f"task-{i}",
-                "build_patch_id": f"0/{i}",
+                "internal_patch_id": f"0/{i}",
                 "pov_path": f"/path/{i}.bin",
                 "sanitizer": "asan",
                 "harness_name": f"harness-{i}",

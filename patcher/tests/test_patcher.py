@@ -78,7 +78,7 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
     )
 
     vuln = ConfirmedVulnerability(
-        submission_index="1",
+        internal_patch_id="1",
         crashes=[
             TracedCrash(
                 crash=Crash(
@@ -103,7 +103,7 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
     # Verify the patch was generated
     assert patch_input is not None
     assert patch_input.task_id == "test-task-id-1"
-    assert patch_input.submission_index == "1"
+    assert patch_input.internal_patch_id == "1"
 
     # Check the povs list structure
     assert len(patch_input.povs) == 1
@@ -131,7 +131,7 @@ def test_vuln_to_patch_input_multiple_povs(mock_make_locally_available, task_dir
     )
 
     vuln = ConfirmedVulnerability(
-        submission_index="1",
+        internal_patch_id="1",
         crashes=[
             TracedCrash(
                 crash=Crash(
@@ -170,7 +170,7 @@ def test_vuln_to_patch_input_multiple_povs(mock_make_locally_available, task_dir
     # Verify the patch was generated
     assert patch_input is not None
     assert patch_input.task_id == "test-task-id-1"
-    assert patch_input.submission_index == "1"
+    assert patch_input.internal_patch_id == "1"
 
     # Check the povs list structure
     assert len(patch_input.povs) == 2
@@ -342,7 +342,7 @@ def test_process_item_should_process_normal_task(
 
     # Create a vulnerability for processing
     vuln = ConfirmedVulnerability(
-        submission_index="1",
+        internal_patch_id="1",
         crashes=[
             TracedCrash(
                 crash=Crash(
@@ -371,7 +371,7 @@ def test_process_item_should_process_normal_task(
         patch.object(patcher.vulnerability_queue, "ack_item") as mock_ack,
     ):
         # Configure mock to return a patch
-        mock_process.return_value = MagicMock(task_id=task_id, submission_index="1", patch="test-patch")
+        mock_process.return_value = MagicMock(task_id=task_id, internal_patch_id="1", patch="test-patch")
 
         # Process the item
         patcher.process_item(rq_item)
@@ -404,7 +404,7 @@ def test_process_item_should_skip_tasks_marked_for_stopping(
     # Create a vulnerability for processing
     task_id = "skip-task-id"
     vuln = ConfirmedVulnerability(
-        submission_index="1",
+        internal_patch_id="1",
         crashes=[
             TracedCrash(
                 crash=Crash(
@@ -449,7 +449,7 @@ def test_get_successful_patch():
         context=PatchInput(
             challenge_task_dir=Path("/tmp"),
             task_id="test",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/tmp"),
@@ -484,7 +484,7 @@ def test_get_successful_patch_with_validation_failure():
         context=PatchInput(
             challenge_task_dir=Path("/tmp"),
             task_id="test",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/tmp"),
@@ -519,7 +519,7 @@ def test_clean_built_challenges_on_new_patch(tmp_path: Path, task_dir: Path):
         context=PatchInput(
             challenge_task_dir=Path("/tmp"),
             task_id="test",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/tmp"),

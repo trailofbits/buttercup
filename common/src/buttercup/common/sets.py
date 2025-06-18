@@ -108,7 +108,7 @@ class PoVReproduceStatus:
     def _make_key(self, request: POVReproduceRequest) -> str:
         """Create a unique key from a POVReproduceRequest by serializing it to string."""
         return dumps(
-            [request.task_id, request.patch_id, request.pov_path, request.sanitizer, request.harness_name],
+            [request.task_id, request.internal_patch_id, request.pov_path, request.sanitizer, request.harness_name],
             json_options=CANONICAL_JSON_OPTIONS,
         )
 
@@ -194,10 +194,10 @@ class PoVReproduceStatus:
         fields = json.loads(key_str)
 
         # Reconstruct the POVReproduceRequest from the fields
-        # The order matches _make_key: [task_id, patch_id, pov_path, sanitizer, harness_name]
+        # The order matches _make_key: [task_id, internal_patch_id, pov_path, sanitizer, harness_name]
         request = POVReproduceRequest()
         request.task_id = fields[0]
-        request.patch_id = fields[1]
+        request.internal_patch_id = fields[1]
         request.pov_path = fields[2]
         request.sanitizer = fields[3]
         request.harness_name = fields[4]

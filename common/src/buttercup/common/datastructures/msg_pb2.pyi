@@ -11,50 +11,50 @@ PATCH: BuildType
 TRACER_NO_DIFF: BuildType
 
 class BuildOutput(_message.Message):
-    __slots__ = ["apply_diff", "build_patch_id", "build_type", "engine", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_type", "engine", "internal_patch_id", "sanitizer", "task_dir", "task_id"]
     APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
-    BUILD_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
+    INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
-    build_patch_id: str
     build_type: BuildType
     engine: str
+    internal_patch_id: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., build_patch_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., internal_patch_id: _Optional[str] = ...) -> None: ...
 
 class BuildRequest(_message.Message):
-    __slots__ = ["apply_diff", "build_patch_id", "build_type", "engine", "patch", "sanitizer", "task_dir", "task_id"]
+    __slots__ = ["apply_diff", "build_type", "engine", "internal_patch_id", "patch", "sanitizer", "task_dir", "task_id"]
     APPLY_DIFF_FIELD_NUMBER: _ClassVar[int]
-    BUILD_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     BUILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
+    INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     PATCH_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_DIR_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     apply_diff: bool
-    build_patch_id: str
     build_type: BuildType
     engine: str
+    internal_patch_id: str
     patch: str
     sanitizer: str
     task_dir: str
     task_id: str
-    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., build_patch_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., internal_patch_id: _Optional[str] = ...) -> None: ...
 
 class ConfirmedVulnerability(_message.Message):
-    __slots__ = ["crashes", "submission_index"]
+    __slots__ = ["crashes", "internal_patch_id"]
     CRASHES_FIELD_NUMBER: _ClassVar[int]
-    SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
+    INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     crashes: _containers.RepeatedCompositeFieldContainer[TracedCrash]
-    submission_index: str
-    def __init__(self, crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., submission_index: _Optional[str] = ...) -> None: ...
+    internal_patch_id: str
+    def __init__(self, crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., internal_patch_id: _Optional[str] = ...) -> None: ...
 
 class Crash(_message.Message):
     __slots__ = ["crash_input_path", "crash_token", "harness_name", "stacktrace", "target"]
@@ -111,18 +111,18 @@ class IndexRequest(_message.Message):
     def __init__(self, build_type: _Optional[_Union[BuildType, str]] = ..., package_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
 class POVReproduceRequest(_message.Message):
-    __slots__ = ["harness_name", "patch_id", "pov_path", "sanitizer", "task_id"]
+    __slots__ = ["harness_name", "internal_patch_id", "pov_path", "sanitizer", "task_id"]
     HARNESS_NAME_FIELD_NUMBER: _ClassVar[int]
-    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     POV_PATH_FIELD_NUMBER: _ClassVar[int]
     SANITIZER_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     harness_name: str
-    patch_id: str
+    internal_patch_id: str
     pov_path: str
     sanitizer: str
     task_id: str
-    def __init__(self, task_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., harness_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., pov_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., internal_patch_id: _Optional[str] = ..., harness_name: _Optional[str] = ..., sanitizer: _Optional[str] = ..., pov_path: _Optional[str] = ...) -> None: ...
 
 class POVReproduceResponse(_message.Message):
     __slots__ = ["did_crash", "request"]
@@ -133,14 +133,14 @@ class POVReproduceResponse(_message.Message):
     def __init__(self, request: _Optional[_Union[POVReproduceRequest, _Mapping]] = ..., did_crash: bool = ...) -> None: ...
 
 class Patch(_message.Message):
-    __slots__ = ["patch", "submission_index", "task_id"]
+    __slots__ = ["internal_patch_id", "patch", "task_id"]
+    INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     PATCH_FIELD_NUMBER: _ClassVar[int]
-    SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    internal_patch_id: str
     patch: str
-    submission_index: str
     task_id: str
-    def __init__(self, task_id: _Optional[str] = ..., submission_index: _Optional[str] = ..., patch: _Optional[str] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., internal_patch_id: _Optional[str] = ..., patch: _Optional[str] = ...) -> None: ...
 
 class SourceDetail(_message.Message):
     __slots__ = ["sha256", "source_type", "url"]
@@ -158,14 +158,14 @@ class SourceDetail(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
 
 class SubmissionEntry(_message.Message):
-    __slots__ = ["bundle_id", "crashes", "patch_id", "patch_idx", "patch_submission_attempt", "patches", "pov_id", "sarif_id", "state"]
+    __slots__ = ["bundle_id", "competition_patch_id", "crashes", "patch_idx", "patch_submission_attempt", "patches", "pov_id", "sarif_id", "state"]
     class SubmissionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = []
     BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPETITION_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     CRASHES_FIELD_NUMBER: _ClassVar[int]
     PATCHES_FIELD_NUMBER: _ClassVar[int]
     PATCH_IDX_FIELD_NUMBER: _ClassVar[int]
-    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     PATCH_SUBMISSION_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
     POV_ID_FIELD_NUMBER: _ClassVar[int]
     SARIF_ID_FIELD_NUMBER: _ClassVar[int]
@@ -179,29 +179,27 @@ class SubmissionEntry(_message.Message):
     WAIT_PATCH_PASS: SubmissionEntry.SubmissionState
     WAIT_POV_PASS: SubmissionEntry.SubmissionState
     bundle_id: str
+    competition_patch_id: str
     crashes: _containers.RepeatedCompositeFieldContainer[TracedCrash]
-    patch_id: str
     patch_idx: int
     patch_submission_attempt: int
     patches: _containers.RepeatedCompositeFieldContainer[SubmissionEntryPatch]
     pov_id: str
     sarif_id: str
     state: SubmissionEntry.SubmissionState
-    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., pov_id: _Optional[str] = ..., patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
+    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., pov_id: _Optional[str] = ..., competition_patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
 
 class SubmissionEntryPatch(_message.Message):
-    __slots__ = ["build_outputs", "idx", "patch", "patch_id", "submission_index"]
+    __slots__ = ["build_outputs", "competition_patch_id", "internal_patch_id", "patch"]
     BUILD_OUTPUTS_FIELD_NUMBER: _ClassVar[int]
-    IDX_FIELD_NUMBER: _ClassVar[int]
+    COMPETITION_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     PATCH_FIELD_NUMBER: _ClassVar[int]
-    PATCH_ID_FIELD_NUMBER: _ClassVar[int]
-    SUBMISSION_INDEX_FIELD_NUMBER: _ClassVar[int]
     build_outputs: _containers.RepeatedCompositeFieldContainer[BuildOutput]
-    idx: int
+    competition_patch_id: str
+    internal_patch_id: str
     patch: str
-    patch_id: str
-    submission_index: int
-    def __init__(self, patch: _Optional[str] = ..., submission_index: _Optional[int] = ..., idx: _Optional[int] = ..., patch_id: _Optional[str] = ..., build_outputs: _Optional[_Iterable[_Union[BuildOutput, _Mapping]]] = ...) -> None: ...
+    def __init__(self, patch: _Optional[str] = ..., internal_patch_id: _Optional[str] = ..., competition_patch_id: _Optional[str] = ..., build_outputs: _Optional[_Iterable[_Union[BuildOutput, _Mapping]]] = ...) -> None: ...
 
 class Task(_message.Message):
     __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "metadata", "project_name", "sources", "task_id", "task_type"]

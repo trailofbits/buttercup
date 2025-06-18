@@ -48,9 +48,9 @@ class BuildMap:
     def _san_set_key(self, task_id: str, build_type: BuildType) -> str:
         return dumps([task_id, BUILD_MAP_NAME, build_type], json_options=CANONICAL_JSON_OPTIONS)
 
-    def _build_output_key(self, task_id: str, build_type: BuildType, san: str, build_patch_id: str) -> str:
+    def _build_output_key(self, task_id: str, build_type: BuildType, san: str, internal_patch_id: str) -> str:
         return dumps(
-            [task_id, BUILD_SAN_MAP_NAME, build_type, san, build_patch_id], json_options=CANONICAL_JSON_OPTIONS
+            [task_id, BUILD_SAN_MAP_NAME, build_type, san, internal_patch_id], json_options=CANONICAL_JSON_OPTIONS
         )
 
     def add_build(self, build: BuildOutput) -> None:
@@ -59,29 +59,29 @@ class BuildMap:
         pipe = self.redis.pipeline()
         pipe.sadd(san_set, build.sanitizer)
         serialized = build.SerializeToString()
-        boutput_key = self._build_output_key(build.task_id, btype, build.sanitizer, build.build_patch_id)
+        boutput_key = self._build_output_key(build.task_id, btype, build.sanitizer, build.internal_patch_id)
         pipe.set(boutput_key, serialized)
         pipe.execute()
 
-    def get_builds(self, task_id: str, build_type: BuildType, build_patch_id: str = "") -> list[BuildOutput]:
-        if build_patch_id != "":
-            assert build_type == BuildType.PATCH, "build_patch_id is only valid for PATCH builds"
+    def get_builds(self, task_id: str, build_type: BuildType, internal_patch_id: str = "") -> list[BuildOutput]:
+        if internal_patch_id != "":
+            assert build_type == BuildType.PATCH, "internal_patch_id is only valid for PATCH builds"
 
         sanitizer_set = RedisSet(self.redis, self._san_set_key(task_id, build_type))
         builds = []
         for san in list(sanitizer_set):
-            build = self.get_build_from_san(task_id, build_type, san, build_patch_id)
+            build = self.get_build_from_san(task_id, build_type, san, internal_patch_id)
             if build is not None:
                 builds.append(build)
         return builds
 
     def get_build_from_san(
-        self, task_id: str, build_type: BuildType, san: str, build_patch_id: str = ""
+        self, task_id: str, build_type: BuildType, san: str, internal_patch_id: str = ""
     ) -> BuildOutput | None:
-        if build_patch_id != "":
-            assert build_type == BuildType.PATCH, "build_patch_id is only valid for PATCH builds"
+        if internal_patch_id != "":
+            assert build_type == BuildType.PATCH, "internal_patch_id is only valid for PATCH builds"
 
-        build_output_key = self._build_output_key(task_id, build_type, san, build_patch_id)
+        build_output_key = self._build_output_key(task_id, build_type, san, internal_patch_id)
         it = self.redis.get(build_output_key)
         if it is None:
             return None

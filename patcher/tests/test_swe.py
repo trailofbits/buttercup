@@ -274,7 +274,7 @@ def swe_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> SWEAgent:
     patch_input = PatchInput(
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
-        submission_index="submission-index-challenge-task",
+        internal_patch_id="submission-index-challenge-task",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=mock_challenge.task_dir,

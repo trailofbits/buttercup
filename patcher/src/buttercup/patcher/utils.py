@@ -33,7 +33,7 @@ class PatchInput(BaseModel):
     """Input for the patching process."""
 
     task_id: str
-    submission_index: str
+    internal_patch_id: str
     povs: list[PatchInputPoV]
 
     def __getitem__(self, key: str) -> Any:
@@ -47,7 +47,7 @@ class PatchOutput(BaseModel):
     """Output for the Patch Agent."""
 
     task_id: str
-    submission_index: str
+    internal_patch_id: str
     patch: str
 
 

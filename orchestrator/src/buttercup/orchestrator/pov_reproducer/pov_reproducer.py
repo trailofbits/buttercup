@@ -36,7 +36,7 @@ class POVReproducer:
             return False
 
         task_id: str = entry.task_id
-        build_patch_id: str = entry.patch_id
+        internal_patch_id: str = entry.internal_patch_id
         pov_path: str = entry.pov_path
         sanitizer: str = entry.sanitizer
         harness_name: str = entry.harness_name
@@ -58,7 +58,7 @@ class POVReproducer:
             task_id,
             BuildType.PATCH,
             sanitizer,
-            build_patch_id,
+            internal_patch_id,
         )
         if build_output_with_patch is None:
             logger.warning(

@@ -77,15 +77,15 @@ class Patcher:
         )
         patch = patcher_agent.run_patch_task()
         if patch is None:
-            logger.error("Could not generate a patch for vulnerability %s/%s", input.task_id, input.submission_index)
+            logger.error("Could not generate a patch for vulnerability %s/%s", input.task_id, input.internal_patch_id)
             return None
 
-        logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.submission_index)
+        logger.info("Generated patch for vulnerabiity %s/%s", input.task_id, input.internal_patch_id)
         logger.debug(f"Patch: {patch}")
         return patch
 
     def process_patch_input(self, input: PatchInput) -> PatchOutput | None:
-        logger.info(f"Processing vulnerability {input.task_id}/{input.submission_index}")
+        logger.info(f"Processing vulnerability {input.task_id}/{input.internal_patch_id}")
         logger.debug(f"Patch Input: {input}")
 
         if self.dev_mode:
@@ -93,9 +93,9 @@ class Patcher:
 
         res = self._process_vulnerability(input)
         if res is not None:
-            logger.info(f"Processed vulnerability {input.task_id}/{input.submission_index}")
+            logger.info(f"Processed vulnerability {input.task_id}/{input.internal_patch_id}")
         else:
-            logger.error(f"Failed to process vulnerability {input.task_id}/{input.submission_index}")
+            logger.error(f"Failed to process vulnerability {input.task_id}/{input.internal_patch_id}")
 
         return res
 
@@ -114,7 +114,7 @@ class Patcher:
         ]
         return PatchInput(
             task_id=vuln.crashes[0].crash.target.task_id,
-            submission_index=vuln.submission_index,
+            internal_patch_id=vuln.internal_patch_id,
             povs=povs,
         )
 
@@ -126,14 +126,14 @@ class Patcher:
 
         vuln = rq_item.deserialized
         if len(vuln.crashes) == 0:
-            logger.error(f"No crashes found for vulnerability {vuln.submission_index}")
+            logger.error(f"No crashes found for vulnerability {vuln.internal_patch_id}")
             self.vulnerability_queue.ack_item(rq_item.item_id)
             return
 
         assert vuln.crashes, "No crashes found for vulnerability"
         task_id = vuln.crashes[0].crash.target.task_id
         if not all(x.crash.target.task_id == task_id for x in vuln.crashes):
-            logger.error(f"Mismatching task ids for vulnerability {vuln.submission_index}")
+            logger.error(f"Mismatching task ids for vulnerability {vuln.internal_patch_id}")
             self.vulnerability_queue.ack_item(rq_item.item_id)
             return
 
@@ -149,21 +149,21 @@ class Patcher:
             if patch is not None:
                 patch_msg = Patch(
                     task_id=patch.task_id,
-                    submission_index=patch.submission_index,
+                    internal_patch_id=patch.internal_patch_id,
                     patch=patch.patch,
                 )
                 self.patches_queue.push(patch_msg)
                 self.vulnerability_queue.ack_item(rq_item.item_id)
                 logger.info(
-                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}"
+                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}"
                 )
             else:
                 logger.error(
-                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}"
+                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}"
                 )
         except Exception as e:
             logger.exception(
-                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.submission_index}: {e}"
+                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}: {e}"
             )
 
     @_check_redis

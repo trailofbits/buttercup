@@ -172,7 +172,7 @@ class QEAgent(PatcherAgentBase):
             logger.debug("Patch written to %s", patch_file.name)
 
             logger.info(
-                "Applying patch to task %s / submission index %s", self.input.task_id, self.input.submission_index
+                "Applying patch to task %s / internal patch id %s", self.input.task_id, self.input.internal_patch_id
             )
             try:
                 return challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
@@ -485,7 +485,7 @@ class QEAgent(PatcherAgentBase):
                     logger.error(
                         "[%s / %s] No pre-built challenge for sanitizer %s, skipping PoV",
                         self.challenge.task_meta.task_id,
-                        self.input.submission_index,
+                        self.input.internal_patch_id,
                         pov_variant.sanitizer,
                     )
                     continue
@@ -562,7 +562,7 @@ class QEAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Running tests on Challenge Task %s rebuilt with patch",
             self.input.task_id,
-            self.input.submission_index,
+            self.input.internal_patch_id,
             self.challenge.name,
         )
         configuration = PatcherConfig.from_configurable(config)
@@ -572,7 +572,7 @@ class QEAgent(PatcherAgentBase):
             logger.fatal(
                 "[%s / %s] No patch to run tests on, this should never happen",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
             )
             raise RuntimeError("No patch to run tests on, this should never happen")
 
@@ -583,7 +583,7 @@ class QEAgent(PatcherAgentBase):
             logger.error(
                 "[%s / %s] The patch needs to be built and PoV needs to be fixed before running tests",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
             )
             last_patch_attempt.status = PatchStatus.TESTS_FAILED
             return Command(
@@ -631,7 +631,7 @@ class QEAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] No tests instructions found, just accept the patch",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
             )
             tests_passed = True
 
@@ -639,7 +639,7 @@ class QEAgent(PatcherAgentBase):
             logger.info(
                 "[%s / %s] Tests for Challenge Task %s ran successfully",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
                 self.challenge.name,
             )
             next_node = PatcherAgentName.PATCH_VALIDATION.value
@@ -647,7 +647,7 @@ class QEAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Tests failed for Challenge Task %s",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
                 self.challenge.name,
             )
             last_patch_attempt.status = PatchStatus.TESTS_FAILED
@@ -742,7 +742,7 @@ class QEAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Validating patch for Challenge Task %s",
             self.input.task_id,
-            self.input.submission_index,
+            self.input.internal_patch_id,
             self.challenge.name,
         )
         configuration = PatcherConfig.from_configurable(config)
@@ -751,7 +751,7 @@ class QEAgent(PatcherAgentBase):
             logger.fatal(
                 "[%s / %s] No patch to validate, this should never happen",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
             )
             raise RuntimeError("No patch to validate, this should never happen")
 
@@ -763,7 +763,7 @@ class QEAgent(PatcherAgentBase):
             logger.error(
                 "[%s / %s] The patched code is not valid, this should never happen",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
             )
             last_patch_attempt.status = PatchStatus.VALIDATION_FAILED
             return Command(
@@ -779,7 +779,7 @@ class QEAgent(PatcherAgentBase):
             logger.error(
                 "[%s / %s] The patch alters code in a language different from the challenge",
                 self.input.task_id,
-                self.input.submission_index,
+                self.input.internal_patch_id,
             )
             last_patch_attempt.status = PatchStatus.VALIDATION_FAILED
             return Command(
@@ -794,7 +794,7 @@ class QEAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Patch for Challenge Task %s is valid",
             self.input.task_id,
-            self.input.submission_index,
+            self.input.internal_patch_id,
             self.challenge.name,
         )
         return Command(

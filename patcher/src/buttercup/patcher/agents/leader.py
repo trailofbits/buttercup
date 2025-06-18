@@ -69,10 +69,10 @@ class PatcherLeaderAgent(PatcherAgentBase):
         chain = patch_team.compile().with_config(
             RunnableConfig(
                 callbacks=llm_callbacks,
-                tags=["patch_team", self.challenge.name, self.input.task_id, self.input.submission_index],
+                tags=["patch_team", self.challenge.name, self.input.task_id, self.input.internal_patch_id],
                 metadata={
                     "task_id": self.input.task_id,
-                    "submission_index": self.input.submission_index,
+                    "internal_patch_id": self.input.internal_patch_id,
                     "challenge_project_name": self.challenge.name,
                 },
                 recursion_limit=RECURSION_LIMIT,

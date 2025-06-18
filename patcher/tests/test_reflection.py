@@ -152,7 +152,7 @@ def reflection_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> Reflectio
     patch_input = PatchInput(
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
-        submission_index="1",
+        internal_patch_id="1",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=mock_challenge.task_dir,
@@ -193,7 +193,7 @@ def test_reflect_on_patch_success(reflection_agent: ReflectionAgent, mock_runnab
             PatchAttempt(
                 patch=PatchOutput(
                     task_id="task-id-challenge-task",
-                    submission_index="1",
+                    internal_patch_id="1",
                     patch="mock patch",
                 ),
                 status=PatchStatus.SUCCESS,
@@ -218,7 +218,7 @@ def test_reflect_on_patch_max_patch_attempts(reflection_agent: ReflectionAgent, 
             PatchAttempt(
                 patch=PatchOutput(
                     task_id="task-id-challenge-task",
-                    submission_index="1",
+                    internal_patch_id="1",
                     patch=f"mock patch {i}",
                 ),
                 status=PatchStatus.CREATION_FAILED,
@@ -243,7 +243,7 @@ def test_reflect_on_patch_pending(reflection_agent: ReflectionAgent, mock_runnab
             PatchAttempt(
                 patch=PatchOutput(
                     task_id="task-id-challenge-task",
-                    submission_index="1",
+                    internal_patch_id="1",
                     patch="mock patch",
                 ),
                 status=PatchStatus.PENDING,
@@ -276,7 +276,7 @@ def test_reflect_on_patch_zero_retries(reflection_agent: ReflectionAgent, tmp_pa
             PatchAttempt(
                 patch=PatchOutput(
                     task_id="task-id-challenge-task",
-                    submission_index="1",
+                    internal_patch_id="1",
                     patch="mock patch",
                 ),
                 status=PatchStatus.CREATION_FAILED,
@@ -318,7 +318,7 @@ def test_reflect_on_patch_high_retries(reflection_agent: ReflectionAgent, tmp_pa
             PatchAttempt(
                 patch=PatchOutput(
                     task_id="task-id-challenge-task",
-                    submission_index="1",
+                    internal_patch_id="1",
                     patch="mock patch",
                 ),
                 status=PatchStatus.CREATION_FAILED,
@@ -352,7 +352,7 @@ def test_reflect_on_patch_invalid_component(reflection_agent: ReflectionAgent, m
             PatchAttempt(
                 patch=PatchOutput(
                     task_id="task-id-challenge-task",
-                    submission_index="1",
+                    internal_patch_id="1",
                     patch="mock patch",
                 ),
                 status=PatchStatus.CREATION_FAILED,

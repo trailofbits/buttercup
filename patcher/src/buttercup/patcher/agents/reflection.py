@@ -34,7 +34,7 @@ from langchain_core.prompts import (
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_MSG = """You are an agent - please keep going until the user’s query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
+SYSTEM_MSG = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
 You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully.
 
 You are the Reflection Engine in an autonomous vulnerability patching system."""
@@ -520,7 +520,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Patch is pending, we should not be here, let's move back to root cause analysis",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             return "Unknown failure"
 
@@ -557,14 +557,14 @@ class ReflectionAgent(PatcherAgentBase):
             logger.info(
                 "[%s / %s] Patch is working, terminating the patching process",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             return Command(goto=END)
 
         logger.info(
             "[%s / %s] Analyzing failure of patch %s",
             state.context.task_id,
-            state.context.submission_index,
+            state.context.internal_patch_id,
             patch_attempt.id,
         )
 
@@ -573,7 +573,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Reached max tests tries, just accept the patch",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             patch_attempt.status = PatchStatus.SUCCESS
             patch_attempt.tests_passed = True
@@ -646,7 +646,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.error(
                 "[%s / %s] Error getting reflection result (or parsing it): %s",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
                 e,
             )
             return Command(goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value)
@@ -689,14 +689,14 @@ class ReflectionAgent(PatcherAgentBase):
         logger.warning(
             "[%s / %s] Root cause analysis failed, reflecting on it",
             state.context.task_id,
-            state.context.submission_index,
+            state.context.internal_patch_id,
         )
 
         if state.execution_info.root_cause_analysis_tries >= configuration.max_root_cause_analysis_retries:
             logger.warning(
                 "[%s / %s] Reached max root cause failures, just move forward with what we have",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             root_cause = state.root_cause
             if root_cause is None:
@@ -727,7 +727,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Reached max patch strategy failures, just move forward with what we have",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             strategy = state.patch_strategy
             if strategy is None:
@@ -756,7 +756,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Previous node is not set, this is a developer error, assuming root cause analysis.",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             state.execution_info.prev_node = PatcherAgentName.ROOT_CAUSE_ANALYSIS
 
@@ -764,7 +764,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Reached max patch tries, terminating the patching process",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             return Command(
                 goto=END,
@@ -777,7 +777,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.info(
                 "[%s / %s] Requesting additional information",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             code_snippet_requests = state.execution_info.code_snippet_requests
             state.execution_info.code_snippet_requests = []
@@ -795,7 +795,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] No patch attempt found, the root cause analysis is probably wrong",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             return self._root_cause_analysis_failed(state, configuration)
 
@@ -803,7 +803,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.warning(
                 "[%s / %s] Patch strategy failed, reflecting on it",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             return self._patch_strategy_failed(state, configuration)
 
@@ -812,7 +812,7 @@ class ReflectionAgent(PatcherAgentBase):
             logger.error(
                 "[%s / %s] No patch attempt found, this should never happen, going back to input processing",
                 state.context.task_id,
-                state.context.submission_index,
+                state.context.internal_patch_id,
             )
             return Command(goto=PatcherAgentName.INPUT_PROCESSING.value)
 

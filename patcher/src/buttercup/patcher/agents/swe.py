@@ -510,7 +510,7 @@ class SWEAgent(PatcherAgentBase):
         logger.debug("Generated patch for %s (%d)", code_snippet_key, idx)
         return PatchOutput(
             task_id=self.input.task_id,
-            submission_index=self.input.submission_index,
+            internal_patch_id=self.input.internal_patch_id,
             patch=patch_str,
         )
 
@@ -544,7 +544,7 @@ class SWEAgent(PatcherAgentBase):
         patch_content = "\n".join(p.patch for p in patches)
         final_patch = PatchOutput(
             task_id=self.input.task_id,
-            submission_index=self.input.submission_index,
+            internal_patch_id=self.input.internal_patch_id,
             patch=patch_content,
         )
         return final_patch
@@ -561,7 +561,7 @@ class SWEAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Creating a patch for Challenge Task %s",
             state.context.task_id,
-            state.context.submission_index,
+            state.context.internal_patch_id,
             self.challenge.name,
         )
         if not state.patch_strategy:
@@ -624,14 +624,14 @@ class SWEAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Generated a patch for Challenge Task %s",
             state.context.task_id,
-            state.context.submission_index,
+            state.context.internal_patch_id,
             self.challenge.name,
         )
         logger.debug("Patch attempt description: %s", new_patch_attempt.description)
         logger.debug("Patch attempt: %s", new_patch_attempt.patch.patch)
         if new_patch_attempt.patch.patch in [p.patch.patch for p in state.patch_attempts if p.patch]:
             logger.warning(
-                "[%s / %s] Generated patch already exists", state.context.task_id, state.context.submission_index
+                "[%s / %s] Generated patch already exists", state.context.task_id, state.context.internal_patch_id
             )
             new_patch_attempt.status = PatchStatus.DUPLICATED
             return Command(
@@ -697,7 +697,7 @@ class SWEAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Selecting a patch strategy for Challenge Task %s",
             state.context.task_id,
-            state.context.submission_index,
+            state.context.internal_patch_id,
             self.challenge.name,
         )
 
@@ -752,7 +752,7 @@ class SWEAgent(PatcherAgentBase):
             new_code_snippet_requests = self._parse_code_snippet_requests(patch_strategy_str)
             execution_info.code_snippet_requests = new_code_snippet_requests
             logger.info(
-                "[%s / %s] Requesting additional information", state.context.task_id, state.context.submission_index
+                "[%s / %s] Requesting additional information", state.context.task_id, state.context.internal_patch_id
             )
             return Command(
                 update={

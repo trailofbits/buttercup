@@ -58,7 +58,7 @@ def sample_pov_entry() -> POVReproduceRequest:
     """Sample POVReproduceRequest for testing."""
     request = POVReproduceRequest()
     request.task_id = "test-task-123"
-    request.patch_id = "0/0"
+    request.internal_patch_id = "0/0"
     request.pov_path = "/path/to/pov.txt"
     request.sanitizer = "address"
     request.harness_name = "test_harness"
@@ -128,7 +128,7 @@ class TestPOVReproducer:
                 sample_pov_entry.task_id,
                 BuildType.PATCH,
                 sample_pov_entry.sanitizer,
-                sample_pov_entry.patch_id,
+                sample_pov_entry.internal_patch_id,
             )
             # make_locally_available should NOT be called when there's no build output
             mock_node_local.make_locally_available.assert_not_called()

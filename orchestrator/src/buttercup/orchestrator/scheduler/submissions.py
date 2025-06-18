@@ -2,6 +2,7 @@ from dataclasses import field, dataclass
 from functools import lru_cache
 import logging
 import base64
+import uuid
 from redis import Redis
 from typing import Iterator, List, Set, Tuple
 from opentelemetry import trace
@@ -78,8 +79,8 @@ def log_entry(
 
     if e.pov_id:
         log_msg += f" pov_id={e.pov_id}"
-    if e.patch_id:
-        log_msg += f" patch_id={e.patch_id}"
+    if e.competition_patch_id:
+        log_msg += f" competition_patch_id={e.competition_patch_id}"
     if e.bundle_id:
         log_msg += f" bundle_id={e.bundle_id}"
     if e.patch_idx:
@@ -683,17 +684,6 @@ class Submissions:
         log_entry(e, i=index)
         return True
 
-    def _build_patch_id(self, patch: SubmissionEntryPatch) -> str:
-        return f"{patch.submission_index}/{patch.idx}"
-
-    def _key_from_build_patch_id(self, build_patch_id: str) -> tuple[int, int] | None:
-        try:
-            submission_index, patch_idx = build_patch_id.split("/")
-            return int(submission_index), int(patch_idx)
-        except ValueError:
-            logger.error(f"Invalid build patch ID: {build_patch_id}")
-            return None
-
     def _request_patched_builds(self, task_id: str, patch: SubmissionEntryPatch) -> None:
         """Request patched builds for a patch"""
         task = ChallengeTask(read_only_task_dir=self.tasks_storage_dir / task_id)
@@ -704,7 +694,6 @@ class Submissions:
             engine = project_yaml.fuzzing_engines[0]
 
         sanitizers = project_yaml.sanitizers
-        build_patch_id = self._build_patch_id(patch)
 
         for san in sanitizers:
             build_req = BuildRequest(
@@ -715,37 +704,45 @@ class Submissions:
                 sanitizer=san,
                 apply_diff=True,
                 patch=patch.patch,
-                build_patch_id=build_patch_id,
+                internal_patch_id=patch.internal_patch_id,
             )
             self.build_requests_queue.push(build_req)
             logger.info(
-                f"[{task_id}] Pushed build request {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff} | {build_patch_id}"
+                f"[{task_id}] Pushed build request {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff} | {build_req.internal_patch_id}"
             )
 
     def record_patched_build(self, build_output: BuildOutput) -> bool:
         """Record a patched build"""
-        key = self._key_from_build_patch_id(build_output.build_patch_id)
-        if key is None:
-            logger.error(f"Invalid build patch ID: {build_output.build_patch_id}")
-            return False
 
-        submission_index, patch_idx = key
-        try:
-            e = self.entries[submission_index]
-        except IndexError:
-            logger.error(f"Submission index {submission_index} not found")
-            return False
+        key = build_output.internal_patch_id
+        for i, e in self._enumerate_submissions():
+            for patch in e.patches:
+                if patch.internal_patch_id == key:
+                    # Found the patch, now record the build output
+                    # unless there are already build outputs for this patch/sanitizer/engine/build_type
+                    if any(
+                        bo.sanitizer == build_output.sanitizer
+                        and bo.engine == build_output.engine
+                        and bo.build_type == build_output.build_type
+                        for bo in patch.build_outputs
+                    ):
+                        logger.warning(
+                            f"Build output {build_output.internal_patch_id} already recorded for patch {patch.internal_patch_id}. Will discard."
+                        )
+                        # Still acknowledge the build output, but don't add it to the patch
+                        return True
+                    patch.build_outputs.append(build_output)
 
-        try:
-            ep = e.patches[patch_idx]
-        except IndexError:
-            logger.error(f"Patch index {patch_idx} not found")
-            return False
+                    # Persist the entry to Redis
+                    self._persist(self.redis, i, e)
+                    log_entry(e, i=i, msg="Patched build recorded")
+                    return True
 
-        ep.build_outputs.append(build_output)
-
-        self._persist(self.redis, submission_index, e)
-        log_entry(e, i=submission_index, msg="Patched build recorded")
+        # If we get here, the build output is not associated with any patch,
+        # it is possible that the task was cancelled or expired.
+        logger.error(
+            f"Build output {build_output.internal_patch_id} not found in any patch (task expired/cancelled?). Will discard."
+        )
         return True
 
     def record_patch(self, patch: Patch) -> bool:
@@ -762,42 +759,41 @@ class Submissions:
         The patch will be submitted later when the vulnerability passes validation.
 
         Args:
-            patch: The patch to record, containing submission_index and task_id
+            patch: The patch to record, containing internal_patch_id and task_id
 
         Returns:
             True if the patch was successfully recorded, False if the submission doesn't exist
         """
-        try:
-            index = int(patch.submission_index)
-        except ValueError:
-            logger.error(f"Invalid submission index: {patch.submission_index}")
-            # We return True because we don't want to risk this erroneous patch to later be attached to a vulnerability.
-            return True
+        key = patch.internal_patch_id
+        entry_patch = None
+        for i, e in self._enumerate_submissions():
+            for entry_patch_tracker in e.patches:
+                if entry_patch_tracker.internal_patch_id == key:
+                    if entry_patch_tracker.patch:
+                        # There is already a patch here, this is likely the result of the request timing out
+                        # in the patcher but multiple patchers still completed the patch.
+                        # In this case, we just generate a new patch tracker and add it.
+                        new_patch_tracker = self._new_patch_tracker()
+                        new_patch_tracker.patch = patch.patch
+                        e.patches.append(new_patch_tracker)
+                        entry_patch = e.patches[-1]
+                    else:
+                        # There is no patch here, this is the first time we are recording a patch for this patch tracker.
+                        entry_patch_tracker.patch = patch.patch
+                        entry_patch = entry_patch_tracker
 
-        try:
-            e = self.entries[index]
-        except IndexError:
-            logger.error(
-                f"BUG: Submission {index} not found. Entries (len={len(self.entries)}): {self.entries}.  This should never happen. Either the patcher was sent the wrong index or the patcher is buggy."
-            )
-            # We return True because we don't want to risk this erroneous patch to later be attached to a vulnerability.
-            return True
+                    # We have a patch now, persist the entry and double check if it will ever be used
+                    self._persist(self.redis, i, e)
+                    task_id = _task_id(e)
+                    self._request_patched_builds(task_id, entry_patch)
 
-        task_id = _task_id(e)
-        assert task_id == patch.task_id
-        if self.task_registry.should_stop_processing(task_id):
-            # We still allow the patch to be recorded, for debugging purposes.
-            logger.warning(
-                f"[{index}:{task_id}] expired or cancelled. Patch for PoV {e.pov_id} will never be submitted."
-            )
+                    log_entry(e, i=i, msg="Patch added")
+                    return True
 
-        patch_idx = len(e.patches)
-        entry_patch = SubmissionEntryPatch(patch=patch.patch, submission_index=index, idx=patch_idx)
-        self._request_patched_builds(task_id, entry_patch)
-        e.patches.append(entry_patch)
-
-        self._persist(self.redis, index, e)
-        log_entry(e, i=index, msg="Patch added")
+        logger.warning(
+            f"Internal patch id {key} wasn't found in any active task. The original task might be cancelled or has expired. Will discard."
+        )
+        # Still acknowledge the patch, don't have much use for this message being showed repeatedly
         return True
 
     def _pov_reproduce_status_request(self, e: SubmissionEntry, patch_idx: int) -> List[POVReproduceResponse | None]:
@@ -807,7 +803,7 @@ class Submissions:
         for crash in e.crashes:
             request = POVReproduceRequest()
             request.task_id = task_id
-            request.patch_id = self._build_patch_id(patch)
+            request.internal_patch_id = patch.internal_patch_id
             request.harness_name = crash.crash.harness_name
             request.sanitizer = crash.crash.target.sanitizer
             request.pov_path = crash.crash.crash_input_path
@@ -841,12 +837,19 @@ class Submissions:
 
         return True
 
-    def _generate_patch_request(self, i: int, e: SubmissionEntry) -> ConfirmedVulnerability:
-        """Create ConfirmedVulnerability from submission entry with all crashes and index."""
+    @staticmethod
+    def _new_patch_tracker() -> SubmissionEntryPatch:
+        """Create a new patch tracker for a submission entry and assign it a new unique id."""
+        return SubmissionEntryPatch(internal_patch_id=str(uuid.uuid4()))
+
+    def _generate_patch_request(
+        self, i: int, e: SubmissionEntry, patch_tracker: SubmissionEntryPatch
+    ) -> ConfirmedVulnerability:
+        """Create ConfirmedVulnerability from submission entry with all crashes and a new unique id."""
         confirmed = ConfirmedVulnerability()
         for crash in e.crashes:
             confirmed.crashes.append(crash)
-        confirmed.submission_index = str(i)
+        confirmed.internal_patch_id = patch_tracker.internal_patch_id
 
         return confirmed
 
@@ -872,7 +875,10 @@ class Submissions:
         """
         log_entry(e, i=i, msg="Submitting patch request")
 
-        confirmed = self._generate_patch_request(i, e)
+        patch_tracker = self._new_patch_tracker()
+
+        confirmed = self._generate_patch_request(i, e, patch_tracker)
+        e.patches.append(patch_tracker)
 
         with self.redis.pipeline() as pipe:
             q = QueueFactory(pipe).create(QueueNames.CONFIRMED_VULNERABILITIES, block_time=None)
@@ -1007,9 +1013,9 @@ class Submissions:
 
         if patch_id:
             old_state = e.state
-            e.patch_id = patch_id
+            e.competition_patch_id = patch_id
             e.patch_submission_attempt += 1
-            e.patches[e.patch_idx].patch_id = patch_id
+            e.patches[e.patch_idx].competition_patch_id = patch_id
             e.state = SubmissionEntry.WAIT_PATCH_PASS
             self._persist(self.redis, i, e)
             log_entry(e, i=i, msg="Patch accepted", old_state=old_state)
@@ -1051,7 +1057,7 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        status = self.competition_api.get_patch_status(_task_id(e), e.patch_id)
+        status = self.competition_api.get_patch_status(_task_id(e), e.competition_patch_id)
         match status:
             case TypesSubmissionStatus.SubmissionStatusAccepted:
                 return  # No change.
@@ -1099,7 +1105,7 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        bundle_id, status = self.competition_api.submit_bundle(_task_id(e), e.pov_id, e.patch_id)
+        bundle_id, status = self.competition_api.submit_bundle(_task_id(e), e.pov_id, e.competition_patch_id)
         if not bundle_id:
             match status:
                 case (
@@ -1187,7 +1193,9 @@ class Submissions:
             i: Index of the submission entry
             e: SubmissionEntry to process
         """
-        success, status = self.competition_api.patch_bundle(_task_id(e), e.bundle_id, e.pov_id, e.patch_id, e.sarif_id)
+        success, status = self.competition_api.patch_bundle(
+            _task_id(e), e.bundle_id, e.pov_id, e.competition_patch_id, e.sarif_id
+        )
         if success:
             self._stop(i, e, "Bundle patch submitted successfully. No more work to be done. Will stop.")
         else:

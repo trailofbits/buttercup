@@ -38,7 +38,7 @@ def main() -> None:
         logger.info("Processing task")  # type: ignore[unreachable]
         patch_input = PatchInput(
             task_id=command.task_id,
-            submission_index=command.submission_index,
+            internal_patch_id=command.internal_patch_id,
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=command.challenge_task_dir,

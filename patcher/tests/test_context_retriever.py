@@ -300,7 +300,7 @@ def selinux_agent(selinux_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Conte
     patch_input = PatchInput(
         challenge_task_dir=selinux_oss_fuzz_task.task_dir,
         task_id=selinux_oss_fuzz_task.task_meta.task_id,
-        submission_index="1",
+        internal_patch_id="1",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=selinux_oss_fuzz_task.task_dir,
@@ -328,7 +328,7 @@ def libpng_agent(example_libpng_oss_fuzz_task: ChallengeTask, tmp_path: Path) ->
     patch_input = PatchInput(
         challenge_task_dir=example_libpng_oss_fuzz_task.task_dir,
         task_id=example_libpng_oss_fuzz_task.task_meta.task_id,
-        submission_index="1",
+        internal_patch_id="1",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=example_libpng_oss_fuzz_task.task_dir,
@@ -369,7 +369,7 @@ def mock_patch_input(mock_challenge: ChallengeTask) -> Iterator[PatchInput]:
     yield PatchInput(
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
-        submission_index="1",
+        internal_patch_id="1",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=mock_challenge.task_dir,
@@ -1461,7 +1461,7 @@ def test_get_initial_context_filters_llvm_frames(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/test/dir"),
@@ -1535,7 +1535,7 @@ def test_get_initial_context_includes_llvm_frames(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/test/dir"),
@@ -1624,7 +1624,7 @@ def test_get_initial_context_respects_n_initial_stackframes(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/test/dir"),
@@ -1725,7 +1725,7 @@ def test_get_initial_context_handles_multiple_stackframes(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/test/dir"),
@@ -1856,7 +1856,7 @@ def test_get_initial_context_multiple_povs(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 # First POV - heap buffer overflow
                 PatchInputPoV(
@@ -1979,7 +1979,7 @@ def test_get_initial_context_multiple_povs_deduplication(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 # First POV - heap buffer overflow
                 PatchInputPoV(
@@ -2111,7 +2111,7 @@ def test_find_tests_agent_success(
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/test/dir"),
@@ -2187,7 +2187,7 @@ def test_find_tests_agent_uses_existing_test_sh(mock_agent: ContextRetrieverAgen
         context=PatchInput(
             challenge_task_dir=Path("/test/dir"),
             task_id="test-task",
-            submission_index="1",
+            internal_patch_id="1",
             povs=[
                 PatchInputPoV(
                     challenge_task_dir=Path("/test/dir"),

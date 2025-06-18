@@ -71,7 +71,7 @@ def mock_patch_input(tmp_path: Path) -> PatchInput:
     return PatchInput(
         challenge_task_dir=tmp_path,
         task_id="test-task-id",
-        submission_index="test-submission",
+        internal_patch_id="test-submission",
         povs=[
             PatchInputPoV(
                 challenge_task_dir=tmp_path,
@@ -129,7 +129,7 @@ def test_validate_patch_node_invalid_patched_code(
 ):
     """Test validate_patch_node when the patched code is invalid."""
     patch_attempt = PatchAttempt(
-        patch=PatchOutput(patch="mypath", task_id="test-task-id", submission_index="test-submission"),
+        patch=PatchOutput(patch="mypath", task_id="test-task-id", internal_patch_id="test-submission"),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
         pov_fixed=True,
@@ -166,7 +166,7 @@ def test_validate_patch_node_invalid_patched_language(
 ):
     """Test validate_patch_node when the patched language is invalid."""
     patch_attempt = PatchAttempt(
-        patch=PatchOutput(patch="mypath", task_id="test-task-id", submission_index="test-submission"),
+        patch=PatchOutput(patch="mypath", task_id="test-task-id", internal_patch_id="test-submission"),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
         pov_fixed=True,
@@ -206,7 +206,7 @@ def test_validate_patch_node_success(
 ):
     """Test validate_patch_node when validation succeeds."""
     patch_attempt = PatchAttempt(
-        patch=PatchOutput(patch="mypath", task_id="test-task-id", submission_index="test-submission"),
+        patch=PatchOutput(patch="mypath", task_id="test-task-id", internal_patch_id="test-submission"),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
         pov_fixed=True,
@@ -244,7 +244,7 @@ def test_validate_patch_node_missing_is_valid_tag(
 ):
     """Test validate_patch_node when the LLM response doesn't contain the is_valid tag."""
     patch_attempt = PatchAttempt(
-        patch=PatchOutput(patch="mypath", task_id="test-task-id", submission_index="test-submission"),
+        patch=PatchOutput(patch="mypath", task_id="test-task-id", internal_patch_id="test-submission"),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
         pov_fixed=True,
@@ -281,7 +281,7 @@ def test_validate_patch_node_invalid_is_valid_value(
 ):
     """Test validate_patch_node when the LLM returns an invalid value in the is_valid tag."""
     patch_attempt = PatchAttempt(
-        patch=PatchOutput(patch="mypath", task_id="test-task-id", submission_index="test-submission"),
+        patch=PatchOutput(patch="mypath", task_id="test-task-id", internal_patch_id="test-submission"),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
         pov_fixed=True,
@@ -330,7 +330,7 @@ def test_is_valid_patched_language_success(
 
 """,
             task_id="test-task-id",
-            submission_index="test-submission",
+            internal_patch_id="test-submission",
         ),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
@@ -389,7 +389,7 @@ def test_is_valid_patched_language_wrong_language(
 
 """,
             task_id="test-task-id",
-            submission_index="test-submission",
+            internal_patch_id="test-submission",
         ),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
@@ -445,7 +445,7 @@ def test_is_valid_patched_language_missing_binary(
 
 """,
             task_id="test-task-id",
-            submission_index="test-submission",
+            internal_patch_id="test-submission",
         ),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
@@ -494,7 +494,7 @@ def test_is_valid_patched_language_missing_file(
 
 """,
             task_id="test-task-id",
-            submission_index="test-submission",
+            internal_patch_id="test-submission",
         ),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,
@@ -543,7 +543,7 @@ def test_is_valid_patched_language_subprocess_error(
 
 """,
             task_id="test-task-id",
-            submission_index="test-submission",
+            internal_patch_id="test-submission",
         ),
         status=PatchStatus.SUCCESS,
         build_succeeded=True,

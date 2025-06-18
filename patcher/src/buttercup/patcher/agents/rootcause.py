@@ -214,7 +214,7 @@ class RootCauseAgent(PatcherAgentBase):
         logger.info(
             "[%s / %s] Analyzing the vulnerability in Challenge Task %s",
             state.context.task_id,
-            state.context.submission_index,
+            state.context.internal_patch_id,
             self.challenge.name,
         )
 

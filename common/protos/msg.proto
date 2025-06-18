@@ -69,7 +69,7 @@ message BuildRequest {
     string patch = 7;
     // A unique identifier for the patch.
     // It can be used to match the BuildRequest and the BuildOutput.
-    string build_patch_id = 8;
+    string internal_patch_id = 8;
 }
 
 message BuildOutput {
@@ -80,7 +80,7 @@ message BuildOutput {
     BuildType build_type = 5;
     bool apply_diff = 6;
     // A unique identifier for the patch, coming from the BuildRequest.
-    string build_patch_id = 7;
+    string internal_patch_id = 7;
 }
 
 message WeightedHarness {
@@ -105,12 +105,12 @@ message TracedCrash {
 
 message ConfirmedVulnerability {
     repeated TracedCrash crashes = 1;
-    string submission_index = 2;
+    string internal_patch_id = 2;
 }
 
 message Patch {
     string task_id = 1;
-    string submission_index = 2;
+    string internal_patch_id = 2;
     string patch = 3;
 }
 
@@ -139,10 +139,9 @@ message FunctionCoverage {
 
 message SubmissionEntryPatch {
     string patch = 1;
-    int32 submission_index = 2;
-    int32 idx = 3;
-    string patch_id = 4;
-    repeated BuildOutput build_outputs = 5;
+    string internal_patch_id = 2;
+    string competition_patch_id = 3;
+    repeated BuildOutput build_outputs = 4;
 }
 
 message SubmissionEntry {
@@ -162,7 +161,7 @@ message SubmissionEntry {
     repeated TracedCrash crashes = 2;
 
     string pov_id = 3;
-    string patch_id = 4;
+    string competition_patch_id = 4;
     string bundle_id = 5;
     string sarif_id = 6;
 
@@ -176,7 +175,7 @@ message SubmissionEntry {
 
 message POVReproduceRequest {
     string task_id = 1;
-    string patch_id = 2;
+    string internal_patch_id = 2;
     string harness_name = 3;
     string sanitizer = 4;
     string pov_path = 5;
