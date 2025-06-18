@@ -63,7 +63,7 @@ def sample_crash():
     crash = Crash()
     target = BuildOutput()
     target.sanitizer = "test_sanitizer"
-    target.engine = "test_engine"
+    target.engine = "libfuzzer"
     target.task_id = str(uuid.uuid4())
     crash.target.CopyFrom(target)
     crash.harness_name = "test_harness"
@@ -154,7 +154,7 @@ def sample_build_output():
     build_output = BuildOutput()
     build_output.internal_patch_id = "0"  # internal_patch_id format
     build_output.sanitizer = "test_sanitizer"
-    build_output.engine = "test_engine"
+    build_output.engine = "libfuzzer"
     build_output.task_id = "test-task-123"
     build_output.build_type = BuildType.PATCH
     build_output.apply_diff = True
@@ -909,7 +909,7 @@ class TestRecordPatchedBuild:
         assert len(submissions.entries[0].patches[0].build_outputs) == 1
         assert submissions.entries[0].patches[0].build_outputs[0].internal_patch_id == "0"
         assert submissions.entries[0].patches[0].build_outputs[0].sanitizer == "test_sanitizer"
-        assert submissions.entries[0].patches[0].build_outputs[0].engine == "test_engine"
+        assert submissions.entries[0].patches[0].build_outputs[0].engine == "libfuzzer"
         assert submissions.entries[0].patches[0].build_outputs[0].build_type == BuildType.PATCH
         assert submissions.entries[0].patches[0].build_outputs[0].apply_diff is True
 

@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 Submit Freeform
 
-CRSs may submit anything to this endpoint as a PoV.  This is particularly useful for unharnessed challenges, but will be open for other challenges also.  Freeform PoVs are not evaluated automatically.
+CRSs may submit anything to this endpoint as a base64'd string.  This is the only way to submit PoVs and Patches for unharnessed challenges, but will be open for other challenges also.   Nothing submitted to this endpoint is evaluated automatically.  Bundles can only contain one freeform_id, so pack as much info into the Freeform as you need.
 
 ### Example
 

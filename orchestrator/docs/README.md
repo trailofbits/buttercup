@@ -5,6 +5,8 @@ Welcome to the documentation page for the AIxCC Final Competition.
 ## Table of Contents
 
 - [Changelog](api/CHANGELOG.md#changelog)
+  - [1.4.0](api/CHANGELOG.md#140)
+  - [1.3.1](api/CHANGELOG.md#131)
   - [1.3.0](api/CHANGELOG.md#130)
   - [1.2.0](api/CHANGELOG.md#120)
   - [v1.1.1](api/CHANGELOG.md#v111)

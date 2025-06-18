@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- Added new request endpoint for rerunning real challenges
+
+## 1.3.1
+
+- Document already-existing limit on accepted `engine` in PoVs
+
 ## 1.3.0
 
 - Introduce `inconclusive` submission status. This status highlights when a test job ran excessively long (8+ hours). It is meant to distinguish inconclusive status from failures and errors. A CRS should not conclude anything

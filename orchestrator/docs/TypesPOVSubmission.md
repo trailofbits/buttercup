@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **architecture** | [**TypesArchitecture**](TypesArchitecture.md) |  | 
-**engine** | **str** | Fuzz Tooling Engine that exercises this vuln. Allowable engine values are specified in project.yaml.  4KiB max size | 
+**engine** | [**TypesFuzzingEngine**](TypesFuzzingEngine.md) |  | 
 **fuzzer_name** | **str** | Fuzz Tooling fuzzer that exercises this vuln  4KiB max size | 
 **sanitizer** | **str** | Fuzz Tooling Sanitizer that exercises this vuln  4KiB max size | 
 **testcase** | **str** | Base64 encoded vuln trigger  2MiB max size before Base64 encoding | 

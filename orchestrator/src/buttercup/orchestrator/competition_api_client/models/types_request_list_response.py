@@ -17,17 +17,17 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class TypesMessage(BaseModel):
+class TypesRequestListResponse(BaseModel):
     """
-    TypesMessage
+    TypesRequestListResponse
     """ # noqa: E501
-    message: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["message"]
+    challenges: List[StrictStr] = Field(description="List of challenges that competitors may task themselves with")
+    __properties: ClassVar[List[str]] = ["challenges"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -47,7 +47,7 @@ class TypesMessage(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of TypesMessage from a JSON string"""
+        """Create an instance of TypesRequestListResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,7 +72,7 @@ class TypesMessage(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of TypesMessage from a dict"""
+        """Create an instance of TypesRequestListResponse from a dict"""
         if obj is None:
             return None
 
@@ -80,7 +80,7 @@ class TypesMessage(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "message": obj.get("message")
+            "challenges": obj.get("challenges")
         })
         return _obj
 

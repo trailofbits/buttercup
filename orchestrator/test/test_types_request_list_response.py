@@ -14,10 +14,10 @@
 
 import unittest
 
-from buttercup.orchestrator.competition_api_client.models.types_pov_submission_response import TypesPOVSubmissionResponse
+from buttercup.orchestrator.competition_api_client.models.types_request_list_response import TypesRequestListResponse
 
-class TestTypesPOVSubmissionResponse(unittest.TestCase):
-    """TypesPOVSubmissionResponse unit test stubs"""
+class TestTypesRequestListResponse(unittest.TestCase):
+    """TypesRequestListResponse unit test stubs"""
 
     def setUp(self):
         pass
@@ -25,28 +25,30 @@ class TestTypesPOVSubmissionResponse(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def make_instance(self, include_optional) -> TypesPOVSubmissionResponse:
-        """Test TypesPOVSubmissionResponse
+    def make_instance(self, include_optional) -> TypesRequestListResponse:
+        """Test TypesRequestListResponse
             include_optional is a boolean, when False only required
             params are included, when True both required and
             optional params are included """
-        # uncomment below to create an instance of `TypesPOVSubmissionResponse`
+        # uncomment below to create an instance of `TypesRequestListResponse`
         """
-        model = TypesPOVSubmissionResponse()
+        model = TypesRequestListResponse()
         if include_optional:
-            return TypesPOVSubmissionResponse(
-                pov_id = '',
-                status = 'accepted'
+            return TypesRequestListResponse(
+                challenges = [
+                    ''
+                    ]
             )
         else:
-            return TypesPOVSubmissionResponse(
-                pov_id = '',
-                status = 'accepted',
+            return TypesRequestListResponse(
+                challenges = [
+                    ''
+                    ],
         )
         """
 
-    def testTypesPOVSubmissionResponse(self):
-        """Test TypesPOVSubmissionResponse"""
+    def testTypesRequestListResponse(self):
+        """Test TypesRequestListResponse"""
         # inst_req_only = self.make_instance(include_optional=False)
         # inst_req_and_optional = self.make_instance(include_optional=True)
 

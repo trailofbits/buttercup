@@ -14,10 +14,10 @@
 
 import unittest
 
-from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture
+from buttercup.orchestrator.competition_api_client.models.types_fuzzing_engine import TypesFuzzingEngine
 
-class TestTypesArchitecture(unittest.TestCase):
-    """TypesArchitecture unit test stubs"""
+class TestTypesFuzzingEngine(unittest.TestCase):
+    """TypesFuzzingEngine unit test stubs"""
 
     def setUp(self):
         pass
@@ -25,9 +25,9 @@ class TestTypesArchitecture(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testTypesArchitecture(self):
-        """Test TypesArchitecture"""
-        # inst = TypesArchitecture()
+    def testTypesFuzzingEngine(self):
+        """Test TypesFuzzingEngine"""
+        # inst = TypesFuzzingEngine()
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,7 +3,7 @@
   "info": {
     "title": "Example Competition API",
     "contact": {},
-    "version": "1.4.0"
+    "version": "1.3.1"
   },
   "paths": {
     "/v1/ping/": {
@@ -27,72 +27,19 @@
         }
       }
     },
-    "/v1/request/list/": {
-      "get": {
-        "security": [
-          {
-            "BasicAuth": []
-          }
-        ],
-        "description": "Get a list of available challenges to task",
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
-        "tags": ["request"],
-        "summary": "Get a list of available challenges to task",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/types.RequestListResponse"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/types.Error"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/types.Error"
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "schema": {
-              "$ref": "#/definitions/types.Error"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/types.Error"
-            }
-          }
-        }
-      }
-    },
-    "/v1/request/{challenge_name}": {
+    "/v1/request/delta/": {
       "post": {
         "security": [
           {
             "BasicAuth": []
           }
         ],
-        "description": "Send a task to the source of this request",
+        "description": "Send a delta task to the source of this request",
         "consumes": ["application/json"],
         "produces": ["application/json"],
         "tags": ["request"],
-        "summary": "Send a task to the source of this request",
+        "summary": "Send a delta task to the source of this request",
         "parameters": [
-          {
-            "type": "string",
-            "description": "Challenge Name",
-            "name": "challenge_name",
-            "in": "path",
-            "required": true
-          },
           {
             "description": "Submission Body",
             "name": "payload",
@@ -1096,19 +1043,6 @@
       "properties": {
         "status": {
           "type": "string"
-        }
-      }
-    },
-    "types.RequestListResponse": {
-      "type": "object",
-      "required": ["challenges"],
-      "properties": {
-        "challenges": {
-          "description": "List of challenges that competitors may task themselves with",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       }
     },

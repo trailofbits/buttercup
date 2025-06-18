@@ -209,16 +209,6 @@ definitions:
     required:
       - status
     type: object
-  types.RequestListResponse:
-    properties:
-      challenges:
-        description: List of challenges that competitors may task themselves with
-        items:
-          type: string
-        type: array
-    required:
-      - challenges
-    type: object
   types.RequestSubmission:
     properties:
       duration_secs:
@@ -304,7 +294,7 @@ definitions:
 info:
   contact: {}
   title: Example Competition API
-  version: 1.4.0
+  version: 1.3.1
 paths:
   /v1/ping/:
     get:
@@ -321,17 +311,12 @@ paths:
       summary: Test authentication creds and network connectivity
       tags:
         - ping
-  /v1/request/{challenge_name}:
+  /v1/request/delta/:
     post:
       consumes:
         - application/json
-      description: Send a task to the source of this request
+      description: Send a delta task to the source of this request
       parameters:
-        - description: Challenge Name
-          in: path
-          name: challenge_name
-          required: true
-          type: string
         - description: Submission Body
           in: body
           name: payload
@@ -363,40 +348,7 @@ paths:
             $ref: "#/definitions/types.Error"
       security:
         - BasicAuth: []
-      summary: Send a task to the source of this request
-      tags:
-        - request
-  /v1/request/list/:
-    get:
-      consumes:
-        - application/json
-      description: Get a list of available challenges to task
-      produces:
-        - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: "#/definitions/types.RequestListResponse"
-        "400":
-          description: Bad Request
-          schema:
-            $ref: "#/definitions/types.Error"
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: "#/definitions/types.Error"
-        "404":
-          description: Not Found
-          schema:
-            $ref: "#/definitions/types.Error"
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: "#/definitions/types.Error"
-      security:
-        - BasicAuth: []
-      summary: Get a list of available challenges to task
+      summary: Send a delta task to the source of this request
       tags:
         - request
   /v1/task/{task_id}/broadcast-sarif-assessment/{broadcast_sarif_id}/:
