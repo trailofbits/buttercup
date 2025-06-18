@@ -44,7 +44,7 @@ global:
     deleteTaskTimeoutMs: 120000
     crashTaskTimeoutMs: 900000
     patchTaskTimeoutMs: 120000
-    confirmedVulnerabilitiesTaskTimeoutMs: 1200000
+    confirmedVulnerabilitiesTaskTimeoutMs: 1800000
     indexTaskTimeoutMs: 800000
     indexOutputTaskTimeoutMs: 120000
     tracedVulnerabilitiesTaskTimeoutMs: 120000
@@ -77,10 +77,10 @@ redis:
       size: 50Gi
     resources:
       limits:
-        cpu: 4000m
+        cpu: 8000m
         memory: 32Gi
       requests:
-        cpu: 1000m
+        cpu: 2000m
         memory: 12Gi
 
 task-server:
@@ -95,7 +95,7 @@ task-server:
 
 task-downloader:
   enabled: true
-  replicaCount: 2
+  replicaCount: 4
   resources:
     limits:
       cpu: 4000m
@@ -117,6 +117,7 @@ scheduler:
 
 program-model:
   enabled: true
+  replicaCount: 4
   resources:
     limits:
       cpu: 8000m
@@ -127,7 +128,7 @@ program-model:
 
 build-bot:
   enabled: true
-  replicaCount: 16
+  replicaCount: 24
   resources:
     limits:
       cpu: 4000m
@@ -138,7 +139,7 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 300
+  replicaCount: 400
   resources:
     limits:
       cpu: 16000m
@@ -159,7 +160,7 @@ merger-bot:
 
 coverage-bot:
   enabled: true
-  replicaCount: 4
+  replicaCount: 6
   resources:
     limits:
       cpu: 4000m
@@ -181,7 +182,7 @@ tracer-bot:
 
 pov-reproducer:
   enabled: true
-  replicaCount: 8
+  replicaCount: 16
   resources:
     limits:
       cpu: 8000m
@@ -192,7 +193,7 @@ pov-reproducer:
 
 seed-gen:
   enabled: true
-  replicaCount: 10
+  replicaCount: 24
   resources:
     limits:
       cpu: 2000m
@@ -203,7 +204,7 @@ seed-gen:
 
 patcher:
   enabled: true
-  replicaCount: 16
+  replicaCount: 20
   maxPatchRetries: 10
   maxContextRetrieverRecursionLimit: 100
   maxMinutesRunPOVs: 30
@@ -231,12 +232,29 @@ litellm:
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
 
-# Registry cache configuration
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 8Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+  postgresql:
+    primary:
+      resources:
+        limits:
+          cpu: 8000m
+          memory: 16Gi
+        requests:
+          cpu: 2000m
+          memory: 2Gi
+
 registry-cache:
   enabled: true
   persistence:
     enabled: true
-    size: 30Gi
+    size: 100Gi
   resources:
     limits:
       cpu: 4000m
