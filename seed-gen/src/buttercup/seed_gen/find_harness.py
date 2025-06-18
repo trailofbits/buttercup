@@ -2,14 +2,34 @@
 
 import logging
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 import rapidfuzz
+from redis import Redis
 
+from buttercup.common.maps import CoverageMap
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class HarnessSourceCacheKey:
+    task_id: str
+    harness_name: str
+
+    def __hash__(self) -> int:
+        return hash((self.task_id, self.harness_name))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, HarnessSourceCacheKey):
+            return False
+        return self.task_id == other.task_id and self.harness_name == other.harness_name
+
+
+_harness_source_cache: dict[HarnessSourceCacheKey, str] = {}
 
 
 def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path) -> list[Path]:
@@ -106,13 +126,20 @@ def find_jazzer_harnesses(codequery: CodeQuery) -> list[Path]:
     )
 
 
-def get_harness_source_candidates(
-    codequery: CodeQuery, project_name: str, harness_name: str
-) -> list[Path]:
+def _rebase_path(task_dir: Path, path: Path) -> Path:
+    container_src_dir = task_dir / CONTAINER_SRC_DIR
+    try:
+        res = path.relative_to(container_src_dir)
+        return Path("/", *res.parts)
+    except ValueError:
+        return path.absolute()
+
+
+def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> list[Path]:
     """Get the list of candidate source files for a harness, in descending order
     of fuzzy similarity to the harness name.
     """
-    project_yaml = ProjectYaml(codequery.challenge, project_name)
+    project_yaml = ProjectYaml(codequery.challenge, codequery.challenge.project_name)
     language = project_yaml.unified_language
 
     harnesses = []
@@ -128,3 +155,69 @@ def get_harness_source_candidates(
     )
 
     return harnesses
+
+
+def get_harness_source(redis: Redis | None, codequery: CodeQuery, harness_name: str) -> str | None:
+    task_id = codequery.challenge.task_meta.task_id
+    logger.info("Getting harness source for %s | %s", task_id, harness_name)
+    key = HarnessSourceCacheKey(
+        task_id=task_id,
+        harness_name=harness_name,
+    )
+    if key in _harness_source_cache:
+        logger.info(
+            "Found harness source for %s | %s in cache",
+            task_id,
+            harness_name,
+        )
+        return _harness_source_cache[key]
+
+    harnesses = get_harness_source_candidates(codequery, harness_name)
+    if len(harnesses) == 0:
+        logger.error("No harness found for %s | %s", task_id, harness_name)
+        return None
+
+    if len(harnesses) == 1:
+        logger.info("Found single harness for %s | %s: %s", task_id, harness_name, harnesses[0])
+        return harnesses[0].read_text()
+
+    if redis is None:
+        logger.warning(
+            "No redis connection available, using first harness found: %s",
+            harnesses[0],
+        )
+        function_coverages = []
+    else:
+        logger.info(
+            "Multiple harnesses found for %s | %s, using coverage map to select the best one",
+            task_id,
+            harness_name,
+        )
+        coverage_map = CoverageMap(redis, harness_name, codequery.challenge.project_name, task_id)
+        function_coverages = coverage_map.list_function_coverage()
+
+    # Check if any of the harnesses found through get_harness_source_candidates
+    # intersect with the covered functions
+    for function_coverage in function_coverages:
+        for harness_path in harnesses:
+            rebased_harness_path = _rebase_path(codequery.challenge.task_dir, harness_path)
+            if any(str(rebased_harness_path) == path for path in function_coverage.function_paths):
+                _harness_source_cache[key] = harness_path.read_text()
+                logger.info(
+                    "Harness source for %s | %s matched through coverage map: %s",
+                    task_id,
+                    harness_name,
+                    harness_path,
+                )
+                return _harness_source_cache[key]
+
+    # If we couldn't determine a better match or don't have coverage map, use the first one
+    logger.warning(
+        "Multiple harnesses found for %s | %s. "
+        "Returning first one based on name similarity "
+        "as coverage map could not be used: %s",
+        task_id,
+        harness_name,
+        harnesses[0],
+    )
+    return harnesses[0].read_text()

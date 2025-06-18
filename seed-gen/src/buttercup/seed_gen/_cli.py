@@ -74,6 +74,7 @@ def command_process(settings: Settings) -> None:
                 challenge_task,
                 codequery,
                 project_yaml,
+                None,
             )
             task.do_task(out_dir)
         elif command.task_type == TaskName.SEED_EXPLORE.value:
@@ -87,6 +88,7 @@ def command_process(settings: Settings) -> None:
                 challenge_task,
                 codequery,
                 project_yaml,
+                None,
             )
             task.do_task(command.target_function, command.target_function_paths, out_dir)
         elif command.task_type == TaskName.VULN_DISCOVERY.value:
@@ -113,6 +115,7 @@ def command_process(settings: Settings) -> None:
                         challenge_task,
                         codequery,
                         project_yaml,
+                        None,
                         mult,
                         [],  # skipping sarifs for now
                     )
@@ -123,6 +126,7 @@ def command_process(settings: Settings) -> None:
                         challenge_task,
                         codequery,
                         project_yaml,
+                        None,
                         mult,
                         [],  # skipping sarifs for now
                     )

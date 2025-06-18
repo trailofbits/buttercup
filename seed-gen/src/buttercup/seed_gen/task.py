@@ -15,14 +15,15 @@ from langchain_core.tools.base import InjectedToolCallId
 from langgraph.graph import add_messages
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
-from buttercup.seed_gen.find_harness import get_harness_source_candidates
+from buttercup.seed_gen.find_harness import get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
 
@@ -82,12 +83,14 @@ class Task:
     challenge_task: ChallengeTask
     codequery: CodeQueryPersistent
     project_yaml: ProjectYaml
+    redis: Redis | None = field(repr=False, compare=False)
     llm: BaseChatModel = field(init=False)
     tools: list[BaseTool] = field(init=False)
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
     MAX_TYPE_DEFS = 5
+    _harness_source_cache: ClassVar[dict[str, str]] = {}
 
     def __post_init__(self) -> None:
         fallbacks = [
@@ -119,27 +122,7 @@ class Task:
         return llm.with_fallbacks(fallbacks)
 
     def get_harness_source(self) -> str | None:
-        logger.info("Getting harness source for %s | %s", self.package_name, self.harness_name)
-        harnesses = get_harness_source_candidates(
-            self.codequery,
-            self.package_name,
-            self.harness_name,
-        )
-        logger.info("Found %d harness candidates", len(harnesses))
-        logger.debug("Harness candidates: %s", [h for h in harnesses])
-        # TODO: use the LLM to select the best harness out of multiple candidates
-        if len(harnesses) == 0:
-            logger.error("No harness found for %s | %s", self.package_name, self.harness_name)
-            return None
-        if len(harnesses) > 1:
-            logger.warning(
-                "Multiple harnesses found for %s | %s. Returning first one %s.",
-                self.package_name,
-                self.harness_name,
-                harnesses[0],
-            )
-
-        return harnesses[0].read_text()
+        return get_harness_source(self.redis, self.codequery, self.harness_name)
 
     @staticmethod
     def clean_func_name(func_name: str) -> str:
@@ -666,6 +649,8 @@ class BaseTaskState(BaseModel):
     context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
     task: Task = Field(description="The task instance")
     output_dir: Path = Field(description="Directory to save generated seeds")
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def format_retrieved_context(self) -> str:
         """Format retrieved context for prompt"""

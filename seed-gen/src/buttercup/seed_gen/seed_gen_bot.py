@@ -153,7 +153,12 @@ class SeedGenBot(TaskLoop):
 
             if task_choice == TaskName.SEED_INIT.value:
                 seed_init = SeedInitTask(
-                    task.package_name, task.harness_name, challenge_task, codequery, project_yaml
+                    task.package_name,
+                    task.harness_name,
+                    challenge_task,
+                    codequery,
+                    project_yaml,
+                    self.redis,
                 )
                 seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY.value:
@@ -179,6 +184,7 @@ class SeedGenBot(TaskLoop):
                             challenge_task,
                             codequery,
                             project_yaml,
+                            self.redis,
                             mult,
                             sarifs,
                             crash_submit=crash_submit,
@@ -190,6 +196,7 @@ class SeedGenBot(TaskLoop):
                             challenge_task,
                             codequery,
                             project_yaml,
+                            self.redis,
                             mult,
                             sarifs,
                             crash_submit=crash_submit,
@@ -197,7 +204,12 @@ class SeedGenBot(TaskLoop):
                     vuln_discovery.do_task(out_dir, current_dir)
             elif task_choice == TaskName.SEED_EXPLORE.value:
                 seed_explore = SeedExploreTask(
-                    task.package_name, task.harness_name, challenge_task, codequery, project_yaml
+                    task.package_name,
+                    task.harness_name,
+                    challenge_task,
+                    codequery,
+                    project_yaml,
+                    self.redis,
                 )
 
                 function_selector = FunctionSelector(self.redis)

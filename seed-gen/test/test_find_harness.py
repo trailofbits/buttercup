@@ -4,16 +4,19 @@ import subprocess
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.maps import FunctionCoverage
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
 from buttercup.seed_gen.find_harness import (
     find_jazzer_harnesses,
     find_libfuzzer_harnesses,
+    get_harness_source,
     get_harness_source_candidates,
 )
 
@@ -24,6 +27,16 @@ FUZZ_TARGET_CPP = """
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // Test code here
     return 0;
+}
+"""
+
+FUZZ_TARGET_CPP_1 = """
+#include <stddef.h>
+#include <stdint.h>
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+    // Test code here
+    return 1;
 }
 """
 
@@ -255,20 +268,96 @@ def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
     (source_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
     # Test one candidate is similar
-    candidates = get_harness_source_candidates(codequery, "my-project", "fuzz_target")
+    candidates = get_harness_source_candidates(codequery, "fuzz_target")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["fuzz_target.cpp", "another_fuzzer.c"]
 
     # Test case-insensitive candidate is similar
-    candidates = get_harness_source_candidates(codequery, "my-project", "AnotherFuzzer")
+    candidates = get_harness_source_candidates(codequery, "AnotherFuzzer")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["another_fuzzer.c", "fuzz_target.cpp"]
 
     # Test no match
-    candidates = get_harness_source_candidates(codequery, "my-project", "nonexistent")
+    candidates = get_harness_source_candidates(codequery, "nonexistent")
     assert len(candidates) == 2
     assert "another_fuzzer.c" in candidate_names
     assert "fuzz_target.cpp" in candidate_names
+
+
+def test_get_harness_source_cpp(codequery: CodeQuery):
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
+    project_yaml_path = (
+        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
+    )
+
+    source_path.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.write_text("language: cpp\n")
+
+    # Create test files
+    (source_path / "src/fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
+    (source_path / "src/normal.cpp").write_text(NORMAL_CPP)
+    (source_path / "src/FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
+
+    redis = MagicMock(spec=Redis)
+    with patch("buttercup.seed_gen.find_harness.CoverageMap") as coverage_map:
+        harness_source = get_harness_source(redis, codequery, "fuzz_target")
+        assert harness_source == FUZZ_TARGET_CPP
+
+        coverage_map.assert_not_called()
+
+        (source_path / "src/another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
+        harness_source = get_harness_source(redis, codequery, "AnotherFuzzer")
+        assert harness_source == FUZZ_TARGET_CPP
+
+        coverage_map.assert_called_once()
+
+
+def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
+    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
+
+    # Create test files
+    (source_path / "src/curl_common_fuzz.cpp").write_text(FUZZ_TARGET_CPP)
+    (source_path / "src/bufq.c").write_text(FUZZ_TARGET_CPP_1)
+
+    redis = MagicMock(spec=Redis)
+    with patch("buttercup.seed_gen.find_harness.CoverageMap") as coverage_map:
+
+        def side_effect(*args, **kwargs):
+            mock = MagicMock()
+            if args[1] == "curl_common_fuzz_https":
+                mock.list_function_coverage.return_value = [
+                    FunctionCoverage(
+                        function_name="curl_common_fuzz_https",
+                        function_paths=["/src/curl_common_fuzz.cpp"],
+                    ),
+                    FunctionCoverage(
+                        function_name="strlen",
+                        function_paths=["/src/glib/gstrfuncs.c"],
+                    ),
+                ]
+            else:
+                mock.list_function_coverage.return_value = [
+                    FunctionCoverage(
+                        function_name="curl_common_bufq",
+                        function_paths=["/src/bufq.c"],
+                    ),
+                    FunctionCoverage(
+                        function_name="myfunc",
+                        function_paths=["/src/curl/something.c"],
+                    ),
+                ]
+            return mock
+
+        coverage_map.side_effect = side_effect
+
+        harness_source = get_harness_source(redis, codequery, "curl_common_fuzz_https")
+        assert harness_source == FUZZ_TARGET_CPP
+
+        harness_source = get_harness_source(redis, codequery, "curl_common_bufq")
+        assert harness_source == FUZZ_TARGET_CPP_1
 
 
 def test_get_harness_source_candidates_java(codequery: CodeQuery):
@@ -289,17 +378,17 @@ def test_get_harness_source_candidates_java(codequery: CodeQuery):
     (source_path / "FuzzTarget1.java").write_text(FUZZ_TARGET_JAVA)
 
     # Test one candidate is similar
-    candidates = get_harness_source_candidates(codequery, "my-project", "FuzzTarget")
+    candidates = get_harness_source_candidates(codequery, "FuzzTarget")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["FuzzTarget.java", "FuzzTarget1.java"]
 
     # Test case-insensitive candidate is similar
-    candidates = get_harness_source_candidates(codequery, "my-project", "fuzztarget1")
+    candidates = get_harness_source_candidates(codequery, "fuzztarget1")
     candidate_names = [c.name for c in candidates]
     assert candidate_names == ["FuzzTarget1.java", "FuzzTarget.java"]
 
     # Test no match
-    candidates = get_harness_source_candidates(codequery, "my-project", "nonexistent")
+    candidates = get_harness_source_candidates(codequery, "nonexistent")
     assert len(candidates) == 2
     assert "FuzzTarget.java" in candidate_names
     assert "FuzzTarget1.java" in candidate_names
@@ -557,15 +646,124 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
         ("curl_fuzzer_imap", "curl_fuzzer.cc"),
         ("curl_fuzzer_http", "curl_fuzzer.cc"),
         ("fuzz_url", "fuzz_url.cc"),
-        # TODO: We need CoverageMap info to detect these harnesses
-        # ("curl_fuzzer_fnmatch", "fuzz_fnmatch.cc"),
-        # ("curl_fuzzer_bufq", "fuzz_bufq.cc"),
+        # These are not the actual harness source code, but they are the best matches
+        ("curl_fuzzer_fnmatch", "curl_fuzzer.cc"),
+        ("curl_fuzzer_bufq", "curl_fuzzer.cc"),
     ],
 )
 def test_get_harness_source_candidates_curl(
     curl_oss_fuzz_cq: CodeQuery, harness_name: str, expected_first_match: str
 ):
-    harnesses = get_harness_source_candidates(
-        curl_oss_fuzz_cq, curl_oss_fuzz_cq.challenge.task_meta.project_name, harness_name
-    )
+    harnesses = get_harness_source_candidates(curl_oss_fuzz_cq, harness_name)
     assert expected_first_match == harnesses[0].name
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "harness_name,expected_harness_source_path,coverage_map_function_paths",
+    [
+        (
+            "curl_fuzzer_https",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        ("curl_fuzzer_ftp", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl_fuzzer/curl_fuzzer.cc"]),
+        (
+            "curl_fuzzer_tftp",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        (
+            "curl_fuzzer_rtsp",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        ("curl_fuzzer", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl_fuzzer/curl_fuzzer.cc"]),
+        (
+            "curl_fuzzer_pop3",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        ("curl_fuzzer_ws", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl_fuzzer/curl_fuzzer.cc"]),
+        (
+            "curl_fuzzer_gopher",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        (
+            "curl_fuzzer_dict",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        ("curl_fuzzer_smb", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl_fuzzer/curl_fuzzer.cc"]),
+        (
+            "curl_fuzzer_mqtt",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        (
+            "curl_fuzzer_smtp",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        (
+            "curl_fuzzer_file",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        (
+            "curl_fuzzer_imap",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        (
+            "curl_fuzzer_http",
+            "/src/curl_fuzzer/curl_fuzzer.cc",
+            ["/src/curl_fuzzer/curl_fuzzer.cc"],
+        ),
+        ("fuzz_url", "/src/curl_fuzzer/fuzz_url.cc", ["/src/curl_fuzzer/fuzz_url.cc"]),
+        (
+            "curl_fuzzer_fnmatch",
+            "/src/curl_fuzzer/fuzz_fnmatch.cc",
+            ["/src/curl_fuzzer/fuzz_fnmatch.cc"],
+        ),
+        ("curl_fuzzer_bufq", "/src/curl_fuzzer/fuzz_bufq.cc", ["/src/curl_fuzzer/fuzz_bufq.cc"]),
+        # For these we don't have coverage map, so we should return the first candidate
+        ("curl_fuzzer_https", "/src/curl_fuzzer/curl_fuzzer.cc", []),
+        ("curl_fuzzer_ftp", "/src/curl_fuzzer/curl_fuzzer.cc", []),
+        ("curl_fuzzer_tftp", "/src/curl_fuzzer/curl_fuzzer.cc", []),
+        ("curl_fuzzer_rtsp", "/src/curl_fuzzer/curl_fuzzer.cc", []),
+        ("fuzz_url", "/src/curl_fuzzer/fuzz_url.cc", []),
+        ("curl_fuzzer_fnmatch", "/src/curl_fuzzer/curl_fuzzer.cc", []),
+        ("curl_fuzzer_bufq", "/src/curl_fuzzer/curl_fuzzer.cc", []),
+        # For these we have partial coverage map, but it does not cover the harness
+        ("curl_fuzzer_https", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl/terminal.c"]),
+        ("curl_fuzzer_ftp", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl/terminal.c"]),
+        ("curl_fuzzer_tftp", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl/terminal.c"]),
+        ("curl_fuzzer_rtsp", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl/terminal.c"]),
+        ("fuzz_url", "/src/curl_fuzzer/fuzz_url.cc", ["/src/curl/terminal.c"]),
+        ("curl_fuzzer_fnmatch", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl/terminal.c"]),
+        ("curl_fuzzer_bufq", "/src/curl_fuzzer/curl_fuzzer.cc", ["/src/curl/terminal.c"]),
+    ],
+)
+def test_get_harness_source(
+    curl_oss_fuzz_cq: CodeQuery,
+    harness_name: str,
+    expected_harness_source_path: str,
+    coverage_map_function_paths: list[str],
+):
+    redis = MagicMock(spec=Redis)
+    with patch("buttercup.seed_gen.find_harness.CoverageMap") as coverage_map:
+        coverage_map_mock = MagicMock()
+        coverage_map_mock.list_function_coverage.return_value = [
+            FunctionCoverage(
+                function_name="random_name",
+                function_paths=coverage_map_function_paths,
+            )
+        ]
+        coverage_map.return_value = coverage_map_mock
+
+        harness_source = get_harness_source(redis, curl_oss_fuzz_cq, harness_name)
+        relative_source_path = expected_harness_source_path.lstrip("/")
+        actual_file = curl_oss_fuzz_cq.challenge.task_dir / CONTAINER_SRC_DIR / relative_source_path
+        assert harness_source == actual_file.read_text()
