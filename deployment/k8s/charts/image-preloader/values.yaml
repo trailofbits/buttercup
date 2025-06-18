@@ -15,6 +15,16 @@ resources:
 
 # List of images to pull
 imagesToPull:
+  - ghcr.io/aixcc-finals/base-runner:v1.3.0
+  - ghcr.io/aixcc-finals/base-builder:v1.3.0
+  - ghcr.io/aixcc-finals/base-image:v1.3.0
+  - ghcr.io/aixcc-finals/base-clang:v1.3.0
+  - ghcr.io/aixcc-finals/base-runner-debug:v1.3.0
+  - ghcr.io/aixcc-finals/base-builder-jvm:v1.3.0
+  - ghcr.io/aixcc-finals/base-builder-ruby:v1.3.0
+  - ghcr.io/aixcc-finals/base-builder-go:v1.3.0
+  - ghcr.io/aixcc-finals/base-builder-python:v1.3.0
+  - ghcr.io/aixcc-finals/base-builder-rust:v1.3.0
   - ghcr.io/aixcc-finals/base-runner:v1.2.1
   - ghcr.io/aixcc-finals/base-builder:v1.2.1
   - ghcr.io/aixcc-finals/base-image:v1.2.1
