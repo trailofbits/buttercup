@@ -96,7 +96,6 @@ class Task:
         fallbacks = [
             ButtercupLLM.CLAUDE_3_7_SONNET,
             ButtercupLLM.CLAUDE_3_5_SONNET,
-            ButtercupLLM.OPENAI_GPT_4_1,
         ]
         self.llm = Task.get_llm(ButtercupLLM.CLAUDE_4_SONNET, fallbacks)
         self.tools = [
