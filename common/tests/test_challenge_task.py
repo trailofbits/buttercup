@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import subprocess
 import os
+import base64
 from buttercup.common.challenge_task import (
     ChallengeTask,
     ChallengeTaskError,
@@ -645,11 +646,13 @@ def test_tmp_dir(libjpeg_oss_fuzz_task: ChallengeTask):
     assert not local_dir.exists()
 
 
+@pytest.mark.integration
 def test_container_image(libjpeg_oss_fuzz_task: ChallengeTask):
     """Test getting the container image."""
     assert libjpeg_oss_fuzz_task.container_image() == "gcr.io/oss-fuzz/libjpeg-turbo"
 
 
+@pytest.mark.integration
 def test_container_image_custom_org(libjpeg_oss_fuzz_task_dir: Path):
     """Test getting the container image with a custom organization."""
     with patch.dict(os.environ, {"OSS_FUZZ_CONTAINER_ORG": "myorg"}):
@@ -916,3 +919,93 @@ def test_exec_docker_cmd_grep_after_build(libjpeg_oss_fuzz_task_rw: ChallengeTas
     assert result.success is True
     assert result.returncode == 0
     assert b"-rwxr-xr-x" in result.output and b"wrjpgcom" in result.output
+
+
+def test_apply_patch_diff_with_file(challenge_task: ChallengeTask):
+    """Test applying a specific patch diff file to the source code."""
+    # Create a test file to patch
+    test_file = challenge_task.get_source_path() / "test_file.txt"
+    test_file.write_text("original content\n")
+
+    # Create a git diff patch file
+    diff_file = challenge_task.get_diff_path() / "test_patch.diff"
+    diff_content = """diff --git a/test_file.txt b/test_file.txt
+index 1234567..abcdefg 100644
+--- a/test_file.txt
++++ b/test_file.txt
+@@ -1 +1,2 @@
+-original content
++modified content
++new line
+"""
+    diff_file.write_text(diff_content)
+
+    # Apply the specific patch file
+    result = challenge_task.apply_patch_diff(diff_file=diff_file)
+
+    assert result is True
+    assert test_file.exists()
+    assert test_file.read_text() == "modified content\nnew line\n"
+
+
+def test_apply_patch_diff_binary_file(challenge_task: ChallengeTask):
+    """Test applying a git diff patch for a binary file."""
+    # Create a binary test file
+    test_binary = challenge_task.get_source_path() / "test.bin"
+    exp_test_binary_content = """UEsDBBQAAAgIAHVmrlgtOwivDgAAAAwAAAAQADUAJTc0JTY1JTczJTc0LnR4dFVUDQAHnpZDZp6W
+Q2aelkNmCgAgAAAAAAABABgAYaCn/x6m2gFhoKf/HqbaAWGgp/8eptoBy0jNyclXKM8vyknhAgBQ
+SwECFAAUAAAICAB1Zq5YLTsIrw4AAAAMAAAAEAAtAAAAAAAAAAAAAAAAAAAAJTc0JTY1JTczJTc0
+LnR4dFVUBQAHnpZDZgoAIAAAAAAAAQAYAGGgp/8eptoBYaCn/x6m2gFhoKf/HqbaAVBLBQYAAAAA
+AQABAGsAAABxAAAAAAA="""
+
+    # Create a git diff patch file for binary
+    diff_file = challenge_task.get_diff_path() / "binary_patch.diff"
+    diff_content = """diff --git a/test.bin b/test.bin
+new file mode 100644
+index 0000000000000000000000000000000000000000..e3ec044f087ad576d0dffefc4ec71cd17011c287
+GIT binary patch
+literal 242
+zcmWIWW@Zs#VBp|jC{0@zp=-^to{xcnfd_~M7)%*d%}rFzOjXT|fegKpijvR}UIzAg
+z)11>_n2SLHsFZ<$kwJnXal!Kca?5TpqSL26&YnCOu5n)fl;=Yxh5&CyCJ_c)R_cOH
+dLlBq_V1+n<7>fhES=k_tV`Rt%G77=w0sx8GJ7xd?
+
+literal 0
+HcmV?d00001
+
+"""
+    diff_file.write_text(diff_content)
+
+    # Apply the binary patch
+    result = challenge_task.apply_patch_diff(diff_file=diff_file)
+
+    assert result is True
+    assert base64.b64decode(exp_test_binary_content) == test_binary.read_bytes()
+
+
+def test_apply_patch_diff_file_not_found(challenge_task: ChallengeTask):
+    """Test applying a patch file that doesn't exist."""
+    non_existent_diff = challenge_task.get_diff_path() / "nonexistent.diff"
+
+    with pytest.raises(ChallengeTaskError, match="Diff file .* not found"):
+        challenge_task.apply_patch_diff(diff_file=non_existent_diff)
+
+
+def test_apply_patch_diff_git_apply_failure(challenge_task: ChallengeTask):
+    """Test applying a patch file that causes git apply to fail."""
+    # Create a test file
+    test_file = challenge_task.get_source_path() / "test_file.txt"
+    test_file.write_text("original content\n")
+
+    # Create an invalid diff file
+    diff_file = challenge_task.get_diff_path() / "invalid_patch.diff"
+    diff_file.write_text("invalid diff content")
+
+    # Mock subprocess to simulate git apply failure
+    with patch("subprocess.run") as mock_run:
+        # Simulate git apply failure
+        mock_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd=["patch", "-p1"], output="", stderr="patch does not apply"
+        )
+
+        with pytest.raises(ChallengeTaskError, match="Error applying diff"):
+            challenge_task.apply_patch_diff(diff_file=diff_file)

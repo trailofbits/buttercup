@@ -40,7 +40,7 @@ FROM base AS runtime
 WORKDIR /app
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery libncurses-dev && \
+    apt-get install -y codequery libncurses-dev git && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope

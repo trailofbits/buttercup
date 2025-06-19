@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_BASE} AS runtime
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y patch curl && \
+    apt-get install -y git curl && \
     rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://get.docker.com | sh

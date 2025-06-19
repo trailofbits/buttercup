@@ -48,7 +48,7 @@ RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM runtime-base AS runtime
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync libncurses-dev
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync libncurses-dev git
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv

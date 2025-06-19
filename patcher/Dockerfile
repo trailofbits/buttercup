@@ -55,7 +55,7 @@ RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 FROM runtime-base AS runtime
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery rsync && \
+    apt-get install -y codequery rsync git && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv

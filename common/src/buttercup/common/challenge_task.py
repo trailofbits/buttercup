@@ -732,19 +732,21 @@ class ChallengeTask:
                 diff_files = [diff_file]
 
             for diff_file in diff_files:
+                if not diff_file.exists():
+                    raise ChallengeTaskError(f"[task {self.task_dir}] Diff file {diff_file} not found")
+
                 logger.info(f"[task {self.task_dir}] Applying diff file: {diff_file}")
 
-                # Use patch command to apply the patch
+                # Use git apply command to apply the patch
                 subprocess.run(
                     [
-                        "patch",
-                        "-p1",
-                        "-d",
+                        "git",
+                        "-C",
                         str(self.get_source_path()),
+                        "apply",
+                        str(diff_file),
                     ],
-                    input=diff_file.read_text(),
                     text=True,
-                    capture_output=True,
                     check=True,
                     timeout=10,
                 )
