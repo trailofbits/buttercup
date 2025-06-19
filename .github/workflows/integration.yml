@@ -188,7 +188,7 @@ jobs:
       - name: Send a SARIF broadcast
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
-          TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF" | grep -o "\[[^]]*\]" | grep -o "[^[]*$" | cut -d: -f2 | tr -d ']')
+          TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF" | grep -o "\[[^]]*\]" | grep -o "[^[]*$" | cut -d: -f3 | tr -d ']')
           echo "Task ID: $TASK_ID"
           while true; do
             # Kill any existing port-forward processes
