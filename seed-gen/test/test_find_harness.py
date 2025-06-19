@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from redis import Redis
 
+import buttercup.seed_gen.find_harness
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.maps import FunctionCoverage
 from buttercup.common.task_meta import TaskMeta
@@ -772,6 +773,8 @@ def test_get_harness_source(
             )
         ]
         coverage_map.return_value = coverage_map_mock
+
+        buttercup.seed_gen.find_harness._harness_source_cache = {}
 
         harness_info = get_harness_source(redis, curl_oss_fuzz_cq, harness_name)
         relative_source_path = expected_harness_source_path.lstrip("/")
