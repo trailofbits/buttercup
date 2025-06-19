@@ -110,9 +110,9 @@ declare -A integration_test_unharnessed_delta_01=(
     ["fuzz_tooling_ref"]="challenge-state/integration-test-unharnessed-delta-01"
     ["fuzz_tooling_project_name"]="integration-test"
     ["duration"]=$delta_set_duration
+    ["harnesses_included"]=false
 )
 
-# NOTE: This project doesn't actually exist in OSS-Fuzz.
 declare -A ipf_full_01=(
     ["challenge_repo_url"]="git@github.com:aixcc-finals/afc-ipf.git"
     ["challenge_repo_head_ref"]="challenges/ipf-full-01"
@@ -120,6 +120,7 @@ declare -A ipf_full_01=(
     ["fuzz_tooling_ref"]="challenge-state/ipf-full-01"
     ["fuzz_tooling_project_name"]="ipf"
     ["duration"]=$full_set_duration
+    ["harnesses_included"]=false
 )
 
 declare -A lo_full_01=(
@@ -189,7 +190,6 @@ declare -A lx_full_updated=(
     ["duration"]=$full_set_duration
 )
 
-# NOTE: This project doesn't actually exist in OSS-Fuzz.
 declare -A s2n_full_01=(
     ["challenge_repo_url"]="git@github.com:aixcc-finals/afc-s2n-tls.git"
     ["challenge_repo_head_ref"]="challenges/s2n-tls-full-01"
@@ -197,6 +197,7 @@ declare -A s2n_full_01=(
     ["fuzz_tooling_ref"]="challenge-state/s2n_tls-full-01"
     ["fuzz_tooling_project_name"]="s2n-tls"
     ["duration"]=$full_set_duration
+    ["harnesses_included"]=false
 )
 
 declare -A sq_full_01=(
@@ -354,8 +355,10 @@ submit_task() {
     json_data="{"
     for key in "${!task_data_ref[@]}"; do
         value="${task_data_ref[$key]}"
-        # Check if value is numeric (integer)
+        # Check if value is numeric (integer) or boolean
         if [[ "$value" =~ ^[0-9]+$ ]]; then
+            json_data+="\"$key\":$value,"
+        elif [[ "$value" == "true" || "$value" == "false" ]]; then
             json_data+="\"$key\":$value,"
         else
             json_data+="\"$key\":\"$value\","
