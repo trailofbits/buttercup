@@ -148,7 +148,7 @@ jobs:
       - name: Wait for vuln to be found
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "  -> SUBMIT_PATCH_REQUEST" ; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "] SUBMIT_PATCH_REQUEST pov_id=" ; do
             sleep 60
           done
       - name: Wait for vuln to enter the passed state in competition api
