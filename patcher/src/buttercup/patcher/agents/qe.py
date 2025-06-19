@@ -115,6 +115,16 @@ class PatchValidationState(BaseCtxState):
 
 
 @dataclass
+class _PoVResult:
+    """Result of running a PoV test."""
+
+    did_run: bool
+    did_crash: bool
+    stdout: bytes | None
+    stderr: bytes | None
+
+
+@dataclass
 class QEAgent(PatcherAgentBase):
     """Quality Engineer LLM agent, handling the testing of patches."""
 
@@ -191,17 +201,10 @@ class QEAgent(PatcherAgentBase):
                 engine=engine,
                 sanitizer=sanitizer,
             )
-        except ChallengeTaskError as exc:
-            logger.warning(
-                "Failed to run build_fuzzers on Challenge Task %s with patch and sanitizer %s",
-                challenge.name,
-                sanitizer,
-            )
-            return CommandResult(
-                success=False,
-                output=exc.stdout,
-                error=exc.stderr,
-            )
+        except ChallengeTaskError:
+            msg = f"Failed to run build_fuzzers on Challenge Task {challenge.name} with patch and sanitizer {sanitizer}"
+            logger.warning(msg)
+            return CommandResult(success=False, output=msg, error="")
 
         if not cp_output.success:
             logger.warning("Failed to build Challenge Task %s with patch and sanitizer %s", challenge.name, sanitizer)
@@ -453,33 +456,10 @@ class QEAgent(PatcherAgentBase):
         start_time = time.time()
         run_once = False
 
-        for pov_variant in pov_variants:
-            # Check if we've exceeded the max_minutes_run_povs timeout
-            if time.time() - start_time > configuration.max_minutes_run_povs * 60:
-                logger.warning("PoV processing lasted more than %d minutes", configuration.max_minutes_run_povs)
-                if run_once:
-                    logger.info(
-                        "PoV processing lasted more than %d minutes, but we already ran one PoV successfully, so we'll stop here",
-                        configuration.max_minutes_run_povs,
-                    )
-                    break
-
-                last_patch_attempt.pov_fixed = False
-                last_patch_attempt.pov_stdout = (
-                    f"Operation timed out after {configuration.max_minutes_run_povs} minutes".encode()
-                )
-                last_patch_attempt.pov_stderr = None
-                last_patch_attempt.status = PatchStatus.POV_FAILED
-                return Command(
-                    update={
-                        "patch_attempts": last_patch_attempt,
-                        "execution_info": execution_info,
-                    },
-                    goto=PatcherAgentName.REFLECTION.value,
-                )
-
-            pov_variant_crash = node_local.make_locally_available(pov_variant.pov)
+        def run_pov(pov_variant: PatchInputPoV) -> _PoVResult:
+            """Run a single PoV and return the result."""
             try:
+                pov_variant_crash = node_local.make_locally_available(pov_variant.pov)
                 challenge_to_use = last_patch_attempt.get_built_challenge(pov_variant.sanitizer)
                 if not challenge_to_use:
                     logger.error(
@@ -488,11 +468,13 @@ class QEAgent(PatcherAgentBase):
                         self.input.internal_patch_id,
                         pov_variant.sanitizer,
                     )
-                    continue
+                    return _PoVResult(did_run=False, did_crash=False, stdout=None, stderr=None)
 
                 pov_output = challenge_to_use.reproduce_pov(pov_variant.harness_name, pov_variant_crash)
                 logger.info(
-                    "Ran PoV %s/%s for harness %s",
+                    "[%s / %s] Ran PoV %s/%s for harness %s",
+                    self.challenge.task_meta.task_id,
+                    self.input.internal_patch_id,
                     challenge_to_use.name,
                     pov_variant_crash,
                     pov_variant.harness_name,
@@ -501,48 +483,85 @@ class QEAgent(PatcherAgentBase):
                 logger.debug("PoV stderr: %s", pov_output.command_result.error)
 
                 if not pov_output.did_run():
-                    logger.warning("PoV %s did not run, skipping", pov_variant_crash)
-                    continue
-
-                if pov_output.did_crash():
-                    logger.warning("PoV %s still crashes", pov_variant_crash)
-                    last_patch_attempt.pov_fixed = False
-                    last_patch_attempt.pov_stdout = pov_output.command_result.output
-                    last_patch_attempt.pov_stderr = pov_output.command_result.error
-                    last_patch_attempt.status = PatchStatus.POV_FAILED
-                    return Command(
-                        update={
-                            "patch_attempts": last_patch_attempt,
-                            "execution_info": execution_info,
-                        },
-                        goto=PatcherAgentName.REFLECTION.value,
+                    logger.warning(
+                        "[%s / %s] PoV %s did not run, skipping",
+                        self.challenge.task_meta.task_id,
+                        self.input.internal_patch_id,
+                        pov_variant_crash,
                     )
+                    return _PoVResult(did_run=False, did_crash=False, stdout=None, stderr=None)
 
-                run_once = True
-            except ChallengeTaskError as exc:
-                logger.error("Failed to run pov for Challenge Task %s", self.challenge.name)
+                return _PoVResult(
+                    did_run=True,
+                    did_crash=pov_output.did_crash(),
+                    stdout=pov_output.command_result.output,
+                    stderr=pov_output.command_result.error,
+                )
+
+            except ChallengeTaskError:
+                msg = f"Failed to run pov for Challenge Task {self.challenge.name}"
+                logger.error(msg)
+                return _PoVResult(did_run=False, did_crash=True, stdout=msg.encode(), stderr=b"")
+
+        # Run PoVs in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit all PoV tasks
+            future_to_pov = {executor.submit(run_pov, pov_variant): pov_variant for pov_variant in pov_variants}
+
+            def _handle_failure(
+                pov_stdout: bytes | None,
+                pov_stderr: bytes | None,
+                goto_node: PatcherAgentName = PatcherAgentName.REFLECTION,
+            ) -> Command:
                 last_patch_attempt.pov_fixed = False
-                last_patch_attempt.pov_stdout = exc.stdout
-                last_patch_attempt.pov_stderr = exc.stderr
+                last_patch_attempt.pov_stdout = pov_stdout
+                last_patch_attempt.pov_stderr = pov_stderr
                 last_patch_attempt.status = PatchStatus.POV_FAILED
+
+                # Cancel remaining futures
+                for remaining_future in future_to_pov:
+                    remaining_future.cancel()
+
                 return Command(
                     update={
                         "patch_attempts": last_patch_attempt,
                         "execution_info": execution_info,
                     },
-                    goto=PatcherAgentName.REFLECTION.value,
+                    goto=goto_node.value,
                 )
+
+            # Process completed PoVs and return immediately on first crash
+            for future in concurrent.futures.as_completed(future_to_pov):
+                # Check if we've exceeded the max_minutes_run_povs timeout
+                if time.time() - start_time > configuration.max_minutes_run_povs * 60:
+                    logger.warning("PoV processing lasted more than %d minutes", configuration.max_minutes_run_povs)
+                    if run_once:
+                        logger.info(
+                            "[%s / %s] PoV processing lasted more than %d minutes, but we already ran (at least) one PoV successfully, so we'll stop here",
+                            self.challenge.task_meta.task_id,
+                            self.input.internal_patch_id,
+                            configuration.max_minutes_run_povs,
+                        )
+                        break
+
+                    return _handle_failure(
+                        f"Operation timed out after {configuration.max_minutes_run_povs} minutes".encode(), None
+                    )
+
+                try:
+                    result = future.result()
+                    if result.did_run:
+                        run_once = True
+                        if result.did_crash:
+                            return _handle_failure(result.stdout, result.stderr)
+
+                except Exception as exc:
+                    logger.error("PoV execution generated an exception: %s", exc)
+                    return _handle_failure(str(exc).encode(), None)
 
         if not run_once:
             logger.error("No PoVs could be run, this should never happen")
-            return Command(
-                update={
-                    "pov_fixed": False,
-                    "pov_stdout": None,
-                    "pov_stderr": None,
-                },
-                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-            )
+            return _handle_failure(None, None, PatcherAgentName.ROOT_CAUSE_ANALYSIS)
 
         logger.info("All PoVs were fixed")
         last_patch_attempt.pov_fixed = True

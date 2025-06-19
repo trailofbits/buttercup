@@ -18,7 +18,7 @@ from buttercup.patcher.agents.common import (
 )
 from buttercup.patcher.agents.qe import QEAgent, PatchValidationState
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.project_yaml import Language
@@ -580,3 +580,135 @@ def test_is_valid_patched_language_subprocess_error(
         assert cmd_args[2] == "c"
         assert cmd_args[3] == "--path"
         assert cmd_args[4] == str(expected_path)
+
+
+def test_run_pov_node_various_outcomes(qe_agent, patcher_agent_state, mock_runnable_config):
+    """Test run_pov_node with different PoV and reproduce_pov outcomes."""
+
+    # Setup: PatchAttempt with built_challenges for two sanitizers
+    def get_clean_patch_attempt():
+        return PatchAttempt(
+            patch=PatchOutput(
+                patch="diff --git a/a b/a\n", task_id="test-task-id", internal_patch_id="test-submission"
+            ),
+            status=PatchStatus.SUCCESS,
+            build_succeeded=True,
+            pov_fixed=None,
+            tests_passed=None,
+            built_challenges={},
+        )
+
+    def get_clean_state():
+        patch_attempt = get_clean_patch_attempt()
+        patcher_agent_state.patch_attempts = [patch_attempt]
+        return patcher_agent_state
+
+    patcher_agent_state = get_clean_state()
+    patch_attempt = patcher_agent_state.patch_attempts[0]
+
+    # Mock configuration
+    config = mock_runnable_config
+
+    # Add task_meta to mock challenge
+    qe_agent.challenge.task_meta = MagicMock()
+    qe_agent.challenge.task_meta.task_id = "test-task-id"
+
+    # Prepare two PoVs
+    pov1 = PatchInputPoV(
+        challenge_task_dir=qe_agent.challenge.task_dir,
+        sanitizer="address",
+        pov=Path("/tmp/pov1"),
+        pov_token="token1",
+        sanitizer_output="output1",
+        engine="libfuzzer",
+        harness_name="harness1",
+    )
+    pov2 = PatchInputPoV(
+        challenge_task_dir=qe_agent.challenge.task_dir,
+        sanitizer="memory",
+        pov=Path("/tmp/pov2"),
+        pov_token="token2",
+        sanitizer_output="output2",
+        engine="libfuzzer",
+        harness_name="harness2",
+    )
+    patcher_agent_state.context.povs = [pov1, pov2]
+
+    # Mock _get_pov_variants to return both povs and a variant
+    pov_variant = PatchInputPoV(
+        challenge_task_dir=qe_agent.challenge.task_dir,
+        sanitizer="address",
+        pov=Path("/tmp/pov1_variant"),
+        pov_token="token1",
+        sanitizer_output="output1",
+        engine="libfuzzer",
+        harness_name="harness1",
+    )
+    with patch.object(qe_agent, "_get_pov_variants", return_value=[pov1, pov2, pov_variant]):
+        # Mock node_local.make_locally_available to just return the path
+        with patch("buttercup.common.node_local.make_locally_available", side_effect=lambda p: p):
+            # Mock PatchAttempt.get_built_challenge to return a mock challenge for each sanitizer
+            mock_challenge1 = MagicMock()
+            mock_challenge2 = MagicMock()
+            with patch.object(
+                PatchAttempt,
+                "get_built_challenge",
+                side_effect=lambda sanitizer: {"address": mock_challenge1, "memory": mock_challenge2}.get(sanitizer),
+            ):
+                # Case 1: All PoVs run and do not crash
+                mock_pov_output = MagicMock()
+                mock_pov_output.did_run.return_value = True
+                mock_pov_output.did_crash.return_value = False
+                mock_challenge1.reproduce_pov.return_value = mock_pov_output
+                mock_challenge2.reproduce_pov.return_value = mock_pov_output
+
+                result = qe_agent.run_pov_node(patcher_agent_state, config)
+                assert isinstance(result, Command)
+                assert result.goto == PatcherAgentName.RUN_TESTS.value
+                assert patch_attempt.pov_fixed is True
+
+                # Case 2: First PoV does not run, second runs and does not crash
+                patcher_agent_state = get_clean_state()
+                patch_attempt = patcher_agent_state.patch_attempts[0]
+                mock_pov_output.did_run.side_effect = [False, True, True]
+                mock_pov_output.did_crash.side_effect = [False, False, False]
+                result = qe_agent.run_pov_node(patcher_agent_state, config)
+                assert result.goto == PatcherAgentName.RUN_TESTS.value
+
+                # Case 3: First PoV runs and crashes
+                patcher_agent_state = get_clean_state()
+                patch_attempt = patcher_agent_state.patch_attempts[0]
+                mock_pov_output = MagicMock()
+                mock_pov_output.did_run.return_value = True
+                mock_pov_output.did_crash.return_value = True
+                mock_pov_output.command_result.output = b"crash output"
+                mock_pov_output.command_result.error = b"crash error"
+                mock_challenge1.reproduce_pov.return_value = mock_pov_output
+                mock_challenge2.reproduce_pov.return_value = mock_pov_output
+                result = qe_agent.run_pov_node(patcher_agent_state, config)
+                assert result.goto == PatcherAgentName.REFLECTION.value
+                assert patch_attempt.pov_fixed is False
+                assert patch_attempt.pov_stdout == b"crash output"
+                assert patch_attempt.pov_stderr == b"crash error"
+
+                # Case 4: ChallengeTaskError is raised
+                def raise_challenge_task_error(*args, **kwargs):
+                    raise ChallengeTaskError("fail test")
+
+                patcher_agent_state = get_clean_state()
+                patch_attempt = patcher_agent_state.patch_attempts[0]
+                mock_challenge1.reproduce_pov.side_effect = raise_challenge_task_error
+                mock_challenge2.reproduce_pov.side_effect = raise_challenge_task_error  # Make both challenges fail
+                result = qe_agent.run_pov_node(patcher_agent_state, config)
+                assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+                assert patch_attempt.pov_fixed is False
+                assert patch_attempt.pov_stdout is None
+                assert patch_attempt.pov_stderr is None
+
+                # Case 5: No PoVs could be run (all get_built_challenge returns None)
+                with patch.object(PatchAttempt, "get_built_challenge", return_value=None):
+                    patcher_agent_state = get_clean_state()
+                    patch_attempt = patcher_agent_state.patch_attempts[0]
+                    result = qe_agent.run_pov_node(patcher_agent_state, config)
+                    assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+                    assert patch_attempt.pov_fixed is False
