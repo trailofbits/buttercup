@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import tempfile
+import time
 import langgraph.errors
 import operator
 import re
@@ -11,7 +12,7 @@ from itertools import groupby
 from operator import itemgetter
 from langgraph.graph import END
 from langchain_openai.chat_models.base import BaseChatOpenAI
-from concurrent.futures import as_completed
+from concurrent.futures import as_completed, TimeoutError
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from buttercup.common.stack_parsing import parse_stacktrace
@@ -30,7 +31,7 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.stack_parsing import CrashInfo
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition
+from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition, get_codequery
 from buttercup.patcher.agents.common import (
     PatcherAgentBase,
     ContextRetrieverState,
@@ -62,8 +63,8 @@ from buttercup.patcher.agents.tools import (
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_TMPL = """You are an agent - please keep going until the user’s query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
-If you are not sure about file content or codebase structure pertaining to the user’s request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
+SYSTEM_TMPL = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
+If you are not sure about file content or codebase structure pertaining to the user's request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
 You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully.
 
 Assist a software engineer in finding and extracting relevant code snippets from a software project. Use only the provided tools and project context. Prioritize accuracy and completeness. Avoid speculation."""
@@ -110,7 +111,7 @@ Guidelines:
 - Your first step should always be to identify the exact function, type, or code range using tools like `get_function` or `get_type`.
 - ONLY use `track_snippet` after you have confirmed that:
   1. The code snippet is correct and complete,
-  2. It answers the engineer’s request,
+  2. It answers the engineer's request,
 - Do NOT call `track_snippet` speculatively or based on partial guesses.
 - Clearly explain your reasoning for calling `track_snippet`, and what the snippet represents.
 - If a tool fails or more context is needed, explain the issue and propose next steps.
@@ -210,6 +211,8 @@ Guidelines:
 First, list the code snippets that you think are the most relevant to the vulnerability with an explanation of why you think they are relevant.
 Then rate them from 1 to 10, where 1 is the least relevant and 10 is the most relevant.
 Finally, output the <request> tags, one per line, for only the ABSOLUTELY ESSENTIAL snippets that are NOT already available.
+
+If you do not have any code snippets to request, do not output any <request> tags.
 """
 
 INITIAL_CODE_SNIPPET_REQUESTS_PROMPT = ChatPromptTemplate.from_messages(
@@ -243,11 +246,13 @@ FILTER_CODE_SNIPPETS_PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
-FIND_TESTS_SYSTEM_TMPL = """You are an agent - please keep going until the user’s query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
-If you are not sure about file content or codebase structure pertaining to the user’s request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
+FIND_TESTS_SYSTEM_TMPL = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
+If you are not sure about file content or codebase structure pertaining to the user's request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
 You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully."""
 
-FIND_TESTS_USER_MSG = """Your task is to build the project and run its tests using information from oss-fuzz.
+FIND_TESTS_USER_MSG = """Your goal is to provide accurate and complete \
+instructions for building and testing the project. You must continue working \
+until you have valid instructions confirmed by the `test_instructions` function.
 
 Project name:
 <project_name>
@@ -259,41 +264,106 @@ Working directory:
 {CWD}
 </current_working_directory>
 
-Follow these steps:
+The container used to run the tests is built with the following Dockerfile:
+<dockerfile>
+{DOCKERFILE}
+</dockerfile>
 
-1. **Build the project**
-   - Look for build scripts in `/src`
-   - If not found, check `README`, `Makefile`, `CMakeLists.txt`, etc.
-   - Remove fuzz-specific configs (e.g., sanitizers) as needed
-   - Attempt to build, retry if it fails
+Follow these steps to complete your task:
 
-2. **Run the test suite**
-   - Search for documented test instructions or test-related files
-   - Run actual tests (not just linting or setup)
-   - Troubleshoot if they fail to run
-   - Make sure tests actually ran and passed
+1. Build the project:
+   a. Search for build scripts in the /src directory. These are usually used by oss-fuzz to build the project.
+   b. If not found, check README, Makefile, CMakeLists.txt, and similar files.
+   c. Attempt to build the project (no fuzz-specific configurations).
+   d. If the build fails retry.
+   e. Continue until you achieve a successful build.
 
-At each major step, wrap your findings in:
-<project_analysis>
-(1) Relevant files
-(2) Build/test commands
-(3) Evaluation
-(4) Confirmation you're following all rules
-(5) If you have found the test instructions, ensure you have called `test_instructions` tool with the test instructions. Do not terminate your turn otherwise.
-</project_analysis>
+2. Run the test suite:
+   a. Search for documented test instructions or test-related files.
+   b. Run the actual tests (not just linting or setup procedures).
+   c. If tests fail to run, troubleshoot and retry.
+   d. Ensure that tests actually ran and passed.
 
-At the end, summarize using:
-<final_commands>
-Build Commands:
-1. ...
+3. Analyze and report:
+   After each major step (build and test), analyze the results and report your findings.
 
-Test Commands:
-1. ...
+4. Validate instructions:
+   a. Once you believe you have found the correct set of instructions to build and test the project, call the `test_instructions` function with these instructions as the argument.
+   b. If the `test_instructions` function indicates that the instructions are not valid, revise your approach and try again.
+   c. Do not terminate your process until you have called `test_instructions` and received confirmation that the instructions are valid.
 
-Validation:
-[Output from `test_instructions` tool]
-</final_commands>
+Throughout your analysis, wrap your discovery process inside <discovery_process> tags. Include the following:
+
+1. File Analysis:
+   - List all potentially relevant build and test files.
+   - Briefly describe the purpose of each file.
+
+2. Build Process:
+   - Detail each step of the build process.
+   - Document any commands attempted and their outcomes.
+   - If errors occur, list them and describe your troubleshooting steps.
+
+3. Test Process:
+   - Outline each step of the test process.
+   - Document test commands and their results.
+   - If tests fail, describe the errors and your attempts to resolve them.
+
+4. Decision Making:
+   - Explain your reasoning for choosing specific build or test methods.
+   - Discuss any alternatives considered and why they were rejected.
+
+This detailed breakdown will help ensure a thorough and transparent approach to solving the task. It's OK for this section to be quite long.
+
+Remember:
+- Do not try to build a project solely based on your previous knowledge of the project.
+- Do not guess or make up answers about file content or codebase structure.
+- Use your available tools to read files and gather relevant information when needed.
+- Check the build/test commands used by oss-fuzz to have an idea of what to do.
+- You SHOULD NOT build the project with fuzzing-specific configurations or fuzzers enabled.
+- Plan extensively before each function call and reflect on the outcomes of previous calls.
+- Continue working until you have valid instructions confirmed by the `test_instructions` function.
+
+Begin your analysis and proceed step-by-step through the process of discovering the build and test instructions for the given project.
 """
+
+ARE_VALID_TEST_INSTRUCTIONS_USER_MSG = """
+You are an expert in software testing. Your task is to evaluate the validity of a set of test instructions.
+
+Here are the test instructions:
+<test_instructions>
+{TEST_INSTRUCTIONS}
+</test_instructions>
+
+Here is the output of the test instructions:
+<output>
+{OUTPUT}
+</output>
+
+Here is the error of the test instructions:
+<error>
+{ERROR}
+</error>
+
+Evaluate whether the test instructions ran correctly.
+Test instructions are valid if:
+- The project is actually built (e.g. the build commands are correct and the project is built successfully)
+- Tests are actually running (e.g. the test commands are correct and the tests are running)
+- All tests passed (e.g. the tests are passing)
+
+Wrap your reasoning in <reasoning> tags, then return the result in <are_valid> tags.
+For example, if the test instructions are valid, you should return:
+<reasoning>
+[.....]
+</reasoning>
+<are_valid>TRUE</are_valid>
+"""
+
+ARE_VALID_TEST_INSTRUCTIONS_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("user", ARE_VALID_TEST_INSTRUCTIONS_USER_MSG),
+        ("ai", "<reasoning>"),
+    ]
+)
 
 
 class CodeSnippetManagerState(BaseCtxState):
@@ -455,9 +525,7 @@ def sh(
     """Execute a shell command within the project environment and return its output/error.
 
     Use this tool only for shell commands that are not supported by the more specific tools (e.g., `cat`, `ls`, `head`, `grep`).
-
-    Do NOT use this tool to run test instructions — use `test_instructions` for that.
-    Remember to call the `test_instructions` tool to log and validate any test commands you find and try."""
+    """
 
     logger.info("Running command: %s", command)
 
@@ -508,6 +576,24 @@ Remember to call the `test_instructions` tool to log and validate any test comma
             command_file_path.unlink()
 
 
+def _are_test_instructions_valid(instructions: str, output: bytes, error: bytes) -> bool:
+    """Validate a set of test instructions by executing them inside the project environment."""
+    llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
+    chain = ARE_VALID_TEST_INSTRUCTIONS_PROMPT | llm | StrOutputParser()
+    res = chain.invoke(
+        {
+            "TEST_INSTRUCTIONS": instructions,
+            "OUTPUT": truncate_output(output.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START),
+            "ERROR": truncate_output(error.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START),
+        }
+    )
+    match = re.search(r"<are_valid>(.*?)</are_valid>", res)
+    if match:
+        return match.group(1).strip().lower() in ["true", "yes"]
+
+    return res.strip().lower() in ["true", "yes"]
+
+
 @tool
 def test_instructions(
     instructions: list[str],
@@ -524,9 +610,6 @@ def test_instructions(
     - If the instructions fail (non-zero exit code or no tests run), analyze the output, correct the commands, and call this tool again with the updated instructions.
     - You can call this tool multiple times during the discovery process, but only the **last successful call** will be recorded and used.
     - Instructions must be based strictly on project files (e.g. README, Makefile, CI configs); do not guess or fabricate commands.
-
-    Ensure that the tests are actually running and passing before considering the request satisfied.
-    If the project builds but the tests do not run, it is not enough to consider the request satisfied.
     """
     test_file_path = None
     try:
@@ -543,6 +626,7 @@ def test_instructions(
 
         clean_challenge = ChallengeTask(state.challenge_task_dir_ro)
         with clean_challenge.get_rw_copy(state.work_dir) as challenge:
+            challenge.apply_patch_diff()
             sh_cmd_res = challenge.exec_docker_cmd(
                 challenge.get_test_sh_script("/tmp/test.sh"),
                 mount_dirs={
@@ -565,14 +649,14 @@ def test_instructions(
 {truncate_output(sh_cmd_res.error.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START)}
 </error>
     """
-        if sh_cmd_res.success:
+        if sh_cmd_res.success and _are_test_instructions_valid(instructions_str, sh_cmd_res.output, sh_cmd_res.error):
             res_instructions = instructions_str
             msg = f"""Test instructions passed:
 <result>
 {msg}
 </result>
 
-Make sure the tests are actually running and passing before considering the request satisfied."""
+The last tracked instructions are correct and valid. You can stop here."""
         else:
             res_instructions = None
             msg = f"""Failed to run test instructions:
@@ -580,7 +664,7 @@ Make sure the tests are actually running and passing before considering the requ
 {msg}
 </result>
 
-Test were NOT run correctly, please analyze the output and correct the commands.
+Test instructions were NOT run correctly, please analyze the output and correct the commands.
 You CANNOT stop here, you MUST fix the test instructions and call this tool again.
 """
 
@@ -746,12 +830,18 @@ class ContextRetrieverAgent(PatcherAgentBase):
         else:
             ls_src = "ls src failed"
 
+        try:
+            dockerfile = challenge.dockerfile_path().read_text()
+        except Exception:
+            dockerfile = "Dockerfile not found"
+
         return [
             SystemMessage(content=FIND_TESTS_SYSTEM_TMPL),
             HumanMessage(
                 content=FIND_TESTS_USER_MSG.format(
                     PROJECT_NAME=challenge.project_name,
                     CWD=challenge.workdir_from_dockerfile(),
+                    DOCKERFILE=dockerfile,
                 )
             ),
             AIMessage(
@@ -786,7 +876,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         return [
             CodeSnippetRequest(request=match.group(1).strip())
             for match in re.finditer(r"<request>(.*?)</request>", output, re.DOTALL)
-            if match.group(1).strip()
+            if match.group(1) and match.group(1).strip()
         ]
 
     def _parse_filter_code_snippets_output(self, output: str) -> bool:
@@ -1090,6 +1180,10 @@ class ContextRetrieverAgent(PatcherAgentBase):
             goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
         )
 
+    def _get_custom_test_path(self, configuration: PatcherConfig) -> Path:
+        codequery = get_codequery(self.challenge.task_dir, configuration.work_dir)
+        return codequery.challenge.task_dir.joinpath("custom_test.sh")  # type: ignore[no-any-return]
+
     def find_tests_node(
         self, state: PatcherAgentState, config: RunnableConfig
     ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
@@ -1110,44 +1204,111 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
 
+        custom_test_path = self._get_custom_test_path(configuration)
+        if custom_test_path and custom_test_path.exists() and custom_test_path.is_file():
+            return Command(
+                update={
+                    "tests_instructions": custom_test_path.read_text(),
+                },
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            )
+
         clean_challenge = self.challenge.get_clean_task(configuration.tasks_storage)
         with clean_challenge.get_rw_copy(configuration.work_dir) as clean_challenge_rw:
             clean_challenge_rw.apply_patch_diff()
-            input_state = {
-                "challenge_task_dir_ro": clean_challenge.task_dir,
-                "challenge_task_dir": clean_challenge_rw.task_dir,
-                "work_dir": configuration.work_dir,
-            }
+            input_state = FindTestsState(
+                challenge_task_dir_ro=clean_challenge.task_dir,
+                challenge_task_dir=clean_challenge_rw.task_dir,
+                work_dir=configuration.work_dir,
+                messages=[],
+            )
 
             configuration = configuration.clone()
-            try:
-                self.find_tests_agent.invoke(
-                    input_state,
-                    config=RunnableConfig(
-                        recursion_limit=configuration.ctx_retriever_recursion_limit,
-                        configurable=configuration.model_dump(),
-                    ),
-                )
-                agent_state_dict = self.find_tests_agent.get_state(  # type: ignore[attr-defined]
-                    RunnableConfig(configurable=configuration.model_dump())
-                ).values
-                try:
-                    agent_state = FindTestsState.model_validate(agent_state_dict)
-                except ValidationError as e:
-                    logger.error("Invalid state dict for finding tests: %s", e)
-                    return Command(
-                        goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-                    )
 
-                return Command(
-                    update={
-                        "tests_instructions": agent_state.tests_instructions,
-                    },
-                    goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-                )
-            except langgraph.errors.GraphRecursionError:
-                logger.error(
-                    "Reached recursion limit for finding tests in Challenge Task %s/%s",
+            def run_find_tests_agent() -> FindTestsState | None:
+                """Run the find tests agent with timeout protection."""
+                try:
+                    agent_state = input_state
+                    for _ in range(10):
+                        self.find_tests_agent.invoke(
+                            agent_state,
+                            config=RunnableConfig(
+                                recursion_limit=configuration.ctx_retriever_recursion_limit,
+                                configurable=configuration.model_dump(),
+                            ),
+                        )
+                        agent_state_dict = self.find_tests_agent.get_state(  # type: ignore[attr-defined]
+                            RunnableConfig(configurable=configuration.model_dump())
+                        ).values
+                        try:
+                            agent_state = FindTestsState.model_validate(agent_state_dict)
+                        except ValidationError as e:
+                            logger.error("Invalid state dict for finding tests: %s", e)
+                            return None
+
+                        if agent_state.tests_instructions:
+                            return agent_state
+
+                        agent_state.messages = [
+                            *agent_state.messages,
+                            HumanMessage(
+                                content="You did not provide any instructions to run tests. Please try again or harder.",
+                            ),
+                        ]
+                except langgraph.errors.GraphRecursionError:
+                    logger.error(
+                        "Reached recursion limit for finding tests in Challenge Task %s/%s",
+                        self.challenge.task_meta.task_id,
+                        self.challenge.name,
+                    )
+                except Exception as e:
+                    logger.exception("Error finding tests: %s", e)
+
+                return None
+
+            # Run the find tests agent with a 30-minute timeout
+            start_time = time.time()
+            timeout_seconds = 30 * 60  # 30 minutes
+
+            try:
+                with get_executor_for_config(RunnableConfig(max_concurrency=1)) as executor:
+                    future = executor.submit(run_find_tests_agent)
+                    agent_state = future.result(timeout=timeout_seconds)
+
+                    if agent_state and agent_state.tests_instructions:
+                        elapsed_time = time.time() - start_time
+                        logger.info(
+                            "Successfully found test instructions in %.2f seconds for Challenge Task %s/%s",
+                            elapsed_time,
+                            self.challenge.task_meta.task_id,
+                            self.challenge.name,
+                        )
+                        if not custom_test_path.exists() or not custom_test_path.is_file():
+                            custom_test_path.write_text(agent_state.tests_instructions)
+
+                        return Command(
+                            update={
+                                "tests_instructions": agent_state.tests_instructions,
+                            },
+                            goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                        )
+                    else:
+                        elapsed_time = time.time() - start_time
+                        logger.warning(
+                            "Failed to find test instructions after %.2f seconds for Challenge Task %s/%s",
+                            elapsed_time,
+                            self.challenge.task_meta.task_id,
+                            self.challenge.name,
+                        )
+                        return Command(
+                            goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                        )
+
+            except TimeoutError:
+                elapsed_time = time.time() - start_time
+                logger.warning(
+                    "Timeout after %.2f seconds (30 minutes) while finding tests for Challenge Task %s/%s",
+                    elapsed_time,
                     self.challenge.task_meta.task_id,
                     self.challenge.name,
                 )
@@ -1155,7 +1316,14 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                 )
             except Exception as e:
-                logger.exception("Error finding tests: %s", e)
+                elapsed_time = time.time() - start_time
+                logger.exception(
+                    "Unexpected error after %.2f seconds while finding tests for Challenge Task %s/%s: %s",
+                    elapsed_time,
+                    self.challenge.task_meta.task_id,
+                    self.challenge.name,
+                    e,
+                )
                 return Command(
                     goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                 )

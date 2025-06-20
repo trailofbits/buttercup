@@ -23,16 +23,17 @@ from buttercup.patcher.agents.common import (
     ContextCodeSnippet,
     CodeSnippetRequest,
     get_stacktraces_from_povs,
+    stacktrace_to_str,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
 
-ROOT_CAUSE_SYSTEM_MSG = (
-    "You are an expert security analyst. Your role is to analyze source code for security vulnerabilities "
-    "with the depth and precision needed for automated patch generation."
-)
+ROOT_CAUSE_SYSTEM_MSG = """You are PatchGen-LLM, an autonomous component in an end-to-end security-patching pipeline.
+Goal: perform a Root Cause Analysis of one (or more) security vulnerabilities.
+The Root Cause Analysis will be used by a downstream code-generation agent, so factual and structural accuracy are critical.
+"""
 
 ROOT_CAUSE_USER_MSG = """You are analyzing a security vulnerability in the following project:
 
@@ -55,13 +56,16 @@ The vulnerability has triggered one or more sanitizers, with the following stack
 {STACKTRACES}
 </stacktraces>
 
-If there are multiple stacktraces, consider them as part of the same vulnerability.
+If there are multiple stacktraces, consider them as being different \
+manifestations of the same vulnerability. In such cases, you should try as much \
+as possible to discover the single real root cause of the vulnerabilities and \
+not just the immediate symptoms.
 
 {REFLECTION_GUIDANCE}
 
 ---
 
-Your task is to produce a **precise, detailed root cause analysis** of the vulnerability. This analysis will be used by an automated patching system. Be rigorous and avoid speculation.
+Your task is to produce a **precise, detailed Root Cause Analysis** of the vulnerability. Be rigorous and avoid speculation.
 
 Request additional code snippets if they are *critical* to understand the root cause:
    - Exact failure location
@@ -160,10 +164,20 @@ class RootCauseAgent(PatcherAgentBase):
     def _root_cause_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
         diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
         stacktraces = [parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs]
+        stacktraces_strs = get_stacktraces_from_povs(state.context.povs)
+
+        last_patch_attempt = state.get_last_patch_attempt()
+        if last_patch_attempt and not last_patch_attempt.pov_fixed:
+            sanitizer_output = last_patch_attempt.pov_stdout.decode("utf-8") if last_patch_attempt.pov_stdout else ""
+            sanitizer_output += last_patch_attempt.pov_stderr.decode("utf-8") if last_patch_attempt.pov_stderr else ""
+            stacktraces_strs.append(stacktrace_to_str("", sanitizer_output))
+
+        stacktraces_str = "\n".join(stacktraces_strs)
+
         return ROOT_CAUSE_PROMPT.format_messages(
             DIFF=diff_content,
             PROJECT_NAME=self.challenge.project_name,
-            STACKTRACES="\n".join(get_stacktraces_from_povs(state.context.povs)),
+            STACKTRACES=stacktraces_str,
             CODE_SNIPPETS="\n".join([cs.commented_code(stacktraces) for cs in state.relevant_code_snippets]),
             REFLECTION_GUIDANCE=self._get_reflection_guidance_prompt(state),
             messages=state.messages,

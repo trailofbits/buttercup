@@ -237,6 +237,10 @@ class ChallengeTask:
 
         return default
 
+    def dockerfile_path(self) -> Path:
+        """Read the Dockerfile for the given project."""
+        return self.get_oss_fuzz_path() / "projects" / self.project_name / "Dockerfile"
+
     def workdir_from_dockerfile(self) -> Path:
         """Parses WORKDIR from the Dockerfile for the given project."""
         # NOTE: This is extracted and adapted from the OSS-Fuzz repository

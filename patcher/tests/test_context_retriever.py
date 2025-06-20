@@ -2327,6 +2327,10 @@ def test_find_tests_parallel(
     with (
         patch("buttercup.common.challenge_task.ChallengeTask.exec_docker_cmd") as mock_exec,
         patch("buttercup.common.challenge_task.ChallengeTask.get_clean_task") as mock_clean_task,
+        patch("buttercup.common.challenge_task.ChallengeTask.apply_patch_diff") as mock_apply_patch_diff,
+        patch(
+            "buttercup.patcher.agents.context_retriever._are_test_instructions_valid"
+        ) as mock_are_test_instructions_valid,
     ):
 
         @contextmanager
@@ -2334,6 +2338,7 @@ def test_find_tests_parallel(
             yield mock_challenge
 
         mock_clean_task.return_value = mock_challenge
+        mock_apply_patch_diff.return_value = True
         mock_challenge.apply_patch_diff = MagicMock(return_value=True)
         mock_challenge.get_rw_copy = MagicMock(side_effect=yield_challenge)
 
@@ -2343,7 +2348,7 @@ def test_find_tests_parallel(
                 mount_dirs_list = list(mount_dirs.items())
                 test_file_path = mount_dirs_list[0][0]
                 test_file_content = test_file_path.read_text()
-                if "cd /src" in test_file_content:
+                if "cd /src2" in test_file_content:
                     return CommandResult(
                         success=True,
                         returncode=0,
@@ -2352,15 +2357,16 @@ def test_find_tests_parallel(
                     )
                 else:
                     return CommandResult(
-                        success=False,
+                        success=True,
                         returncode=1,
-                        output=b"",
+                        output=b"Tests failed",
                         error=b"",
                     )
 
             return CommandResult(success=True, returncode=0, output=b"", error=b"")
 
         mock_exec.side_effect = test_instructions_exec
+        mock_are_test_instructions_valid.return_value = True
 
         result = mock_agent.find_tests_node(state, mock_runnable_config)
 

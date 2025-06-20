@@ -24,6 +24,7 @@ class ButtercupLLM(Enum):
     OPENAI_GPT_4O = "openai-gpt-4o"
     OPENAI_GPT_4O_MINI = "openai-gpt-4o-mini"
     OPENAI_O3_MINI = "openai-o3-mini"
+    OPENAI_O3 = "openai-o3"
     OPENAI_O1 = "openai-o1"
     OPENAI_GPT_4_1_NANO = "openai-gpt-4.1-nano"
     OPENAI_GPT_4_1_MINI = "openai-gpt-4.1-mini"

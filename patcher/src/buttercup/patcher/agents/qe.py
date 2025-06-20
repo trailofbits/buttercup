@@ -637,7 +637,6 @@ class QEAgent(PatcherAgentBase):
 
             if sh_cmd_res is not None:
                 tests_passed = sh_cmd_res.success
-                last_patch_attempt.tests_passed = tests_passed
                 last_patch_attempt.tests_stdout = sh_cmd_res.output
                 last_patch_attempt.tests_stderr = sh_cmd_res.error
             else:
@@ -654,6 +653,7 @@ class QEAgent(PatcherAgentBase):
             )
             tests_passed = True
 
+        last_patch_attempt.tests_passed = tests_passed
         if tests_passed:
             logger.info(
                 "[%s / %s] Tests for Challenge Task %s ran successfully",

@@ -122,15 +122,11 @@ PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
-PATCH_STRATEGY_SYSTEM_MSG = (
-    "You are part of an autonomous LLM-based system designed to generate precise patches for security vulnerabilities. "
-    "Your responsibility is to develop a targeted patch strategy based on provided root cause analysis and code context."
-)
+PATCH_STRATEGY_SYSTEM_MSG = """You are PatchGen-LLM, an autonomous component in an end-to-end security-patching pipeline.
+Goal: design a precise, minimal patch strategy that eliminates ONLY the vulnerabilities described in the Root-Cause-Analysis (RCA).
+The strategy you output will be consumed by a downstream code-generation agent, so factual and structural accuracy are critical."""
 
-PATCH_STRATEGY_USER_MSG = """You are responsible for creating a precise and minimal patch strategy to address a specific vulnerability. Your output will be used in an automated patch generation system, so accuracy is critical.
-
-Here is the information available to you:
-
+PATCH_STRATEGY_USER_MSG = """INPUT SECTIONS:
 <project_name>
 {PROJECT_NAME}
 </project_name>
@@ -147,32 +143,41 @@ Here is the information available to you:
 
 ---
 
-Your objective is to fix ONLY the identified vulnerability — no general improvements or unrelated changes.
-Use the `understand_code_snippet` tool to gain a deeper understanding where necessary.
-Consider a few different approaches to fix the vulnerability, and evaluate pros and cons of each approach, then choose the best approach.
-You do not have to do any code changes, just propose a patch strategy.
-Put all your analysis and reasoning inside <patch_development_process> tags.
-Once you have chosen a patch strategy, write a detailed description under the <full_description> tag.
+TOOLS:
+• understand_code_snippet
+  Use this tool whenever you need clarification about how a given snippet works.
 
-### If additional code or context is needed:
-Use the format below to request it explicitly:
+OUTPUT FORMAT (MANDATORY)
+<patch_development_process>
+   a. List 2-4 alternative mitigation ideas, each with pros/cons.
+   b. Identify your selected approach and justify why it is the best trade-off. Prefer the most minimalistic approach, unless instructed otherwise.
+   c. Reference line numbers / function names from <code_snippets> as needed.
+</patch_development_process>
+<full_description>
+   A thourough, detailed and complete description of the chosen patch strategy written for another LLM that will implement it.
+</full_description>
+
+REQUESTING MORE INFORMATION
+If you need additional code or context, request it ONLY in this form:
 
 ```xml
 <request_information>
-[Clearly describe what additional code snippet or information you need and why it's necessary.]
+[Describe exactly what you need and why.]
 </request_information>
 ```
 
-### Important guidelines:
-- DO propose a fix for only the exact issue described in the root cause analysis.
-- DO NOT provide code changes, only the approach you will take to fix the vulnerability.
-- DO NOT include:
-    1. General security or refactoring changes
-    2. Code style or formatting adjustments
-    3. Tests, documentation, or performance optimizations
-- Stay laser-focused on fixing only the vulnerability.
+POLICIES (hard constraints)
 
-Proceed carefully and precisely.
+1. Scope:
+   - Fix the vulnerabilities in the RCA only—nothing else
+   - No stylistic, performance, refactor, or documentation changes
+   - Do not propose test cases or broad hardening.
+2. Content:
+   - Do NOT output code diffs or concrete code; output strategy only.
+3. Structure:
+   - Use the exact tags and ordering shown in “OUTPUT FORMAT”.
+
+Begin when ready.
 """
 
 PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(

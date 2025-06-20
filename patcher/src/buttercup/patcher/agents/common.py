@@ -29,7 +29,7 @@ import re
 import uuid
 import logging
 
-MAX_STACKTRACE_LENGTH = 5000
+MAX_STACKTRACE_LENGTH = 15000
 
 logger = logging.getLogger(__name__)
 
@@ -499,11 +499,17 @@ STACKTRACE_TMPL = """<stacktrace>
 </stacktrace>"""
 
 
+def stacktrace_to_str(sanitizer: str, sanitizer_output: str | None) -> str:
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return STACKTRACE_TMPL.format(
+        SANITIZER_NAME=sanitizer,
+        SANITIZER_OUTPUT=truncate_output(
+            ansi_escape.sub("", sanitizer_output or ""),
+            MAX_STACKTRACE_LENGTH,
+            TruncatePosition.START,
+        ),
+    )
+
+
 def get_stacktraces_from_povs(povs: list[PatchInputPoV]) -> list[str]:
-    return [
-        STACKTRACE_TMPL.format(
-            SANITIZER_NAME=pov.sanitizer,
-            SANITIZER_OUTPUT=truncate_output(pov.sanitizer_output, MAX_STACKTRACE_LENGTH, TruncatePosition.START),
-        )
-        for pov in povs
-    ]
+    return [stacktrace_to_str(pov.sanitizer, pov.sanitizer_output) for pov in povs]

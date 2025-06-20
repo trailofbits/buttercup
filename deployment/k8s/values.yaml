@@ -319,6 +319,13 @@ litellm-helm:
           tpm: 30000000
           rpm: 10000
 
+      - model_name: openai-o3
+        litellm_params:
+          model: openai/o3
+          api_key: os.environ/OPENAI_API_KEY
+          tpm: 30000000
+          rpm: 10000
+
       - model_name: openai-gpt-4.1
         litellm_params:
           model: openai/gpt-4.1

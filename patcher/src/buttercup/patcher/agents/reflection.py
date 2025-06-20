@@ -186,7 +186,7 @@ After your analysis, generate a structured reflection result using the following
 <failure_category>[Choose one: incomplete_fix, wrong_approach, misunderstood_root_cause, missing_code_snippet, build_error, regression_issue]</failure_category>
 <pattern_identified>[Describe any patterns seen across multiple failures, including loop detection results, or state "No clear pattern identified" if none are apparent]</pattern_identified>
 <next_component>[Select one of the available components, ensuring it breaks any detected loops]</next_component>
-<component_guidance>[Provide detailed, specific, actionable guidance for the selected component. Focus on security requirements and concrete steps to address the vulnerability. If breaking a loop, explain why this approach is different.]</component_guidance>
+<component_guidance>[Provide detailed, specific, actionable guidance for the selected component. Focus on security requirements and concrete steps to address the vulnerability. If breaking a loop, explain why this approach is different. Also include an explanation of the patterns identified across multiple failures and how to fix them.]</component_guidance>
 <partial_success>[True if the patch shows partial success, False if it is completely broken and should be discarded. If the next component guidance says to "improve the patch" or modify the patch in some way, then the patch is partially successful.]</partial_success>
 </reflection_result>
 
