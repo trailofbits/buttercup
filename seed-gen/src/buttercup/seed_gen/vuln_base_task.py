@@ -102,7 +102,8 @@ class VulnBaseTask(Task):
     SARIF_PROBABILITY: ClassVar[float] = 0.5
     crash_submit: CrashSubmit | None = None
 
-    MAX_POV_ITERATIONS: ClassVar[int] = 2
+    MAX_POV_ITERATIONS: ClassVar[int] = 3
+    MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
@@ -177,12 +178,13 @@ class VulnBaseTask(Task):
                     final_path, self.harness_name
                 ):
                     logger.info(
-                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s)",  # noqa: E501
+                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
                         self.challenge_task.task_meta.task_id,
                         self.package_name,
                         self.harness_name,
                         build.sanitizer,
                         self.challenge_task.is_delta_mode(),
+                        state.pov_iteration,
                     )
                     if self.crash_submit is not None:
                         self.submit_valid_pov(final_path, build, result)
@@ -291,6 +293,11 @@ class VulnBaseTask(Task):
         )
         return workflow
 
+    def recursion_limit(self) -> int:
+        context_steps = 2
+        pov_steps = 4
+        return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + pov_steps * self.MAX_POV_ITERATIONS
+
     @abstractmethod
     def _init_state(self, out_dir: Path, current_dir: Path) -> BaseTaskState:
         """Set up State"""
@@ -305,7 +312,11 @@ class VulnBaseTask(Task):
             workflow = self._build_workflow()
             llm_callbacks = get_langfuse_callbacks()
             chain = workflow.compile().with_config(
-                RunnableConfig(tags=["vuln-discovery"], callbacks=llm_callbacks)
+                RunnableConfig(
+                    tags=["vuln-discovery"],
+                    callbacks=llm_callbacks,
+                    recursion_limit=self.recursion_limit(),
+                )
             )
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("seed_gen_vuln_discovery") as span:
