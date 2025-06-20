@@ -429,17 +429,12 @@ sim3() {
     full_set_duration=$((12 * $hours))
     delta_set_duration=$((6 * $hours))
 
+    # C/C++ Challenges
     submit_task "db_full_01" "duration" $full_set_duration
     submit_task "fp_full_01" "duration" $full_set_duration
     submit_task "lo_full_01" "duration" $full_set_duration
     submit_task "cu_full_01" "duration" $full_set_duration
     submit_task "sq_full_01" "duration" $full_set_duration
-    submit_task "zk_full_01" "duration" $full_set_duration
-    submit_task "cc_full_01" "duration" $full_set_duration
-    submit_task "tk_full_01" "duration" $full_set_duration
-
-    sleep $full_set_duration
-
     submit_task "integration_test_delta_01" "duration" $delta_set_duration
     submit_task "ex_delta_01" "duration" $delta_set_duration
     submit_task "lp_delta_01" "duration" $delta_set_duration
@@ -450,6 +445,12 @@ sim3() {
     submit_task "sq_delta_01" "duration" $delta_set_duration
     submit_task "sq_delta_02" "duration" $delta_set_duration
     submit_task "sq_delta_03" "duration" $delta_set_duration
+    sleep $full_set_duration
+
+    # Java Challenges
+    submit_task "zk_full_01" "duration" $full_set_duration
+    submit_task "cc_full_01" "duration" $full_set_duration
+    submit_task "tk_full_01" "duration" $full_set_duration
     submit_task "tk_delta_01" "duration" $delta_set_duration
     submit_task "tk_delta_02" "duration" $delta_set_duration
     submit_task "tk_delta_03" "duration" $delta_set_duration
@@ -460,7 +461,7 @@ sim3() {
     submit_task "cc_delta_03" "duration" $delta_set_duration
     submit_task "zk_delta_02" "duration" $delta_set_duration
 
-    sleep $delta_set_duration
+    sleep $full_set_duration
 
     submit_task "s2n_full_01" "duration" $full_set_duration
     submit_task "ipf_full_01" "duration" $full_set_duration
