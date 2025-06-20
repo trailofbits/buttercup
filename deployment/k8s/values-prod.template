@@ -197,7 +197,7 @@ seed-gen:
   resources:
     limits:
       cpu: 2000m
-      memory: 2Gi
+      memory: 8Gi
     requests:
       cpu: 500m
       memory: 1Gi
