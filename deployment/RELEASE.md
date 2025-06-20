@@ -11,7 +11,7 @@
      - Microsoft.Network
 
 2. Verify and adjust Azure quotas:
-   - Total Regional vCPUs: ~800
+   - Total Regional vCPUs: ~2000
    - Specific VM type quotas (e.g., Standard LS family vCPUs)
    - Note: If deployment fails, incrementally increase quotas in small steps
 
@@ -36,8 +36,7 @@ Create a production environment file with the following variables:
 - CRS_* variables: Configure as needed
 - CRS_API_HOSTNAME: Set to competition-specific value (e.g., ethereal-logic-unscored-2)
   - For pre-competition testing: Append suffix (e.g., `-dev1`) to avoid LetsEncrypt rate limits
-  - For production: Use actual CRS hostname
-- CRS_URL: Update to match CRS_API_HOSTNAME (e.g., https://ethereal-logic-unscored-2.tail7e9b4c.ts.net)
+  - For production: Set it to something like `-pre-final-test1`, then follow the "Post deployment" steps to rename the Tailscale hostname once you have tested things work.
 
 #### Service Configuration
 - LLM keys: Use organization-provided keys
@@ -71,9 +70,31 @@ Create a production environment file with the following variables:
    ```
 
 ## Post-deployment Verification
+- Make sure all pods are up and running:
+   ```bash
+   kubectl get pods -n crs
+   ```
+- Check the tailscale hostname is correct:
+   ```bash
+   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN https://ethereal-logic.tasker.aixcc.tech/tailscale/device/
+   ```
 - Check `/status` works well:
    ```bash
-   curl -u $COMP_API_ID:$COMP_API_TOKEN https://<team-moniker>.tasker.aixcc.tech/crs/status/<team-moniker>-exhibition3
+   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN https://ethereal-logic.tasker.aixcc.tech/crs/status/ethereal-logic-pre-final
+   ```
+- Rename Tailscale hostname if necessary:
+   ```bash
+   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN -X PATCH https://ethereal-logic.tasker.aixcc.tech/tailscale/device/ethereal-logic-internal-1806 -H 'Content-Type: application/json' -d '{"hostname":"ethereal-logic-final"}'
+   ```
+   Where `ethereal-logic-internal-1806` is the current hostname of your device (you can get it from the command `curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN https://ethereal-logic.tasker.aixcc.tech/tailscale/device/`) and `ethereal-logic-final` is the new hostname you want to test (e.g. the hostname the organizers want to see up and running for the round)
+- Task a simple challenge for testing:
+   ```bash
+   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN -X POST 'https://api.aixcc.tech/v1/request/ex3-lp-delta-01' --json '{"duration_secs":900}'
+   ```
+
+- List available challenges for testing:
+   ```bash
+   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN -X 'GET' 'https://api.aixcc.tech/v1/request/list/'
    ```
 
 - Monitor deployment logs for any errors
