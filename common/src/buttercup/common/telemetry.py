@@ -25,7 +25,9 @@ opentelemetry.attributes._clean_attribute = _clean_attribute_wrapper
 
 
 logger = logging.getLogger(__name__)
-service_instance_id = os.getenv("SERVICE_INSTANCE_ID", str(uuid.uuid4()))
+# NOTE: we made the mistake of using SERVICE_INSTANCE_ID as CRS_INSTANCE_ID, so we're keeping it for now
+crs_instance_id = os.getenv("SERVICE_INSTANCE_ID", str(uuid.uuid4()))
+service_instance_id = str(uuid.uuid4())
 
 
 class CRSActionCategory(Enum):
@@ -77,6 +79,7 @@ def set_crs_attributes(
     span.set_attribute("crs.action.category", crs_action_category.value)
     span.set_attribute("crs.action.name", crs_action_name)
     span.set_attribute("service.instance.id", service_instance_id)
+    span.set_attribute("crs.instance.id", crs_instance_id)
 
     for key, value in task_metadata.items():
         span.set_attribute(key, value)
@@ -97,6 +100,7 @@ def log_crs_action_ok(
         span.set_attribute("crs.action.category", crs_action_category.value)
         span.set_attribute("crs.action.name", crs_action_name)
         span.set_attribute("service.instance.id", service_instance_id)
+        span.set_attribute("crs.instance.id", crs_instance_id)
 
         for key, value in task_metadata.items():
             span.set_attribute(key, value)

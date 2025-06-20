@@ -9,7 +9,7 @@ else:
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
-import uuid
+from buttercup.common.telemetry import crs_instance_id, service_instance_id
 import logging
 import tempfile
 
@@ -45,7 +45,8 @@ def setup_package_logger(
         resource = Resource.create(
             attributes={
                 "service.name": application_name,
-                "service.instance.id": os.getenv("SERVICE_INSTANCE_ID", str(uuid.uuid4())),
+                "service.instance.id": service_instance_id,
+                "crs.instance.id": crs_instance_id,
             }
         )
 
