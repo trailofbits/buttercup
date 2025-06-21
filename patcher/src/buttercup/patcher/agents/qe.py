@@ -22,6 +22,7 @@ import buttercup.common.node_local as node_local
 from langchain_core.runnables import RunnableConfig
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.challenge_task import ChallengeTask
+from langchain_core.runnables.config import get_executor_for_config
 from buttercup.patcher.utils import PatchInputPoV, get_challenge
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
@@ -302,7 +303,7 @@ class QEAgent(PatcherAgentBase):
         last_patch_attempt.built_challenges = {}
 
         # Run builds in parallel
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
             # Submit all build tasks
             future_to_sanitizer = {
                 executor.submit(
@@ -504,7 +505,7 @@ class QEAgent(PatcherAgentBase):
                 return _PoVResult(did_run=False, did_crash=True, stdout=msg.encode(), stderr=b"")
 
         # Run PoVs in parallel
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
             # Submit all PoV tasks
             future_to_pov = {executor.submit(run_pov, pov_variant): pov_variant for pov_variant in pov_variants}
 

@@ -62,3 +62,10 @@ mock-competition-api:
 
 patcher:
   maxMinutesRunPOVs: 10
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 256Mi
