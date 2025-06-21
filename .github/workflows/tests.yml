@@ -105,12 +105,14 @@ jobs:
 
       - name: Install dependencies
         env:
+          GH_PAT: ${{ secrets.GH_PAT }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GHCR_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           sudo apt-get update
           sudo apt-get install -y codequery just ripgrep git-lfs
           echo ${{ env.GHCR_TOKEN }} | docker login ghcr.io -u ${{ env.GHCR_USERNAME }} --password-stdin
+          git config --global url."https://${{ env.GH_PAT }}@github.com/".insteadOf "https://github.com/"
           just download-cscope
           just install-cscope
 

@@ -95,6 +95,8 @@ def common_test_get_callers(
     )
 
     # Output for debugging
+    if not callers:
+        logger.info(f"No callers found for {function_name} in {file_path}")
     for c in callers:
         logger.info(
             f"Caller: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}"
@@ -161,6 +163,8 @@ def common_test_get_callees(
     )
 
     # Output for debugging
+    if not callees:
+        logger.info(f"No callees found for {function_name} in {file_path}")
     for c in callees:
         logger.info(
             f"Callee: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}"

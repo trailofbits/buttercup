@@ -28,10 +28,18 @@ from buttercup.program_model.utils.common import TypeDefinitionType
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """H5F_addr_decode_len(size_t addr_len, const uint8_t **pp /*in,out*/, haddr_t *addr_p /*out*/)
-{
-    hbool_t  all_zero = TRUE; /* True if address was all zeroes */
-    unsigned u;               /* Local index variable */"""
+                    """bool     all_zero = true; /* True if address was all zeroes */
+    unsigned u;               /* Local index variable */
+
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
+
+    assert(addr_len);
+    assert(pp && *pp);
+    assert(addr_p);
+
+    /* Reset value in destination */
+    *addr_p = 0;""",
                 ],
             ),
         ),
@@ -41,21 +49,20 @@ from buttercup.program_model.utils.common import TypeDefinitionType
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """H5FL__malloc(size_t mem_size)
-{
-    void *ret_value = NULL; /* Return value */
+                    """/* Attempt to allocate the memory requested */
+    if (NULL == (ret_value = H5MM_malloc(mem_size))) {
+        /* If we can't allocate the memory now, try garbage collecting first */
+        if (H5FL_garbage_coll() < 0)
+            HGOTO_ERROR(H5E_RESOURCE, H5E_CANTGC, NULL, "garbage collection failed during allocation");
 
-    FUNC_ENTER_PACKAGE
-
-    /* Attempt to allocate the memory requested */
-    if (NULL == (ret_value = H5MM_malloc(mem_size))) {"""
+        /* Now try allocating the memory again */
+        if (NULL == (ret_value = H5MM_malloc(mem_size)))
+            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for chunk");
+    } /* end if */""",
                 ],
             ),
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_hdf5_get_functions(
@@ -77,7 +84,7 @@ def test_hdf5_get_functions(
                 TestCallerInfo(
                     name="H5HF__huge_bt2_dir_decode",
                     file_path="/src/hdf5/src/H5HFbtree2.c",
-                    start_line=783,
+                    start_line=721,
                 ),
                 TestCallerInfo(
                     name="H5SM__message_decode",
@@ -92,15 +99,12 @@ def test_hdf5_get_functions(
                 TestCallerInfo(
                     name="H5F_addr_decode",
                     file_path="/src/hdf5/src/H5Fint.c",
-                    start_line=2901,
+                    start_line=3044,
                 ),
             ],
-            14,
+            13,
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -135,28 +139,15 @@ def test_get_callers(
             None,
             False,
             [
-                # FIXME(boyan): there are two HDassert in the codebase.
-                # Figure out which one is used when adding support for
-                # multiple functions with identical-names
-                TestCalleeInfo(
-                    name="HDassert",
-                    file_path="/src/hdf5/src/H5Rint.c",
-                    start_line=630,
-                ),
                 TestCalleeInfo(
                     name="H5F_addr_decode_len",
                     file_path="/src/hdf5/src/H5Fint.c",
-                    start_line=2839,
+                    start_line=2975,
                 ),
             ],
-            None,  # FIXME(boyan): should be 2 but is currently 3 because we
-            # get duplicates for HDassert. This will be fixed by support for
-            # multiple functions with same name.
+            None,
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callees(
@@ -198,9 +189,6 @@ def test_get_callees(
             ),
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_definitions(

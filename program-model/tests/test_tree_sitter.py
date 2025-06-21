@@ -239,38 +239,30 @@ def test_get_type_definition_types(challenge_task_readonly: ChallengeTask):
     [
         (
             "png_icc_check_length",
-            "src/libpng/png.c",
+            "src/example-libpng/png.c",
             FunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """int /* PRIVATE */
-png_icc_check_length(png_const_structrp png_ptr, png_const_charp name,
-   png_uint_32 profile_length)
-{
-   if (!icc_check_length(png_ptr, name, profile_length))
+                    """if (!icc_check_length(png_ptr, colorspace, name, profile_length))
       return 0;
-"""
-                ],
-            ),
-        ),
-        (
-            "have_chromaticities",
-            "src/libpng/png.c",
-            FunctionInfo(
-                num_bodies=1,
-                body_excerpts=[
-                    """static int
-have_chromaticities(png_const_structrp png_ptr)
-{
-   /* Handle new PNGv3 chunks and the precedence rules to determine whether
-    * png_struct::chromaticities must be processed.  Only required for RGB to
-""",
+
+   /* This needs to be here because the 'normal' check is in
+    * png_decompress_chunk, yet this happens after the attempt to
+    * png_malloc_base the required data.  We only need this on read; on write
+    * the caller supplies the profile buffer so libpng doesn't allocate it.  See
+    * the call to icc_check_length below (the write case).
+    */
+#  ifdef PNG_SET_USER_LIMITS_SUPPORTED
+      else if (png_ptr->user_chunk_malloc_max > 0 &&
+               png_ptr->user_chunk_malloc_max < profile_length)
+         return png_icc_profile_error(png_ptr, colorspace, name, profile_length,
+             "exceeds application limits");""",
                 ],
             ),
         ),
         (
             "png_pow10",
-            "src/libpng/png.c",
+            "src/example-libpng/png.c",
             FunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
@@ -282,48 +274,38 @@ png_pow10(int power)
 {
    int recip = 0;
    double d = 1;
-""",
+
+   /* Handle negative exponent with a reciprocal at the end because
+    * 10 is exact whereas .1 is inexact in base 2
+    */
+   if (power < 0)
+   {
+      if (power < DBL_MIN_10_EXP) return 0;
+      recip = 1; power = -power;
+   }""",
                 ],
             ),
         ),
         (
             "png_check_IHDR",
-            "src/libpng/png.c",
+            "src/example-libpng/png.c",
             FunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """
-#ifdef PNG_SET_USER_LIMITS_SUPPORTED
-   if (width > png_ptr->user_width_max)
-#else
-   if (width > PNG_USER_WIDTH_MAX)
-#endif
+                    """int error = 0;
+
+   /* Check for width and height valid values */
+   if (width == 0)
    {
-      png_warning(png_ptr, "Image width exceeds user limit in IHDR");
+      png_warning(png_ptr, "Image width is zero in IHDR");
       error = 1;
    }
 
-   if (height == 0)
+   if (width > PNG_UINT_31_MAX)
    {
-      png_warning(png_ptr, "Image height is zero in IHDR");
+      png_warning(png_ptr, "Invalid image width in IHDR");
       error = 1;
-   }
-
-   if (height > PNG_UINT_31_MAX)
-   {
-      png_warning(png_ptr, "Invalid image height in IHDR");
-      error = 1;
-   }
-
-#ifdef PNG_SET_USER_LIMITS_SUPPORTED
-   if (height > png_ptr->user_height_max)
-#else
-   if (height > PNG_USER_HEIGHT_MAX)
-#endif
-   {
-      png_warning(png_ptr, "Image height exceeds user limit in IHDR");
-      error = 1;
-   }"""
+   }""",
                 ],
             ),
         ),

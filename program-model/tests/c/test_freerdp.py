@@ -41,9 +41,6 @@ from ..common import (
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
-)
 @pytest.mark.integration
 def test_get_functions(
     freerdp_oss_fuzz_task: ChallengeTask,
@@ -76,9 +73,6 @@ def test_get_functions(
             4,
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -119,14 +113,11 @@ def test_get_callers(
                     start_line=1152,
                 ),
             ],
-            6,
+            2,
         ),
     ],
 )
 @pytest.mark.integration
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
-)
 def test_get_callees(
     freerdp_oss_fuzz_task: ChallengeTask,
     freerdp_oss_fuzz_cq: CodeQuery,
@@ -210,9 +201,6 @@ def test_get_callees(
             ),
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_definitions(

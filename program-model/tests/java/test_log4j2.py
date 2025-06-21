@@ -46,7 +46,7 @@ from pathlib import Path
     ],
 )
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
 )
 @pytest.mark.integration
 def test_get_functions(
@@ -84,7 +84,7 @@ def test_get_functions(
     ],
 )
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -178,7 +178,7 @@ def test_get_callers(
     ],
 )
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
 )
 @pytest.mark.integration
 def test_get_callees(
@@ -246,7 +246,7 @@ def test_get_callees(
     ],
 )
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
 )
 @pytest.mark.integration
 def test_get_type_definitions(
@@ -286,7 +286,7 @@ def test_get_type_definitions(
     ],
 )
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
 )
 @pytest.mark.integration
 def test_get_type_usages(
@@ -311,7 +311,7 @@ def test_get_type_usages(
 
 
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
 )
 @pytest.mark.integration
 def test_java_resolver(log4j2_oss_fuzz_task: ChallengeTask):

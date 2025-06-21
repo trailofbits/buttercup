@@ -84,7 +84,7 @@ def pytest_collection_modifyitems(config, items):
 def oss_fuzz_task(
     tmp_path: Path,
     oss_fuzz_project: str,
-    oss_fuzz_commit: str,
+    oss_fuzz_branch: str,
     project: str,
     project_url: str,
     project_commit: str,
@@ -102,7 +102,7 @@ def oss_fuzz_task(
                 str(oss_fuzz_dir),
                 "clone",
                 "-b",
-                str(oss_fuzz_commit),
+                str(oss_fuzz_branch),
                 "https://github.com/aixcc-finals/oss-fuzz-aixcc.git",
             ],
             check=True,
@@ -163,7 +163,7 @@ def antlr4_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "antlr4-java",
         "aixcc-afc",
         "antlr4",
-        "https://github.com/antlr/antlr4",
+        "https://github.com/antlr/antlr4.git",
         "7b53e13ba005b978e2603f3ff81a0cb7cc98f689",
     )
 
@@ -180,8 +180,8 @@ def bc_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "bc-java",
         "aixcc-afc",
         "bc-java",
-        "https://github.com/bcgit/bc-java",
-        "8b4326f24738ad6f6ab360089436a8a93c6a5424",
+        "https://github.com/bcgit/bc-java.git",
+        "1.72",
     )
 
 
@@ -197,7 +197,7 @@ def checkstyle_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "checkstyle",
         "aixcc-afc",
         "checkstyle",
-        "https://github.com/checkstyle/checkstyle",
+        "https://github.com/checkstyle/checkstyle.git",
         "94cd165da31942661301a09561e4b4ad85366c77",
     )
 
@@ -214,7 +214,7 @@ def commons_codec_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "apache-commons-codec",
         "aixcc-afc",
         "commons-codec",
-        "https://gitbox.apache.org/repos/asf/commons-codec",
+        "https://gitbox.apache.org/repos/asf/commons-codec.git",
         "44e4c4d778c3ab87db09c00e9d1c3260fd42dad5",
     )
 
@@ -282,7 +282,7 @@ def graphql_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "graphql-java",
         "aixcc-afc",
         "graphql-java",
-        "https://github.com/graphql-java/graphql-java",
+        "https://github.com/graphql-java/graphql-java.git",
         "f52305325593dcec70aba9c4a5717b18b6543fa0",
     )
 
@@ -299,8 +299,8 @@ def hdf5_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "hdf5",
         "aixcc-afc",
         "hdf5",
-        "https://github.com/HDFGroup/hdf5",
-        "966454aac1231da7209ef81c11055d3312181f99",
+        "https://github.com/HDFGroup/hdf5.git",
+        "7bf340440909d468dbb3cf41f0ea0d87f5050cea",
     )
 
 
@@ -316,7 +316,7 @@ def libjpeg_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "libjpeg-turbo",
         "aixcc-afc",
         "libjpeg-turbo",
-        "https://github.com/libjpeg-turbo/libjpeg-turbo",
+        "https://github.com/libjpeg-turbo/libjpeg-turbo.git",
         "6d91e950c871103a11bac2f10c63bf998796c719",
     )
 
@@ -333,7 +333,7 @@ def libjpeg_main_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "libjpeg-turbo",
         "aixcc-afc",
         "libjpeg-turbo",
-        "https://github.com/libjpeg-turbo/libjpeg-turbo",
+        "https://github.com/libjpeg-turbo/libjpeg-turbo.git",
         "main",
     )
 
@@ -349,9 +349,9 @@ def libpng_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "libpng",
         "challenge-state/lp-delta-01",
-        "libpng",
-        "https://github.com/pnggroup/libpng",
-        "44f97f08d729fcc77ea5d08e02cd538523dd7157",
+        "example-libpng",
+        "https://github.com/aixcc-finals/example-libpng.git",
+        "challenges/lp-delta-01",
     )
 
 
@@ -384,8 +384,8 @@ def log4j2_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "log4j2",
         "aixcc-afc",
         "logging-log4j2",
-        "https://github.com/apache/logging-log4j2",
-        "1b544d38c9238a0039a99e296fe93da43b8f7ace",
+        "https://github.com/apache/logging-log4j2.git",
+        "422c385dc9450d4f620a23d84abe2d6a0aa5b9fb",
     )
 
 
@@ -401,8 +401,8 @@ def selinux_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "selinux",
         "aixcc-afc",
         "selinux",
-        "https://github.com/SELinuxProject/selinux",
-        "c35919a703302bd571476f245d856174a1fe1926",
+        "https://github.com/SELinuxProject/selinux.git",
+        "054d7f0b4daef9194363a007c84f9bcbec598825",
     )
 
 
@@ -417,9 +417,9 @@ def sqlite_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         tmp_path_factory.mktemp("task_dir"),
         "sqlite3",
         "challenge-state/sq-full-01",
-        "sqlite",
-        "https://github.com/sqlite/sqlite",
-        "5804da02182927dafae24a83bfe4176bb1746118",
+        "afc-sqlite3",
+        "https://github.com/aixcc-finals/afc-sqlite3.git",
+        "challenges/sq-full-01",
     )
 
 

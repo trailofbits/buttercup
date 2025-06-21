@@ -342,9 +342,6 @@ parse_switches(j_decompress_ptr cinfo, int argc, char **argv,
     )
 
 
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
-)
 @pytest.mark.integration
 def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     """Test that we can index selinux and files inside oss-fuzz repo"""
@@ -354,7 +351,10 @@ def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     assert functions[0].name == "mls_semantic_level_expand"
     assert functions[0].file_path == Path("/src/selinux/libsepol/src/expand.c")
     assert len(functions[0].bodies) == 1
-    assert "p->p_cat_val_to_name[cat->low - 1]," in functions[0].bodies[0].body
+    assert (
+        """cat->low > 0 ? p->p_cat_val_to_name[cat->low - 1] : "Invalid","""
+        in functions[0].bodies[0].body
+    )
 
 
 def setup_java_dirs(tmp_path: Path) -> Path:

@@ -25,16 +25,20 @@ from ..common import (
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """
-      png_crc_read(png_ptr, (png_bytep)keyword, read_length);
-      length -= read_length;
+                    """png_const_charp errmsg = NULL; /* error message output, or no error */
+   int finished = 0; /* crc checked */
 
-      if (length < LZ77Min)
-      {
-         png_crc_finish(png_ptr, length);
-         png_chunk_benign_error(png_ptr, "too short");
-         return handled_error;
-      }"""
+   png_debug(1, "in png_handle_iCCP");
+
+   if ((png_ptr->mode & PNG_HAVE_IHDR) == 0)
+      png_chunk_error(png_ptr, "missing IHDR");
+
+   else if ((png_ptr->mode & (PNG_HAVE_IDAT|PNG_HAVE_PLTE)) != 0)
+   {
+      png_crc_finish(png_ptr, length);
+      png_chunk_benign_error(png_ptr, "out of place");
+      return;
+   }""",
                 ],
             ),
         ),
@@ -103,15 +107,15 @@ def test_get_callers(
                 TestCalleeInfo(
                     name="png_crc_finish",
                     file_path="/src/libpng/pngrutil.c",
-                    start_line=360,
+                    start_line=225,
                 ),
                 TestCalleeInfo(
                     name="png_icc_check_tag_table",
                     file_path="/src/libpng/png.c",
-                    start_line=1793,
+                    start_line=2274,
                 ),
             ],
-            11,
+            14,
         ),
     ],
 )

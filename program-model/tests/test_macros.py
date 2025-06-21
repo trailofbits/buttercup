@@ -69,7 +69,7 @@ def test_libpng_get_functions(
                 name="PNG_CHUNK_FROM_STRING",
                 type=TypeDefinitionType.PREPROC_FUNCTION,
                 definition="PNG_U32(0xff & (s)[0], 0xff & (s)[1], 0xff & (s)[2], 0xff & (s)[3])",
-                definition_line=890,
+                definition_line=863,
                 file_path="/src/libpng/pngpriv.h",
             ),
         ),
@@ -80,7 +80,9 @@ def test_libpng_get_functions(
             TestTypeDefinitionInfo(
                 name="PNG_ROWBYTES",
                 type=TypeDefinitionType.PREPROC_FUNCTION,
-                definition="(( ((size_t)(width) * ((size_t)(pixel_bits))) + 7) >> 3) )",
+                definition="""((pixel_bits) >= 8 ? \\
+    ((size_t)(width) * (((size_t)(pixel_bits)) >> 3)) : \\
+    (( ((size_t)(width) * ((size_t)(pixel_bits))) + 7) >> 3) )""",
                 definition_line=721,
                 file_path="/src/libpng/pngpriv.h",
             ),

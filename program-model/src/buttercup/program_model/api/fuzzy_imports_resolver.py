@@ -294,13 +294,9 @@ class FuzzyJavaImportsResolver:
                 str(challenge.workdir_from_dockerfile())[1:]
             )
             # Path where the challenge source is on the local machine
-            self.local_code_path = challenge.task_dir / "container_src_dir" / "src"
-            # FIXME(boyan): currently we don't add focus for log4j2 because its
-            # folder structure in the container src dir doesn't match the src/focus
-            # pattern. This should be resolved later on when we get guarantees on paths
-            # in the challenge task dir (see other comments in this method)
-            if challenge.focus not in ["logging-log4j2"]:
-                self.local_code_path /= challenge.focus
+            self.local_code_path = (
+                challenge.task_dir / "container_src_dir" / "src" / challenge.focus
+            )
         self.codequery = codequery
 
     def get_package_from_file(self, file_path: Path) -> str | None:

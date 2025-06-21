@@ -810,28 +810,31 @@ class CodeQuery:
     def get_type_calls(self, type_definition: TypeDefinition) -> list[TypeUsageInfo]:
         """Get the calls to a type definition. File paths are based on the challenge
         task container structure (e.g. /src)."""
-        cqsearch_args = [
-            "-s",
-            self.CODEQUERY_DB,
-            "-p",
-            "8",
-            "-t",
-            type_definition.name,
-            "-e",
-            "-u",
-        ]
+        results: list[CQSearchResult] = []
+        flags = ["1", "8"]
+        for flag in flags:
+            cqsearch_args = [
+                "-s",
+                self.CODEQUERY_DB,
+                "-p",
+                flag,
+                "-t",
+                type_definition.name,
+                "-e",
+                "-u",
+            ]
 
-        # log telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("get_type_calls_with_codequery") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
-                crs_action_name="get_type_calls_with_codequery",
-                task_metadata=dict(self.challenge.task_meta.metadata),
-            )
-            results = self._run_cqsearch(*cqsearch_args)
-            span.set_status(Status(StatusCode.OK))
+            # log telemetry
+            tracer = trace.get_tracer(__name__)
+            with tracer.start_as_current_span("get_type_calls_with_codequery") as span:
+                set_crs_attributes(
+                    span,
+                    crs_action_category=CRSActionCategory.STATIC_ANALYSIS,
+                    crs_action_name="get_type_calls_with_codequery",
+                    task_metadata=dict(self.challenge.task_meta.metadata),
+                )
+                results.extend(self._run_cqsearch(*cqsearch_args))
+                span.set_status(Status(StatusCode.OK))
 
         logger.debug("Found %d calls to type %s", len(results), type_definition.name)
 

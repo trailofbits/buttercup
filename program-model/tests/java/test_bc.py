@@ -28,14 +28,16 @@ from ..common import (
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """authenticatedAttrSet = CMSUtils.processAuthAttrSet(authAttrsGenerator, contentEncryptor);""",
+                    """ASN1EncodableVector recipientInfos = new ASN1EncodableVector();
+        AlgorithmIdentifier encAlgId;
+        ASN1OctetString encContent;
+
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        ASN1Set authenticatedAttrSet = null;""",
                 ],
             ),
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_functions(
@@ -61,15 +63,12 @@ def test_get_functions(
                 TestCallerInfo(
                     name="generate",
                     file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
-                    start_line=77,
+                    start_line=117,
                 )
             ],
             5,
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -105,9 +104,9 @@ def test_get_callers(
             False,
             [
                 TestCalleeInfo(
-                    name="getRecipentInfos",
-                    file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSUtils.java",
-                    start_line=443,
+                    name="getAttributes",
+                    file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
+                    start_line=55,
                 )
             ],
             2,
@@ -115,7 +114,7 @@ def test_get_callers(
     ],
 )
 @pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
+    reason="Skipping callee test for now. It's not working because it gets filtered out from imports."
 )
 @pytest.mark.integration
 def test_get_callees(
@@ -152,14 +151,11 @@ def test_get_callees(
                 name="CMSAuthEnvelopedDataGenerator",
                 type=TypeDefinitionType.CLASS,
                 definition="public class CMSAuthEnvelopedDataGenerator",
-                definition_line=17,
+                definition_line=26,
                 file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
             ),
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_definitions(

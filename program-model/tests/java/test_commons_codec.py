@@ -198,7 +198,7 @@ def test_get_type_definitions(
                     line_number=75,
                 ),
             ],
-            3,
+            12,
         ),
     ],
 )

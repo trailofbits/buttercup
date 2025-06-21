@@ -42,9 +42,6 @@ from ..common import (
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
-)
 @pytest.mark.integration
 def test_get_functions(
     zookeeper_oss_fuzz_task: ChallengeTask,
@@ -77,9 +74,6 @@ def test_get_functions(
             1,
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_callers(
@@ -124,9 +118,6 @@ def test_get_callers(
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
-)
 @pytest.mark.integration
 def test_get_callees(
     zookeeper_oss_fuzz_task: ChallengeTask,
@@ -167,9 +158,6 @@ def test_get_callees(
             ),
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_definitions(
@@ -225,12 +213,9 @@ def test_get_type_definitions(
                     line_number=30,
                 ),
             ],
-            6,
+            17,
         ),
     ],
-)
-@pytest.mark.skip(
-    reason="Challenge Task is not working, needs to be buildable and tests need to be adjusted"
 )
 @pytest.mark.integration
 def test_get_type_usages(
