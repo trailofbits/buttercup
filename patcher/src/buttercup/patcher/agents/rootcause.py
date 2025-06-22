@@ -222,7 +222,9 @@ class RootCauseAgent(PatcherAgentBase):
             requests.append(CodeSnippetRequest(request=match.strip()))
         return requests
 
-    def analyze_vulnerability(self, state: PatcherAgentState) -> Command[Literal[PatcherAgentName.CREATE_PATCH.value]]:  # type: ignore[name-defined]
+    def analyze_vulnerability(
+        self, state: PatcherAgentState
+    ) -> Command[Literal[PatcherAgentName.PATCH_STRATEGY.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Analyze the diff analysis and the code to understand the
         vulnerability in the current code."""
         logger.info(

@@ -71,6 +71,7 @@ class Patcher:
         patcher_agent = PatcherLeaderAgent(
             ro_task,
             input,
+            redis=self.redis,
             chain_call=self._chain_call,
             work_dir=self.scratch_dir,
             tasks_storage=self.task_storage_dir,

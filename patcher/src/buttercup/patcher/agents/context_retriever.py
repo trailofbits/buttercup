@@ -15,6 +15,7 @@ from langchain_openai.chat_models.base import BaseChatOpenAI
 from concurrent.futures import as_completed, TimeoutError
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from redis import Redis
 from buttercup.common.stack_parsing import parse_stacktrace
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage
@@ -31,7 +32,7 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.stack_parsing import CrashInfo
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition, get_codequery
+from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition
 from buttercup.patcher.agents.common import (
     PatcherAgentBase,
     ContextRetrieverState,
@@ -62,6 +63,8 @@ from buttercup.patcher.agents.tools import (
 
 
 logger = logging.getLogger(__name__)
+
+CUSTOM_TEST_MAP_NAME = "custom_test_map"
 
 SYSTEM_TMPL = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
 If you are not sure about file content or codebase structure pertaining to the user's request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
@@ -687,6 +690,7 @@ You CANNOT stop here, you MUST fix the test instructions and call this tool agai
 class ContextRetrieverAgent(PatcherAgentBase):
     """Agent that retrieves code snippets from the project."""
 
+    redis: Redis | None = None
     agent: Runnable = field(init=False)
     llm: BaseChatOpenAI = field(init=False)
     cheap_llm: BaseChatOpenAI = field(init=False)
@@ -1180,13 +1184,20 @@ class ContextRetrieverAgent(PatcherAgentBase):
             goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
         )
 
-    def _get_custom_test_path(self, configuration: PatcherConfig) -> Path:
-        codequery = get_codequery(self.challenge.task_dir, configuration.work_dir)
-        return codequery.challenge.task_dir.joinpath("custom_test.sh")  # type: ignore[no-any-return]
+    def _get_custom_test_instructions(self) -> str | None:
+        if self.redis is None:
+            return None
+
+        return self.redis.hget(CUSTOM_TEST_MAP_NAME, self.challenge.task_meta.task_id)  # type: ignore[return-value]
+
+    def _save_custom_test_instructions(self, instructions: str) -> None:
+        if self.redis is None:
+            return
+        self.redis.hset(CUSTOM_TEST_MAP_NAME, self.challenge.task_meta.task_id, instructions)
 
     def find_tests_node(
         self, state: PatcherAgentState, config: RunnableConfig
-    ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Determine instructions to run tests in the challenge task."""
         configuration = PatcherConfig.from_configurable(config)
         logger.info(
@@ -1204,11 +1215,11 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
 
-        custom_test_path = self._get_custom_test_path(configuration)
-        if custom_test_path and custom_test_path.exists() and custom_test_path.is_file():
+        custom_test_instructions = self._get_custom_test_instructions()
+        if custom_test_instructions:
             return Command(
                 update={
-                    "tests_instructions": custom_test_path.read_text(),
+                    "tests_instructions": custom_test_instructions,
                 },
                 goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
@@ -1283,8 +1294,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                             self.challenge.task_meta.task_id,
                             self.challenge.name,
                         )
-                        if not custom_test_path.exists() or not custom_test_path.is_file():
-                            custom_test_path.write_text(agent_state.tests_instructions)
+                        self._save_custom_test_instructions(agent_state.tests_instructions)
 
                         return Command(
                             update={

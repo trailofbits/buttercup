@@ -150,7 +150,10 @@ TOOLS:
 OUTPUT FORMAT (MANDATORY)
 <patch_development_process>
    a. List 2-4 alternative mitigation ideas, each with pros/cons.
-   b. Identify your selected approach and justify why it is the best trade-off. Prefer the most minimalistic approach, unless instructed otherwise.
+   b. Identify your selected approach and justify why it is the best trade-off. \
+Prefer the simplest (but sound) approaches first, if not instructed \
+otherwise. For example, you could try reverting the patch that introduced the \
+issue, if available, or validate the inputs before using them.
    c. Reference line numbers / function names from <code_snippets> as needed.
 </patch_development_process>
 <full_description>

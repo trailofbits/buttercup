@@ -20,6 +20,7 @@ from buttercup.patcher.agents.reflection import ReflectionAgent
 from buttercup.patcher.agents.input_processing import InputProcessingAgent
 from buttercup.patcher.utils import PatchOutput
 from buttercup.common.llm import get_langfuse_callbacks
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ RECURSION_LIMIT = 200
 class PatcherLeaderAgent(PatcherAgentBase):
     """LLM-based Patcher Agent."""
 
+    redis: Redis | None
     work_dir: Path
     tasks_storage: Path
     model_name: str | None = None
@@ -38,7 +40,9 @@ class PatcherLeaderAgent(PatcherAgentBase):
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
-        context_retriever_agent = ContextRetrieverAgent(self.challenge, self.input, chain_call=self.chain_call)
+        context_retriever_agent = ContextRetrieverAgent(
+            self.challenge, self.input, chain_call=self.chain_call, redis=self.redis
+        )
         reflection_agent = ReflectionAgent(self.challenge, self.input, chain_call=self.chain_call)
         input_processing_agent = InputProcessingAgent(self.challenge, self.input, chain_call=self.chain_call)
         self.model_name = swe_agent.default_llm.model_name

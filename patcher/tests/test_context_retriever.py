@@ -34,6 +34,8 @@ from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.common.task_meta import TaskMeta
 from langchain_core.messages import AIMessage
 from langchain_core.messages.tool import ToolCall
+from redis import Redis
+from buttercup.patcher.agents.context_retriever import CUSTOM_TEST_MAP_NAME
 
 
 original_subprocess_run = subprocess.run
@@ -2375,3 +2377,277 @@ def test_find_tests_parallel(
         assert result.update is not None
         assert result.update["tests_instructions"] == "#!/bin/bash\ncd /src2\nmake test2\n"
         assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+
+
+def test_find_tests_redis_save_and_retrieve(
+    mock_agent: ContextRetrieverAgent,
+    mock_runnable_config: dict,
+    mock_challenge: ChallengeTask,
+) -> None:
+    """Test that find_tests_node correctly saves and retrieves test instructions from Redis."""
+    from unittest.mock import MagicMock
+
+    # Create a mock Redis instance
+    mock_redis = MagicMock(spec=Redis)
+    mock_agent.redis = mock_redis
+
+    # Test data
+    task_id = "test-task-id"
+    test_instructions = "#!/bin/bash\ncd /src\nmake test\n"
+
+    # Update the challenge task ID to match our test data
+    mock_challenge.task_meta.task_id = task_id
+
+    state = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id=task_id,
+            internal_patch_id="1",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="test output",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    # Test 1: Verify that instructions are saved to Redis when found
+    # Mock the find_tests_agent to return successful test instructions
+    mock_find_tests_agent = MagicMock()
+    mock_find_tests_agent.invoke.return_value = AIMessage(
+        content="I found test instructions in the README.",
+        tool_calls=[
+            ToolCall(
+                id="test_instructions_call_1",
+                name="test_instructions",
+                args={
+                    "instructions": [
+                        "cd /src",
+                        "make test",
+                    ],
+                },
+            )
+        ],
+    )
+    # Mock the state with all required fields
+    mock_find_tests_agent.get_state.return_value.values = {
+        "tests_instructions": test_instructions,
+        "messages": [],  # Required field
+        "challenge_task_dir": Path("/test/dir"),  # Required field
+        "work_dir": mock_runnable_config["configurable"]["work_dir"],  # Required field
+    }
+    mock_agent.find_tests_agent = mock_find_tests_agent
+
+    # Mock the docker command execution for test_instructions
+    with (
+        patch("buttercup.common.challenge_task.ChallengeTask.exec_docker_cmd") as mock_exec,
+        patch("buttercup.common.challenge_task.ChallengeTask.get_clean_task") as mock_clean_task,
+        patch("buttercup.common.challenge_task.ChallengeTask.apply_patch_diff") as mock_apply_patch_diff,
+        patch("buttercup.common.challenge_task.ChallengeTask.get_oss_fuzz_path") as mock_get_oss_fuzz_path,
+        patch(
+            "buttercup.patcher.agents.context_retriever._are_test_instructions_valid"
+        ) as mock_are_test_instructions_valid,
+    ):
+
+        @contextmanager
+        def yield_challenge(*args, **kwargs):
+            yield mock_challenge
+
+        mock_clean_task.return_value = mock_challenge
+        mock_apply_patch_diff.return_value = True
+        mock_challenge.apply_patch_diff = MagicMock(return_value=True)
+        mock_challenge.get_rw_copy = MagicMock(side_effect=yield_challenge)
+        mock_get_oss_fuzz_path.return_value = Path("/test/oss-fuzz")
+        mock_exec.return_value = CommandResult(
+            success=True,
+            returncode=0,
+            output=b"Tests passed",
+            error=b"",
+        )
+        mock_are_test_instructions_valid.return_value = True
+
+        # Initially, Redis should not have any instructions for this task
+        mock_redis.hget.return_value = None
+
+        result = mock_agent.find_tests_node(state, mock_runnable_config)
+
+        # Verify that the agent found and validated test instructions
+        assert result.update["tests_instructions"] == test_instructions
+        assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+
+        # Verify that the instructions were saved to Redis
+        mock_redis.hset.assert_called_once_with(CUSTOM_TEST_MAP_NAME, task_id, test_instructions)
+
+    # Test 2: Verify that instructions are retrieved from Redis when available
+    # Reset the mock to clear previous calls
+    mock_redis.reset_mock()
+
+    # Mock Redis to return existing instructions
+    mock_redis.hget.return_value = test_instructions
+
+    # Mock that test.sh file doesn't exist (so it goes to Redis lookup)
+    with (
+        patch("pathlib.Path.exists", return_value=False),
+        patch("buttercup.common.challenge_task.ChallengeTask.get_oss_fuzz_path") as mock_get_oss_fuzz_path,
+    ):
+        mock_get_oss_fuzz_path.return_value = Path("/test/oss-fuzz")
+        result = mock_agent.find_tests_node(state, mock_runnable_config)
+
+        # Verify that the agent retrieved instructions from Redis
+        assert result.update["tests_instructions"] == test_instructions
+        assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+
+        # Verify that Redis was queried for the instructions
+        mock_redis.hget.assert_called_once_with(CUSTOM_TEST_MAP_NAME, task_id)
+
+        # Verify that hset was NOT called (since we retrieved from Redis)
+        mock_redis.hset.assert_not_called()
+
+    # Test 3: Verify behavior when Redis is None
+    mock_agent.redis = None
+
+    # Mock that test.sh file doesn't exist
+    with (
+        patch("pathlib.Path.exists", return_value=False),
+        patch("buttercup.common.challenge_task.ChallengeTask.get_oss_fuzz_path") as mock_get_oss_fuzz_path,
+        patch("buttercup.common.challenge_task.ChallengeTask.get_clean_task") as mock_get_clean_task,
+    ):
+        mock_get_oss_fuzz_path.return_value = Path("/test/oss-fuzz")
+        mock_get_clean_task.return_value = mock_challenge
+
+        # Mock the find_tests_agent to avoid actual execution
+        mock_find_tests_agent = MagicMock()
+        mock_find_tests_agent.invoke.return_value = AIMessage(content="Test")
+        mock_find_tests_agent.get_state.return_value.values = {
+            "tests_instructions": None,
+            "messages": [],
+            "challenge_task_dir": Path("/test/dir"),
+            "work_dir": mock_runnable_config["configurable"]["work_dir"],
+        }
+        mock_agent.find_tests_agent = mock_find_tests_agent
+
+        result = mock_agent.find_tests_node(state, mock_runnable_config)
+
+        # Should proceed to find tests agent since Redis is None
+        # The result should be the same as when Redis was available but empty
+        assert result.goto == PatcherAgentName.ROOT_CAUSE_ANALYSIS.value
+
+    # Test 4: Verify that _get_custom_test_instructions returns None when Redis is None
+    assert mock_agent._get_custom_test_instructions() is None
+
+    # Test 5: Verify that _save_custom_test_instructions does nothing when Redis is None
+    # This should not raise any exceptions
+    mock_agent._save_custom_test_instructions("some instructions")
+
+    # Test 6: Verify Redis operations with actual Redis instance
+    mock_agent.redis = mock_redis
+
+    # Test _get_custom_test_instructions
+    mock_redis.hget.return_value = "cached_instructions"
+    assert mock_agent._get_custom_test_instructions() == "cached_instructions"
+    mock_redis.hget.assert_called_with(CUSTOM_TEST_MAP_NAME, task_id)
+
+    # Test _save_custom_test_instructions
+    mock_agent._save_custom_test_instructions("new_instructions")
+    mock_redis.hset.assert_called_with(CUSTOM_TEST_MAP_NAME, task_id, "new_instructions")
+
+
+def test_find_tests_redis_multiple_tasks(
+    mock_agent: ContextRetrieverAgent,
+    mock_runnable_config: dict,
+    mock_challenge: ChallengeTask,
+) -> None:
+    """Test that Redis correctly handles multiple tasks with different test instructions."""
+    from unittest.mock import MagicMock
+
+    # Create a mock Redis instance
+    mock_redis = MagicMock(spec=Redis)
+    mock_agent.redis = mock_redis
+
+    # Test data for multiple tasks
+    task_id_1 = "test-task-1"
+    task_id_2 = "test-task-2"
+    instructions_1 = "#!/bin/bash\ncd /src\nmake test\n"
+    instructions_2 = "#!/bin/bash\ncd /src\n./run_tests.sh\n"
+
+    # Test that different tasks get different instructions
+    mock_redis.hget.side_effect = lambda map_name, task_id: {
+        task_id_1: instructions_1,
+        task_id_2: instructions_2,
+    }.get(task_id, None)
+
+    # Test task 1
+    mock_challenge.task_meta.task_id = task_id_1
+    state_1 = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id=task_id_1,
+            internal_patch_id="1",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="test output",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    with (
+        patch("pathlib.Path.exists", return_value=False),
+        patch("buttercup.common.challenge_task.ChallengeTask.get_oss_fuzz_path") as mock_get_oss_fuzz_path,
+    ):
+        mock_get_oss_fuzz_path.return_value = Path("/test/oss-fuzz")
+        result_1 = mock_agent.find_tests_node(state_1, mock_runnable_config)
+        assert result_1.update["tests_instructions"] == instructions_1
+
+    # Test task 2
+    mock_challenge.task_meta.task_id = task_id_2
+    state_2 = PatcherAgentState(
+        context=PatchInput(
+            challenge_task_dir=Path("/test/dir"),
+            task_id=task_id_2,
+            internal_patch_id="1",
+            povs=[
+                PatchInputPoV(
+                    challenge_task_dir=Path("/test/dir"),
+                    sanitizer="address",
+                    pov=Path("test.pov"),
+                    pov_token="test-token",
+                    sanitizer_output="test output",
+                    engine="libfuzzer",
+                    harness_name="test-harness",
+                )
+            ],
+        ),
+        relevant_code_snippets=set(),
+        execution_info={},
+    )
+
+    with (
+        patch("pathlib.Path.exists", return_value=False),
+        patch("buttercup.common.challenge_task.ChallengeTask.get_oss_fuzz_path") as mock_get_oss_fuzz_path,
+    ):
+        mock_get_oss_fuzz_path.return_value = Path("/test/oss-fuzz")
+        result_2 = mock_agent.find_tests_node(state_2, mock_runnable_config)
+        assert result_2.update["tests_instructions"] == instructions_2
+
+    # Verify that Redis was called with the correct task IDs
+    assert mock_redis.hget.call_count == 2
+    calls = mock_redis.hget.call_args_list
+    assert calls[0] == ((CUSTOM_TEST_MAP_NAME, task_id_1),)
+    assert calls[1] == ((CUSTOM_TEST_MAP_NAME, task_id_2),)
