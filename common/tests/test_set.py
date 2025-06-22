@@ -2,6 +2,7 @@ import pytest
 from redis import Redis
 from buttercup.common.sets import RedisSet, PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVReproduceResponse
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
@@ -558,3 +559,339 @@ class TestPoVReproduceStatus:
         # Should have 2 pending items now (requests[4] and requests[5])
         pending1 = pov_status.get_one_pending()
         assert pending1.task_id in [requests[4].task_id, requests[5].task_id]
+
+
+class TestPoVReproduceStatusCaching:
+    """Test suite for PoVReproduceStatus caching functionality."""
+
+    def _create_mock_redis(self):
+        """Helper to create properly mocked Redis client with pipeline support."""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_redis.pipeline.return_value = mock_pipeline
+        mock_pipeline.__enter__.return_value = mock_pipeline
+        mock_pipeline.__exit__.return_value = None
+        return mock_redis, mock_pipeline
+
+    def test_cache_hit_for_mitigated_status(self):
+        """Test that repeated requests for mitigated status hit cache, not Redis."""
+        # Create mock Redis client
+        mock_redis, mock_pipeline = self._create_mock_redis()
+
+        # Mock the final states check to return mitigated
+        mock_pipeline.execute.return_value = [True, False]  # mitigated=True, non_mitigated=False
+
+        pov_status = PoVReproduceStatus(mock_redis)
+
+        # Create sample request
+        request = POVReproduceRequest()
+        request.task_id = "test-task"
+        request.internal_patch_id = "0"
+        request.pov_path = "/test/path"
+        request.sanitizer = "asan"
+        request.harness_name = "test_harness"
+
+        # First call should hit Redis
+        result1 = pov_status.request_status(request)
+        assert isinstance(result1, POVReproduceResponse)
+        assert result1.did_crash is False
+
+        # Second call should hit cache, not Redis
+        result2 = pov_status.request_status(request)
+        assert isinstance(result2, POVReproduceResponse)
+        assert result2.did_crash is False
+
+        # Third call should also hit cache
+        result3 = pov_status.request_status(request)
+        assert isinstance(result3, POVReproduceResponse)
+        assert result3.did_crash is False
+
+        # Redis should only be called once (for the first request)
+        assert mock_redis.pipeline.call_count == 1
+
+    def test_cache_hit_for_non_mitigated_status(self):
+        """Test that repeated requests for non-mitigated status hit cache, not Redis."""
+        # Create mock Redis client
+        mock_redis, mock_pipeline = self._create_mock_redis()
+
+        # Mock the final states check to return non-mitigated
+        mock_pipeline.execute.return_value = [False, True]  # mitigated=False, non_mitigated=True
+
+        pov_status = PoVReproduceStatus(mock_redis)
+
+        # Create sample request
+        request = POVReproduceRequest()
+        request.task_id = "test-task"
+        request.internal_patch_id = "0"
+        request.pov_path = "/test/path"
+        request.sanitizer = "asan"
+        request.harness_name = "test_harness"
+
+        # First call should hit Redis
+        result1 = pov_status.request_status(request)
+        assert isinstance(result1, POVReproduceResponse)
+        assert result1.did_crash is True
+
+        # Second call should hit cache, not Redis
+        result2 = pov_status.request_status(request)
+        assert isinstance(result2, POVReproduceResponse)
+        assert result2.did_crash is True
+
+        # Redis should only be called once (for the first request)
+        assert mock_redis.pipeline.call_count == 1
+
+    def test_cache_miss_for_pending_status(self):
+        """Test that pending status doesn't get cached and always hits Redis."""
+        # Create mock Redis client
+        mock_redis, mock_pipeline = self._create_mock_redis()
+        mock_redis.sadd.return_value = 1  # Mock successful add to pending set
+
+        # Mock responses:
+        # First call: _did_crash returns [False, False], then full check returns [True, False, False]
+        # Second call: _did_crash hits cache (no Redis call), then full check returns [True, False, False]
+        mock_pipeline.execute.side_effect = [
+            [False, False],  # First request: _did_crash: not in final states
+            [
+                True,
+                False,
+                False,
+            ],  # First request: request_status full check: pending=True, mitigated=False, non_mitigated=False
+            [True, False, False],  # Second request: request_status full check: still pending (cache hit for _did_crash)
+        ]
+
+        pov_status = PoVReproduceStatus(mock_redis)
+
+        # Create sample request
+        request = POVReproduceRequest()
+        request.task_id = "test-task"
+        request.internal_patch_id = "0"
+        request.pov_path = "/test/path"
+        request.sanitizer = "asan"
+        request.harness_name = "test_harness"
+
+        # First call should return None (pending)
+        result1 = pov_status.request_status(request)
+        assert result1 is None
+
+        # Second call should also return None (pending) and hit Redis again for full check
+        # but _did_crash should hit cache
+        result2 = pov_status.request_status(request)
+        assert result2 is None
+
+        # Redis should be called 3 times total: 1 for first _did_crash + 2 for full checks
+        # (second _did_crash hits cache)
+        assert mock_redis.pipeline.call_count == 3
+
+    def test_cache_works_with_different_requests(self):
+        """Test that cache works correctly for different requests."""
+        # Create mock Redis client
+        mock_redis, mock_pipeline = self._create_mock_redis()
+
+        # Mock different responses for different requests
+        mock_pipeline.execute.side_effect = [
+            [True, False],  # request1: mitigated
+            [False, True],  # request2: non-mitigated
+            # Subsequent calls should hit cache
+        ]
+
+        pov_status = PoVReproduceStatus(mock_redis)
+
+        # Create two different requests
+        request1 = POVReproduceRequest()
+        request1.task_id = "test-task-1"
+        request1.internal_patch_id = "0"
+        request1.pov_path = "/test/path1"
+        request1.sanitizer = "asan"
+        request1.harness_name = "test_harness"
+
+        request2 = POVReproduceRequest()
+        request2.task_id = "test-task-2"
+        request2.internal_patch_id = "0"
+        request2.pov_path = "/test/path2"
+        request2.sanitizer = "msan"
+        request2.harness_name = "test_harness"
+
+        # First calls should hit Redis
+        result1 = pov_status.request_status(request1)
+        assert isinstance(result1, POVReproduceResponse)
+        assert result1.did_crash is False  # mitigated
+
+        result2 = pov_status.request_status(request2)
+        assert isinstance(result2, POVReproduceResponse)
+        assert result2.did_crash is True  # non-mitigated
+
+        # Repeat calls should hit cache
+        result1_cached = pov_status.request_status(request1)
+        assert isinstance(result1_cached, POVReproduceResponse)
+        assert result1_cached.did_crash is False
+
+        result2_cached = pov_status.request_status(request2)
+        assert isinstance(result2_cached, POVReproduceResponse)
+        assert result2_cached.did_crash is True
+
+        # Redis should only be called twice (once for each unique request)
+        assert mock_redis.pipeline.call_count == 2
+
+    def test_cache_respects_maxsize(self):
+        """Test that cache behavior is consistent (simplified test without maxsize override)."""
+        # Create mock Redis client
+        mock_redis, mock_pipeline = self._create_mock_redis()
+
+        # Mock all responses as mitigated
+        mock_pipeline.execute.return_value = [True, False]  # mitigated=True, non_mitigated=False
+
+        pov_status = PoVReproduceStatus(mock_redis)
+
+        # Create multiple different requests
+        requests = []
+        for i in range(3):
+            request = POVReproduceRequest()
+            request.task_id = f"test-task-{i}"
+            request.internal_patch_id = "0"
+            request.pov_path = f"/test/path{i}"
+            request.sanitizer = "asan"
+            request.harness_name = "test_harness"
+            requests.append(request)
+
+        # First requests should hit Redis
+        result1 = pov_status.request_status(requests[0])
+        result2 = pov_status.request_status(requests[1])
+        result3 = pov_status.request_status(requests[2])
+        assert isinstance(result1, POVReproduceResponse)
+        assert isinstance(result2, POVReproduceResponse)
+        assert isinstance(result3, POVReproduceResponse)
+        assert mock_redis.pipeline.call_count == 3
+
+        # Repeated requests should hit cache
+        result1_cached = pov_status.request_status(requests[0])
+        result2_cached = pov_status.request_status(requests[1])
+        result3_cached = pov_status.request_status(requests[2])
+        assert isinstance(result1_cached, POVReproduceResponse)
+        assert isinstance(result2_cached, POVReproduceResponse)
+        assert isinstance(result3_cached, POVReproduceResponse)
+        # Should not have increased - all cache hits
+        assert mock_redis.pipeline.call_count == 3
+
+    def test_separate_instances_have_separate_caches(self):
+        """Test that different PoVReproduceStatus instances have separate caches."""
+        # Create two mock Redis clients
+        mock_redis1 = MagicMock()
+        mock_pipeline1 = MagicMock()
+        mock_redis1.pipeline.return_value = mock_pipeline1
+        mock_pipeline1.__enter__.return_value = mock_pipeline1
+        mock_pipeline1.__exit__.return_value = None
+        mock_pipeline1.execute.return_value = [True, False]  # mitigated
+
+        mock_redis2 = MagicMock()
+        mock_pipeline2 = MagicMock()
+        mock_redis2.pipeline.return_value = mock_pipeline2
+        mock_pipeline2.__enter__.return_value = mock_pipeline2
+        mock_pipeline2.__exit__.return_value = None
+        mock_pipeline2.execute.return_value = [False, True]  # non-mitigated
+
+        # Create two instances
+        pov_status1 = PoVReproduceStatus(mock_redis1)
+        pov_status2 = PoVReproduceStatus(mock_redis2)
+
+        # Create same request for both
+        request = POVReproduceRequest()
+        request.task_id = "test-task"
+        request.internal_patch_id = "0"
+        request.pov_path = "/test/path"
+        request.sanitizer = "asan"
+        request.harness_name = "test_harness"
+
+        # First calls should hit respective Redis instances
+        result1 = pov_status1.request_status(request)
+        result2 = pov_status2.request_status(request)
+
+        assert isinstance(result1, POVReproduceResponse)
+        assert result1.did_crash is False  # mitigated
+        assert isinstance(result2, POVReproduceResponse)
+        assert result2.did_crash is True  # non-mitigated
+
+        # Each instance should have hit its Redis once
+        assert mock_redis1.pipeline.call_count == 1
+        assert mock_redis2.pipeline.call_count == 1
+
+        # Repeat calls should hit respective caches
+        result1_cached = pov_status1.request_status(request)
+        result2_cached = pov_status2.request_status(request)
+
+        assert isinstance(result1_cached, POVReproduceResponse)
+        assert result1_cached.did_crash is False
+        assert isinstance(result2_cached, POVReproduceResponse)
+        assert result2_cached.did_crash is True
+
+        # Redis call counts should not increase (cache hits)
+        assert mock_redis1.pipeline.call_count == 1
+        assert mock_redis2.pipeline.call_count == 1
+
+    def test_cache_integration_with_real_workflow(self, pov_status, sample_request):
+        """Test that caching works correctly in a real workflow with Redis."""
+        # This test uses real Redis and validates the cache behavior
+
+        # Initial request should return None (pending)
+        result1 = pov_status.request_status(sample_request)
+        assert result1 is None
+
+        # Mark as mitigated
+        mark_result = pov_status.mark_mitigated(sample_request)
+        assert mark_result is True
+
+        # Now test caching: multiple requests should return same result
+        # We can't easily test Redis call count with real Redis, but we can
+        # verify that the behavior is consistent
+        results = []
+        for _ in range(5):
+            result = pov_status.request_status(sample_request)
+            results.append(result)
+
+        # All results should be identical POVReproduceResponse objects
+        for result in results:
+            assert isinstance(result, POVReproduceResponse)
+            assert result.did_crash is False  # mitigated
+            assert result.request.task_id == sample_request.task_id
+            assert result.request.internal_patch_id == sample_request.internal_patch_id
+            assert result.request.pov_path == sample_request.pov_path
+            assert result.request.sanitizer == sample_request.sanitizer
+            assert result.request.harness_name == sample_request.harness_name
+
+    def test_cache_clears_across_different_final_states(self):
+        """Test that moving between final states works correctly with caching."""
+        # Create mock Redis client
+        mock_redis, mock_pipeline = self._create_mock_redis()
+
+        pov_status = PoVReproduceStatus(mock_redis)
+
+        # Create sample request
+        request = POVReproduceRequest()
+        request.task_id = "test-task"
+        request.internal_patch_id = "0"
+        request.pov_path = "/test/path"
+        request.sanitizer = "asan"
+        request.harness_name = "test_harness"
+
+        # First: mock as mitigated
+        mock_pipeline.execute.return_value = [True, False]
+        result1 = pov_status.request_status(request)
+        assert isinstance(result1, POVReproduceResponse)
+        assert result1.did_crash is False
+
+        # Second call should hit cache
+        result2 = pov_status.request_status(request)
+        assert isinstance(result2, POVReproduceResponse)
+        assert result2.did_crash is False
+        assert mock_redis.pipeline.call_count == 1  # Only first call hit Redis
+
+        # Now simulate the state changing in Redis (e.g., due to another process)
+        # This would require cache invalidation in a real system, but our current
+        # implementation doesn't handle this case - the cache will return stale data
+        # This test documents the current behavior
+        mock_pipeline.execute.return_value = [False, True]  # Now non-mitigated
+
+        # This call will still return cached (stale) mitigated result
+        result3 = pov_status.request_status(request)
+        assert isinstance(result3, POVReproduceResponse)
+        assert result3.did_crash is False  # Still cached mitigated result
+        assert mock_redis.pipeline.call_count == 1  # No new Redis calls

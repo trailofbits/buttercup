@@ -29,7 +29,8 @@ def truncate_stacktraces(submission: SubmissionEntry, max_length: int = 80) -> S
     text_format.Parse(submission_text, truncated_submission)
 
     # Now truncate the stacktraces and crash token
-    for crash in truncated_submission.crashes:
+    for crash_with_id in truncated_submission.crashes:
+        crash = crash_with_id.crash
         if crash.crash.stacktrace and len(crash.crash.stacktrace) > max_length:
             crash.crash.stacktrace = crash.crash.stacktrace[:max_length] + "... (truncated)"
 

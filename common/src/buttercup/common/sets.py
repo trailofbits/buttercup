@@ -5,6 +5,7 @@ from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 from contextlib import contextmanager
 import random
 import json
+from functools import lru_cache
 
 # Import POVReproduceRequest for the refactored PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVReproduceResponse
@@ -105,6 +106,28 @@ class PoVReproduceStatus:
     def __init__(self, redis: Redis):
         self.redis = redis
 
+    @lru_cache(maxsize=1000)
+    def _did_crash(self, key: str) -> bool | None:
+        """Check if POV crashed (is in final states) and return crash status.
+
+        Args:
+            key: The serialized key for the POV reproduction request
+
+        Returns:
+            False if mitigated (didn't crash), True if non-mitigated (did crash), None if not in final states
+        """
+        pipeline = self.redis.pipeline()
+        pipeline.sismember(POV_REPRODUCE_MITIGATED_SET_NAME, key)
+        pipeline.sismember(POV_REPRODUCE_NON_MITIGATED_SET_NAME, key)
+        result = pipeline.execute()
+
+        if result[0]:
+            return False  # Mitigated - didn't crash
+        elif result[1]:
+            return True  # Non-mitigated - did crash
+        else:
+            return None  # Not in final states
+
     def _make_key(self, request: POVReproduceRequest) -> str:
         """Create a unique key from a POVReproduceRequest by serializing it to string."""
         return dumps(
@@ -122,11 +145,19 @@ class PoVReproduceStatus:
             None if pending, POVReproduceResponse if completed
         """
         key = self._make_key(request)
+
+        # First check cache for final states only
+        did_crash = self._did_crash(key)
+        if did_crash is not None:
+            return POVReproduceResponse(request=request, did_crash=did_crash)
+
+        # If not in final states, do the regular logic including pending check
         pipeline = self.redis.pipeline()
         pipeline.sismember(POV_REPRODUCE_PENDING_SET_NAME, key)
         pipeline.sismember(POV_REPRODUCE_MITIGATED_SET_NAME, key)
         pipeline.sismember(POV_REPRODUCE_NON_MITIGATED_SET_NAME, key)
         result = pipeline.execute()
+
         if result[0]:
             return None  # Pending
         elif result[1]:

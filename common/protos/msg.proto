@@ -137,40 +137,53 @@ message FunctionCoverage {
     int32 covered_lines = 4;
 }
 
+enum SubmissionResult {
+    NONE = 0;  // Default/unset state - no submission result yet
+    ACCEPTED = 1;
+    PASSED = 2;
+    FAILED = 3;
+    DEADLINE_EXCEEDED = 4;
+    ERRORED = 5;
+    INCONCLUSIVE = 6;
+}
+
 message SubmissionEntryPatch {
     string patch = 1;
     string internal_patch_id = 2;
     string competition_patch_id = 3;
     repeated BuildOutput build_outputs = 4;
+    optional SubmissionResult result = 5;
 }
 
-message SubmissionEntry {
-    enum SubmissionState {
-        SUBMIT_PATCH_REQUEST = 0;
-        WAIT_POV_PASS = 1;
-        SUBMIT_PATCH = 2;
-        WAIT_PATCH_PASS = 3;
-        SUBMIT_BUNDLE = 4;
-        SUBMIT_MATCHING_SARIF = 5;
-        SUBMIT_BUNDLE_PATCH = 6;
-        STOP = 7;
-    }
-    
-    SubmissionState state = 1;
 
-    repeated TracedCrash crashes = 2;
-
-    string pov_id = 3;
-    string competition_patch_id = 4;
+message Bundle {
+    string task_id = 1;
+    string competition_pov_id = 2;
+    string competition_patch_id = 3;
+    string competition_sarif_id = 4;
     string bundle_id = 5;
-    string sarif_id = 6;
+}
+
+message CrashWithId {
+    TracedCrash crash = 1;
+    string competition_pov_id = 2;
+    optional SubmissionResult result = 3;
+}
+
+// This is our model of a Challenge Vulnerability
+message SubmissionEntry {
+    bool stop = 1;
+
+    repeated CrashWithId crashes = 2;
+
+    repeated Bundle bundles = 3;
 
     // Content of patches targeting this vulnerability 
-    repeated SubmissionEntryPatch patches = 7;
+    repeated SubmissionEntryPatch patches = 4;
 
     // Current patch being considered
-    int32 patch_idx = 8;
-    int32 patch_submission_attempt = 9;
+    int32 patch_idx = 5;
+    int32 patch_submission_attempts = 6;
 }
 
 message POVReproduceRequest {

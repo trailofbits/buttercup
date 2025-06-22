@@ -378,7 +378,7 @@ class Scheduler:
         vuln_item: RQItem[TracedCrash] | None = self.traced_vulnerabilities_queue.pop()
         if vuln_item is not None:
             crash: TracedCrash = vuln_item.deserialized
-            logger.info(f"Submitting vulnerability for task {crash.crash.target.task_id}")
+            logger.info(f"Recording vulnerability for task {crash.crash.target.task_id}")
             if self.submissions.submit_vulnerability(crash):
                 self.traced_vulnerabilities_queue.ack_item(vuln_item.item_id)
                 collected_item = True

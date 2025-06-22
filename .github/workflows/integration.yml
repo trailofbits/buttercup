@@ -148,13 +148,13 @@ jobs:
       - name: Wait for vuln to be found
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "] SUBMIT_PATCH_REQUEST pov_id=" ; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "] POV submission response: pov_id=" ; do
             sleep 60
           done
       - name: Wait for vuln to enter the passed state in competition api
         timeout-minutes: ${{ fromJSON(env.VULN_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "WAIT_POV_PASS -> SUBMIT_PATCH" ; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Updated POV status. New status PASSED" ; do
             sleep 60
           done
 
@@ -165,30 +165,30 @@ jobs:
             sleep 60
           done
 
-      - name: Wait for patch to be submitted
+      - name: Wait for patch to be recorded
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_PATCH -> WAIT_PATCH_PASS"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Appending patch for task"; do
             sleep 60
           done
       - name: Wait for patch to enter the passed state in competition api
         timeout-minutes: ${{ fromJSON(env.PATCH_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Patch passed"; do
             sleep 60
           done
 
       - name: Wait for bundle to be submitted
         timeout-minutes: ${{ fromJSON(env.BUNDLE_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Bundle submission response: bundle_id="; do
             sleep 60
           done
 
       - name: Send a SARIF broadcast
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
-          TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_BUNDLE -> SUBMIT_MATCHING_SARIF" | grep -o "\[[^]]*\]" | grep -o "[^[]*$" | cut -d: -f3 | tr -d ']')
+          TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Submitting bundle for harness" | grep -o "\[[^]]*\]" | grep -o "[^[]*$" | cut -d: -f3 | tr -d ']')
           echo "Task ID: $TASK_ID"
           while true; do
             # Kill any existing port-forward processes
@@ -209,16 +209,16 @@ jobs:
             # Failed - wait a bit before retrying
             sleep 10
           done
-      - name: Wait for SARIF to be submitted as correct
-        timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
-        run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_MATCHING_SARIF -> SUBMIT_BUNDLE_PATCH"; do
-            sleep 60
-          done
       - name: Wait for Bundle to be patched to include the SARIF
         timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
         run: |
-          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "SUBMIT_BUNDLE_PATCH -> STOP"; do
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Bundle patch submission response: broadcast_sarif_id="; do
+            sleep 60
+          done
+      - name: Wait for SARIF to be submitted as correct
+        timeout-minutes: ${{ fromJSON(env.SARIF_TIMEOUT) }}
+        run: |
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Matching SARIF submission response"; do
             sleep 60
           done
       

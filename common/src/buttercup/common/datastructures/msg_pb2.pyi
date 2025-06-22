@@ -4,9 +4,16 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
+ACCEPTED: SubmissionResult
 COVERAGE: BuildType
+DEADLINE_EXCEEDED: SubmissionResult
 DESCRIPTOR: _descriptor.FileDescriptor
+ERRORED: SubmissionResult
+FAILED: SubmissionResult
 FUZZER: BuildType
+INCONCLUSIVE: SubmissionResult
+NONE: SubmissionResult
+PASSED: SubmissionResult
 PATCH: BuildType
 TRACER_NO_DIFF: BuildType
 
@@ -48,6 +55,20 @@ class BuildRequest(_message.Message):
     task_id: str
     def __init__(self, engine: _Optional[str] = ..., sanitizer: _Optional[str] = ..., task_dir: _Optional[str] = ..., task_id: _Optional[str] = ..., build_type: _Optional[_Union[BuildType, str]] = ..., apply_diff: bool = ..., patch: _Optional[str] = ..., internal_patch_id: _Optional[str] = ...) -> None: ...
 
+class Bundle(_message.Message):
+    __slots__ = ["bundle_id", "competition_patch_id", "competition_pov_id", "competition_sarif_id", "task_id"]
+    BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPETITION_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPETITION_POV_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPETITION_SARIF_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    bundle_id: str
+    competition_patch_id: str
+    competition_pov_id: str
+    competition_sarif_id: str
+    task_id: str
+    def __init__(self, task_id: _Optional[str] = ..., competition_pov_id: _Optional[str] = ..., competition_patch_id: _Optional[str] = ..., competition_sarif_id: _Optional[str] = ..., bundle_id: _Optional[str] = ...) -> None: ...
+
 class ConfirmedVulnerability(_message.Message):
     __slots__ = ["crashes", "internal_patch_id"]
     CRASHES_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +90,16 @@ class Crash(_message.Message):
     stacktrace: str
     target: BuildOutput
     def __init__(self, target: _Optional[_Union[BuildOutput, _Mapping]] = ..., harness_name: _Optional[str] = ..., crash_input_path: _Optional[str] = ..., stacktrace: _Optional[str] = ..., crash_token: _Optional[str] = ...) -> None: ...
+
+class CrashWithId(_message.Message):
+    __slots__ = ["competition_pov_id", "crash", "result"]
+    COMPETITION_POV_ID_FIELD_NUMBER: _ClassVar[int]
+    CRASH_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    competition_pov_id: str
+    crash: TracedCrash
+    result: SubmissionResult
+    def __init__(self, crash: _Optional[_Union[TracedCrash, _Mapping]] = ..., competition_pov_id: _Optional[str] = ..., result: _Optional[_Union[SubmissionResult, str]] = ...) -> None: ...
 
 class FunctionCoverage(_message.Message):
     __slots__ = ["covered_lines", "function_name", "function_paths", "total_lines"]
@@ -158,48 +189,34 @@ class SourceDetail(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_type: _Optional[_Union[SourceDetail.SourceType, str]] = ..., url: _Optional[str] = ...) -> None: ...
 
 class SubmissionEntry(_message.Message):
-    __slots__ = ["bundle_id", "competition_patch_id", "crashes", "patch_idx", "patch_submission_attempt", "patches", "pov_id", "sarif_id", "state"]
-    class SubmissionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-        __slots__ = []
-    BUNDLE_ID_FIELD_NUMBER: _ClassVar[int]
-    COMPETITION_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["bundles", "crashes", "patch_idx", "patch_submission_attempts", "patches", "stop"]
+    BUNDLES_FIELD_NUMBER: _ClassVar[int]
     CRASHES_FIELD_NUMBER: _ClassVar[int]
     PATCHES_FIELD_NUMBER: _ClassVar[int]
     PATCH_IDX_FIELD_NUMBER: _ClassVar[int]
-    PATCH_SUBMISSION_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
-    POV_ID_FIELD_NUMBER: _ClassVar[int]
-    SARIF_ID_FIELD_NUMBER: _ClassVar[int]
-    STATE_FIELD_NUMBER: _ClassVar[int]
-    STOP: SubmissionEntry.SubmissionState
-    SUBMIT_BUNDLE: SubmissionEntry.SubmissionState
-    SUBMIT_BUNDLE_PATCH: SubmissionEntry.SubmissionState
-    SUBMIT_MATCHING_SARIF: SubmissionEntry.SubmissionState
-    SUBMIT_PATCH: SubmissionEntry.SubmissionState
-    SUBMIT_PATCH_REQUEST: SubmissionEntry.SubmissionState
-    WAIT_PATCH_PASS: SubmissionEntry.SubmissionState
-    WAIT_POV_PASS: SubmissionEntry.SubmissionState
-    bundle_id: str
-    competition_patch_id: str
-    crashes: _containers.RepeatedCompositeFieldContainer[TracedCrash]
+    PATCH_SUBMISSION_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    STOP_FIELD_NUMBER: _ClassVar[int]
+    bundles: _containers.RepeatedCompositeFieldContainer[Bundle]
+    crashes: _containers.RepeatedCompositeFieldContainer[CrashWithId]
     patch_idx: int
-    patch_submission_attempt: int
+    patch_submission_attempts: int
     patches: _containers.RepeatedCompositeFieldContainer[SubmissionEntryPatch]
-    pov_id: str
-    sarif_id: str
-    state: SubmissionEntry.SubmissionState
-    def __init__(self, state: _Optional[_Union[SubmissionEntry.SubmissionState, str]] = ..., crashes: _Optional[_Iterable[_Union[TracedCrash, _Mapping]]] = ..., pov_id: _Optional[str] = ..., competition_patch_id: _Optional[str] = ..., bundle_id: _Optional[str] = ..., sarif_id: _Optional[str] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempt: _Optional[int] = ...) -> None: ...
+    stop: bool
+    def __init__(self, stop: bool = ..., crashes: _Optional[_Iterable[_Union[CrashWithId, _Mapping]]] = ..., bundles: _Optional[_Iterable[_Union[Bundle, _Mapping]]] = ..., patches: _Optional[_Iterable[_Union[SubmissionEntryPatch, _Mapping]]] = ..., patch_idx: _Optional[int] = ..., patch_submission_attempts: _Optional[int] = ...) -> None: ...
 
 class SubmissionEntryPatch(_message.Message):
-    __slots__ = ["build_outputs", "competition_patch_id", "internal_patch_id", "patch"]
+    __slots__ = ["build_outputs", "competition_patch_id", "internal_patch_id", "patch", "result"]
     BUILD_OUTPUTS_FIELD_NUMBER: _ClassVar[int]
     COMPETITION_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     INTERNAL_PATCH_ID_FIELD_NUMBER: _ClassVar[int]
     PATCH_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
     build_outputs: _containers.RepeatedCompositeFieldContainer[BuildOutput]
     competition_patch_id: str
     internal_patch_id: str
     patch: str
-    def __init__(self, patch: _Optional[str] = ..., internal_patch_id: _Optional[str] = ..., competition_patch_id: _Optional[str] = ..., build_outputs: _Optional[_Iterable[_Union[BuildOutput, _Mapping]]] = ...) -> None: ...
+    result: SubmissionResult
+    def __init__(self, patch: _Optional[str] = ..., internal_patch_id: _Optional[str] = ..., competition_patch_id: _Optional[str] = ..., build_outputs: _Optional[_Iterable[_Union[BuildOutput, _Mapping]]] = ..., result: _Optional[_Union[SubmissionResult, str]] = ...) -> None: ...
 
 class Task(_message.Message):
     __slots__ = ["cancelled", "deadline", "focus", "message_id", "message_time", "metadata", "project_name", "sources", "task_id", "task_type"]
@@ -279,4 +296,7 @@ class WeightedHarness(_message.Message):
     def __init__(self, weight: _Optional[float] = ..., package_name: _Optional[str] = ..., harness_name: _Optional[str] = ..., task_id: _Optional[str] = ...) -> None: ...
 
 class BuildType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = []
+
+class SubmissionResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
