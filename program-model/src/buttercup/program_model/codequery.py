@@ -32,6 +32,55 @@ logger = logging.getLogger(__name__)
 
 CONTAINER_SRC_DIR: str = "container_src_dir"
 
+# C/C++ Projects
+C_CPP_EXTENSIONS = [
+    "*.c",
+    "*.cpp",
+    "*.cxx",
+    "*.cc",
+    "*.C",
+    "*.c++",
+    "*.h",
+    "*.hpp",
+    "*.hxx",
+    "*.hh",
+    "*.H",
+    "*.h++",
+    "*.inc",
+    "*.inl",
+    "*.ipp",
+    "*.tpp",
+    "*.y",
+    "*.yy",
+    "*.l",
+    "*.ll",
+    "*.lex",
+    "*.yacc",
+    "*.in",
+    "*.s",
+    "*.S",
+    "*.asm",
+    "*.m",
+    "*.mm",
+    "*.cu",
+    "*.cuh",
+]
+
+# Java Projects
+JAVA_EXTENSIONS = [
+    "*.java",
+    "*.jsp",
+    "*.jspx",
+    "*.tag",
+    "*.jspf",
+    "*.properties",
+    "*.gradle",
+    "*.kt",
+    "*.scala",
+    "*.groovy",
+    "*.aj",
+]
+
 
 @dataclass
 class CQSearchResult:
@@ -190,18 +239,9 @@ class CodeQuery:
                 self.challenge, self.challenge.task_meta.project_name
             )
             if project_yaml.unified_language == Language.C:
-                extensions = [
-                    "*.c",
-                    "*.cpp",
-                    "*.cxx",
-                    "*.cc",
-                    "*.h",
-                    "*.hpp",
-                    "*.hxx",
-                    "*.hh",
-                ]
+                extensions = C_CPP_EXTENSIONS
             elif project_yaml.unified_language == Language.JAVA:
-                extensions = ["*.java"]
+                extensions = JAVA_EXTENSIONS
             else:
                 raise ValueError(f"Unsupported language: {project_yaml.language}")
 

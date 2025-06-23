@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import logging
-from buttercup.common.challenge_task import CommandResult
+from buttercup.common.challenge_task import CommandResult, ChallengeTask
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from typing import Annotated
 from pathlib import Path
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
-from buttercup.patcher.utils import truncate_output, get_challenge, get_codequery
+from buttercup.patcher.utils import truncate_output, get_challenge, get_codequery, find_file_in_source_dir
 from buttercup.patcher.agents.common import BaseCtxState, ContextCodeSnippet, CodeSnippetKey
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,9 @@ def _get_codequery_function(codequery: CodeQueryPersistent, name: str, path: Pat
     return functions[0]
 
 
-def _add_functions_code_snippets(functions: list[Function], suffix: str = "") -> list[ContextCodeSnippet]:
+def _add_functions_code_snippets(
+    challenge: ChallengeTask, functions: list[Function], suffix: str = ""
+) -> list[ContextCodeSnippet]:
     return [
         ContextCodeSnippet(
             key=CodeSnippetKey(
@@ -118,14 +120,17 @@ def _add_functions_code_snippets(functions: list[Function], suffix: str = "") ->
             start_line=body.start_line,
             end_line=body.end_line,
             code=body.body,
-            description=f"Implementation of function {function.name}{suffix}",
+            description=f"Implementation of function {function.name}{suffix} in {function.file_path.as_posix()}",
+            can_patch=find_file_in_source_dir(challenge, function.file_path) is not None,
         )
         for function in functions
         for body in function.bodies
     ]
 
 
-def _add_type_definitions_code_snippets(type_definitions: list[TypeDefinition]) -> list[ContextCodeSnippet]:
+def _add_type_definitions_code_snippets(
+    challenge: ChallengeTask, type_definitions: list[TypeDefinition]
+) -> list[ContextCodeSnippet]:
     return [
         ContextCodeSnippet(
             key=CodeSnippetKey(
@@ -135,6 +140,7 @@ def _add_type_definitions_code_snippets(type_definitions: list[TypeDefinition]) 
             start_line=type_def.definition_line,
             end_line=type_def.definition_line + len(type_def.definition.splitlines()),
             description=f"Definition of type {type_def.name}",
+            can_patch=find_file_in_source_dir(challenge, type_def.file_path) is not None,
         )
         for type_def in type_definitions
     ]
@@ -164,7 +170,7 @@ def get_function_tool_impl(function_name: str, file_path: str | None, state: Bas
             if not functions:
                 raise ValueError(f"No definition found for function {function_name} in {path}")
 
-    return _add_functions_code_snippets(functions)
+    return _add_functions_code_snippets(challenge, functions)
 
 
 @tool
@@ -225,6 +231,7 @@ def get_type_tool_impl(type_name: str, file_path: str | None, state: BaseCtxStat
     path = Path(file_path) if file_path else None
 
     logger.info("Getting type definition of %s in %s", type_name, path)
+    challenge = get_challenge(state.challenge_task_dir)
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
     types = codequery.get_types(type_name, path)
     if not types:
@@ -234,7 +241,7 @@ def get_type_tool_impl(type_name: str, file_path: str | None, state: BaseCtxStat
             if not types:
                 raise ValueError(f"No definition found for type {type_name} in {path}")
 
-    return _add_type_definitions_code_snippets(types)
+    return _add_type_definitions_code_snippets(challenge, types)
 
 
 @tool

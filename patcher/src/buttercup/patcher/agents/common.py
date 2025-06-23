@@ -325,6 +325,8 @@ class ContextCodeSnippet(BaseModel):
     code_context: str | None = None
     "Additional context around the code snippet, e.g. lines information, etc."
 
+    can_patch: bool = Field(default=True)
+
     def __str__(self) -> str:
         context = (
             f"""
@@ -341,6 +343,7 @@ class ContextCodeSnippet(BaseModel):
 <description>{self.description}</description>
 <start_line>{self.start_line}</start_line>
 <end_line>{self.end_line}</end_line>
+<can_patch>{self.can_patch}</can_patch>
 <code>
 {self.code}
 </code>{context}

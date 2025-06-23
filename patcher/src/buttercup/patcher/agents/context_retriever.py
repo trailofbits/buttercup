@@ -32,7 +32,7 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.stack_parsing import CrashInfo
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition
+from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition, find_file_in_source_dir
 from buttercup.patcher.agents.common import (
     PatcherAgentBase,
     ContextRetrieverState,
@@ -138,6 +138,7 @@ Check if any of the available code snippets already satisfy this request. Consid
 1. Does any snippet contain the exact code being requested?
 2. Does any snippet provide equivalent or superset functionality?
 3. Is the requested code fully visible in the existing snippets?
+4. Is the request fully satisfied? If all versions of a function/type/variable are requested, but only some of them are available, the request is not satisfied.
 
 Provide your analysis and clearly state whether the request is already satisfied or not.
 
@@ -503,6 +504,7 @@ def track_snippet(
             end_line=end_line,
             code="\n".join(get_lines_output),
             description=code_snippet_description,
+            can_patch=find_file_in_source_dir(challenge, path) is not None,
         )
         code_snippets = [code_snippet]
 
@@ -1263,7 +1265,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                         agent_state.messages = [
                             *agent_state.messages,
                             HumanMessage(
-                                content="You did not provide any instructions to run tests. Please try again or harder.",
+                                content="You did not call `test_instructions` successfully yet. Please try again and harder to find the instructions to build and test the project.",
                             ),
                         ]
                 except langgraph.errors.GraphRecursionError:

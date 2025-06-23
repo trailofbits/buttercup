@@ -34,6 +34,20 @@ from ..common import (
                 ],
             ),
         ),
+        (
+            "shell_error_context",
+            "/src/sqlite3/src/shell.c.in",
+            TestFunctionInfo(
+                num_bodies=1,
+                body_excerpts=[
+                    """  while( iOffset>50 ){
+    iOffset--;
+    zSql++;
+    while( (zSql[0]&0xc0)==0x80 ){ zSql++; iOffset--; }
+  }""",
+                ],
+            ),
+        ),
     ],
 )
 @pytest.mark.integration

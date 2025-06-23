@@ -743,14 +743,13 @@ class QEAgent(PatcherAgentBase):
                     [str(identifier_bin), "--language", language.value.lower(), "--path", str(abs_path)],
                     capture_output=True,
                     text=True,
-                    check=True,
                     timeout=60,
                 )
                 if result.returncode != 0:
                     logger.error("File %s is not valid %s code: %s", abs_path, language, result.stderr)
                     return False
-            except subprocess.CalledProcessError as e:
-                logger.error("Failed to check language for %s: %s", abs_path, e.stderr)
+            except subprocess.CalledProcessError:
+                logger.exception("Failed to check language for %s", abs_path)
                 return False
 
         return True

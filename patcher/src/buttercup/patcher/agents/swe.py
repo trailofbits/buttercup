@@ -92,6 +92,7 @@ Instructions:
    - You don't have to modify all code snippets.
    - Only output snippets you have modified.
    - Use only code that you know is present in the codebase.
+   - Modify only code snippets that have <can_patch>true</can_patch>.
    - Do not include placeholders or TODOs; suggest only exact code changes.
 
 4. Format your output as follows for each modified code snippet:
