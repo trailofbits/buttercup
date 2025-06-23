@@ -2,6 +2,7 @@
 
 import logging
 import re
+from unidiff import PatchSet
 import langgraph.errors
 from typing import Annotated, Literal
 from langgraph.prebuilt import InjectedState
@@ -15,6 +16,7 @@ from buttercup.common.stack_parsing import parse_stacktrace
 from langchain_core.prompts import (
     ChatPromptTemplate,
 )
+from buttercup.patcher.utils import truncate_output, TruncatePosition
 from langchain_core.runnables import Runnable
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
@@ -24,11 +26,14 @@ from buttercup.patcher.agents.common import (
     CodeSnippetRequest,
     get_stacktraces_from_povs,
     stacktrace_to_str,
+    MAX_STACKTRACE_LENGTH,
 )
 from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from langgraph.types import Command
 
 logger = logging.getLogger(__name__)
+
+MAX_DIFF_LENGTH = MAX_STACKTRACE_LENGTH
 
 ROOT_CAUSE_SYSTEM_MSG = """You are PatchGen-LLM, an autonomous component in an end-to-end security-patching pipeline.
 Goal: perform a Root Cause Analysis of one (or more) security vulnerabilities.
@@ -140,8 +145,18 @@ class RootCauseAgent(PatcherAgentBase):
             assert isinstance(state, PatcherAgentState)
             return self._understand_code_snippet(state, code_snippet_id, focus_area)
 
+        @tool(description=self._list_diffs.__doc__)
+        def list_diffs() -> str:
+            return self._list_diffs()
+
+        @tool(description=self._get_diffs.__doc__)
+        def get_diffs(diff_file_paths: list[str]) -> str:
+            return self._get_diffs(diff_file_paths)
+
         tools = [
             understand_code_snippet,
+            list_diffs,
+            get_diffs,
         ]
         default_agent = create_react_agent(
             model=default_llm,
@@ -163,6 +178,8 @@ class RootCauseAgent(PatcherAgentBase):
 
     def _root_cause_prompt(self, state: PatcherAgentState) -> list[BaseMessage]:
         diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
+        # Truncate diff content to the same as max stacktrace length
+        diff_content = truncate_output(diff_content, max_length=MAX_DIFF_LENGTH, truncate_position=TruncatePosition.END)
         stacktraces = [parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs]
         stacktraces_strs = get_stacktraces_from_povs(state.context.povs)
 
@@ -221,6 +238,91 @@ class RootCauseAgent(PatcherAgentBase):
         for match in matches:
             requests.append(CodeSnippetRequest(request=match.strip()))
         return requests
+
+    def _list_diffs(self) -> str:
+        """List the available diff files for the code under analysis.
+
+        This function returns the list of diff files that were applied to the code under analysis.
+        Each diff file contains one or several patches, applied to one or several source files.
+        This function doesn't return the actual diff content. In order to retrieve the diff content
+        you must use the `get_diffs` tool with the diff file path(s) to get the diff contents of
+        those files.
+
+        Below is an example of the output format:
+
+        <diff_files>
+        <diff_file>
+            <diff_file_path>path/to/diff/file.patch</diff_file_path>
+            <modified_file>
+                <file_path>path/to/file.c</file_path>
+                <modified_lines_range>
+                    <start_line>10</start_line>
+                    <end_line>25</end_line>
+                </modified_lines_range>
+                <modified_lines_range>
+                    <start_line>226</start_line>
+                    <end_line>230</end_line>
+                </modified_lines_range>
+            </modified_file>
+            <modified_file>
+                <file_path>path/to/file2.c</file_path>
+                <modified_lines_range>
+                    <start_line>10</start_line>
+                    <end_line>25</end_line>
+                </modified_lines_range>
+            </modified_file>
+        </diff_file>
+        </diff_files>
+
+                Args:
+                    This function takes no arguments.
+
+                Returns:
+                    The list of diffs that were applied to the code under analysis.
+                    Actual diff content must then be retrieved using the `get_diffs` tool.
+        """
+        diff_list = []
+        for diff_file_path in self.challenge.get_diffs():
+            diff_text = diff_file_path.read_text()
+            # Parse raw diff to get file and lines
+            parsed_diff = get_modified_line_ranges(diff_text)
+            for file_path, line_ranges in parsed_diff:
+                diff_list.append(
+                    f"""<diff_file>
+<diff_file_path>{diff_file_path}</diff_file_path>
+<modified_file>
+  <file_path>{file_path}</file_path>
+  <modified_lines_range>
+    {"\n".join([f"<start_line>{start_line}</start_line><end_line>{end_line}</end_line>" for start_line, end_line in line_ranges])}
+  </modified_lines_range>
+</modified_file>
+</diff_file>
+"""
+                )
+        return f"<diff_files>\n{'\n'.join(diff_list)}\n</diff_files>"
+
+    def _get_diffs(self, diff_file_paths: list[str]) -> str:
+        """Get the diff content for given diff files.
+
+        This function returns the diff content for diffs that have been applied to the code under analysis.
+        This functions accepts a list of diff file paths, and returns the diff content of all these diff files.
+        The diff file paths must correspond to diff file paths listed by the `list_diffs` tool.
+
+        In order to use this function, you should first call the `list_diffs` tool to get the list of diff files and
+        see information about the patches they contain (modified files and line ranges). Then decide which
+        diffs are relevant and retrieve their actual content using this function.
+
+        Args:
+            diff_file_paths: A list of diff file paths to retrieve the diff content for.
+
+        Returns:
+            A string containing the diff content for the given diff file paths.
+        """
+        diff_text = ""
+        for diff_path in self.challenge.get_diffs():
+            if str(diff_path) in diff_file_paths:
+                diff_text += diff_path.read_text() + "\n"
+        return diff_text
 
     def analyze_vulnerability(
         self, state: PatcherAgentState
@@ -290,3 +392,23 @@ class RootCauseAgent(PatcherAgentBase):
             },
             goto=PatcherAgentName.PATCH_STRATEGY.value,
         )
+
+
+def get_modified_line_ranges(diff_text: str) -> list[tuple[str, list[tuple[int, int]]]]:
+    """
+    Extract file paths and modified line ranges.
+
+    Args:
+        diff_text (str): Raw unidiff patch as a string
+
+    Returns:
+        List[Tuple[str, List[Tuple[int, int]]]]: List of (file_path, [(start, end), ...])
+    """
+    patch = PatchSet(diff_text)
+    results: list[tuple[str, list[tuple[int, int]]]] = []
+
+    for patched_file in patch:
+        ranges = [(hunk.target_start, hunk.target_start + hunk.target_length - 1) for hunk in patched_file]
+        results.append((patched_file.path, ranges))
+
+    return results

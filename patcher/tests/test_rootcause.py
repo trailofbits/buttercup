@@ -11,7 +11,7 @@ import os
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableSequence
 
-from buttercup.patcher.agents.rootcause import RootCauseAgent
+from buttercup.patcher.agents.rootcause import RootCauseAgent, get_modified_line_ranges
 from buttercup.patcher.agents.common import (
     PatcherAgentState,
     PatcherAgentName,
@@ -96,6 +96,29 @@ def mock_llm_functions(mock_llm: MagicMock, mock_agent_llm: MagicMock):
         yield
 
 
+DIFF_1 = """diff --git a/file.py b/file.py
+index 1234567..abcdefg 100644
+--- a/file.py
++++ b/file.py
+@@ -10,1 +10,3 @@
+     print("Hello")
++    print("World")
++    print("!")
+     return True
+"""
+
+DIFF_2 = """diff --git a/file.c b/file2.c
+index 124467..abcdefg 100644
+--- a/file.c
++++ b/file2.c
+@@ -10,1 +10,3 @@
+     b = a + c;
++    printf("Hello");
++    printf("World");
+     return 0;
+"""
+
+
 @pytest.fixture
 def task_dir(tmp_path: Path) -> Path:
     """Create a mock challenge task directory structure."""
@@ -109,16 +132,16 @@ def task_dir(tmp_path: Path) -> Path:
     source.mkdir(parents=True, exist_ok=True)
     diffs.mkdir(parents=True, exist_ok=True)
 
+    # Add two simple diff files to the challenge task
+    (diffs / "patch1.diff").write_text(DIFF_1)
+    (diffs / "patch2.diff").write_text(DIFF_2)
+
     # Create project.yaml file
     project_yaml_path = oss_fuzz / "projects" / "example_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("""name: example_project
 language: c
 """)
-
-    # Create some mock patch files
-    (diffs / "patch1.diff").write_text("mock patch 1")
-    (diffs / "patch2.diff").write_text("mock patch 2")
 
     # Create a mock helper.py file
     helper_path = oss_fuzz / "infra/helper.py"
@@ -354,3 +377,208 @@ def test_rootcause_multiple_povs(
         snippet.key.file_path == "/src/test/process.c" and snippet.key.identifier == "process_data"
         for snippet in call_args.relevant_code_snippets
     )
+
+
+@pytest.mark.parametrize(
+    "patch_string,expected_result,expected_file_count",
+    [
+        # Test case 1: Single file, single hunk
+        (
+            """diff --git a/file.py b/file.py
+index 1234567..abcdefg 100644
+--- a/file.py
++++ b/file.py
+@@ -10,1 +10,3 @@ def hello():
+     print("Hello")
++    print("World")
++    print("!")
+     return True
+""",
+            [("file.py", [(10, 12)])],
+            1,
+        ),
+        # Test case 2: Single file, multiple hunks
+        (
+            """diff --git a/path/to/file.c b/path/to/file2.c
+index 67da216..1e338c2 100644
+--- a/path/to/file.c
++++ b/path/to/file2.c
+@@ -7,9 +7,6 @@ int main()
+     char filename[100];
+     int c;
+
+-    printf("Enter the filename to open for reading: ");
+-    scanf("%s", filename);
+-
+     // Open one file for reading
+     fptr1 = fopen(filename, "r");
+     if (fptr1 == NULL)
+@@ -19,6 +16,7 @@ int main()
+     }
+
+     printf("Enter the filename to open for writing: ");
++    printf("Some added content")
+     scanf("%s", filename);
+
+     // Open another file for writing
+""",
+            [("path/to/file2.c", [(7, 12), (16, 22)])],
+            1,
+        ),
+        # Test case 3: Multiple files
+        (
+            """diff --git a/path/to/file.c b/path/to/file2.c
+index 67da216..1e338c2 100644
+--- a/path/to/file.c
++++ b/path/to/file2.c
+@@ -7,9 +7,6 @@ int main()
+     char filename[100];
+     int c;
+
+-    printf("Enter the filename to open for reading: ");
+-    scanf("%s", filename);
+-
+     // Open one file for reading
+     fptr1 = fopen(filename, "r");
+     if (fptr1 == NULL)
+@@ -19,6 +16,7 @@ int main()
+     }
+
+     printf("Enter the filename to open for writing: ");
++    printf("Some added content")
+     scanf("%s", filename);
+
+     // Open another file for writing
+ 
+diff --git a/file2.py b/file2.py
+index 9876543..fedcba9 100644
+--- a/file2.py
++++ b/file2.py
+@@ -5,2 +5,3 @@ def func2():
+     x = 1
++    y = 2
+     return x
+""",
+            [
+                ("path/to/file2.c", [(7, 12), (16, 22)]),
+                ("file2.py", [(5, 7)]),
+            ],
+            2,
+        ),
+        # Test case 11: File rename
+        (
+            """diff --git a/old_name.py b/new_name.py
+similarity index 85%
+rename from old_name.py
+rename to new_name.py
+index 1234567..abcdefg 100644
+--- a/old_name.py
++++ b/new_name.py
+@@ -5,1 +5,2 @@
+ def function():
++    print("added line")
+     pass
+""",
+            [("new_name.py", [(5, 6)])],
+            1,
+        ),
+        # Test case 12: Binary file (should still work, though no line content)
+        (
+            """diff --git a/image.png b/image.png
+index 1234567..abcdefg 100644
+Binary files a/image.png and b/image.png differ
+""",
+            [("image.png", [])],  # Binary files have no hunks
+            1,
+        ),
+    ],
+)
+def test_get_modified_line_ranges(patch_string, expected_result, expected_file_count):
+    """Test get_modified_line_ranges with various diff formats and scenarios."""
+    result = get_modified_line_ranges(patch_string)
+
+    # Test the line ranges match expected
+    assert result == expected_result
+
+    # Test the file count matches expected
+    assert len(result) == expected_file_count
+
+
+# Additional simpler specific test for line range
+def test_line_range_calculation():
+    """Test specific line range calculations."""
+    patch = """diff --git a/test.py b/test.py
+--- a/test.py
++++ b/test.py
+@@ -5,1 +5,4 @@
+     a = 1
++    b = 2
++    c = 3
++    d = 4
+     return a
+"""
+    result = get_modified_line_ranges(patch)
+    assert len(result) == 1
+    file_path, ranges = result[0]
+    assert file_path == "test.py"
+    assert len(ranges) == 1
+    start, end = ranges[0]
+    assert start == 5  # Hunk starts at line 5
+    assert end == 8  # Three lines actually modified
+
+
+def test_root_cause_list_diffs(root_cause_agent: RootCauseAgent) -> None:
+    """Test root cause list diffs tool."""
+    result = root_cause_agent._list_diffs()
+    expected = """<diff_files>
+<diff_file>
+<DIFF_FILE_PATH_1>
+<modified_file>
+  <file_path>file.py</file_path>
+  <modified_lines_range>
+    <start_line>10</start_line><end_line>12</end_line>
+  </modified_lines_range>
+</modified_file>
+</diff_file>
+
+<diff_file>
+<DIFF_FILE_PATH_2>
+<modified_file>
+  <file_path>file2.c</file_path>
+  <modified_lines_range>
+    <start_line>10</start_line><end_line>12</end_line>
+  </modified_lines_range>
+</modified_file>
+</diff_file>
+
+</diff_files>"""
+
+    # Copy the <diff_file_path> from the result into the expected result.
+    # We can't predict these values in advance because they are temporary
+    # files and dirs created by the task_dir fixture.
+    cnt = 1
+    for line in result.split("\n"):
+        if line.strip().startswith("<diff_file_path>"):
+            assert line.strip().endswith(f"/test-challenge-task/diff/my-diff/patch{cnt}.diff</diff_file_path>")
+            expected = expected.replace(f"<DIFF_FILE_PATH_{cnt}>", line)
+            cnt += 1
+
+    assert "".join(result.split()) == "".join(expected.split())
+
+
+def test_root_cause_get_diffs(root_cause_agent: RootCauseAgent) -> None:
+    """Test root cause get diffs tool."""
+    diffs = root_cause_agent._list_diffs()
+    # Manually parse xml result to get the diff file paths
+    # Not the cleanest but that will do.
+    diff_files = [
+        line.split("</diff_file_path>")[0].split("<diff_file_path>")[1]
+        for line in diffs.split("\n")
+        if line.strip().startswith("<diff_file_path>")
+    ]
+    assert len(diff_files) == 2
+    # Check that we can get each diff individually
+    assert root_cause_agent._get_diffs(diff_files[0]).strip() == DIFF_1.strip()
+    assert root_cause_agent._get_diffs(diff_files[1]).strip() == DIFF_2.strip()
+    # Check that getting multiple diff files at once works
+    assert root_cause_agent._get_diffs(diff_files).strip() == f"{DIFF_1}\n{DIFF_2}".strip()
