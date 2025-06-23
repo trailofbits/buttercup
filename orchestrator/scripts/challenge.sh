@@ -416,55 +416,58 @@ sim2() {
     sleep $delta_set_duration
 }
 
-# NOTE: Currently they have not released the round 3 task orders or runtimes, so this is a temporary placeholder based on the logs we gathered.
-# From: https://github.com/aixcc-finals/example-crs-architecture/tree/879eaa9a6d5b761ecfcf78d3bda9c0c612c0fac7/docs/round_info
-# From: https://github.com/orgs/aixcc-finals/repositories?q=exhibition3
+# From: https://github.com/aixcc-finals/example-crs-architecture/blob/main/docs/round_info/exhibition-round-3.md
 sim3() {
-    delta_set_duration=$((15 * $minutes))
-
-    submit_task "integration_test_delta_01" "duration" $delta_set_duration
-
-    sleep $delta_set_duration
-
     full_set_duration=$((12 * $hours))
     delta_set_duration=$((6 * $hours))
 
-    # C/C++ Challenges
-    submit_task "db_full_01" "duration" $full_set_duration
     submit_task "fp_full_01" "duration" $full_set_duration
+    submit_task "sq_full_01" "duration" $full_set_duration
+    submit_task "db_full_01" "duration" $full_set_duration
     submit_task "lo_full_01" "duration" $full_set_duration
     submit_task "cu_full_01" "duration" $full_set_duration
-    submit_task "sq_full_01" "duration" $full_set_duration
-    submit_task "integration_test_delta_01" "duration" $delta_set_duration
-    submit_task "ex_delta_01" "duration" $delta_set_duration
-    submit_task "lp_delta_01" "duration" $delta_set_duration
+
+    sleep $full_set_duration
+
+    submit_task "cc_full_01" "duration" $full_set_duration
+    submit_task "zk_full_01" "duration" $full_set_duration
+    submit_task "tk_full_01" "duration" $full_set_duration
+
+    sleep $full_set_duration
+
     submit_task "fp_delta_01" "duration" $delta_set_duration
+    submit_task "integration_test_delta_01" "duration" $delta_set_duration
+    submit_task "lp_delta_01" "duration" $delta_set_duration
     submit_task "cu_delta_01" "duration" $delta_set_duration
-    submit_task "lx_delta_01" "duration" $delta_set_duration
-    submit_task "lx_delta_02" "duration" $delta_set_duration
+    submit_task "ex_delta_01" "duration" $delta_set_duration
+
+    sleep $delta_set_duration
+
     submit_task "sq_delta_01" "duration" $delta_set_duration
     submit_task "sq_delta_02" "duration" $delta_set_duration
     submit_task "sq_delta_03" "duration" $delta_set_duration
-    sleep $full_set_duration
+    submit_task "lx_delta_01" "duration" $delta_set_duration
+    submit_task "lx_delta_02" "duration" $delta_set_duration
 
-    # Java Challenges
-    submit_task "zk_full_01" "duration" $full_set_duration
-    submit_task "cc_full_01" "duration" $full_set_duration
-    submit_task "tk_full_01" "duration" $full_set_duration
+    sleep $delta_set_duration
+
     submit_task "tk_delta_01" "duration" $delta_set_duration
     submit_task "tk_delta_02" "duration" $delta_set_duration
     submit_task "tk_delta_03" "duration" $delta_set_duration
     submit_task "tk_delta_04" "duration" $delta_set_duration
     submit_task "tk_delta_05" "duration" $delta_set_duration
+
+    sleep $delta_set_duration
+
     submit_task "zk_delta_01" "duration" $delta_set_duration
+    submit_task "zk_delta_02" "duration" $delta_set_duration
     submit_task "cc_delta_02" "duration" $delta_set_duration
     submit_task "cc_delta_03" "duration" $delta_set_duration
-    submit_task "zk_delta_02" "duration" $delta_set_duration
 
-    sleep $full_set_duration
+    sleep $delta_set_duration
 
-    submit_task "s2n_full_01" "duration" $full_set_duration
     submit_task "ipf_full_01" "duration" $full_set_duration
+    submit_task "s2n_full_01" "duration" $full_set_duration
 
     sleep $full_set_duration
 
