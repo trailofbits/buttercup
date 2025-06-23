@@ -17,3 +17,15 @@ dind:
     limits:
       cpu: 500m
       memory: 1Gi
+
+# Health check configuration
+healthCheck:
+  # Maximum time (in seconds) the health file can be stale before failing
+  maxStaleTime: 3600
+  # Kubernetes probe configuration
+  initialDelaySeconds: 120
+  # Check every 5 minutes
+  periodSeconds: 300
+  timeoutSeconds: 10
+  # Allow 2 failures before restarting
+  failureThreshold: 2
