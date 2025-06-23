@@ -45,7 +45,7 @@ class TaskLoop(ABC):
         has_all_builds = True
         for k, build in builds.items():
             if len(build) <= 0:
-                logger.error(f"Build {k} for {chc.task_id} not found")
+                logger.warning(f"Build {k} for {chc.task_id} not found")
                 has_all_builds = False
 
         if has_all_builds:

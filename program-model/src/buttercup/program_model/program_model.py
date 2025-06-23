@@ -225,6 +225,9 @@ class ProgramModel:
     def process_task_codequery(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         try:
+            logger.info(
+                f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery"
+            )
             challenge = ChallengeTask(
                 read_only_task_dir=args.task_dir,
                 python_path=self.python,
@@ -248,6 +251,9 @@ class ProgramModel:
                         task_metadata=dict(challenge.task_meta.metadata),
                     )
                     cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
+                    logger.info(
+                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery"
+                    )
                     span.set_status(Status(StatusCode.OK))
                 # Push it to the remote storage
                 node_local.dir_to_remote_archive(cqp.challenge.task_dir)
@@ -259,6 +265,9 @@ class ProgramModel:
     def process_task(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         # If at least one of the two methods succeeds, return True
+        logger.info(
+            f"Processing task {args.package_name}/{args.task_id}/{args.task_dir}"
+        )
         rv_code_query: bool = self.process_task_codequery(args)
         rv_kythe: bool = False
         if self.graphdb_enabled:
@@ -297,7 +306,9 @@ class ProgramModel:
                 )
             )
             self.task_queue.ack_item(rq_item.item_id)
-            logger.debug(f"Successfully processed task {task_index.task_id}")
+            logger.info(
+                f"Successfully processed task {task_index.package_name}/{task_index.task_id}/{task_index.task_dir}"
+            )
         else:
             logger.error(f"Failed to process task {task_index.task_id}")
 
