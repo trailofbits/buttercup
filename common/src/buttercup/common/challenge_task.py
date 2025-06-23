@@ -60,7 +60,7 @@ class ChallengeTaskError(Exception):
     pass
 
 
-FAILURE_ERR_RESULT = 55
+FAILURE_ERR_RESULT = 201
 
 
 @dataclass
