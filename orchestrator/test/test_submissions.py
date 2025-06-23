@@ -37,6 +37,7 @@ from buttercup.orchestrator.scheduler.submissions import (
     _get_pending_pov_submissions,
     _get_eligible_povs_for_submission,
     _get_pending_patch_submissions,
+    _current_patch,
 )
 from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 
@@ -2810,6 +2811,500 @@ class TestSubmissions:
         assert result[1][0] == 3  # fourth submission
         assert result[0][1] is submissions.entries[1]
         assert result[1][1] is submissions.entries[3]
+
+    def test_reorder_patches_by_completion_basic_reordering(self, submissions):
+        """Test _reorder_patches_by_completion reorders patches with content before those without."""
+        # Create submission with mixed patches starting from patch_idx
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+
+        # Add patches: some with content, some without
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(
+                    internal_patch_id="patch-1", patch="content-1"
+                ),  # Already processed (before patch_idx)
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding (at patch_idx)
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch="content-3"),  # Completed (after patch_idx)
+                SubmissionEntryPatch(internal_patch_id="patch-4", patch=""),  # Outstanding (after patch_idx)
+                SubmissionEntryPatch(internal_patch_id="patch-5", patch="content-5"),  # Completed (after patch_idx)
+            ]
+        )
+        entry.patch_idx = 1  # Start reordering from index 1
+
+        submissions.entries = [entry]
+
+        # Call the method
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify reordering: processed patches unchanged, then completed, then outstanding
+        assert entry.patches[0].internal_patch_id == "patch-1"  # Unchanged (before patch_idx)
+        assert entry.patches[1].internal_patch_id == "patch-3"  # Completed patch moved first
+        assert entry.patches[2].internal_patch_id == "patch-5"  # Completed patch moved second
+        assert entry.patches[3].internal_patch_id == "patch-2"  # Outstanding patch moved after completed
+        assert entry.patches[4].internal_patch_id == "patch-4"  # Outstanding patch moved last
+
+        # Verify content presence
+        assert entry.patches[1].patch == "content-3"
+        assert entry.patches[2].patch == "content-5"
+        assert entry.patches[3].patch == ""
+        assert entry.patches[4].patch == ""
+
+    def test_reorder_patches_by_completion_preserves_relative_order(self, submissions):
+        """Test _reorder_patches_by_completion preserves relative order within each group."""
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+
+        # Add patches with specific order to test preservation
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding 1
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Completed 1
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding 2
+                SubmissionEntryPatch(internal_patch_id="patch-4", patch="content-4"),  # Completed 2
+                SubmissionEntryPatch(internal_patch_id="patch-5", patch=""),  # Outstanding 3
+            ]
+        )
+        entry.patch_idx = 0
+
+        submissions.entries = [entry]
+
+        # Call the method
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify completed patches come first in original relative order
+        assert entry.patches[0].internal_patch_id == "patch-2"  # First completed
+        assert entry.patches[1].internal_patch_id == "patch-4"  # Second completed
+
+        # Verify outstanding patches come after in original relative order
+        assert entry.patches[2].internal_patch_id == "patch-1"  # First outstanding
+        assert entry.patches[3].internal_patch_id == "patch-3"  # Second outstanding
+        assert entry.patches[4].internal_patch_id == "patch-5"  # Third outstanding
+
+    def test_reorder_patches_by_completion_no_patches(self, submissions):
+        """Test _reorder_patches_by_completion handles empty patches list gracefully."""
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        # entry.patches is already empty by default
+        entry.patch_idx = 0
+
+        submissions.entries = [entry]
+
+        # Call the method - should not raise an exception
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify patches list remains empty
+        assert len(entry.patches) == 0
+
+    def test_reorder_patches_by_completion_patch_idx_out_of_bounds(self, submissions):
+        """Test _reorder_patches_by_completion handles patch_idx >= len(patches) gracefully."""
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),
+            ]
+        )
+        entry.patch_idx = 5  # Beyond patches list
+
+        original_patch_ids = [p.internal_patch_id for p in entry.patches]
+        submissions.entries = [entry]
+
+        # Call the method - should not modify anything
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify patches list unchanged
+        assert [p.internal_patch_id for p in entry.patches] == original_patch_ids
+
+    def test_reorder_patches_by_completion_all_completed(self, submissions):
+        """Test _reorder_patches_by_completion when all patches from patch_idx have content."""
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),  # Completed
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Completed
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch="content-3"),  # Completed
+            ]
+        )
+        entry.patch_idx = 0
+
+        original_patch_ids = [p.internal_patch_id for p in entry.patches]
+        submissions.entries = [entry]
+
+        # Call the method
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify order unchanged (all already have content)
+        assert [p.internal_patch_id for p in entry.patches] == original_patch_ids
+
+    def test_reorder_patches_by_completion_all_outstanding(self, submissions):
+        """Test _reorder_patches_by_completion when all patches from patch_idx are outstanding."""
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding
+            ]
+        )
+        entry.patch_idx = 0
+
+        original_patch_ids = [p.internal_patch_id for p in entry.patches]
+        submissions.entries = [entry]
+
+        # Call the method
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify order unchanged (all outstanding)
+        assert [p.internal_patch_id for p in entry.patches] == original_patch_ids
+
+    def test_reorder_patches_by_completion_patch_idx_at_end(self, submissions):
+        """Test _reorder_patches_by_completion when patch_idx points to last element."""
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),  # Processed
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Processed
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Current (outstanding)
+            ]
+        )
+        entry.patch_idx = 2
+
+        submissions.entries = [entry]
+
+        # Call the method
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify first two unchanged, last one unchanged (only one to reorder)
+        assert entry.patches[0].internal_patch_id == "patch-1"
+        assert entry.patches[1].internal_patch_id == "patch-2"
+        assert entry.patches[2].internal_patch_id == "patch-3"
+
+    def test_record_patch_triggers_reordering(self, submissions):
+        """Test record_patch calls _reorder_patches_by_completion after adding patch content."""
+        # Create submission with outstanding patch request
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding (will receive content)
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch="content-3"),  # Already completed
+            ]
+        )
+        entry.patch_idx = 0
+
+        submissions.entries = [entry]
+
+        # Create patch to record
+        patch = Patch(internal_patch_id="patch-1", patch="new-content-1")
+
+        # Record the patch
+        result = submissions.record_patch(patch)
+
+        # Verify success
+        assert result is True
+
+        # Verify patch content was added
+        assert entry.patches[0].patch == "new-content-1"
+
+        # Verify reordering occurred: completed patches should come first
+        # patch-1 now has content, patch-3 already had content, patch-2 is still outstanding
+        # Expected order: patch-1 (newly completed), patch-3 (already completed), patch-2 (outstanding)
+        assert entry.patches[0].internal_patch_id == "patch-1"  # Newly completed
+        assert entry.patches[1].internal_patch_id == "patch-3"  # Already completed
+        assert entry.patches[2].internal_patch_id == "patch-2"  # Still outstanding
+
+    def test_record_patch_reordering_with_multiple_outstanding(self, submissions):
+        """Test record_patch reordering works correctly with multiple outstanding patches."""
+        # Create submission with multiple outstanding patches
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding (will receive content)
+                SubmissionEntryPatch(internal_patch_id="patch-4", patch=""),  # Outstanding
+            ]
+        )
+        entry.patch_idx = 0
+
+        submissions.entries = [entry]
+
+        # Record patch content for patch-3 (not the first one)
+        patch = Patch(internal_patch_id="patch-3", patch="content-3")
+        result = submissions.record_patch(patch)
+
+        # Verify success
+        assert result is True
+
+        # Verify reordering: patch-3 should move to front, others preserve relative order
+        assert entry.patches[0].internal_patch_id == "patch-3"  # Completed, moved to front
+        assert entry.patches[0].patch == "content-3"
+        assert entry.patches[1].internal_patch_id == "patch-1"  # Outstanding
+        assert entry.patches[2].internal_patch_id == "patch-2"  # Outstanding
+        assert entry.patches[3].internal_patch_id == "patch-4"  # Outstanding
+
+    def test_record_patch_reordering_respects_patch_idx(self, submissions):
+        """Test record_patch reordering only affects patches from patch_idx onwards."""
+        # Create submission with some processed patches
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),  # Processed
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Processed (no content)
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Current (will receive content)
+                SubmissionEntryPatch(internal_patch_id="patch-4", patch=""),  # Outstanding
+            ]
+        )
+        entry.patch_idx = 2  # Start from patch-3
+
+        submissions.entries = [entry]
+
+        # Record patch content for patch-3
+        patch = Patch(internal_patch_id="patch-3", patch="content-3")
+        result = submissions.record_patch(patch)
+
+        # Verify success
+        assert result is True
+
+        # Verify first two patches unchanged (before patch_idx)
+        assert entry.patches[0].internal_patch_id == "patch-1"
+        assert entry.patches[1].internal_patch_id == "patch-2"
+
+        # Verify reordering only affected patches from patch_idx onwards
+        assert entry.patches[2].internal_patch_id == "patch-3"  # Completed, stays at front of reordered section
+        assert entry.patches[2].patch == "content-3"
+        assert entry.patches[3].internal_patch_id == "patch-4"  # Outstanding, moved after completed
+
+    def test_record_patch_duplicate_patch_triggers_reordering(self, submissions):
+        """Test record_patch reordering when adding duplicate patch (new patch tracker)."""
+        # Create submission with existing patch that already has content
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch="existing-content"),  # Already has content
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
+            ]
+        )
+        entry.patch_idx = 0
+
+        submissions.entries = [entry]
+
+        # Try to record another patch with same internal_patch_id (should create new tracker)
+        patch = Patch(internal_patch_id="patch-1", patch="duplicate-content")
+        result = submissions.record_patch(patch)
+
+        # Verify success
+        assert result is True
+
+        # Verify new patch tracker was added
+        assert len(entry.patches) == 3
+
+        # Verify original patch unchanged
+        assert entry.patches[0].internal_patch_id == "patch-1"
+        assert entry.patches[0].patch == "existing-content"
+
+        # Verify reordering occurred: new completed patch should be prioritized
+        # The new patch tracker should be added at the end, then reordering should move completed patches first
+        completed_patches = [p for p in entry.patches if p.patch]
+        outstanding_patches = [p for p in entry.patches if not p.patch]
+
+        # Should have 2 completed patches and 1 outstanding
+        assert len(completed_patches) == 2
+        assert len(outstanding_patches) == 1
+
+        # Outstanding patch should be last
+        assert entry.patches[-1].internal_patch_id == "patch-2"
+        assert entry.patches[-1].patch == ""
+
+    def test_reorder_patches_by_completion_integration_with_current_patch(self, submissions):
+        """Test that _current_patch returns the first patch after reordering."""
+        # Create submission with patches where completed patch is not first
+        entry = SubmissionEntryBuilder().crash(task_id="test-task").build()
+
+        # Add patches where completed patch is not first but should be processed first
+        entry.patches.extend(
+            [
+                SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding
+                SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Completed (should be processed)
+                SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding
+            ]
+        )
+        entry.patch_idx = 0
+
+        submissions.entries = [entry]
+
+        # Before reordering, current patch should be the first one (outstanding)
+        current_patch_before = _current_patch(entry)
+        assert current_patch_before.internal_patch_id == "patch-1"
+        assert current_patch_before.patch == ""  # Outstanding
+
+        # Manually trigger reordering (simulating what record_patch would do)
+        submissions._reorder_patches_by_completion(entry)
+
+        # Verify reordering happened
+        assert entry.patches[0].internal_patch_id == "patch-2"  # Completed patch moved first
+        assert entry.patches[0].patch == "content-2"
+        assert entry.patches[1].internal_patch_id == "patch-1"  # Outstanding patch moved after
+        assert entry.patches[2].internal_patch_id == "patch-3"  # Outstanding patch moved last
+
+        # After reordering, current patch should be the completed one (now first)
+        current_patch_after = _current_patch(entry)
+        assert current_patch_after.internal_patch_id == "patch-2"
+        assert current_patch_after.patch == "content-2"  # Completed patch is now current
+
+    def test_consolidate_patches_reordered_after_merge(self, submissions, mock_competition_api, mock_redis):
+        """Test that patches are reordered after consolidation to prioritize completed patches."""
+
+        task_id = "test-task-reorder-consolidation"
+
+        # Setup submissions with mixed patch states that will demonstrate reordering
+        submissions.entries = [
+            # Target submission - has outstanding patch request at patch_idx=0
+            (
+                SubmissionEntryBuilder()
+                .crash(
+                    task_id=task_id,
+                    stacktrace="similar_crash_pattern_target",
+                    harness_name="target_harness",
+                    competition_pov_id="pov-target",
+                    result=SubmissionResult.PASSED,
+                )
+                .patch(internal_patch_id="target-patch-1", patch_content="")  # Outstanding request
+                .patch(internal_patch_id="target-patch-2", patch_content="target content 2")  # Completed
+                .patch_idx(0)  # Currently processing outstanding patch
+                .build()
+            ),
+            # Source submission 1 - has mix of completed and outstanding patches
+            (
+                SubmissionEntryBuilder()
+                .crash(
+                    task_id=task_id,
+                    stacktrace="similar_crash_pattern_source1",
+                    harness_name="source1_harness",
+                )
+                .patch(internal_patch_id="source1-patch-1", patch_content="")  # Outstanding (will be copied)
+                .patch(
+                    internal_patch_id="source1-patch-2", patch_content="source1 content 2"
+                )  # Completed (will be copied)
+                .patch(internal_patch_id="source1-patch-3", patch_content="")  # Outstanding (will be copied)
+                .patch_idx(1)  # Start copying from index 1
+                .build()
+            ),
+            # Source submission 2 - has completed patches
+            (
+                SubmissionEntryBuilder()
+                .crash(
+                    task_id=task_id,
+                    stacktrace="similar_crash_pattern_source2",
+                    harness_name="source2_harness",
+                )
+                .patch(
+                    internal_patch_id="source2-patch-1", patch_content="source2 content 1"
+                )  # Completed (will be copied)
+                .patch(internal_patch_id="source2-patch-2", patch_content="")  # Outstanding (will be copied)
+                .patch_idx(0)  # Start copying from index 0
+                .build()
+            ),
+        ]
+
+        # Mock Redis rpush to return the correct index for the new submission
+        mock_redis.rpush.return_value = len(submissions.entries) + 1
+
+        # Create a new crash that will be similar to all existing submissions
+        new_crash = TracedCrash()
+        new_crash.crash.target.task_id = task_id
+        new_crash.crash.stacktrace = "similar_crash_pattern_new"
+        new_crash.crash.harness_name = "new_harness"
+
+        # Mock the crash comparison to return similar for all existing crashes
+        mock_get_crash_data, mock_get_inst_key, mock_crash_comparer_init, mock_is_similar = (
+            create_crash_comparison_mocks(["similar_crash_pattern"])
+        )
+
+        # Apply mocks
+        from unittest.mock import patch as mock_patch
+
+        with (
+            mock_patch("buttercup.orchestrator.scheduler.submissions.get_crash_data", side_effect=mock_get_crash_data),
+            mock_patch("buttercup.orchestrator.scheduler.submissions.get_inst_key", side_effect=mock_get_inst_key),
+            mock_patch.object(CrashComparer, "__init__", mock_crash_comparer_init),
+            mock_patch.object(CrashComparer, "is_similar", mock_is_similar),
+        ):
+            # Call submit_vulnerability with the new crash - this will trigger consolidation
+            result = submissions.submit_vulnerability(new_crash)
+
+        # Verify the result
+        assert result is True
+
+        # Verify consolidation occurred
+        target_submission = submissions.entries[0]
+
+        # Verify patches were merged from source submissions
+        # Expected patches in target after consolidation:
+        # - Original target patches: target-patch-1 (outstanding), target-patch-2 (completed)
+        # - From source1 (starting at patch_idx=1): source1-patch-2 (completed), source1-patch-3 (outstanding)
+        # - From source2 (starting at patch_idx=0): source2-patch-1 (completed), source2-patch-2 (outstanding)
+        expected_patch_count = 2 + 2 + 2  # target + source1 + source2
+        assert len(target_submission.patches) == expected_patch_count
+
+        # Verify reordering occurred: completed patches should come before outstanding patches
+        # from patch_idx onwards (patch_idx=0 in this case)
+
+        # Get all patch IDs and their content status
+        patch_info = [(p.internal_patch_id, bool(p.patch)) for p in target_submission.patches]
+
+        # The first patch that was already processed (before patch_idx=0) should remain in place
+        # Since patch_idx=0, all patches are subject to reordering
+
+        # Separate completed and outstanding patches
+        completed_patches = [info for info in patch_info if info[1]]  # has content
+        outstanding_patches = [info for info in patch_info if not info[1]]  # no content
+
+        # Verify we have the expected number of each type
+        assert len(completed_patches) == 3  # target-patch-2, source1-patch-2, source2-patch-1
+        assert len(outstanding_patches) == 3  # target-patch-1, source1-patch-3, source2-patch-2
+
+        # Verify completed patches come first after reordering
+        completed_patch_ids = {info[0] for info in completed_patches}
+        outstanding_patch_ids = {info[0] for info in outstanding_patches}
+
+        # Check the actual order in the target submission
+        first_three_patches = target_submission.patches[:3]
+        last_three_patches = target_submission.patches[3:]
+
+        # All first three patches should have content (be completed)
+        for patch_obj in first_three_patches:
+            assert patch_obj.patch, f"Patch {patch_obj.internal_patch_id} should have content but doesn't"
+            assert patch_obj.internal_patch_id in completed_patch_ids
+
+        # All last three patches should be outstanding (no content)
+        for patch_obj in last_three_patches:
+            assert not patch_obj.patch, f"Patch {patch_obj.internal_patch_id} should be outstanding but has content"
+            assert patch_obj.internal_patch_id in outstanding_patch_ids
+
+        # Verify that relative order is preserved within each group
+        # The completed patches should maintain their relative order from when they were added
+        completed_ids_in_order = [patch_obj.internal_patch_id for patch_obj in first_three_patches]
+        outstanding_ids_in_order = [patch_obj.internal_patch_id for patch_obj in last_three_patches]
+
+        # Expected order for completed patches: target-patch-2, source1-patch-2, source2-patch-1
+        # (based on the order they were added during consolidation)
+        expected_completed_order = ["target-patch-2", "source1-patch-2", "source2-patch-1"]
+        assert completed_ids_in_order == expected_completed_order
+
+        # Expected order for outstanding patches: target-patch-1, source1-patch-3, source2-patch-2
+        expected_outstanding_order = ["target-patch-1", "source1-patch-3", "source2-patch-2"]
+        assert outstanding_ids_in_order == expected_outstanding_order
+
+        # Verify other submissions were stopped
+        assert submissions.entries[1].stop
+        assert submissions.entries[2].stop
+
+        # Verify the target's patch_idx is still 0 (pointing to the first patch)
+        assert target_submission.patch_idx == 0
+
+        # Verify that the current patch is now a completed patch (due to reordering)
+        current_patch = target_submission.patches[target_submission.patch_idx]
+        assert current_patch.patch, "Current patch should now have content after reordering"
+        assert current_patch.internal_patch_id == "target-patch-2"
 
 
 # Tests for state transitions - Updated for current data-driven architecture

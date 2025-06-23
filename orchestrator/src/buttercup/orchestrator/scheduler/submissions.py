@@ -860,6 +860,9 @@ class Submissions:
                 msg=f"Submission consolidated and stopped. Total crashes in target: {len(target_entry.crashes)}, total patches: {len(target_entry.patches)}",
             )
 
+        # Reorder patches after consolidation to ensure optimal processing order
+        self._reorder_patches_by_completion(target_entry)
+
         # Add the updated target entry to pipeline
         self._persist(pipeline, target_index, target_entry)
 
@@ -1425,6 +1428,39 @@ class Submissions:
         # We have a bundle with a SARIF that has been confirmed, no need to do anything (or confirmation failed)
         return True
 
+    def _reorder_patches_by_completion(self, e: SubmissionEntry) -> None:
+        """
+        Reorder patches starting from patch_idx so that patches with content come before those without.
+
+        This ensures that completed patches are processed before outstanding patch requests,
+        regardless of the order in which they were received.
+
+        Args:
+            e: The submission entry to reorder patches for
+        """
+        if not _current_patch(e):
+            return
+
+        # Convert to list for easier manipulation
+        all_patches = list(e.patches)
+
+        # Split patches into those before patch_idx (already processed) and those from patch_idx onwards
+        processed_patches = all_patches[: e.patch_idx]
+        pending_patches = all_patches[e.patch_idx :]
+
+        # Sort pending patches: those with content first, then those without
+        # Maintain relative order within each group to preserve original request order
+        patches_with_content = [p for p in pending_patches if p.patch]
+        patches_without_content = [p for p in pending_patches if not p.patch]
+
+        # Reconstruct the patches list
+        reordered_patches = processed_patches + patches_with_content + patches_without_content
+
+        # Clear the protobuf repeated field and repopulate it
+        del e.patches[:]
+        for patch in reordered_patches:
+            e.patches.append(patch)
+
     def record_patch(self, patch: Patch) -> bool:
         """
         Record a patch for a previously submitted vulnerability.
@@ -1433,7 +1469,8 @@ class Submissions:
         1. Retrieves the submission entry for the specified index
         2. Validates that the task IDs match
         3. Adds the patch to the entry's list of patches
-        4. Persists the updated entry to Redis
+        4. Reorders patches to prioritize those with content
+        5. Persists the updated entry to Redis
 
         Note: This doesn't submit the patch to the competition API immediately.
         The patch will be submitted later when the vulnerability passes validation.
@@ -1462,6 +1499,9 @@ class Submissions:
         else:
             # There is no patch here, this is the first time we are recording a patch for this patch tracker.
             entry_patch.patch = patch.patch
+
+        # Reorder patches to prioritize those with content
+        self._reorder_patches_by_completion(e)
 
         # We have a patch now, persist the entry and double check if it will ever be used
         self._persist(self.redis, i, e)
