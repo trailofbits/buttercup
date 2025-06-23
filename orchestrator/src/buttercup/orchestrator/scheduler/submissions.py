@@ -488,20 +488,31 @@ class CompetitionAPI:
             patch_id=patch_id,
             broadcast_sarif_id=sarif_id,
         )
-        response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_patch(
-            task_id=task_id, bundle_id=bundle_id, payload=submission
-        )
-        logger.debug(f"[{task_id}] Bundle patch submission response: {response}")
-        mapped_status = _map_submission_status_to_result(response.status)
-        if mapped_status not in [
-            SubmissionResult.ACCEPTED,
-            SubmissionResult.PASSED,
-        ]:
-            logger.error(
-                f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}"
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("patch_bundle") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
+                crs_action_name="patch_bundle",
+                task_metadata=self._get_task_metadata(task_id),
             )
-            return (False, mapped_status)
-        return (True, mapped_status)
+            response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_patch(
+                task_id=task_id, bundle_id=bundle_id, payload=submission
+            )
+            logger.debug(f"[{task_id}] Bundle patch submission response: {response}")
+            mapped_status = _map_submission_status_to_result(response.status)
+            if mapped_status not in [
+                SubmissionResult.ACCEPTED,
+                SubmissionResult.PASSED,
+            ]:
+                logger.error(
+                    f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}"
+                )
+                span.set_status(Status(StatusCode.ERROR))
+                return (False, mapped_status)
+
+            span.set_status(Status(StatusCode.OK))
+            return (True, mapped_status)
 
     def delete_bundle(self, task_id: str, bundle_id: str) -> bool:
         """
@@ -517,17 +528,28 @@ class CompetitionAPI:
         assert task_id
         assert bundle_id
 
-        try:
-            logger.debug(f"[{task_id}] Deleting bundle: {bundle_id}")
-
-            response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_delete(
-                task_id=task_id, bundle_id=bundle_id
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span("delete_bundle") as span:
+            set_crs_attributes(
+                span,
+                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
+                crs_action_name="delete_bundle",
+                task_metadata=self._get_task_metadata(task_id),
             )
-            logger.debug(f"[{task_id}] Bundle deletion response: {response}")
-            return True
-        except Exception as e:
-            logger.error(f"[{task_id}] Bundle deletion failed for bundle_id: {bundle_id}, error: {e}")
-            return False
+
+            try:
+                logger.debug(f"[{task_id}] Deleting bundle: {bundle_id}")
+                response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_delete(
+                    task_id=task_id, bundle_id=bundle_id
+                )
+                logger.debug(f"[{task_id}] Bundle deletion response: {response}")
+                span.set_status(Status(StatusCode.OK))
+                return True
+
+            except Exception as e:
+                logger.error(f"[{task_id}] Bundle deletion failed for bundle_id: {bundle_id}, error: {e}")
+                span.set_status(Status(StatusCode.ERROR))
+                return False
 
     def submit_matching_sarif(self, task_id: str, sarif_id: str) -> Tuple[bool, SubmissionResult]:
         """
