@@ -2812,6 +2812,256 @@ class TestSubmissions:
         assert result[0][1] is submissions.entries[1]
         assert result[1][1] is submissions.entries[3]
 
+    def test_task_outstanding_patch_requests_with_outstanding_requests(self, submissions):
+        """Test _task_outstanding_patch_requests counts submissions with requested but not received patches."""
+        # Create submissions with patches in different states
+        submissions.entries = [
+            # Submission 1: Has patch requested but not received (outstanding)
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-1", patch_content="")  # No patch content = requested but not received
+            .build(),
+            # Submission 2: Has patch received (not outstanding)
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-2", patch_content="diff content")  # Has patch content = received
+            .build(),
+            # Submission 3: Another outstanding patch request
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-3", patch_content="")  # No patch content = outstanding
+            .build(),
+            # Submission 4: Different task (should be ignored)
+            SubmissionEntryBuilder()
+            .crash(task_id="other-task")
+            .patch(internal_patch_id="patch-4", patch_content="")  # Outstanding but different task
+            .build(),
+        ]
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should count 2 outstanding requests for test-task
+        assert result == 2
+
+    def test_task_outstanding_patch_requests_no_outstanding_requests(self, submissions):
+        """Test _task_outstanding_patch_requests returns 0 when all patches are received."""
+        # Create submissions with all patches received
+        submissions.entries = [
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-1", patch_content="diff content 1")
+            .build(),
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-2", patch_content="diff content 2")
+            .build(),
+        ]
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should return 0 since all patches are received
+        assert result == 0
+
+    def test_task_outstanding_patch_requests_no_patches(self, submissions):
+        """Test _task_outstanding_patch_requests returns 0 when submissions have no patches."""
+        # Create submissions without any patches
+        submissions.entries = [
+            SubmissionEntryBuilder().crash(task_id="test-task").build(),
+            SubmissionEntryBuilder().crash(task_id="test-task").build(),
+        ]
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should return 0 since no patches exist
+        assert result == 0
+
+    def test_task_outstanding_patch_requests_empty_entries(self, submissions):
+        """Test _task_outstanding_patch_requests returns 0 when no submissions exist."""
+        submissions.entries = []
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should return 0 since no submissions exist
+        assert result == 0
+
+    def test_task_outstanding_patch_requests_no_matching_task(self, submissions):
+        """Test _task_outstanding_patch_requests returns 0 when no submissions match the task."""
+        # Create submissions for different tasks
+        submissions.entries = [
+            SubmissionEntryBuilder()
+            .crash(task_id="other-task-1")
+            .patch(internal_patch_id="patch-1", patch_content="")  # Outstanding but different task
+            .build(),
+            SubmissionEntryBuilder()
+            .crash(task_id="other-task-2")
+            .patch(internal_patch_id="patch-2", patch_content="")  # Outstanding but different task
+            .build(),
+        ]
+
+        # Call the method for non-existent task
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should return 0 since no submissions match the task
+        assert result == 0
+
+    def test_task_outstanding_patch_requests_skips_stopped_submissions(self, submissions):
+        """Test _task_outstanding_patch_requests skips stopped submissions."""
+        submissions.entries = [
+            # Active submission with outstanding patch
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-1", patch_content="")
+            .build(),
+            # Stopped submission with outstanding patch (should be ignored)
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-2", patch_content="")
+            .stopped()
+            .build(),
+            # Another active submission with outstanding patch
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-3", patch_content="")
+            .build(),
+        ]
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should count only active submissions (2), skipping the stopped one
+        assert result == 2
+
+    def test_task_outstanding_patch_requests_skips_cancelled_tasks(self, submissions, mock_task_registry):
+        """Test _task_outstanding_patch_requests skips submissions for cancelled tasks."""
+        submissions.entries = [
+            SubmissionEntryBuilder()
+            .crash(task_id="cancelled-task")
+            .patch(internal_patch_id="patch-1", patch_content="")
+            .build(),
+            SubmissionEntryBuilder()
+            .crash(task_id="cancelled-task")
+            .patch(internal_patch_id="patch-2", patch_content="")
+            .build(),
+        ]
+
+        # Mock task registry to indicate task should stop processing
+        mock_task_registry.should_stop_processing.return_value = True
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("cancelled-task")
+
+        # Should return 0 since task is cancelled
+        assert result == 0
+
+        # Verify should_stop_processing was called
+        mock_task_registry.should_stop_processing.assert_called_with("cancelled-task")
+
+    def test_task_outstanding_patch_requests_multiple_patches_per_submission(self, submissions):
+        """Test _task_outstanding_patch_requests only counts current patch per submission."""
+        submissions.entries = [
+            # Submission with multiple patches - only current patch (index 0) should be counted if outstanding
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-1", patch_content="")  # Current patch (index 0) - outstanding
+            .patch(internal_patch_id="patch-2", patch_content="diff content")  # Next patch - has content
+            .patch_idx(0)  # Current patch is at index 0
+            .build(),
+            # Submission with current patch that has content (not outstanding)
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-3", patch_content="diff content")  # Current patch - has content
+            .patch(internal_patch_id="patch-4", patch_content="")  # Next patch - no content but not current
+            .patch_idx(0)  # Current patch is at index 0
+            .build(),
+            # Submission where current patch index is beyond available patches
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-5", patch_content="")  # Has patch but not current
+            .patch_idx(1)  # Current patch index is beyond available patches (no current patch)
+            .build(),
+        ]
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should count only 1 outstanding request (first submission's current patch)
+        assert result == 1
+
+    def test_task_outstanding_patch_requests_patch_idx_out_of_bounds(self, submissions):
+        """Test _task_outstanding_patch_requests handles patch_idx out of bounds gracefully."""
+        submissions.entries = [
+            # Submission where patch_idx is beyond the patches list
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-1", patch_content="")
+            .patch_idx(5)  # Index 5 but only 1 patch exists (index 0)
+            .build(),
+            # Normal submission with outstanding patch
+            SubmissionEntryBuilder()
+            .crash(task_id="test-task")
+            .patch(internal_patch_id="patch-2", patch_content="")
+            .patch_idx(0)  # Valid index
+            .build(),
+        ]
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("test-task")
+
+        # Should count only 1 (the valid submission), ignoring the out-of-bounds one
+        assert result == 1
+
+    def test_task_outstanding_patch_requests_mixed_conditions(self, submissions, mock_task_registry):
+        """Test _task_outstanding_patch_requests with various mixed conditions."""
+        submissions.entries = [
+            # Outstanding patch, active submission, matching task
+            SubmissionEntryBuilder()
+            .crash(task_id="target-task")
+            .patch(internal_patch_id="patch-1", patch_content="")
+            .build(),
+            # Patch received, active submission, matching task
+            SubmissionEntryBuilder()
+            .crash(task_id="target-task")
+            .patch(internal_patch_id="patch-2", patch_content="diff content")
+            .build(),
+            # Outstanding patch, stopped submission, matching task (should be ignored)
+            SubmissionEntryBuilder()
+            .crash(task_id="target-task")
+            .patch(internal_patch_id="patch-3", patch_content="")
+            .stopped()
+            .build(),
+            # Outstanding patch, active submission, different task (should be ignored)
+            SubmissionEntryBuilder()
+            .crash(task_id="other-task")
+            .patch(internal_patch_id="patch-4", patch_content="")
+            .build(),
+            # Outstanding patch, active submission, cancelled task (should be ignored)
+            SubmissionEntryBuilder()
+            .crash(task_id="cancelled-task")
+            .patch(internal_patch_id="patch-5", patch_content="")
+            .build(),
+            # Another outstanding patch, active submission, matching task
+            SubmissionEntryBuilder()
+            .crash(task_id="target-task")
+            .patch(internal_patch_id="patch-6", patch_content="")
+            .build(),
+        ]
+
+        # Mock task registry
+        def should_stop_side_effect(task_id):
+            return task_id == "cancelled-task"
+
+        mock_task_registry.should_stop_processing.side_effect = should_stop_side_effect
+
+        # Call the method
+        result = submissions._task_outstanding_patch_requests("target-task")
+
+        # Should count only 2 outstanding requests (first and last submissions)
+        assert result == 2
+
     def test_reorder_patches_by_completion_basic_reordering(self, submissions):
         """Test _reorder_patches_by_completion reorders patches with content before those without."""
         # Create submission with mixed patches starting from patch_idx
@@ -3435,6 +3685,254 @@ class TestStateTransitions:
                 queue_mock.push.assert_called()
                 assert len(entry.patches) == 1
                 assert entry.patches[0].internal_patch_id  # Should have generated UUID
+
+    def test_patch_request_respects_concurrent_limit_below_threshold(self, submissions, mock_competition_api):
+        """Test that patch request proceeds when outstanding requests are below the concurrent limit"""
+        # Set concurrent limit to 3 for this test
+        submissions.concurrent_patch_requests_per_task = 3
+
+        # Create entries: 2 with outstanding patch requests, 1 ready for new request
+        submissions.entries = [
+            # Entry 1: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-1",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-1", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 2: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-2",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-2", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 3: Ready for new patch request (no existing patches)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-3",
+                result=SubmissionResult.PASSED,
+            )
+            .build(),
+        ]
+
+        # Mock QueueFactory for patch requests
+        queue_mock = MagicMock()
+        with patch("buttercup.orchestrator.scheduler.submissions.QueueFactory") as queue_factory_mock:
+            queue_factory_mock.return_value.create.return_value = queue_mock
+
+            # Mock _should_wait_for_patch_mitigation_merge to return False for all entries
+            with patch.object(submissions, "_should_wait_for_patch_mitigation_merge", return_value=False):
+                # Process cycle - should request patch for entry 3 (2 outstanding < 3 limit)
+                submissions.process_cycle()
+
+                # Verify patch request was made for the third entry
+                queue_mock.push.assert_called()
+                assert len(submissions.entries[2].patches) == 1  # Third entry should have new patch
+                assert submissions.entries[2].patches[0].internal_patch_id  # Should have UUID
+
+    def test_patch_request_respects_concurrent_limit_at_threshold(self, submissions, mock_competition_api):
+        """Test that patch request is blocked when outstanding requests are at the concurrent limit"""
+        # Set concurrent limit to 2 for this test
+        submissions.concurrent_patch_requests_per_task = 2
+
+        # Create entries: 2 with outstanding patch requests, 1 ready for new request
+        submissions.entries = [
+            # Entry 1: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-1",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-1", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 2: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-2",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-2", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 3: Ready for new patch request (no existing patches)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-3",
+                result=SubmissionResult.PASSED,
+            )
+            .build(),
+        ]
+
+        # Mock QueueFactory for patch requests
+        queue_mock = MagicMock()
+        with patch("buttercup.orchestrator.scheduler.submissions.QueueFactory") as queue_factory_mock:
+            queue_factory_mock.return_value.create.return_value = queue_mock
+
+            # Mock _should_wait_for_patch_mitigation_merge to return False for all entries
+            with patch.object(submissions, "_should_wait_for_patch_mitigation_merge", return_value=False):
+                # Process cycle - should NOT request patch for entry 3 (2 outstanding >= 2 limit)
+                submissions.process_cycle()
+
+                # Verify NO patch request was made for the third entry
+                queue_mock.push.assert_not_called()
+                assert len(submissions.entries[2].patches) == 0  # Third entry should have no patches
+
+    def test_patch_request_respects_concurrent_limit_above_threshold(self, submissions, mock_competition_api):
+        """Test that patch request is blocked when outstanding requests exceed the concurrent limit"""
+        # Set concurrent limit to 1 for this test
+        submissions.concurrent_patch_requests_per_task = 1
+
+        # Create entries: 3 with outstanding patch requests, 1 ready for new request
+        submissions.entries = [
+            # Entry 1: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-1",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-1", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 2: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-2",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-2", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 3: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-3",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-3", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 4: Ready for new patch request (no existing patches)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-4",
+                result=SubmissionResult.PASSED,
+            )
+            .build(),
+        ]
+
+        # Mock QueueFactory for patch requests
+        queue_mock = MagicMock()
+        with patch("buttercup.orchestrator.scheduler.submissions.QueueFactory") as queue_factory_mock:
+            queue_factory_mock.return_value.create.return_value = queue_mock
+
+            # Mock _should_wait_for_patch_mitigation_merge to return False for all entries
+            with patch.object(submissions, "_should_wait_for_patch_mitigation_merge", return_value=False):
+                # Process cycle - should NOT request patch for entry 4 (3 outstanding > 1 limit)
+                submissions.process_cycle()
+
+                # Verify NO patch request was made for the fourth entry
+                queue_mock.push.assert_not_called()
+                assert len(submissions.entries[3].patches) == 0  # Fourth entry should have no patches
+
+    def test_patch_request_concurrent_limit_only_counts_outstanding_requests(self, submissions, mock_competition_api):
+        """Test that concurrent limit only counts outstanding requests, not completed patches"""
+        # Set concurrent limit to 2 for this test
+        submissions.concurrent_patch_requests_per_task = 2
+
+        # Create entries: 1 with completed patch, 1 with outstanding request, 1 ready for new request
+        submissions.entries = [
+            # Entry 1: Completed patch (should NOT count toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-1",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-1", patch_content="diff content")  # Completed (has content)
+            .build(),
+            # Entry 2: Outstanding patch request (counts toward limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-2",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-2", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 3: Ready for new patch request (no existing patches)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="test-task",
+                competition_pov_id="pov-3",
+                result=SubmissionResult.PASSED,
+            )
+            .build(),
+        ]
+
+        # Mock QueueFactory for patch requests
+        queue_mock = MagicMock()
+        with patch("buttercup.orchestrator.scheduler.submissions.QueueFactory") as queue_factory_mock:
+            queue_factory_mock.return_value.create.return_value = queue_mock
+
+            # Mock _should_wait_for_patch_mitigation_merge to return False for all entries
+            with patch.object(submissions, "_should_wait_for_patch_mitigation_merge", return_value=False):
+                # Process cycle - should request patch for entry 3 (1 outstanding < 2 limit)
+                submissions.process_cycle()
+
+                # Verify patch request was made for the third entry
+                queue_mock.push.assert_called()
+                assert len(submissions.entries[2].patches) == 1  # Third entry should have new patch
+                assert submissions.entries[2].patches[0].internal_patch_id  # Should have UUID
+
+    def test_patch_request_concurrent_limit_per_task_isolation(self, submissions, mock_competition_api):
+        """Test that concurrent limit is applied per task, not globally"""
+        # Set concurrent limit to 1 for this test
+        submissions.concurrent_patch_requests_per_task = 1
+
+        # Create entries: 1 outstanding for task-1, 1 ready for task-2
+        submissions.entries = [
+            # Entry 1: Outstanding patch request for task-1 (counts toward task-1 limit)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="task-1",
+                competition_pov_id="pov-1",
+                result=SubmissionResult.PASSED,
+            )
+            .patch(internal_patch_id="patch-1", patch_content="")  # Outstanding (no content)
+            .build(),
+            # Entry 2: Ready for new patch request for task-2 (different task)
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="task-2",
+                competition_pov_id="pov-2",
+                result=SubmissionResult.PASSED,
+            )
+            .build(),
+        ]
+
+        # Mock QueueFactory for patch requests
+        queue_mock = MagicMock()
+        with patch("buttercup.orchestrator.scheduler.submissions.QueueFactory") as queue_factory_mock:
+            queue_factory_mock.return_value.create.return_value = queue_mock
+
+            # Mock _should_wait_for_patch_mitigation_merge to return False for all entries
+            with patch.object(submissions, "_should_wait_for_patch_mitigation_merge", return_value=False):
+                # Process cycle - should request patch for entry 2 (different task, no limit conflict)
+                submissions.process_cycle()
+
+                # Verify patch request was made for the second entry
+                queue_mock.push.assert_called()
+                assert len(submissions.entries[1].patches) == 1  # Second entry should have new patch
+                assert submissions.entries[1].patches[0].internal_patch_id  # Should have UUID
 
     def test_patch_submission_when_ready(self, submissions, sample_submission_entry, mock_competition_api):
         """Test patch submission when all conditions are met"""

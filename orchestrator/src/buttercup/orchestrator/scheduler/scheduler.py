@@ -42,6 +42,7 @@ class Scheduler:
     competition_api_cycle_time: float = 10.0  # Min seconds between competition api interactions
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
+    concurrent_patch_requests_per_task: int = 6
 
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
@@ -122,6 +123,7 @@ class Scheduler:
                 tasks_storage_dir=self.tasks_storage_dir,
                 patch_submission_retry_limit=self.patch_submission_retry_limit,
                 patch_requests_per_vulnerability=self.patch_requests_per_vulnerability,
+                concurrent_patch_requests_per_task=self.concurrent_patch_requests_per_task,
             )
             self.patches_queue = queue_factory.create(QueueNames.PATCHES, GroupNames.ORCHESTRATOR, block_time=None)
             self.traced_vulnerabilities_queue = queue_factory.create(

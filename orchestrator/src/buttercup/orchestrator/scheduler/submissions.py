@@ -679,6 +679,7 @@ class Submissions:
     tasks_storage_dir: Path
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
+    concurrent_patch_requests_per_task: int = 6
     entries: List[SubmissionEntry] = field(init=False)
     sarif_store: SARIFStore = field(init=False)
     matched_sarifs: Set[str] = field(default_factory=set)
@@ -962,6 +963,17 @@ class Submissions:
                 updated = True
         return updated
 
+    def _task_outstanding_patch_requests(self, task_id: str) -> int:
+        """
+        Check the number of patch requests that have not been completed for the given task.
+        """
+        n = 0
+        for _, e in self._enumerate_task_submissions(task_id):
+            maybe_patch = _current_patch(e)
+            if maybe_patch and not maybe_patch.patch:
+                n += 1
+        return n
+
     def _request_patch_if_needed(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """
         Request the first patch if needed.
@@ -974,6 +986,10 @@ class Submissions:
         # Do not request a patch until we know if the PoV is already mitigated by an already submitted patch from another submission
         # If this returns False, this will later be merged.
         if self._should_wait_for_patch_mitigation_merge(i, e):
+            return False
+
+        # Do not request a patch if there are already too many outstanding patch requests for the task
+        if self._task_outstanding_patch_requests(_task_id(e)) >= self.concurrent_patch_requests_per_task:
             return False
 
         log_entry(e, i=i, msg="Submitting patch request")

@@ -20,6 +20,9 @@ class ServeCommand(BaseSettings):
     patch_requests_per_vulnerability: Annotated[
         int, Field(default=1, description="Number of patch requests per vulnerability")
     ]
+    concurrent_patch_requests_per_task: Annotated[
+        int, Field(default=6, description="Number of concurrent patch requests per task")
+    ]
 
     class Config:
         nested_model_default_partial_update = True
