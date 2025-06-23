@@ -139,7 +139,7 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 400
+  replicaCount: 500
   resources:
     limits:
       cpu: 16000m
@@ -160,7 +160,7 @@ merger-bot:
 
 coverage-bot:
   enabled: true
-  replicaCount: 6
+  replicaCount: 12
   resources:
     limits:
       cpu: 4000m
