@@ -16,6 +16,20 @@ class ServerCommand(BaseModel):
             description="Maximum number of crashes in the crash dir for a single token",
         ),
     ]
+    max_corpus_seed_size: Annotated[
+        int,
+        Field(
+            default=64 * 1024,  # 64 KiB
+            description="Maximum size in bytes for seeds to be copied to corpus",
+        ),
+    ]
+    max_pov_size: Annotated[
+        int,
+        Field(
+            default=2 * 1024 * 1024,  # 2 MiB
+            description="Maximum size in bytes for crash files to be submitted",
+        ),
+    ]
 
 
 class ProcessCommand(BaseModel):

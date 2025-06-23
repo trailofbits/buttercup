@@ -39,6 +39,9 @@ global:
   coverageBot:
     sampleSize: 200
 
+  # Max PoV size limit
+  maxPovSize: 2097152  # 2 MiB
+
   # Langfuse global configuration for all subcharts
   langfuse:
     enabled: false
@@ -170,6 +173,7 @@ tracer-bot:
 seed-gen:
   enabled: true
   logMaxLineLength: 10240
+  maxCorpusSeedSize: 65536  # 64 KiB
 
 patcher:
   enabled: true

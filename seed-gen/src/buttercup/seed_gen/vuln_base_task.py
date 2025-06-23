@@ -92,6 +92,7 @@ class CrashSubmit:
     crash_queue: ReliableQueue[Crash]
     crash_set: CrashSet
     crash_dir: CrashDir
+    max_pov_size: int
 
 
 @dataclass
@@ -214,7 +215,18 @@ class VulnBaseTask(Task):
         if not result.did_crash():
             logger.error("Not submitting invalid PoV that did not crash: %s", pov)
             return
+
+        file_size = pov.stat().st_size
         task_id = self.challenge_task.task_meta.task_id
+        if file_size > self.crash_submit.max_pov_size:
+            logger.warning(
+                "Not submitting PoV (%s bytes) that exceeds max PoV size (%s bytes) for %s",
+                file_size,
+                self.crash_submit.max_pov_size,
+                task_id,
+            )
+            return
+
         stacktrace = result.stacktrace()
         ctoken = stack_parsing.get_crash_token(stacktrace)
         dst = self.crash_submit.crash_dir.copy_file(pov, ctoken, build.sanitizer)

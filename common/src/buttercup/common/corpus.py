@@ -24,9 +24,10 @@ def hash_file(fl):
 
 
 class InputDir:
-    def __init__(self, wdir: str, name: str):
+    def __init__(self, wdir: str, name: str, copy_corpus_max_size: int | None = None):
         self.path = os.path.join(wdir, name)
         self.remote_path = node_local.remote_path(self.path)
+        self.copy_corpus_max_size = copy_corpus_max_size
         os.makedirs(self.path, exist_ok=True)
 
     def basename(self) -> str:
@@ -46,7 +47,16 @@ class InputDir:
     def copy_corpus(self, src_dir: str) -> list[str]:
         files = []
         for file in os.listdir(src_dir):
-            files.append(self.copy_file(os.path.join(src_dir, file)))
+            file_path = os.path.join(src_dir, file)
+            size = Path(file_path).stat().st_size
+            if self.copy_corpus_max_size is not None and size > self.copy_corpus_max_size:
+                logger.warning(
+                    "Not copying corpus input (size %s bytes) which exceeds max size %s bytes",
+                    size,
+                    self.copy_corpus_max_size,
+                )
+                continue
+            files.append(self.copy_file(file_path))
         return files
 
     def local_corpus_size(self) -> int:
@@ -203,11 +213,11 @@ class CrashDir:
 
 
 class Corpus(InputDir):
-    def __init__(self, wdir: str, task_id: str, harness_name: str):
+    def __init__(self, wdir: str, task_id: str, harness_name: str, copy_corpus_max_size: int | None = None):
         self.task_id = task_id
         self.harness_name = harness_name
         self.corpus_dir = os.path.join(task_id, f"{CORPUS_DIR_NAME}_{harness_name}")
-        super().__init__(wdir, self.corpus_dir)
+        super().__init__(wdir, self.corpus_dir, copy_corpus_max_size=copy_corpus_max_size)
 
     def remove_any_merged(self, redis: Redis):
         merged_corpus_set = MergedCorpusSet(redis, self.task_id, self.harness_name)

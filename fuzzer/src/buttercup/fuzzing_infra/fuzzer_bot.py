@@ -20,6 +20,7 @@ from buttercup.common.telemetry import init_telemetry, CRSActionCategory, set_cr
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 from buttercup.common.node_local import scratch_dir
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +34,14 @@ class FuzzerBot(TaskLoop):
         python: str,
         crs_scratch_dir: str,
         crash_dir_count_limit: int | None,
+        max_pov_size: int,
     ):
         self.runner = Runner(Conf(timeout_seconds))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.crash_dir_count_limit = crash_dir_count_limit
+        self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> List[BuildTypeHint]:
@@ -87,6 +90,17 @@ class FuzzerBot(TaskLoop):
                     )
                     for crash_ in result.crashes:
                         crash: engine.Crash = crash_
+
+                        file_size = Path(crash.input_path).stat().st_size
+                        if file_size > self.max_pov_size:
+                            logger.warning(
+                                "Discarding crash (%s bytes) that exceeds max PoV size (%s bytes) for %s",
+                                file_size,
+                                self.max_pov_size,
+                                task.task_id,
+                            )
+                            continue
+
                         cdata = stack_parsing.get_crash_token(crash.stacktrace)
                         dst = crash_dir.copy_file(crash.input_path, cdata, build.sanitizer)
                         if crash_set.add(
@@ -133,6 +147,7 @@ def main():
         args.python,
         args.crs_scratch_dir,
         crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),
+        max_pov_size=args.max_pov_size,
     )
     fuzzer.run()
 

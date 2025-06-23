@@ -317,6 +317,10 @@ Service-specific environment variables that utilize the standardized variables
   value: "5"
 - name: BUTTERCUP_SEED_GEN_SERVER__CRASH_DIR_COUNT_LIMIT
   value: {{ include "buttercup.core.crashDirCountLimit" . | quote }}
+- name: BUTTERCUP_SEED_GEN_SERVER__MAX_CORPUS_SEED_SIZE
+  value: {{ int .Values.maxCorpusSeedSize | quote }}
+- name: BUTTERCUP_SEED_GEN_SERVER__MAX_POV_SIZE
+  value: {{ int .Values.global.maxPovSize | quote }}
 {{- end }}
 
 {{- define "buttercup.buildBotEnv" }}
@@ -331,6 +335,8 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ include "buttercup.core.logLevel" . }}
 - name: BUTTERCUP_FUZZER_LOG_MAX_LINE_LENGTH
   value: "{{ include "buttercup.core.logMaxLineLength" . }}"
+- name: BUTTERCUP_FUZZER_MAX_POV_SIZE
+  value: {{ int .Values.global.maxPovSize | quote }}
 {{- end }}
 
 {{- define "buttercup.povReproducerEnv" }}

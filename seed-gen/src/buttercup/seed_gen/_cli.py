@@ -39,6 +39,8 @@ def command_server(settings: Settings) -> None:
         redis,
         settings.server.sleep_time,
         settings.wdir,
+        max_corpus_seed_size=settings.server.max_corpus_seed_size,
+        max_pov_size=settings.server.max_pov_size,
         corpus_root=settings.server.corpus_root,
         crash_dir_count_limit=settings.server.crash_dir_count_limit,
     )

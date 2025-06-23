@@ -43,6 +43,7 @@ class FuzzerBotSettings(WorkerSettings):
     timeout: Annotated[int, Field(default=1000)]
     crash_dir_count_limit: Annotated[int, Field(default=0)]
     max_local_files: Annotated[int, Field(default=500)]
+    max_pov_size: Annotated[int, Field(default=2 * 1024 * 1024)]  # 2 MiB
 
 
 class CoverageBotSettings(WorkerSettings, BuilderSettings):

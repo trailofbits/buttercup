@@ -46,6 +46,8 @@ class SeedGenBot(TaskLoop):
         redis: Redis,
         timer_seconds: int,
         wdir: str,
+        max_corpus_seed_size: int,
+        max_pov_size: int,
         crash_dir_count_limit: int | None = None,
         corpus_root: str | None = None,
     ):
@@ -56,6 +58,8 @@ class SeedGenBot(TaskLoop):
         self.crash_queue = QueueFactory(redis).create(QueueNames.CRASH)
         self.task_counter = TaskCounter(redis)
         self.crash_dir_count_limit = crash_dir_count_limit
+        self.max_corpus_seed_size = max_corpus_seed_size
+        self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
@@ -137,7 +141,12 @@ class SeedGenBot(TaskLoop):
                 logger.exception(f"Failed to initialize codequery: {e}.")
                 return
 
-            corp = Corpus(self.wdir, task.task_id, task.harness_name)
+            corp = Corpus(
+                self.wdir,
+                task.task_id,
+                task.harness_name,
+                copy_corpus_max_size=self.max_corpus_seed_size,
+            )
             override_task = os.getenv("BUTTERCUP_SEED_GEN_TEST_TASK")
             if override_task:
                 logger.info("Only testing task: %s", override_task)
@@ -175,6 +184,7 @@ class SeedGenBot(TaskLoop):
                         task.harness_name,
                         count_limit=self.crash_dir_count_limit,
                     ),
+                    max_pov_size=self.max_pov_size,
                 )
                 with reproduce_multiple.open() as mult:
                     if is_delta:
@@ -226,9 +236,8 @@ class SeedGenBot(TaskLoop):
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 
-            num_files = sum(1 for _ in out_dir.iterdir())
-            logger.info("Copying %d files to corpus %s", num_files, corp.corpus_dir)
-            corp.copy_corpus(out_dir)
+            copied_files = corp.copy_corpus(out_dir)
+            logger.info("Copied %d files to corpus %s", len(copied_files), corp.corpus_dir)
             logger.info(
                 f"Seed-gen finished for {task.harness_name} | {task.package_name} | {task.task_id}"
             )
