@@ -45,17 +45,17 @@ kubectl cp -n crs "$SCHEDULER_POD:/tmp/tasks_storage.tar" ./tasks_storage.tar
 
 echo "Saving crs_scratch"
 SCHEDULER_POD=$(kubectl get pod -n crs -l app=scheduler -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -n crs -it "$SCHEDULER_POD" -- tar -cf /tmp/crs_scratch.tar /crs_scratch
+kubectl exec -n crs -it "$SCHEDULER_POD" -- tar -cf /tmp/crs_scratch.tar --exclude=*.tgz /crs_scratch
 kubectl cp -n crs "$SCHEDULER_POD:/tmp/crs_scratch.tar" ./crs_scratch.tar
 
 echo "Saving node_local_storage"
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
     echo "Saving node_local_storage for node: $node"
     # Find a pod running on this node
-    pod=$(kubectl get pods -n crs -o jsonpath="{.items[?(@.spec.nodeName=='$node')].metadata.name}" | cut -d' ' -f1)
+    pod=$(kubectl get pods -n crs -o jsonpath="{.items[?(@.spec.nodeName=='$node')].metadata.name}" -l app=scratch-cleaner | cut -d' ' -f1)
     if [ -n "$pod" ]; then
         echo "Using pod $pod on node $node"
-        kubectl exec -n crs -it "$pod" -- tar -zcf /tmp/node_local_storage.tar.gz /node_data
+        kubectl exec -n crs -it "$pod" -- tar -zcf /tmp/node_local_storage.tar.gz --exclude-tag-all=task_meta.json /node_data
         kubectl cp -n crs "$pod:/tmp/node_local_storage.tar.gz" "./node_local_storage_${node}.tar.gz"
     else
         echo "No pod found running on node $node, skipping"
