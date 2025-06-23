@@ -176,6 +176,8 @@ POLICIES (hard constraints)
    - Fix the vulnerabilities in the RCA only—nothing else
    - No stylistic, performance, refactor, or documentation changes
    - Do not propose test cases or broad hardening.
+   - Only code snippets with <can_patch>true</can_patch> can be modified
+   - Fix the actual project code, not the testing/fuzzing code.
 2. Content:
    - Do NOT output code diffs or concrete code; output strategy only.
 3. Structure:
