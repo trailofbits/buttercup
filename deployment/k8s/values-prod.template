@@ -222,7 +222,7 @@ competition-api:
 mock-competition-api:
   enabled: ${MOCK_COMPETITION_API_ENABLED}
 
-litellm-helm:
+litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
   azure:
     apiBase: "${AZURE_API_BASE}"
@@ -232,6 +232,7 @@ litellm-helm:
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
 
+litellm-helm:
   resources:
     limits:
       cpu: 8000m
