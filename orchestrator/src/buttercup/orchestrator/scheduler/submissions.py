@@ -701,7 +701,7 @@ class Submissions:
     tasks_storage_dir: Path
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
-    concurrent_patch_requests_per_task: int = 6
+    concurrent_patch_requests_per_task: int = 12
     entries: List[SubmissionEntry] = field(init=False)
     sarif_store: SARIFStore = field(init=False)
     matched_sarifs: Set[str] = field(default_factory=set)
@@ -710,7 +710,7 @@ class Submissions:
 
     def __post_init__(self) -> None:
         logger.info(
-            f"Initializing Submissions, patch_submission_retry_limit={self.patch_submission_retry_limit}, patch_requests_per_vulnerability={self.patch_requests_per_vulnerability}"
+            f"Initializing Submissions, patch_submission_retry_limit={self.patch_submission_retry_limit}, patch_requests_per_vulnerability={self.patch_requests_per_vulnerability}, concurrent_patch_requests_per_task={self.concurrent_patch_requests_per_task}"
         )
         self.entries = self._get_stored_submissions()
         self.sarif_store = SARIFStore(self.redis)
@@ -1012,6 +1012,12 @@ class Submissions:
 
         # Do not request a patch if there are already too many outstanding patch requests for the task
         if self._task_outstanding_patch_requests(_task_id(e)) >= self.concurrent_patch_requests_per_task:
+            log_entry(
+                e,
+                i=i,
+                msg=f"Skipping patch request because there are already {self._task_outstanding_patch_requests(_task_id(e))} outstanding patch requests for the task",
+                fn=logger.debug,
+            )
             return False
 
         log_entry(e, i=i, msg="Submitting patch request")
@@ -1150,6 +1156,8 @@ class Submissions:
             return False
 
         # Check if all POVs have been mitigated.
+        # NOTE: There could still be PoVs that are failed in this set of PoVs, however we know that at
+        # least one of the is PASSED (first check in this function) so we ignore FAILED ones.
         status = self._check_all_povs_are_mitigated(i, e, e.patch_idx)
         if status is None:
             return False  # Pending evaluation
@@ -1552,6 +1560,13 @@ class Submissions:
     ) -> List[POVReproduceResponse | None]:
         result = []
         for crash_with_id in crashes:
+            if crash_with_id.result in [
+                SubmissionResult.FAILED,
+                SubmissionResult.DEADLINE_EXCEEDED,
+                SubmissionResult.INCONCLUSIVE,
+            ]:
+                continue
+
             request = POVReproduceRequest()
             request.task_id = task_id
             request.internal_patch_id = patch.internal_patch_id
@@ -1580,7 +1595,12 @@ class Submissions:
         n_pending = sum(1 for status in statuses if status is None)
         n_mitigated = sum(1 for status in statuses if status is not None and not status.did_crash)
         n_failed = sum(1 for status in statuses if status is not None and status.did_crash)
-        log_entry(e, i=i, msg=f"Remediation status: Pending: {n_pending}, Mitigated: {n_mitigated}, Failed: {n_failed}")
+        log_entry(
+            e,
+            i=i,
+            msg=f"Remediation status: Pending: {n_pending}, Mitigated: {n_mitigated}, Failed: {n_failed}",
+            fn=logger.debug,
+        )
 
         # If any patch is failing, we need to create a new patch.
         any_failing = any(status is not None and status.did_crash for status in statuses)

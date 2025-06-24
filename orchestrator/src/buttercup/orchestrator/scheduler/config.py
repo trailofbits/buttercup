@@ -21,7 +21,7 @@ class ServeCommand(BaseSettings):
         int, Field(default=1, description="Number of patch requests per vulnerability")
     ]
     concurrent_patch_requests_per_task: Annotated[
-        int, Field(default=6, description="Number of concurrent patch requests per task")
+        int, Field(default=12, description="Number of concurrent patch requests per task")
     ]
 
     class Config:

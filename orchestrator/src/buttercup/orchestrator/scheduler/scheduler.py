@@ -42,7 +42,7 @@ class Scheduler:
     competition_api_cycle_time: float = 10.0  # Min seconds between competition api interactions
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
-    concurrent_patch_requests_per_task: int = 6
+    concurrent_patch_requests_per_task: int = 12
 
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)

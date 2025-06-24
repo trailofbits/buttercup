@@ -5464,3 +5464,520 @@ class TestShouldWaitForPatchMitigationMerge:
             # Test submission 0 - should wait because second patch mitigates at least one POV
             result = submissions._should_wait_for_patch_mitigation_merge(0, submissions.entries[0])
             assert result is True
+
+
+class TestFailedPOVFiltering:
+    """Test cases for the failed POV filtering behavior in merge operations."""
+
+    def test_should_wait_for_patch_mitigation_merge_filters_failed_povs(self, submissions):
+        """Test that _should_wait_for_patch_mitigation_merge ignores failed POVs."""
+        # Create submissions with mixed POV statuses
+        submissions.entries = [
+            # Submission with no patch (we're checking if it should wait)
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.DEADLINE_EXCEEDED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash4.bin", result=SubmissionResult.INCONCLUSIVE)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash5.bin", result=SubmissionResult.ACCEPTED)
+            .build(),
+            # Submission with a submitted patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/other_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content", competition_patch_id="comp-patch-1")
+            .build(),
+        ]
+
+        # Mock POV reproduction status
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            # The function receives all crashes but filters internally
+            # It should return results only for non-failed POVs (PASSED and ACCEPTED)
+            return [None, None]  # Pending for the 2 active POVs (filtered internally)
+
+        with patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status):
+            result = submissions._should_wait_for_patch_mitigation_merge(0, submissions.entries[0])
+
+        # Should return True because there are pending evaluations for non-failed POVs
+        assert result is True
+
+    def test_should_wait_for_patch_mitigation_merge_no_active_povs(self, submissions):
+        """Test behavior when all POVs are failed."""
+        # Create submissions with only failed POVs
+        submissions.entries = [
+            # Submission with only failed POVs
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.DEADLINE_EXCEEDED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.INCONCLUSIVE)
+            .build(),
+            # Submission with a submitted patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/other_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content", competition_patch_id="comp-patch-1")
+            .build(),
+        ]
+
+        # Mock POV reproduction status
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            # The function receives all crashes but filters internally
+            # Since all POVs are failed, it returns an empty list
+            return []
+
+        with patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status):
+            result = submissions._should_wait_for_patch_mitigation_merge(0, submissions.entries[0])
+
+        # Should return False because no active POVs to wait for
+        assert result is False
+
+    def test_should_wait_for_patch_mitigation_merge_active_povs_mitigated(self, submissions):
+        """Test when active POVs are mitigated but failed POVs are ignored."""
+        # Create submissions with mixed POV statuses
+        submissions.entries = [
+            # Submission with mixed POV statuses
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.ACCEPTED)
+            .build(),
+            # Submission with a submitted patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/other_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content", competition_patch_id="comp-patch-1")
+            .build(),
+        ]
+
+        # Mock POV reproduction status - active POVs are mitigated
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            # The function receives all crashes but filters internally
+            # Returns results only for active POVs (PASSED and ACCEPTED)
+            return [Mock(did_crash=False), Mock(did_crash=False)]  # Both active POVs mitigated
+
+        with patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status):
+            result = submissions._should_wait_for_patch_mitigation_merge(0, submissions.entries[0])
+
+        # Should return True because active POVs are mitigated, triggering merge wait
+        assert result is True
+
+    def test_merge_entries_by_patch_mitigation_filters_failed_povs(self, submissions):
+        """Test that _merge_entries_by_patch_mitigation ignores failed POVs when evaluating mitigation."""
+        # Create submissions where patch would mitigate active POVs but not failed ones
+        submissions.entries = [
+            # Submission with a patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/patch_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .build_output(patch_internal_id="patch-1", task_dir="/build/path", task_id="task-1")
+            .patch_idx(0)
+            .build(),
+            # Submission with mixed POV statuses
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.DEADLINE_EXCEEDED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash4.bin", result=SubmissionResult.ACCEPTED)
+            .build(),
+        ]
+
+        # Ensure task registry doesn't filter out submissions
+        submissions.task_registry.should_stop_processing.return_value = False
+
+        # Mock POV reproduction status
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            # The function receives all crashes but filters internally
+            # Returns results only for active POVs
+            if patch.internal_patch_id == "patch-1":
+                return [
+                    Mock(did_crash=False),  # crash1 (PASSED) - mitigated
+                    Mock(did_crash=True),  # crash4 (ACCEPTED) - not mitigated
+                ]
+            return []
+
+        mock_consolidate = Mock()
+
+        with (
+            patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status),
+            patch.object(submissions, "_consolidate_similar_submissions", mock_consolidate),
+        ):
+            submissions._merge_entries_by_patch_mitigation()
+
+        # Should trigger consolidation because the patch mitigates at least one active POV (crash1)
+        mock_consolidate.assert_called_once()
+
+        # Verify correct submissions are merged
+        call_args = mock_consolidate.call_args[1]
+        similar_entries = call_args["similar_entries"]
+        assert len(similar_entries) == 2
+        indices = [idx for idx, _ in similar_entries]
+        assert 0 in indices  # First submission (with patch)
+        assert 1 in indices  # Second submission (with mitigated active POV)
+
+    def test_merge_entries_by_patch_mitigation_no_active_povs_mitigated(self, submissions):
+        """Test merge behavior when only failed POVs would be mitigated."""
+        # Create submissions where patch only mitigates failed POVs
+        submissions.entries = [
+            # Submission with a patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/patch_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .build_output(patch_internal_id="patch-1", task_dir="/build/path", task_id="task-1")
+            .patch_idx(0)
+            .build(),
+            # Submission with only failed POVs
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.DEADLINE_EXCEEDED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.INCONCLUSIVE)
+            .build(),
+        ]
+
+        # Ensure task registry doesn't filter out submissions
+        submissions.task_registry.should_stop_processing.return_value = False
+
+        # Mock POV reproduction status - patch mitigates failed POVs
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            if patch.internal_patch_id == "patch-1":
+                # All POVs are failed, so should get empty list
+                assert len(crashes) == 0  # No active POVs
+                return []
+            return []
+
+        mock_consolidate = Mock()
+
+        with (
+            patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status),
+            patch.object(submissions, "_consolidate_similar_submissions", mock_consolidate),
+        ):
+            submissions._merge_entries_by_patch_mitigation()
+
+        # Should NOT trigger consolidation because no active POVs are mitigated
+        mock_consolidate.assert_not_called()
+
+    def test_merge_entries_by_patch_mitigation_mixed_active_and_failed_povs(self, submissions):
+        """Test merge behavior with complex mix of active and failed POVs."""
+        # Create submissions with complex POV status mix
+        submissions.entries = [
+            # Submission with a patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/patch_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .build_output(patch_internal_id="patch-1", task_dir="/build/path", task_id="task-1")
+            .patch_idx(0)
+            .build(),
+            # Submission 1: Mix of statuses
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED
+            )  # Active - will be mitigated
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)  # Ignored
+            .crash(
+                task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.ACCEPTED
+            )  # Active - will not be mitigated
+            .build(),
+            # Submission 2: Only failed POVs
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash4.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash5.bin", result=SubmissionResult.INCONCLUSIVE)
+            .build(),
+            # Submission 3: Mix with different active POV behavior
+            SubmissionEntryBuilder()
+            .crash(
+                task_id="task-1", crash_input_path="/path/to/crash6.bin", result=SubmissionResult.PASSED
+            )  # Active - will not be mitigated
+            .crash(
+                task_id="task-1", crash_input_path="/path/to/crash7.bin", result=SubmissionResult.DEADLINE_EXCEEDED
+            )  # Ignored
+            .crash(
+                task_id="task-1", crash_input_path="/path/to/crash8.bin", result=SubmissionResult.ACCEPTED
+            )  # Active - will be mitigated
+            .build(),
+        ]
+
+        # Ensure task registry doesn't filter out submissions
+        submissions.task_registry.should_stop_processing.return_value = False
+
+        # Mock POV reproduction status with specific behavior per submission
+        call_count = 0
+
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            nonlocal call_count
+            if patch.internal_patch_id == "patch-1":
+                call_count += 1
+                # The function is called once per submission in order
+                # The function receives all crashes but filters internally
+                if call_count == 1:  # Submission 1: Returns results only for active POVs
+                    return [
+                        Mock(did_crash=False),  # crash1 (PASSED) - mitigated
+                        Mock(did_crash=True),  # crash3 (ACCEPTED) - not mitigated
+                    ]
+                elif call_count == 2:  # Submission 2: No active POVs (all failed)
+                    return []
+                elif call_count == 3:  # Submission 3: Returns results only for active POVs
+                    return [
+                        Mock(did_crash=True),  # crash6 (PASSED) - not mitigated
+                        Mock(did_crash=False),  # crash8 (ACCEPTED) - mitigated
+                    ]
+            return []
+
+        mock_consolidate = Mock()
+
+        with (
+            patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status),
+            patch.object(submissions, "_consolidate_similar_submissions", mock_consolidate),
+        ):
+            submissions._merge_entries_by_patch_mitigation()
+
+        # Should trigger consolidation because:
+        # - Submission 1 has crash1 (PASSED) mitigated (active POV)
+        # - Submission 2 has no active POVs, so no merge
+        # - Submission 3 has crash8 (ACCEPTED) mitigated (active POV)
+        mock_consolidate.assert_called_once()
+
+        call_args = mock_consolidate.call_args[1]
+        similar_entries = call_args["similar_entries"]
+
+        # Should merge submissions 0, 1, and 3 (submission 2 has no active mitigated POVs)
+        assert len(similar_entries) == 3
+        indices = [idx for idx, _ in similar_entries]
+        assert 0 in indices  # Patch submission
+        assert 1 in indices  # Submission with crash1 mitigated
+        assert 3 in indices  # Submission with crash8 mitigated
+
+    def test_check_all_povs_are_mitigated_still_checks_all_povs(self, submissions):
+        """Test that _check_all_povs_are_mitigated still checks ALL POVs, including failed ones."""
+        # Create submission with mixed POV statuses
+        entry = (
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.ACCEPTED)
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .patch_idx(0)
+            .build()
+        )
+
+        # Mock POV reproduction status request - this calls _pov_reproduce_patch_status which filters
+        def mock_pov_reproduce_status_request(entry, patch_idx):
+            # This function calls _pov_reproduce_patch_status internally, which filters out failed POVs
+            # So it should return results only for active POVs (PASSED and ACCEPTED)
+            return [
+                Mock(did_crash=False),  # crash1 (PASSED) mitigated
+                Mock(did_crash=True),  # crash3 (ACCEPTED) not mitigated
+            ]
+
+        with patch.object(submissions, "_pov_reproduce_status_request", side_effect=mock_pov_reproduce_status_request):
+            result = submissions._check_all_povs_are_mitigated(0, entry, 0)
+
+        # Should return False because there's a failing POV (crash3)
+        assert result is False
+
+    def test_pov_reproduce_patch_status_filters_failed_povs_directly(self, submissions):
+        """Test that _pov_reproduce_patch_status directly filters out failed POVs."""
+        # Create a patch and crashes with mixed statuses
+        patch = SubmissionEntryPatch(internal_patch_id="patch-1")
+        crashes = [
+            # Active POVs that should be processed
+            SubmissionEntryBuilder().crash(result=SubmissionResult.PASSED).build().crashes[0],
+            SubmissionEntryBuilder().crash(result=SubmissionResult.ACCEPTED).build().crashes[0],
+            # Failed POVs that should be filtered out
+            SubmissionEntryBuilder().crash(result=SubmissionResult.FAILED).build().crashes[0],
+            SubmissionEntryBuilder().crash(result=SubmissionResult.DEADLINE_EXCEEDED).build().crashes[0],
+            SubmissionEntryBuilder().crash(result=SubmissionResult.INCONCLUSIVE).build().crashes[0],
+        ]
+
+        # Mock the POV reproduce status to track which POVs are actually processed
+        mock_requests = []
+
+        def mock_request_status(request):
+            mock_requests.append(request)
+            return Mock(did_crash=False)  # Mitigated
+
+        submissions.pov_reproduce_status.request_status = mock_request_status
+
+        # Call the function
+        result = submissions._pov_reproduce_patch_status(patch, crashes, "task-1")
+
+        # Should only process 2 active POVs (PASSED and ACCEPTED)
+        assert len(result) == 2
+        assert len(mock_requests) == 2
+        assert all(status.did_crash is False for status in result)
+
+    def test_pov_reproduce_patch_status_all_failed_povs(self, submissions):
+        """Test _pov_reproduce_patch_status when all POVs are failed."""
+        patch = SubmissionEntryPatch(internal_patch_id="patch-1")
+        crashes = [
+            SubmissionEntryBuilder().crash(result=SubmissionResult.FAILED).build().crashes[0],
+            SubmissionEntryBuilder().crash(result=SubmissionResult.DEADLINE_EXCEEDED).build().crashes[0],
+            SubmissionEntryBuilder().crash(result=SubmissionResult.INCONCLUSIVE).build().crashes[0],
+        ]
+
+        mock_requests = []
+
+        def mock_request_status(request):
+            mock_requests.append(request)
+            return Mock(did_crash=False)
+
+        submissions.pov_reproduce_status.request_status = mock_request_status
+
+        result = submissions._pov_reproduce_patch_status(patch, crashes, "task-1")
+
+        # Should return empty list and process no requests
+        assert len(result) == 0
+        assert len(mock_requests) == 0
+
+    def test_pov_reproduce_patch_status_all_active_povs(self, submissions):
+        """Test _pov_reproduce_patch_status when all POVs are active."""
+        patch = SubmissionEntryPatch(internal_patch_id="patch-1")
+        crashes = [
+            SubmissionEntryBuilder().crash(result=SubmissionResult.PASSED).build().crashes[0],
+            SubmissionEntryBuilder().crash(result=SubmissionResult.ACCEPTED).build().crashes[0],
+        ]
+
+        mock_requests = []
+
+        def mock_request_status(request):
+            mock_requests.append(request)
+            return Mock(did_crash=True)  # Not mitigated
+
+        submissions.pov_reproduce_status.request_status = mock_request_status
+
+        result = submissions._pov_reproduce_patch_status(patch, crashes, "task-1")
+
+        # Should process all POVs
+        assert len(result) == 2
+        assert len(mock_requests) == 2
+        assert all(status.did_crash is True for status in result)
+
+    def test_merge_entries_with_only_failed_povs_no_merge(self, submissions):
+        """Test that submissions with only failed POVs don't trigger merges."""
+        submissions.entries = [
+            # Submission with a patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/patch_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .build_output(patch_internal_id="patch-1", task_dir="/build/path", task_id="task-1")
+            .patch_idx(0)
+            .build(),
+            # Submission with only failed POVs
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.FAILED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.INCONCLUSIVE)
+            .build(),
+        ]
+
+        submissions.task_registry.should_stop_processing.return_value = False
+
+        # Mock to return empty list for failed POVs
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            return []  # No active POVs to evaluate
+
+        mock_consolidate = Mock()
+
+        with (
+            patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status),
+            patch.object(submissions, "_consolidate_similar_submissions", mock_consolidate),
+        ):
+            submissions._merge_entries_by_patch_mitigation()
+
+        # Should not consolidate anything
+        mock_consolidate.assert_not_called()
+
+    def test_wait_for_mitigation_edge_case_mixed_results(self, submissions):
+        """Test edge case where patch has mixed results (some pending, some mitigated)."""
+        submissions.entries = [
+            # Submission being evaluated
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)  # Ignored
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.ACCEPTED)
+            .build(),
+            # Submission with patch
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/other_crash.bin")
+            .patch(internal_patch_id="patch-1", patch_content="patch content", competition_patch_id="comp-patch-1")
+            .build(),
+        ]
+
+        def mock_pov_reproduce_patch_status(patch, crashes, task_id):
+            # Return mixed results: one pending, one mitigated
+            return [None, Mock(did_crash=False)]  # First pending, second mitigated
+
+        with patch.object(submissions, "_pov_reproduce_patch_status", side_effect=mock_pov_reproduce_patch_status):
+            result = submissions._should_wait_for_patch_mitigation_merge(0, submissions.entries[0])
+
+        # Should wait because there's a pending evaluation
+        assert result is True
+
+    def test_check_all_povs_mitigated_with_filtered_pending(self, submissions):
+        """Test _check_all_povs_are_mitigated when filtering leaves only pending POVs."""
+        entry = (
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)  # Filtered
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .patch_idx(0)
+            .build()
+        )
+
+        def mock_pov_reproduce_status_request(entry, patch_idx):
+            # Only active POV (PASSED) returns pending
+            return [None]  # Only one active POV, and it's pending
+
+        with patch.object(submissions, "_pov_reproduce_status_request", side_effect=mock_pov_reproduce_status_request):
+            result = submissions._check_all_povs_are_mitigated(0, entry, 0)
+
+        # Should return None because the active POV is pending
+        assert result is None
+
+    def test_check_all_povs_mitigated_with_filtered_all_mitigated(self, submissions):
+        """Test _check_all_povs_are_mitigated when filtering leaves only mitigated POVs."""
+        entry = (
+            SubmissionEntryBuilder()
+            .crash(task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED)
+            .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)  # Filtered
+            .crash(task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.ACCEPTED)
+            .patch(internal_patch_id="patch-1", patch_content="patch content")
+            .patch_idx(0)
+            .build()
+        )
+
+        def mock_pov_reproduce_status_request(entry, patch_idx):
+            # Both active POVs (PASSED and ACCEPTED) are mitigated
+            return [Mock(did_crash=False), Mock(did_crash=False)]
+
+        with patch.object(submissions, "_pov_reproduce_status_request", side_effect=mock_pov_reproduce_status_request):
+            result = submissions._check_all_povs_are_mitigated(0, entry, 0)
+
+        # Should return True because all active POVs are mitigated
+        assert result is True
+
+    def test_concurrent_patch_limit_increased_to_12(self, submissions):
+        """Test that the concurrent patch limit has been increased to 12."""
+        assert submissions.concurrent_patch_requests_per_task == 12
+
+    def test_concurrent_patch_limit_logging(self, submissions):
+        """Test that patch request skipping is logged when hitting the concurrent limit."""
+        # Create submissions to hit the concurrent limit
+        submissions.entries = []
+        for i in range(13):  # More than the limit of 12
+            entry = (
+                SubmissionEntryBuilder()
+                .crash(
+                    task_id="task-1",
+                    crash_input_path=f"/path/to/crash{i}.bin",
+                    competition_pov_id=f"pov-{i}",
+                    result=SubmissionResult.PASSED,
+                )
+                .patch(internal_patch_id=f"patch-{i}")  # Outstanding patch request (no content)
+                .build()
+            )
+            submissions.entries.append(entry)
+
+        # Mock the necessary methods
+        submissions.task_registry.should_stop_processing.return_value = False
+
+        # The 13th submission should skip patch request due to concurrent limit
+        with patch("buttercup.orchestrator.scheduler.submissions.logger"):
+            result = submissions._request_patch_if_needed(12, submissions.entries[12], Mock())
+
+        # Should return False (no patch requested) and log the skip
+        assert result is False
