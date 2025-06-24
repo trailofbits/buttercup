@@ -4,15 +4,15 @@ global:
   ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   logMaxLineLength: 10240
   orchestratorImage:
-    tag: "v0.3.0"
+    tag: "v0.4.0"
   fuzzerImage:
-    tag: "v0.3.0"
+    tag: "v0.4.0"
   seedGenImage:
-    tag: "v0.3.0"
+    tag: "v0.4.0"
   patcherImage:
-    tag: "v0.3.0"
+    tag: "v0.4.0"
   programModelImage:
-    tag: "v0.3.0"
+    tag: "v0.4.0"
 
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
