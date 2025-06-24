@@ -855,6 +855,104 @@ def test_run_fuzzer_libjpeg(libjpeg_oss_fuzz_task_rw: ChallengeTask, tmp_path: P
     assert result.output is not None
 
 
+def test_reproduce_result_stacktrace():
+    """Test the stacktrace method of ReproduceResult with various output sizes."""
+    # Test case 1: Short string (under 1MB limit)
+    short_output = b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow"
+    result1 = ReproduceResult(
+        command_result=CommandResult(success=False, returncode=1, output=short_output, error=None)
+    )
+    stacktrace1 = result1.stacktrace()
+    assert stacktrace1 is not None
+    assert stacktrace1 == short_output.decode("utf-8", errors="ignore")
+    assert len(stacktrace1) == len(short_output.decode("utf-8", errors="ignore"))
+
+    # Test case 2: Large string (over 1MB limit) - should be truncated
+    # Create a large output that exceeds the 1MB limit
+    MAX_OUTPUT_LEN = 1 * 1024 * 1024  # 1 MB
+    large_content = (
+        b"INFO: Seed: 12345\n" + b"A" * (MAX_OUTPUT_LEN + 1000) + b"\n==ERROR: AddressSanitizer: heap-buffer-overflow"
+    )
+
+    result2 = ReproduceResult(
+        command_result=CommandResult(success=False, returncode=1, output=large_content, error=None)
+    )
+    stacktrace2 = result2.stacktrace()
+    assert stacktrace2 is not None
+
+    # Verify the output is truncated to approximately MAX_OUTPUT_LEN
+    assert len(stacktrace2.encode("utf-8")) <= MAX_OUTPUT_LEN + 100  # Allow some flexibility for truncation marker
+
+    # Verify it contains the truncation marker
+    assert "...truncated" in stacktrace2
+
+    # Verify it contains both the beginning and end of the original content
+    assert "INFO: Seed: 12345" in stacktrace2
+    assert "==ERROR: AddressSanitizer: heap-buffer-overflow" in stacktrace2
+
+    # Verify the structure: start + truncation marker + end
+    parts = stacktrace2.split("...truncated")
+    assert len(parts) == 2
+    assert parts[0].startswith("INFO: Seed: 12345")
+    assert parts[1].endswith("==ERROR: AddressSanitizer: heap-buffer-overflow")
+
+    # Test case 3: Empty output
+    result3 = ReproduceResult(command_result=CommandResult(success=True, returncode=0, output=None, error=None))
+    stacktrace3 = result3.stacktrace()
+    assert stacktrace3 is None
+
+    # Test case 4: Exactly at the limit (1MB)
+    prefix = b"INFO: Seed: 12345\n"
+    suffix = b"\n==ERROR: AddressSanitizer: heap-buffer-overflow"
+    exact_size_content = prefix + b"B" * (MAX_OUTPUT_LEN - len(prefix) - len(suffix)) + suffix
+
+    result4 = ReproduceResult(
+        command_result=CommandResult(success=False, returncode=1, output=exact_size_content, error=None)
+    )
+    stacktrace4 = result4.stacktrace()
+    assert stacktrace4 is not None
+
+    # Should not be truncated since it's exactly at the limit
+    assert len(stacktrace4.encode("utf-8")) == MAX_OUTPUT_LEN
+    assert "...truncated" not in stacktrace4
+    assert stacktrace4 == exact_size_content.decode("utf-8", errors="ignore")
+
+    # Test case 5: Just over the limit (1MB + 1 byte)
+    over_limit_content = (
+        b"INFO: Seed: 12345\n" + b"C" * (MAX_OUTPUT_LEN - 19) + b"\n==ERROR: AddressSanitizer: heap-buffer-overflow"
+    )
+
+    result5 = ReproduceResult(
+        command_result=CommandResult(success=False, returncode=1, output=over_limit_content, error=None)
+    )
+    stacktrace5 = result5.stacktrace()
+    assert stacktrace5 is not None
+
+    # Should be truncated since it's over the limit
+    assert len(stacktrace5.encode("utf-8")) <= MAX_OUTPUT_LEN + 100
+    assert "...truncated" in stacktrace5
+
+    # Test case 6: Very large string (2MB) to test extreme truncation
+    very_large_content = (
+        b"INFO: Seed: 12345\n" + b"D" * (2 * MAX_OUTPUT_LEN) + b"\n==ERROR: AddressSanitizer: heap-buffer-overflow"
+    )
+
+    result6 = ReproduceResult(
+        command_result=CommandResult(success=False, returncode=1, output=very_large_content, error=None)
+    )
+    stacktrace6 = result6.stacktrace()
+    assert stacktrace6 is not None
+
+    # Should be significantly truncated
+    assert len(stacktrace6.encode("utf-8")) <= MAX_OUTPUT_LEN + 100
+    assert "...truncated" in stacktrace6
+
+    # Verify the truncation marker shows the correct number of truncated bytes
+    truncation_info = stacktrace6.split("...truncated")[1].split(" bytes...")[0]
+    truncated_bytes = int(truncation_info)
+    assert truncated_bytes >= MAX_OUTPUT_LEN  # Should have truncated at least 1MB
+
+
 def test_reproduce_result_methods():
     """Test the did_run and did_crash methods of ReproduceResult."""
     # Test case 1: Successful run, no crash
@@ -905,6 +1003,138 @@ def test_reproduce_result_methods():
     )
     assert result5.did_run() is True
     assert result5.did_crash() is False
+
+    # Test case 6: Timeout with crash token (should be detected as crash)
+    result6 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow\nTimeout occurred",
+            error=None,
+        )
+    )
+    assert result6.did_run() is True
+    assert result6.did_crash() is True  # Should detect crash due to crash token in stacktrace
+
+    # Test case 7: Timeout without crash token (should not be detected as crash)
+    result7 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=b"INFO: Seed: 12345\nRunning normally\nTimeout occurred\nNo crash detected",
+            error=None,
+        )
+    )
+    assert result7.did_run() is True
+    assert result7.did_crash() is False  # Should not detect crash due to no crash token
+
+    # Test case 8: Timeout with crash token in error output
+    output = b"""/out/fuzzer-postauth_nomaths -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -max_len=50000 -timeout_exitcode=0 -dict=fuzzer-postauth_nomaths.dict < /dev/null
+INFO: found LLVMFuzzerCustomMutator (0x5595fa311560). Disabling -len_control by default.
+Dictionary: 58 entries
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3932698478
+INFO: Loaded 1 modules   (7459 inline 8-bit counters): 7459 [0x5595fa3cec00, 0x5595fa3d0923), 
+INFO: Loaded 1 PC tables (7459 PCs): 7459 [0x5595fa3d0928,0x5595fa3edb58), 
+/out/fuzzer-postauth_nomaths: Running 1 inputs 100 time(s) each.
+Running: /testcase
+Dropbear fuzzer: Disabling stderr output
+fuzzer-postauth_nomaths: src/../fuzz/fuzz-wrapfd.c:216: int wrapfd_select(int, fd_set *, fd_set *, fd_set *, struct timeval *): Assertion `wrap_fds[i].mode != UNUSED' failed.
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==18==ERROR: AddressSanitizer: ABRT on unknown address 0x000000000012 (pc 0x7f99ebd7600b bp 0x7f99ebeeb588 sp 0x7ffe363d6470 T0)
+SCARINESS: 10 (signal)
+    #0 0x7f99ebd7600b in raise (/lib/x86_64-linux-gnu/libc.so.6+0x4300b) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+    #1 0x7f99ebd55858 in abort (/lib/x86_64-linux-gnu/libc.so.6+0x22858) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+    #2 0x7f99ebd55728  (/lib/x86_64-linux-gnu/libc.so.6+0x22728) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+    #3 0x7f99ebd66fd5 in __assert_fail (/lib/x86_64-linux-gnu/libc.so.6+0x33fd5) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+    #4 0x5595fa2befa5 in wrapfd_select /src/dropbear/src/../fuzz/fuzz-wrapfd.c:216:5
+    #5 0x5595fa2c004d in session_loop /src/dropbear/src/common-session.c:210:9
+    #6 0x5595fa3064a0 in svr_session /src/dropbear/src/svr-session.c:208:2
+    #7 0x5595fa2bcff1 in fuzz_run_server /src/dropbear/src/../fuzz/fuzz-common.c:287:9
+    #8 0x5595fa156620 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:614:13
+    #9 0x5595fa141895 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:327:6
+    #10 0x5595fa14732f in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:862:9
+    #11 0x5595fa1725d2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+    #12 0x7f99ebd57082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+    #13 0x5595fa139a7d in _start (/out/fuzzer-postauth_nomaths+0x7ea7d)
+
+DEDUP_TOKEN: raise--abort--
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: ABRT (/lib/x86_64-linux-gnu/libc.so.6+0x4300b) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d) in raise
+==18==ABORTING
+MS: 0 ; base unit: 0000000000000000000000000000000000000000
+subprocess command returned a non-zero exit status: 1"""
+    result8 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\nTimeout occurred",
+            error=b"",
+        )
+    )
+    assert result8.did_run() is True
+    assert result8.did_crash() is True  # Should detect crash due to crash token in error output
+
+    # Test case 9: Timeout with empty output (should not be detected as crash)
+    result9 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=None,
+            error=None,
+        )
+    )
+    assert result9.did_run() is False
+    assert result9.did_crash() is False  # Should not detect crash due to no output and no crash token
+
+    # Test case 10: Timeout with only seed info (should not be detected as crash)
+    result10 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=b"INFO: Seed: 12345\nTimeout occurred",
+            error=None,
+        )
+    )
+    assert result10.did_run() is True
+    assert result10.did_crash() is False  # Should not detect crash due to no crash token
+
+    # Test case 11: FAILURE_ERR_RESULT (201) - should not be detected as crash
+    result11 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=201,  # FAILURE_ERR_RESULT
+            output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
+            error=None,
+        )
+    )
+    assert result11.did_run() is True
+    assert result11.did_crash() is False  # Should not detect crash due to FAILURE_ERR_RESULT
+
+    # Test case 12: Different crash patterns in timeout scenario
+    result12 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\nTimeout occurred",
+            error=None,
+        )
+    )
+    assert result12.did_run() is True
+    assert result12.did_crash() is True  # Should detect crash due to UBSan error in stacktrace
+
+    # Test case 13: Timeout with multiple crash patterns
+    result13 = ReproduceResult(
+        command_result=CommandResult(
+            success=False,
+            returncode=124,  # TIMEOUT_ERR_RESULT
+            output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\n" + output + b"\nTimeout occurred",
+            error=None,
+        )
+    )
+    assert result13.did_run() is True
+    assert result13.did_crash() is True  # Should detect crash due to multiple crash patterns in stacktrace
 
 
 @pytest.mark.integration

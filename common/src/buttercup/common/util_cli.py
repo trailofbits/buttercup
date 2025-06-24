@@ -76,6 +76,7 @@ class ReadBuildsSettings(BaseModel):
 
 class ReadSubmissionsSettings(BaseModel):
     verbose: bool = Field(False, description="Show full stacktraces instead of truncated versions")
+    filter_stop: bool = Field(False, description="Filter out submissions that are stopped")
 
 
 class AddHarnessWeightSettings(BaseModel):
@@ -193,6 +194,11 @@ def main():
                 # Apply stacktrace truncation unless verbose mode is enabled
                 if not command.verbose:
                     submission = truncate_stacktraces(submission)
+
+                if command.filter_stop:
+                    if submission.stop:
+                        logger.info(f"Skipping stopped submission {i}")
+                        continue
 
                 print(f"--- Submission {i} ---")
                 print(submission)

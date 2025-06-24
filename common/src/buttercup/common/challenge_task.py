@@ -15,6 +15,7 @@ import subprocess
 import re
 from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import copyanything, get_diffs
+from buttercup.common.stack_parsing import get_crash_token
 from typing import Iterator
 import buttercup.common.node_local as node_local
 from packaging.version import Version
@@ -61,6 +62,7 @@ class ChallengeTaskError(Exception):
 
 
 FAILURE_ERR_RESULT = 201
+TIMEOUT_ERR_RESULT = 124
 
 
 @dataclass
@@ -78,9 +80,20 @@ class ReproduceResult:
     def stacktrace(self) -> str | None:
         """Build clusterfuzz-compatible stacktrace"""
         # from clusterfuzz libfuzzer engine
+        # https://github.com/google/clusterfuzz/blob/master/src/clusterfuzz/_internal/base/utils.py#L967
         MAX_OUTPUT_LEN = 1 * 1024 * 1024  # 1 MB
         if self.command_result.output:
-            output_bytes = self.command_result.output[:MAX_OUTPUT_LEN]
+            output_bytes = self.command_result.output
+            if len(output_bytes) > MAX_OUTPUT_LEN:
+                # Read first and last |half_max_len| bytes.
+                half_max_len = MAX_OUTPUT_LEN // 2
+                start = output_bytes[:half_max_len]
+                end = output_bytes[-half_max_len:]
+
+                truncated_marker = b"\n...truncated %d bytes...\n" % (len(output_bytes) - MAX_OUTPUT_LEN)
+
+                output_bytes = start + truncated_marker + end
+
             output = output_bytes.decode("utf-8", errors="ignore")
             return output
         return None
@@ -101,7 +114,19 @@ class ReproduceResult:
          - Nonzero return code
          - Fuzzer ran (assumes libfuzzer or Jazzer)
         """
-        return bool(self.did_run() and self.command_result.returncode not in [None, 0, FAILURE_ERR_RESULT])
+        crashed = bool(self.did_run() and self.command_result.returncode not in [None, 0, FAILURE_ERR_RESULT])
+        if not crashed:
+            return False
+
+        return_code = self.command_result.returncode
+        if return_code != TIMEOUT_ERR_RESULT:
+            return True
+
+        crash_token = get_crash_token(self.stacktrace())
+        if not crash_token:
+            return False
+
+        return True
 
 
 @dataclass

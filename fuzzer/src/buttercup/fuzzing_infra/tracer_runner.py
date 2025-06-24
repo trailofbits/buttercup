@@ -73,6 +73,10 @@ class TracerRunner:
             )
             return None
 
+        if not info_with_diff.did_crash():
+            logger.warning("Task %s did not generate a valid crash", self.tsk_id)
+            return TracerInfo(is_valid=False, stacktrace=None)
+
         if not is_diff_mode:
             return self._create_tracer_info(info_with_diff)
 
