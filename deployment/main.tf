@@ -58,8 +58,9 @@ resource "azurerm_kubernetes_cluster" "primary" {
   name                = random_pet.azurerm_kubernetes_cluster_name.id
   resource_group_name = azurerm_resource_group.rg.name
   dns_prefix          = random_pet.azurerm_kubernetes_cluster_dns_prefix.id
+  sku_tier            = "Standard"
   # Disable automatic upgrades to prevent disruption
-  node_os_upgrade_channel   = "None"
+  node_os_upgrade_channel = "None"
 
   identity {
     type = "SystemAssigned"
