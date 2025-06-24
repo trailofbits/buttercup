@@ -193,7 +193,7 @@ pov-reproducer:
 
 seed-gen:
   enabled: true
-  replicaCount: 24
+  replicaCount: 20
   resources:
     limits:
       cpu: 2000m
