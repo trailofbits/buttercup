@@ -5,6 +5,7 @@ from buttercup.patcher.utils import find_file_in_source_dir
 from buttercup.patcher.agents.config import PatcherConfig
 from langchain_core.runnables import RunnableConfig
 from unittest.mock import patch
+import subprocess
 import pytest
 import os
 
@@ -57,6 +58,58 @@ def task_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def tika_challenge_task_path(tmp_path: Path) -> Path:
+    """Create a challenge task using a real OSS-Fuzz repository."""
+    # Clone real oss-fuzz repo into temp dir
+    tmp_path = tmp_path / "afc-tika"
+    tmp_path.mkdir(parents=True)
+
+    oss_fuzz_dir = tmp_path / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = tmp_path / "src"
+    source_dir.mkdir(parents=True)
+
+    subprocess.run(
+        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/aixcc-finals/oss-fuzz-aixcc.git"], check=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(oss_fuzz_dir / "oss-fuzz-aixcc"),
+            "checkout",
+            "challenge-state/tk-full-01",
+        ],
+        check=True,
+    )
+
+    tika_url = "https://github.com/aixcc-finals/afc-tika"
+    subprocess.run(["git", "-C", str(source_dir), "clone", tika_url], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_dir / "afc-tika"), "checkout", "challenges/tk-full-01"],
+        check=True,
+    )
+
+    # Create task metadata
+    TaskMeta(
+        project_name="tika",
+        focus="afc-tika",
+        task_id="task-id-tika",
+        metadata={"task_id": "task-id-tika", "round_id": "testing", "team_id": "tob"},
+    ).save(tmp_path)
+
+    yield tmp_path
+
+
+@pytest.fixture
+def tika_challenge_task(tika_challenge_task_path: Path) -> ChallengeTask:
+    return ChallengeTask(
+        read_only_task_dir=tika_challenge_task_path,
+        local_task_dir=tika_challenge_task_path,
+    )
+
+
+@pytest.fixture
 def mock_challenge_task(task_dir: Path) -> ChallengeTask:
     """Create a mock challenge task for testing."""
     return ChallengeTask(
@@ -73,6 +126,41 @@ def test_find_file_in_source_dir_direct(mock_challenge_task: ChallengeTask):
 def test_find_file_in_source_dir_absolute(mock_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(mock_challenge_task, Path("/src/example_project/test.txt"))
     assert res == Path("test.txt")
+
+
+@pytest.mark.integration
+def test_tika_find_file_in_source_dir(tika_challenge_task: ChallengeTask):
+    res = find_file_in_source_dir(
+        tika_challenge_task,
+        Path(
+            "/src/project-parent/tika/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java"
+        ),
+    )
+    assert res == Path(
+        "tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java"
+    )
+    res = find_file_in_source_dir(
+        tika_challenge_task,
+        Path("/src/project-parent/tika/tika-core/src/main/java/org/apache/tika/fork/ContentHandlerResource.java"),
+    )
+    assert res == Path("tika-core/src/main/java/org/apache/tika/fork/ContentHandlerResource.java")
+    res = find_file_in_source_dir(
+        tika_challenge_task,
+        Path("/src/project-parent/tika/tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverter.java"),
+    )
+    assert res == Path("tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverter.java")
+
+    res = find_file_in_source_dir(tika_challenge_task, Path("/src/project-parent/mod/not-found/file.java"))
+    assert res is None
+    res = find_file_in_source_dir(tika_challenge_task, Path("/src/project-parent/GenericConverter.java"))
+    assert res is None
+    res = find_file_in_source_dir(
+        tika_challenge_task,
+        Path(
+            "/src/project-parent/tika/tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverterNotFound.java"
+        ),
+    )
+    assert res is None
 
 
 def test_find_file_in_source_dir_relative(mock_challenge_task: ChallengeTask):

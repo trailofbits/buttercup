@@ -514,6 +514,23 @@ def test_retrieve_context_basic(
             ],
         ),
         AIMessage(
+            content="Let's track the definition",
+            tool_calls=[
+                ToolCall(
+                    id="track_snippet_call_1",
+                    name="track_snippet",
+                    args={
+                        "file_path": "libsepol/src/ebitmap.c",
+                        "start_line": None,
+                        "end_line": None,
+                        "type_name": None,
+                        "function_name": "ebitmap_match_any",
+                        "code_snippet_description": "ebitmap_match_any function definition",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
             content="I'm done <END>",
         ),
     ]
