@@ -609,86 +609,66 @@ class CompetitionAPI:
 @dataclass
 class Submissions:
     """
-    A class for managing submissions to the competition API.
+    Manages the complete lifecycle of vulnerability submissions to the competition API.
 
-    The Submissions class handles the lifecycle of three types of submissions:
-    - Vulnerabilities (POVs) - Proof of Vulnerabilities submitted to the competition
-    - Patches - Fixes for vulnerabilities
-    - Bundles - Combinations of a vulnerability and its patch
+    This class implements a state machine that coordinates the submission of vulnerabilities (POVs),
+    patches, and bundles to a competition API. It handles deduplication, async patch generation,
+    validation, and cross-submission optimization.
 
-    State Transitions
-    ----------------
+    High-Level Approach
+    ------------------
 
-    Vulnerability (POV) States:
+    **Entry Points:**
+    - `submit_vulnerability()`: Called when fuzzers find new crashes
+    - `record_patch()`: Called when patch generators complete work
+    - `record_patched_build()`: Called when patched builds are ready
+    - `process_cycle()`: Main processing loop that advances all state machines
 
-    1. Initial submission:
-       - POV is submitted via submit_vulnerability()
-       - Initial state: V_ACCEPTED
+    **Competition API Interaction Strategy:**
+    1. Submit POVs immediately to claim vulnerabilities
+    2. Request patches asynchronously via queues while POVs are being validated
+    3. Test patches against all POVs to ensure complete mitigation
+    4. Submit patches only after POV validation passes and patch effectiveness is confirmed
+    5. Create bundles combining POVs + patches + optional SARIF matches
+    6. Handle retries, errors, and state synchronization with competition API
 
-    2. State transitions:
-       - V_ACCEPTED → V_PATCH_REQUESTED: When patch requests are sent via _submit_patch_requests()
-       - V_PATCH_REQUESTED → V_PASSED: Competition API confirms the vulnerability is valid
-       - V_PATCH_REQUESTED → V_FAILED: Competition API rejects the vulnerability
-       - V_PATCH_REQUESTED → V_ERRORED: Competition API reports an error with the vulnerability
-       - V_PATCH_REQUESTED → V_INCONCLUSIVE: Competition API reports that the vulnerability is inconclusive, mark it as V_PASSED (it is going to be reviewed manually)
-       - V_ERRORED → V_ACCEPTED: When resubmission succeeds via _resubmit_errored_submissions()
+    **Deduplication and Optimization:**
+    - Similar crashes are detected and consolidated into single submissions
+    - Cross-submission patch sharing: if one submission's patch fixes another's POVs, merge them
+    - SARIF matching to claim overlap with external vulnerability reports
+    - Resource limits prevent too many concurrent patch requests per task
 
-    Patch States:
+    **State Persistence:**
+    - All state stored in Redis for crash recovery
+    - In-memory cache for performance
+    - Atomic updates using Redis pipelines
 
-    1. Initial recording:
-       - Patch is recorded via record_patch()
-       - No initial state - patch is just added to the list of patches for a vulnerability
+    State Machine Details
+    --------------------
 
-    2. Submission:
-       - Patches are submitted via _submit_patches() when the associated vulnerability has V_PASSED state
-       - Initial state upon submission: P_ACCEPTED
+    **POV States:**
+    - Submit immediately via `submit_vulnerability()` → ACCEPTED
+    - ACCEPTED → PASSED/FAILED/ERRORED (via competition API polling)
+    - ERRORED → retry submission
 
-    3. State transitions:
-       - P_ACCEPTED → P_PASSED: Competition API confirms the patch is valid
-       - P_ACCEPTED → P_FAILED: Competition API rejects the patch
-       - P_ACCEPTED → P_ERRORED: Competition API reports an error with the patch
-       - P_ACCEPTED -> P_INCONCLUSIVE: Competition API reports that the patch is inconclusive, mark it as P_FAILED and move to next patch
-       - P_ERRORED → P_ACCEPTED: When resubmission succeeds via _resubmit_errored_patches()
-       - P_ERRORED → P_FAILED: If patch submission fails too many times (patch_submission_attempt_limit reached)
+    **Patch States:**
+    - Request via queues → patch generated → recorded via `record_patch()`
+    - Test against all POVs for effectiveness → submit if all POVs mitigated
+    - ACCEPTED → PASSED/FAILED/ERRORED (via competition API polling)
+    - FAILED/ERRORED → advance to next patch or retry
 
-    Bundle States:
+    **Bundle States:**
+    - Create when POV=PASSED and patch=PASSED
+    - ACCEPTED → PASSED/FAILED/ERRORED (via competition API polling)
+    - Support SARIF associations for additional scoring
 
-    1. Initial submission:
-       - Bundle is submitted via _submit_bundles() when both vulnerability has V_PASSED and patch has P_PASSED
-       - Initial state: B_ACCEPTED
+    **Processing Flow (process_cycle):**
+    1. POV management: submit new POVs, update statuses, handle retries
+    2. Patch management: request patches, test effectiveness, submit good patches, update statuses
+    3. Bundle management: create/update bundles, handle SARIF matching
+    4. Cross-submission merging: consolidate entries when patches fix other POVs
 
-    2. State transitions:
-       - B_ACCEPTED → B_PASSED: Competition API confirms the bundle is valid
-       - B_ACCEPTED → B_FAILED: Competition API rejects the bundle
-       - B_ACCEPTED → B_ERRORED: Competition API reports an error with the bundle
-       - B_ERRORED → B_ACCEPTED: When resubmission is attempted via _resubmit_errored_bundles()
-
-    Processing Cycles
-    ----------------
-    The process_cycle() method orchestrates all the state transitions in sequence:
-
-    1. Vulnerability Processing:
-       - _submit_patch_requests(): Request patches for newly accepted vulnerabilities
-       - _update_vuln_status(): Update status of vulnerabilities with the competition API
-       - _resubmit_errored_submissions(): Retry errored vulnerability submissions
-
-    2. Patch Processing:
-       - _submit_patches(): Submit patches for passed vulnerabilities
-       - _update_patch_status(): Update status of patches with the competition API
-       - _advance_patch_idx_for_failed_patches(): Move to next patch if current one failed
-       - _resubmit_errored_patches(): Retry errored patch submissions
-
-    3. Bundle Processing:
-       - _submit_bundles(): Submit bundles for passed vulnerability-patch pairs
-       - _update_bundle_status(): Update status of bundles with the competition API
-       - _resubmit_errored_bundles(): Retry errored bundle submissions
-
-    Assumptions:
-    - Submissions are stored in redis but also kept in memory for fast access.
-    - There is only ever one instance of this class.
-
-    This class is mostly concerned with the submission logic and ensuring that state is persisted to Redis.
-    The actual submission logic is delegated to the CompetitionAPI class.
+    Thread Safety: Designed for single-instance operation with Redis providing persistence.
     """
 
     # Redis names
@@ -902,18 +882,20 @@ class Submissions:
 
     def submit_vulnerability(self, crash: TracedCrash) -> bool:
         """
-        Submit a vulnerability to the competition API and store the result in Redis.
+        Entry point for new vulnerability discoveries from fuzzers.
 
-        This method is the entry point for vulnerability submissions. It:
-        1. Submits the crash information to the competition API
-        2. If successful, creates a new SubmissionEntry with V_ACCEPTED state
-        3. Persists the entry to Redis and adds it to the in-memory list
+        Performs deduplication against existing submissions and either:
+        - Consolidates with similar existing submissions, or
+        - Creates a new submission entry that will be processed by process_cycle()
+
+        Note: This method does NOT submit to the competition API immediately.
+        The actual API submission happens asynchronously in process_cycle().
 
         Args:
             crash: The traced crash representing the vulnerability
 
         Returns:
-            True if the submission was successful, False otherwise
+            True if the crash was handled (new submission or consolidated), False otherwise
         """
         if self.task_registry.should_stop_processing(_task_id(crash)):
             logger.info("Task is cancelled or expired, will not submit vulnerability.")
@@ -943,8 +925,8 @@ class Submissions:
 
     def _submit_pov_if_needed(self, i: int, e: SubmissionEntry, _redis: Redis) -> bool:
         """
-        If the `SubmissionEntry` have no PoV submitted, submit the first one.
-        Returns True if the entry needs to be persisted, False otherwise.
+        Submit first eligible POV to competition API if none are pending/successful.
+        Returns True if entry needs persistence, False otherwise.
         """
         if _get_first_successful_pov(e):
             # We already have a successful POV, we don't need to submit more.
@@ -974,7 +956,8 @@ class Submissions:
 
     def _update_pov_status(self, i: int, e: SubmissionEntry, _redis: Redis) -> bool:
         """
-        Update the status of a PoV in the `ACCEPTED` state.
+        Poll competition API for status updates on pending POVs.
+        Returns True if any status changed and entry needs persistence.
         """
         updated = False
         for pov in _get_pending_pov_submissions(e):
@@ -998,7 +981,9 @@ class Submissions:
 
     def _request_patch_if_needed(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """
-        Request the first patch if needed.
+        Request patch generation via queue if no current patch and conditions are met.
+        Respects concurrency limits and waits for potential cross-submission merging.
+        Returns True if patch request was made and entry needs persistence.
         """
 
         # If we already have the "current patch" no need to request more.
@@ -1093,10 +1078,19 @@ class Submissions:
         return True
 
     def record_patched_build(self, build_output: BuildOutput) -> bool:
-        """Record a patched build
+        """
+        Entry point for completed patched builds from build system.
 
-        This will be invoked by the scheduler when it receives a PATCH BuildOutput. It is not part of the loop that
-        processes the submissions."""
+        Updates the build output placeholder in the patch entry with the actual
+        build directory path. This enables POV reproduction testing to validate
+        patch effectiveness before submission to competition API.
+
+        Args:
+            build_output: Completed build with task directory path filled in
+
+        Returns:
+            True if build was recorded successfully
+        """
 
         key = build_output.internal_patch_id
         maybe_patch = self._find_patch(key)
@@ -1140,7 +1134,11 @@ class Submissions:
         return True
 
     def _submit_patch_if_good(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
-        """Submit the current patch if it is good"""
+        """
+        Test current patch effectiveness and submit to competition API if it mitigates all POVs.
+        Advances to next patch if current one fails testing or submission retry limit exceeded.
+        Returns True if entry needs persistence.
+        """
 
         # Check that at least one POV has passed validation and has a competition_pov_id
         if not _get_first_successful_pov_id(e):
@@ -1155,14 +1153,14 @@ class Submissions:
         if not patch.patch:
             return False
 
-        # Check if all POVs have been mitigated.
-        # NOTE: There could still be PoVs that are failed in this set of PoVs, however we know that at
-        # least one of the is PASSED (first check in this function) so we ignore FAILED ones.
+        # Check if all POVs have been mitigated by running them against the patched build.
+        # NOTE: We only test POVs that passed competition validation (ignoring FAILED ones).
+        # This is safe because we know at least one POV passed (checked above).
         status = self._check_all_povs_are_mitigated(i, e, e.patch_idx)
         if status is None:
             return False  # Pending evaluation
         if not status:
-            # Bad patch, move on to next (will be requested on next iteration, or if we already have more patches we will evaluate those first)
+            # Patch doesn't mitigate all POVs, advance to next patch
             _advance_patch_idx(e)
             return True
 
@@ -1190,14 +1188,16 @@ class Submissions:
         if competition_patch_id:
             # Good submission, record the patch id
             patch.competition_patch_id = competition_patch_id
-            log_entry(e, i=i, msg=f"Patch sucessfully submitted id={competition_patch_id}")
+            log_entry(e, i=i, msg=f"Patch successfully submitted id={competition_patch_id}")
         elif status == SubmissionResult.ERRORED:
             _increase_submission_attempts(e)
             log_entry(e, i=i, msg=f"Patch submission errored, will try again. Attempts={e.patch_submission_attempts}")
         elif status == SubmissionResult.FAILED or SubmissionResult.INCONCLUSIVE:
             # Bad patch (or undecided state), move on to next
             _advance_patch_idx(e)
-            log_entry(e, i=i, msg=f"Patch submission errored, will try again. Attempts={e.patch_submission_attempts}")
+            log_entry(
+                e, i=i, msg=f"Patch submission failed, advancing to next patch. Attempts={e.patch_submission_attempts}"
+            )
         else:
             # This is a status we won't do anything about, just record it. If it is a timeout, next iteration will probably
             # filter the SubmissionEntry so we won't try this patch again.
@@ -1351,11 +1351,8 @@ class Submissions:
 
     def _ensure_patch_is_bundled(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """
-        Once we have a known good patch, we want to ensure it is bundled with a PoV.
-
-        We only submit a patch when it is known to be good (mitigates all known PoVs). That might change later on.
-        If more PoVs come in and are not mitigated, we will submit a new patch, that will cause this method to
-        patch the bundle again once the new patch passes.
+        Create or update bundle to include current passed patch with successful POV.
+        Returns True if bundle was modified and entry needs persistence.
         """
         current_patch = _current_patch(e)
         if not current_patch:
@@ -1412,7 +1409,10 @@ class Submissions:
         return [sarif for sarif in sarifs if sarif.sarif_id not in already_submitted_sarifs]
 
     def _ensure_sarif_is_bundled(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
-        """Try to match a SARIF to PoV and on success submit the bundle"""
+        """
+        Find external SARIF reports that match this entry's POVs and bundle them for additional scoring.
+        Requires line-level matching for confidence. Returns True if bundle was created/updated.
+        """
         # If this already has a bundle with a SARIF no need to do anything
         if e.bundles and e.bundles[0].competition_sarif_id:
             return False
@@ -1509,23 +1509,20 @@ class Submissions:
 
     def record_patch(self, patch: Patch) -> bool:
         """
-        Record a patch for a previously submitted vulnerability.
+        Entry point for completed patches from patch generators.
 
-        This method:
-        1. Retrieves the submission entry for the specified index
-        2. Validates that the task IDs match
-        3. Adds the patch to the entry's list of patches
-        4. Reorders patches to prioritize those with content
-        5. Persists the updated entry to Redis
+        Finds the submission entry associated with the patch's internal_patch_id and
+        records the patch content. Reorders patches to prioritize completed ones for
+        faster processing in process_cycle().
 
-        Note: This doesn't submit the patch to the competition API immediately.
-        The patch will be submitted later when the vulnerability passes validation.
+        Note: Does not submit to competition API immediately. Patches are tested for
+        effectiveness and submitted in process_cycle() after POV validation passes.
 
         Args:
-            patch: The patch to record, containing internal_patch_id and task_id
+            patch: The completed patch with internal_patch_id and content
 
         Returns:
-            True if the patch was successfully recorded, False if the submission doesn't exist
+            True if patch was recorded successfully
         """
         key = patch.internal_patch_id
         maybe_patch = self._find_patch(key)
@@ -1536,20 +1533,19 @@ class Submissions:
 
         i, e, entry_patch = maybe_patch
         if entry_patch.patch:
-            # There is already a patch here, this is likely the result of the request timing out
-            # in the patcher but multiple patchers still completing the patch.
-            # In this case, we just generate a new patch tracker and add it.
+            # Patch tracker already has content - this can happen when patch request times out
+            # but multiple patch generators complete the work. Create a new tracker for the duplicate.
             new_patch_tracker = self._new_patch_tracker()
             new_patch_tracker.patch = patch.patch
             e.patches.append(new_patch_tracker)
         else:
-            # There is no patch here, this is the first time we are recording a patch for this patch tracker.
+            # Normal case: fill in the empty patch tracker with generated content
             entry_patch.patch = patch.patch
 
         # Reorder patches to prioritize those with content
         self._reorder_patches_by_completion(e)
 
-        # We have a patch now, persist the entry and double check if it will ever be used
+        # Persist the updated entry to Redis
         self._persist(self.redis, i, e)
 
         log_entry(e, i=i, msg="Patch added")
@@ -1587,9 +1583,12 @@ class Submissions:
 
     def _check_all_povs_are_mitigated(self, i: int, e: SubmissionEntry, patch_idx: int) -> bool | None:
         """
-        Check if all POVs for a confirmed vulnerability are mitigated.
+        Test if patch at patch_idx mitigates all POVs by running them against patched builds.
 
-        Returns None if anyone is pending, returns True if all mitigated, returns False if any are failing.
+        Returns:
+            None: Some POV tests are still pending
+            True: All POVs are mitigated (patch is effective)
+            False: At least one POV still crashes (patch is ineffective)
         """
         statuses = self._pov_reproduce_status_request(e, patch_idx)
         n_pending = sum(1 for status in statuses if status is None)
@@ -1677,8 +1676,14 @@ class Submissions:
 
         return False
 
-    def _merge_entries_by_patch_mitigation(self) -> list[SubmissionEntry]:
-        """Check each PoV in each SubmissionEntry and if they are mitigated by a patch in another SubmissionEntry, merge the two entries."""
+    def _merge_entries_by_patch_mitigation(self) -> None:
+        """
+        Cross-submission optimization: merge entries when one submission's patch fixes another's POVs.
+
+        This consolidates resources and avoids duplicate patch work by identifying when
+        a patch from submission A also mitigates POVs from submission B, then merging
+        them into a single submission.
+        """
         for i, e in self._enumerate_submissions():
             try:
                 task_id = _task_id(e)
@@ -1724,11 +1729,17 @@ class Submissions:
 
     def process_cycle(self) -> None:
         """
-        Process all active submissions through their state machine.
+        Main processing loop that advances all submission state machines.
 
-        Iterates through all entries and executes the appropriate state handler
-        based on each entry's current state. This method is the main driver for
-        the state-based submission workflow.
+        Called periodically by the scheduler to:
+        1. Submit POVs to competition API and poll for status updates
+        2. Request patches for validated POVs via async queues
+        3. Test patch effectiveness and submit good patches to competition API
+        4. Create and manage bundles (POV + patch + optional SARIF combinations)
+        5. Handle retries, errors, and cross-submission consolidation
+
+        All state changes are persisted to Redis atomically using pipelines.
+        Designed to be resilient to failures and restartable.
         """
         for i, e in self._enumerate_submissions():
             try:
