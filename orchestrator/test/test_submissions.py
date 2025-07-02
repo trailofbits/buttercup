@@ -4037,6 +4037,191 @@ class TestStateTransitions:
         assert entry.patches[0].result == SubmissionResult.FAILED
         assert entry.patch_idx == 1  # Advanced to next patch
 
+    @pytest.mark.parametrize("failed_status", [SubmissionResult.FAILED, SubmissionResult.INCONCLUSIVE])
+    def test_patch_submission_advancement_on_failed_or_inconclusive(
+        self, submissions, sample_submission_entry, mock_competition_api, failed_status
+    ):
+        """Test that patch index advances when patch submission fails or is inconclusive
+
+        This test specifically verifies the syntax fix for the conditional that handles
+        both FAILED and INCONCLUSIVE status codes in _submit_patch_if_good method.
+        """
+        # Create entry with passed POV and patch ready for submission
+        entry = SubmissionEntry()
+        crash_with_id = CrashWithId()
+        crash_with_id.crash.CopyFrom(sample_submission_entry.crashes[0].crash)
+        crash_with_id.competition_pov_id = "test-pov-123"
+        crash_with_id.result = SubmissionResult.PASSED
+        entry.crashes.append(crash_with_id)
+
+        # Add multiple patches - first one will fail/be inconclusive
+        patch1 = SubmissionEntryPatch()
+        patch1.internal_patch_id = "patch-uuid-1"
+        patch1.patch = "test patch 1"
+        entry.patches.append(patch1)
+
+        patch2 = SubmissionEntryPatch()
+        patch2.internal_patch_id = "patch-uuid-2"
+        patch2.patch = "test patch 2"
+        entry.patches.append(patch2)
+
+        entry.patch_idx = 0  # Currently on first patch
+        submissions.entries = [entry]
+
+        # Mock POV mitigation check to return True (patch is good to submit)
+        with (
+            patch.object(submissions, "_check_all_povs_are_mitigated", return_value=True),
+            patch.object(submissions, "_request_patched_builds_if_needed", return_value=False),
+        ):
+            # Mock competition API to return the failed status (FAILED or INCONCLUSIVE)
+            mock_competition_api.submit_patch.return_value = (None, failed_status)
+
+            # Process cycle - should advance patch index due to failed submission
+            submissions.process_cycle()
+
+            # Verify patch submission was attempted with the failed status
+            mock_competition_api.submit_patch.assert_called_once_with(
+                entry.crashes[0].crash.crash.target.task_id, "test patch 1"
+            )
+
+            # Verify patch index was advanced and first patch has the failed status
+            assert entry.patches[0].result == failed_status
+            assert entry.patch_idx == 1  # Advanced to next patch
+            assert entry.patch_submission_attempts == 0  # Reset for new patch
+
+    def test_patch_submission_advancement_inconclusive_update_status(
+        self, submissions, sample_submission_entry, mock_competition_api
+    ):
+        """Test that patch index advances when patch status update returns INCONCLUSIVE
+
+        This test verifies the other code path in _update_patch_status that also uses
+        the same conditional logic for FAILED and INCONCLUSIVE status codes.
+        """
+        # Create entry with patch in ACCEPTED state (waiting for status update)
+        entry = SubmissionEntry()
+        crash_with_id = CrashWithId()
+        crash_with_id.crash.CopyFrom(sample_submission_entry.crashes[0].crash)
+        crash_with_id.competition_pov_id = "test-pov-123"
+        crash_with_id.result = SubmissionResult.PASSED
+        entry.crashes.append(crash_with_id)
+
+        # Add multiple patches - first one is submitted and accepted
+        patch1 = SubmissionEntryPatch()
+        patch1.internal_patch_id = "patch-uuid-1"
+        patch1.patch = "test patch 1"
+        patch1.competition_patch_id = "test-patch-456"
+        patch1.result = SubmissionResult.ACCEPTED  # Submitted and accepted
+        entry.patches.append(patch1)
+
+        patch2 = SubmissionEntryPatch()
+        patch2.internal_patch_id = "patch-uuid-2"
+        patch2.patch = "test patch 2"
+        entry.patches.append(patch2)
+
+        entry.patch_idx = 0  # Currently on first patch
+        submissions.entries = [entry]
+
+        # Mock competition API to return INCONCLUSIVE status for status check
+        mock_competition_api.get_patch_status.return_value = SubmissionResult.INCONCLUSIVE
+
+        # Process cycle - should advance patch index due to inconclusive status
+        submissions.process_cycle()
+
+        # Verify patch status was checked
+        mock_competition_api.get_patch_status.assert_called_once_with(
+            entry.crashes[0].crash.crash.target.task_id, "test-patch-456"
+        )
+
+        # Verify patch index was advanced and first patch has INCONCLUSIVE status
+        assert entry.patches[0].result == SubmissionResult.INCONCLUSIVE
+        assert entry.patch_idx == 1  # Advanced to next patch
+        assert entry.patch_submission_attempts == 0  # Reset for new patch
+
+    def test_patch_submission_unknown_status_handling(self, submissions, sample_submission_entry, mock_competition_api):
+        """Test that unknown/deadline exceeded status is properly logged without advancing patch index
+
+        This test verifies the else branch in _submit_patch_if_good that handles any status
+        not explicitly caught by the other conditions (like DEADLINE_EXCEEDED).
+        """
+        # Create entry with passed POV and patch ready for submission
+        entry = SubmissionEntry()
+        crash_with_id = CrashWithId()
+        crash_with_id.crash.CopyFrom(sample_submission_entry.crashes[0].crash)
+        crash_with_id.competition_pov_id = "test-pov-123"
+        crash_with_id.result = SubmissionResult.PASSED
+        entry.crashes.append(crash_with_id)
+
+        # Add patch ready for submission
+        patch1 = SubmissionEntryPatch()
+        patch1.internal_patch_id = "patch-uuid-1"
+        patch1.patch = "test patch 1"
+        entry.patches.append(patch1)
+
+        entry.patch_idx = 0  # Currently on first patch
+        submissions.entries = [entry]
+
+        # Mock POV mitigation check to return True (patch is good to submit)
+        with (
+            patch.object(submissions, "_check_all_povs_are_mitigated", return_value=True),
+            patch.object(submissions, "_request_patched_builds_if_needed", return_value=False),
+        ):
+            # Mock competition API to return DEADLINE_EXCEEDED (hits else branch)
+            mock_competition_api.submit_patch.return_value = (None, SubmissionResult.DEADLINE_EXCEEDED)
+
+            # Process cycle - should log unknown status but not advance patch index
+            submissions.process_cycle()
+
+            # Verify patch submission was attempted
+            mock_competition_api.submit_patch.assert_called_once_with(
+                entry.crashes[0].crash.crash.target.task_id, "test patch 1"
+            )
+
+            # Verify the else branch behavior: status recorded, no index advancement
+            assert entry.patches[0].result == SubmissionResult.DEADLINE_EXCEEDED
+            assert entry.patch_idx == 0  # NOT advanced - stays on same patch
+            assert entry.patch_submission_attempts == 0  # NOT incremented
+
+    @pytest.mark.parametrize("unknown_status", [SubmissionResult.NONE])
+    def test_patch_submission_else_branch_edge_cases(
+        self, submissions, sample_submission_entry, mock_competition_api, unknown_status
+    ):
+        """Test the else branch with edge case statuses like NONE
+
+        This parametrized test ensures the else branch properly handles unusual status values.
+        """
+        # Create entry with passed POV and patch ready for submission
+        entry = SubmissionEntry()
+        crash_with_id = CrashWithId()
+        crash_with_id.crash.CopyFrom(sample_submission_entry.crashes[0].crash)
+        crash_with_id.competition_pov_id = "test-pov-123"
+        crash_with_id.result = SubmissionResult.PASSED
+        entry.crashes.append(crash_with_id)
+
+        # Add patch ready for submission
+        patch1 = SubmissionEntryPatch()
+        patch1.internal_patch_id = "patch-uuid-1"
+        patch1.patch = "test patch 1"
+        entry.patches.append(patch1)
+
+        entry.patch_idx = 0
+        submissions.entries = [entry]
+
+        # Mock POV mitigation check to return True (patch is good to submit)
+        with (
+            patch.object(submissions, "_check_all_povs_are_mitigated", return_value=True),
+            patch.object(submissions, "_request_patched_builds_if_needed", return_value=False),
+        ):
+            # Mock competition API to return the edge case status
+            mock_competition_api.submit_patch.return_value = (None, unknown_status)
+
+            # Process cycle - should handle gracefully
+            submissions.process_cycle()
+
+            # Verify the else branch behavior
+            assert entry.patches[0].result == unknown_status
+            assert entry.patch_idx == 0  # NOT advanced
+            assert entry.patch_submission_attempts == 0  # NOT incremented
+
     def test_bundle_creation_when_patch_passes(self, submissions, sample_submission_entry, mock_competition_api):
         """Test bundle creation when patch passes"""
         # Create entry with passed POV and passed patch

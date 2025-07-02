@@ -1192,7 +1192,7 @@ class Submissions:
         elif status == SubmissionResult.ERRORED:
             _increase_submission_attempts(e)
             log_entry(e, i=i, msg=f"Patch submission errored, will try again. Attempts={e.patch_submission_attempts}")
-        elif status == SubmissionResult.FAILED or SubmissionResult.INCONCLUSIVE:
+        elif status == SubmissionResult.FAILED or status == SubmissionResult.INCONCLUSIVE:
             # Bad patch (or undecided state), move on to next
             _advance_patch_idx(e)
             log_entry(
