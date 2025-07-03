@@ -27,8 +27,8 @@ install-gh:
 
 download-cscope:
     mkdir -p cscope/
-    docker pull ghcr.io/aixcc-finals/buttercup-cscope:main
-    docker create --name temp-cscope ghcr.io/aixcc-finals/buttercup-cscope:main
+    docker pull ghcr.io/trailofbits/buttercup-cscope:main
+    docker create --name temp-cscope ghcr.io/trailofbits/buttercup-cscope:main
     docker cp temp-cscope:/cscope cscope/
     docker rm temp-cscope
 
