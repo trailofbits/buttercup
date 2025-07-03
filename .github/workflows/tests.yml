@@ -49,6 +49,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y codequery just ripgrep git-lfs
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           just download-cscope
           just install-cscope
 
