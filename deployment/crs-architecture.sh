@@ -64,6 +64,15 @@ up() {
 	export TS_DNS_IP
 
 	if [ "$DEPLOY_CLUSTER" = "true" ]; then
+		# Authenticate with GitHub Container Registry for Docker builds
+		if [ -n "$GHCR_AUTH" ]; then
+			echo -e "${BLU}Authenticating with GitHub Container Registry${NC}"
+			GHCR_PAT=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f2)
+			GHCR_USERNAME=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f1)
+		else
+			echo -e "${RED}Warning: GHCR_AUTH not set, Docker builds may fail to pull from ghcr.io${NC}"
+		fi
+
 		case "$CLUSTER_TYPE" in
 			"aks")
 				#deploy AKS resources in Azure
@@ -90,11 +99,37 @@ up() {
 
 				echo -e "${BLU}Building local docker images${NC}"
 				eval $(minikube docker-env)
-				docker build -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
-				docker build -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
-				docker build -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
-				docker build -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
-				docker build -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
+
+				# Authenticate with GitHub Container Registry for Docker builds
+				if [ -n "$GHCR_AUTH" ]; then
+					echo -e "${BLU}Authenticating with GitHub Container Registry${NC}"
+					echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+					echo -e "${GRN}Docker login to ghcr.io completed${NC}"
+				else
+					echo -e "${RED}Warning: GHCR_AUTH not set, Docker builds may fail to pull from ghcr.io${NC}"
+				fi
+
+				if [ -n "$FUZZER_BASE_IMAGE" ]; then
+					FUZZER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
+				else
+					FUZZER_BUILD_ARGS=""
+				fi
+
+				if [ -n "$CSCOPE_IMAGE" ]; then
+					PATCHER_BUILD_ARGS="--build-arg CSCOPE_IMAGE=$CSCOPE_IMAGE"
+					SEED_GEN_BUILD_ARGS="--build-arg CSCOPE_IMAGE=$CSCOPE_IMAGE"
+					PROGRAM_MODEL_BUILD_ARGS="--build-arg CSCOPE_IMAGE=$CSCOPE_IMAGE"
+				else
+					PATCHER_BUILD_ARGS=""
+					SEED_GEN_BUILD_ARGS=""
+					PROGRAM_MODEL_BUILD_ARGS=""
+				fi
+
+				docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
+				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
+				docker build $PATCHER_BUILD_ARGS -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
+				docker build $PROGRAM_MODEL_BUILD_ARGS -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
 				;;
 		esac
 	fi
@@ -103,8 +138,6 @@ up() {
 	kubectl create namespace "$BUTTERCUP_NAMESPACE" || true
 
 	# Set secrets
-	GHCR_PAT=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f2)
-	GHCR_USERNAME=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f1)
 	echo -e "${BLU}Creating ghcr secret${NC}"
 	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE" || true
 	kubectl create secret generic ghcr \

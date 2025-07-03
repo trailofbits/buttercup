@@ -36,13 +36,15 @@ spec:
             echo "Docker daemon ready, starting to pull images..."
             
             # Pull all configured images
-            {{- range .Values.imagesToPull }}
-            echo "Pulling {{ . }}..."
-            docker pull {{ . }}
+            {{- range $version := .Values.versions }}
+            {{- range $image := $.Values.baseImages }}
+            echo "Pulling {{ $image }}:{{ $version }}..."
+            docker pull {{ $image }}:{{ $version }}
             if [ $? -ne 0 ]; then
-              echo "Failed to pull {{ . }}"
+              echo "Failed to pull {{ $image }}:{{ $version }}"
               exit 1
             fi
+            {{- end }}
             {{- end }}
             
             echo "All images pulled successfully. Running system prune..."
