@@ -33,6 +33,7 @@ class TaskResult(BaseModel):
     mode: str
     n_vulnerabilities: int = 0
     n_patches: int = 0
+    n_bundles: int = 0
     patched_vulnerabilities: list[str] = []
     non_patched_vulnerabilities: list[str] = []
 
@@ -242,6 +243,10 @@ def main():
                     if c:
                         result[task_id].non_patched_vulnerabilities.append(c.competition_pov_id)
 
+                b = next((b for b in submission.bundles), None)
+                if b:
+                    result[task_id].n_bundles += 1
+
                 print(f"--- Submission {i} ---")
                 print(submission)
                 print()
@@ -267,6 +272,7 @@ def main():
             print(f"  Mode: {task_result.mode}")
             print(f"  N vulnerabilities: {task_result.n_vulnerabilities}")
             print(f"  N patches: {task_result.n_patches}")
+            print(f"  N bundles: {task_result.n_bundles}")
             print(f"  Patched vulnerabilities: {task_result.patched_vulnerabilities}")
             print(f"  Non-patched vulnerabilities: {task_result.non_patched_vulnerabilities}")
             print()
