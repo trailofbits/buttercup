@@ -113,16 +113,16 @@ up() {
 		--from-literal=username="$GHCR_USERNAME" \
 		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT" || echo -e "${GRN}ghcr secret already exists${NC}"
 
-	echo -e "${BLU}Creating SERVICE_INSTANCE_ID${NC}"
-	SERVICE_INSTANCE_ID=$(echo $RANDOM | md5sum | head -c 20)
-	kubectl create configmap service-instance-id \
+	echo -e "${BLU}Creating CRS_INSTANCE_ID${NC}"
+	CRS_INSTANCE_ID=$(echo $RANDOM | md5sum | head -c 20)
+	kubectl create configmap crs-instance-id \
 		--namespace "$BUTTERCUP_NAMESPACE" \
-		--from-literal=service-instance-id="$SERVICE_INSTANCE_ID" || echo -e "${GRN}service-instance-id configmap already exists${NC}"
+		--from-literal=crs-instance-id="$CRS_INSTANCE_ID" || echo -e "${GRN}crs-instance-id configmap already exists${NC}"
 
-	SERVICE_INSTANCE_ID=$(kubectl get configmap service-instance-id \
+	CRS_INSTANCE_ID=$(kubectl get configmap crs-instance-id \
 		--namespace "$BUTTERCUP_NAMESPACE" \
-		-o jsonpath='{.data.service-instance-id}')
-	echo -e "${GRN}SERVICE_INSTANCE_ID is $SERVICE_INSTANCE_ID${NC}"
+		-o jsonpath='{.data.crs-instance-id}')
+	echo -e "${GRN}CRS_INSTANCE_ID is $CRS_INSTANCE_ID${NC}"
 
 	kubectl create secret docker-registry docker-auth \
 		--namespace "$BUTTERCUP_NAMESPACE" \
