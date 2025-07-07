@@ -33,7 +33,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.9.2", "mypy>=1.15.0"]
+dev = ["pytest>=8.3.4", "ruff>=0.9.2", "mypy>=1.15.0", "types-requests", "types-PyYAML", "types-redis"]
 
 [tool.ruff]
 line-length = 120
@@ -58,4 +58,9 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
-exclude = []
+exclude = [
+    "src/buttercup/common/clusterfuzz_parser",
+    "src/buttercup/common/clusterfuzz_env",
+    "src/buttercup/common/clusterfuzz_utils",
+    "src/buttercup/common/datastructures",
+]

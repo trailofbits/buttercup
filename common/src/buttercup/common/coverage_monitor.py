@@ -5,7 +5,7 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
 
 from redis import Redis
 from buttercup.common.maps import CoverageMap, FunctionCoverage, HarnessWeights
@@ -21,7 +21,7 @@ except ImportError:
 
 
 # Move _print_coverage_metrics to be a free function
-def print_coverage_metrics(func_coverage_list: List[FunctionCoverage], snapshot_count: int) -> None:
+def print_coverage_metrics(func_coverage_list: list[FunctionCoverage], snapshot_count: int) -> None:
     """
     Print coverage metrics for the given list of function coverage objects.
 
@@ -49,7 +49,7 @@ def print_coverage_metrics(func_coverage_list: List[FunctionCoverage], snapshot_
     print("-" * 80)
 
 
-def coverage_data_equal(old_data: List[Dict], new_data: List[Dict]) -> bool:
+def coverage_data_equal(old_data: list[dict], new_data: list[dict]) -> bool:
     """
     Compare two coverage data lists to check if they are equal.
 
@@ -84,7 +84,7 @@ class CoverageMonitor:
         self,
         redis_host: str = "localhost",
         redis_port: int = 6379,
-        task_id: str = None,
+        task_id: str | None = None,
         output_dir: str = "coverage_data",
         interval: int = 10,
     ):
@@ -95,7 +95,7 @@ class CoverageMonitor:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def _serialize_function_coverage(self, fc: FunctionCoverage) -> Dict[str, Any]:
+    def _serialize_function_coverage(self, fc: FunctionCoverage) -> dict[str, Any]:
         """Convert FunctionCoverage object to a serializable dictionary."""
         return {
             "function_name": fc.function_name,
@@ -105,7 +105,7 @@ class CoverageMonitor:
             "coverage_percentage": (fc.covered_lines / fc.total_lines * 100) if fc.total_lines > 0 else 0,
         }
 
-    def monitor_coverage(self, duration_seconds: int = None) -> str:
+    def monitor_coverage(self, duration_seconds: int | None = None) -> str:
         """
         Monitor function coverage over time and save results to a file for all packages and harnesses.
 
@@ -119,7 +119,7 @@ class CoverageMonitor:
         start_time = time.time()
         filename = f"coverage_all_harnesses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         output_path = self.output_dir / filename
-        last_coverage_data = {}  # Track last coverage data by package/harness
+        last_coverage_data: dict[str, list[dict[str, Any]]] = {}  # Track last coverage data by package/harness
 
         try:
             print("Starting coverage monitoring for all packages and harnesses")
@@ -181,7 +181,7 @@ class CoverageMonitor:
                 # Create a snapshot with the coverage data for all harnesses
                 snapshot_count += 1
                 timestamp = time.time()
-                snapshot = {"timestamp": timestamp, "harnesses": {}}
+                snapshot: dict[str, Any] = {"timestamp": timestamp, "harnesses": {}}
 
                 # Collect coverage data for each harness
                 for harness in matching_harnesses:
@@ -241,8 +241,8 @@ class CoverageMonitor:
 
     @staticmethod
     def _extract_metrics(
-        coverage_snapshots: List[Dict],
-    ) -> Tuple[List[datetime], List[int], List[int], List[int], List[float]]:
+        coverage_snapshots: list[dict],
+    ) -> tuple[list[datetime], list[int], list[int], list[int], list[float]]:
         """
         Extract metrics from coverage snapshots for analysis and visualization.
 
@@ -280,12 +280,12 @@ class CoverageMonitor:
     @staticmethod
     def _create_visualization(
         file_path: str,
-        timestamps: List[datetime],
-        function_counts: List[int],
-        total_lines: List[int],
-        covered_lines: List[int],
-        coverage_percentages: List[float],
-    ) -> Optional[str]:
+        timestamps: list[datetime],
+        function_counts: list[int],
+        total_lines: list[int],
+        covered_lines: list[int],
+        coverage_percentages: list[float],
+    ) -> str | None:
         """
         Create a visualization of coverage metrics over time.
 
@@ -355,7 +355,7 @@ class CoverageMonitor:
 
     @staticmethod
     def analyze_coverage_file(
-        file_path: str, harness_key: str = None, visualize: bool = False, list_only: bool = False
+        file_path: str, harness_key: str | None = None, visualize: bool = False, list_only: bool = False
     ) -> None:
         """
         Analyze a previously recorded coverage file and print summary statistics.
@@ -512,7 +512,7 @@ class CoverageMonitor:
             print(f"Error analyzing coverage file: {e}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Monitor function coverage over time")
 
     # Add common arguments

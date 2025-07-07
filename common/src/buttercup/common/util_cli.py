@@ -63,11 +63,11 @@ def truncate_stacktraces(submission: SubmissionEntry, max_length: int = 80) -> S
     return truncated_submission
 
 
-def get_queue_names():
+def get_queue_names() -> list[str]:
     return [f"'{queue_name.value}'" for queue_name in QueueNames]
 
 
-def get_build_types():
+def get_build_types() -> list[str]:
     return [f"'{build_type} ({BuildType.Name(build_type)})'" for build_type in BuildType.values()]
 
 
@@ -134,15 +134,14 @@ class Settings(BaseSettings):
         extra = "allow"
 
 
-def main():
-    settings = Settings()
-    setup_package_logger("util-cli", __name__, settings.log_level)
+def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
+    if command is None:
+        return
 
-    redis = Redis.from_url(settings.redis_url, decode_responses=False)
-    command = get_subcommand(settings)
     if isinstance(command, SendSettings):
         try:
-            queue = QueueFactory(redis).create(command.queue_name)
+            queue_name = QueueNames(command.queue_name)
+            queue: ReliableQueue = QueueFactory(redis).create(queue_name)
         except Exception as e:
             logger.exception(f"Failed to create queue: {e}")
             return
@@ -153,7 +152,8 @@ def main():
         logger.info(f"Pushing message to queue '{command.queue_name}': {msg}")
         queue.push(msg)
     elif isinstance(command, ReadSettings):
-        tmp_queue = QueueFactory(redis).create(command.queue_name)
+        queue_name = QueueNames(command.queue_name)
+        tmp_queue: ReliableQueue = QueueFactory(redis).create(queue_name)
         queue = ReliableQueue(
             redis,
             command.queue_name,
@@ -200,7 +200,7 @@ def main():
     elif isinstance(command, ReadSubmissionsSettings):
         # Read submissions from Redis using the same key as the Submissions class
         SUBMISSIONS_KEY = "submissions"
-        raw_submissions = redis.lrange(SUBMISSIONS_KEY, 0, -1)
+        raw_submissions: list = redis.lrange(SUBMISSIONS_KEY, 0, -1)
         registry = TaskRegistry(redis)
 
         if not raw_submissions:
@@ -238,6 +238,7 @@ def main():
                 p = next((p for p in submission.patches if p.result == SubmissionResult.PASSED), None)
                 if p:
                     result[task_id].n_patches += 1
+                    assert c is not None
                     result[task_id].patched_vulnerabilities.append(c.competition_pov_id)
                 else:
                     if c:
@@ -281,7 +282,7 @@ def main():
         print()
         print()
         print("Non-patched vulnerabilities across all tasks:")
-        all_non_patched = []
+        all_non_patched: list[tuple[str, str, str]] = []
         for task_id, task_result in result.items():
             all_non_patched.extend(
                 (task_result.project_name, task_result.task_id, vuln_id)
@@ -299,6 +300,15 @@ def main():
     elif isinstance(command, ListSettings):
         print("Available queues:")
         print("\n".join([f"- {name}" for name in get_queue_names()]))
+
+
+def main() -> None:
+    settings = Settings()
+    setup_package_logger("util-cli", __name__, settings.log_level)
+
+    redis = Redis.from_url(settings.redis_url, decode_responses=False)
+    command = get_subcommand(settings)
+    handle_subcommand(redis, command)
 
 
 if __name__ == "__main__":
