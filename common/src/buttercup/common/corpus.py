@@ -13,7 +13,7 @@ import tempfile
 
 logger = logging.getLogger(__name__)
 
-# TODO: this file is one of the only files that uses os.path.join. Switch to Path.
+# TODO: this file is one of the few files that uses os.path.join. Switch to Path.
 
 
 def hash_file(fl: BinaryIO) -> str:
