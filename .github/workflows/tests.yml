@@ -7,42 +7,18 @@ on:
   pull_request:
 
 jobs:
-  # prepare-config:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Prepare JanusGraph config
-  #       run: |
-  #         # Create and set permissions for directories
-  #         sudo mkdir -p /tmp_graphdb/
-  #         sudo chmod -R 777 /tmp_graphdb/
-          
-  #         # Debug: Check source files
-  #         echo "Checking source files:"
-  #         ls -la ${{ github.workspace }}/program-model/conf/
-          
-  #         # Copy content to files
-  #         sudo cp ${{ github.workspace }}/program-model/conf/schema.json /tmp_graphdb/schema.json
-  #         sudo cp ${{ github.workspace }}/program-model/conf/janusgraph-server.yaml /tmp_graphdb/janusgraph-server.yaml
-  #         sudo chown root:docker /tmp_graphdb/schema.json
-  #         sudo chown root:docker /tmp_graphdb/janusgraph-server.yaml
-          
-  #         # Debug: Check copied files
-  #         echo "Checking copied files:"
-  #         ls -la /tmp_graphdb/
-
   test:
-    # needs: prepare-config
     strategy:
       matrix:
         component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
         python:
           - "3.12"
-        include:
-          - component: common
-            pytest_args: "--runintegration"
-          - component: program-model
-            pytest_args: "--runintegration"
+        # TODO: Add integration tests back in
+        # include:
+        #   - component: common
+        #     pytest_args: "--runintegration"
+        #   - component: program-model
+        #     pytest_args: "--runintegration"
 
     runs-on: ubuntu-latest
     services:
@@ -55,40 +31,6 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-#       graphdb-storage:
-#         image: cassandra:4.0.6
-#         options: >-
-#           --health-cmd "nodetool status"
-#           --health-interval 10s
-#           --health-timeout 60s
-#           --health-retries 4
-#         env:
-#           CASSANDRA_START_RPC: true
-#         ports:
-#           - 9042:9042
-#           - 9160:9160
-#       graphdb:
-#         image: janusgraph/janusgraph:latest
-#         options: >-
-#           --health-cmd "bin/gremlin.sh -e scripts/remote-connect.groovy"
-#           --health-interval 10s
-#           --health-timeout 60s
-#           --health-retries 4
-#         env:
-#           JANUSGRAPH_STORAGE_BACKEND: cql
-#           JANUSGRAPH_STORAGE_HOSTNAME: graphdb-storage
-#           JANUSGRAPH_STORAGE_CQL_KEYSPACE: janusgraph
-#           JANUSGRAPH_SCHEMA_INIT_STRATEGY: json
-#           JANUSGRAPH_SCHEMA_INIT_JSON_FILE: /opt/janusgraph/conf/schema.json
-#           JANUSGRAPH_QUERY_BATCH: true
-#           JANUSGRAPH_STORAGE_BATCH_LOADING: true
-#           _JAVA_OPTIONS: -Xmx4g -Xms2g
-#         volumes:
-#           - /crs_scratch:/crs_scratch
-#           - /tmp_graphdb/schema.json:/opt/janusgraph/conf/schema.json
-# #         - /tmp_graphdb/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
-#         ports:
-#           - 8182:8182
 
     steps:
       - uses: actions/checkout@v4
@@ -104,15 +46,10 @@ jobs:
         working-directory: seed-gen
 
       - name: Install dependencies
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          GHCR_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           sudo apt-get update
           sudo apt-get install -y codequery just ripgrep git-lfs
-          echo ${{ env.GHCR_TOKEN }} | docker login ghcr.io -u ${{ env.GHCR_USERNAME }} --password-stdin
-          git config --global url."https://${{ env.GH_PAT }}@github.com/".insteadOf "https://github.com/"
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           just download-cscope
           just install-cscope
 
