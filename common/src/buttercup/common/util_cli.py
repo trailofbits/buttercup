@@ -3,8 +3,15 @@ from buttercup.common.maps import (
     BuildMap,
     HarnessWeights,
 )
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness, SubmissionEntry
+from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildType,
+    WeightedHarness,
+    SubmissionEntry,
+    SubmissionResult,
+)
 from buttercup.common.queues import QueueFactory, QueueNames, ReliableQueue
+from buttercup.common.task_registry import TaskRegistry
 from uuid import uuid4
 from redis import Redis
 from pydantic_settings import BaseSettings, CliSubCommand, CliPositionalArg, get_subcommand
@@ -16,6 +23,19 @@ from google.protobuf.text_format import Parse
 import logging
 
 logger = logging.getLogger(__name__)
+
+TaskId = str
+
+
+class TaskResult(BaseModel):
+    task_id: TaskId
+    project_name: str
+    mode: str
+    n_vulnerabilities: int = 0
+    n_patches: int = 0
+    n_bundles: int = 0
+    patched_vulnerabilities: list[str] = []
+    non_patched_vulnerabilities: list[str] = []
 
 
 def truncate_stacktraces(submission: SubmissionEntry, max_length: int = 80) -> SubmissionEntry:
@@ -181,16 +201,17 @@ def main():
         # Read submissions from Redis using the same key as the Submissions class
         SUBMISSIONS_KEY = "submissions"
         raw_submissions = redis.lrange(SUBMISSIONS_KEY, 0, -1)
+        registry = TaskRegistry(redis)
 
         if not raw_submissions:
             logger.info("No submissions found")
             return
 
         logger.info(f"Found {len(raw_submissions)} submissions:")
+        result: dict[TaskId, TaskResult] = {}
         for i, raw in enumerate(raw_submissions):
             try:
                 submission = SubmissionEntry.FromString(raw)
-
                 # Apply stacktrace truncation unless verbose mode is enabled
                 if not command.verbose:
                     submission = truncate_stacktraces(submission)
@@ -200,12 +221,80 @@ def main():
                         logger.info(f"Skipping stopped submission {i}")
                         continue
 
+                task_id = submission.crashes[0].crash.crash.target.task_id
+                task = registry.get(task_id)
+                if task is None:
+                    logger.error(f"Task {task_id} not found in registry")
+                    continue
+
+                if task_id not in result:
+                    result[task_id] = TaskResult(
+                        task_id=task_id, project_name=task.project_name, mode=str(task.task_type)
+                    )
+                c = next((c for c in submission.crashes if c.result == SubmissionResult.PASSED), None)
+                if c:
+                    result[task_id].n_vulnerabilities += 1
+
+                p = next((p for p in submission.patches if p.result == SubmissionResult.PASSED), None)
+                if p:
+                    result[task_id].n_patches += 1
+                    result[task_id].patched_vulnerabilities.append(c.competition_pov_id)
+                else:
+                    if c:
+                        result[task_id].non_patched_vulnerabilities.append(c.competition_pov_id)
+
+                b = next((b for b in submission.bundles), None)
+                if b:
+                    result[task_id].n_bundles += 1
+
                 print(f"--- Submission {i} ---")
                 print(submission)
                 print()
             except Exception as e:
                 logger.error(f"Failed to parse submission {i}: {e}")
 
+        print()
+        print()
+        print()
+        print("Summary:")
+
+        total_vulnerabilities = sum(task_result.n_vulnerabilities for task_result in result.values())
+        total_patches = sum(task_result.n_patches for task_result in result.values())
+        total_task_vuln = sum(1 for tr in result.values() if tr.n_vulnerabilities > 0)
+        print(f"Total vulnerabilities across all tasks: {total_vulnerabilities}")
+        print(f"Total patches across all tasks: {total_patches}")
+        print(f"N of at least 1 vuln in a challenge: {total_task_vuln}")
+        print()
+
+        for task_id, task_result in result.items():
+            print(f"Task {task_id}:")
+            print(f"  Project: {task_result.project_name}")
+            print(f"  Mode: {task_result.mode}")
+            print(f"  N vulnerabilities: {task_result.n_vulnerabilities}")
+            print(f"  N patches: {task_result.n_patches}")
+            print(f"  N bundles: {task_result.n_bundles}")
+            print(f"  Patched vulnerabilities: {task_result.patched_vulnerabilities}")
+            print(f"  Non-patched vulnerabilities: {task_result.non_patched_vulnerabilities}")
+            print()
+
+        print()
+        print()
+        print()
+        print("Non-patched vulnerabilities across all tasks:")
+        all_non_patched = []
+        for task_id, task_result in result.items():
+            all_non_patched.extend(
+                (task_result.project_name, task_result.task_id, vuln_id)
+                for vuln_id in task_result.non_patched_vulnerabilities
+            )
+
+        if all_non_patched:
+            for project_name, task_id, vuln_id in all_non_patched:
+                print(f"  {project_name} | {task_id} | {vuln_id}")
+        else:
+            print("  None")
+
+        print()
         logger.info("Done")
     elif isinstance(command, ListSettings):
         print("Available queues:")
