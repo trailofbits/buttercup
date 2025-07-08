@@ -25,8 +25,7 @@ opentelemetry.attributes._clean_attribute = _clean_attribute_wrapper
 
 
 logger = logging.getLogger(__name__)
-# NOTE: we made the mistake of using SERVICE_INSTANCE_ID as CRS_INSTANCE_ID, so we're keeping it for now
-crs_instance_id = os.getenv("SERVICE_INSTANCE_ID", str(uuid.uuid4()))
+crs_instance_id = os.getenv("CRS_INSTANCE_ID", str(uuid.uuid4()))
 service_instance_id = str(uuid.uuid4())
 
 
