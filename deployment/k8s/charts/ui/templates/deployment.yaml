@@ -5,58 +5,45 @@ metadata:
   name: {{ .Release.Name }}-ui
   labels:
     app: ui
-    app.kubernetes.io/name: ui
-    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app: ui
-      app.kubernetes.io/name: ui
-      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
         app: ui
-        app.kubernetes.io/name: ui
-        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
       containers:
-        - name: ui
-          image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
-          imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
-          env:
-            - name: BUTTERCUP_UI_CRS_BASE_URL
-              value: {{ .Values.global.crs.api_url | default (printf "http://%s-task-server.%s.svc.cluster.local:8000/v1/task" .Release.Name .Release.Namespace) | quote }}
-            - name: BUTTERCUP_UI_CRS_KEY_ID
-              value: {{ .Values.global.crs.api_key_id | quote }}
-            - name: BUTTERCUP_UI_CRS_KEY_TOKEN
-              value: {{ .Values.global.crs.api_key_token | quote }}
-            - name: BUTTERCUP_UI_STORAGE_DIR
-              value: "/data/challenges"
-          volumeMounts:
-            - name: data-volume
-              mountPath: /data
-          command: ["buttercup-ui"]
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          livenessProbe:
-            httpGet:
-              path: /v1/ping/
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 30
-          readinessProbe:
-            httpGet:
-              path: /v1/ping/
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 10
+      - name: ui
+        image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+        imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+        ports:
+          - name: http
+            containerPort: {{ .Values.service.port }}
+            protocol: TCP
+        env:
+        {{- include "buttercup.uiEnv" . | nindent 8 }}
+        volumeMounts:
+          - name: data-volume
+            mountPath: /data
+        command: ["buttercup-ui"]
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: /v1/ping/
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /v1/ping/
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
       volumes:
         - name: data-volume
           emptyDir: {}

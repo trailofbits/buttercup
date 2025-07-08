@@ -364,3 +364,21 @@ Service-specific environment variables that utilize the standardized variables
 {{- end }}
 
 
+{{- define "buttercup.uiEnv" }}
+- name: BUTTERCUP_UI_CRS_BASE_URL
+  value: {{ .Values.global.crs.api_url | default (printf "http://%s-task-server.%s.svc.cluster.local:8000" .Release.Name .Release.Namespace) | quote }}
+- name: BUTTERCUP_UI_CRS_KEY_ID
+  value: {{ .Values.global.crs.api_key_id | quote }}
+- name: BUTTERCUP_UI_CRS_KEY_TOKEN
+  value: {{ .Values.global.crs.api_key_token | quote }}
+- name: BUTTERCUP_UI_STORAGE_DIR
+  value: "/data/challenges"
+- name: BUTTERCUP_UI_EXTERNAL_HOST
+  value: {{ .Values.service.external_host | default (printf "%s-ui.%s.svc.cluster.local" .Release.Name .Release.Namespace) | quote }}
+- name: BUTTERCUP_UI_PORT
+  value: {{ .Values.service.port | quote }}
+- name: BUTTERCUP_UI_LOG_LEVEL
+  value: {{ include "buttercup.core.logLevel" . }}
+{{- end }}
+
+
