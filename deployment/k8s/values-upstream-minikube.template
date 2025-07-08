@@ -21,11 +21,6 @@ global:
     repository: localhost/program-model
     tag: "latest"
     pullPolicy: Never
-  competitionApiImage:
-    repository: ghcr.io/trailofbits/buttercup/competition-test-api
-    tag: v1.4-rc1
-    pullPolicy: Always
-    pullSecrets: ["ghcr-auth"]
 
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
@@ -63,8 +58,11 @@ litellm:
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
 
+ui:
+  enabled: true
+
 competition-api:
-  enabled: ${COMPETITION_API_ENABLED}
+  enabled: false
 
 mock-competition-api:
   enabled: ${MOCK_COMPETITION_API_ENABLED}

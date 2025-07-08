@@ -55,3 +55,6 @@ dependencies:
   - name: scratch-cleaner
     version: "0.0.1"
     repository: "file://charts/scratch-cleaner"
+  - name: ui
+    version: "0.0.1"
+    repository: "file://charts/ui"
