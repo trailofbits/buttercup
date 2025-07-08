@@ -11,10 +11,15 @@ dependencies = [
     "tree-sitter>=0.24.0",
     "tree-sitter-language-pack>=0.4.0",
     "rapidfuzz ~= 3.12.2",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "pydantic>=2.0.0",
+    "httpx>=0.24.0",
 ]
 
 [project.scripts]
 buttercup-program-model = "buttercup.program_model.__cli__:main"
+buttercup-program-model-api = "buttercup.program_model.api.__cli__:main"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }

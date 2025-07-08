@@ -21,9 +21,9 @@ from redis import Redis
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 from buttercup.common.project_yaml import ProjectYaml
-from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.rest_client import CodeQueryPersistentRest
 from buttercup.program_model.utils.common import Function, TypeDefinition
-from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
+from buttercup.program_model.harness_discovery import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
 

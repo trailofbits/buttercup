@@ -16,7 +16,7 @@ from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.stack_parsing import CrashSet
-from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.rest_client import CodeQueryPersistentRest
 from buttercup.seed_gen.function_selector import FunctionSelector
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
@@ -136,7 +136,7 @@ class SeedGenBot(TaskLoop):
 
             logger.info("Initializing codequery")
             try:
-                codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
+                codequery = CodeQueryPersistentRest(challenge_task, work_dir=Path(self.wdir))
             except Exception as e:
                 logger.exception(f"Failed to initialize codequery: {e}.")
                 return

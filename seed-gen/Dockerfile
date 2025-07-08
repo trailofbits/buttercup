@@ -7,7 +7,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
 
 FROM python_base AS runtime-base
 RUN apt-get update \
-    && apt-get install -y curl ripgrep codequery
+    && apt-get install -y curl ripgrep
 RUN curl -fsSL https://get.docker.com | sh
 RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
 
@@ -41,16 +41,10 @@ ADD seed-gen /app/seed-gen
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
-FROM runtime-base AS cscope-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf gcc make bison flex libncurses-dev
-COPY external/aixcc-cscope /cscope
-RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
-
 FROM runtime-base AS runtime
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync libncurses-dev git
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync git
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
-COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
 COPY common/container-entrypoint.sh /container-entrypoint.sh
 
