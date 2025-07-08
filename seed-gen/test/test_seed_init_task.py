@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -76,7 +76,9 @@ def temp_output_dir():
 class TestSeedInitTask:
     """Test cases for SeedInitTask."""
 
-    def test_init(self, seed_init_task, mock_challenge_task, mock_codequery, mock_project_yaml, mock_redis):
+    def test_init(
+        self, seed_init_task, mock_challenge_task, mock_codequery, mock_project_yaml, mock_redis
+    ):
         """Test task initialization."""
         assert seed_init_task.package_name == "test_package"
         assert seed_init_task.harness_name == "test_harness"
@@ -87,9 +89,11 @@ class TestSeedInitTask:
 
     def test_get_harness_source(self, seed_init_task, mock_harness_info):
         """Test getting harness source."""
-        with patch('buttercup.seed_gen.find_harness.get_harness_source', return_value=mock_harness_info) as mock_get_harness_source:
+        with patch(
+            "buttercup.seed_gen.find_harness.get_harness_source", return_value=mock_harness_info
+        ) as mock_get_harness_source:
             result = seed_init_task.get_harness_source()
-            
+
             assert result == mock_harness_info
             mock_get_harness_source.assert_called_once_with(
                 seed_init_task.redis, seed_init_task.codequery, seed_init_task.harness_name
@@ -97,9 +101,9 @@ class TestSeedInitTask:
 
     def test_get_harness_source_none(self, seed_init_task):
         """Test getting harness source when none is found."""
-        with patch('buttercup.seed_gen.find_harness.get_harness_source', return_value=None):
+        with patch("buttercup.seed_gen.find_harness.get_harness_source", return_value=None):
             result = seed_init_task.get_harness_source()
-            
+
             assert result is None
 
     def test_generate_seeds_context_call(self, seed_init_task, mock_harness_info, temp_output_dir):
@@ -109,26 +113,31 @@ class TestSeedInitTask:
         mock_compiled_workflow = Mock()
         mock_workflow.compile.return_value = mock_compiled_workflow
         mock_compiled_workflow.with_config.return_value = mock_compiled_workflow
-        
-        with patch.object(seed_init_task, '_build_workflow', return_value=mock_workflow):
-            with patch('buttercup.seed_gen.seed_init.get_langfuse_callbacks', return_value=[]):
-                with patch('buttercup.seed_gen.seed_init.trace') as mock_trace:
+
+        with patch.object(seed_init_task, "_build_workflow", return_value=mock_workflow):
+            with patch("buttercup.seed_gen.seed_init.get_langfuse_callbacks", return_value=[]):
+                with patch("buttercup.seed_gen.seed_init.trace") as mock_trace:
                     mock_span = Mock()
-                    mock_trace.get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
-                    
+                    tracer = mock_trace.get_tracer.return_value
+                    span_ctx = tracer.start_as_current_span.return_value
+                    enter_ctx = span_ctx.__enter__
+                    enter_ctx.return_value = mock_span
+
                     seed_init_task.generate_seeds(mock_harness_info, temp_output_dir)
-                    
+
                     # Verify workflow was built and invoked
                     mock_workflow.compile.assert_called_once()
                     mock_compiled_workflow.with_config.assert_called_once()
                     mock_compiled_workflow.invoke.assert_called_once()
-                    
+
                     # Verify the state passed to invoke
                     invoke_args = mock_compiled_workflow.invoke.call_args[0][0]
                     assert invoke_args.harness == mock_harness_info
                     assert invoke_args.output_dir == temp_output_dir
 
-    def test_get_context_generates_proper_command(self, seed_init_task, mock_harness_info, temp_output_dir):
+    def test_get_context_generates_proper_command(
+        self, seed_init_task, mock_harness_info, temp_output_dir
+    ):
         """Test _get_context generates proper command with mocked LLM calls."""
         # Create test state
         state = BaseTaskState(
@@ -136,25 +145,27 @@ class TestSeedInitTask:
             task=seed_init_task,
             output_dir=temp_output_dir,
         )
-        
+
         # Mock the LLM response
         mock_llm_response = AIMessage(content="mock tool calls", tool_calls=[])
-        
-        with patch.object(seed_init_task, 'llm_with_tools') as mock_llm:
+
+        with patch.object(seed_init_task, "llm_with_tools") as mock_llm:
             mock_llm.invoke.return_value = mock_llm_response
-            
+
             result = seed_init_task._get_context(state)
-            
+
             # Verify the command structure
             assert result.update["messages"] == [mock_llm_response]
             assert result.update["context_iteration"] == 1
-            
+
             # Verify LLM was called with proper prompt
             mock_llm.invoke.assert_called_once()
             call_args = mock_llm.invoke.call_args[0][0]
             assert len(call_args) >= 2  # System and user messages
 
-    def test_generate_seeds_creates_proper_command(self, seed_init_task, mock_harness_info, temp_output_dir):
+    def test_generate_seeds_creates_proper_command(
+        self, seed_init_task, mock_harness_info, temp_output_dir
+    ):
         """Test _generate_seeds creates proper command with mocked LLM calls."""
         # Create test state with retrieved context
         state = BaseTaskState(
@@ -162,16 +173,18 @@ class TestSeedInitTask:
             task=seed_init_task,
             output_dir=temp_output_dir,
         )
-        
+
         # Mock the generated functions
-        mock_generated_functions = "def test_seed_1():\n    return b'test_data_1'\n\ndef test_seed_2():\n    return b'test_data_2'"
-        
-        with patch.object(seed_init_task, '_generate_python_funcs_base', return_value=mock_generated_functions):
+        mock_generated_functions = "def test_seed_1():\n    return b'test_data_1'\n\ndef test_seed_2():\n    return b'test_data_2'"  # noqa: E501
+
+        with patch.object(
+            seed_init_task, "_generate_python_funcs_base", return_value=mock_generated_functions
+        ):
             result = seed_init_task._generate_seeds(state)
-            
+
             # Verify the command structure
             assert result.update["generated_functions"] == mock_generated_functions
-            
+
             # Verify the prompt variables passed to LLM
             seed_init_task._generate_python_funcs_base.assert_called_once()
             call_args = seed_init_task._generate_python_funcs_base.call_args
@@ -181,28 +194,34 @@ class TestSeedInitTask:
 
     def test_do_task_success(self, seed_init_task, mock_harness_info, temp_output_dir):
         """Test successful do_task execution."""
-        with patch('buttercup.seed_gen.find_harness.get_harness_source', return_value=mock_harness_info):
-            with patch.object(seed_init_task, 'generate_seeds') as mock_generate_seeds:
+        with patch(
+            "buttercup.seed_gen.find_harness.get_harness_source", return_value=mock_harness_info
+        ):
+            with patch.object(seed_init_task, "generate_seeds") as mock_generate_seeds:
                 seed_init_task.do_task(temp_output_dir)
-                
+
                 mock_generate_seeds.assert_called_once_with(mock_harness_info, temp_output_dir)
 
     def test_do_task_no_harness(self, seed_init_task, temp_output_dir):
         """Test do_task when no harness is found."""
-        with patch('buttercup.seed_gen.find_harness.get_harness_source', return_value=None):
-            with patch.object(seed_init_task, 'generate_seeds') as mock_generate_seeds:
+        with patch("buttercup.seed_gen.find_harness.get_harness_source", return_value=None):
+            with patch.object(seed_init_task, "generate_seeds") as mock_generate_seeds:
                 seed_init_task.do_task(temp_output_dir)
-                
+
                 # Should not call generate_seeds if no harness
                 mock_generate_seeds.assert_not_called()
 
     def test_do_task_exception_handling(self, seed_init_task, mock_harness_info, temp_output_dir):
         """Test do_task exception handling."""
-        with patch('buttercup.seed_gen.find_harness.get_harness_source', return_value=mock_harness_info):
-            with patch.object(seed_init_task, 'generate_seeds', side_effect=Exception("Test error")):
-                with patch('buttercup.seed_gen.seed_init.logger') as mock_logger:
+        with patch(
+            "buttercup.seed_gen.find_harness.get_harness_source", return_value=mock_harness_info
+        ):
+            with patch.object(
+                seed_init_task, "generate_seeds", side_effect=Exception("Test error")
+            ):
+                with patch("buttercup.seed_gen.seed_init.logger") as mock_logger:
                     seed_init_task.do_task(temp_output_dir)
-                    
+
                     # Should log the exception
                     mock_logger.exception.assert_called_once()
 
@@ -223,9 +242,9 @@ class TestSeedInitTask:
             output_dir=temp_output_dir,
             context_iteration=2,
         )
-        
+
         assert seed_init_task._continue_context_retrieval(state) is True
-        
+
         # Test when should stop (iteration >= max)
         state.context_iteration = 4
         assert seed_init_task._continue_context_retrieval(state) is False
@@ -233,7 +252,7 @@ class TestSeedInitTask:
     def test_workflow_build_structure(self, seed_init_task):
         """Test that workflow is built with correct structure."""
         workflow = seed_init_task._build_workflow(BaseTaskState)
-        
+
         # Check that workflow has the expected nodes
         assert "get_context" in workflow.nodes
         assert "tools" in workflow.nodes
