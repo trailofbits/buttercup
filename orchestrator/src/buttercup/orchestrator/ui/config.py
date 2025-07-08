@@ -19,6 +19,16 @@ class Settings(BaseSettings):
         Path, Field(default=Path("./challenges"), description="Directory containing challenge files")
     ]
 
+    # CRS configuration
+    crs_base_url: Annotated[str, Field(default="http://localhost:8000", description="CRS API base URL")]
+    crs_key_id: Annotated[Optional[str], Field(default=None, description="Key ID for CRS authentication")]
+    crs_key_token: Annotated[Optional[str], Field(default=None, description="Key token for CRS authentication")]
+
+    # Storage configuration
+    storage_dir: Annotated[
+        Path, Field(default=Path("/tmp/buttercup-storage"), description="Directory for storing tarballs")
+    ]
+
     # Database configuration (for future use)
     database_url: Annotated[Optional[str], Field(default=None, description="Database URL for storing submissions")]
 

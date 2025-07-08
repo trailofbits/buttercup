@@ -8,7 +8,8 @@ from dataclasses import dataclass
 import uuid
 import json
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.responses import FileResponse
 
 from buttercup.orchestrator.ui.competition_api.models.types import (
     BundleSubmission,
@@ -31,6 +32,8 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
     SARIFSubmissionResponse,
     SubmissionStatus,
 )
+from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
+from buttercup.orchestrator.ui.config import Settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -41,6 +44,29 @@ app = FastAPI(
     version="1.4.0",
     servers=[{"url": "/"}],
 )
+
+# Global settings instance
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    """Get application settings singleton."""
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings
+
+
+def get_challenge_service() -> ChallengeService:
+    """Get challenge service instance."""
+    settings = get_settings()
+    return ChallengeService(settings.storage_dir, f"http://{settings.host}:{settings.port}")
+
+
+def get_crs_client() -> CRSClient:
+    """Get CRS client instance."""
+    settings = get_settings()
+    return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
 
 
 @dataclass
@@ -66,6 +92,16 @@ challenges = [
         fuzz_tooling_project_name="libpng",
         duration=1800,
     ),
+    Challenge(
+        name="upstream-libpng-delta",
+        challenge_repo_url="https://github.com/pnggroup/libpng",
+        challenge_repo_head_ref="2b978915d82377df13fcbb1fb56660195ded868a",
+        challenge_repo_base_ref="640204280f8109d7165f95d2b177f89baf20b253",
+        fuzz_tooling_url="https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref="master",
+        fuzz_tooling_project_name="libpng",
+        duration=1800,
+    ),
 ]
 
 
@@ -75,6 +111,18 @@ def get_v1_ping_() -> PingResponse:
     Test authentication creds and network connectivity
     """
     return PingResponse(status="pong")
+
+
+@app.get("/v1/crs-ping/", tags=["ping"])
+def get_v1_crs_ping_(crs_client: CRSClient = Depends(get_crs_client)) -> dict:
+    """
+    Test connectivity to CRS
+    """
+    crs_ready = crs_client.ping()
+    return {
+        "crs_ready": crs_ready,
+        "crs_base_url": crs_client.crs_base_url,
+    }
 
 
 @app.get(
@@ -106,15 +154,51 @@ def get_v1_request_list_() -> RequestListResponse | Error:
     },
     tags=["request"],
 )
-def post_v1_request_challenge_name(challenge_name: str, body: RequestSubmission = ...) -> Message | Error:
+def post_v1_request_challenge_name(
+    challenge_name: str,
+    body: RequestSubmission,
+    challenge_service: ChallengeService = Depends(get_challenge_service),
+    crs_client: CRSClient = Depends(get_crs_client),
+) -> Message | Error:
     """
     Send a task to the source of this request
     """
     if challenge_name not in [c.name for c in challenges]:
         return Error(message=f"Challenge {challenge_name} not found")
 
-    # TODO: Send challenge to CRS
-    return Message(message="Not implemented yet")
+    # Find the challenge
+    challenge = next(c for c in challenges if c.name == challenge_name)
+    logger.info(f"Creating task for challenge {challenge_name}")
+
+    # Get duration from request or use challenge default
+    duration_secs = body.duration_secs or challenge.duration
+
+    try:
+        # Create task for the challenge
+        task = challenge_service.create_task_for_challenge(
+            challenge_name=challenge.name,
+            challenge_repo_url=challenge.challenge_repo_url,
+            challenge_repo_ref=challenge.challenge_repo_head_ref,
+            challenge_repo_base_ref=challenge.challenge_repo_base_ref,
+            fuzz_tooling_url=challenge.fuzz_tooling_url,
+            fuzz_tooling_ref=challenge.fuzz_tooling_ref,
+            fuzz_tooling_project_name=challenge.fuzz_tooling_project_name,
+            duration_secs=duration_secs,
+        )
+
+        # Send task to CRS via POST /v1/task endpoint
+        if crs_client.submit_task(task):
+            logger.info(f"Task {task.tasks[0].task_id} submitted successfully to CRS")
+            return Message(
+                message=f"Task {task.tasks[0].task_id} created and submitted to CRS for challenge {challenge_name}"
+            )
+        else:
+            logger.error(f"Failed to submit task {task.tasks[0].task_id} to CRS")
+            return Error(message="Failed to submit task to CRS")
+
+    except Exception as e:
+        logger.error(f"Error creating task for challenge {challenge_name}: {e}")
+        return Error(message=f"Failed to create task: {str(e)}")
 
 
 @app.post(
@@ -129,7 +213,7 @@ def post_v1_request_challenge_name(challenge_name: str, body: RequestSubmission 
     tags=["broadcast-sarif-assessment"],
 )
 def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
-    task_id: str, broadcast_sarif_id: str = ..., body: SarifAssessmentSubmission = ...
+    task_id: str, broadcast_sarif_id: str, body: SarifAssessmentSubmission
 ) -> SarifAssessmentResponse | Error:
     """
     Submit a SARIF Assessment
@@ -151,7 +235,7 @@ def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
     },
     tags=["bundle"],
 )
-def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission = ...) -> BundleSubmissionResponse | Error:
+def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> BundleSubmissionResponse | Error:
     """
     Submit Bundle
     """
@@ -172,9 +256,7 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission = ...) -> 
     },
     tags=["bundle"],
 )
-def get_v1_task_task_id_bundle_bundle_id_(
-    task_id: str, bundle_id: str = ...
-) -> BundleSubmissionResponseVerbose | Error:
+def get_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> BundleSubmissionResponseVerbose | Error:
     """
     Get Bundle
     """
@@ -193,7 +275,7 @@ def get_v1_task_task_id_bundle_bundle_id_(
     },
     tags=["bundle"],
 )
-def delete_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str = ...) -> str | Error | None:
+def delete_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> str | Error | None:
     """
     Delete Bundle
     """
@@ -213,7 +295,7 @@ def delete_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str = ...)
     tags=["bundle"],
 )
 def patch_v1_task_task_id_bundle_bundle_id_(
-    task_id: str, bundle_id: str = ..., body: BundleSubmission = ...
+    task_id: str, bundle_id: str, body: BundleSubmission
 ) -> BundleSubmissionResponseVerbose | Error:
     """
     Update Bundle
@@ -234,7 +316,7 @@ def patch_v1_task_task_id_bundle_bundle_id_(
     },
     tags=["freeform"],
 )
-def post_v1_task_task_id_freeform_(task_id: str, body: FreeformSubmission = ...) -> FreeformResponse | Error:
+def post_v1_task_task_id_freeform_(task_id: str, body: FreeformSubmission) -> FreeformResponse | Error:
     """
     Submit Freeform
     """
@@ -255,7 +337,7 @@ def post_v1_task_task_id_freeform_(task_id: str, body: FreeformSubmission = ...)
     },
     tags=["patch"],
 )
-def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission = ...) -> PatchSubmissionResponse | Error:
+def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSubmissionResponse | Error:
     """
     Submit Patch
     """
@@ -278,12 +360,14 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission = ...) -> Pa
     },
     tags=["patch"],
 )
-def get_v1_task_task_id_patch_patch_id_(task_id: str, patch_id: str = ...) -> PatchSubmissionResponse | Error:
+def get_v1_task_task_id_patch_patch_id_(task_id: str, patch_id: str) -> PatchSubmissionResponse | Error:
     """
     Patch Status
     """
     logger.info(f"Patch status check - Task: {task_id}, Patch ID: {patch_id}")
-    return Error(message="Not implemented")
+    return PatchSubmissionResponse(
+        patch_id=patch_id, status=SubmissionStatus.SubmissionStatusPassed, functionality_tests_passing=True
+    )
 
 
 @app.post(
@@ -297,7 +381,7 @@ def get_v1_task_task_id_patch_patch_id_(task_id: str, patch_id: str = ...) -> Pa
     },
     tags=["pov"],
 )
-def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission = ...) -> POVSubmissionResponse | Error:
+def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissionResponse | Error:
     """
     Submit Vulnerability
     """
@@ -321,12 +405,12 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission = ...) -> POVSub
     },
     tags=["pov"],
 )
-def get_v1_task_task_id_pov_pov_id_(task_id: str, pov_id: str = ...) -> POVSubmissionResponse | Error:
+def get_v1_task_task_id_pov_pov_id_(task_id: str, pov_id: str) -> POVSubmissionResponse | Error:
     """
     Vulnerability Status
     """
     logger.info(f"POV status check - Task: {task_id}, POV ID: {pov_id}")
-    return Error(message="Not implemented")
+    return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.SubmissionStatusPassed)
 
 
 @app.post(
@@ -340,7 +424,7 @@ def get_v1_task_task_id_pov_pov_id_(task_id: str, pov_id: str = ...) -> POVSubmi
     },
     tags=["submitted-sarif"],
 )
-def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission = ...) -> SARIFSubmissionResponse | Error:
+def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission) -> SARIFSubmissionResponse | Error:
     """
     Submit a CRS generated SARIF
     """
@@ -348,3 +432,17 @@ def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission = 
     logger.info(f"SARIF submission - Task: {task_id}, Submitted SARIF ID: {submitted_sarif_id}")
     logger.info(f"SARIF content: {json.dumps(body.sarif, indent=2)}")
     return Error(message="Not implemented")
+
+
+@app.get("/files/{tarball_name}.tar.gz", tags=["files"])
+def get_tarball(
+    tarball_name: str, challenge_service: ChallengeService = Depends(get_challenge_service)
+) -> FileResponse:
+    """
+    Serve tarball files for CRS download
+    """
+    try:
+        return challenge_service.serve_tarball(tarball_name)
+    except Exception as e:
+        logger.error(f"Error serving tarball {tarball_name}: {e}")
+        raise
