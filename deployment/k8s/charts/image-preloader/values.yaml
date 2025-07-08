@@ -14,44 +14,24 @@ resources:
     memory: 512Mi
 
 # List of images to pull
-imagesToPull:
-  - ghcr.io/aixcc-finals/base-runner:v1.3.0
-  - ghcr.io/aixcc-finals/base-builder:v1.3.0
-  - ghcr.io/aixcc-finals/base-image:v1.3.0
-  - ghcr.io/aixcc-finals/base-clang:v1.3.0
-  - ghcr.io/aixcc-finals/base-runner-debug:v1.3.0
-  - ghcr.io/aixcc-finals/base-builder-jvm:v1.3.0
-  - ghcr.io/aixcc-finals/base-builder-ruby:v1.3.0
-  - ghcr.io/aixcc-finals/base-builder-go:v1.3.0
-  - ghcr.io/aixcc-finals/base-builder-python:v1.3.0
-  - ghcr.io/aixcc-finals/base-builder-rust:v1.3.0
-  - ghcr.io/aixcc-finals/base-runner:v1.2.1
-  - ghcr.io/aixcc-finals/base-builder:v1.2.1
-  - ghcr.io/aixcc-finals/base-image:v1.2.1
-  - ghcr.io/aixcc-finals/base-clang:v1.2.1
-  - ghcr.io/aixcc-finals/base-runner-debug:v1.2.1
-  - ghcr.io/aixcc-finals/base-builder-jvm:v1.2.1
-  - ghcr.io/aixcc-finals/base-builder-ruby:v1.2.1
-  - ghcr.io/aixcc-finals/base-builder-go:v1.2.1
-  - ghcr.io/aixcc-finals/base-builder-python:v1.2.1
-  - ghcr.io/aixcc-finals/base-builder-rust:v1.2.1
-  - ghcr.io/aixcc-finals/base-runner:v1.1.0
-  - ghcr.io/aixcc-finals/base-builder:v1.1.0
-  - ghcr.io/aixcc-finals/base-image:v1.1.0
-  - ghcr.io/aixcc-finals/base-clang:v1.1.0
-  - ghcr.io/aixcc-finals/base-runner-debug:v1.1.0
-  - ghcr.io/aixcc-finals/base-builder-jvm:v1.1.0
-  - ghcr.io/aixcc-finals/base-builder-ruby:v1.1.0
-  - ghcr.io/aixcc-finals/base-builder-go:v1.1.0
-  - ghcr.io/aixcc-finals/base-builder-python:v1.1.0
-  - ghcr.io/aixcc-finals/base-builder-rust:v1.1.0
-  - ghcr.io/aixcc-finals/base-runner:v1.0.0
-  - ghcr.io/aixcc-finals/base-builder:v1.0.0
-  - ghcr.io/aixcc-finals/base-image:v1.0.0
-  - ghcr.io/aixcc-finals/base-clang:v1.0.0
-  - ghcr.io/aixcc-finals/base-runner-debug:v1.0.0
-  - ghcr.io/aixcc-finals/base-builder-jvm:v1.0.0
-  - ghcr.io/aixcc-finals/base-builder-ruby:v1.0.0
-  - ghcr.io/aixcc-finals/base-builder-go:v1.0.0
-  - ghcr.io/aixcc-finals/base-builder-python:v1.0.0
-  - ghcr.io/aixcc-finals/base-builder-rust:v1.0.0
+# Define base image names and versions
+baseImages:
+  - ghcr.io/aixcc-finals/base-runner
+  - ghcr.io/aixcc-finals/base-builder
+  - ghcr.io/aixcc-finals/base-image
+  - ghcr.io/aixcc-finals/base-clang
+  - ghcr.io/aixcc-finals/base-runner-debug
+  - ghcr.io/aixcc-finals/base-builder-jvm
+  - ghcr.io/aixcc-finals/base-builder-ruby
+  - ghcr.io/aixcc-finals/base-builder-go
+  - ghcr.io/aixcc-finals/base-builder-python
+  - ghcr.io/aixcc-finals/base-builder-rust
+
+versions:
+  - v1.3.0
+  - v1.2.1
+  - v1.1.0
+  - v1.0.0
+
+# List of images to pull (will be generated dynamically in template)
+imagesToPull: []

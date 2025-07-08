@@ -1,20 +1,21 @@
-
-
 ARG BASE_IMAGE=ghcr.io/aixcc-finals/base-runner:v1.3.0
 
-FROM $BASE_IMAGE AS runner-base
-RUN apt-get update
-# TODO(Ian): maybe we should have a different base image for the builder
-RUN curl -fsSL https://get.docker.com | sh
-
-FROM $BASE_IMAGE AS builder
+FROM $BASE_IMAGE AS base-image
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
-ENV UV_PYTHON_DOWNLOADS=never
-ENV UV_PYTHON=/usr/local/bin/python3.10
+ENV UV_PYTHON_DOWNLOADS=manual
+
+RUN uv python install python3.10
+
+FROM base-image AS runner-base
+RUN apt-get update
+# TODO(Ian): maybe we should have a different base image for the builder
+RUN curl -fsSL https://get.docker.com | sh
+
+FROM base-image AS builder
 
 WORKDIR /fuzzer
 

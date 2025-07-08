@@ -1,4 +1,7 @@
 ARG BASE_IMAGE=ubuntu:24.04
+ARG CSCOPE_IMAGE=ghcr.io/aixcc-finals/buttercup-cscope:main
+
+FROM $CSCOPE_IMAGE AS cscope-image
 
 FROM $BASE_IMAGE AS python_base
 ARG PYTHON_VERSION=3.12
@@ -42,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
 FROM runtime-base AS cscope-builder
-COPY --from=ghcr.io/aixcc-finals/buttercup-cscope:main /cscope /cscope
+COPY --from=cscope-image /cscope /cscope
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf gcc make bison flex libncurses-dev
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
