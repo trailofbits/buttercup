@@ -135,7 +135,6 @@ class TestChallengeService:
             )
 
             task = challenge_service.create_task_for_challenge(
-                challenge_name="test-challenge",
                 challenge_repo_url="https://github.com/test/challenge",
                 challenge_repo_ref="main",
                 challenge_repo_base_ref=None,
@@ -161,7 +160,6 @@ class TestChallengeService:
             assert task_detail.type == TaskType.full
 
             # Verify metadata
-            assert task_detail.metadata["challenge_name"] == "test-challenge"
             assert task_detail.metadata["challenge_repo_url"] == "https://github.com/test/challenge"
             assert task_detail.metadata["challenge_repo_ref"] == "main"
             assert task_detail.metadata["fuzz_tooling_url"] == "https://github.com/test/fuzz-tooling"
@@ -188,7 +186,6 @@ class TestChallengeService:
             mock_create_tarball.return_value = ("src", "a" * 64, None)
 
             task = challenge_service.create_task_for_challenge(
-                challenge_name="test-challenge",
                 challenge_repo_url="https://github.com/test/challenge",
                 challenge_repo_ref="main",
                 challenge_repo_base_ref=None,

@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import uuid
 import json
 
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from buttercup.orchestrator.ui.competition_api.models.types import (
     BundleSubmission,
@@ -60,7 +60,7 @@ def get_settings() -> Settings:
 def get_challenge_service() -> ChallengeService:
     """Get challenge service instance."""
     settings = get_settings()
-    return ChallengeService(settings.storage_dir, f"http://{settings.host}:{settings.port}")
+    return ChallengeService(settings.storage_dir, f"http://{settings.external_host}:{settings.port}")
 
 
 def get_crs_client() -> CRSClient:
@@ -69,9 +69,9 @@ def get_crs_client() -> CRSClient:
     return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
 
 
-@dataclass
-class Challenge:
-    name: str
+class Challenge(BaseModel):
+    name: str | None = None
+
     challenge_repo_url: str
     challenge_repo_head_ref: str
     fuzz_tooling_url: str
@@ -140,7 +140,35 @@ def get_v1_request_list_() -> RequestListResponse | Error:
     """
     Get a list of available challenges to task
     """
-    return RequestListResponse(challenges=[c.name for c in challenges])
+    return RequestListResponse(challenges=[c.name for c in challenges if c.name is not None])
+
+
+def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_client: CRSClient) -> Message | Error:
+    try:
+        # Create task for the challenge
+        task = challenge_service.create_task_for_challenge(
+            challenge_repo_url=challenge.challenge_repo_url,
+            challenge_repo_ref=challenge.challenge_repo_head_ref,
+            challenge_repo_base_ref=challenge.challenge_repo_base_ref,
+            fuzz_tooling_url=challenge.fuzz_tooling_url,
+            fuzz_tooling_ref=challenge.fuzz_tooling_ref,
+            fuzz_tooling_project_name=challenge.fuzz_tooling_project_name,
+            duration_secs=challenge.duration,
+        )
+
+        # Send task to CRS via POST /v1/task endpoint
+        if crs_client.submit_task(task):
+            logger.info(f"Task {task.tasks[0].task_id} submitted successfully to CRS")
+            return Message(
+                message=f"Task {task.tasks[0].task_id} created and submitted to CRS for challenge {challenge.name}"
+            )
+        else:
+            logger.error(f"Failed to submit task {task.tasks[0].task_id} to CRS")
+            return Error(message="Failed to submit task to CRS")
+
+    except Exception as e:
+        logger.error(f"Error creating task for challenge {challenge.name}: {e}")
+        return Error(message=f"Failed to create task: {str(e)}")
 
 
 @app.post(
@@ -171,34 +199,10 @@ def post_v1_request_challenge_name(
     logger.info(f"Creating task for challenge {challenge_name}")
 
     # Get duration from request or use challenge default
-    duration_secs = body.duration_secs or challenge.duration
+    if body.duration_secs:
+        challenge.duration = body.duration_secs
 
-    try:
-        # Create task for the challenge
-        task = challenge_service.create_task_for_challenge(
-            challenge_name=challenge.name,
-            challenge_repo_url=challenge.challenge_repo_url,
-            challenge_repo_ref=challenge.challenge_repo_head_ref,
-            challenge_repo_base_ref=challenge.challenge_repo_base_ref,
-            fuzz_tooling_url=challenge.fuzz_tooling_url,
-            fuzz_tooling_ref=challenge.fuzz_tooling_ref,
-            fuzz_tooling_project_name=challenge.fuzz_tooling_project_name,
-            duration_secs=duration_secs,
-        )
-
-        # Send task to CRS via POST /v1/task endpoint
-        if crs_client.submit_task(task):
-            logger.info(f"Task {task.tasks[0].task_id} submitted successfully to CRS")
-            return Message(
-                message=f"Task {task.tasks[0].task_id} created and submitted to CRS for challenge {challenge_name}"
-            )
-        else:
-            logger.error(f"Failed to submit task {task.tasks[0].task_id} to CRS")
-            return Error(message="Failed to submit task to CRS")
-
-    except Exception as e:
-        logger.error(f"Error creating task for challenge {challenge_name}: {e}")
-        return Error(message=f"Failed to create task: {str(e)}")
+    return _create_task(challenge, challenge_service, crs_client)
 
 
 @app.post(
@@ -446,3 +450,19 @@ def get_tarball(
     except Exception as e:
         logger.error(f"Error serving tarball {tarball_name}: {e}")
         raise
+
+
+@app.post("/webhook/trigger_task")
+def trigger_task(
+    body: Challenge,
+    challenge_service: ChallengeService = Depends(get_challenge_service),
+    crs_client: CRSClient = Depends(get_crs_client),
+) -> Message | Error:
+    """
+    Trigger a task
+    """
+    logger.info(f"Triggering task: {body.model_dump()}")
+    if body.name is None:
+        body.name = str(uuid.uuid4())
+
+    return _create_task(body, challenge_service, crs_client)

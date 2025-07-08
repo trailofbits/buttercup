@@ -181,7 +181,6 @@ class ChallengeService:
 
     def create_task_for_challenge(
         self,
-        challenge_name: str,
         challenge_repo_url: str,
         challenge_repo_ref: str,
         challenge_repo_base_ref: str | None,
@@ -194,7 +193,6 @@ class ChallengeService:
         Create a task for a challenge by processing repositories and creating tarballs.
 
         Args:
-            challenge_name: Name of the challenge
             challenge_repo_url: URL of the challenge repository
             challenge_repo_ref: Git reference for the challenge repository
             challenge_repo_base_ref: Git base reference for the challenge repository
@@ -212,8 +210,8 @@ class ChallengeService:
         deadline = current_time + (duration_secs * 1000)  # Deadline in milliseconds
 
         # Create tarballs
-        challenge_tarball_name = f"{challenge_name}-repo-{task_id}"
-        fuzz_tooling_tarball_name = f"{challenge_name}-fuzz-tooling-{task_id}"
+        challenge_tarball_name = f"{fuzz_tooling_project_name}-repo-{task_id}"
+        fuzz_tooling_tarball_name = f"{fuzz_tooling_project_name}-fuzz-tooling-{task_id}"
 
         # Create challenge repository tarball
         logger.info(f"Creating challenge repository tarball for {challenge_repo_url} with ref {challenge_repo_ref}")
@@ -261,7 +259,6 @@ class ChallengeService:
             focus=focus_dir,
             harnesses_included=True,  # Assuming harnesses are included
             metadata={
-                "challenge_name": challenge_name,
                 "challenge_repo_url": challenge_repo_url,
                 "challenge_repo_ref": challenge_repo_ref,
                 "challenge_repo_base_ref": challenge_repo_base_ref or "",
@@ -281,5 +278,5 @@ class ChallengeService:
             tasks=[task_detail],
         )
 
-        logger.info(f"Created task {task_id} for challenge {challenge_name}")
+        logger.info(f"Created task {task_id} for challenge {fuzz_tooling_project_name}")
         return task

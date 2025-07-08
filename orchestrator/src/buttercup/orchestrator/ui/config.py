@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     reload: Annotated[bool, Field(default=False, description="Reload the server when code changes")]
 
     # Competition API configuration
+    external_host: Annotated[
+        str, Field(default="localhost", description="External host, used to construct the files URLs")
+    ]
     host: Annotated[str, Field(default="0.0.0.0", description="Host to bind the server to")]
     port: Annotated[int, Field(default=1323, description="Port to bind the server to")]
 
