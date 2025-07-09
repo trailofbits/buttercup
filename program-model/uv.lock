@@ -7,15 +7,6 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "aenum"
-version = "3.1.15"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d0/f8/33e75863394f42e429bb553e05fda7c59763f0fd6848de847a25b3fbccf6/aenum-3.1.15.tar.gz", hash = "sha256:8cbd76cd18c4f870ff39b24284d3ea028fbe8731a58df3aa581e434c575b9559", size = 134730 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/fa/ca0c66b388624ba9dbbf35aab3a9f326bfdf5e56a7237fe8f1b600da6864/aenum-3.1.15-py3-none-any.whl", hash = "sha256:e0dfaeea4c2bd362144b87377e2c61d91958c5ed0b4daf89cb6f45ae23af6288", size = 137633 },
-]
-
-[[package]]
 name = "aiohappyeyeballs"
 version = "2.4.4"
 source = { registry = "https://pypi.org/simple" }
@@ -522,22 +513,6 @@ wheels = [
 ]
 
 [[package]]
-name = "gremlinpython"
-version = "3.7.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aenum" },
-    { name = "aiohttp" },
-    { name = "async-timeout" },
-    { name = "isodate" },
-    { name = "nest-asyncio" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/bd/706ef9c0589f2742c9860d877151807ec9b0f1a2904a605502247c9f773c/gremlinpython-3.7.3.tar.gz", hash = "sha256:c8144bd1099fdcf072deff9a15e260efa9a1a065220495f799f6fc1ff6b83ef4", size = 52585 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/64/65c9ab3deb11c5e0607c51fcddff3be33a06720cdd08768375720893e994/gremlinpython-3.7.3-py3-none-any.whl", hash = "sha256:56e0da437be3336971761dfeaab8532f0c583aaab760d8783c4a0bb389cfd341", size = 78436 },
-]
-
-[[package]]
 name = "grpcio"
 version = "1.71.0"
 source = { registry = "https://pypi.org/simple" }
@@ -667,15 +642,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d7/4b/cbd8e699e64a6f16ca3a8220661b5f83792b3017d0f79807cb8708d33913/iniconfig-2.0.0.tar.gz", hash = "sha256:2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3", size = 4646 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/a6/62565a6e1cf69e10f5727360368e451d4b7f58beeac6173dc9db836a5b46/iniconfig-2.0.0-py3-none-any.whl", hash = "sha256:b6a85871a79d2e3b22d2d1b94ac2824226a63c6b741c88f7ae975f18b6778374", size = 5892 },
-]
-
-[[package]]
-name = "isodate"
-version = "0.7.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz", hash = "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6", size = 29705 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/aa/0aca39a37d3c7eb941ba736ede56d689e7be91cab5d9ca846bde3999eba6/isodate-0.7.2-py3-none-any.whl", hash = "sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15", size = 22320 },
 ]
 
 [[package]]
@@ -985,15 +951,6 @@ wheels = [
 ]
 
 [[package]]
-name = "nest-asyncio"
-version = "1.6.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/83/f8/51569ac65d696c8ecbee95938f89d4abf00f47d58d48f6fbabfe8f0baefe/nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe", size = 7418 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/c4/c2971a3ba4c6103a3d10c4b0f24f461ddc027f0f09763220cf35ca1401b3/nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c", size = 5195 },
-]
-
-[[package]]
 name = "numpy"
 version = "1.26.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1266,7 +1223,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "common" },
-    { name = "gremlinpython" },
     { name = "protobuf" },
     { name = "rapidfuzz" },
     { name = "tree-sitter" },
@@ -1283,7 +1239,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "common", editable = "../common" },
-    { name = "gremlinpython", specifier = "==3.7.3" },
     { name = "protobuf", specifier = ">=3.20,<=3.20.3" },
     { name = "rapidfuzz", specifier = "~=3.12.2" },
     { name = "tree-sitter", specifier = ">=0.24.0" },
