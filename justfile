@@ -1,12 +1,5 @@
-download-cscope:
-    mkdir -p cscope/
-    docker pull ghcr.io/trailofbits/buttercup-cscope:main
-    docker create --name temp-cscope ghcr.io/trailofbits/buttercup-cscope:main
-    docker cp temp-cscope:/cscope cscope/
-    docker rm temp-cscope
-
 install-cscope:
-    cd cscope/cscope/ && autoreconf -i -s && ./configure && make && sudo make install
+    cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
 lint-python COMPONENT:
     cd {{ COMPONENT }} && uv sync --all-extras && uv run ruff format && uv run ruff check --fix && uv run mypy
