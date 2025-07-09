@@ -177,9 +177,6 @@ class ChallengeTask:
 
         self._helper_path = Path("infra/helper.py")
         oss_fuzz_path = self.get_oss_fuzz_path()
-        if oss_fuzz_path is None:
-            raise ChallengeTaskError("OSS-Fuzz path not found")
-
         if not (oss_fuzz_path / self._helper_path).exists():
             raise ChallengeTaskError(f"Missing required file: {oss_fuzz_path / self._helper_path}")
 
@@ -224,26 +221,27 @@ class ChallengeTask:
         # TODO: "Review task structure and Challenge Task operations" Issue #74
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
-    def _task_dir_compose_path(self, subpath_method: Callable[[], Path | None]) -> Path | None:
+    def _task_dir_compose_path(
+        self, subpath_method: Callable[[], Path | None], raise_on_none: bool = False
+    ) -> Path | None:
         subpath = subpath_method()
         if subpath is None:
+            if raise_on_none:
+                raise ChallengeTaskError(f"Path not found: {subpath_method.__name__}")
             return None
         return self.task_dir / subpath
 
-    def get_source_path(self) -> Path | None:
-        return self._task_dir_compose_path(self.get_source_subpath)
+    def get_source_path(self) -> Path:
+        return self._task_dir_compose_path(self.get_source_subpath, raise_on_none=True)  # type: ignore[return-value]
 
     def get_diff_path(self) -> Path | None:
         return self._task_dir_compose_path(self.get_diff_subpath)
 
-    def get_oss_fuzz_path(self) -> Path | None:
-        return self._task_dir_compose_path(self.get_oss_fuzz_subpath)
+    def get_oss_fuzz_path(self) -> Path:
+        return self._task_dir_compose_path(self.get_oss_fuzz_subpath, raise_on_none=True)  # type: ignore[return-value]
 
     def get_build_dir(self) -> Path | None:
-        oss_fuzz_path = self.get_oss_fuzz_path()
-        if oss_fuzz_path is None:
-            return None
-        return oss_fuzz_path / "build" / "out" / self.project_name
+        return self.get_oss_fuzz_path() / "build" / "out" / self.project_name
 
     def get_diffs(self) -> list[Path]:
         return get_diffs(self.get_diff_path())
@@ -276,10 +274,7 @@ class ChallengeTask:
 
     def dockerfile_path(self) -> Path:
         """Read the Dockerfile for the given project."""
-        oss_fuzz_path = self.get_oss_fuzz_path()
-        if oss_fuzz_path is None:
-            raise ChallengeTaskError("OSS-Fuzz path not found")
-        return oss_fuzz_path / "projects" / self.project_name / "Dockerfile"
+        return self.get_oss_fuzz_path() / "projects" / self.project_name / "Dockerfile"
 
     def workdir_from_dockerfile(self) -> Path:
         """Parses WORKDIR from the Dockerfile for the given project."""
@@ -288,9 +283,6 @@ class ChallengeTask:
         default_workdir = Path("/src") / self.project_name
         try:
             oss_fuzz_path = self.get_oss_fuzz_path()
-            if oss_fuzz_path is None:
-                raise ChallengeTaskError("OSS-Fuzz path not found")
-
             with open(oss_fuzz_path / "projects" / self.project_name / "Dockerfile") as file_handle:
                 lines = file_handle.readlines()
 
@@ -499,8 +491,7 @@ class ChallengeTask:
             if mount_dirs is None:
                 mount_dirs = {}
             source_path = self.get_source_path()
-            if source_path is not None:
-                mount_dirs.update({source_path: self.workdir_from_dockerfile()})
+            mount_dirs.update({source_path: self.workdir_from_dockerfile()})
 
         docker_cmd = ["docker", "run", "--privileged", "--shm-size=2g", "--rm"]
         if mount_dirs:

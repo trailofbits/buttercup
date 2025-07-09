@@ -96,21 +96,17 @@ def scratch_dir() -> Iterator[TmpDir]:
         yield tmp_dir
 
 
-@contextmanager
-def local_scratch_file(**kwargs: Any) -> Iterator[Any]:
+def local_scratch_file(**kwargs: Any) -> Any:
     """Return a temporary file in the local scratch directory"""
     sp = scratch_path()
-    with NamedTemporaryFile(dir=sp, **kwargs) as tmp_file:
-        yield tmp_file
+    return NamedTemporaryFile(dir=sp, **kwargs)
 
 
-@contextmanager
-def remote_scratch_file(local_path: NodeLocalPath, **kwargs: Any) -> Iterator[Any]:
+def remote_scratch_file(local_path: NodeLocalPath, **kwargs: Any) -> Any:
     """Get a temporary file in the remote storage corresponding to the node local path"""
     dp = remote_path(local_path)
     assert dp.is_absolute(), "Input path must be absolute"
-    with NamedTemporaryFile(dir=Path("/") / dp.parts[1], **kwargs) as tmp_file:
-        yield tmp_file
+    return NamedTemporaryFile(dir=Path("/") / dp.parts[1], **kwargs)
 
 
 def make_locally_available(local_path: NodeLocalPath) -> NodeLocalPath:
