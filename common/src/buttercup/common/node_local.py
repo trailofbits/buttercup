@@ -89,11 +89,9 @@ def scratch_path() -> NodeLocalPath:
     return scratch_dir
 
 
-@contextmanager
-def scratch_dir() -> Iterator[TmpDir]:
+def scratch_dir() -> Any:
     """Return a temporary directory in the scratch directory"""
-    with temp_dir(scratch_path()) as tmp_dir:
-        yield tmp_dir
+    return temp_dir(scratch_path())
 
 
 def local_scratch_file(**kwargs: Any) -> Any:
