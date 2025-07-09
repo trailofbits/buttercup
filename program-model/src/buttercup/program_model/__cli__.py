@@ -36,26 +36,18 @@ def main() -> None:
             sleep_time=command.sleep_time,
             redis=redis,
             wdir=settings.scratch_dir,
-            script_dir=command.script_dir,
-            kythe_dir=command.kythe_dir,
             python=command.python,
             allow_pull=command.allow_pull,
             base_image_url=command.base_image_url,
-            graphdb_url=settings.graphdb_url,
-            graphdb_enabled=settings.graphdb_enabled,
         ) as program_model:
             program_model.serve()
     elif isinstance(command, ProcessCommand):
         task = prepare_task(command)  # type: ignore[unreachable]
         with ProgramModel(
             wdir=settings.scratch_dir,
-            script_dir=command.script_dir,
-            kythe_dir=command.kythe_dir,
             python=command.python,
             allow_pull=command.allow_pull,
             base_image_url=command.base_image_url,
-            graphdb_url=settings.graphdb_url,
-            graphdb_enabled=settings.graphdb_enabled,
         ) as program_model:
             program_model.process_task(task)
 

@@ -7,14 +7,6 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "aenum"
-version = "3.1.16"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/52/6ad8f63ec8da1bf40f96996d25d5b650fdd38f5975f8c813732c47388f18/aenum-3.1.16-py3-none-any.whl", hash = "sha256:9035092855a98e41b66e3d0998bd7b96280e85ceb3a04cc035636138a1943eaf", size = 165627, upload-time = "2025-04-25T03:17:58.89Z" },
-]
-
-[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -537,22 +529,6 @@ wheels = [
 ]
 
 [[package]]
-name = "gremlinpython"
-version = "3.7.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aenum" },
-    { name = "aiohttp" },
-    { name = "async-timeout" },
-    { name = "isodate" },
-    { name = "nest-asyncio" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/bd/706ef9c0589f2742c9860d877151807ec9b0f1a2904a605502247c9f773c/gremlinpython-3.7.3.tar.gz", hash = "sha256:c8144bd1099fdcf072deff9a15e260efa9a1a065220495f799f6fc1ff6b83ef4", size = 52585, upload-time = "2024-10-29T17:46:39.912Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/64/65c9ab3deb11c5e0607c51fcddff3be33a06720cdd08768375720893e994/gremlinpython-3.7.3-py3-none-any.whl", hash = "sha256:56e0da437be3336971761dfeaab8532f0c583aaab760d8783c4a0bb389cfd341", size = 78436, upload-time = "2024-10-29T17:46:38.344Z" },
-]
-
-[[package]]
 name = "grpcio"
 version = "1.73.1"
 source = { registry = "https://pypi.org/simple" }
@@ -698,15 +674,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
-]
-
-[[package]]
-name = "isodate"
-version = "0.7.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz", hash = "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6", size = 29705, upload-time = "2024-10-08T23:04:11.5Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/aa/0aca39a37d3c7eb941ba736ede56d689e7be91cab5d9ca846bde3999eba6/isodate-0.7.2-py3-none-any.whl", hash = "sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15", size = 22320, upload-time = "2024-10-08T23:04:09.501Z" },
 ]
 
 [[package]]
@@ -1025,15 +992,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558", size = 6343, upload-time = "2025-04-22T14:54:24.164Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
-]
-
-[[package]]
-name = "nest-asyncio"
-version = "1.6.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/83/f8/51569ac65d696c8ecbee95938f89d4abf00f47d58d48f6fbabfe8f0baefe/nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe", size = 7418, upload-time = "2024-01-21T14:25:19.227Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/c4/c2971a3ba4c6103a3d10c4b0f24f461ddc027f0f09763220cf35ca1401b3/nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c", size = 5195, upload-time = "2024-01-21T14:25:17.223Z" },
 ]
 
 [[package]]
@@ -1374,7 +1332,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "common" },
-    { name = "gremlinpython" },
     { name = "protobuf" },
     { name = "rapidfuzz" },
     { name = "tree-sitter" },
@@ -1391,7 +1348,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "common", editable = "../common" },
-    { name = "gremlinpython", specifier = "==3.7.3" },
     { name = "protobuf", specifier = ">=3.20,<=3.20.3" },
     { name = "rapidfuzz", specifier = "~=3.12.2" },
     { name = "tree-sitter", specifier = ">=0.24.0" },

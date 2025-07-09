@@ -1,3 +1,0 @@
-[submodule "kythe"]
-	path = kythe
-	url = git@github.com:kythe/kythe.git
