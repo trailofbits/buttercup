@@ -36,7 +36,7 @@ global:
     hostname: "${CRS_API_HOSTNAME}"
     competition_api_key_id: ${COMPETITION_API_KEY_ID}
     competition_api_key_token: ${COMPETITION_API_KEY_TOKEN}
-    competition_api_url: "${COMPETITION_API_URL}"
+    competition_api_url: "ui"
 
   otel:
     endpoint: "${OTEL_ENDPOINT}"

@@ -26,6 +26,7 @@ spec:
             protocol: TCP
         env:
         {{- include "buttercup.uiEnv" . | nindent 8 }}
+        {{- include "buttercup.env.telemetry" . | nindent 8 }}
         volumeMounts:
           - name: data-volume
             mountPath: /data
