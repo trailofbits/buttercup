@@ -2,10 +2,6 @@
 
 This document describes the REST API for the Buttercup Program Model service, which provides code analysis and harness discovery capabilities for the Buttercup CRS system.
 
-## Overview
-
-The Program Model REST API replaces direct execution of `codequery` and `cscope` tools, providing better isolation between components. The API exposes program analysis functionality through HTTP endpoints, allowing the patcher and seed-gen components to interact with the program model service remotely.
-
 ## Base URL
 
 The default base URL for the API is `http://localhost:8000`. This can be configured using the `PROGRAM_MODEL_API_URL` environment variable.
@@ -16,15 +12,15 @@ To start the API server:
 
 ```bash
 # Using the CLI command
-buttercup-program-model-api --host 0.0.0.0 --port 8000
+buttercup-program-model-api --host localhost --port 8000
 
 # Or using uvicorn directly
-uvicorn buttercup.program_model.api.server:app --host 0.0.0.0 --port 8000
+uvicorn buttercup.program_model.api.server:app --host localhost --port 8000
 ```
 
 ### CLI Options
 
-- `--host`: Host to bind the server to (default: 0.0.0.0)
+- `--host`: Host to bind the server to (default: 127.0.0.1)
 - `--port`: Port to bind the server to (default: 8000)
 - `--workers`: Number of worker processes (default: 1)
 - `--log-level`: Log level (debug, info, warning, error, critical)
@@ -43,6 +39,7 @@ Currently, the API does not require authentication. In production deployments, c
 Returns the health status of the API server.
 
 **Response:**
+
 ```json
 {
   "status": "healthy"
@@ -56,9 +53,11 @@ Returns the health status of the API server.
 Initialize a CodeQuery instance for a task.
 
 **Parameters:**
+
 - `task_id` (path): The task ID to initialize
 
 **Request Body:**
+
 ```json
 {
   "task_id": "string",
@@ -67,6 +66,7 @@ Initialize a CodeQuery instance for a task.
 ```
 
 **Response:**
+
 ```json
 {
   "task_id": "string",
@@ -80,9 +80,11 @@ Initialize a CodeQuery instance for a task.
 Clean up a task and its associated resources.
 
 **Parameters:**
+
 - `task_id` (path): The task ID to cleanup
 
 **Response:**
+
 ```json
 {
   "status": "cleaned_up",
@@ -97,6 +99,7 @@ Clean up a task and its associated resources.
 Search for functions in the codebase.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 - `function_name` (query): Function name to search for
 - `file_path` (query, optional): File path to search within
@@ -105,6 +108,7 @@ Search for functions in the codebase.
 - `fuzzy_threshold` (query, optional): Fuzzy matching threshold 0-100 (default: 80)
 
 **Response:**
+
 ```json
 {
   "functions": [
@@ -129,11 +133,13 @@ Search for functions in the codebase.
 Get callers of a function.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 - `function_name` (path): The function name
 - `file_path` (query, optional): File path of the function
 
 **Response:**
+
 ```json
 {
   "functions": [...],
@@ -146,12 +152,14 @@ Get callers of a function.
 Get callees of a function.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 - `function_name` (path): The function name
 - `file_path` (query, optional): File path of the function
 - `line_number` (query, optional): Line number of the function
 
 **Response:**
+
 ```json
 {
   "functions": [...],
@@ -166,6 +174,7 @@ Get callees of a function.
 Search for types in the codebase.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 - `type_name` (query): Type name to search for
 - `file_path` (query, optional): File path to search within
@@ -174,6 +183,7 @@ Search for types in the codebase.
 - `fuzzy_threshold` (query, optional): Fuzzy matching threshold 0-100 (default: 80)
 
 **Response:**
+
 ```json
 {
   "types": [
@@ -194,11 +204,13 @@ Search for types in the codebase.
 Get usage locations of a type.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 - `type_name` (path): The type name
 - `file_path` (query, optional): File path of the type
 
 **Response:**
+
 ```json
 [
   {
@@ -216,9 +228,11 @@ Get usage locations of a type.
 Find libfuzzer harnesses in the codebase.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 
 **Response:**
+
 ```json
 {
   "harnesses": ["string"],
@@ -231,9 +245,11 @@ Find libfuzzer harnesses in the codebase.
 Find jazzer harnesses in the codebase.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 
 **Response:**
+
 ```json
 {
   "harnesses": ["string"],
@@ -246,10 +262,12 @@ Find jazzer harnesses in the codebase.
 Get source code for a specific harness.
 
 **Parameters:**
+
 - `task_id` (path): The task ID
 - `harness_name` (path): The harness name
 
 **Response:**
+
 ```json
 {
   "file_path": "string",
@@ -268,6 +286,7 @@ The API uses standard HTTP status codes:
 - `500`: Internal server error
 
 Error responses follow this format:
+
 ```json
 {
   "error": "string",
@@ -335,17 +354,22 @@ The program-model service can be deployed as a Docker container. Ensure the API 
 
 ## Migration Guide
 
+The previous version of Buttercup required components (e.g., `patcher` and `seed-gen`) to install `codequery` and `cscope` dependencies.
+
+This REST API removes those requirements.
+
 ### From Direct CodeQuery Usage
 
 1. **Remove Dependencies**: Remove `codequery` and `cscope` from Dockerfiles
 2. **Update Imports**: Change imports from `buttercup.program_model.codequery` to `buttercup.program_model.rest_client`
 3. **Update Instantiation**: Replace `CodeQueryPersistent` with `CodeQueryPersistentRest`
-4. **Start API Server**: Ensure the program-model API server is running
+4. **Start API Server**: Ensure the `program-model` API server is running
 5. **Configuration**: Set `PROGRAM_MODEL_API_URL` if using a non-default server location
 
 ### Example Migration
 
 **Before:**
+
 ```python
 from buttercup.program_model.codequery import CodeQueryPersistent
 
@@ -354,6 +378,7 @@ functions = codequery.get_functions("function_name")
 ```
 
 **After:**
+
 ```python
 from buttercup.program_model.rest_client import CodeQueryPersistentRest
 
@@ -385,7 +410,7 @@ Enable debug logging to troubleshoot issues:
 buttercup-program-model-api --log-level debug
 ```
 
-### Health Check
+### Check Health
 
 Use the health endpoint to verify the server is running:
 

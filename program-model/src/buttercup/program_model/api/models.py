@@ -20,8 +20,12 @@ class FunctionBodyModel(BaseModel):
     """API model for function body."""
 
     body: str = Field(..., description="Body of the function")
-    start_line: int = Field(..., description="Start line of the function in the file (1-based)")
-    end_line: int = Field(..., description="End line of the function in the file (1-based)")
+    start_line: int = Field(
+        ..., description="Start line of the function in the file (1-based)"
+    )
+    end_line: int = Field(
+        ..., description="End line of the function in the file (1-based)"
+    )
 
     @classmethod
     def from_domain(cls, func_body: FunctionBody) -> FunctionBodyModel:
@@ -74,8 +78,12 @@ class TypeDefinitionModel(BaseModel):
     name: str = Field(..., description="Name of the type")
     type: TypeDefinitionType = Field(..., description="Type of the type")
     definition: str = Field(..., description="Definition of the type")
-    definition_line: int = Field(..., description="Line number of the definition (1-based)")
-    file_path: str = Field(..., description="Path to the file containing the type definition")
+    definition_line: int = Field(
+        ..., description="Line number of the definition (1-based)"
+    )
+    file_path: str = Field(
+        ..., description="Path to the file containing the type definition"
+    )
 
     @classmethod
     def from_domain(cls, type_def: TypeDefinition) -> TypeDefinitionModel:
@@ -103,7 +111,9 @@ class TypeUsageInfoModel(BaseModel):
     """API model for type usage information."""
 
     name: str = Field(..., description="Name of the type being used")
-    file_path: str = Field(..., description="Path to the file containing the type usage")
+    file_path: str = Field(
+        ..., description="Path to the file containing the type usage"
+    )
     line_number: int = Field(..., description="Line number of the type usage (1-based)")
 
     @classmethod
@@ -136,8 +146,12 @@ class FunctionSearchRequest(BaseModel):
     """Request model for function search."""
 
     function_name: str = Field(..., description="Name of the function to search for")
-    file_path: Optional[str] = Field(None, description="Optional file path to search within")
-    line_number: Optional[int] = Field(None, description="Optional line number to search around")
+    file_path: Optional[str] = Field(
+        None, description="Optional file path to search within"
+    )
+    line_number: Optional[int] = Field(
+        None, description="Optional line number to search around"
+    )
     fuzzy: bool = Field(False, description="Enable fuzzy matching")
     fuzzy_threshold: int = Field(80, description="Fuzzy matching threshold (0-100)")
 
@@ -145,7 +159,9 @@ class FunctionSearchRequest(BaseModel):
 class FunctionSearchResponse(BaseModel):
     """Response model for function search."""
 
-    functions: list[FunctionModel] = Field(..., description="List of matching functions")
+    functions: list[FunctionModel] = Field(
+        ..., description="List of matching functions"
+    )
     total_count: int = Field(..., description="Total number of functions found")
 
 
@@ -153,8 +169,12 @@ class TypeSearchRequest(BaseModel):
     """Request model for type search."""
 
     type_name: str = Field(..., description="Name of the type to search for")
-    file_path: Optional[str] = Field(None, description="Optional file path to search within")
-    function_name: Optional[str] = Field(None, description="Optional function name to search within")
+    file_path: Optional[str] = Field(
+        None, description="Optional file path to search within"
+    )
+    function_name: Optional[str] = Field(
+        None, description="Optional function name to search within"
+    )
     fuzzy: bool = Field(False, description="Enable fuzzy matching")
     fuzzy_threshold: int = Field(80, description="Fuzzy matching threshold (0-100)")
 

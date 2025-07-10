@@ -16,24 +16,24 @@ logger = logging.getLogger(__name__)
 
 class CodeQueryRest:
     """REST-based implementation of CodeQuery interface.
-    
+
     This class provides the same interface as CodeQuery but uses the REST API
     to communicate with the program-model service.
     """
 
     def __init__(self, challenge: ChallengeTask, base_url: Optional[str] = None):
         """Initialize the REST-based CodeQuery.
-        
+
         Args:
             challenge: The challenge task
             base_url: Base URL of the program-model API server (defaults to env var or localhost)
         """
         self.challenge = challenge
-        
+
         # Get base URL from environment or use default
         if base_url is None:
             base_url = os.getenv("PROGRAM_MODEL_API_URL", "http://localhost:8000")
-        
+
         self.client = ProgramModelClient(base_url=base_url)
         self.task_id = challenge.task_meta.task_id
 
@@ -74,7 +74,7 @@ class CodeQueryRest:
                     file_path = function.file_path
             else:
                 function_name = function
-            
+
             return self.client.get_callers(
                 task_id=self.task_id,
                 function_name=function_name,
@@ -98,7 +98,7 @@ class CodeQueryRest:
                     file_path = function.file_path
             else:
                 function_name = function
-            
+
             return self.client.get_callees(
                 task_id=self.task_id,
                 function_name=function_name,
@@ -145,7 +145,7 @@ class CodeQueryRest:
 
     def _get_container_src_dir(self) -> Path:
         """Get the container source directory (compatibility method)."""
-        return self.challenge.task_dir / "container_src_dir"
+        return Path(self.challenge.task_dir / "container_src_dir")
 
     def __repr__(self) -> str:
         return f"CodeQueryRest(challenge={self.challenge})"
@@ -153,13 +153,15 @@ class CodeQueryRest:
 
 class CodeQueryPersistentRest(CodeQueryRest):
     """REST-based implementation of CodeQueryPersistent interface.
-    
+
     This class mimics the CodeQueryPersistent interface but uses REST API calls.
     """
 
-    def __init__(self, challenge: ChallengeTask, work_dir: Path, base_url: Optional[str] = None):
+    def __init__(
+        self, challenge: ChallengeTask, work_dir: Path, base_url: Optional[str] = None
+    ):
         """Initialize the persistent REST-based CodeQuery.
-        
+
         Args:
             challenge: The challenge task
             work_dir: Working directory for the task
@@ -167,7 +169,7 @@ class CodeQueryPersistentRest(CodeQueryRest):
         """
         super().__init__(challenge, base_url)
         self.work_dir = work_dir
-        
+
         # Initialize the task in the remote service
         try:
             response = self.client.initialize_task(self.task_id, work_dir)
@@ -175,11 +177,11 @@ class CodeQueryPersistentRest(CodeQueryRest):
         except ProgramModelClientError as e:
             logger.error("Failed to initialize task %s: %s", self.task_id, e)
             # Continue anyway - the task might already be initialized
-    
-    def __del__(self):
+
+    def __del__(self) -> None:
         """Clean up the task when the object is destroyed."""
         try:
-            if hasattr(self, 'client') and hasattr(self, 'task_id'):
+            if hasattr(self, "client") and hasattr(self, "task_id"):
                 self.client.cleanup_task(self.task_id)
         except Exception:
             pass  # Ignore cleanup errors

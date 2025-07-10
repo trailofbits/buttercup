@@ -7,7 +7,11 @@ import httpx
 
 from buttercup.program_model.client import ProgramModelClient, ProgramModelClientError
 from buttercup.program_model.rest_client import CodeQueryRest, CodeQueryPersistentRest
-from buttercup.program_model.utils.common import Function, FunctionBody, TypeDefinition, TypeDefinitionType
+from buttercup.program_model.utils.common import (
+    Function,
+    FunctionBody,
+    TypeDefinitionType,
+)
 
 
 @pytest.fixture
@@ -40,7 +44,7 @@ class TestProgramModelClient:
         mock_response.json.return_value = {
             "task_id": "test-task-123",
             "status": "initialized",
-            "message": "Success"
+            "message": "Success",
         }
         mock_post.return_value = mock_response
 
@@ -55,7 +59,10 @@ class TestProgramModelClient:
         """Test task initialization error."""
         mock_response = Mock()
         mock_response.status_code = 400
-        mock_response.json.return_value = {"error": "Bad request", "detail": "Invalid task"}
+        mock_response.json.return_value = {
+            "error": "Bad request",
+            "detail": "Invalid task",
+        }
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Bad request", request=Mock(), response=mock_response
         )
@@ -80,12 +87,12 @@ class TestProgramModelClient:
                         {
                             "body": "int test_function() { return 0; }",
                             "start_line": 1,
-                            "end_line": 3
+                            "end_line": 3,
                         }
-                    ]
+                    ],
                 }
             ],
-            "total_count": 1
+            "total_count": 1,
         }
         mock_get.return_value = mock_response
 
@@ -101,10 +108,7 @@ class TestProgramModelClient:
         """Test successful caller retrieval."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "functions": [],
-            "total_count": 0
-        }
+        mock_response.json.return_value = {"functions": [], "total_count": 0}
         mock_get.return_value = mock_response
 
         result = client.get_callers("test-task-123", "test_function")
@@ -116,10 +120,7 @@ class TestProgramModelClient:
         """Test successful callee retrieval."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "functions": [],
-            "total_count": 0
-        }
+        mock_response.json.return_value = {"functions": [], "total_count": 0}
         mock_get.return_value = mock_response
 
         result = client.get_callees("test-task-123", "test_function")
@@ -138,10 +139,10 @@ class TestProgramModelClient:
                     "type": "struct",
                     "definition": "struct test_struct { int x; };",
                     "definition_line": 5,
-                    "file_path": "/src/test.h"
+                    "file_path": "/src/test.h",
                 }
             ],
-            "total_count": 1
+            "total_count": 1,
         }
         mock_get.return_value = mock_response
 
@@ -158,7 +159,7 @@ class TestProgramModelClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "harnesses": ["/src/harness1.c", "/src/harness2.c"],
-            "total_count": 2
+            "total_count": 2,
         }
         mock_get.return_value = mock_response
 
@@ -176,7 +177,7 @@ class TestProgramModelClient:
         mock_response.json.return_value = {
             "file_path": "/src/harness.c",
             "code": "int main() { return 0; }",
-            "harness_name": "test_harness"
+            "harness_name": "test_harness",
         }
         mock_get.return_value = mock_response
 
@@ -215,7 +216,13 @@ class TestCodeQueryRest:
             Function(
                 name="test_function",
                 file_path=Path("/src/test.c"),
-                bodies=[FunctionBody(body="int test_function() { return 0; }", start_line=1, end_line=3)],
+                bodies=[
+                    FunctionBody(
+                        body="int test_function() { return 0; }",
+                        start_line=1,
+                        end_line=3,
+                    )
+                ],
             )
         ]
         client.get_callers.return_value = []
@@ -225,7 +232,9 @@ class TestCodeQueryRest:
         return client
 
     @patch("buttercup.program_model.rest_client.ProgramModelClient")
-    def test_codequery_rest_initialization(self, mock_client_class, mock_challenge_task, mock_client):
+    def test_codequery_rest_initialization(
+        self, mock_client_class, mock_challenge_task, mock_client
+    ):
         """Test CodeQueryRest initialization."""
         mock_client_class.return_value = mock_client
 
@@ -255,7 +264,9 @@ class TestCodeQueryRest:
         )
 
     @patch("buttercup.program_model.rest_client.ProgramModelClient")
-    def test_get_callers_with_function_object(self, mock_client_class, mock_challenge_task, mock_client):
+    def test_get_callers_with_function_object(
+        self, mock_client_class, mock_challenge_task, mock_client
+    ):
         """Test get_callers method with Function object."""
         mock_client_class.return_value = mock_client
 
@@ -299,12 +310,16 @@ class TestCodeQueryPersistentRest:
         mock_client.initialize_task.return_value = mock_response
         mock_client_class.return_value = mock_client
 
-        cq = CodeQueryPersistentRest(mock_challenge_task, Path("/work/dir"))
+        CodeQueryPersistentRest(mock_challenge_task, Path("/work/dir"))
 
-        mock_client.initialize_task.assert_called_once_with("test-task-123", Path("/work/dir"))
+        mock_client.initialize_task.assert_called_once_with(
+            "test-task-123", Path("/work/dir")
+        )
 
     @patch("buttercup.program_model.rest_client.ProgramModelClient")
-    def test_initialization_error_continues(self, mock_client_class, mock_challenge_task):
+    def test_initialization_error_continues(
+        self, mock_client_class, mock_challenge_task
+    ):
         """Test CodeQueryPersistentRest continues on initialization error."""
         mock_client = Mock()
         mock_client.initialize_task.side_effect = ProgramModelClientError("Test error")

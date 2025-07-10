@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from buttercup.common.challenge_task import CommandResult, ChallengeTask
-from buttercup.program_model.rest_client import CodeQueryPersistentRest
+from buttercup.program_model.rest_client import CodeQueryPersistentRest as CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from typing import Annotated
 from pathlib import Path

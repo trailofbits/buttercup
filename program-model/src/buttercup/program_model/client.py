@@ -4,20 +4,18 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 from pydantic import ValidationError
 
 from buttercup.program_model.api.models import (
     ErrorResponse,
-    FunctionModel,
     FunctionSearchResponse,
     HarnessInfoModel,
     HarnessSearchResponse,
     TaskInitRequest,
     TaskInitResponse,
-    TypeDefinitionModel,
     TypeSearchResponse,
     TypeUsageInfoModel,
 )
@@ -33,7 +31,12 @@ logger = logging.getLogger(__name__)
 class ProgramModelClientError(Exception):
     """Exception raised by ProgramModelClient."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None, detail: Optional[str] = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        detail: Optional[str] = None,
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.detail = detail
@@ -44,7 +47,7 @@ class ProgramModelClient:
 
     def __init__(self, base_url: str = "http://localhost:8000", timeout: float = 30.0):
         """Initialize the client.
-        
+
         Args:
             base_url: Base URL of the program-model API server
             timeout: Request timeout in seconds
@@ -66,7 +69,7 @@ class ProgramModelClient:
                 )
         except (ValidationError, ValueError):
             pass  # Fall back to generic error
-        
+
         # Generic error handling
         response.raise_for_status()
 
@@ -74,15 +77,15 @@ class ProgramModelClient:
         """Initialize a task in the program-model service."""
         try:
             request = TaskInitRequest(task_id=task_id, work_dir=str(work_dir))
-            
+
             response = self._client.post(
                 f"{self.base_url}/tasks/{task_id}/init",
                 json=request.model_dump(),
             )
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             return TaskInitResponse.model_validate(response.json())
         except httpx.HTTPError as e:
             raise ProgramModelClientError(f"Failed to initialize task {task_id}: {e}")
@@ -98,7 +101,7 @@ class ProgramModelClient:
     ) -> list[Function]:
         """Get functions from the program-model service."""
         try:
-            params = {
+            params: dict[str, Any] = {
                 "function_name": function_name,
                 "fuzzy": fuzzy,
                 "fuzzy_threshold": fuzzy_threshold,
@@ -106,16 +109,16 @@ class ProgramModelClient:
             if file_path:
                 params["file_path"] = str(file_path)
             if line_number:
-                params["line_number"] = line_number
-            
+                params["line_number"] = str(line_number)
+
             response = self._client.get(
                 f"{self.base_url}/tasks/{task_id}/functions",
                 params=params,
             )
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             search_response = FunctionSearchResponse.model_validate(response.json())
             return [func.to_domain() for func in search_response.functions]
         except httpx.HTTPError as e:
@@ -129,18 +132,18 @@ class ProgramModelClient:
     ) -> list[Function]:
         """Get callers of a function."""
         try:
-            params = {}
+            params: dict[str, Any] = {}
             if file_path:
                 params["file_path"] = str(file_path)
-            
+
             response = self._client.get(
                 f"{self.base_url}/tasks/{task_id}/functions/{function_name}/callers",
                 params=params,
             )
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             search_response = FunctionSearchResponse.model_validate(response.json())
             return [func.to_domain() for func in search_response.functions]
         except httpx.HTTPError as e:
@@ -155,20 +158,20 @@ class ProgramModelClient:
     ) -> list[Function]:
         """Get callees of a function."""
         try:
-            params = {}
+            params: dict[str, Any] = {}
             if file_path:
                 params["file_path"] = str(file_path)
             if line_number:
-                params["line_number"] = line_number
-            
+                params["line_number"] = str(line_number)
+
             response = self._client.get(
                 f"{self.base_url}/tasks/{task_id}/functions/{function_name}/callees",
                 params=params,
             )
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             search_response = FunctionSearchResponse.model_validate(response.json())
             return [func.to_domain() for func in search_response.functions]
         except httpx.HTTPError as e:
@@ -185,7 +188,7 @@ class ProgramModelClient:
     ) -> list[TypeDefinition]:
         """Get types from the program-model service."""
         try:
-            params = {
+            params: dict[str, Any] = {
                 "type_name": type_name,
                 "fuzzy": fuzzy,
                 "fuzzy_threshold": fuzzy_threshold,
@@ -194,15 +197,15 @@ class ProgramModelClient:
                 params["file_path"] = str(file_path)
             if function_name:
                 params["function_name"] = function_name
-            
+
             response = self._client.get(
                 f"{self.base_url}/tasks/{task_id}/types",
                 params=params,
             )
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             search_response = TypeSearchResponse.model_validate(response.json())
             return [type_def.to_domain() for type_def in search_response.types]
         except httpx.HTTPError as e:
@@ -216,19 +219,21 @@ class ProgramModelClient:
     ) -> list[TypeUsageInfo]:
         """Get type calls from the program-model service."""
         try:
-            params = {}
+            params: dict[str, Any] = {}
             if file_path:
                 params["file_path"] = str(file_path)
-            
+
             response = self._client.get(
                 f"{self.base_url}/tasks/{task_id}/types/{type_name}/calls",
                 params=params,
             )
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
-            usage_models = [TypeUsageInfoModel.model_validate(item) for item in response.json()]
+
+            usage_models = [
+                TypeUsageInfoModel.model_validate(item) for item in response.json()
+            ]
             return [usage.to_domain() for usage in usage_models]
         except httpx.HTTPError as e:
             raise ProgramModelClientError(f"Failed to get type calls: {e}")
@@ -236,11 +241,13 @@ class ProgramModelClient:
     def find_libfuzzer_harnesses(self, task_id: str) -> list[Path]:
         """Find libfuzzer harnesses."""
         try:
-            response = self._client.get(f"{self.base_url}/tasks/{task_id}/harnesses/libfuzzer")
-            
+            response = self._client.get(
+                f"{self.base_url}/tasks/{task_id}/harnesses/libfuzzer"
+            )
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             search_response = HarnessSearchResponse.model_validate(response.json())
             return [Path(harness) for harness in search_response.harnesses]
         except httpx.HTTPError as e:
@@ -249,11 +256,13 @@ class ProgramModelClient:
     def find_jazzer_harnesses(self, task_id: str) -> list[Path]:
         """Find jazzer harnesses."""
         try:
-            response = self._client.get(f"{self.base_url}/tasks/{task_id}/harnesses/jazzer")
-            
+            response = self._client.get(
+                f"{self.base_url}/tasks/{task_id}/harnesses/jazzer"
+            )
+
             if response.status_code != 200:
                 self._handle_error(response)
-            
+
             search_response = HarnessSearchResponse.model_validate(response.json())
             return [Path(harness) for harness in search_response.harnesses]
         except httpx.HTTPError as e:
@@ -265,12 +274,12 @@ class ProgramModelClient:
             response = self._client.get(
                 f"{self.base_url}/tasks/{task_id}/harnesses/{harness_name}/source"
             )
-            
+
             if response.status_code == 404:
                 return None
             elif response.status_code != 200:
                 self._handle_error(response)
-            
+
             harness_info = HarnessInfoModel.model_validate(response.json())
             return {
                 "file_path": Path(harness_info.file_path),
@@ -284,7 +293,7 @@ class ProgramModelClient:
         """Clean up a task."""
         try:
             response = self._client.delete(f"{self.base_url}/tasks/{task_id}")
-            
+
             if response.status_code != 200:
                 self._handle_error(response)
         except httpx.HTTPError as e:
@@ -297,5 +306,5 @@ class ProgramModelClient:
     def __enter__(self) -> ProgramModelClient:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()

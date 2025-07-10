@@ -52,7 +52,9 @@ class HarnessSourceCacheKey:
 _harness_source_cache: dict[HarnessSourceCacheKey, HarnessInfo] = {}
 
 
-def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path) -> list[Path]:
+def _exclude_common_harnesses(
+    harness_files: list[Path], container_src_dir: Path
+) -> list[Path]:
     """Filter out prebuilt harnesses from common fuzzing tools."""
     exclude_list = [
         "src/aflplusplus/",
@@ -94,7 +96,9 @@ def _find_source_files(
             str(container_src_dir),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, check=True, timeout=60
+        )
     except subprocess.CalledProcessError as e:
         if e.returncode == 1:  # No matches found
             return []
@@ -151,7 +155,9 @@ def _rebase_path(task_dir: Path, path: Path) -> Path:
         return path.absolute()
 
 
-def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> list[Path]:
+def get_harness_source_candidates(
+    codequery: CodeQuery, harness_name: str
+) -> list[Path]:
     """Get the list of candidate source files for a harness, ordered by fuzzy similarity."""
     project_yaml = ProjectYaml(codequery.challenge, codequery.challenge.project_name)
     language = project_yaml.unified_language
@@ -177,12 +183,12 @@ def get_harness_source(
     """Get the source code for a specific harness."""
     task_id = codequery.challenge.task_meta.task_id
     logger.info("Getting harness source for %s | %s", task_id, harness_name)
-    
+
     key = HarnessSourceCacheKey(
         task_id=task_id,
         harness_name=harness_name,
     )
-    
+
     if key in _harness_source_cache:
         logger.info(
             "Found harness source for %s | %s in cache",
@@ -197,7 +203,9 @@ def get_harness_source(
         return None
 
     if len(harnesses) == 1:
-        logger.info("Found single harness for %s | %s: %s", task_id, harness_name, harnesses[0])
+        logger.info(
+            "Found single harness for %s | %s: %s", task_id, harness_name, harnesses[0]
+        )
         harness_info = HarnessInfo(
             file_path=_rebase_path(codequery.challenge.task_dir, harnesses[0]),
             code=harnesses[0].read_text(),
@@ -219,14 +227,21 @@ def get_harness_source(
             task_id,
             harness_name,
         )
-        coverage_map = CoverageMap(redis, harness_name, codequery.challenge.project_name, task_id)
+        coverage_map = CoverageMap(
+            redis, harness_name, codequery.challenge.project_name, task_id
+        )
         function_coverages = coverage_map.list_function_coverage()
 
     # Check if any harnesses match the covered functions
     for function_coverage in function_coverages:
         for harness_path in harnesses:
-            rebased_harness_path = _rebase_path(codequery.challenge.task_dir, harness_path)
-            if any(str(rebased_harness_path) == path for path in function_coverage.function_paths):
+            rebased_harness_path = _rebase_path(
+                codequery.challenge.task_dir, harness_path
+            )
+            if any(
+                str(rebased_harness_path) == path
+                for path in function_coverage.function_paths
+            ):
                 harness_info = HarnessInfo(
                     file_path=rebased_harness_path,
                     code=harness_path.read_text(),
