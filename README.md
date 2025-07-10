@@ -73,7 +73,7 @@ kubectl get pods -n crs
 kubectl get services -n crs
 ```
 
-3. **Test with example task:**
+3. **Submit the integration-test challenge to the CRS (for 30mins):**
 ```bash
 make test
 ```
@@ -87,7 +87,7 @@ cd deployment && make up
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
 # Test manually
-./orchestrator/scripts/task_upstream_libpng.sh
+./orchestrator/scripts/task_integration_test.sh
 ```
 
 ## Production AKS Deployment

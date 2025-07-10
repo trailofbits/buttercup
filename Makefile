@@ -45,6 +45,31 @@ deploy:
 	@echo "Deploying to current environment..."
 	cd deployment && make up
 
+wait-crs:
+	@echo "Waiting for CRS deployment to be ready..."
+	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	@while true; do \
+		PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+		if [ "$$PENDING" -eq 0 ]; then \
+			echo "All CRS pods are running."; \
+			break; \
+		else \
+			echo "$$PENDING pods are not yet running. Waiting..."; \
+			sleep 5; \
+		fi \
+	done
+
+crs-instance-id:
+	@echo "Getting CRS instance ID..."
+	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	echo "CRS instance ID: $$(kubectl get configmap -n crs crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
+
 deploy-local:
 	@echo "Deploying to local Minikube environment..."
 	@if [ ! -f deployment/env ]; then \
@@ -52,6 +77,8 @@ deploy-local:
 		exit 1; \
 	fi
 	cd deployment && make up
+	make crs-instance-id
+	make wait-crs
 
 deploy-production:
 	@echo "Deploying to production AKS environment..."
@@ -60,6 +87,9 @@ deploy-production:
 		exit 1; \
 	fi
 	cd deployment && make up
+	crs_instance_id=$$(make crs-instance-id)
+	echo "CRS instance ID: $$crs_instance_id"
+	make wait-crs
 
 # Testing targets
 test:
