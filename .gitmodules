@@ -1,0 +1,3 @@
+[submodule "external/aixcc-cscope"]
+	path = external/aixcc-cscope
+	url = https://github.com/trailofbits/aixcc-cscope.git

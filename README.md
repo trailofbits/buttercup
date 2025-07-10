@@ -2,6 +2,8 @@
 
 ## Dependencies
 
+Clone the repo with `--recurse-submodules` as some dependencies are submodules.
+
 Follow the install instructions for the required dependencies:
 
 * [Docker install guide](https://docs.docker.com/engine/install/ubuntu/)

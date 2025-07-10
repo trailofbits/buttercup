@@ -1,7 +1,4 @@
 ARG BASE_IMAGE=ubuntu:24.04
-ARG CSCOPE_IMAGE=ghcr.io/aixcc-finals/buttercup-cscope:main
-
-FROM $CSCOPE_IMAGE AS cscope-image
 
 FROM $BASE_IMAGE AS python_base
 ARG PYTHON_VERSION=3.12
@@ -51,8 +48,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 FROM runtime-base AS cscope-builder
-COPY --from=cscope-image /cscope /cscope
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+COPY external/aixcc-cscope /cscope
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM runtime-base AS runtime
