@@ -68,9 +68,9 @@ test:
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n crs service/buttercup-competition-api 31323:1323 &
+	kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 	@sleep 3
-	./orchestrator/scripts/task_crs.sh
+	./orchestrator/scripts/task_integration_test.sh
 	@pkill -f "kubectl port-forward" || true
 
 # Development targets

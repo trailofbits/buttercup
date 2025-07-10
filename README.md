@@ -18,7 +18,7 @@ The fastest way to get started with the **Buttercup CRS** system for development
 Use our automated setup script:
 
 ```bash
-./scripts/setup-local.sh
+make setup-local
 ```
 
 This script will install all dependencies, configure the environment, and guide you through the setup process.
@@ -49,7 +49,7 @@ sudo apt-get install git-lfs
 git lfs install
 ```
 
-### Configuration
+#### Manual Configuration
 
 1. **Create configuration file:**
 ```bash
@@ -58,38 +58,7 @@ cp deployment/env.template deployment/env
 
 2. **Configure the environment file** (`deployment/env`):
 
-```bash
-# Use minikube for local development
-export BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-minikube.template"
-export CLUSTER_TYPE=minikube
-export DEPLOY_CLUSTER=true
-
-# Required API keys (get these from your providers)
-export OPENAI_API_KEY="your-openai-api-key"
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-
-# GitHub Container Registry authentication
-# Generate with: echo "username:your-github-pat" | base64
-export GHCR_AUTH="base64-encoded-credentials"
-
-# Docker Hub credentials
-export DOCKER_USERNAME="your-docker-username"
-export DOCKER_PAT="your-docker-pat"
-
-# Test credentials (use these for local development)
-export AZURE_ENABLED=false
-export TAILSCALE_ENABLED=false
-export COMPETITION_API_KEY_ID="11111111-1111-1111-1111-111111111111"
-export COMPETITION_API_KEY_TOKEN="secret"
-export CRS_KEY_ID="515cc8a0-3019-4c9f-8c1c-72d0b54ae561"
-export CRS_KEY_TOKEN="VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB"
-export CRS_API_HOSTNAME="$(openssl rand -hex 16)"
-export LITELLM_MASTER_KEY="$(openssl rand -hex 16)"
-
-# Leave these empty for local development
-export AZURE_API_BASE=""
-export AZURE_API_KEY=""
-```
+Look at the comments in the `deployment/env.template` for how to set variables.
 
 ### Start Local Development Environment
 
@@ -118,21 +87,15 @@ cd deployment && make up
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
 # Test manually
-./orchestrator/scripts/task_crs.sh
-```
-
-### Stop Local Environment
-
-```bash
-make clean
-```
-
-**Alternative manual command:**
-```bash
-cd deployment && make down
+./orchestrator/scripts/task_upstream_libpng.sh
 ```
 
 ## Production AKS Deployment
+
+> **⚠️ Notice:**  
+> The following production deployment instructions have **not been fully tested**.  
+> Please proceed with caution and verify each step in your environment.  
+> If you encounter issues, consult the script comments and configuration files for troubleshooting.
 
 Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
 
@@ -141,23 +104,23 @@ Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service 
 Use our automated setup script:
 
 ```bash
-./scripts/setup-production.sh
+make setup-production
 ```
 
 This script will check prerequisites, help create service principals, configure the environment, and validate your setup.
 
-### Manual Setup
+#### Manual Setup
 
 If you prefer to set up manually, follow these steps:
 
-### Prerequisites
+##### Prerequisites
 
 - Azure CLI installed and configured
 - Terraform installed
 - Active Azure subscription
 - Access to competition Tailscale tailnet
 
-### Azure Setup
+##### Azure Setup
 
 1. **Login to Azure:**
 ```bash
@@ -173,15 +136,7 @@ az account show --query "{SubscriptionID:id}" --output table
 az ad sp create-for-rbac --name "ButtercupCRS" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
 ```
 
-3. **Set environment variables:**
-```bash
-export TF_ARM_TENANT_ID="<tenant-from-sp-output>"
-export TF_ARM_CLIENT_ID="<appId-from-sp-output>"
-export TF_ARM_CLIENT_SECRET="<password-from-sp-output>"
-export TF_ARM_SUBSCRIPTION_ID="<your-subscription-id>"
-```
-
-### Production Configuration
+##### Production Configuration
 
 1. **Configure environment file:**
 ```bash
@@ -189,71 +144,15 @@ cp deployment/env.template deployment/env
 ```
 
 2. **Update `deployment/env` for production:**
-```bash
-# Use AKS for production
-export BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-aks.template"
-export CLUSTER_TYPE=aks
-export DEPLOY_CLUSTER=true
 
-# Terraform variables
-export TF_VAR_ARM_CLIENT_ID="<your-client-id>"
-export TF_VAR_ARM_CLIENT_SECRET="<your-client-secret>"
-export TF_VAR_ARM_TENANT_ID="<your-tenant-id>"
-export TF_VAR_ARM_SUBSCRIPTION_ID="<your-subscription-id>"
-export TF_VAR_usr_node_count=50
-export TF_VAR_resource_group_name_prefix="buttercup-crs"
-
-# Enable production features
-export TAILSCALE_ENABLED=true
-export TS_CLIENT_ID="<your-tailscale-oauth-client-id>"
-export TS_CLIENT_SECRET="<your-tailscale-oauth-client-secret>"
-export TS_OP_TAG="<your-tailscale-operator-tag>"
-
-# Production API keys
-export OPENAI_API_KEY="<your-openai-api-key>"
-export ANTHROPIC_API_KEY="<your-anthropic-api-key>"
-export AZURE_API_BASE="<your-azure-openai-base-url>"
-export AZURE_API_KEY="<your-azure-openai-api-key>"
-
-# GitHub Container Registry
-export GHCR_AUTH="<base64-encoded-ghcr-credentials>"
-export SCANTRON_GITHUB_PAT="<github-pat-with-repo-read+packages-read>"
-
-# CRS credentials (generate secure ones)
-export CRS_KEY_ID="$(python3 -c 'import uuid; print(str(uuid.uuid4()))')"
-export CRS_KEY_TOKEN="$(python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(32)))')"
-export CRS_KEY_TOKEN_HASH="<argon2-hash-for-crs-key-token>"
-
-# Competition API
-export COMPETITION_API_ENABLED=true
-export COMPETITION_API_KEY_ID="<your-competitionapi-key-id>"
-export COMPETITION_API_KEY_TOKEN="<your-competition-api-key-token>"
-
-# Monitoring and observability
-export LANGFUSE_ENABLED=true
-export LANGFUSE_HOST="<your-langfuse-host-url>"
-export LANGFUSE_PUBLIC_KEY="<your-langfuse-public-key>"
-export LANGFUSE_SECRET_KEY="<your-langfuse-secret-key>"
-export OTEL_ENDPOINT="<your-otel-endpoint>"
-export OTEL_TOKEN="<your-otel-http-token>"
-```
+Look at the comments in the `deployment/env.template` for how to set variables.
+In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
 
 ### Deploy to AKS
 
-1. **Deploy the cluster and services:**
+**Deploy the cluster and services:**
 ```bash
 make deploy-production
-```
-
-2. **Get cluster credentials:**
-```bash
-az aks get-credentials --name <your-cluster-name> --resource-group <your-resource-group>
-```
-
-3. **Verify deployment:**
-```bash
-kubectl get pods -A
-kubectl get services -A
 ```
 
 **Alternative manual command:**
@@ -261,23 +160,13 @@ kubectl get services -A
 cd deployment && make up
 ```
 
-### Production Access
-
-1. **Get Tailscale ingress address:**
-```bash
-kubectl get -n crs-webservice ingress
-```
-
-2. **Access via Tailscale:**
-The CRS API will be available through your Tailscale network at the ingress address.
-
 ### Scaling and Management
 
 - **Scale nodes:** Update `TF_VAR_usr_node_count` in your env file and run `make up`
 - **View logs:** `kubectl logs -n crs <pod-name>`
 - **Monitor resources:** `kubectl top pods -A`
 
-### Cleanup
+## Cleanup
 
 ```bash
 make clean
@@ -342,18 +231,15 @@ just lint-python-all
 just lint-python orchestrator
 
 # Test manually
-./orchestrator/scripts/task_crs.sh
+./orchestrator/scripts/task_upstream_libpng.sh
 ./orchestrator/scripts/challenge.sh
 ```
 
 ### Docker Development
 
 ```bash
-# Build and run with Docker Compose
+# Build and run with Docker Compose (only for local development and quick testing)
 docker-compose up -d
-
-# Run specific services
-docker-compose --profile fuzzer-test up
 ```
 
 ### Kubernetes Development
@@ -376,7 +262,6 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 1. **Minikube won't start:**
 ```bash
 minikube delete
-minikube start --driver=docker
 ```
 
 2. **Docker permission issues:**
@@ -399,8 +284,8 @@ az account set --subscription <your-subscription-id>
 
 ### Getting Help
 
-- **Validate your setup:** `./scripts/validate-setup.sh` - Check if your environment is ready
-- Check the [Quick Reference Guide](docs/QUICK_REFERENCE.md) for common commands and troubleshooting
+- **Validate your setup:** `make validate` - Check if your environment is ready
+- Check the [Quick Reference Guide](QUICK_REFERENCE.md) for common commands and troubleshooting
 - Check the [deployment README](deployment/README.md) for detailed deployment information
 - Check logs: `kubectl logs -n crs <pod-name>`
 
@@ -414,5 +299,3 @@ The **Buttercup CRS** system consists of several components designed to work tog
 - **Program Model**: Analyzes code structure and semantics for better understanding
 - **Seed Generator**: Creates targeted test cases for vulnerability discovery
 - **Competition API**: Interfaces with the DARPA AIxCC competition platform
-
-For detailed architecture information, see the [deployment documentation](deployment/README.md).
