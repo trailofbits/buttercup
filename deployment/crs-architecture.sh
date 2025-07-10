@@ -115,16 +115,6 @@ up() {
 					FUZZER_BUILD_ARGS=""
 				fi
 
-				if [ -n "$CSCOPE_IMAGE" ]; then
-					PATCHER_BUILD_ARGS="--build-arg CSCOPE_IMAGE=$CSCOPE_IMAGE"
-					SEED_GEN_BUILD_ARGS="--build-arg CSCOPE_IMAGE=$CSCOPE_IMAGE"
-					PROGRAM_MODEL_BUILD_ARGS="--build-arg CSCOPE_IMAGE=$CSCOPE_IMAGE"
-				else
-					PATCHER_BUILD_ARGS=""
-					SEED_GEN_BUILD_ARGS=""
-					PROGRAM_MODEL_BUILD_ARGS=""
-				fi
-
 				docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
 				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
 				docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..

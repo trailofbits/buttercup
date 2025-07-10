@@ -4,6 +4,8 @@
 
 ## Quick Start
 
+Clone the repo with `--recurse-submodules` as some dependencies are submodules.
+
 Choose your deployment method:
 
 - **[Local Development](#local-development)** - Quick setup for development and testing
@@ -52,6 +54,7 @@ git lfs install
 #### Manual Configuration
 
 1. **Create configuration file:**
+
 ```bash
 cp deployment/env.template deployment/env
 ```
@@ -63,22 +66,26 @@ Look at the comments in the `deployment/env.template` for how to set variables.
 ### Start Local Development Environment
 
 1. **Start the services:**
+
 ```bash
 make deploy-local
 ```
 
 2. **Verify deployment:**
+
 ```bash
 kubectl get pods -n crs
 kubectl get services -n crs
 ```
 
 3. **Submit the integration-test challenge to the CRS (for 30mins):**
+
 ```bash
 make test
 ```
 
 **Alternative manual commands:**
+
 ```bash
 # Start services manually
 cd deployment && make up
@@ -123,11 +130,13 @@ If you prefer to set up manually, follow these steps:
 ##### Azure Setup
 
 1. **Login to Azure:**
+
 ```bash
 az login --tenant aixcc.tech
 ```
 
 2. **Create Service Principal:**
+
 ```bash
 # Get your subscription ID
 az account show --query "{SubscriptionID:id}" --output table
@@ -139,6 +148,7 @@ az ad sp create-for-rbac --name "ButtercupCRS" --role Contributor --scopes /subs
 ##### Production Configuration
 
 1. **Configure environment file:**
+
 ```bash
 cp deployment/env.template deployment/env
 ```
@@ -151,11 +161,13 @@ In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
 ### Deploy to AKS
 
 **Deploy the cluster and services:**
+
 ```bash
 make deploy-production
 ```
 
 **Alternative manual command:**
+
 ```bash
 cd deployment && make up
 ```
@@ -173,6 +185,7 @@ make clean
 ```
 
 **Alternative manual command:**
+
 ```bash
 cd deployment && make down
 ```
@@ -223,6 +236,7 @@ make test
 ```
 
 **Alternative manual commands:**
+
 ```bash
 # Lint Python code
 just lint-python-all
@@ -260,23 +274,27 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ### Common Issues
 
 1. **Minikube won't start:**
+
 ```bash
 minikube delete
 ```
 
 2. **Docker permission issues:**
+
 ```bash
 sudo usermod -aG docker $USER
 # Log out and back in
 ```
 
 3. **Helm chart issues:**
+
 ```bash
 helm repo update
 helm dependency update deployment/k8s/
 ```
 
 4. **Azure authentication:**
+
 ```bash
 az login --tenant aixcc.tech
 az account set --subscription <your-subscription-id>

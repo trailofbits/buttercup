@@ -17,9 +17,6 @@ just lint-python-all          # Format, lint, and type-check all components
 
 # Example: lint the patcher component
 just lint-python patcher
-
-# Download dependencies
-just download-cscope          # Download cscope static analysis tools
 ```
 
 ### Testing

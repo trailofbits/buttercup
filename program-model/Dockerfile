@@ -1,7 +1,4 @@
 ARG BASE_IMAGE=ubuntu:24.04@sha256:f8b860e4f9036f2694571770da292642eebcc4c2ea0c70a1a9244c2a1d436cd9
-ARG CSCOPE_IMAGE=ghcr.io/aixcc-finals/buttercup-cscope:main
-
-FROM $CSCOPE_IMAGE AS cscope-image
 
 FROM $BASE_IMAGE AS base
 RUN apt-get update && apt-get install -y software-properties-common
@@ -35,8 +32,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
 FROM base AS cscope-builder
-COPY --from=cscope-image /cscope /cscope
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+COPY external/aixcc-cscope /cscope
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM base AS runtime
