@@ -2,8 +2,6 @@ import pytest
 import subprocess
 import os
 from unittest.mock import patch
-from buttercup.program_model.api import Graph
-from buttercup.program_model.graph import encode_value
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQuery
@@ -35,21 +33,6 @@ def register_temp_dir(temp_dir):
 def is_cleanup_enabled(request) -> bool:
     """Check if the --no-cleanup flag was passed to pytest."""
     return not request.config.getoption("--no-cleanup")
-
-
-def cleanup_graphdb(request, task_id: str):
-    """Clean up the JanusGraph database by dropping vertices and edges associated with a specific task ID."""
-    if not is_cleanup_enabled(request):
-        return
-
-    with Graph(url="ws://localhost:8182/gremlin") as graph:
-        # Drop vertices and edges associated with the task ID
-        graph.g.V().has(
-            "task_id", encode_value(task_id.encode("utf-8"))
-        ).drop().iterate()
-        graph.g.E().has(
-            "task_id", encode_value(task_id.encode("utf-8"))
-        ).drop().iterate()
 
 
 def pytest_addoption(parser):
@@ -460,10 +443,7 @@ def cleanup_module_task_dirs(request):
         logger.info(f"Cleaning up task IDs: {_task_ids}")
         logger.info(f"Cleaning up task dirs: {_task_dirs}")
 
-        # TODO(Evan): Uncomment this when you re-enable the graphdb
         # Clean up task IDs registered by this module
-        # for task_id in _task_ids:
-        #     cleanup_graphdb(request, task_id)
         _task_ids.clear()
 
         # Clean up temp directories created by this module

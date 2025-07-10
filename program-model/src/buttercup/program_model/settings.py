@@ -25,18 +25,11 @@ class WorkerSettings(BaseModel):
     python: Annotated[str, Field(default="python", description="Python path")]
 
 
-class IndexerSettings(BaseModel):
-    kythe_dir: Annotated[
-        str, Field(default="scripts/gzs/kythe", description="Kythe directory")
-    ]
-    script_dir: Annotated[str, Field(default="scripts", description="Script directory")]
-
-
-class ServeCommand(WorkerSettings, IndexerSettings, BuilderSettings):
+class ServeCommand(WorkerSettings, BuilderSettings):
     pass
 
 
-class ProcessCommand(WorkerSettings, IndexerSettings, BuilderSettings):
+class ProcessCommand(WorkerSettings, BuilderSettings):
     task_dir: Annotated[str, Field(description="Task directory", default=...)]
     task_id: Annotated[str, Field(description="Task ID", default=...)]
 
@@ -48,13 +41,6 @@ class Settings(BaseSettings):
     log_level: Annotated[str, Field(default="info", description="Log level")]
     log_max_line_length: Annotated[
         int | None, Field(default=None, description="Log max line length")
-    ]
-    graphdb_url: Annotated[
-        str,
-        Field(description="Graph database URL", default="ws://graphdb:8182/gremlin"),
-    ]
-    graphdb_enabled: Annotated[
-        bool, Field(description="Enable graph database", default=True)
     ]
 
     serve: CliSubCommand[ServeCommand]
