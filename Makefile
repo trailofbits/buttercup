@@ -18,7 +18,6 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  test              - Run test task"
-	@echo "  test-challenge    - Run unscored challenge"
 	@echo ""
 	@echo "Development:"
 	@echo "  lint              - Lint all Python code"

@@ -70,25 +70,14 @@ setup_config() {
     
     setup_config_file "true"
     
+    # Configure required API keys
+    configure_local_api_keys
+    
     # Configure LangFuse (optional)
     configure_langfuse
     
     # Configure OTEL telemetry (optional)
     configure_otel
-    
-    print_status "Please update deployment/env with the following production settings:"
-    echo
-    echo "Required settings:"
-    echo "  - TF_VAR_ARM_CLIENT_ID, TF_VAR_ARM_CLIENT_SECRET, TF_VAR_ARM_TENANT_ID, TF_VAR_ARM_SUBSCRIPTION_ID"
-    echo "  - OPENAI_API_KEY, ANTHROPIC_API_KEY"
-    echo "  - GHCR_AUTH, SCANTRON_GITHUB_PAT"
-    echo "  - CRS_KEY_ID, CRS_KEY_TOKEN (generate secure ones)"
-    echo "  - COMPETITION_API_KEY_ID, COMPETITION_API_KEY_TOKEN"
-    echo
-    echo "Production features:"
-    echo "  - TAILSCALE_ENABLED=true"
-    echo "  - TS_CLIENT_ID, TS_CLIENT_SECRET, TS_OP_TAG"
-    echo
 }
 
 # Function to validate configuration
@@ -153,11 +142,10 @@ deployment_instructions() {
     print_success "Production setup completed!"
     echo
     print_status "Next steps for deployment:"
-    echo "  1. Review and update deployment/env with your production values"
-    echo "  2. Run: make deploy-production"
-    echo "  3. Monitor deployment: kubectl get pods -A"
-    echo "  4. Get cluster credentials: az aks get-credentials --name <cluster-name> --resource-group <rg-name>"
-    echo "  5. Access via Tailscale: kubectl get -n crs-webservice ingress"
+    echo "  1. Run: make deploy-production"
+    echo "  2. Monitor deployment: kubectl get pods -A"
+    echo "  3. Get cluster credentials: az aks get-credentials --name <cluster-name> --resource-group <rg-name>"
+    echo "  4. Access via Tailscale: kubectl get -n crs-webservice ingress"
     echo
     print_status "Useful commands:"
     echo "  - View logs: kubectl logs -n crs <pod-name>"
@@ -171,6 +159,7 @@ main() {
     
     check_azure_cli
     check_terraform
+    install_just
     setup_service_principal
     setup_config
     setup_remote_state

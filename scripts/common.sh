@@ -107,6 +107,30 @@ install_git_lfs() {
     fi
 }
 
+# Function to install Just
+install_just() {
+    print_status "Installing Just..."
+    if ! command_exists just; then
+        if command_exists curl; then
+            # Install using the official installer
+            curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash
+        elif command_exists apt-get; then
+            sudo apt-get update
+            sudo apt-get install -y just
+        elif command_exists yum; then
+            sudo yum install -y just
+        elif command_exists brew; then
+            brew install just
+        else
+            print_error "Could not install Just. Please install it manually."
+            return 1
+        fi
+        print_success "Just installed successfully"
+    else
+        print_success "Just is already installed"
+    fi
+}
+
 # Function to check Docker
 check_docker() {
     print_status "Checking Docker..."
@@ -184,6 +208,17 @@ check_terraform() {
     fi
 }
 
+# Function to check Just
+check_just() {
+    print_status "Checking Just..."
+    if command_exists just; then
+        print_success "Just is installed"
+    else
+        print_error "Just is not installed"
+        return 1
+    fi
+}
+
 # Function to setup configuration file
 setup_config_file() {
     local overwrite_existing=${1:-false}
@@ -210,6 +245,24 @@ setup_config_file() {
 configure_langfuse() {
     print_status "Configuring LangFuse (optional monitoring)..."
     
+    # Source the env file to check current values
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    # Check if LangFuse is already enabled
+    if [ "$LANGFUSE_ENABLED" = "true" ] && [ -n "$LANGFUSE_HOST" ] && [ -n "$LANGFUSE_PUBLIC_KEY" ]; then
+        print_status "LangFuse is already configured:"
+        echo "  Host: $LANGFUSE_HOST"
+        echo "  Public Key: $LANGFUSE_PUBLIC_KEY"
+        read -p "Do you want to reconfigure LangFuse? (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Keeping existing LangFuse configuration"
+            return
+        fi
+    fi
+    
     read -p "Do you want to enable LangFuse for LLM monitoring? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -220,45 +273,126 @@ configure_langfuse() {
         echo
         
         # Update the env file
-        sed -i "s|export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=true|" deployment/env
-        sed -i "s|export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"$langfuse_host\"|" deployment/env
-        sed -i "s|export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"$langfuse_public_key\"|" deployment/env
-        sed -i "s|export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"$langfuse_secret_key\"|" deployment/env
+        sed -i "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=true|" deployment/env
+        sed -i "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"$langfuse_host\"|" deployment/env
+        sed -i "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"$langfuse_public_key\"|" deployment/env
+        sed -i "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"$langfuse_secret_key\"|" deployment/env
         
         print_success "LangFuse configured successfully"
     else
         print_status "LangFuse disabled"
-        sed -i "s|export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=false|" deployment/env
+        sed -i "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=false|" deployment/env
     fi
 }
+
+# Function to configure required API keys for local development
+configure_local_api_keys() {
+    print_status "Configuring required API keys for local development..."
+    
+    # Source the env file to check current values
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    # OpenAI API Key
+    if [ -n "$OPENAI_API_KEY" ] && [ "$OPENAI_API_KEY" != "<your-openai-api-key>" ]; then
+        print_status "OpenAI API key is already configured"
+    else
+        read -s -p "Enter your OpenAI API key: " openai_key
+        echo
+        sed -i "s|.*export OPENAI_API_KEY=.*|export OPENAI_API_KEY=\"$openai_key\"|" deployment/env
+    fi
+    
+    # Anthropic API Key
+    if [ -n "$ANTHROPIC_API_KEY" ] && [ "$ANTHROPIC_API_KEY" != "<your-anthropic-api-key>" ]; then
+        print_status "Anthropic API key is already configured"
+    else
+        read -s -p "Enter your Anthropic API key: " anthropic_key
+        echo
+        sed -i "s|.*export ANTHROPIC_API_KEY=.*|export ANTHROPIC_API_KEY=\"$anthropic_key\"|" deployment/env
+    fi
+    
+    # GitHub Container Registry
+    if [ -n "$GHCR_AUTH" ] && [ "$GHCR_AUTH" != "<your-ghcr-base64-auth>" ]; then
+        print_status "GitHub Container Registry authentication is already configured"
+    else
+        read -p "Enter your GitHub username (press Enter to use 'USERNAME'): " ghcr_username
+        if [ -z "$ghcr_username" ]; then
+            ghcr_username="USERNAME"
+        fi
+        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
+        echo
+        
+        # Compute GHCR_AUTH
+        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64)
+        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
+    fi
+    
+    # Docker Hub credentials (optional)
+    if [ -n "$DOCKER_USERNAME" ] && [ "$DOCKER_USERNAME" != "<your-docker-username>" ]; then
+        print_status "Docker Hub credentials are already configured (username: $DOCKER_USERNAME)"
+    else
+        read -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
+        if [ -n "$docker_username" ]; then
+            read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+            echo
+            
+            # Set Docker credentials (handles both commented and uncommented lines)
+            sed -i "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
+            sed -i "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
+        fi
+    fi
+    
+    print_success "API keys configured successfully"
+}
+
+
 
 # Function to configure OTEL telemetry
 configure_otel() {
     print_status "Configuring OpenTelemetry telemetry (optional)..."
+    
+    # Source the env file to check current values
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    # Check if OTEL is already configured
+    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ] && [ "$OTEL_ENDPOINT" != "<your-otel-endpoint>" ]; then
+        print_status "OpenTelemetry is already configured:"
+        echo "  Endpoint: $OTEL_ENDPOINT"
+        echo "  Protocol: $OTEL_PROTOCOL"
+        read -p "Do you want to reconfigure OpenTelemetry? (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Keeping existing OpenTelemetry configuration"
+            return
+        fi
+    fi
     
     read -p "Do you want to enable OpenTelemetry telemetry? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "OpenTelemetry configuration:"
         read -p "Enter OTEL endpoint URL: " otel_endpoint
-        read -p "Enter OTEL protocol (http/https): " otel_protocol
+        read -p "Enter OTEL protocol (http/grpc): " otel_protocol
         read -s -p "Enter OTEL token (optional, press Enter to skip): " otel_token
         echo
         
         # Update the env file
-        sed -i "s|export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
-        sed -i "s|export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
+        sed -i "s|.*export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
+        sed -i "s|.*export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
         
         if [ -n "$otel_token" ]; then
-            sed -i "s|export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
+            sed -i "s|.*export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
         fi
         
         print_success "OpenTelemetry configured successfully"
     else
         print_status "OpenTelemetry disabled"
-        sed -i "s|export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"\"|" deployment/env
-        sed -i "s|export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"http\"|" deployment/env
-        sed -i "s|export OTEL_TOKEN=.*|export OTEL_TOKEN=\"\"|" deployment/env
+        sed -i "s|.*export OTEL_ENDPOINT=.*|# export OTEL_ENDPOINT=\"\"|" deployment/env
+        sed -i "s|.*export OTEL_PROTOCOL=.*|# export OTEL_PROTOCOL=\"http\"|" deployment/env
+        sed -i "s|.*export OTEL_TOKEN=.*|# export OTEL_TOKEN=\"\"|" deployment/env
     fi
 }
 
