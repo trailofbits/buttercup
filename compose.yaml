@@ -305,6 +305,16 @@ services:
       timeout: 5s
       retries: 10
 
+  buttercup-ui:
+    build:
+      context: .
+      dockerfile: ./orchestrator/Dockerfile
+    command: ["buttercup-ui"]
+    ports:
+      - "127.0.0.1:1323:1323"
+    env_file: env.dev.compose
+
+
 configs:
   litellm_config:
     file: ./litellm/litellm_config.yaml

@@ -1,0 +1,51 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ui
+  labels:
+    app: ui
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: ui
+  template:
+    metadata:
+      labels:
+        app: ui
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: ui
+        image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
+        imagePullPolicy: {{ .Values.global.orchestratorImage.pullPolicy }}
+        ports:
+          - name: http
+            containerPort: {{ .Values.service.port }}
+            protocol: TCP
+        env:
+        {{- include "buttercup.uiEnv" . | nindent 8 }}
+        {{- include "buttercup.env.telemetry" . | nindent 8 }}
+        volumeMounts:
+          - name: data-volume
+            mountPath: /data
+        command: ["buttercup-ui"]
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: /v1/ping/
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /v1/ping/
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+{{- end }} 
