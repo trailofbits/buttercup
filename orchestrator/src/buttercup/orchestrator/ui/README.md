@@ -40,7 +40,7 @@ ui/
 
 The UI is configured via environment variables (with the `BUTTERCUP_UI_` prefix) or a `.env` file. Key settings include:
 
-- `BUTTERCUP_UI_HOST`: Host to bind the server (default: `0.0.0.0`)
+- `BUTTERCUP_UI_HOST`: Host to bind the server (default: `127.0.0.1`)
 - `BUTTERCUP_UI_PORT`: Port to bind the server (default: `1323`)
 - `BUTTERCUP_UI_EXTERNAL_HOST`: Host used by external components to access the API (e.g. `buttercup-ui` in minikube)
 - `BUTTERCUP_UI_STORAGE_DIR`: Directory for storing tarballs and artifacts (default: `/tmp/buttercup-storage`)

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     external_host: Annotated[
         str, Field(default="localhost", description="External host, used to construct the files URLs")
     ]
-    host: Annotated[str, Field(default="0.0.0.0", description="Host to bind the server to")]
+    host: Annotated[str, Field(default="127.0.0.1", description="Host to bind the server to")]
     port: Annotated[int, Field(default=1323, description="Port to bind the server to")]
 
     # File server configuration
