@@ -5,7 +5,7 @@ from buttercup.common.queues import HashNames
 from dataclasses import dataclass
 from google.protobuf import text_format
 import time
-from typing import Set
+from typing import Set, Iterator
 
 # Redis set keys for tracking task states
 CANCELLED_TASKS_SET = "cancelled_tasks"
@@ -20,11 +20,13 @@ class TaskRegistry:
     redis: Redis
     hash_name: str = HashNames.TASKS_REGISTRY
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Number of tasks in the registry"""
-        return self.redis.hlen(self.hash_name)
+        val = self.redis.hlen(self.hash_name)
+        assert isinstance(val, int)
+        return val
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Task]:
         """Iterate over all tasks in the registry
 
         Returns tasks with their cancelled status set according to the cancelled tasks set.
@@ -46,12 +48,13 @@ class TaskRegistry:
 
     def __contains__(self, task_id: str) -> bool:
         """Check if a task ID exists in the registry"""
-        return self.redis.hexists(self.hash_name, self._prepare_key(task_id))
+        val = self.redis.hexists(self.hash_name, self._prepare_key(task_id))
+        return bool(val)
 
     def _prepare_key(self, task_id: str) -> str:
         return task_id.lower()
 
-    def set(self, task: Task):
+    def set(self, task: Task) -> None:
         """Update a task in the registry"""
         self.redis.hset(self.hash_name, self._prepare_key(task.task_id), task.SerializeToString())
 
@@ -71,14 +74,15 @@ class TaskRegistry:
         if task_bytes is None:
             return None
 
-        task = Task.FromString(task_bytes)
+        task: Task = Task.FromString(task_bytes)
 
         # Set the cancelled flag based on presence in the cancelled tasks set
-        task.cancelled = self.redis.sismember(CANCELLED_TASKS_SET, prepared_key)
+        val = self.redis.sismember(CANCELLED_TASKS_SET, prepared_key)
+        task.cancelled = bool(val)
 
         return task
 
-    def delete(self, task_id: str):
+    def delete(self, task_id: str) -> None:
         """Delete a task from the registry and remove it from the cancelled tasks set
 
         Args:
@@ -92,7 +96,7 @@ class TaskRegistry:
         pipe.srem(CANCELLED_TASKS_SET, prepared_key)
         pipe.execute()
 
-    def mark_cancelled(self, task_or_id: str | Task):
+    def mark_cancelled(self, task_or_id: str | Task) -> None:
         """Add the task ID to the cancelled tasks set
 
         This method does not modify the task object or update it in the registry.
@@ -121,7 +125,8 @@ class TaskRegistry:
         prepared_key = self._prepare_key(task_id)
 
         # A task is cancelled if and only if it's in the cancelled tasks set
-        return self.redis.sismember(CANCELLED_TASKS_SET, prepared_key)
+        val = self.redis.sismember(CANCELLED_TASKS_SET, prepared_key)
+        return bool(val)
 
     def is_expired(self, task_or_id: str | Task, delta_seconds: int = 0) -> bool:
         """Check if a task is expired based on its deadline. If delta_seconds is
@@ -210,7 +215,7 @@ class TaskRegistry:
 
         return False
 
-    def mark_successful(self, task_or_id: str | Task):
+    def mark_successful(self, task_or_id: str | Task) -> None:
         """Add the task ID to the successful tasks set
 
         This method does not modify the task object or update it in the registry.
@@ -239,9 +244,10 @@ class TaskRegistry:
         prepared_key = self._prepare_key(task_id)
 
         # A task is successful if and only if it's in the successful tasks set
-        return self.redis.sismember(SUCCEEDED_TASKS_SET, prepared_key)
+        val = self.redis.sismember(SUCCEEDED_TASKS_SET, prepared_key)
+        return bool(val)
 
-    def mark_errored(self, task_or_id: str | Task):
+    def mark_errored(self, task_or_id: str | Task) -> None:
         """Add the task ID to the errored tasks set
 
         This method does not modify the task object or update it in the registry.
@@ -270,10 +276,11 @@ class TaskRegistry:
         prepared_key = self._prepare_key(task_id)
 
         # A task is errored if and only if it's in the errored tasks set
-        return self.redis.sismember(ERRORED_TASKS_SET, prepared_key)
+        val = self.redis.sismember(ERRORED_TASKS_SET, prepared_key)
+        return bool(val)
 
 
-def task_registry_cli():
+def task_registry_cli() -> None:
     """CLI for the task registry"""
     from pydantic_settings import BaseSettings
     from typing import Annotated
@@ -294,6 +301,7 @@ def task_registry_cli():
 
     # Display information about cancelled tasks set
     cancelled_task_ids = redis.smembers(CANCELLED_TASKS_SET)
+    assert isinstance(cancelled_task_ids, set)
     cancelled_count = len(cancelled_task_ids)
     print(f"Number of tasks in registry: {len(registry)}")
     print(f"Number of cancelled tasks: {cancelled_count}")

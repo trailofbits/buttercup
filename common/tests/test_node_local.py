@@ -2,6 +2,7 @@ from pathlib import Path
 import pytest
 import os
 from unittest.mock import patch, mock_open, MagicMock
+from contextlib import contextmanager
 
 from buttercup.common.node_local import (
     _get_root_path,
@@ -427,16 +428,22 @@ class TestNodeLocal:
 
         # First patch the scratch_path function
         with patch("buttercup.common.node_local.scratch_path", return_value=test_scratch_path):
-            # Then patch the NamedTemporaryFile at the module level where it's imported
-            with patch("buttercup.common.node_local.NamedTemporaryFile", return_value=mock_file) as mock_ntf:
-                # Call the function
-                result = local_scratch_file(delete=False, suffix=".txt")
 
-                # Verify the result
-                assert result is mock_file
+            @contextmanager
+            def mock_ntf(*args, **kwargs):
+                yield mock_file
+
+            # Then patch the NamedTemporaryFile at the module level where it's imported
+            with patch("buttercup.common.node_local.NamedTemporaryFile") as named_tmp_file_mock:
+                named_tmp_file_mock.side_effect = mock_ntf
+
+                # Call the function
+                with local_scratch_file(delete=False, suffix=".txt") as result:
+                    # Verify the result
+                    assert result is mock_file
 
                 # Verify the call to NamedTemporaryFile
-                mock_ntf.assert_called_once_with(dir=test_scratch_path, delete=False, suffix=".txt")
+                named_tmp_file_mock.assert_called_once_with(dir=test_scratch_path, delete=False, suffix=".txt")
 
     def test_remote_scratch_file(self):
         """Test remote_scratch_file function."""
@@ -448,15 +455,20 @@ class TestNodeLocal:
         # First patch the remote_path function
         with patch("buttercup.common.node_local.remote_path", return_value=remote_path_value):
             # Then patch the NamedTemporaryFile at the module level where it's imported
-            with patch("buttercup.common.node_local.NamedTemporaryFile", return_value=mock_file) as mock_ntf:
-                # Call the function
-                result = remote_scratch_file(local_path, delete=False, suffix=".txt")
+            @contextmanager
+            def mock_ntf(*args, **kwargs):
+                yield mock_file
 
-                # Verify the result
-                assert result is mock_file
+            with patch("buttercup.common.node_local.NamedTemporaryFile") as named_tmp_file_mock:
+                named_tmp_file_mock.side_effect = mock_ntf
+
+                # Call the function
+                with remote_scratch_file(local_path, delete=False, suffix=".txt") as result:
+                    # Verify the result
+                    assert result is mock_file
 
                 # Verify the call to NamedTemporaryFile
-                mock_ntf.assert_called_once_with(dir=Path("/sample"), delete=False, suffix=".txt")
+                named_tmp_file_mock.assert_called_once_with(dir=Path("/sample"), delete=False, suffix=".txt")
 
     def test_lopen(self):
         """Test lopen function."""

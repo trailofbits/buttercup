@@ -43,7 +43,7 @@ def is_langfuse_available() -> bool:
         return False
     try:
         response = requests.post(f"{langfuse_host}/api/public/ingestion", timeout=2)
-        return response.status_code == 401  # expect that we aren't authenticated
+        return bool(response.status_code == 401)  # expect that we aren't authenticated
     except requests.RequestException:
         return False
 
@@ -57,11 +57,14 @@ def langfuse_auth_check() -> bool:
     langfuse_host = os.getenv("LANGFUSE_HOST")
     langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
     langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY")
+    if langfuse_public_key is None or langfuse_secret_key is None:
+        return False
+
     try:
         response = requests.post(
             f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
         )
-        return response.status_code == 400  # expect that we authenticate, but the request is invalid
+        return bool(response.status_code == 400)  # expect that we authenticate, but the request is invalid
     except requests.RequestException:
         return False
 
@@ -102,7 +105,7 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
 
 def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration and temperature."""
-    return create_llm(
+    return create_llm(  # type: ignore
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
