@@ -1,0 +1,3 @@
+[submodule "program-model/aixcc-cscope"]
+	path = program-model/aixcc-cscope
+	url = git@github.com:trailofbits/aixcc-cscope.git
