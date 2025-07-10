@@ -134,14 +134,6 @@ class TypeUsageInfoModel(BaseModel):
         )
 
 
-class HarnessInfoModel(BaseModel):
-    """API model for harness information."""
-
-    file_path: str = Field(..., description="Path to the harness file")
-    code: str = Field(..., description="Harness source code")
-    harness_name: str = Field(..., description="Name of the harness")
-
-
 class FunctionSearchRequest(BaseModel):
     """Request model for function search."""
 
@@ -184,13 +176,6 @@ class TypeSearchResponse(BaseModel):
 
     types: list[TypeDefinitionModel] = Field(..., description="List of matching types")
     total_count: int = Field(..., description="Total number of types found")
-
-
-class HarnessSearchResponse(BaseModel):
-    """Response model for harness search."""
-
-    harnesses: list[str] = Field(..., description="List of harness file paths")
-    total_count: int = Field(..., description="Total number of harnesses found")
 
 
 class TaskInitRequest(BaseModel):

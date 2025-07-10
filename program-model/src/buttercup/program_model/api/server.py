@@ -15,8 +15,6 @@ from buttercup.program_model.api.models import (
     ErrorResponse,
     FunctionModel,
     FunctionSearchResponse,
-    HarnessInfoModel,
-    HarnessSearchResponse,
     TaskInitRequest,
     TaskInitResponse,
     TypeDefinitionModel,
@@ -24,11 +22,6 @@ from buttercup.program_model.api.models import (
     TypeUsageInfoModel,
 )
 from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.harness_discovery import (
-    find_libfuzzer_harnesses,
-    find_jazzer_harnesses,
-    get_harness_source,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -332,91 +325,6 @@ async def get_type_calls(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get type calls: {str(e)}",
-        )
-
-
-@app.get("/tasks/{task_id}/harnesses/libfuzzer", response_model=HarnessSearchResponse)
-async def find_libfuzzer_harnesses_endpoint(
-    task_id: str = FastAPIPath(..., description="Task ID"),
-) -> HarnessSearchResponse:
-    """Find libfuzzer harnesses in the codebase."""
-    try:
-        codequery = get_codequery(task_id)
-        harnesses = find_libfuzzer_harnesses(codequery)
-
-        return HarnessSearchResponse(
-            harnesses=[str(path) for path in harnesses],
-            total_count=len(harnesses),
-        )
-    except HTTPException:
-        # Re-raise HTTPExceptions as-is
-        raise
-    except Exception as e:
-        logger.exception("Failed to find libfuzzer harnesses: %s", e)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to find libfuzzer harnesses: {str(e)}",
-        )
-
-
-@app.get("/tasks/{task_id}/harnesses/jazzer", response_model=HarnessSearchResponse)
-async def find_jazzer_harnesses_endpoint(
-    task_id: str = FastAPIPath(..., description="Task ID"),
-) -> HarnessSearchResponse:
-    """Find jazzer harnesses in the codebase."""
-    try:
-        codequery = get_codequery(task_id)
-        harnesses = find_jazzer_harnesses(codequery)
-
-        return HarnessSearchResponse(
-            harnesses=[str(path) for path in harnesses],
-            total_count=len(harnesses),
-        )
-    except HTTPException:
-        # Re-raise HTTPExceptions as-is
-        raise
-    except Exception as e:
-        logger.exception("Failed to find jazzer harnesses: %s", e)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to find jazzer harnesses: {str(e)}",
-        )
-
-
-@app.get(
-    "/tasks/{task_id}/harnesses/{harness_name}/source", response_model=HarnessInfoModel
-)
-async def get_harness_source_endpoint(
-    task_id: str = FastAPIPath(..., description="Task ID"),
-    harness_name: str = FastAPIPath(..., description="Harness name"),
-) -> HarnessInfoModel:
-    """Get source code for a specific harness."""
-    try:
-        codequery = get_codequery(task_id)
-        # Note: get_harness_source expects a Redis connection, we'll pass None
-        harness_info = get_harness_source(
-            redis=None, codequery=codequery, harness_name=harness_name
-        )
-
-        if not harness_info:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Harness {harness_name} not found",
-            )
-
-        return HarnessInfoModel(
-            file_path=str(harness_info.file_path),
-            code=harness_info.code,
-            harness_name=harness_info.harness_name,
-        )
-    except HTTPException:
-        # Re-raise HTTPExceptions as-is
-        raise
-    except Exception as e:
-        logger.exception("Failed to get harness source: %s", e)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get harness source: {str(e)}",
         )
 
 

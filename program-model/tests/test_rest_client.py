@@ -152,53 +152,6 @@ class TestProgramModelClient:
         assert result[0].name == "test_struct"
         assert result[0].type == TypeDefinitionType.STRUCT
 
-    @patch("httpx.Client.get")
-    def test_find_libfuzzer_harnesses_success(self, mock_get, client):
-        """Test successful libfuzzer harness discovery."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "harnesses": ["/src/harness1.c", "/src/harness2.c"],
-            "total_count": 2,
-        }
-        mock_get.return_value = mock_response
-
-        result = client.find_libfuzzer_harnesses("test-task-123")
-
-        assert len(result) == 2
-        assert Path("/src/harness1.c") in result
-        assert Path("/src/harness2.c") in result
-
-    @patch("httpx.Client.get")
-    def test_get_harness_source_success(self, mock_get, client):
-        """Test successful harness source retrieval."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "file_path": "/src/harness.c",
-            "code": "int main() { return 0; }",
-            "harness_name": "test_harness",
-        }
-        mock_get.return_value = mock_response
-
-        result = client.get_harness_source("test-task-123", "test_harness")
-
-        assert result is not None
-        assert result["file_path"] == Path("/src/harness.c")
-        assert result["code"] == "int main() { return 0; }"
-        assert result["harness_name"] == "test_harness"
-
-    @patch("httpx.Client.get")
-    def test_get_harness_source_not_found(self, mock_get, client):
-        """Test harness source retrieval when not found."""
-        mock_response = Mock()
-        mock_response.status_code = 404
-        mock_get.return_value = mock_response
-
-        result = client.get_harness_source("test-task-123", "nonexistent")
-
-        assert result is None
-
     def test_context_manager(self):
         """Test client as context manager."""
         with ProgramModelClient() as client:

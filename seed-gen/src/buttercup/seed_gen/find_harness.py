@@ -12,7 +12,7 @@ from redis import Redis
 from buttercup.common.maps import CoverageMap
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR
-from buttercup.program_model.rest_client import CodeQueryRest as CodeQuery
+from buttercup.program_model.rest_client import CodeQueryPersistentRest as CodeQuery
 
 logger = logging.getLogger(__name__)
 

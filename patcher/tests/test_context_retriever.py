@@ -27,6 +27,13 @@ from buttercup.patcher.agents.common import (
     ContextCodeSnippet,
     CodeSnippetKey,
 )
+
+from buttercup.program_model.utils.common import (
+    Function,
+    FunctionBody,
+    TypeDefinition,
+    TypeDefinitionType,
+)
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
 from langgraph.types import Command
@@ -113,11 +120,36 @@ def mock_llm_functions(
     mock_test_instructions_prompt: MagicMock,
 ):
     """Mock LLM creation functions and environment variables."""
+    # Create a mock CodeQueryPersistentRest that returns expected data
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="test_function",
+            file_path=Path("/src/test.c"),
+            bodies=[FunctionBody(body="int test_function() { return 0; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_codequery.get_callers.return_value = []
+    mock_codequery.get_callees.return_value = []
+    mock_codequery.get_types.return_value = [
+        TypeDefinition(
+            name="test_struct",
+            type=TypeDefinitionType.STRUCT,
+            definition="struct test_struct { int x; };",
+            definition_line=5,
+            file_path=Path("/src/test.h"),
+        )
+    ]
+    mock_codequery.get_type_calls.return_value = []
+
     with (
         patch.dict(os.environ, {"BUTTERCUP_LITELLM_HOSTNAME": "http://test-host", "BUTTERCUP_LITELLM_KEY": "test-key"}),
         patch("buttercup.common.llm.create_default_llm", return_value=mock_cheap_llm),
         patch("buttercup.common.llm.create_llm", return_value=mock_cheap_llm),
         patch("langgraph.prebuilt.chat_agent_executor._get_prompt_runnable", return_value=mock_agent_llm),
+        patch("buttercup.patcher.utils.get_codequery", return_value=mock_codequery),
+        patch("buttercup.program_model.rest_client.CodeQueryPersistentRest", return_value=mock_codequery),
+        patch("buttercup.patcher.agents.tools.CodeQueryPersistentRest", return_value=mock_codequery),
     ):
         import buttercup.patcher.agents.context_retriever
 
@@ -548,10 +580,28 @@ def test_retrieve_context_basic(
     assert "const ebitmap_t *e1" in snippet.code
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_missing_arg_tool_call(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test basic context retrieval functionality."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     # Create a test state with a simple request
     state = ContextRetrieverState(
         code_snippet_requests=[
@@ -666,10 +716,28 @@ def test_recursion_limit(mock_agent: ContextRetrieverAgent, mock_agent_llm: Magi
     )
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_recursion_limit_tmp_code_snippets(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test hitting the context request limit but getting some partial results."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find function main"),
@@ -734,10 +802,28 @@ def test_recursion_limit_tmp_code_snippets(
     assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_dupped_code_snippets(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we don't return duplicate code snippets."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find function main"),
@@ -842,10 +928,31 @@ def test_dupped_code_snippets(
     assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_get_type(
-    mock_agent: ContextRetrieverAgent, mock_cheap_llm: MagicMock, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_cheap_llm: MagicMock,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we can get the type definition."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_types.return_value = [
+        TypeDefinition(
+            name="ebitmap_t",
+            type=TypeDefinitionType.STRUCT,
+            definition="struct ebitmap_t { int a; }",
+            definition_line=5,
+            file_path=Path("/src/test.h"),
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find type ebitmap_t"),
@@ -893,10 +1000,37 @@ def test_get_type(
     assert code_snippet.code == "struct ebitmap_t { int a; }"
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_get_definitions_no_paths(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we can get the type definition even if the file path is not provided."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/example_project/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_codequery.get_types.return_value = [
+        TypeDefinition(
+            name="ebitmap_t",
+            type=TypeDefinitionType.STRUCT,
+            definition="struct ebitmap_t { int a; }",
+            definition_line=5,
+            file_path=Path("/src/example_project/test.h"),
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find type ebitmap_t"),
@@ -1079,10 +1213,28 @@ def test_low_recursion_limit_empty(
     )
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_low_recursion_limit_with_results(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that hitting a low recursion limit after getting some results still returns those results."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find function main"),
@@ -1152,10 +1304,37 @@ def test_low_recursion_limit_with_results(
     assert code_snippet.code == "int main() { int a = foo(); return a; }"
 
 
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
 def test_multiple_code_snippet_requests(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test handling multiple code snippet requests in a single state."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/example_project/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_codequery.get_types.return_value = [
+        TypeDefinition(
+            name="ebitmap_t",
+            type=TypeDefinitionType.STRUCT,
+            definition="struct ebitmap_t { int a; }",
+            definition_line=5,
+            file_path=Path("/src/example_project/test.h"),
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find function main"),
@@ -1397,8 +1576,37 @@ def test_invalid_argument_types(
     assert len(result.update["relevant_code_snippets"]) == 0
 
 
-def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config) -> None:
+@patch("buttercup.patcher.agents.tools.get_codequery")
+@patch("buttercup.patcher.utils.get_codequery")
+def test_llm_error_recovery(
+    mock_get_codequery_utils,
+    mock_get_codequery_tools,
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
+) -> None:
     """Test that the agent recovers from LLM errors and continues processing."""
+    # Setup mock codequery
+    mock_codequery = MagicMock()
+    mock_codequery.get_functions.return_value = [
+        Function(
+            name="main",
+            file_path=Path("/src/test.c"),
+            bodies=[FunctionBody(body="int main() { int a = foo(); return a; }", start_line=1, end_line=3)],
+        )
+    ]
+    mock_codequery.get_types.return_value = [
+        TypeDefinition(
+            name="ebitmap_t",
+            type=TypeDefinitionType.STRUCT,
+            definition="struct ebitmap_t { int a; }",
+            definition_line=5,
+            file_path=Path("/src/test.h"),
+        )
+    ]
+    mock_get_codequery_utils.return_value = mock_codequery
+    mock_get_codequery_tools.return_value = mock_codequery
+
     state = ContextRetrieverState(
         code_snippet_requests=[
             CodeSnippetRequest(request="Find function main"),

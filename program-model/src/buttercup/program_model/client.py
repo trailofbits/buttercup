@@ -12,8 +12,6 @@ from pydantic import ValidationError
 from buttercup.program_model.api.models import (
     ErrorResponse,
     FunctionSearchResponse,
-    HarnessInfoModel,
-    HarnessSearchResponse,
     TaskInitRequest,
     TaskInitResponse,
     TypeSearchResponse,
@@ -237,57 +235,6 @@ class ProgramModelClient:
             return [usage.to_domain() for usage in usage_models]
         except httpx.HTTPError as e:
             raise ProgramModelClientError(f"Failed to get type calls: {e}")
-
-    def find_libfuzzer_harnesses(self, task_id: str) -> list[Path]:
-        """Find libfuzzer harnesses."""
-        try:
-            response = self._client.get(
-                f"{self.base_url}/tasks/{task_id}/harnesses/libfuzzer"
-            )
-
-            if response.status_code != 200:
-                self._handle_error(response)
-
-            search_response = HarnessSearchResponse.model_validate(response.json())
-            return [Path(harness) for harness in search_response.harnesses]
-        except httpx.HTTPError as e:
-            raise ProgramModelClientError(f"Failed to find libfuzzer harnesses: {e}")
-
-    def find_jazzer_harnesses(self, task_id: str) -> list[Path]:
-        """Find jazzer harnesses."""
-        try:
-            response = self._client.get(
-                f"{self.base_url}/tasks/{task_id}/harnesses/jazzer"
-            )
-
-            if response.status_code != 200:
-                self._handle_error(response)
-
-            search_response = HarnessSearchResponse.model_validate(response.json())
-            return [Path(harness) for harness in search_response.harnesses]
-        except httpx.HTTPError as e:
-            raise ProgramModelClientError(f"Failed to find jazzer harnesses: {e}")
-
-    def get_harness_source(self, task_id: str, harness_name: str) -> Optional[dict]:
-        """Get harness source code."""
-        try:
-            response = self._client.get(
-                f"{self.base_url}/tasks/{task_id}/harnesses/{harness_name}/source"
-            )
-
-            if response.status_code == 404:
-                return None
-            elif response.status_code != 200:
-                self._handle_error(response)
-
-            harness_info = HarnessInfoModel.model_validate(response.json())
-            return {
-                "file_path": Path(harness_info.file_path),
-                "code": harness_info.code,
-                "harness_name": harness_info.harness_name,
-            }
-        except httpx.HTTPError as e:
-            raise ProgramModelClientError(f"Failed to get harness source: {e}")
 
     def cleanup_task(self, task_id: str) -> None:
         """Clean up a task."""
