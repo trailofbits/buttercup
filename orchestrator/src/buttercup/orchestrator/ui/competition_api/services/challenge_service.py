@@ -58,15 +58,34 @@ class ChallengeService:
         focus_dir = self._extract_focus_dir(repo_url)
         cur_ref = ref if not base_ref else base_ref
 
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=self.storage_dir) as temp_dir:
             temp_path = Path(temp_dir)
             sub_path = temp_path / focus_dir
             sub_path.mkdir(parents=True, exist_ok=True)
 
             # Clone the repository
             logger.info(f"Cloning {repo_url} to {sub_path}")
+
+            # Check if we have GitHub credentials for private repos
+            github_pat = os.environ.get("GITHUB_PAT")
+            github_username = os.environ.get("GITHUB_USERNAME")
+
+            if github_pat and github_username and "github.com" in repo_url:
+                # For GitHub repositories, use the PAT for authentication
+                if repo_url.startswith("https://github.com/"):
+                    # Convert https://github.com/owner/repo.git to https://username:pat@github.com/owner/repo.git
+                    auth_url = repo_url.replace(
+                        "https://github.com/", f"https://{github_username}:{github_pat}@github.com/"
+                    )
+                    logger.info("Using authenticated URL for private repository")
+                    clone_url = auth_url
+                else:
+                    clone_url = repo_url
+            else:
+                clone_url = repo_url
+
             result = subprocess.run(
-                ["git", "clone", repo_url, sub_path],
+                ["git", "clone", clone_url, sub_path],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -103,7 +122,7 @@ class ChallengeService:
             diff_sha256_hash = None
             if base_ref:
                 # Copy the checkout to a temporary directory
-                with tempfile.TemporaryDirectory() as base_temp_dir:
+                with tempfile.TemporaryDirectory(dir=self.storage_dir) as base_temp_dir:
                     base_temp_path = Path(base_temp_dir)
                     base_sub_path = base_temp_path / "A"
                     ref_sub_path = base_temp_path / "B"
