@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, Callable, Concatenate
+from typing import Dict, Any, Callable, TypeVar, cast
 from os import PathLike
 from functools import wraps
 import contextlib
@@ -132,6 +132,9 @@ class ReproduceResult:
             return False
 
         return True
+
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 @dataclass
@@ -309,18 +312,16 @@ class ChallengeTask:
         return self.task_meta.project_name
 
     @staticmethod
-    def read_write_decorator[**P, R](
-        func: Callable[Concatenate[ChallengeTask, P], R],
-    ) -> Callable[Concatenate[ChallengeTask, P], R]:
+    def read_write_decorator(func: F) -> F:
         """Decorator to check if the task is read-only."""
 
         @wraps(func)
-        def wrapper(self: ChallengeTask, *args: P.args, **kwargs: P.kwargs) -> R:
+        def wrapper(self: ChallengeTask, *args: Any, **kwargs: Any) -> Any:
             if self.local_task_dir is None:
                 raise ChallengeTaskError("Challenge Task is read-only, cannot perform this operation")
             return func(self, *args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None) -> None:
         if arg is not None:

@@ -20,7 +20,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     POVReproduceResponse,
 )
 import logging
-from typing import Type, Generic, TypeVar, Literal, overload, Callable, Concatenate, cast
+from typing import Type, Generic, TypeVar, Literal, overload, Callable, cast
 import uuid
 import os
 from enum import Enum
@@ -28,6 +28,8 @@ from typing import Any
 
 
 TIMES_DELIVERED_FIELD = "times_delivered"
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class QueueNames(str, Enum):
@@ -135,17 +137,15 @@ class ReliableQueue(Generic[MsgType]):
         self.redis.xadd(self.queue_name, {self.INAME: bts})
 
     @staticmethod
-    def _ensure_group_name[**P, R](
-        func: Callable[Concatenate[ReliableQueue[MsgType], P], R],
-    ) -> Callable[Concatenate[ReliableQueue[MsgType], P], R]:
+    def _ensure_group_name(func: F) -> F:
         @wraps(func)
-        def wrapper(self: ReliableQueue[MsgType], *args: P.args, **kwargs: P.kwargs) -> R:
+        def wrapper(self: ReliableQueue[MsgType], *args: Any, **kwargs: Any) -> Any:
             if self.group_name is None:
                 raise ValueError("group_name must be set for this operation")
 
             return func(self, *args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     @_ensure_group_name
     def pop(self) -> RQItem[MsgType] | None:
