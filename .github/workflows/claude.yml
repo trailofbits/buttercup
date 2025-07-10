@@ -23,6 +23,9 @@ jobs:
       pull-requests: read
       issues: read
       id-token: write
+      allowed_tools: |
+        Bash
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
