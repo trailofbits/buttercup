@@ -1,8 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, TypeVar, cast
 from os import PathLike
+from functools import wraps
 import contextlib
 import logging
 import shlex
@@ -122,21 +123,28 @@ class ReproduceResult:
         if return_code != TIMEOUT_ERR_RESULT:
             return True
 
-        crash_token = get_crash_token(self.stacktrace())
+        stacktrace = self.stacktrace()
+        if stacktrace is None:
+            return False
+
+        crash_token = get_crash_token(stacktrace)
         if not crash_token:
             return False
 
         return True
 
 
+F = TypeVar("F", bound=Callable[..., Any])
+
+
 @dataclass
 class ChallengeTask:
     """Class to manage Challenge Tasks."""
 
-    read_only_task_dir: PathLike
+    read_only_task_dir: PathLike[str] | str
     task_meta: TaskMeta = field(init=False)
-    python_path: PathLike = Path("python")
-    local_task_dir: PathLike | None = None
+    python_path: PathLike[str] | str = Path("python")
+    local_task_dir: PathLike[str] | str | None = None
 
     SRC_DIR = "src"
     DIFF_DIR = "diff"
@@ -171,12 +179,13 @@ class ChallengeTask:
                 raise ChallengeTaskError(f"Missing required directory: {self.task_dir / directory}")
 
         self._helper_path = Path("infra/helper.py")
-        if not (self.get_oss_fuzz_path() / self._helper_path).exists():
-            raise ChallengeTaskError(f"Missing required file: {self.get_oss_fuzz_path() / self._helper_path}")
+        oss_fuzz_path = self.get_oss_fuzz_path()
+        if not (oss_fuzz_path / self._helper_path).exists():
+            raise ChallengeTaskError(f"Missing required file: {oss_fuzz_path / self._helper_path}")
 
         self._check_python_path()
 
-    def _local_ro_dir(self, path: Path) -> Path:
+    def _local_ro_dir(self, path: PathLike[str] | str) -> Path:
         """Return the local path to the read-only task directory.
 
         If the path doesn't exist, it will be downloaded from the remote storage"""
@@ -195,7 +204,7 @@ class ChallengeTask:
         if not path.is_dir():
             raise ChallengeTaskError(f"Required directory is not a directory: {path}")
 
-    def _find_first_dir(self, subpath: Path) -> Path | None:
+    def _find_first_dir(self, subpath: str) -> Path | None:
         if not (self.task_dir / subpath).exists():
             return None
         first_elem = next((self.task_dir / subpath).iterdir(), None)
@@ -215,20 +224,24 @@ class ChallengeTask:
         # TODO: "Review task structure and Challenge Task operations" Issue #74
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
-    def _task_dir_compose_path(self, subpath_method: Callable[[], Path | None]) -> Path | None:
+    def _task_dir_compose_path(
+        self, subpath_method: Callable[[], Path | None], raise_on_none: bool = False
+    ) -> Path | None:
         subpath = subpath_method()
         if subpath is None:
+            if raise_on_none:
+                raise ChallengeTaskError(f"Path not found: {subpath_method.__name__}")
             return None
         return self.task_dir / subpath
 
-    def get_source_path(self) -> Path | None:
-        return self._task_dir_compose_path(self.get_source_subpath)
+    def get_source_path(self) -> Path:
+        return self._task_dir_compose_path(self.get_source_subpath, raise_on_none=True)  # type: ignore[return-value]
 
     def get_diff_path(self) -> Path | None:
         return self._task_dir_compose_path(self.get_diff_subpath)
 
-    def get_oss_fuzz_path(self) -> Path | None:
-        return self._task_dir_compose_path(self.get_oss_fuzz_subpath)
+    def get_oss_fuzz_path(self) -> Path:
+        return self._task_dir_compose_path(self.get_oss_fuzz_subpath, raise_on_none=True)  # type: ignore[return-value]
 
     def get_build_dir(self) -> Path | None:
         return self.get_oss_fuzz_path() / "build" / "out" / self.project_name
@@ -246,7 +259,7 @@ class ChallengeTask:
         except Exception as e:
             raise ChallengeTaskError(f"Python executable couldn't be run: {self.python_path}") from e
 
-    def _workdir_from_lines(self, lines: list[str], default=Path("/src")) -> Path:
+    def _workdir_from_lines(self, lines: list[str], default: Path = Path("/src")) -> Path:
         """Gets the WORKDIR from the given lines."""
         for line in reversed(lines):  # reversed to get last WORKDIR.
             match = re.match(self.WORKDIR_REGEX, line)
@@ -272,7 +285,8 @@ class ChallengeTask:
         # https://github.com/google/oss-fuzz/blob/3beb664440843f159e38ef66eb68a7cbd2704dad/infra/helper.py#L704
         default_workdir = Path("/src") / self.project_name
         try:
-            with open(self.get_oss_fuzz_path() / "projects" / self.project_name / "Dockerfile") as file_handle:
+            oss_fuzz_path = self.get_oss_fuzz_path()
+            with open(oss_fuzz_path / "projects" / self.project_name / "Dockerfile") as file_handle:
                 lines = file_handle.readlines()
 
             return self._workdir_from_lines(lines, default=default_workdir)
@@ -297,17 +311,19 @@ class ChallengeTask:
     def project_name(self) -> str:
         return self.task_meta.project_name
 
-    def read_write_decorator(func: Callable) -> Callable:
+    @staticmethod
+    def read_write_decorator(func: F) -> F:
         """Decorator to check if the task is read-only."""
 
-        def wrapper(self, *args: Any, **kwargs: Any) -> Any:
+        @wraps(func)
+        def wrapper(self: ChallengeTask, *args: Any, **kwargs: Any) -> Any:
             if self.local_task_dir is None:
                 raise ChallengeTaskError("Challenge Task is read-only, cannot perform this operation")
             return func(self, *args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
-    def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None):
+    def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None) -> None:
         if arg is not None:
             if isinstance(arg, bool):
                 if arg:
@@ -391,7 +407,7 @@ class ChallengeTask:
                 output=stdout,
             )
         except subprocess.CalledProcessError as e:
-            logger.error(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
+            logger.error(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
             return CommandResult(
                 success=False,
                 returncode=None,
@@ -399,11 +415,15 @@ class ChallengeTask:
                 output=e.stdout if e.stdout else None,
             )
         except Exception as e:
-            logger.exception(f"Command failed (cwd={self.task_dir / self.get_oss_fuzz_subpath()}): {' '.join(cmd)}")
-            return CommandResult(success=False, returncode=None, error=str(e), output=None)
+            logger.exception(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
+            return CommandResult(success=False, returncode=None, error=str(e).encode(), output=None)
 
     def _run_helper_cmd(self, cmd: list[str], env_helper: Dict[str, str] | None = None) -> CommandResult:
-        return self._run_cmd(cmd, cwd=self.task_dir / self.get_oss_fuzz_subpath(), env_helper=env_helper)
+        oss_fuzz_subpath = self.get_oss_fuzz_subpath()
+        if oss_fuzz_subpath is None:
+            raise ChallengeTaskError("OSS-Fuzz path not found")
+
+        return self._run_cmd(cmd, cwd=self.task_dir / oss_fuzz_subpath, env_helper=env_helper)
 
     def _get_base_runner_version(self) -> Version | None:
         """The base-runner image tag is hardcoded in infra/helper.py."""
@@ -414,6 +434,9 @@ class ChallengeTask:
             logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {str(e)}")
             return None
         if not result.success:
+            return None
+
+        if result.output is None:
             return None
 
         m = re.search(r"BASE_IMAGE_TAG = '([^']+)'", result.output.decode("utf-8"))
@@ -461,14 +484,15 @@ class ChallengeTask:
             if not self._image_built or always_build_image:
                 res = self.build_image(cache=True)
                 if not res.success:
-                    raise ChallengeTaskError(f"Failed to build image: {res.error}")
+                    raise ChallengeTaskError(f"Failed to build image: {res.error!r}")
 
                 self._image_built = True
 
             container_image = self.container_image()
             if mount_dirs is None:
                 mount_dirs = {}
-            mount_dirs.update({self.get_source_path(): self.workdir_from_dockerfile()})
+            source_path = self.get_source_path()
+            mount_dirs.update({source_path: self.workdir_from_dockerfile()})
 
         docker_cmd = ["docker", "run", "--privileged", "--shm-size=2g", "--rm"]
         if mount_dirs:
@@ -540,12 +564,14 @@ class ChallengeTask:
             # This should happen only for upstream oss-fuzz projects because
             # AIxCC guarantees `build_fuzzers <local-path>` to just work.
             # https://github.com/google/oss-fuzz/blob/80a57ca6da03069afabb5116cae0b338d19f9f27/infra/helper.py#L870-L872
-            kwargs["mount_path"] = Path(f"/src/{self.focus}")
+            kwargs["mount_path"] = f"/src/{self.focus}"
 
+        source_subpath = self.get_source_subpath()
+        assert source_subpath is not None
         cmd = self._get_helper_cmd(
             "build_fuzzers",
             self.project_name,
-            str((self.task_dir / self.get_source_subpath()).absolute()) if use_source_dir else None,
+            str((self.task_dir / source_subpath).absolute()) if use_source_dir else None,
             **kwargs,
         )
 
@@ -652,7 +678,7 @@ class ChallengeTask:
             architecture,
             env,
         )
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "architecture": architecture,
             "e": env,
         }
@@ -864,10 +890,12 @@ class ChallengeTask:
         if self.read_only_task_dir == self.local_task_dir:
             raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
 
+        assert isinstance(self.local_task_dir, Path)
         if self.local_task_dir.exists():
             logger.debug(f"Removing local task directory {self.local_task_dir}")
             self._remove_dir(self.local_task_dir)
 
+        assert isinstance(self.read_only_task_dir, Path)
         copyanything(self.read_only_task_dir, self.local_task_dir, symlinks=True)
         logger.info(f"Restored task from {self.read_only_task_dir} to {self.local_task_dir}")
 
@@ -883,7 +911,7 @@ class ChallengeTask:
             )
             if not res.success:
                 logger.error("Failed to remove directory from docker: %s", res.output)
-                raise ChallengeTaskError(f"Failed to remove directory from docker: {res.output}")
+                raise ChallengeTaskError(f"Failed to remove directory from docker: {res.output!r}")
 
     def get_test_sh_script(self, test_sh_path: str) -> str:
         return f"""cp {test_sh_path} $SRC/test.sh && $SRC/test.sh"""
@@ -891,6 +919,8 @@ class ChallengeTask:
     @read_write_decorator
     def cleanup(self) -> None:
         """Clean up a ChallengeTask local directory."""
+        assert self.local_task_dir is not None
+
         directory = Path(self.local_task_dir)
         if not directory.exists():
             logger.warning("Directory %s does not exist, nothing to cleanup", directory)

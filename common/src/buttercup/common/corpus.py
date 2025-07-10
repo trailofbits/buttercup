@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import BinaryIO, List
 import buttercup.common.node_local as node_local
 from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
 import os
@@ -13,8 +13,10 @@ import tempfile
 
 logger = logging.getLogger(__name__)
 
+# TODO: this file is one of the few files that uses os.path.join. Switch to Path.
 
-def hash_file(fl):
+
+def hash_file(fl: BinaryIO) -> str:
     h = hashlib.new("sha256")
     bts = fl.read(100)
     while bts:
@@ -26,14 +28,14 @@ def hash_file(fl):
 class InputDir:
     def __init__(self, wdir: str, name: str, copy_corpus_max_size: int | None = None):
         self.path = os.path.join(wdir, name)
-        self.remote_path = node_local.remote_path(self.path)
+        self.remote_path = node_local.remote_path(Path(self.path))
         self.copy_corpus_max_size = copy_corpus_max_size
         os.makedirs(self.path, exist_ok=True)
 
     def basename(self) -> str:
         return os.path.basename(self.path)
 
-    def copy_file(self, src_file: str):
+    def copy_file(self, src_file: str) -> str:
         with open(src_file, "rb") as f:
             nm = hash_file(f)
             dst = os.path.join(self.path, nm)
@@ -74,13 +76,13 @@ class InputDir:
     def local_corpus_count(self) -> int:
         return len(os.listdir(self.path))
 
-    def remove_local_file(self, file: str):
+    def remove_local_file(self, file: str) -> None:
         try:
             os.remove(os.path.join(self.path, file))
         except Exception as e:
             logger.error(f"Error removing file {file} from local corpus {self.path}: {e}")
 
-    def remove_file(self, file: str):
+    def remove_file(self, file: str) -> None:
         self.remove_local_file(file)
         try:
             os.remove(os.path.join(self.remote_path, file))
@@ -113,10 +115,10 @@ class InputDir:
                 continue
         return hashed_files
 
-    def hash_new_corpus(self):
+    def hash_new_corpus(self) -> None:
         InputDir.hash_corpus(self.path)
 
-    def _do_sync(self, src_path: str, dst_path: str):
+    def _do_sync(self, src_path: Path | str, dst_path: Path | str) -> None:
         # Pattern to match SHA256 hashes (64 hex chars)
         hash_pattern = "[0-9a-f]" * 64
         subprocess.call(
@@ -131,12 +133,12 @@ class InputDir:
             ]
         )
 
-    def sync_to_remote(self):
+    def sync_to_remote(self) -> None:
         self.hash_new_corpus()
         os.makedirs(self.remote_path, exist_ok=True)
         self._do_sync(self.path, self.remote_path)
 
-    def sync_specific_files_to_remote(self, files):
+    def sync_specific_files_to_remote(self, files: list[str]) -> None:
         """
         Sync only specific files to remote storage.
 
@@ -167,7 +169,7 @@ class InputDir:
                 ]
             )
 
-    def sync_from_remote(self):
+    def sync_from_remote(self) -> None:
         os.makedirs(self.remote_path, exist_ok=True)
         self._do_sync(self.remote_path, self.path)
 
@@ -219,7 +221,7 @@ class Corpus(InputDir):
         self.corpus_dir = os.path.join(task_id, f"{CORPUS_DIR_NAME}_{harness_name}")
         super().__init__(wdir, self.corpus_dir, copy_corpus_max_size=copy_corpus_max_size)
 
-    def remove_any_merged(self, redis: Redis):
+    def remove_any_merged(self, redis: Redis) -> None:
         merged_corpus_set = MergedCorpusSet(redis, self.task_id, self.harness_name)
         logger.info(f"Removing merged files from local corpus {self.path}")
         removed = 0

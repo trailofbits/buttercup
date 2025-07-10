@@ -4,7 +4,7 @@ import os
 if os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL") == "grpc":
     from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 else:
-    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter  # type: ignore
 
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
@@ -22,7 +22,7 @@ class MaxLengthFormatter(logging.Formatter):
         super().__init__("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         self.max_length = max_length
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         msg = super().format(record)
         if self.max_length:
             msg = msg[: self.max_length]
@@ -65,7 +65,7 @@ def setup_package_logger(
 
         persistent_log_dir = os.getenv("PERSISTENT_LOG_DIR", None)
 
-        handlers = [
+        handlers: list[logging.Handler] = [
             logging.StreamHandler(),
             logging.FileHandler(os.path.join(tempfile.gettempdir(), f"{logger_name}.log")),
         ]

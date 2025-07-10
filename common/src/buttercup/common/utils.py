@@ -45,7 +45,7 @@ def get_diffs(path: Path | None) -> list[Path]:
     return sorted(diff_files)
 
 
-def signal_alive_health_check():
+def signal_alive_health_check() -> None:
     """Signal that the process is alive by writing the current time to a temporary file."""
     tmp_file = "/tmp/health_check_alive.tmp"
     with open(tmp_file, "w") as f:
@@ -75,10 +75,10 @@ def serve_loop(func: Callable[[], bool], sleep_time: float = 1.0, report_time: f
             time.sleep(sleep_time)
 
 
-def setup_periodic_zombie_reaper(interval_seconds=5):
+def setup_periodic_zombie_reaper(interval_seconds: int = 5) -> None:
     """Set up a background thread that periodically reaps zombie processes."""
 
-    def periodic_reaper():
+    def periodic_reaper() -> None:
         """Background thread function that periodically reaps zombies."""
         logger.info(f"Started periodic zombie reaper (interval: {interval_seconds}s)")
 

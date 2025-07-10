@@ -2,6 +2,7 @@ import os
 import logging
 from enum import Enum
 import uuid
+from typing import Any
 
 import openlit
 import opentelemetry.attributes
@@ -13,7 +14,7 @@ from langchain_core.prompt_values import ChatPromptValue
 _clean_attribute_orig = opentelemetry.attributes._clean_attribute
 
 
-def _clean_attribute_wrapper(key: str, value, max_len=None):
+def _clean_attribute_wrapper(key: str, value: Any, max_len: int | None = None) -> Any:
     """Wrapper around _clean_attribute to add custom behavior"""
     if isinstance(value, ChatPromptValue):
         value = value.to_string()
@@ -44,7 +45,7 @@ class CRSActionCategory(Enum):
     TELEMETRY_INIT = "telemetry_init"
 
 
-def init_telemetry(application_name: str):
+def init_telemetry(application_name: str) -> None:
     """Initialize the telemetry for the application."""
     logger.info("Initializing telemetry for %s", application_name)
     if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
@@ -73,7 +74,7 @@ def set_crs_attributes(
     crs_action_name: str,
     task_metadata: dict,
     extra_attributes: dict | None = None,
-):
+) -> None:
     extra_attributes = extra_attributes or {}
     span.set_attribute("crs.action.category", crs_action_category.value)
     span.set_attribute("crs.action.name", crs_action_name)
@@ -93,7 +94,7 @@ def log_crs_action_ok(
     crs_action_name: str,
     task_metadata: dict,
     extra_attributes: dict | None = None,
-):
+) -> None:
     extra_attributes = extra_attributes or {}
     with tracer.start_as_current_span(crs_action_name) as span:
         span.set_attribute("crs.action.category", crs_action_category.value)

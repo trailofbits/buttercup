@@ -10,17 +10,19 @@ logger = logging.getLogger(__name__)
 
 
 class ReproduceMultiple:
-    def __init__(self, wdir: Path, build_outputs: list[BuildOutput], build_cache: list[ChallengeTask] = None) -> None:
+    def __init__(
+        self, wdir: Path, build_outputs: list[BuildOutput], build_cache: list[ChallengeTask] | None = None
+    ) -> None:
         self.build_outputs = build_outputs
         self.wdir = wdir
-        self.builds_cache: list[ChallengeTask] = build_cache
+        self.builds_cache = build_cache
 
     @contextmanager
     def open(self) -> Generator["ReproduceMultiple", None, None]:
         with contextlib.ExitStack() as stack:
             cache = []
             for build in self.build_outputs:
-                task = ChallengeTask(read_only_task_dir=build.task_dir)
+                task = ChallengeTask(read_only_task_dir=Path(build.task_dir))
                 cpy = stack.enter_context(task.get_rw_copy(self.wdir))
                 cache.append(cpy)
             copied_mult = ReproduceMultiple(self.wdir, self.build_outputs, cache)

@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand, CliImplicitFlag
 from pydantic import BaseModel
-from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.common.challenge_task import ChallengeTask, CommandResult, ReproduceResult
 from buttercup.common.logger import setup_package_logger
 from pathlib import Path
 from typing import Dict
@@ -61,7 +61,7 @@ class Settings(BaseSettings):
         extra = "allow"
 
 
-def handle_subcommand(task: ChallengeTask, subcommand: BaseModel):
+def handle_subcommand(task: ChallengeTask, subcommand: BaseModel | None) -> CommandResult | ReproduceResult:
     if isinstance(subcommand, BuildImageCommand):
         return task.build_image(
             pull_latest_base_image=subcommand.pull_latest_base_image,
@@ -113,7 +113,7 @@ def get_task_copy(task: ChallengeTask, use_copy: bool = False) -> Iterator[Chall
         yield task
 
 
-def main():
+def main() -> None:
     settings = Settings()
     setup_package_logger("challenge-task-cli", __name__, "DEBUG")
     if settings.rw:
@@ -131,6 +131,9 @@ def main():
     subcommand = get_subcommand(settings)
     with get_task_copy(task, not settings.rw) as rw_task:
         result = handle_subcommand(rw_task, subcommand)
+
+    if isinstance(result, ReproduceResult):
+        result = result.command_result
 
     print("Command result:", result.success)
 
