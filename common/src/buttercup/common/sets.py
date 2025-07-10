@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import random
 import json
 from functools import lru_cache
+from typing import Generator
 
 # Import POVReproduceRequest for the refactored PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVReproduceResponse
@@ -61,7 +62,7 @@ class RedisLock:
         self.lock_timeout_seconds = lock_timeout_seconds
 
     @contextmanager
-    def acquire(self):
+    def acquire(self) -> Generator[None, None, None]:
         if not self.redis.set(self.key, "1", ex=self.lock_timeout_seconds, nx=True):
             raise FailedToAcquireLock()
         try:
@@ -69,7 +70,7 @@ class RedisLock:
         finally:
             self._release()
 
-    def _release(self):
+    def _release(self) -> None:
         self.redis.delete(self.key)
 
 

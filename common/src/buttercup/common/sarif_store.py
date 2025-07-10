@@ -42,7 +42,7 @@ class SARIFStore:
         """
         return f"{self.key_prefix}{task_id.lower()}"
 
-    def _decode_key(self, key) -> str:
+    def _decode_key(self, key: str | bytes) -> str:
         """
         Decode a Redis key if it's bytes, otherwise return as is.
 

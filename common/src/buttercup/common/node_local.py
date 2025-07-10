@@ -89,18 +89,18 @@ def scratch_path() -> NodeLocalPath:
     return scratch_dir
 
 
-def scratch_dir() -> TmpDir:
+def scratch_dir() -> Any:
     """Return a temporary directory in the scratch directory"""
     return temp_dir(scratch_path())
 
 
-def local_scratch_file(**kwargs) -> NamedTemporaryFile:
+def local_scratch_file(**kwargs: Any) -> Any:
     """Return a temporary file in the local scratch directory"""
     sp = scratch_path()
     return NamedTemporaryFile(dir=sp, **kwargs)
 
 
-def remote_scratch_file(local_path: NodeLocalPath, **kwargs) -> NamedTemporaryFile:
+def remote_scratch_file(local_path: NodeLocalPath, **kwargs: Any) -> Any:
     """Get a temporary file in the remote storage corresponding to the node local path"""
     dp = remote_path(local_path)
     assert dp.is_absolute(), "Input path must be absolute"
