@@ -1,218 +1,78 @@
+# Buttercup CRS - Local Development Docker Compose
+# Simplified configuration for local development on macOS
+
+# Include competition server for local testing
 include:
- - ./competition-server/compose.yaml
+  - ./competition-server/compose.yaml
 
 services:
-  # ugh the only solution i can come up with is a dind instance paired with every single build-bot we will need like k8s groups or something
-  dind:
-    expose:
-      - "2375"
-    image: docker:24-dind
-    command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false", "--storage-driver=overlay2"]
-    restart: always
-    privileged: true  # This must run with privlege to support nested virtualization within the public Linux CP for `virtme-ng`
-    environment:
-      - DOCKER_TLS_CERTDIR  # intentionally blank to optimize runtime
-    volumes:
-      - type: bind
-        source: ./crs_scratch
-        target: /crs_scratch
-      - shared-tmp:/tmp
-      - ./node_data_storage/:/node_data
-
+  # Core Infrastructure Services
   redis:
     image: redis:7.4.2
-    restart: always
+    restart: unless-stopped
     ports:
       - '127.0.0.1:6379:6379'
-    # NOTE: Do not use the configuration file for now, so every time you restart
-    # the container, it will reset the redis instance
-    # command: redis-server /mount/redis.conf
-    # volumes:
-      # - cache:/data
-      # - ./redis:/mount
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
       interval: 1s
       timeout: 3s
       retries: 5
 
-  stimulate-fuzzer-test:
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --build_type fuzzer --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE} --task_id 123e4567-e89b-12d3-a456-426614174000
-    profiles:
-      - fuzzer-test
-    restart: no
-    volumes:
-      - ./crs_scratch:/crs_scratch
-    depends_on:
-      redis:
-        condition: service_healthy
-      build-bot:
-        condition: service_started
-      fuzzer-bot:
-        condition: service_started
-      orchestrator-sim:
-        condition: service_started
-      coverage-bot:
-        condition: service_started
-      
-
-  orchestrator-sim:
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
-    profiles:
-      - fuzzer-test
-    volumes:
-      - ./crs_scratch:/crs_scratch
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  graphdb:
-    image: janusgraph/janusgraph:latest
-    profiles:
-      - graphdb
+  # Docker-in-Docker for isolated build environments
+  dind:
+    image: docker:24-dind
+    restart: unless-stopped
+    privileged: true
+    expose:
+      - "2375"
+    command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false", "--storage-driver=overlay2"]
     environment:
-      - janusgraph.storage.backend=cql
-      - janusgraph.storage.hostname=graphdb-storage
-      - janusgraph.storage.cql.keyspace=janusgraph
-      - janusgraph.schema.init.strategy=json
-      - janusgraph.schema.init.json.file=/opt/janusgraph/conf/schema.json
-      - janusgraph.query.batch=true
-      - janusgraph.storage.batch-loading=true
-      - _JAVA_OPTIONS=-Xmx4g -Xms2g
-    healthcheck:
-      test: ["CMD-SHELL", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
-      interval: 10s
-      timeout: 60s
-      retries: 4
-    ports:
-      - "127.0.0.1:8182:8182"
+      - DOCKER_TLS_CERTDIR=  # Blank for performance
     volumes:
       - ./crs_scratch:/crs_scratch
-      - ./program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
-      - ./program-model/conf/schema.json:/opt/janusgraph/conf/schema.json
-    depends_on:
-      graphdb-storage:
-        condition: service_healthy
+      - ./node_data_storage:/node_data
 
-  graphdb-storage:
-    image: cassandra:4.0.6
-    profiles:
-      - graphdb
+  # AI/LLM Proxy Service
+  litellm:
+    image: litellm:local-v1.57.8
+    build:
+      context: ./docker/litellm
+      dockerfile: Dockerfile
+      args:
+        LITELLM_VERSION: v1.57.8-stable
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
     environment:
-      - CASSANDRA_START_RPC=true
-    ports:
-      - "127.0.0.1:9042:9042"
-      - "127.0.0.1:9160:9160"
-    volumes:
-      - graphdb_data:/var/lib/cassandra/data
+      DATABASE_URL: "postgresql://litellm_user:litellm_password11@litellm-db:5432/litellm"
+    command: ["--config", "/app/config.yaml", "--port", "8080", "--num_workers", "1"]
+    configs:
+      - source: litellm_config
+        target: /app/config.yaml
+    env_file: .env
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+
+  litellm-db:
+    image: postgres:17.2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm_user
+      POSTGRES_PASSWORD: litellm_password11
     healthcheck:
-      test: ["CMD-SHELL", "nodetool", "status"]
-      interval: 10s
-      timeout: 60s
-      retries: 4
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  program-model:
-    build:
-      context: ./
-      dockerfile: ./program-model/Dockerfile
-    command: ["buttercup-program-model", "serve"]
-    env_file: env.dev.compose
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
-    depends_on:
-      redis:
-        condition: service_healthy
-      dind:
-        condition: service_started
-      # graphdb:
-      #   condition: service_healthy
-
-  coverage-bot:
-    command: ["buttercup-coverage-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
-    env_file: env.dev.compose
-    depends_on:
-      redis:
-        condition: service_healthy
-      dind:
-        condition: service_started
-
-  build-bot:
-    command: ["buttercup-fuzzer-builder", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timer", "5000"]
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
-    env_file: env.dev.compose
-    depends_on:
-      redis:
-        condition: service_healthy
-      dind:
-        condition: service_started
-
-  tracer-bot:
-    command: ["buttercup-tracer-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
-    env_file: env.dev.compose
-    depends_on:
-      redis:
-        condition: service_healthy
-      dind:
-        condition: service_started
-
-  fuzzer-bot:
-    build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
-    command: ["buttercup-fuzzer", "--crs_scratch_dir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_count_limit", "100"]
-    env_file: env.dev.compose
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./node_data_storage/:/node_data
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  task-downloader:
-    build:
-      context: .
-      dockerfile: ./orchestrator/Dockerfile
-    command: ["buttercup-task-downloader", "serve"]
-    volumes:
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
-    env_file: env.dev.compose
-    depends_on:
-      redis:
-        condition: service_healthy
-
+  # Core CRS Services
   task-server:
     build:
       context: .
       dockerfile: ./orchestrator/Dockerfile
+    restart: unless-stopped
     command: ["buttercup-task-server"]
     ports:
       - "127.0.0.1:8000:8000"
@@ -225,24 +85,107 @@ services:
     build:
       context: .
       dockerfile: ./orchestrator/Dockerfile
+    restart: unless-stopped
     command: ["buttercup-scheduler", "serve"]
     volumes:
       - ./crs_scratch:/crs_scratch
       - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ./node_data_storage:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
         condition: service_healthy
 
+  task-downloader:
+    build:
+      context: .
+      dockerfile: ./orchestrator/Dockerfile
+    restart: unless-stopped
+    command: ["buttercup-task-downloader", "serve"]
+    volumes:
+      - ./tasks_storage:/tasks_storage
+      - ./node_data_storage:/node_data
+    env_file: env.dev.compose
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Unified Fuzzer Service (replaces 4 separate services)
+  unified-fuzzer:
+    build:
+      context: .
+      dockerfile: ./fuzzer/dockerfiles/unified_fuzzer.Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "buttercup.unified_fuzzer"]
+    volumes:
+      - ./crs_scratch:/crs_scratch
+      - ./node_data_storage:/node_data
+    env_file: env.dev.compose
+    environment:
+      # Override specific settings for local dev
+      BUTTERCUP_UNIFIED_FUZZER_NUM_FUZZER_WORKERS: 1
+      BUTTERCUP_UNIFIED_FUZZER_BUILDER_WDIR: /node_data/crs_scratch
+      BUTTERCUP_UNIFIED_FUZZER_FUZZER_WDIR: /node_data/crs_scratch
+      BUTTERCUP_UNIFIED_FUZZER_FUZZER_CRS_SCRATCH_DIR: /node_data/crs_scratch
+      BUTTERCUP_UNIFIED_FUZZER_COVERAGE_WDIR: /node_data/crs_scratch
+      BUTTERCUP_UNIFIED_FUZZER_TRACER_WDIR: /node_data/crs_scratch
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
+
+  # Code Analysis Service
+  program-model:
+    build:
+      context: .
+      dockerfile: ./program-model/Dockerfile
+    restart: unless-stopped
+    command: ["buttercup-program-model", "serve"]
+    env_file: env.dev.compose
+    volumes:
+      - ./crs_scratch:/crs_scratch
+      - ./tasks_storage:/tasks_storage
+      - ./node_data_storage:/node_data
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
+
+  # Patch Generation Service
+  patcher:
+    build:
+      context: .
+      dockerfile: ./patcher/Dockerfile
+    restart: unless-stopped
+    command: ["buttercup-patcher", "serve"]
+    volumes:
+      - ./crs_scratch:/crs_scratch
+      - ./node_data_storage:/node_data
+    env_file: env.dev.compose
+    environment:
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
+      litellm:
+        condition: service_started
+
+  # Seed Generation Service
   seed-gen:
     build:
       context: .
       dockerfile: ./seed-gen/Dockerfile
+    restart: unless-stopped
     command: ["seed-gen", "server"]
     volumes:
       - ./crs_scratch:/crs_scratch
-      - ./node_data_storage/:/node_data
+      - ./node_data_storage:/node_data
     env_file: env.dev.compose
     environment:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
@@ -256,72 +199,21 @@ services:
       dind:
         condition: service_started
 
-  patcher:
-    build:
-      context: .
-      dockerfile: ./patcher/Dockerfile
-    command: ["buttercup-patcher", "serve"]
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./node_data_storage/:/node_data
-    env_file: env.dev.compose
-    environment:
-      - LANGFUSE_HOST=${LANGFUSE_HOST}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
-    depends_on:
-      redis:
-        condition: service_healthy
-      dind:
-        condition: service_started
-
-  litellm:
-    image: ghcr.io/berriai/litellm:litellm_stable_release_branch-v1.57.8-stable
-    configs:
-      - source: litellm_config
-        target: /app/config.yaml
-    env_file: .env
-    ports:
-      - "127.0.0.1:8080:8080"
-    environment:
-        DATABASE_URL: "postgresql://litellm_user:litellm_password11@litellm-db:5432/litellm"
-
-    # note: litellm recommends 1 worker for kubernetes: https://docs.litellm.ai/docs/proxy/prod
-    command: ["--config", "/app/config.yaml", "--port", "8080", "--num_workers", "8"]
-    depends_on:
-      litellm-db:
-        condition: service_healthy
-
-  litellm-db:
-    image: postgres:17.2
-    restart: always
-    environment:
-      POSTGRES_DB: litellm
-      POSTGRES_USER: litellm_user
-      POSTGRES_PASSWORD: litellm_password11
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
+  # Web UI for CRS
   buttercup-ui:
     build:
       context: .
       dockerfile: ./orchestrator/Dockerfile
+    restart: unless-stopped
     command: ["buttercup-ui"]
     ports:
       - "127.0.0.1:1323:1323"
     env_file: env.dev.compose
 
-
+# Configuration Files
 configs:
   litellm_config:
     file: ./litellm/litellm_config.yaml
 
-volumes:
-  cache:
-    driver: local
-  graphdb_data:
-    driver: local
-  shared-tmp:
+# Note: No volume definitions needed for local development
+# All data is stored in local directories mounted directly

@@ -1,0 +1,63 @@
+# BuildKit daemon configuration for optimized builds
+
+# Optimized for Apple Silicon and ARM64 platforms
+[worker.oci]
+  # Enable all capabilities
+  enabled = true
+  platforms = ["linux/amd64", "linux/arm64", "linux/arm/v7"]
+  snapshotter = "overlayfs"
+  
+  # Garbage collection settings
+  gc = true
+  gckeepstorage = 10240  # 10GB
+  
+  # Network configuration
+  [[worker.oci.networksMode]]
+    defaultMode = "sandbox"
+
+[worker.containerd]
+  enabled = true
+  platforms = ["linux/amd64", "linux/arm64"]
+  namespace = "buildkit"
+
+# Registry configuration
+[registry."docker.io"]
+  # Removed cloud mirror for offline mode
+  mirrors = []
+  
+# Local registry configuration for offline mode
+[registry."local"]
+  mirrors = []
+  http = true
+
+# Cache configuration
+[cache]
+  # Enable inline cache export
+  exports = ["inline"]
+  
+  # Import cache from registry
+  imports = ["registry"]
+
+# Debug and logging
+[log]
+  # Set to "debug" for troubleshooting
+  level = "info"
+  format = "json"
+
+# Parallelism settings
+[build]
+  # Maximum parallel build steps
+  maxParallelism = 4
+
+# Security settings
+[security]
+  # Allow insecure registries (use with caution)
+  insecure = false
+  
+  # Enable security features
+  capabilities = ["security.insecure", "network.host"]
+
+# Experimental features
+[experimental]
+  # Enable experimental features for better performance
+  enabled = true

@@ -51,6 +51,14 @@ def main():
             competition_api_cycle_time=command.competition_api_cycle_time,
             patch_submission_retry_limit=command.patch_submission_retry_limit,
             patch_requests_per_vulnerability=command.patch_requests_per_vulnerability,
+            concurrent_patch_requests_per_task=command.concurrent_patch_requests_per_task,
+            scratch_cleaner_interval=command.scratch_cleaner_interval,
+            scratch_cleaner_delta_seconds=command.scratch_cleaner_delta_seconds,
+            pov_reproducer_interval=command.pov_reproducer_interval,
+            corpus_merger_interval=command.corpus_merger_interval,
+            corpus_merger_timeout=command.corpus_merger_timeout,
+            corpus_merger_max_files=command.corpus_merger_max_files,
+            python_path=command.python_path,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):

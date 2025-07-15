@@ -5,8 +5,15 @@ import requests
 import functools
 from langchain_core.language_models import BaseChatModel
 from langchain_openai.chat_models import ChatOpenAI
-from langfuse.callback import CallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
+
+# Try to import Langfuse, but don't fail if it's not available
+try:
+    from langfuse.callback import CallbackHandler
+    LANGFUSE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_AVAILABLE = False
+    CallbackHandler = None
 from langchain_core.runnables import ConfigurableField
 
 import logging
@@ -37,6 +44,9 @@ class ButtercupLLM(Enum):
 @functools.cache
 def is_langfuse_available() -> bool:
     """Check if LangFuse is available."""
+    if not LANGFUSE_AVAILABLE:
+        logger.info("LangFuse module not installed")
+        return False
     langfuse_host = os.getenv("LANGFUSE_HOST")
     if not langfuse_host:
         logger.info("LangFuse not configured")
@@ -54,6 +64,8 @@ def langfuse_auth_check() -> bool:
 
     Uses the ingestion endpoint to check if the API key is valid.
     """
+    if not LANGFUSE_AVAILABLE:
+        return False
     langfuse_host = os.getenv("LANGFUSE_HOST")
     langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
     langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY")
@@ -72,7 +84,7 @@ def langfuse_auth_check() -> bool:
 @functools.cache
 def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     """Get Langchain callbacks for monitoring LLM calls with LangFuse, if available."""
-    if is_langfuse_available():
+    if is_langfuse_available() and CallbackHandler is not None:
         try:
             langfuse_handler = CallbackHandler(
                 public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
@@ -84,8 +96,8 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
                 return [langfuse_handler]
 
             logger.warning("LangFuse authentication failed")
-        except Exception:
-            logger.error("Cannot connect to LangFuse")
+        except Exception as e:
+            logger.error(f"Cannot connect to LangFuse: {e}")
     else:
         logger.info("LangFuse not available")
 

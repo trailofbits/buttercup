@@ -145,7 +145,7 @@ deployment_instructions() {
     echo "  1. Run: make deploy-production"
     echo "  2. Monitor deployment: kubectl get pods -A"
     echo "  3. Get cluster credentials: az aks get-credentials --name <cluster-name> --resource-group <rg-name>"
-    echo "  4. Access via Tailscale: kubectl get -n crs-webservice ingress"
+    echo "  4. Access via kubectl: kubectl get -n crs-webservice svc"
     echo
     print_status "Useful commands:"
     echo "  - View logs: kubectl logs -n crs <pod-name>"

@@ -518,21 +518,7 @@ check_aks_config() {
         fi
     done
     
-    # Check Tailscale (optional but recommended)
-    if [ "$TAILSCALE_ENABLED" = "true" ]; then
-        local tailscale_vars=(
-            "TS_CLIENT_ID"
-            "TS_CLIENT_SECRET"
-            "TS_OP_TAG"
-        )
-        
-        for var in "${tailscale_vars[@]}"; do
-            if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-                print_error "Tailscale variable $var is not set or has placeholder value"
-                errors=$((errors + 1))
-            fi
-        done
-    fi
+    # Tailscale removed for offline mode
     
     # Check optional LangFuse configuration
     if [ "$LANGFUSE_ENABLED" = "true" ]; then

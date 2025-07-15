@@ -23,6 +23,28 @@ class ServeCommand(BaseSettings):
     concurrent_patch_requests_per_task: Annotated[
         int, Field(default=12, description="Number of concurrent patch requests per task")
     ]
+    # Background task configuration
+    scratch_cleaner_interval: Annotated[
+        float, Field(default=60.0, description="Interval between scratch cleaner runs in seconds")
+    ]
+    scratch_cleaner_delta_seconds: Annotated[
+        int, Field(default=1800, description="Age in seconds before task directories are deleted")
+    ]
+    pov_reproducer_interval: Annotated[
+        float, Field(default=0.1, description="Interval between POV reproducer runs in seconds")
+    ]
+    corpus_merger_interval: Annotated[
+        float, Field(default=10.0, description="Interval between corpus merger runs in seconds")
+    ]
+    corpus_merger_timeout: Annotated[
+        int, Field(default=300, description="Timeout for corpus merge operations in seconds")
+    ]
+    corpus_merger_max_files: Annotated[
+        int, Field(default=500, description="Maximum number of local files to process per merge")
+    ]
+    python_path: Annotated[
+        str, Field(default="python", description="Python executable path")
+    ]
 
     class Config:
         nested_model_default_partial_update = True

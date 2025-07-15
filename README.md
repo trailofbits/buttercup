@@ -2,318 +2,301 @@
 
 **Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge) competition**. It's a comprehensive automated vulnerability detection and patching system designed to compete in AI-driven cybersecurity challenges.
 
+## System Requirements
+
+- **Operating System**: macOS 11+ or Linux (Windows via WSL2)
+- **Docker**: Docker Desktop 4.26+ with Docker Compose v2
+- **Memory**: 16GB RAM minimum (32GB recommended)
+- **Storage**: 50GB+ free disk space
+- **API Keys**: OpenAI and/or Anthropic API keys
+
 ## Quick Start
 
-Clone the repo with `--recurse-submodules` as some dependencies are submodules.
-
-Choose your deployment method:
-
-- **[Local Development](#local-development)** - Quick setup for development and testing
-- **[Production AKS Deployment](#production-aks-deployment)** - Full production deployment on Azure Kubernetes Service
-
-## Local Development
-
-The fastest way to get started with the **Buttercup CRS** system for development and testing.
-
-### Quick Setup (Recommended)
-
-Use our automated setup script:
+Clone the repository with submodules:
 
 ```bash
-make setup-local
+git clone --recurse-submodules https://github.com/your-org/buttercup.git
+cd buttercup
 ```
 
-This script will install all dependencies, configure the environment, and guide you through the setup process.
-
-### Manual Setup
-
-If you prefer to set up manually, follow these steps:
+Then run the automated setup:
 
 ```bash
-# Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-# Log out and back in for group changes to take effect
+# Automated setup and start
+./local-dev.sh setup
 
-# kubectl
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
-# Helm
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-# Minikube
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
-
-# Git LFS (for some tests)
-sudo apt-get install git-lfs
-git lfs install
+# Or manual setup
+cp env.template env.dev.compose
+# Edit env.dev.compose with your API keys
+docker compose up -d
 ```
 
-#### Manual Configuration
+## Installation
 
-1. **Create configuration file:**
+### Prerequisites
+
+1. **Install Docker Desktop**:
+   - **macOS**: [Download Docker Desktop](https://www.docker.com/products/docker-desktop/)
+   - **Linux**: Follow the [official Docker installation guide](https://docs.docker.com/engine/install/)
+   - **Windows**: Use WSL2 and install Docker Desktop
+
+2. **Configure Docker Resources**:
+   - Open Docker Desktop settings
+   - Allocate at least 8GB RAM (16GB recommended)
+   - Allocate at least 4 CPU cores
+   - Ensure 50GB+ disk space available
+
+3. **Get API Keys**:
+   - [OpenAI API Key](https://platform.openai.com/api-keys) (required)
+   - [Anthropic API Key](https://console.anthropic.com/) (optional)
+
+### Setup
+
+1. **Configure Environment**:
+   ```bash
+   # Copy the environment template
+   cp env.template env.dev.compose
+   
+   # Edit with your API keys
+   # Required: Set OPENAI_API_KEY and/or ANTHROPIC_API_KEY
+   nano env.dev.compose
+   ```
+
+2. **Start Services**:
+   ```bash
+   # Using the convenience script (recommended)
+   ./local-dev.sh up
+   
+   # Or using Docker Compose directly
+   docker compose up -d
+   ```
+
+3. **Verify Installation**:
+   ```bash
+   # Check service status
+   ./local-dev.sh status
+   
+   # Test the APIs
+   curl http://localhost:8000/health   # Task Server
+   curl http://localhost:1323/         # Web UI
+   ```
+
+### Quick Test
+
+Submit a test challenge to verify everything is working:
 
 ```bash
-cp deployment/env.template deployment/env
-```
-
-2. **Configure the environment file** (`deployment/env`):
-
-Look at the comments in the `deployment/env.template` for how to set variables.
-
-### Start Local Development Environment
-
-1. **Start the services:**
-
-```bash
-make deploy-local
-```
-
-2. **Verify deployment:**
-
-```bash
-kubectl get pods -n crs
-kubectl get services -n crs
-```
-
-3. **Submit the integration-test challenge to the CRS (for 30mins):**
-
-```bash
-make test
-```
-
-**Alternative manual commands:**
-
-```bash
-# Start services manually
-cd deployment && make up
-
-# Port forward manually
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
-
-# Test manually
 ./orchestrator/scripts/task_integration_test.sh
 ```
 
-## Production AKS Deployment
+Monitor the progress in the web UI at http://localhost:1323
 
-> **⚠️ Notice:**  
-> The following production deployment instructions have **not been fully tested**.  
-> Please proceed with caution and verify each step in your environment.  
-> If you encounter issues, consult the script comments and configuration files for troubleshooting.
+## Service Access
 
-Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
+Once running, you can access:
 
-### Quick Setup (Recommended)
+- **Task Server API**: http://localhost:8000
+- **Buttercup Web UI**: http://localhost:1323  
+- **LiteLLM Proxy**: http://localhost:8080
+- **Redis**: localhost:6379
+- **Mock Competition API**: http://localhost:31323 (for testing)
 
-Use our automated setup script:
+## Architecture Overview
 
-```bash
-make setup-production
+Buttercup CRS uses a microservices architecture with the following components:
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+│  Competition    │────▶│ Task Server  │────▶│  Scheduler  │
+│     API         │     │   (REST API) │     │ (Orchestrator)│
+└─────────────────┘     └──────────────┘     └─────────────┘
+                                                     │
+                        ┌────────────────────────────┼────────────────────┐
+                        │                            │                    │
+                        ▼                            ▼                    ▼
+┌─────────────────┐     ┌──────────────┐     ┌─────────────┐    ┌──────────────┐
+│ Unified Fuzzer  │────▶│    Redis     │◀────│   Patcher   │    │ Program Model│
+│ (Build/Fuzz/    │     │ (Message Bus)│     │ (LLM-based) │    │ (Code Analysis)│
+│  Coverage/Trace)│     └──────────────┘     └─────────────┘    └──────────────┘
+└─────────────────┘              │                                        ▲
+                                 │            ┌─────────────┐             │
+                                 └───────────▶│  Seed Gen   │─────────────┘
+                                              │ (Test Gen)  │
+                                              └─────────────┘
 ```
 
-This script will check prerequisites, help create service principals, configure the environment, and validate your setup.
+### Core Components
 
-#### Manual Setup
+- **Task Server**: REST API for receiving vulnerability discovery tasks
+- **Scheduler**: Orchestrates the entire vulnerability discovery and patching workflow
+- **Unified Fuzzer**: Combines build, fuzzing, coverage, and crash analysis in one service
+- **Program Model**: Analyzes code structure using CodeQuery and Tree-sitter
+- **Patcher**: Uses LLMs to generate patches for discovered vulnerabilities
+- **Seed Generator**: Creates intelligent test inputs using LLM-guided generation
+- **Redis**: Central message bus for inter-service communication
 
-If you prefer to set up manually, follow these steps:
+### Key Features
 
-##### Prerequisites
-
-- Azure CLI installed and configured
-- Terraform installed
-- Active Azure subscription
-- Access to competition Tailscale tailnet
-
-##### Azure Setup
-
-1. **Login to Azure:**
-
-```bash
-az login --tenant aixcc.tech
-```
-
-2. **Create Service Principal:**
-
-```bash
-# Get your subscription ID
-az account show --query "{SubscriptionID:id}" --output table
-
-# Create service principal (replace with your subscription ID)
-az ad sp create-for-rbac --name "ButtercupCRS" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
-```
-
-##### Production Configuration
-
-1. **Configure environment file:**
-
-```bash
-cp deployment/env.template deployment/env
-```
-
-2. **Update `deployment/env` for production:**
-
-Look at the comments in the `deployment/env.template` for how to set variables.
-In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
-
-### Deploy to AKS
-
-**Deploy the cluster and services:**
-
-```bash
-make deploy-production
-```
-
-**Alternative manual command:**
-
-```bash
-cd deployment && make up
-```
-
-### Scaling and Management
-
-- **Scale nodes:** Update `TF_VAR_usr_node_count` in your env file and run `make up`
-- **View logs:** `kubectl logs -n crs <pod-name>`
-- **Monitor resources:** `kubectl top pods -A`
-
-## Cleanup
-
-```bash
-make clean
-```
-
-**Alternative manual command:**
-
-```bash
-cd deployment && make down
-```
+- **Automated Vulnerability Discovery**: Intelligent fuzzing with coverage guidance
+- **LLM-Powered Patching**: Generates contextual patches using GPT-4/Claude
+- **Language Support**: C/C++, Java, Python analysis and patching
+- **Distributed Architecture**: Scalable microservices design
+- **Real-time Monitoring**: Web UI for tracking progress
 
 ## Development Workflow
 
-### Using Makefile Shortcuts
+### Common Commands
 
-The **Buttercup CRS** project includes a Makefile with convenient shortcuts for common tasks:
+The `local-dev.sh` script provides convenient commands:
 
 ```bash
-# View all available commands
-make help
+# Service Management
+./local-dev.sh up          # Start all services
+./local-dev.sh down        # Stop all services
+./local-dev.sh restart     # Restart all services
+./local-dev.sh status      # Check service status
 
-# Setup
-make setup-local          # Automated local setup
-make setup-production     # Automated production setup
-make validate             # Validate current setup
-
-# Deployment
-make deploy               # Deploy to current environment
-make deploy-local         # Deploy to local Minikube
-make deploy-production    # Deploy to production AKS
-
-# Testing
-make test                 # Run test task
+# Debugging
+./local-dev.sh logs        # View all logs
+./local-dev.sh logs patcher # View specific service logs
+./local-dev.sh shell patcher # Enter service container
 
 # Development
-make lint                 # Lint all Python code
-make lint-component COMPONENT=orchestrator  # Lint specific component
-
-# Cleanup
-make clean                # Clean up deployment
-make clean-local          # Clean up local environment
+./local-dev.sh rebuild     # Rebuild all images
+./local-dev.sh clean       # Clean up volumes and data
 ```
 
 ### Running Tests
 
 ```bash
-# Lint all Python code
-make lint
-
-# Lint specific component
-make lint-component COMPONENT=orchestrator
-
-# Run test task
-make test
-```
-
-**Alternative manual commands:**
-
-```bash
-# Lint Python code
-just lint-python-all
-
-# Run specific component tests
-just lint-python orchestrator
-
-# Test manually
-./orchestrator/scripts/task_upstream_libpng.sh
+# Submit test challenges
+./orchestrator/scripts/task_integration_test.sh
 ./orchestrator/scripts/challenge.sh
+
+# Run component tests
+cd patcher && uv run pytest
+cd orchestrator && uv run pytest
+
+# Lint and format code
+just lint-python-all
+just lint-python patcher
 ```
 
-### Docker Development
+### Live Development
 
-```bash
-# Build and run with Docker Compose (only for local development and quick testing)
-docker-compose up -d
+For hot-reloading during development, create `compose.override.yaml`:
+
+```yaml
+services:
+  patcher:
+    volumes:
+      - ./patcher/src:/app/src:delegated
+    environment:
+      - DEVELOPMENT=true
+  
+  scheduler:
+    volumes:
+      - ./orchestrator/src:/app/src:delegated
+    environment:
+      - DEVELOPMENT=true
 ```
 
-### Kubernetes Development
+### Monitoring and Debugging
 
 ```bash
-# Port forward for local access
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+# Monitor resource usage
+docker stats
 
-# View logs
-kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
+# Follow scheduler logs
+docker compose logs -f scheduler
 
-# Debug pods
-kubectl exec -it -n crs <pod-name> -- /bin/bash
+# Check Redis queues
+docker compose exec redis redis-cli
+> KEYS *
+> LLEN task_queue
+
+# Access web UI
+open http://localhost:1323
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Minikube won't start:**
+1. **Docker Desktop not starting (macOS)**:
+   ```bash
+   # Reset Docker Desktop
+   rm -rf ~/Library/Group\ Containers/group.com.docker
+   rm -rf ~/Library/Containers/com.docker.docker
+   open -a Docker
+   ```
 
-```bash
-minikube delete
-```
+2. **Port conflicts**:
+   ```bash
+   # Check what's using the ports
+   lsof -i :8000
+   lsof -i :6379
+   
+   # Change ports in compose.yaml if needed
+   ```
 
-2. **Docker permission issues:**
+3. **Permission issues**:
+   ```bash
+   # Fix directory permissions
+   sudo chown -R $(whoami):$(whoami) ./crs_scratch ./tasks_storage
+   ```
 
-```bash
-sudo usermod -aG docker $USER
-# Log out and back in
-```
+4. **Out of memory**:
+   - Increase Docker Desktop memory allocation
+   - Reduce service replicas in compose.yaml
+   - Stop unnecessary services
 
-3. **Helm chart issues:**
-
-```bash
-helm repo update
-helm dependency update deployment/k8s/
-```
-
-4. **Azure authentication:**
-
-```bash
-az login --tenant aixcc.tech
-az account set --subscription <your-subscription-id>
-```
+5. **LLM API errors**:
+   - Verify API keys in env.dev.compose
+   - Check LiteLLM logs: `./local-dev.sh logs litellm`
+   - Ensure you have credits/quota for your API keys
 
 ### Getting Help
 
-- **Validate your setup:** `make validate` - Check if your environment is ready
-- Check the [Quick Reference Guide](QUICK_REFERENCE.md) for common commands and troubleshooting
-- Check the [deployment README](deployment/README.md) for detailed deployment information
-- Check logs: `kubectl logs -n crs <pod-name>`
+- **Documentation**:
+  - [Local Development Guide](LOCAL_DEVELOPMENT.md) - Detailed setup for macOS
+  - [Quick Reference](QUICK_REFERENCE.md) - Common commands
+  - [Migration Guide](MIGRATION_GUIDE.md) - Moving from Kubernetes
+  - [Deployment README](deployment/README.md) - Docker Compose details
 
-## Architecture
+- **Debugging**:
+  - Check logs: `./local-dev.sh logs <service-name>`
+  - View events: `docker compose events`
+  - Shell access: `./local-dev.sh shell <service-name>`
 
-The **Buttercup CRS** system consists of several components designed to work together for automated vulnerability detection and patching:
+## Project Structure
 
-- **Orchestrator**: Coordinates the overall repair process and manages the workflow
-- **Fuzzer**: Discovers vulnerabilities through intelligent fuzzing techniques
-- **Patcher**: Generates and applies security patches to fix vulnerabilities
-- **Program Model**: Analyzes code structure and semantics for better understanding
-- **Seed Generator**: Creates targeted test cases for vulnerability discovery
-- **Competition API**: Interfaces with the DARPA AIxCC competition platform
+```
+buttercup/
+├── orchestrator/        # Central coordination and task management
+├── fuzzer/             # Unified fuzzing infrastructure
+├── patcher/            # LLM-based patch generation
+├── program-model/      # Code analysis and indexing
+├── seed-gen/           # Intelligent test case generation
+├── common/             # Shared utilities and protobuf definitions
+├── docker/             # Docker configurations and optimizations
+├── deployment/         # Deployment configurations
+├── compose.yaml        # Main Docker Compose configuration
+├── compose.override.yaml # Local development overrides
+├── env.dev.compose     # Environment configuration
+└── local-dev.sh        # Convenience script for development
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Developed by Trail of Bits for the DARPA AIxCC competition
+- Built on top of OSS-Fuzz infrastructure
+- Powered by OpenAI GPT-4 and Anthropic Claude for intelligent analysis

@@ -1,199 +1,298 @@
-# Quick Reference Guide
+# Buttercup CRS - Quick Reference Guide
 
 ## Setup Commands
 
-### Local Development
+### Initial Setup
 ```bash
-# Automated setup
-./scripts/setup-local.sh
+# Clone repository
+git clone --recurse-submodules https://github.com/your-org/buttercup.git
+cd buttercup
 
-# Manual setup
-cp deployment/env.template deployment/env
-# Edit deployment/env with your API keys
-cd deployment && make up
+# Configure environment
+cp env.template env.dev.compose
+# Edit env.dev.compose with your API keys
+
+# Start services
+./local-dev.sh up
 ```
 
-### Production AKS
+### Quick Start
 ```bash
-# Automated setup
-./scripts/setup-production.sh
+# Automated setup (includes all steps)
+./local-dev.sh setup
 
 # Manual setup
-az login --tenant aixcc.tech
-# Create service principal and configure deployment/env
-cd deployment && make up
+docker compose up -d
+
+# Verify installation
+./local-dev.sh status
+curl http://localhost:8000/health
 ```
 
 ## Common Commands
 
-### Kubernetes Management
+### Service Management
 ```bash
-# View all resources
-kubectl get pods -A
-kubectl get services -A
-kubectl get ingress -A
+# Start/stop services
+./local-dev.sh up              # Start all services
+./local-dev.sh down            # Stop all services
+./local-dev.sh restart         # Restart all services
+./local-dev.sh restart patcher # Restart specific service
 
-# View specific namespace
-kubectl get pods -n crs
-kubectl get services -n crs
-
-# Port forwarding
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+# Check status
+./local-dev.sh status          # Show all services
+docker compose ps              # Docker native command
 
 # View logs
-kubectl logs -n crs <pod-name>
-kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
+./local-dev.sh logs            # All services
+./local-dev.sh logs scheduler  # Specific service
+docker compose logs -f patcher # Follow logs
 
-# Debug pods
-kubectl exec -it -n crs <pod-name> -- /bin/bash
+# Shell access
+./local-dev.sh shell patcher   # Enter container
+docker compose exec scheduler /bin/bash
 ```
 
 ### Testing
 ```bash
-# Send test task
-./orchestrator/scripts/task_crs.sh
+# Submit test challenges
+./orchestrator/scripts/task_integration_test.sh   # Basic test
+./orchestrator/scripts/challenge.sh               # Full challenge
+./orchestrator/scripts/task_upstream_libpng.sh    # Specific test
 
 # Send SARIF message
 ./orchestrator/scripts/send_sarif.sh <TASK-ID>
 
-# Run unscored challenges
-./orchestrator/scripts/challenge.sh
+# Monitor progress
+open http://localhost:1323                        # Web UI
+docker compose logs -f scheduler                  # Logs
 ```
 
 ### Development
 ```bash
-# Lint Python code
-just lint-python-all
-just lint-python <component>
+# Code quality
+just lint-python-all           # Lint all components
+just lint-python patcher       # Lint specific component
 
-# Docker development
-docker-compose up -d
-docker-compose --profile fuzzer-test up
+# Run tests
+cd patcher && uv run pytest    # Component tests
+cd orchestrator && uv run pytest --cov  # With coverage
+
+# Rebuild services
+./local-dev.sh rebuild         # Rebuild all
+./local-dev.sh rebuild patcher # Rebuild specific
+
+# Clean environment
+./local-dev.sh clean           # Remove all data
+docker system prune -a         # Clean Docker
 ```
 
-### Minikube
+### Docker Management
 ```bash
-# Start/stop
-minikube start --driver=docker
-minikube stop
-minikube delete
+# Resource monitoring
+docker stats                   # Live resource usage
+docker compose top             # Running processes
 
-# Status
-minikube status
-minikube dashboard
-```
+# Volume management  
+docker volume ls               # List volumes
+docker volume inspect buttercup_crs_scratch
 
-### Azure AKS
-```bash
-# Get credentials
-az aks get-credentials --name <cluster-name> --resource-group <resource-group>
+# Network debugging
+docker network ls
+docker compose port task-server 8000
 
-# Scale cluster
-# Update TF_VAR_usr_node_count in deployment/env
-cd deployment && make up
-
-# View cluster info
-az aks show --name <cluster-name> --resource-group <resource-group>
+# Clean up
+docker compose down -v         # Remove volumes
+docker system prune -a         # Full cleanup
 ```
 
 ## Configuration
+
+### Environment Variables
+```bash
+# Core settings (env.dev.compose)
+OPENAI_API_KEY=sk-...         # Required
+ANTHROPIC_API_KEY=sk-ant-...  # Optional
+LOG_LEVEL=INFO                # DEBUG for development
+TELEMETRY_ENABLED=false       # Disable for local
+
+# Service URLs (auto-configured)
+REDIS_URL=redis://redis:6379
+DOCKER_HOST=tcp://dind:2375
+COMPETITION_API_URL=http://competition-api:31323
+```
+
+### Service Endpoints
+- Task Server: http://localhost:8000
+- Web UI: http://localhost:1323
+- LiteLLM: http://localhost:8080
+- Redis: localhost:6379
+- Mock Competition API: http://localhost:31323
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### Minikube Issues
-```bash
-# Reset minikube
-minikube delete
-minikube start --driver=docker
-
-# Check status
-minikube status
-kubectl cluster-info
-```
-
 #### Docker Issues
 ```bash
+# Docker Desktop not running (macOS)
+open -a Docker
+# Wait for Docker to start
+docker ps
+
 # Permission issues
-sudo usermod -aG docker $USER
-# Log out and back in
+sudo chown -R $(whoami):$(whoami) ./crs_scratch ./tasks_storage
 
-# Check Docker daemon
-sudo systemctl status docker
-sudo systemctl start docker
+# Reset Docker Desktop (macOS)
+rm -rf ~/Library/Group\ Containers/group.com.docker
+rm -rf ~/Library/Containers/com.docker.docker
 ```
 
-#### Helm Issues
+#### Service Issues
 ```bash
-# Update repositories
-helm repo update
-helm dependency update deployment/k8s/
+# Service won't start
+docker compose logs <service>  # Check error logs
+docker compose restart <service>
 
-# Check chart
-helm lint deployment/k8s/
+# Port conflicts
+lsof -i :8000                  # Find conflicting process
+kill -9 <PID>                  # Kill process
+
+# Dependencies not ready
+docker compose up -d redis litellm-db
+sleep 10
+docker compose up -d
 ```
 
-#### Azure Issues
+#### LLM/API Issues  
 ```bash
-# Authentication
-az login --tenant aixcc.tech
-az account set --subscription <subscription-id>
+# Check API keys
+grep -E "OPENAI|ANTHROPIC" env.dev.compose
 
-# Check service principal
-az ad sp list --display-name "ButtercupCRS*"
+# Test LiteLLM
+curl http://localhost:8080/health
+docker compose logs litellm
+
+# Verify model access
+curl -X POST http://localhost:8080/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4", "messages": [{"role": "user", "content": "test"}]}'
 ```
 
-#### Kubernetes Issues
+#### Memory/Performance Issues
 ```bash
-# Check cluster connectivity
-kubectl cluster-info
-kubectl get nodes
+# Check Docker resources
+docker system df
+docker stats --no-stream
 
-# Check pods
-kubectl describe pod <pod-name> -n crs
-kubectl logs <pod-name> -n crs --previous
+# Increase Docker memory (Docker Desktop)
+# Settings -> Resources -> Memory: 16GB+
 
-# Check events
-kubectl get events -n crs --sort-by='.lastTimestamp'
+# Clean up
+./local-dev.sh clean
+docker system prune -a --volumes
 ```
 
 ### Log Analysis
 
-#### Check Patch Submission
+#### Monitor Workflow Progress
 ```bash
-kubectl logs -n crs -l app=scheduler --tail=-1 --prefix | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
+# Check patch submission
+docker compose logs scheduler | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
+
+# Monitor task progress
+docker compose logs -f scheduler | grep -E "State transition|Task.*completed"
+
+# Check fuzzing results  
+docker compose logs unified-fuzzer | grep -E "crash|vulnerability"
 ```
 
-#### Check Competition API
+#### Debug Specific Issues
 ```bash
-kubectl logs -n crs -l app=competition-api --tail=-1 --prefix
-```
+# LLM errors
+docker compose logs patcher | grep -E "ERROR|Exception"
 
-#### Check Fuzzer
-```bash
-kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
+# Build failures
+docker compose logs unified-fuzzer | grep "BUILD_FAILED"
+
+# Redis connection issues
+docker compose exec redis redis-cli ping
 ```
 
 ## File Locations
 
-### Configuration
-- `deployment/env` - Main configuration file
-- `deployment/env.template` - Configuration template
-- `deployment/k8s/values-*.template` - Kubernetes value templates
+### Configuration Files
+- `env.dev.compose` - Main environment configuration
+- `env.template` - Configuration template
+- `compose.yaml` - Docker Compose services
+- `compose.override.yaml` - Local overrides
+- `litellm/litellm_config.yaml` - LLM proxy config
+
+### Data Directories
+- `./crs_scratch/` - Working directory for builds/fuzzing
+- `./tasks_storage/` - Downloaded challenge tasks
+- `./node_data_storage/` - Persistent node data
 
 ### Scripts
-- `scripts/setup-local.sh` - Local development setup
-- `scripts/setup-production.sh` - Production AKS setup
-- `orchestrator/scripts/` - Testing and task scripts
+- `./local-dev.sh` - Main development script
+- `orchestrator/scripts/` - Test and task scripts
+- `docker/` - Docker configurations
 
 ### Documentation
-- `README.md` - Main documentation
-- `deployment/README.md` - Detailed deployment guide
+- `README.md` - Getting started guide
+- `LOCAL_DEVELOPMENT.md` - Detailed local dev guide
+- `QUICK_REFERENCE.md` - This file
+- `MIGRATION_GUIDE.md` - K8s to Docker migration
+- `deployment/README.md` - Docker Compose details
+
+## Quick Tips
+
+### Performance
+```bash
+# Monitor resource usage
+watch -n 2 'docker stats --no-stream'
+
+# Limit service resources
+# Add to compose.override.yaml:
+services:
+  patcher:
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+```
+
+### Development
+```bash
+# Enable hot reload
+# Add to compose.override.yaml:
+services:
+  patcher:
+    volumes:
+      - ./patcher/src:/app/src:delegated
+    environment:
+      - DEVELOPMENT=true
+
+# Quick restart after code changes
+./local-dev.sh restart patcher
+```
+
+### Debugging
+```bash
+# Interactive debugging
+docker compose exec patcher python -m pdb /app/src/main.py
+
+# Check Redis queues
+docker compose exec redis redis-cli
+> KEYS *
+> LLEN task_queue
+> LRANGE task_queue 0 -1
+```
 
 ## Support
 
-- Check logs: `kubectl logs -n crs <pod-name>`
-- View events: `kubectl get events -n crs`
-- Debug pods: `kubectl exec -it -n crs <pod-name> -- /bin/bash`
-- Monitor resources: `kubectl top pods -A` 
+- Logs: `./local-dev.sh logs <service>`
+- Shell: `./local-dev.sh shell <service>`  
+- Web UI: http://localhost:1323
+- Documentation: See `/docs` directory 

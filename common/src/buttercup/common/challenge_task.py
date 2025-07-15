@@ -150,7 +150,7 @@ class ChallengeTask:
     DIFF_DIR = "diff"
     OSS_FUZZ_DIR = "fuzz-tooling"
 
-    OSS_FUZZ_CONTAINER_ORG: str = field(default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz"))
+    OSS_FUZZ_CONTAINER_ORG: str = field(default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "local/oss-fuzz"))
 
     MAX_COMMIT_RETRIES = 3
 

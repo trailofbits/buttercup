@@ -20,7 +20,6 @@ buttercup-fuzzer = "buttercup.fuzzing_infra.fuzzer_bot:main"
 buttercup-coverage-bot = "buttercup.fuzzing_infra.coverage_bot:main"
 buttercup-tracer-bot = "buttercup.fuzzing_infra.tracer_bot:main"
 buttercup-corpus-sync = "buttercup.fuzzing_infra.corpus_sync:main"
-buttercup-corpus-merger = "buttercup.fuzzing_infra.corpus_merger:main"
 buttercup-fuzzer-utils = "buttercup.fuzzing_infra.utils_cli:main"
 
 [tool.uv.sources]

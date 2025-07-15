@@ -1,0 +1,175 @@
+# Docker Compose configuration optimized for ARM64/Apple Silicon
+# This file provides overrides for running on macOS with Docker Desktop
+
+version: '3.8'
+
+# Common settings for all services
+x-common-settings: &common-settings
+  platform: linux/arm64
+  restart: unless-stopped
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# Resource limits optimized for macOS
+x-resource-limits: &resource-limits
+  deploy:
+    resources:
+      limits:
+        cpus: '2'
+        memory: 2G
+      reservations:
+        cpus: '0.5'
+        memory: 512M
+
+services:
+  # Redis with ARM64 image
+  redis:
+    <<: *common-settings
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Orchestrator service
+  orchestrator:
+    <<: *common-settings
+    <<: *resource-limits
+    build:
+      context: ..
+      dockerfile: orchestrator/Dockerfile
+      platforms:
+        - linux/arm64
+      cache_from:
+        - type=registry,ref=buttercup/orchestrator:buildcache
+      args:
+        BUILDPLATFORM: linux/arm64
+        TARGETPLATFORM: linux/arm64
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - shared-data:/shared
+
+  # Program Model service
+  program-model:
+    <<: *common-settings
+    <<: *resource-limits
+    build:
+      context: ..
+      dockerfile: program-model/Dockerfile
+      platforms:
+        - linux/arm64
+      cache_from:
+        - type=registry,ref=buttercup/program-model:buildcache
+      args:
+        BUILDPLATFORM: linux/arm64
+        TARGETPLATFORM: linux/arm64
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - shared-data:/shared
+      - program-model-cache:/cache
+
+  # Patcher service
+  patcher:
+    <<: *common-settings
+    <<: *resource-limits
+    build:
+      context: ..
+      dockerfile: patcher/Dockerfile
+      platforms:
+        - linux/arm64
+      cache_from:
+        - type=registry,ref=buttercup/patcher:buildcache
+      args:
+        BUILDPLATFORM: linux/arm64
+        TARGETPLATFORM: linux/arm64
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - shared-data:/shared
+      - patcher-cache:/cache
+
+  # Seed Generation service
+  seed-gen:
+    <<: *common-settings
+    <<: *resource-limits
+    build:
+      context: ..
+      dockerfile: seed-gen/Dockerfile
+      platforms:
+        - linux/arm64
+      cache_from:
+        - type=registry,ref=buttercup/seed-gen:buildcache
+      args:
+        BUILDPLATFORM: linux/arm64
+        TARGETPLATFORM: linux/arm64
+        TARGETARCH: arm64
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - shared-data:/shared
+      - seed-gen-cache:/cache
+
+  # LiteLLM proxy (if needed)
+  litellm:
+    <<: *common-settings
+    image: ghcr.io/berriai/litellm:main-latest
+    platform: linux/amd64  # May need x86 emulation
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml
+    command: --config /app/config.yaml
+
+volumes:
+  redis-data:
+    driver: local
+  shared-data:
+    driver: local
+  program-model-cache:
+    driver: local
+  patcher-cache:
+    driver: local
+  seed-gen-cache:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450  # Optimize for Docker Desktop

@@ -34,7 +34,7 @@ class ProgramModel:
     python: str | None = None
     allow_pull: bool = True
     base_image_url: str = field(
-        default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz")
+        default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "local/oss-fuzz")
     )
 
     def __post_init__(self) -> None:

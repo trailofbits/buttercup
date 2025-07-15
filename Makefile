@@ -1,109 +1,99 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-production validate deploy deploy-local deploy-production test clean
+.PHONY: help setup deploy test clean status logs lint lint-component
 
 # Default target
 help:
 	@echo "Trail of Bits AIxCC Finals CRS - Available Commands:"
 	@echo ""
 	@echo "Setup:"
-	@echo "  setup-local       - Automated local development setup"
-	@echo "  setup-production  - Automated production AKS setup"
+	@echo "  setup             - Set up local development environment"
 	@echo "  validate          - Validate current setup and configuration"
 	@echo ""
 	@echo "Deployment:"
-	@echo "  deploy            - Deploy to current environment (local or production)"
-	@echo "  deploy-local      - Deploy to local Minikube environment"
-	@echo "  deploy-production - Deploy to production AKS environment"
+	@echo "  deploy            - Start all services with Docker Compose"
+	@echo "  stop              - Stop all services"
+	@echo "  restart           - Restart all services"
 	@echo ""
 	@echo "Testing:"
-	@echo "  test              - Run test task"
+	@echo "  test              - Run integration test"
+	@echo "  test-api          - Test API endpoints"
 	@echo ""
 	@echo "Development:"
+	@echo "  status            - Show service status"
+	@echo "  logs              - View all logs"
 	@echo "  lint              - Lint all Python code"
 	@echo "  lint-component    - Lint specific component (e.g., make lint-component COMPONENT=orchestrator)"
 	@echo ""
 	@echo "Cleanup:"
-	@echo "  clean             - Clean up deployment"
-	@echo "  clean-local       - Clean up local environment"
+	@echo "  clean             - Stop services and remove volumes"
+	@echo "  clean-all         - Full cleanup including Docker images"
 
 # Setup targets
-setup-local:
+setup:
 	@echo "Setting up local development environment..."
-	./scripts/setup-local.sh
-
-setup-production:
-	@echo "Setting up production AKS environment..."
-	./scripts/setup-production.sh
+	@if [ -f ./scripts/setup-local.sh ]; then \
+		./scripts/setup-local.sh; \
+	else \
+		./local-dev.sh setup; \
+	fi
 
 validate:
 	@echo "Validating setup..."
-	./scripts/validate-setup.sh
+	@echo "Checking Docker..."
+	@docker info > /dev/null 2>&1 || (echo "Error: Docker is not running" && exit 1)
+	@echo "✓ Docker is running"
+	@echo ""
+	@echo "Checking environment file..."
+	@if [ -f env.dev.compose ]; then \
+		echo "✓ env.dev.compose exists"; \
+		grep -q "OPENAI_API_KEY" env.dev.compose && echo "✓ OpenAI API key configured" || echo "⚠ OpenAI API key not set"; \
+		grep -q "ANTHROPIC_API_KEY" env.dev.compose && echo "✓ Anthropic API key configured" || echo "⚠ Anthropic API key not set"; \
+	else \
+		echo "✗ env.dev.compose not found. Run 'make setup' first."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Checking ports..."
+	@lsof -i :8000 > /dev/null 2>&1 && echo "⚠ Port 8000 is in use" || echo "✓ Port 8000 is available"
+	@lsof -i :6379 > /dev/null 2>&1 && echo "⚠ Port 6379 is in use" || echo "✓ Port 6379 is available"
+	@lsof -i :8080 > /dev/null 2>&1 && echo "⚠ Port 8080 is in use" || echo "✓ Port 8080 is available"
 
 # Deployment targets
 deploy:
-	@echo "Deploying to current environment..."
-	cd deployment && make up
+	@echo "Starting services with Docker Compose..."
+	./local-dev.sh up
 
-wait-crs:
-	@echo "Waiting for CRS deployment to be ready..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
-		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
-		exit 1; \
-	fi
-	@while true; do \
-		PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
-		if [ "$$PENDING" -eq 0 ]; then \
-			echo "All CRS pods are running."; \
-			break; \
-		else \
-			echo "$$PENDING pods are not yet running. Waiting..."; \
-			sleep 5; \
-		fi \
-	done
+stop:
+	@echo "Stopping services..."
+	./local-dev.sh down
 
-crs-instance-id:
-	@echo "Getting CRS instance ID..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
-		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
-		exit 1; \
-	fi
-	echo "CRS instance ID: $$(kubectl get configmap -n crs crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
-
-deploy-local:
-	@echo "Deploying to local Minikube environment..."
-	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	make crs-instance-id
-	make wait-crs
-
-deploy-production:
-	@echo "Deploying to production AKS environment..."
-	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-production' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	crs_instance_id=$$(make crs-instance-id)
-	echo "CRS instance ID: $$crs_instance_id"
-	make wait-crs
+restart:
+	@echo "Restarting services..."
+	./local-dev.sh restart
 
 # Testing targets
 test:
-	@echo "Running test task..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
-		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
-		exit 1; \
-	fi
-	kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
-	@sleep 3
+	@echo "Running integration test..."
+	@echo "Waiting for services to be ready..."
+	@sleep 10
 	./orchestrator/scripts/task_integration_test.sh
-	@pkill -f "kubectl port-forward" || true
+
+test-api:
+	@echo "Testing API endpoints..."
+	@echo "Task Server:" && curl -s http://localhost:8000/health | jq . || echo "Failed"
+	@echo "LiteLLM:" && curl -s http://localhost:8080/health | jq . || echo "Failed"
+	@echo "Competition API:" && curl -s http://localhost:31323/ping || echo "Failed"
 
 # Development targets
+status:
+	@echo "Checking service status..."
+	./local-dev.sh status
+
+logs:
+	@echo "Viewing logs (Ctrl+C to stop)..."
+	./local-dev.sh logs -f
+
 lint:
 	@echo "Linting all Python code..."
 	just lint-python-all
@@ -119,10 +109,12 @@ lint-component:
 
 # Cleanup targets
 clean:
-	@echo "Cleaning up deployment..."
-	cd deployment && make down
+	@echo "Cleaning up services and volumes..."
+	./local-dev.sh clean
 
-clean-local:
-	@echo "Cleaning up local environment..."
-	minikube delete || true
-	rm -f deployment/env
+clean-all:
+	@echo "Full cleanup including Docker images..."
+	./local-dev.sh down
+	docker compose down -v --remove-orphans
+	docker system prune -a --volumes -f
+	rm -rf ./crs_scratch ./tasks_storage ./node_data_storage

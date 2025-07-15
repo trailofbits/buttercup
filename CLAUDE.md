@@ -41,13 +41,19 @@ cd seed-gen && uv run pytest
 
 ```bash
 # Start the full CRS system
-cd deployment && make up
+./local-dev.sh up
+# Or using Docker Compose directly
+docker compose up -d
 
 # Stop the system
-cd deployment && make down
+./local-dev.sh down
+# Or using Docker Compose
+docker compose down
 
-# Port forward for local testing
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+# Access services locally
+# Competition API: http://localhost:31323
+# Task Server: http://localhost:8000
+# Web UI: http://localhost:1323
 ```
 
 ### Python Package Management
@@ -99,7 +105,7 @@ cd <component> && uv lock --upgrade
 ## Key Technologies
 
 - **Languages**: Python (primary), supports C/C++/Java analysis
-- **Containerization**: Docker, Kubernetes microservices
+- **Containerization**: Docker, Docker Compose for local development
 - **AI/ML**: OpenAI GPT, Anthropic Claude via LiteLLM proxy
 - **Fuzzing**: OSS-Fuzz, libfuzzer
 - **Code Analysis**: CodeQuery, Tree-sitter
@@ -116,7 +122,7 @@ cd <component> && uv lock --upgrade
 
 ### Configuration
 
-- Environment variables defined in `deployment/env.template`
+- Environment variables defined in `env.template` and `env.dev.compose`
 - Pydantic Settings for type-safe configuration
 - Component-specific settings in each module's `config.py`
 
@@ -136,28 +142,31 @@ cd <component> && uv lock --upgrade
 
 ## Deployment Architecture
 
-The system runs as Kubernetes microservices with Helm charts in `/deployment/k8s/`:
+The system runs as Docker Compose services defined in `compose.yaml`:
 
 - **API Layer**: task-server, competition-api
 - **Processing**: scheduler, downloader, program-model
-- **Fuzzing**: build-bot, fuzzer-bot, coverage-bot, tracer-bot
+- **Fuzzing**: unified-fuzzer (combines build, fuzz, coverage, trace)
 - **Analysis**: patcher, seed-gen
-- **Infrastructure**: redis, litellm, dind-daemon
+- **Infrastructure**: redis, litellm, dind
 
 ## Common Debugging Commands
 
 ```bash
-# Check pod status
-kubectl get pods -n crs
+# Check service status
+docker compose ps
+./local-dev.sh status
 
 # View logs
-kubectl logs -n crs -l app=<service-name> --tail=100
+docker compose logs <service-name> --tail=100
+./local-dev.sh logs <service-name>
 
-# Debug inside pod
-kubectl exec -it -n crs <pod-name> -- /bin/bash
+# Debug inside container
+docker compose exec <service-name> /bin/bash
+./local-dev.sh shell <service-name>
 
 # Monitor scheduler workflow
-kubectl logs -n crs -l app=scheduler --tail=-1 --prefix | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
+docker compose logs scheduler | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
 ```
 
 ## Security Considerations

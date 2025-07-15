@@ -22,7 +22,7 @@ class ButtercupBaseSettings(BaseSettings):
 
 class BuilderSettings(ButtercupBaseSettings):
     allow_pull: Annotated[bool, Field(default=True)]
-    base_image_url: Annotated[str, Field(default="gcr.io/oss-fuzz")]
+    base_image_url: Annotated[str, Field(default="local/oss-fuzz")]
 
 
 class WorkerSettings(ButtercupBaseSettings):

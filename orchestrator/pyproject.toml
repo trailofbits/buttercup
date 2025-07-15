@@ -25,9 +25,7 @@ dependencies = [
 buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
 buttercup-task-downloader = "buttercup.orchestrator.downloader.__cli__:main"
 buttercup-scheduler = "buttercup.orchestrator.scheduler.__cli__:main"
-buttercup-pov-reproducer = "buttercup.orchestrator.pov_reproducer.__cli__:main"
 buttercup-auth-tool = "buttercup.orchestrator.task_server.auth_tool:main"
-buttercup-scratch-cleaner = "buttercup.orchestrator.scratch_cleaner.__cli__:main"
 buttercup-ui = "buttercup.orchestrator.ui.__cli__:main"
 
 

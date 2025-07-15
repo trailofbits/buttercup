@@ -1,8 +1,17 @@
 ARG PYTHON_BASE=3.12-slim-bookworm
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
-FROM python:${PYTHON_BASE} AS builder
+# Use buildplatform for builder stage for faster builds
+FROM --platform=$BUILDPLATFORM python:${PYTHON_BASE} AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
+# UV supports multi-arch out of the box
+# Install uv locally instead of copying from ghcr.io
+RUN apt-get update && apt-get install -y curl && \
+    curl -LsSf https://astral.sh/uv/0.5.20/install.sh | sh && \
+    mv /root/.local/bin/uv /bin/uv && \
+    mv /root/.local/bin/uvx /bin/uvx && \
+    apt-get remove -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
@@ -25,15 +34,28 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd orchestrator && uv sync --frozen --no-editable
 
 
-FROM python:${PYTHON_BASE} AS runtime
+# Use target platform for runtime stage
+FROM --platform=$TARGETPLATFORM python:${PYTHON_BASE} AS runtime
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y git curl && \
+# Install dependencies with cache cleanup
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
+# Docker installation with architecture detection
 RUN curl -fsSL https://get.docker.com | sh
 
 COPY --from=builder --chown=app:app /app/orchestrator/.venv /app/orchestrator/.venv
 WORKDIR /app/orchestrator
-ENV PATH=/app/orchestrator/.venv/bin:$PATH
+
+# Python optimizations for better performance
+ENV PATH=/app/orchestrator/.venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONOPTIMIZE=1
 

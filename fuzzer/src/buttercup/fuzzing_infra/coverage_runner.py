@@ -174,7 +174,7 @@ class CoverageRunner:
 def main():
     prsr = argparse.ArgumentParser("Coverage runner")
     prsr.add_argument("--allow-pull", action="store_true", default=False)
-    prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
+    prsr.add_argument("--base-image-url", default="local/oss-fuzz")
     prsr.add_argument("--python", default="python")
     prsr.add_argument("--task-dir", required=True)
     prsr.add_argument("--harness-name", required=True)

@@ -1,37 +1,38 @@
 model_list:
-  - model_name: azure-gpt-4o
-    litellm_params:
-      model: azure/gpt-4o # Name defined in Azure Deployment
-      api_base: os.environ/AZURE_API_BASE
-      api_key: os.environ/AZURE_API_KEY
-      tpm: 30000
-      rpm: 1800
-
-  - model_name: azure-gpt-4o-mini
-    litellm_params:
-      model: azure/gpt-4o-mini # Name defined in Azure Deployment
-      api_base: os.environ/AZURE_API_BASE
-      api_key: os.environ/AZURE_API_KEY
-      tpm: 50000
-      rpm: 5000
-
-  - model_name: azure-o3-mini
-    litellm_params:
-      model: azure/o3-mini # Name defined in Azure Deployment
-      api_base: os.environ/AZURE_API_BASE
-      api_key: os.environ/AZURE_API_KEY
-      api_version: 2024-12-01-preview
-      tpm: 50000
-      rpm: 50
-
-  - model_name: azure-o1
-    litellm_params:
-      model: azure/o1 # Name defined in Azure Deployment
-      api_base: os.environ/AZURE_API_BASE
-      api_key: os.environ/AZURE_API_KEY
-      api_version: 2024-12-01-preview
-      tpm: 30000
-      rpm: 50
+  # === Azure models (commented out for offline mode) ===
+  # - model_name: azure-gpt-4o
+  #   litellm_params:
+  #     model: azure/gpt-4o # Name defined in Azure Deployment
+  #     api_base: os.environ/AZURE_API_BASE
+  #     api_key: os.environ/AZURE_API_KEY
+  #     tpm: 30000
+  #     rpm: 1800
+  #
+  # - model_name: azure-gpt-4o-mini
+  #   litellm_params:
+  #     model: azure/gpt-4o-mini # Name defined in Azure Deployment
+  #     api_base: os.environ/AZURE_API_BASE
+  #     api_key: os.environ/AZURE_API_KEY
+  #     tpm: 50000
+  #     rpm: 5000
+  #
+  # - model_name: azure-o3-mini
+  #   litellm_params:
+  #     model: azure/o3-mini # Name defined in Azure Deployment
+  #     api_base: os.environ/AZURE_API_BASE
+  #     api_key: os.environ/AZURE_API_KEY
+  #     api_version: 2024-12-01-preview
+  #     tpm: 50000
+  #     rpm: 50
+  #
+  # - model_name: azure-o1
+  #   litellm_params:
+  #     model: azure/o1 # Name defined in Azure Deployment
+  #     api_base: os.environ/AZURE_API_BASE
+  #     api_key: os.environ/AZURE_API_KEY
+  #     api_version: 2024-12-01-preview
+  #     tpm: 30000
+  #     rpm: 50
 
   - model_name: openai-gpt-4o
     litellm_params:

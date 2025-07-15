@@ -1,8 +1,9 @@
-ARG BASE_IMAGE=ghcr.io/aixcc-finals/base-runner:v1.3.0
+ARG BASE_IMAGE=base-runner:local-v1.3.0
 
 FROM $BASE_IMAGE AS base-image
 
-COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
+# Install uv locally instead of copying from ghcr.io
+RUN curl -LsSf https://astral.sh/uv/0.5.20/install.sh | sh
 
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1

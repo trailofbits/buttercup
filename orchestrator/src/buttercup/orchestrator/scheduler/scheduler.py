@@ -25,7 +25,12 @@ from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
+from buttercup.orchestrator.scheduler.background_tasks import BackgroundTaskManager
+from buttercup.orchestrator.scheduler.scratch_cleaner_task import ScratchCleanerTask
+from buttercup.orchestrator.scheduler.pov_reproducer_task import POVReproducerTask
+from buttercup.orchestrator.scheduler.corpus_merger_task import CorpusMergerTask
 import random
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +48,14 @@ class Scheduler:
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
     concurrent_patch_requests_per_task: int = 12
+    # Background task configuration
+    scratch_cleaner_interval: float = 60.0
+    scratch_cleaner_delta_seconds: int = 1800
+    pov_reproducer_interval: float = 0.1
+    corpus_merger_interval: float = 10.0
+    corpus_merger_timeout: int = 300
+    corpus_merger_max_files: int = 500
+    python_path: str = "python"
 
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
@@ -58,6 +71,7 @@ class Scheduler:
     patches_queue: ReliableQueue | None = field(init=False, default=None)
     traced_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
     submissions: Submissions = field(init=False)
+    background_tasks: BackgroundTaskManager = field(init=False)
 
     def update_cached_cancelled_ids(self) -> bool:
         """Update the cached set of cancelled task IDs.
@@ -129,6 +143,36 @@ class Scheduler:
             self.traced_vulnerabilities_queue = queue_factory.create(
                 QueueNames.TRACED_VULNERABILITIES, GroupNames.ORCHESTRATOR, block_time=None
             )
+            
+            # Initialize background tasks
+            self.background_tasks = BackgroundTaskManager()
+            
+            # Add scratch cleaner task
+            scratch_cleaner = ScratchCleanerTask(
+                redis=self.redis,
+                scratch_dir=self.scratch_dir,
+                interval=self.scratch_cleaner_interval,
+                delete_old_tasks_delta_seconds=self.scratch_cleaner_delta_seconds,
+            )
+            self.background_tasks.add_task(scratch_cleaner)
+            
+            # Add POV reproducer task
+            pov_reproducer = POVReproducerTask(
+                redis=self.redis,
+                interval=self.pov_reproducer_interval,
+            )
+            self.background_tasks.add_task(pov_reproducer)
+            
+            # Add corpus merger task
+            corpus_merger = CorpusMergerTask(
+                redis=self.redis,
+                crs_scratch_dir=str(self.scratch_dir),
+                python=self.python_path,
+                interval=self.corpus_merger_interval,
+                timeout_seconds=self.corpus_merger_timeout,
+                max_local_files=self.corpus_merger_max_files,
+            )
+            self.background_tasks.add_task(corpus_merger)
 
     def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
         """Select from preferred options if available, otherwise random choice.
@@ -418,7 +462,63 @@ class Scheduler:
         # Execute each component and collect results
         # This avoids short-circuiting in any() to ensure all components are executed
         results = [component() for component in components]
+        
+        # Log background task status periodically
+        if hasattr(self, '_last_bg_status_log'):
+            if (datetime.now() - self._last_bg_status_log).total_seconds() > 60:
+                self._log_background_task_status()
+                self._last_bg_status_log = datetime.now()
+        else:
+            self._last_bg_status_log = datetime.now()
+        
         return any(results)
+    
+    def _log_background_task_status(self) -> None:
+        """Log the status of background tasks."""
+        if hasattr(self, 'background_tasks'):
+            status = self.background_tasks.get_status()
+            logger.info(f"Background tasks status: {status['active_threads']} active threads")
+            for task_status in status['tasks']:
+                logger.info(
+                    f"  {task_status['name']}: last_run={task_status['last_run']}, "
+                    f"success={task_status['success_count']}, errors={task_status['error_count']}"
+                )
+    
+    def health_check(self) -> dict:
+        """Perform a health check on the scheduler and its background tasks.
+        
+        Returns:
+            dict: Health check results with status and details
+        """
+        health = {
+            "status": "healthy",
+            "components": {}
+        }
+        
+        # Check Redis connection
+        try:
+            if self.redis:
+                self.redis.ping()
+                health["components"]["redis"] = {"status": "healthy"}
+            else:
+                health["components"]["redis"] = {"status": "unhealthy", "reason": "Not initialized"}
+                health["status"] = "unhealthy"
+        except Exception as e:
+            health["components"]["redis"] = {"status": "unhealthy", "reason": str(e)}
+            health["status"] = "unhealthy"
+        
+        # Check background tasks
+        if hasattr(self, 'background_tasks'):
+            bg_health = self.background_tasks.health_check()
+            bg_status = self.background_tasks.get_status()
+            health["components"]["background_tasks"] = {
+                "status": "healthy" if bg_health else "unhealthy",
+                "details": bg_status
+            }
+            if not bg_health:
+                health["status"] = "unhealthy"
+        
+        return health
 
     def serve(self):
         """Main orchestrator loop that drives task progress forward.
@@ -436,4 +536,16 @@ class Scheduler:
             raise ValueError("Redis is not initialized")
 
         logger.info("Starting scheduler service")
-        serve_loop(self.serve_item, self.sleep_time)
+        
+        # Start background tasks
+        if hasattr(self, 'background_tasks'):
+            logger.info("Starting background tasks")
+            self.background_tasks.start()
+        
+        try:
+            serve_loop(self.serve_item, self.sleep_time)
+        finally:
+            # Stop background tasks on exit
+            if hasattr(self, 'background_tasks'):
+                logger.info("Stopping background tasks")
+                self.background_tasks.stop()

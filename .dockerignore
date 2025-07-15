@@ -1,27 +1,134 @@
+# Virtual environments
 **/env/
 **/venv/
 **/.env*/
 **/.venv/
 **/.env/
-**/*.bak
+ENV/
 
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
 **/pip-wheel-metadata/
 **/*.egg-info/
-**/__pycache__/
-**/.coverage*
-**/.idea
-**/html/
-**/dist/
-**/.pytest_cache
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
+**/.pytest_cache/
+**/.coverage
+**/.coverage.*
+**/htmlcov/
+**/.tox/
+**/.nox/
+**/.hypothesis/
+**/*.cover
+**/.mypy_cache/
+**/.dmypy.json
+**/dmypy.json
+**/.pyre/
+**/.ruff_cache/
 **/.pdm-build/
 **/.pdm-python
 **/pdm.lock
-fuzzer/dockerfiles/runner_image.Dockerfile
-orchestrator/Dockerfile
-patcher/Dockerfile
-seed-gen/Dockerfile
-**/.mypy_cache/
-**/.ruff_cache/
 
+# IDEs
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/*~
+**/.DS_Store
+
+# Backup files
+**/*.bak
+**/*.backup
+**/*.tmp
+**/*.temp
+
+# Docker files (avoid recursive copies)
+**/Dockerfile*
+**/.dockerignore
+**/docker-compose*.yml
+**/docker-compose*.yaml
+
+# Git
 **/.git/
-.dockerignore
+**/.gitignore
+**/.gitattributes
+**/.gitmodules
+
+# Documentation (reduce context size)
+**/docs/
+**/*.md
+**/LICENSE
+**/CHANGELOG*
+**/README*
+
+# Test files (not needed in production)
+**/tests/
+**/test_data/
+**/fixtures/
+**/*_test.py
+**/test_*.py
+
+# CI/CD
+**/.github/
+**/.gitlab-ci.yml
+**/.travis.yml
+**/.circleci/
+**/Jenkinsfile
+
+# Logs
+**/logs/
+**/*.log
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini
+
+# Build artifacts
+**/*.o
+**/*.a
+**/*.dylib
+**/*.dll
+**/*.exe
+
+# Cache directories
+**/.cache/
+**/cache/
+
+# Node.js (if any)
+**/node_modules/
+**/npm-debug.log
+**/yarn-error.log
+**/package-lock.json
+**/yarn.lock
+
+# Kubernetes/Deployment
+**/k8s/
+**/deployment/
+**/helm/
+**/charts/
+
+# Keep essential files
+!**/pyproject.toml
+!**/uv.lock
+!**/requirements*.txt
+!**/setup.py
+!**/setup.cfg
+!**/py.typed

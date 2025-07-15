@@ -1,0 +1,79 @@
+# Docker Compose Override for Local Development
+# This file is automatically loaded by docker compose and overrides settings in compose.yaml
+# Perfect for local developer-specific customizations
+
+services:
+  # Override environment variables for faster local development
+  unified-fuzzer:
+    environment:
+      # Shorter timeouts for quick local testing
+      BUTTERCUP_UNIFIED_FUZZER_FUZZER_TIMEOUT: 300  # 5 minutes instead of default
+      BUTTERCUP_UNIFIED_FUZZER_BUILDER_TIMER: 500   # Check more frequently
+      BUTTERCUP_UNIFIED_FUZZER_FUZZER_TIMER: 500
+      BUTTERCUP_UNIFIED_FUZZER_LOG_LEVEL: debug
+      # Disable crash dir limits for debugging
+      BUTTERCUP_UNIFIED_FUZZER_FUZZER_CRASH_DIR_COUNT_LIMIT: 0
+
+  scheduler:
+    environment:
+      # More verbose logging for debugging
+      BUTTERCUP_SCHEDULER_LOG_LEVEL: debug
+      # Faster polling in development
+      BUTTERCUP_SCHEDULER_SERVE__SLEEP_TIME: 2
+
+  task-downloader:
+    environment:
+      BUTTERCUP_DOWNLOADER_LOG_LEVEL: debug
+      BUTTERCUP_DOWNLOADER_SERVE__SLEEP_TIME: 2
+
+  program-model:
+    environment:
+      BUTTERCUP_PROGRAM_MODEL_LOG_LEVEL: debug
+      BUTTERCUP_PROGRAM_MODEL_SERVE__SLEEP_TIME: 2
+      # Disable graph database by default for simpler local setup
+      BUTTERCUP_PROGRAM_MODEL_GRAPHDB_ENABLED: "false"
+
+  patcher:
+    environment:
+      BUTTERCUP_PATCHER_LOG_LEVEL: debug
+      BUTTERCUP_PATCHER_SERVE__SLEEP_TIME: 2
+
+  seed-gen:
+    environment:
+      BUTTERCUP_SEED_GEN_LOG_LEVEL: debug
+      BUTTERCUP_SEED_GEN_SERVER__SLEEP_TIME: 2
+      # Smaller limits for faster local testing
+      BUTTERCUP_SEED_GEN_SERVER__MAX_CORPUS_SEED_SIZE: 8192
+      BUTTERCUP_SEED_GEN_SERVER__MAX_POV_SIZE: 262144  # 256KB
+
+  # Mount source code for live development (optional)
+  # Uncomment these to enable live code reloading during development
+  # Note: This requires installing dependencies in the container
+  
+  # patcher:
+  #   volumes:
+  #     - ./patcher/src:/patcher/src:ro
+  #     - ./common/src:/common/src:ro
+  
+  # seed-gen:
+  #   volumes:
+  #     - ./seed-gen/src:/seed-gen/src:ro
+  #     - ./common/src:/common/src:ro
+  
+  # program-model:
+  #   volumes:
+  #     - ./program-model/src:/program-model/src:ro
+  #     - ./common/src:/common/src:ro
+
+  # unified-fuzzer:
+  #   volumes:
+  #     - ./fuzzer/src:/fuzzer/src:ro
+  #     - ./common/src:/common/src:ro
+
+# Network configuration for local development
+# Uncomment to enable container name resolution from host
+# networks:
+#   default:
+#     driver: bridge
+#     driver_opts:
+#       com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"

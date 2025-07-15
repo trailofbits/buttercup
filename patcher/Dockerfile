@@ -1,26 +1,39 @@
 ARG BASE_IMAGE=ubuntu:24.04
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
-FROM $BASE_IMAGE AS python_base
+# Use target platform for base image
+FROM --platform=$TARGETPLATFORM $BASE_IMAGE AS python_base
 ARG PYTHON_VERSION=3.12
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y python$PYTHON_VERSION python$PYTHON_VERSION-dev
 
 FROM python_base AS runtime-base
-RUN DEBIAN_FRONTEND=noninteractive apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+# Combine apt operations with cache mounts for better performance
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     curl \
     patch \
     codequery \
     rsync \
     libncurses-dev \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://get.docker.com | sh
 
 
-FROM python_base AS builder
+# Use build platform for faster compilation
+FROM --platform=$BUILDPLATFORM python_base AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
+# Install uv locally instead of copying from ghcr.io
+RUN apt-get update && apt-get install -y curl && \
+    curl -LsSf https://astral.sh/uv/0.5.20/install.sh | sh && \
+    mv /root/.local/bin/uv /bin/uv && \
+    mv /root/.local/bin/uvx /bin/uvx && \
+    apt-get remove -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
@@ -47,15 +60,38 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd patcher && uv sync --frozen --no-editable
 
 
-FROM runtime-base AS cscope-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+# Build cscope for target architecture
+FROM --platform=$TARGETPLATFORM runtime-base AS cscope-builder
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y --no-install-recommends \
+    autoconf \
+    gcc \
+    g++ \
+    make \
+    bison \
+    flex \
+    libncurses-dev && \
+    rm -rf /var/lib/apt/lists/*
 COPY external/aixcc-cscope /cscope
-RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
+# Optimize compilation for ARM64 if applicable
+RUN cd /cscope && \
+    autoreconf -i -s && \
+    ./configure && \
+    make -j$(nproc) && \
+    make install
 
-FROM runtime-base AS runtime
+FROM --platform=$TARGETPLATFORM runtime-base AS runtime
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery rsync git && \
+# Install runtime dependencies with cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y --no-install-recommends \
+    codequery \
+    rsync \
+    git && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
@@ -63,6 +99,11 @@ COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY common/container-entrypoint.sh /container-entrypoint.sh
 
 WORKDIR /app/patcher
-ENV PATH=/app/patcher/.venv/bin:$PATH
+
+# Python optimizations
+ENV PATH=/app/patcher/.venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONOPTIMIZE=1
 
 ENTRYPOINT ["/container-entrypoint.sh"]
