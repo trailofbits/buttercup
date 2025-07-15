@@ -46,9 +46,9 @@ services:
     privileged: true
     volumes:
       - "./scantron.yaml:/etc/scantron/scantron.yaml"
-      - shared-tmp:/tmp
-    depends_on:
-      - dind
+      - /tmp:/tmp
+    # depends_on:
+    #   - dind
     ports:
       - "31323:31323"
     command: server
@@ -58,7 +58,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - "DOCKER_HOST=tcp://dind:2375"
+      - "DOCKER_HOST=tcp://host.docker.internal:2375"
       - DOCKER_DEFAULT_PLATFORM=linux/amd64
       - SCANTRON_GITHUB_PAT=${SCANTRON_GITHUB_PAT}
     logging: *logging

@@ -1,52 +1,50 @@
-ARG BASE_IMAGE=base-runner:local-v1.3.0
+FROM ubuntu:24.04 AS base-image
 
-FROM $BASE_IMAGE AS base-image
+# Install basic dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install uv locally instead of copying from ghcr.io
 RUN curl -LsSf https://astral.sh/uv/0.5.20/install.sh | sh
 
+# Add uv to PATH
+ENV PATH="/root/.local/bin:$PATH"
 ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_PYTHON_DOWNLOADS=manual
 
+# Install Python 3.10
 RUN uv python install python3.10
 
 FROM base-image AS runner-base
 RUN apt-get update
-# Install Docker for build-bot functionality
-RUN apt-get install ca-certificates curl
-RUN install -m 0755 -d /etc/apt/keyrings
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-RUN chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add the repository to Apt sources:
-RUN echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
-RUN apt-get update
-RUN apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# Skip Docker installation since we're not using dind
+# Services that need Docker access should mount the host socket
 
 FROM base-image AS builder
 
-WORKDIR /fuzzer
+# Ensure PATH is set correctly
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Copy common and fuzzer code
+COPY ./common /common
+COPY ./fuzzer /fuzzer
 
 # Install dependencies
+WORKDIR /fuzzer
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=common/uv.lock,target=/common/uv.lock \
-    --mount=type=bind,source=common/pyproject.toml,target=/common/pyproject.toml \
-    --mount=type=bind,source=common/README.md,target=/common/README.md \
-    --mount=type=bind,source=fuzzer/uv.lock,target=/fuzzer/uv.lock \
-    --mount=type=bind,source=fuzzer/pyproject.toml,target=/fuzzer/pyproject.toml \
-    cd /fuzzer && uv sync --frozen --no-install-project --no-editable
-
-ADD ./common /common
-ADD ./fuzzer /fuzzer
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-editable
+    uv sync --frozen
 
 FROM runner-base AS runtime
+
+# Ensure PATH is set correctly
+ENV PATH="/root/.local/bin:$PATH"
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y git \

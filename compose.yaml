@@ -18,19 +18,8 @@ services:
       timeout: 3s
       retries: 5
 
-  # Docker-in-Docker for isolated build environments
-  dind:
-    image: docker:24-dind
-    restart: unless-stopped
-    privileged: true
-    expose:
-      - "2375"
-    command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false", "--storage-driver=overlay2"]
-    environment:
-      - DOCKER_TLS_CERTDIR=  # Blank for performance
-    volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./node_data_storage:/node_data
+  # Docker-in-Docker removed for local macOS deployment
+  # Using Docker Desktop's host socket instead
 
   # AI/LLM Proxy Service
   litellm:
@@ -132,8 +121,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      dind:
-        condition: service_started
 
   # Code Analysis Service
   program-model:
@@ -150,8 +137,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      dind:
-        condition: service_started
 
   # Patch Generation Service
   patcher:
@@ -171,8 +156,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      dind:
-        condition: service_started
       litellm:
         condition: service_started
 
@@ -195,8 +178,6 @@ services:
       redis:
         condition: service_healthy
       litellm:
-        condition: service_started
-      dind:
         condition: service_started
 
   # Web UI for CRS

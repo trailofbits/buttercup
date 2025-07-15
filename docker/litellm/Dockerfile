@@ -12,12 +12,23 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Install LiteLLM
-RUN pip install --no-cache-dir litellm==${LITELLM_VERSION#v}
+# Install LiteLLM with all proxy dependencies
+RUN pip install --no-cache-dir \
+    "litellm[proxy]==1.57.8" \
+    backoff \
+    pyyaml \
+    uvicorn \
+    fastapi \
+    python-multipart \
+    apscheduler \
+    pynacl \
+    prisma \
+    resend \
+    python-dotenv
 
 # Copy entrypoint if needed
-COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh 2>/dev/null || true
+# COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
 
-# Set the entrypoint
+# Set the entrypoint and default command for proxy server
 ENTRYPOINT ["litellm"]
-CMD ["--help"]
+CMD ["--port", "8080", "--host", "0.0.0.0"]
