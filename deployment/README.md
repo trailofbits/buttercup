@@ -1,219 +1,176 @@
-# Example AKS Cluster
+# Buttercup CRS - Local Docker Compose Deployment
 
 ## Overview
 
-The following is an example on how to deploy an Azure Kubernetes Service cluster within an Azure subscription.
-
-This configuration deploys an AKS cluster (`primary`) with two node pools:
-
-- The default node pool (`sys`) - contains 2 system mode nodes
-- A User node pool (`usr`) - contains 3 user mode nodes
-
-The resource group name is generated with the `"random_pet"` resource from the `hashicorp/random` provider; and are prefixed with `example`
-
-The VM Size for both pools are using `Standard_D5_v2` in this example. You can change this to suit your needs by editing the `vm_size` values in `main.tf`.
-
-The standard `azure` networking profile is used.
+This directory contains configuration and scripts for deploying the Buttercup Cyber Reasoning System (CRS) locally using Docker Compose. The deployment has been simplified to focus on local development and testing scenarios.
 
 ## Prerequisites
 
-- Azure CLI installed: [az cli install instructions](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
-- Terraform installed: [terraform install instructions](https://developer.hashicorp.com/terraform/tutorials/azure-get-started/install-cli)
-- Kubernetes CLI installed: [kubectl install instructions](https://kubernetes.io/docs/tasks/tools/#kubectl)
-- `gettext` package
-- An active Azure subscription.
-- An account in Azure Entra ID.
-- Access credentials to the competition Tailscale tailnet.
-- Minikube installed, if you want to test the full CRS locally (linux/amd64 system recommended).
+- Docker Engine 20.10+ with Docker Compose v2
+- At least 16GB of RAM available for Docker
+- 50GB+ of free disk space
+- Linux or macOS (Windows users should use WSL2)
 
-### Azure
+### Required API Keys
 
-#### Login to Azure
+You'll need at least one LLM API key:
+- OpenAI API key, OR
+- Anthropic API key
 
-`az login --tenant aixcc.tech` - will open authentication in a browser
+## Quick Start
 
-Show current tenant and subscription name:
+1. **Copy the environment template**:
+   ```bash
+   cp env.template ../env.dev.compose
+   ```
 
-`az account show --query "{SubscriptionID:id, Tenant:tenantId}" --output table`
+2. **Edit the environment file** (`../env.dev.compose`):
+   - Add your OpenAI and/or Anthropic API keys
+   - Configure any optional services you need
+   - Review and adjust other settings as needed
 
-Example output:
+3. **Start the services**:
+   ```bash
+   make up
+   ```
 
-```bash
-SubscriptionID                        Tenant
-------------------------------------  ------------------------------------
-<YOUR-SUBSCRIPTION-ID>                c67d49bd-f3ec-4c7f-b9ec-653480365699
+4. **Check service status**:
+   ```bash
+   make status
+   ```
+
+5. **View logs**:
+   ```bash
+   make logs  # All services
+   make logs-scheduler  # Specific service
+   ```
+
+## Available Commands
+
+The Makefile provides convenient commands for managing the deployment:
+
+- `make up` - Start all services
+- `make down` - Stop all services  
+- `make restart` - Restart all services
+- `make logs` - View logs for all services
+- `make status` - Show status of all services
+- `make clean` - Remove volumes and clean up
+- `make logs-<service>` - View logs for a specific service
+- `make restart-<service>` - Restart a specific service
+
+## Services
+
+The Docker Compose deployment includes the following services:
+
+### Core Infrastructure
+- **redis** - Message broker and cache
+- **dind** - Docker-in-Docker for isolated container execution
+- **litellm** - LLM proxy for unified API access
+- **litellm-db** - PostgreSQL database for LiteLLM
+
+### CRS Components
+- **task-server** - REST API for task management
+- **task-downloader** - Downloads challenge tasks
+- **scheduler** - Orchestrates the vulnerability discovery workflow
+- **program-model** - Code analysis and indexing service
+- **build-bot** - Builds fuzzing harnesses
+- **fuzzer-bot** - Executes fuzzing campaigns
+- **coverage-bot** - Monitors code coverage
+- **tracer-bot** - Traces program execution
+- **seed-gen** - Generates test inputs using LLMs
+- **patcher** - Creates patches for discovered vulnerabilities
+- **buttercup-ui** - Web interface for monitoring
+
+### Optional Services
+- **mock-competition-api** - Local testing API
+- **graphdb** - JanusGraph for code relationship storage (profile: graphdb)
+
+## Directory Structure
+
+```
+deployment/
+├── Makefile          # Convenience commands for Docker Compose
+├── env.template      # Environment configuration template
+└── README.md         # This file
 ```
 
-### Service Principal Account
+## Environment Configuration
 
-A service principal account (SPA) is required to automate the creation of resources and objects within your subscription.
+The `env.template` file contains all configurable options grouped by category:
 
-- You can create a SPA several ways, the following describes using Azure cli.
+- **Core Service Configuration** - Basic CRS settings
+- **LLM Configuration** - API keys for language models
+- **Container Registry Configuration** - Docker registry authentication
+- **Optional Services** - Telemetry, monitoring, etc.
+- **Competition API Configuration** - For connecting to competitions
+- **Local Development Settings** - Paths and development options
 
-```bash
-az ad sp create-for-rbac --name "ExampleSPA" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
-```
+## Accessing Services
 
-> Replace "ExampleSPA" with the name of the SPA you wish to create.  
-> Replace `<YOUR-SUBSCRIPTION-ID>` with your Azure subscription ID.  
-> If using resource group locks, additional configuration may be necessary which is out of scope of this example; e.g. adding the role `Microsoft.Authorization/locks/` for write, read and delete to the SPA.
+Once deployed, you can access:
 
-On successful SPA creation, you will receive output similar to the following:
+- **Task Server API**: http://localhost:8000
+- **Buttercup UI**: http://localhost:1323
+- **LiteLLM Proxy**: http://localhost:8080
+- **Redis**: localhost:6379
 
-```bash
-{
-  "appId": "34df5g78-dsda1-7754-b9a3-ee699876d876",
-  "displayName": "ExampleSPA",
-  "password": "jfhn6~lrQQSH124jfuy96ksv_ILa2q128fhn8s",
-  "tenant": "n475hfjk-g7hj-77jk-juh7-1234567890ab"
-}
-```
+## Storage Volumes
 
-Make note of these values, they will be needed in the AKS deployment as the following environment variables:
+The deployment creates several Docker volumes for persistent storage:
 
-```bash
-TF_ARM_TENANT_ID="<tenant-value>"
-TF_ARM_CLIENT_ID="<appID-value>"
-TF_ARM_CLIENT_SECRET="<password-value>"
-TF_ARM_SUBSCRIPTION_ID="<YOUR-SUBSCRIPTION-ID>"
-```
+- `crs_scratch` - Working directory for tasks
+- `tasks_storage` - Downloaded task data
+- `node_data_storage` - Node-specific data
+- `cache` - Redis data (if persistence enabled)
+- `graphdb_data` - Graph database storage
 
-### Environment Variables
+## Troubleshooting
 
-Copy `env.template` to `env` and modify appropriately, following the comments there.
-Based on the environment variables specified, you can do different kind of deployments, such as production, staging, local with minikube, etc.
+### Services failing to start
+- Check Docker daemon is running: `docker ps`
+- Ensure sufficient resources are available
+- Review logs: `make logs-<service>`
 
-### CRS HTTP basic auth
+### LLM errors
+- Verify API keys are correctly set in env.dev.compose
+- Check LiteLLM service is healthy: `make logs-litellm`
 
-_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_  
-The crs-webapp image expects the following environment variables to be passed to it for HTTP basic authentication:
+### Out of disk space
+- Clean up volumes: `make clean`
+- Remove unused Docker images: `docker image prune`
 
-- `CRS_KEY_ID` - The CRS's username/ID
-- `CRS_KEY_TOKEN` - The CRS's password
-- `COMPETITION_API_KEY_ID` - The competition APIs username/ID
-- `COMPETITION_API_KEY_TOKEN` - The competition APIs password
+### Permission issues
+- Ensure the crs_scratch directory has proper permissions
+- On Linux, you may need to adjust Docker group membership
 
-These values can be generated with the following python calls:
+## Development Tips
 
-```bash
-key_id:
-python3 -c 'import uuid; print(str(uuid.uuid4()))'
+1. **Selective service startup**: Edit compose.yaml to comment out unneeded services
+2. **Resource limits**: Add resource constraints to services in compose.yaml if needed
+3. **Debugging**: Use `docker compose exec <service> /bin/bash` to access containers
+4. **Hot reload**: Most Python services support hot reload during development
 
-key_token:
-python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(32)))'
-```
+## Advanced Configuration
 
-### GitHub personal access token
+### Using Graph Database
 
-_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_  
-You will need to have a GitHub personal access token (PAT) scoped to at least `read:packages`.
-
-To create the PAT, go to your account, `Settings` > `Developer settings` > `Personal access tokens`, and generate a Token (classic) with the scopes needed for your use case.
-
-For this example, the `read:packages` scope is required.
-
-Once you have your PAT, you will need to base64 encode it for use within `secrets.tf`:
+To enable the graph database for advanced code analysis:
 
 ```bash
-echo -n "ghcr_username:ghcr_token" | base64
+docker compose --profile graphdb up -d
 ```
 
-> replace `ghcr_username` and `ghcr_token` with your GitHub username and your PAT respectively.
+### Custom Fuzzing Containers
 
-Add your base64 encoded credentials to `GHCR_AUTH`
+Set `FUZZ_TOOLING_CONTAINER_ORG` in your environment file to use custom fuzzing containers.
 
-## Remote Terraform State Storage
+### Monitoring and Telemetry
 
-By default, terraform stores its state locally. It is best practice to store terraform state in a remote location.  
-This can help with collaboration, security, recovery and scalability. To do this within Azure, you need to create resources to do so.
+Configure LangFuse or OpenTelemetry endpoints in the environment file for observability.
 
-### Azure CLI
+## Support
 
-The following is an example of how to create the resources needed for remote state configuration.  
-These resources will be used in the `backend.tf` configuration file.
-
-- Create remote state resource group.
-
-```bash
-az group create --name example-tfstate-rg --location eastus
-```
-
-- Create storage account for remote state.
-
-```bash
-az storage account create --resource-group example-tfstate-rg --name examplestorageaccountname --sku Standard_LRS --encryption-services blob
-```
-
-- Create storage container for remote state
-
-```bash
-az storage container create --name tfstate --account-name examplestorageaccountname --auth-mode login
-```
-
-### backend.tf
-
-Replace the values for `resource_group_name`, `storage_account_name`, `container_name` with the ones you created above.
-
-```bash
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "example-tfstate-rg"
-    storage_account_name = "examplestorageaccountname"
-    container_name       = "tfstate"
-    key                  = "terraform.tfstate"
-  }
-}
-```
-
-## Makefile
-
-The deployment of the AKS cluster and its resources are performed by the `Makefile`, which leverages `crs-architecture.sh`. This wrapper utilizes several mechanisms to properly configure both the teraform and kubernetes environments.
-
-## Deploy
-
-- Log into your Azure tenant with `az login --tenant aixcc.tech`
-- Clone this repository if needed: `git clone git@github.com:aixcc-finals/example-crs-architecture.git /<local_dir>`
-- Make required changes to `backend.tf`
-- Make any wanted changes to `main.tf`, `outputs.tf`, `providers.tf`, and `variables.tf`
-- Update `./env` with accurate values for each variable
-- Run `make up` from within the `example-crs-architecture` directory
-  This will execute a deployment of your cluster via a combination of terraform and kubectl based on your unique values in `./env`
-
-## Useful Cluster Commands
-
-- `az aks get-credentials --name <your-cluster-name> --resource-group <your-resource-group>` - retrieves access credentials and updates kubeconfig for the current cluster
-- `kubectl get namespaces` - lists all namespaces
-- `kubectl get -n crs-webservice all` - lists all resources within the crs-webservice namespace
-- `kubectl get -n tailscale all` - lists all resources within the tailscale namespace
-- `kubectl get pods -A` - lists all pods in all namespaces
-- `kubectl config get-contexts` - lists the current contexts in your kubeconfig
-- `kubectl describe deployment -n crs-webservice crs-webapp` - print detailed information about the deployment, crs-webapp
-- `kubectl logs <podName>` - retrieves the stdout and stderr streams from the containers within the specified pod
-- `kubectl get svc -A` - lists status of all services
-- `kubectl get -n crs-webservice ingress` - lists the tailscale ingress address of your API
-- `kubectl port-forward -n crs service/buttercup-competition-api 31323:1323` - make competition-api service available locally at port 31323
-
-## State
-
-- `terraform state list` - lists all resources in the deployment.
-- `terraform state show '<resource>'` - replace `<resource>` with the resource you want to view from the `list` command
-
-## Destroy
-
-To tear down your AKS cluster run the following:
-
-- Run `make down` from within the `example-crs-architecture` directory
-
-## Reset / Redeploy CRS
-
-To reset or redeploy a running CRS cluster:
-
-- Run `make down && make up` from within the `example-crs-architecture` directory
-
-## Clean
-
-Optionally, you can run `make clean` to remove any generated files create from the included templates at runtime. This action is executed during `make up`.
-
-## Clean up Azure infrastructure
-
-See [CLEAN.md](CLEAN.md).
+For issues and questions:
+- Check the main project README
+- Review service-specific documentation in their directories
+- Examine logs for error messages

@@ -1,9 +1,0 @@
-# Basic configuration
-enabled: true
-port: 8000
-workers: 1
-
-# Service configuration
-service:
-  port: 8000
-  annotations: {}  # Can be used for cloud-specific LB configurations
