@@ -23,6 +23,24 @@ class ServeCommand(BaseSettings):
     concurrent_patch_requests_per_task: Annotated[
         int, Field(default=12, description="Number of concurrent patch requests per task")
     ]
+    
+    # Background task configuration
+    enable_background_tasks: Annotated[bool, Field(default=True, description="Enable background tasks")]
+    scratch_cleanup_interval: Annotated[
+        float, Field(default=60.0, description="Interval between scratch cleanup runs in seconds")
+    ]
+    scratch_cleanup_delta_seconds: Annotated[
+        int, Field(default=1800, description="Age of task data before cleanup in seconds (default 30 minutes)")
+    ]
+    pov_reproduction_interval: Annotated[
+        float, Field(default=0.1, description="Interval between POV reproduction checks in seconds")
+    ]
+    pov_reproduction_max_retries: Annotated[
+        int, Field(default=10, description="Maximum retries for POV reproduction")
+    ]
+    background_task_status_interval: Annotated[
+        float, Field(default=300.0, description="Interval for logging background task status in seconds")
+    ]
 
     class Config:
         nested_model_default_partial_update = True

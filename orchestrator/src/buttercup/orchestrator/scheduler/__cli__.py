@@ -51,6 +51,13 @@ def main():
             competition_api_cycle_time=command.competition_api_cycle_time,
             patch_submission_retry_limit=command.patch_submission_retry_limit,
             patch_requests_per_vulnerability=command.patch_requests_per_vulnerability,
+            concurrent_patch_requests_per_task=command.concurrent_patch_requests_per_task,
+            enable_background_tasks=command.enable_background_tasks,
+            scratch_cleanup_interval=command.scratch_cleanup_interval,
+            scratch_cleanup_delta_seconds=command.scratch_cleanup_delta_seconds,
+            pov_reproduction_interval=command.pov_reproduction_interval,
+            pov_reproduction_max_retries=command.pov_reproduction_max_retries,
+            background_task_status_interval=command.background_task_status_interval,
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):

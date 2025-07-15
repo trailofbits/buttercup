@@ -25,6 +25,9 @@ from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
+from buttercup.orchestrator.scheduler.background_tasks import BackgroundTaskManager
+from buttercup.orchestrator.scheduler.scratch_cleanup import ScratchCleanupTask
+from buttercup.orchestrator.scheduler.pov_reproduction import POVReproductionTask
 import random
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,14 @@ class Scheduler:
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
     concurrent_patch_requests_per_task: int = 12
+    
+    # Background task configuration
+    enable_background_tasks: bool = True
+    scratch_cleanup_interval: float = 60.0  # seconds
+    scratch_cleanup_delta_seconds: int = 1800  # 30 minutes
+    pov_reproduction_interval: float = 0.1  # seconds
+    pov_reproduction_max_retries: int = 10
+    background_task_status_interval: float = 300.0  # 5 minutes
 
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     build_requests_queue: ReliableQueue | None = field(init=False, default=None)
@@ -58,6 +69,7 @@ class Scheduler:
     patches_queue: ReliableQueue | None = field(init=False, default=None)
     traced_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
     submissions: Submissions = field(init=False)
+    background_task_manager: BackgroundTaskManager = field(init=False, default_factory=BackgroundTaskManager)
 
     def update_cached_cancelled_ids(self) -> bool:
         """Update the cached set of cancelled task IDs.
@@ -129,6 +141,25 @@ class Scheduler:
             self.traced_vulnerabilities_queue = queue_factory.create(
                 QueueNames.TRACED_VULNERABILITIES, GroupNames.ORCHESTRATOR, block_time=None
             )
+            
+            # Initialize background tasks if enabled
+            if self.enable_background_tasks:
+                # Scratch cleanup task
+                scratch_cleanup = ScratchCleanupTask(
+                    redis=self.redis,
+                    scratch_dir=self.scratch_dir,
+                    interval_seconds=self.scratch_cleanup_interval,
+                    delete_old_tasks_delta_seconds=self.scratch_cleanup_delta_seconds,
+                )
+                self.background_task_manager.register_task(scratch_cleanup)
+                
+                # POV reproduction task
+                pov_reproduction = POVReproductionTask(
+                    redis=self.redis,
+                    interval_seconds=self.pov_reproduction_interval,
+                    max_retries=self.pov_reproduction_max_retries,
+                )
+                self.background_task_manager.register_task(pov_reproduction)
 
     def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
         """Select from preferred options if available, otherwise random choice.
@@ -431,9 +462,32 @@ class Scheduler:
         3. Process crashes and vulnerabilities from queues
         4. Process patches and bundles from queues
         5. Check status of submitted PoVs and patches, create bundles when possible
+        6. Background tasks handle maintenance operations (scratch cleanup, POV reproduction)
         """
         if self.redis is None:
             raise ValueError("Redis is not initialized")
 
         logger.info("Starting scheduler service")
-        serve_loop(self.serve_item, self.sleep_time)
+        
+        # Start background tasks
+        if self.enable_background_tasks:
+            logger.info("Starting background tasks")
+            self.background_task_manager.start_all()
+            
+            # Add periodic status logging
+            import threading
+            def log_background_status():
+                while True:
+                    self.background_task_manager.log_status()
+                    threading.Event().wait(self.background_task_status_interval)
+            
+            status_thread = threading.Thread(target=log_background_status, daemon=True)
+            status_thread.start()
+        
+        try:
+            serve_loop(self.serve_item, self.sleep_time)
+        finally:
+            # Stop background tasks on shutdown
+            if self.enable_background_tasks:
+                logger.info("Stopping background tasks")
+                self.background_task_manager.stop_all()
