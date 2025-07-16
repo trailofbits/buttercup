@@ -50,9 +50,9 @@ echo "  Master key: $BUTTERCUP_LITELLM_KEY"
 # Change to project root
 cd "$PROJECT_ROOT"
 
-# Run LiteLLM with uvx
+# Run LiteLLM with uvx (with proxy extras)
 echo -e "${GREEN}Starting LiteLLM...${NC}"
-uvx litellm \
+uvx --from "litellm[proxy]" litellm \
     --config "$PROJECT_ROOT/litellm/litellm_config.yaml" \
     --port 8080 \
     --host 0.0.0.0 \

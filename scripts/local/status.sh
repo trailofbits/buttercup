@@ -59,7 +59,17 @@ check_service() {
 
 # Check core services
 check_service "Redis" "$COMPOSE_CMD exec -T redis redis-cli ping 2>/dev/null | grep -q PONG"
-check_service "LiteLLM Proxy" "curl -s http://localhost:8080/health"
+
+# Check LiteLLM (could be Docker or uvx)
+if $COMPOSE_CMD ps 2>/dev/null | grep -q litellm; then
+    check_service "LiteLLM Proxy" "curl -s http://localhost:8080/health" "LiteLLM (Docker)"
+elif [ -f "$PROJECT_ROOT/litellm.pid" ] && ps -p $(cat "$PROJECT_ROOT/litellm.pid") > /dev/null 2>&1; then
+    check_service "LiteLLM Proxy" "curl -s http://localhost:8080/health" "LiteLLM (uvx)"
+else
+    # Try to check if it's running anyway
+    check_service "LiteLLM Proxy" "curl -s http://localhost:8080/health"
+fi
+
 check_service "Task Server" "curl -s http://localhost:8000/ping"
 
 # Check if scheduler is processing

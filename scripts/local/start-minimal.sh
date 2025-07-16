@@ -41,9 +41,9 @@ else
     COMPOSE_CMD="docker-compose"
 fi
 
-# Start only Redis and PostgreSQL with Docker
-echo -e "${GREEN}Starting Redis and PostgreSQL...${NC}"
-$COMPOSE_CMD up -d redis litellm-db
+# Start only Redis with Docker (PostgreSQL not needed without database tracking)
+echo -e "${GREEN}Starting Redis...${NC}"
+$COMPOSE_CMD up -d redis
 
 # Wait for Redis
 echo "Waiting for Redis..."
@@ -53,24 +53,17 @@ until $COMPOSE_CMD exec redis redis-cli ping 2>/dev/null | grep -q PONG; do
 done
 echo -e " ${GREEN}Ready!${NC}"
 
-# Wait for PostgreSQL
-echo "Waiting for PostgreSQL..."
-until $COMPOSE_CMD exec litellm-db pg_isready 2>/dev/null; do
-    echo -n "."
-    sleep 1
-done
-echo -e " ${GREEN}Ready!${NC}"
-
 # Start LiteLLM with uvx in background
 echo -e "${GREEN}Starting LiteLLM with uvx...${NC}"
 export BUTTERCUP_LITELLM_KEY="${BUTTERCUP_LITELLM_KEY:-sk-1234}"
-export DATABASE_URL="postgresql://litellm_user:litellm_password11@localhost:5432/litellm"
+# Don't set DATABASE_URL - we don't need database tracking for local dev
+# export DATABASE_URL="postgresql://litellm_user:litellm_password11@localhost:5432/litellm"
 
 # Kill any existing LiteLLM process
 pkill -f "litellm --config" || true
 
 # Start LiteLLM in background
-nohup uvx litellm \
+nohup uvx --from "litellm[proxy]" litellm \
     --config "$PROJECT_ROOT/litellm/litellm_config.yaml" \
     --port 8080 \
     --host 0.0.0.0 \
@@ -93,7 +86,6 @@ echo -e "\n${GREEN}Minimal services started!${NC}"
 echo -e "\nService URLs:"
 echo -e "  ${YELLOW}LiteLLM Proxy:${NC} http://localhost:8080"
 echo -e "  ${YELLOW}Redis:${NC} localhost:6379"
-echo -e "  ${YELLOW}PostgreSQL:${NC} localhost:5432"
 
 echo -e "\n${GREEN}LiteLLM logs:${NC} tail -f $PROJECT_ROOT/litellm.log"
 echo -e "${GREEN}To stop LiteLLM:${NC} kill \$(cat $PROJECT_ROOT/litellm.pid)"

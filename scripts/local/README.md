@@ -15,7 +15,14 @@ This directory contains helper scripts for running Buttercup CRS locally on macO
 
 2. **Start services**:
    ```bash
+   # Option 1: Full setup with Docker LiteLLM
    ./scripts/local/start.sh
+   
+   # Option 2: Minimal setup with uvx LiteLLM (recommended)
+   ./scripts/local/start-minimal.sh
+   
+   # Or use the unified script:
+   ./scripts/local/local-dev.sh --minimal up
    ```
 
 3. **Verify setup**:
@@ -25,17 +32,47 @@ This directory contains helper scripts for running Buttercup CRS locally on macO
 
 ## Available Scripts
 
-### start.sh
+### local-dev.sh
+Unified script for managing the development environment.
+```bash
+# Start with Docker LiteLLM
+./scripts/local/local-dev.sh up
+
+# Start with uvx LiteLLM (minimal, recommended)
+./scripts/local/local-dev.sh --minimal up
+
+# Stop services
+./scripts/local/local-dev.sh --minimal down
+
+# View logs
+./scripts/local/local-dev.sh logs
+./scripts/local/local-dev.sh --minimal logs litellm
+
+# Check status
+./scripts/local/local-dev.sh status
+```
+
+### start.sh / start-minimal.sh
 Starts all Buttercup CRS services in the correct order with health checks.
+- `start.sh`: Full Docker setup including LiteLLM container
+- `start-minimal.sh`: Minimal setup using uvx for LiteLLM (faster, simpler)
 - Creates required directories
 - Validates environment configuration
 - Starts services with proper dependencies
 - Shows service URLs when ready
 
-### stop.sh
+### stop.sh / stop-minimal.sh
 Performs a clean shutdown of all services.
 - Stops Docker containers gracefully
+- For minimal setup: also stops uvx LiteLLM process
 - Preserves local data
+
+### litellm.sh
+Runs LiteLLM standalone with uvx (no Docker required).
+```bash
+# Start LiteLLM proxy server
+./scripts/local/litellm.sh
+```
 
 ### reset.sh
 Completely resets the environment.
@@ -78,11 +115,19 @@ Runs a simple test to verify the setup.
 ## Environment Configuration
 
 The scripts support multiple environment file formats:
-- `.env` - Used by LiteLLM
+- `.env` - Used by LiteLLM and uvx
 - `env.dev.compose` - Used by Docker Compose services
 - `env.local` - Template with local development defaults
 
 The start script will automatically create the required files from whichever you provide.
+
+### Minimal Setup Benefits
+
+Using `--minimal` or `start-minimal.sh` runs LiteLLM with uvx instead of Docker:
+- **Faster startup**: No Docker image building required
+- **Less resource usage**: No container overhead
+- **Easier debugging**: Direct access to process and logs
+- **Always latest**: uvx automatically uses the latest LiteLLM version
 
 ## Service URLs
 

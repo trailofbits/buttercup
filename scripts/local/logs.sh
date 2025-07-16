@@ -74,17 +74,36 @@ if [ "$FOLLOW" = true ]; then
 fi
 
 if [ -n "$SERVICE" ]; then
-    # Check if service exists
+    # Special handling for litellm when running with uvx
+    if [ "$SERVICE" = "litellm" ] && [ -f "$PROJECT_ROOT/litellm.log" ]; then
+        echo -e "${BLUE}Showing logs for LiteLLM (uvx)${NC}"
+        echo -e "${YELLOW}Tail: $TAIL_LINES lines${NC}"
+        if [ "$FOLLOW" = true ]; then
+            echo -e "${YELLOW}Following logs (Ctrl+C to stop)...${NC}"
+            tail -n "$TAIL_LINES" -f "$PROJECT_ROOT/litellm.log"
+        else
+            tail -n "$TAIL_LINES" "$PROJECT_ROOT/litellm.log"
+        fi
+        exit 0
+    fi
+    
+    # Check if service exists in Docker
     if ! $COMPOSE_CMD ps --services | grep -q "^$SERVICE$"; then
         echo -e "${RED}Error: Service '$SERVICE' not found${NC}"
         echo "Available services:"
         $COMPOSE_CMD ps --services | sed 's/^/  - /'
+        echo ""
+        echo "Note: If using minimal setup, LiteLLM logs are in: $PROJECT_ROOT/litellm.log"
         exit 1
     fi
     LOGS_CMD="$LOGS_CMD $SERVICE"
     echo -e "${BLUE}Showing logs for service: $SERVICE${NC}"
 else
     echo -e "${BLUE}Showing logs for all services${NC}"
+    # Also check for uvx LiteLLM logs
+    if [ -f "$PROJECT_ROOT/litellm.log" ]; then
+        echo -e "${YELLOW}Note: LiteLLM (uvx) logs available in: $PROJECT_ROOT/litellm.log${NC}"
+    fi
 fi
 
 echo -e "${YELLOW}Tail: $TAIL_LINES lines${NC}"

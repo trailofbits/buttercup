@@ -15,6 +15,9 @@ env.local
 env.dev.compose
 # But keep the example file
 !.env.example
+# LiteLLM uvx files
+litellm.log
+litellm.pid
 
 ## Generated Kubernetes Resources
 .k8s

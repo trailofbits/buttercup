@@ -102,9 +102,9 @@ until $COMPOSE_CMD exec redis redis-cli ping 2>/dev/null | grep -q PONG; do
 done
 echo -e " ${GREEN}Ready!${NC}"
 
-# Start LiteLLM proxy
-echo -e "${GREEN}Starting LiteLLM proxy...${NC}"
-$COMPOSE_CMD up -d litellm
+# Start LiteLLM proxy with Docker (use --profile full)
+echo -e "${GREEN}Starting LiteLLM proxy with Docker...${NC}"
+$COMPOSE_CMD --profile full up -d litellm
 
 # Wait for LiteLLM to be ready
 echo "Waiting for LiteLLM to be ready..."

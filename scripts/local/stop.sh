@@ -30,9 +30,9 @@ fi
 echo "Current service status:"
 $COMPOSE_CMD ps
 
-# Stop all services gracefully
+# Stop all services gracefully (including those with profile)
 echo -e "\n${YELLOW}Stopping all services...${NC}"
-$COMPOSE_CMD down
+$COMPOSE_CMD --profile full down
 
 # Optional: Remove volumes (commented out by default to preserve data)
 # echo -e "\n${YELLOW}Removing volumes...${NC}"
