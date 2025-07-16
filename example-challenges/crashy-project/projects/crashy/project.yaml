@@ -1,0 +1,13 @@
+homepage: "https://example.com/crashy"
+language: c
+primary_contact: "security@example.com"
+vendor_ccs:
+  - "vendor@example.com"
+fuzzing_engines:
+  - libfuzzer
+sanitizers:
+  - address
+  - undefined
+architectures:
+  - x86_64
+  - aarch64

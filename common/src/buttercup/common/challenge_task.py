@@ -221,8 +221,11 @@ class ChallengeTask:
         return self._find_first_dir(self.DIFF_DIR)
 
     def get_oss_fuzz_subpath(self) -> Path | None:
-        # TODO: "Review task structure and Challenge Task operations" Issue #74
-        return self._find_first_dir(self.OSS_FUZZ_DIR)
+        # Return the OSS_FUZZ_DIR itself if it exists
+        oss_fuzz_path = Path(self.OSS_FUZZ_DIR)
+        if (self.task_dir / oss_fuzz_path).exists():
+            return oss_fuzz_path
+        return None
 
     def _task_dir_compose_path(
         self, subpath_method: Callable[[], Path | None], raise_on_none: bool = False

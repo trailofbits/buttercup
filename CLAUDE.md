@@ -50,6 +50,10 @@ docker compose up -d
 # Or using Docker Compose
 docker compose down
 
+# IMPORTANT: When rebuilding Docker images, always use up -d to recreate containers
+docker compose build <service>
+docker compose up -d <service>  # This ensures the new image is used
+
 # Access services locally
 # Competition API: http://localhost:31323
 # Task Server: http://localhost:8000
@@ -168,6 +172,52 @@ docker compose exec <service-name> /bin/bash
 # Monitor scheduler workflow
 docker compose logs scheduler | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
 ```
+
+## Local Challenge Submission
+
+The CRS can be tested locally by submitting OSS-Fuzz formatted challenges:
+
+```bash
+# Submit a challenge using the submission script
+./scripts/local/submit-challenge.sh <challenge-dir>
+
+# Example: Submit the crashy-project test challenge
+./scripts/local/submit-challenge.sh example-challenges/crashy-project
+
+# Test the complete submission pipeline
+./scripts/local/test-submission.sh
+
+# Monitor results in real-time
+./scripts/local/monitor.sh
+
+# Monitor without service status panel
+./scripts/local/monitor.sh --no-services
+```
+
+### Challenge Directory Structure
+
+Challenges must follow the OSS-Fuzz project structure:
+
+```
+challenge-dir/
+├── src/              # Source code to analyze
+│   └── main.c
+└── projects/         # OSS-Fuzz project directory
+    ├── infra/
+    │   └── helper.py # Required OSS-Fuzz helper script
+    └── <project>/    # Project-specific config
+        ├── project.yaml
+        ├── build.sh
+        └── Dockerfile
+```
+
+### Submission Process
+
+1. The submission script packages the source and OSS-Fuzz directories
+2. Starts a local HTTP server for file downloads
+3. Submits the task to the CRS API
+4. The CRS downloads files and begins processing
+5. Monitor script shows real-time progress and results
 
 ## Security Considerations
 

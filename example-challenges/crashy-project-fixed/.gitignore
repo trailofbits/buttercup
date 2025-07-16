@@ -1,0 +1,4 @@
+src/crashy
+*.o
+*.out
+.DS_Store
