@@ -115,6 +115,7 @@ services:
     env_file: env.dev.compose
     environment:
       # Override specific settings for local dev
+      BUTTERCUP_UNIFIED_FUZZER_REDIS_URL: redis://redis:6379
       BUTTERCUP_UNIFIED_FUZZER_NUM_FUZZER_WORKERS: 1
       BUTTERCUP_UNIFIED_FUZZER_BUILDER_WDIR: /node_data/crs_scratch
       BUTTERCUP_UNIFIED_FUZZER_FUZZER_WDIR: /node_data/crs_scratch

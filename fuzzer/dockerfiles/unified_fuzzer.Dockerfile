@@ -53,11 +53,19 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 # Create working directories for all components
 RUN mkdir -p /tmp/builder /tmp/fuzzer /tmp/coverage /tmp/tracer /crs_scratch
 
-COPY --from=builder --chown=app:app /fuzzer/.venv /fuzzer/.venv
-COPY common/container-entrypoint.sh /container-entrypoint.sh
+# Copy the virtual environment from builder
+COPY --from=builder /fuzzer/.venv /fuzzer/.venv
+
+# Copy the source code
+COPY ./common /common
+COPY ./fuzzer /fuzzer
+
+# Set Python path to find the modules
+ENV PYTHONPATH=/fuzzer/src:/common/src:$PYTHONPATH
 ENV PATH=/fuzzer/.venv/bin:$PATH
 
-# Set the unified fuzzer as the default command
-CMD ["python", "-m", "buttercup.unified_fuzzer.orchestrator"]
+# Set the working directory
+WORKDIR /fuzzer
 
-ENTRYPOINT ["/container-entrypoint.sh"]
+# Set the unified fuzzer as the default command
+CMD ["python", "-m", "buttercup.unified_fuzzer"]
