@@ -71,10 +71,11 @@ class PatcherLeaderAgent(PatcherAgentBase):
     def run_patch_task(self) -> PatchOutput | None:
         """Run the patching task."""
         patch_team = self._init_patch_team()
-        llm_callbacks = get_langfuse_callbacks()
+        # Langfuse disabled - no callbacks
+        # llm_callbacks = get_langfuse_callbacks()
         chain = patch_team.compile().with_config(
             RunnableConfig(
-                callbacks=llm_callbacks,
+                callbacks=[],  # Was: llm_callbacks
                 tags=["patch_team", self.challenge.name, self.input.task_id, self.input.internal_patch_id],
                 metadata={
                     "task_id": self.input.task_id,

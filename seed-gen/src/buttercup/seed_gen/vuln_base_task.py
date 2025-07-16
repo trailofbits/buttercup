@@ -322,7 +322,9 @@ class VulnBaseTask(Task):
         try:
             state = self._init_state(out_dir, current_dir)
             workflow = self._build_workflow()
-            llm_callbacks = get_langfuse_callbacks()
+            # Langfuse disabled
+            # llm_callbacks = get_langfuse_callbacks()
+            llm_callbacks = []
             chain = workflow.compile().with_config(
                 RunnableConfig(
                     tags=["vuln-discovery"],

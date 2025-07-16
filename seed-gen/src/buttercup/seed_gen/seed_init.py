@@ -65,7 +65,9 @@ class SeedInitTask(SeedBaseTask):
             output_dir=output_dir,
         )
         workflow = self._build_workflow(BaseTaskState)
-        llm_callbacks = get_langfuse_callbacks()
+        # Langfuse disabled
+        # llm_callbacks = get_langfuse_callbacks()
+        llm_callbacks = []
         chain = workflow.compile().with_config(
             RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks)
         )

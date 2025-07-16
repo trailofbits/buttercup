@@ -109,7 +109,9 @@ class Task:
 
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
-        llm_callbacks = get_langfuse_callbacks()
+        # Langfuse disabled
+        # llm_callbacks = get_langfuse_callbacks()
+        llm_callbacks = []
         llm = create_default_llm(
             model_name=llm.value,
             callbacks=llm_callbacks,

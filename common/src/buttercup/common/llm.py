@@ -44,18 +44,21 @@ class ButtercupLLM(Enum):
 @functools.cache
 def is_langfuse_available() -> bool:
     """Check if LangFuse is available."""
-    if not LANGFUSE_AVAILABLE:
-        logger.info("LangFuse module not installed")
-        return False
-    langfuse_host = os.getenv("LANGFUSE_HOST")
-    if not langfuse_host:
-        logger.info("LangFuse not configured")
-        return False
-    try:
-        response = requests.post(f"{langfuse_host}/api/public/ingestion", timeout=2)
-        return bool(response.status_code == 401)  # expect that we aren't authenticated
-    except requests.RequestException:
-        return False
+    # Langfuse disabled - always return False
+    return False
+    # Original implementation commented out:
+    # if not LANGFUSE_AVAILABLE:
+    #     logger.info("LangFuse module not installed")
+    #     return False
+    # langfuse_host = os.getenv("LANGFUSE_HOST")
+    # if not langfuse_host:
+    #     logger.info("LangFuse not configured")
+    #     return False
+    # try:
+    #     response = requests.post(f"{langfuse_host}/api/public/ingestion", timeout=2)
+    #     return bool(response.status_code == 401)  # expect that we aren't authenticated
+    # except requests.RequestException:
+    #     return False
 
 
 @functools.cache
@@ -64,44 +67,50 @@ def langfuse_auth_check() -> bool:
 
     Uses the ingestion endpoint to check if the API key is valid.
     """
-    if not LANGFUSE_AVAILABLE:
-        return False
-    langfuse_host = os.getenv("LANGFUSE_HOST")
-    langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
-    langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY")
-    if langfuse_public_key is None or langfuse_secret_key is None:
-        return False
-
-    try:
-        response = requests.post(
-            f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
-        )
-        return bool(response.status_code == 400)  # expect that we authenticate, but the request is invalid
-    except requests.RequestException:
-        return False
+    # Langfuse disabled - always return False
+    return False
+    # Original implementation commented out:
+    # if not LANGFUSE_AVAILABLE:
+    #     return False
+    # langfuse_host = os.getenv("LANGFUSE_HOST")
+    # langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
+    # langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY")
+    # if langfuse_public_key is None or langfuse_secret_key is None:
+    #     return False
+    #
+    # try:
+    #     response = requests.post(
+    #         f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
+    #     )
+    #     return bool(response.status_code == 400)  # expect that we authenticate, but the request is invalid
+    # except requests.RequestException:
+    #     return False
 
 
 @functools.cache
 def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     """Get Langchain callbacks for monitoring LLM calls with LangFuse, if available."""
-    if is_langfuse_available() and CallbackHandler is not None:
-        try:
-            langfuse_handler = CallbackHandler(
-                public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-                secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-                host=os.getenv("LANGFUSE_HOST"),
-            )
-            if langfuse_auth_check():
-                logger.info("Tracing with LangFuse enabled")
-                return [langfuse_handler]
-
-            logger.warning("LangFuse authentication failed")
-        except Exception as e:
-            logger.error(f"Cannot connect to LangFuse: {e}")
-    else:
-        logger.info("LangFuse not available")
-
+    # Langfuse disabled - always return empty list
     return []
+    # Original implementation commented out:
+    # if is_langfuse_available() and CallbackHandler is not None:
+    #     try:
+    #         langfuse_handler = CallbackHandler(
+    #             public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    #             secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    #             host=os.getenv("LANGFUSE_HOST"),
+    #         )
+    #         if langfuse_auth_check():
+    #             logger.info("Tracing with LangFuse enabled")
+    #             return [langfuse_handler]
+    #
+    #         logger.warning("LangFuse authentication failed")
+    #     except Exception as e:
+    #         logger.error(f"Cannot connect to LangFuse: {e}")
+    # else:
+    #     logger.info("LangFuse not available")
+    #
+    # return []
 
 
 def create_default_llm(**kwargs: Any) -> BaseChatModel:

@@ -78,7 +78,9 @@ class SeedExploreTask(SeedBaseTask):
             output_dir=output_dir,
         )
         workflow = self._build_workflow(SeedExploreState)
-        llm_callbacks = get_langfuse_callbacks()
+        # Langfuse disabled
+        # llm_callbacks = get_langfuse_callbacks()
+        llm_callbacks = []
         chain = workflow.compile().with_config(
             RunnableConfig(tags=["seed-explore"], callbacks=llm_callbacks)
         )

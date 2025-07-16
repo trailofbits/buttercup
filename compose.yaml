@@ -2,8 +2,9 @@
 # Simplified configuration for local development on macOS
 
 # Include competition server for local testing
-include:
-  - ./competition-server/compose.yaml
+# Commented out - scantron not available
+# include:
+#   - ./competition-server/compose.yaml
 
 services:
   # Core Infrastructure Services
@@ -154,9 +155,11 @@ services:
       - ./node_data_storage:/node_data
     env_file: env.dev.compose
     environment:
-      - LANGFUSE_HOST=${LANGFUSE_HOST}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      # Langfuse disabled - uncomment to re-enable
+      # - LANGFUSE_HOST=${LANGFUSE_HOST}
+      # - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      # - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - DUMMY_ENV=1  # Placeholder to keep environment section valid
     depends_on:
       redis:
         condition: service_healthy
@@ -173,9 +176,11 @@ services:
       - ./node_data_storage:/node_data
     env_file: env.dev.compose
     environment:
-      - LANGFUSE_HOST=${LANGFUSE_HOST}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      # Langfuse disabled - uncomment to re-enable
+      # - LANGFUSE_HOST=${LANGFUSE_HOST}
+      # - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      # - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - DUMMY_ENV=1  # Placeholder to keep environment section valid
     depends_on:
       redis:
         condition: service_healthy
