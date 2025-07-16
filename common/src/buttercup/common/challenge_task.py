@@ -497,7 +497,7 @@ class ChallengeTask:
             source_path = self.get_source_path()
             mount_dirs.update({source_path: self.workdir_from_dockerfile()})
 
-        docker_cmd = ["docker", "run", "--privileged", "--shm-size=2g", "--rm"]
+        docker_cmd = ["docker", "run", "--platform", "linux/amd64", "--privileged", "--shm-size=2g", "--rm"]
         if mount_dirs:
             for src, dst in mount_dirs.items():
                 docker_cmd += ["-v", f"{src.resolve().as_posix()}:{dst.as_posix()}"]
