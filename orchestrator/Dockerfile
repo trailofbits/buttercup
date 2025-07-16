@@ -20,6 +20,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# First install dependencies only (without the project itself)
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
@@ -55,6 +56,7 @@ WORKDIR /app/orchestrator
 
 # Python optimizations for better performance
 ENV PATH=/app/orchestrator/.venv/bin:$PATH \
+    PYTHONPATH=/app/orchestrator/src:/app/common/src:$PYTHONPATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1

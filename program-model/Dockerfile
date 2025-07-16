@@ -41,10 +41,8 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=/common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=/common/pyproject.toml \
-    --mount=type=bind,source=common/README.md,target=/common/README.md \
     --mount=type=bind,source=program-model/uv.lock,target=/app/uv.lock \
     --mount=type=bind,source=program-model/pyproject.toml,target=/app/pyproject.toml \
-    --mount=type=bind,source=program-model/README.md,target=/app/README.md \
     cd /app && uv sync --frozen --no-install-project --no-editable
 
 COPY ./common /common
@@ -65,14 +63,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     make \
     bison \
     flex \
-    libncurses-dev && \
+    libncurses-dev \
+    cscope && \
     rm -rf /var/lib/apt/lists/*
-COPY external/aixcc-cscope /cscope
-RUN cd /cscope && \
-    autoreconf -i -s && \
-    ./configure && \
-    make -j$(nproc) && \
-    make install
+# Custom cscope build removed - using standard package instead
+# COPY external/aixcc-cscope /cscope
+# Custom cscope build removed - using standard package instead
+# RUN cd /cscope && \
+#     autoreconf -i -s && \
+#     ./configure && \
+#     make -j$(nproc) && \
+#     make install
 
 FROM --platform=$TARGETPLATFORM base AS runtime
 WORKDIR /app
@@ -87,9 +88,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     git && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
+# Custom cscope build removed - using standard package instead
+# COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
-COPY common/container-entrypoint.sh /container-entrypoint.sh
+# COPY common/container-entrypoint.sh /container-entrypoint.sh  # File doesn't exist
 
 # Python optimizations
 ENV PATH=/app/.venv/bin:$PATH \
@@ -97,4 +99,4 @@ ENV PATH=/app/.venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1
 
-ENTRYPOINT ["/container-entrypoint.sh"]
+# ENTRYPOINT ["/container-entrypoint.sh"]  # File doesn't exist

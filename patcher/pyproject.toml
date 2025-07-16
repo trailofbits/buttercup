@@ -2,7 +2,7 @@
 name = "patcher"
 version = "0.1.0"
 description = "Buttercup patcher"
-readme = "README.md"
+# readme = "README.md"  # Commented out to simplify Docker builds
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 requires-python = ">=3.12,<3.13"
 dependencies = [

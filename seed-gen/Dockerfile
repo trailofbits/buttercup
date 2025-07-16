@@ -53,7 +53,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
     --mount=type=bind,source=program-model/uv.lock,target=program-model/uv.lock \
     --mount=type=bind,source=program-model/pyproject.toml,target=program-model/pyproject.toml \
-    --mount=type=bind,source=program-model/README.md,target=program-model/README.md \
     --mount=type=bind,source=seed-gen/uv.lock,target=seed-gen/uv.lock \
     --mount=type=bind,source=seed-gen/pyproject.toml,target=seed-gen/pyproject.toml \
     cd seed-gen && uv sync --frozen --no-install-project --no-editable
@@ -77,14 +76,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     make \
     bison \
     flex \
-    libncurses-dev && \
+    libncurses-dev \
+    cscope && \
     rm -rf /var/lib/apt/lists/*
-COPY external/aixcc-cscope /cscope
-RUN cd /cscope && \
-    autoreconf -i -s && \
-    ./configure && \
-    make -j$(nproc) && \
-    make install
+# Custom cscope build removed - using standard package instead
+# COPY external/aixcc-cscope /cscope
+# RUN cd /cscope && \
+#     autoreconf -i -s && \
+#     ./configure && \
+#     make -j$(nproc) && \
+#     make install
 
 FROM --platform=$TARGETPLATFORM runtime-base AS runtime
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -93,12 +94,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     rsync \
     libncurses-dev \
-    git && \
+    git \
+    cscope && \
     rm -rf /var/lib/apt/lists/*
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
-COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
+# COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope # Using system package instead
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv
-COPY common/container-entrypoint.sh /container-entrypoint.sh
+# COPY common/container-entrypoint.sh /container-entrypoint.sh # File doesn't exist
 
 WORKDIR /app/seed-gen
 
@@ -108,4 +110,4 @@ ENV PATH=/app/seed-gen/.venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1
 
-ENTRYPOINT ["/container-entrypoint.sh"]
+# ENTRYPOINT ["/container-entrypoint.sh"] # File doesn't exist

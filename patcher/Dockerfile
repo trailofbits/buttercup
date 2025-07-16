@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     patch \
     codequery \
     rsync \
+    cscope \
     libncurses-dev \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -47,7 +48,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
     --mount=type=bind,source=program-model/uv.lock,target=program-model/uv.lock \
     --mount=type=bind,source=program-model/pyproject.toml,target=program-model/pyproject.toml \
-    --mount=type=bind,source=program-model/README.md,target=program-model/README.md \
     --mount=type=bind,source=patcher/uv.lock,target=patcher/uv.lock \
     --mount=type=bind,source=patcher/pyproject.toml,target=patcher/pyproject.toml \
     cd patcher && uv sync --frozen --no-install-project --no-editable
@@ -74,13 +74,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     flex \
     libncurses-dev && \
     rm -rf /var/lib/apt/lists/*
-COPY external/aixcc-cscope /cscope
-# Optimize compilation for ARM64 if applicable
-RUN cd /cscope && \
-    autoreconf -i -s && \
-    ./configure && \
-    make -j$(nproc) && \
-    make install
+# Custom cscope build removed - using standard package instead
+# COPY external/aixcc-cscope /cscope
+# Custom cscope build removed - using standard package instead
+# # Optimize compilation for ARM64 if applicable
+# RUN cd /cscope && \
+#     autoreconf -i -s && \
+#     ./configure && \
+#     make -j$(nproc) && \
+#     make install
 
 FROM --platform=$TARGETPLATFORM runtime-base AS runtime
 
@@ -95,8 +97,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
-COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
-COPY common/container-entrypoint.sh /container-entrypoint.sh
+# Custom cscope build removed - using standard package instead
+# COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
+# COPY common/container-entrypoint.sh /container-entrypoint.sh  # File doesn't exist
 
 WORKDIR /app/patcher
 
@@ -106,4 +109,4 @@ ENV PATH=/app/patcher/.venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1
 
-ENTRYPOINT ["/container-entrypoint.sh"]
+# ENTRYPOINT ["/container-entrypoint.sh"]  # File doesn't exist

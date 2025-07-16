@@ -2,7 +2,7 @@
 name = "seed-gen"
 version = "0.1.0"
 description = "LLM seed generation and vulnerability discovery"
-readme = "README.md"
+# readme = "README.md"  # Commented out to simplify Docker builds
 authors = [
     { name = "Trail of Bits", email = "opensource@trailofbits.com" },
 ]
