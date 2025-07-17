@@ -91,7 +91,7 @@ make test
 cd deployment && make up
 
 # Port forward manually
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+kubectl port-forward -n crs service/buttercup-ui 31323:1323
 
 # Test manually
 ./orchestrator/scripts/task_integration_test.sh
@@ -177,6 +177,14 @@ cd deployment && make up
 - **Scale nodes:** Update `TF_VAR_usr_node_count` in your env file and run `make up`
 - **View logs:** `kubectl logs -n crs <pod-name>`
 - **Monitor resources:** `kubectl top pods -A`
+
+## Run Challenges
+
+```bash
+kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
+
+./orchestrator/scripts/challenge.sh
+```
 
 ## Cleanup
 

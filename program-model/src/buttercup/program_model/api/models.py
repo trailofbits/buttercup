@@ -181,7 +181,7 @@ class TypeSearchResponse(BaseModel):
 class TaskInitRequest(BaseModel):
     """Request model for task initialization."""
 
-    task_id: str = Field(..., description="ID of the task to initialize")
+    task_dir: str = Field(..., description="Task directory")
     work_dir: str = Field(..., description="Working directory for the task")
 
 

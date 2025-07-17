@@ -37,6 +37,15 @@ Define the LiteLLM health check init container template
 {{- end -}}
 
 {{/*
+Define the Program Model API health check init container template
+*/}}
+{{- define "buttercup.waitForProgramModelApi" -}}
+- name: wait-for-program-model-api
+  image: curlimages/curl:8.6.0
+  command: ['sh', '-c', 'until curl --silent -f http://{{ .Release.Name }}-program-model-api:8123/health; do echo waiting for program-model-api; sleep 2; done;']
+{{- end -}}
+
+{{/*
 Define a health check command that works with signal_alive_health_check() function
 It checks if /tmp/health_check_alive file exists and has a recent timestamp
 */}}

@@ -44,6 +44,7 @@ validate:
 deploy:
 	@echo "Deploying to current environment..."
 	cd deployment && make up
+	make wait-crs
 
 wait-crs:
 	@echo "Waiting for CRS deployment to be ready..."

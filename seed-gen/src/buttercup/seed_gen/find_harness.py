@@ -13,6 +13,7 @@ from buttercup.common.maps import CoverageMap
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR
 from buttercup.program_model.rest_client import CodeQueryPersistentRest as CodeQuery
+from buttercup.common.challenge_task import ChallengeTask
 
 logger = logging.getLogger(__name__)
 
@@ -72,15 +73,16 @@ def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path
 
 
 def _find_source_files(
-    codequery: CodeQuery, file_patterns: list[str], grep_pattern: str
+    challenge_task: ChallengeTask, file_patterns: list[str], grep_pattern: str
 ) -> list[Path]:
     """Find source files that match file patterns and contain a search string
 
     Searches both the source path and the oss-fuzz project path.
     """
-    container_src_dir = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    if not container_src_dir.exists():
-        logger.error("Container source path does not exist: %s", container_src_dir)
+    # Use the challenge task's source directory directly instead of going through CodeQuery
+    source_dir = challenge_task.get_source_path()
+    if not source_dir.exists():
+        logger.error("Source path does not exist: %s", source_dir)
         return []
 
     globs = []
@@ -94,7 +96,7 @@ def _find_source_files(
             *globs,
             "--multiline",
             grep_pattern,
-            str(container_src_dir),
+            str(source_dir),
         ]
 
         result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
@@ -113,10 +115,10 @@ def _find_source_files(
         if path.exists():
             harness_files.append(path)
 
-    return _exclude_common_harnesses(harness_files, container_src_dir)
+    return _exclude_common_harnesses(harness_files, source_dir)
 
 
-def find_libfuzzer_harnesses(codequery: CodeQuery) -> list[Path]:
+def find_libfuzzer_harnesses(challenge_task: ChallengeTask) -> list[Path]:
     """Find libfuzzer harnesses in the source directory.
 
     Heuristic: C/C++ file that defines the LLVMFuzzerTestOneInput function.
@@ -125,13 +127,13 @@ def find_libfuzzer_harnesses(codequery: CodeQuery) -> list[Path]:
     grep_pattern = r"int\s+LLVMFuzzerTestOneInput\s*\([^)]*\)"
 
     return _find_source_files(
-        codequery,
+        challenge_task,
         file_patterns=["*.c", "*.cc", "*.cpp", "*.cxx"],
         grep_pattern=grep_pattern,
     )
 
 
-def find_jazzer_harnesses(codequery: CodeQuery) -> list[Path]:
+def find_jazzer_harnesses(challenge_task: ChallengeTask) -> list[Path]:
     """Find Jazzer harnesses in the source directory.
 
     Heuristic: Java file that defines the fuzzerTestOneInput method.
@@ -140,33 +142,35 @@ def find_jazzer_harnesses(codequery: CodeQuery) -> list[Path]:
     grep_pattern = r"void\s+fuzzerTestOneInput\s*\([^)]*\)"
 
     return _find_source_files(
-        codequery,
+        challenge_task,
         file_patterns=["*.java"],
         grep_pattern=grep_pattern,
     )
 
 
-def _rebase_path(task_dir: Path, path: Path) -> Path:
-    container_src_dir = task_dir / CONTAINER_SRC_DIR
+def _rebase_path(challenge_task: ChallengeTask, path: Path) -> Path:
+    """Rebase a path from the challenge task source directory to a container-style path."""
+    source_dir = challenge_task.get_source_path()
     try:
-        res = path.relative_to(container_src_dir)
-        return Path("/", *res.parts)
+        res = path.relative_to(source_dir)
+        # Convert to container-style path starting with /src/
+        return Path("/src", res)
     except ValueError:
         return path.absolute()
 
 
-def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> list[Path]:
+def get_harness_source_candidates(challenge_task: ChallengeTask, harness_name: str) -> list[Path]:
     """Get the list of candidate source files for a harness, in descending order
     of fuzzy similarity to the harness name.
     """
-    project_yaml = ProjectYaml(codequery.challenge, codequery.challenge.project_name)
+    project_yaml = ProjectYaml(challenge_task, challenge_task.project_name)
     language = project_yaml.unified_language
 
     harnesses = []
     if language == Language.JAVA:
-        harnesses = find_jazzer_harnesses(codequery)
+        harnesses = find_jazzer_harnesses(challenge_task)
     else:
-        harnesses = find_libfuzzer_harnesses(codequery)
+        harnesses = find_libfuzzer_harnesses(challenge_task)
 
     # Sort harnesses by fuzzy similarity to harness_name
     harnesses.sort(
@@ -178,9 +182,9 @@ def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> li
 
 
 def get_harness_source(
-    redis: Redis | None, codequery: CodeQuery, harness_name: str
+    redis: Redis | None, challenge_task: ChallengeTask, harness_name: str
 ) -> HarnessInfo | None:
-    task_id = codequery.challenge.task_meta.task_id
+    task_id = challenge_task.task_meta.task_id
     logger.info("Getting harness source for %s | %s", task_id, harness_name)
     key = HarnessSourceCacheKey(
         task_id=task_id,
@@ -194,7 +198,7 @@ def get_harness_source(
         )
         return _harness_source_cache[key]
 
-    harnesses = get_harness_source_candidates(codequery, harness_name)
+    harnesses = get_harness_source_candidates(challenge_task, harness_name)
     if len(harnesses) == 0:
         logger.error("No harness found for %s | %s", task_id, harness_name)
         return None
@@ -202,7 +206,7 @@ def get_harness_source(
     if len(harnesses) == 1:
         logger.info("Found single harness for %s | %s: %s", task_id, harness_name, harnesses[0])
         harness_info = HarnessInfo(
-            file_path=_rebase_path(codequery.challenge.task_dir, harnesses[0]),
+            file_path=_rebase_path(challenge_task, harnesses[0]),
             code=harnesses[0].read_text(),
             harness_name=harness_name,
         )
@@ -220,14 +224,14 @@ def get_harness_source(
             task_id,
             harness_name,
         )
-        coverage_map = CoverageMap(redis, harness_name, codequery.challenge.project_name, task_id)
+        coverage_map = CoverageMap(redis, harness_name, challenge_task.project_name, task_id)
         function_coverages = coverage_map.list_function_coverage()
 
     # Check if any of the harnesses found through get_harness_source_candidates
     # intersect with the covered functions
     for function_coverage in function_coverages:
         for harness_path in harnesses:
-            rebased_harness_path = _rebase_path(codequery.challenge.task_dir, harness_path)
+            rebased_harness_path = _rebase_path(challenge_task, harness_path)
             if any(str(rebased_harness_path) == path for path in function_coverage.function_paths):
                 harness_info = HarnessInfo(
                     file_path=rebased_harness_path,
@@ -252,7 +256,7 @@ def get_harness_source(
         harness_name,
         harnesses[0],
     )
-    rebased_harness_path = _rebase_path(codequery.challenge.task_dir, harnesses[0])
+    rebased_harness_path = _rebase_path(challenge_task, harnesses[0])
     harness_info = HarnessInfo(
         file_path=rebased_harness_path,
         code=harnesses[0].read_text(),

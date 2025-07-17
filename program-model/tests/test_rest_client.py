@@ -48,7 +48,12 @@ class TestProgramModelClient:
         }
         mock_post.return_value = mock_response
 
-        result = client.initialize_task("test-task-123", Path("/work/dir"))
+        # Create a mock challenge task
+        mock_challenge = Mock()
+        mock_challenge.task_dir = Path("/test/task/dir")
+        mock_challenge.task_meta.task_id = "test-task-123"
+
+        result = client.initialize_task(mock_challenge, Path("/work/dir"))
 
         assert result.task_id == "test-task-123"
         assert result.status == "initialized"
@@ -68,8 +73,13 @@ class TestProgramModelClient:
         )
         mock_post.return_value = mock_response
 
+        # Create a mock challenge task
+        mock_challenge = Mock()
+        mock_challenge.task_dir = Path("/test/task/dir")
+        mock_challenge.task_meta.task_id = "test-task-123"
+
         with pytest.raises(ProgramModelClientError) as exc_info:
-            client.initialize_task("test-task-123", Path("/work/dir"))
+            client.initialize_task(mock_challenge, Path("/work/dir"))
 
         assert "Bad request" in str(exc_info.value)
 
@@ -266,7 +276,7 @@ class TestCodeQueryPersistentRest:
         CodeQueryPersistentRest(mock_challenge_task, Path("/work/dir"))
 
         mock_client.initialize_task.assert_called_once_with(
-            "test-task-123", Path("/work/dir")
+            mock_challenge_task, Path("/work/dir")
         )
 
     @patch("buttercup.program_model.rest_client.ProgramModelClient")

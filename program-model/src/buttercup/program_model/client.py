@@ -22,6 +22,7 @@ from buttercup.program_model.utils.common import (
     TypeDefinition,
     TypeUsageInfo,
 )
+from buttercup.common.challenge_task import ChallengeTask
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +72,15 @@ class ProgramModelClient:
         # Generic error handling
         response.raise_for_status()
 
-    def initialize_task(self, task_id: str, work_dir: Path) -> TaskInitResponse:
+    def initialize_task(
+        self, challenge_task: ChallengeTask, work_dir: Path
+    ) -> TaskInitResponse:
         """Initialize a task in the program-model service."""
         try:
-            request = TaskInitRequest(task_id=task_id, work_dir=str(work_dir))
+            task_id = challenge_task.task_meta.task_id
+            request = TaskInitRequest(
+                task_dir=str(challenge_task.read_only_task_dir), work_dir=str(work_dir)
+            )
 
             response = self._client.post(
                 f"{self.base_url}/tasks/{task_id}/init",

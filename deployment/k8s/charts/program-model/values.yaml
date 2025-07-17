@@ -8,6 +8,19 @@ resources:
     cpu: 100m
     memory: 512Mi
 
+api:
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+service:
+  port: 8123
+
 dind:
   resources:
     requests:

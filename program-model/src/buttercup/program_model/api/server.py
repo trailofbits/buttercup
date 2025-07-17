@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import os
+import tarfile
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Query, Path as FastAPIPath
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    Path as FastAPIPath,
+    Request,
+)
+from starlette.background import BackgroundTask
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.api.models import (
@@ -44,6 +55,70 @@ app.add_middleware(
 _codequery_instances: Dict[str, CodeQueryPersistent] = {}
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next: Any) -> Any:
+    """Log all incoming requests for debugging."""
+    logger.info("=== INCOMING REQUEST ===")
+    logger.info("Method: %s", request.method)
+    logger.info("URL: %s", request.url)
+    logger.info("Headers: %s", dict(request.headers))
+
+    # Log request body for POST requests
+    if request.method == "POST":
+        try:
+            body = await request.body()
+            logger.info("Request body: %s", body.decode() if body else "None")
+        except Exception as e:
+            logger.error("Failed to read request body: %s", e)
+
+    response = await call_next(request)
+
+    logger.info("=== RESPONSE ===")
+    logger.info("Status code: %s", response.status_code)
+    logger.info("=== END REQUEST ===")
+
+    return response
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    """Verify that all required dependencies are available on startup."""
+    logger.info("Starting Buttercup Program Model API Server")
+
+    # Check for required commands
+    required_commands = ["cscope", "ctags", "cqmakedb", "cqsearch"]
+    missing_commands = []
+
+    for command in required_commands:
+        if shutil.which(command) is None:
+            missing_commands.append(command)
+        else:
+            logger.info("Found %s at: %s", command, shutil.which(command))
+
+    if missing_commands:
+        logger.error("Missing required commands: %s", ", ".join(missing_commands))
+        raise RuntimeError(f"Missing required commands: {', '.join(missing_commands)}")
+
+    # Check environment
+    logger.info("Current working directory: %s", Path.cwd())
+    logger.info("Docker socket available: %s", Path("/var/run/docker.sock").exists())
+
+    # Check if we can access common directories
+    common_dirs = ["/crs_scratch", "/tasks_storage", "/node_data"]
+    for dir_path in common_dirs:
+        path = Path(dir_path)
+        if path.exists():
+            logger.info(
+                "Directory %s exists and is %s",
+                dir_path,
+                "writable" if os.access(path, os.W_OK) else "read-only",
+            )
+        else:
+            logger.warning("Directory %s does not exist", dir_path)
+
+    logger.info("All required dependencies are available")
+
+
 def get_codequery(task_id: str) -> CodeQueryPersistent:
     """Get or create a CodeQuery instance for a task."""
     if task_id not in _codequery_instances:
@@ -57,49 +132,105 @@ def get_codequery(task_id: str) -> CodeQueryPersistent:
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Any, exc: Exception) -> JSONResponse:
     """Handle general exceptions."""
-    logger.exception("Unhandled exception: %s", exc)
+    logger.exception(
+        "Unhandled exception in %s %s: %s", request.method, request.url, exc
+    )
+
+    # Provide more detailed error information
+    error_detail = str(exc)
+    if hasattr(exc, "__traceback__"):
+        import traceback
+
+        error_detail += (
+            f"\nTraceback:\n{''.join(traceback.format_tb(exc.__traceback__))}"
+        )
+
     return JSONResponse(
         status_code=500,
         content=ErrorResponse(
             error="Internal server error",
-            detail=str(exc),
+            detail=error_detail,
             code="INTERNAL_ERROR",
         ).model_dump(),
     )
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Root endpoint for debugging."""
+    return {
+        "message": "Buttercup Program Model API",
+        "version": "0.0.1",
+        "status": "running",
+    }
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {
+        "message": "Healthy",
+        "status": "ok",
+    }
 
 
 @app.post("/tasks/{task_id}/init", response_model=TaskInitResponse)
 async def initialize_task(
     request: TaskInitRequest,
-    task_id: str = FastAPIPath(..., description="Task ID to initialize"),
+    task_id: str = FastAPIPath(..., description="Task ID"),
 ) -> TaskInitResponse:
     """Initialize a CodeQuery instance for a task."""
     try:
-        logger.info("Initializing task %s with work_dir %s", task_id, request.work_dir)
-
-        # Create challenge task from task_id
-        # This assumes the task is available in the work directory
-        task_dir = Path(request.work_dir) / task_id
-        if not task_dir.exists():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Task directory {task_dir} does not exist",
-            )
-
-        challenge_task = ChallengeTask(task_dir)
+        task_dir = Path(request.task_dir)
         work_dir = Path(request.work_dir)
 
+        logger.info("=== TASK INITIALIZATION START ===")
+        logger.info("task_id: %s", task_id)
+        logger.info("Received task initialization request:")
+        logger.info("  request.task_dir: %s", task_dir)
+        logger.info("  request.work_dir: %s", work_dir)
+
+        # Validate request parameters
+        if not task_dir or not work_dir:
+            logger.error(
+                "Invalid request parameters: task_dir=%s, work_dir=%s",
+                task_dir,
+                work_dir,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid request parameters: task_dir and work_dir are required",
+            )
+
+        logger.info("Creating ChallengeTask...")
+        try:
+            challenge_task = ChallengeTask(read_only_task_dir=task_dir)
+            logger.info("ChallengeTask initialized successfully")
+        except Exception as e:
+            logger.exception("Failed to initialize ChallengeTask: %s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize ChallengeTask: {str(e)}",
+            )
+
         # Initialize CodeQuery
-        codequery = CodeQueryPersistent(challenge_task, work_dir=work_dir)
+        logger.info("Creating CodeQueryPersistent...")
+        try:
+            codequery = CodeQueryPersistent(
+                challenge_task, work_dir=Path(request.work_dir)
+            )
+            logger.info("CodeQuery initialized successfully")
+        except Exception as e:
+            logger.exception("Failed to initialize CodeQuery: %s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize CodeQuery: {str(e)}",
+            )
+
         _codequery_instances[task_id] = codequery
 
         logger.info("Successfully initialized task %s", task_id)
+        logger.info("=== TASK INITIALIZATION COMPLETE ===")
         return TaskInitResponse(
             task_id=task_id,
             status="initialized",
@@ -107,8 +238,10 @@ async def initialize_task(
         )
     except HTTPException:
         # Re-raise HTTPExceptions as-is (like the 400 error for missing task_dir)
+        logger.error("=== TASK INITIALIZATION FAILED (HTTPException) ===")
         raise
     except Exception as e:
+        logger.exception("=== TASK INITIALIZATION FAILED (Unexpected Exception) ===")
         logger.exception("Failed to initialize task %s: %s", task_id, e)
         raise HTTPException(
             status_code=500,
@@ -347,6 +480,55 @@ async def cleanup_task(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to cleanup task: {str(e)}",
+        )
+
+
+async def cleanup_file(filepath: Path) -> None:
+    """A function to clean up a file."""
+    if filepath.exists():
+        filepath.unlink()
+
+
+@app.get("/tasks/{task_id}/container-src-dir")
+async def download_container_src_dir(
+    task_id: str = FastAPIPath(..., description="Task ID"),
+) -> FileResponse:
+    """Download the container source directory as a tar.gz archive."""
+    try:
+        codequery = get_codequery(task_id)
+
+        # Get the container_src_dir path
+        container_src_dir = codequery._get_container_src_dir()
+
+        if not container_src_dir.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Container source directory does not exist for task {task_id}",
+            )
+
+        # Create a temporary tar.gz file
+        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
+            with tarfile.open(tmp_file.name, "w:gz") as tar:
+                tar.add(container_src_dir, arcname="container_src_dir")
+
+            # Return the file as a download
+            background_task = BackgroundTask(cleanup_file, filepath=Path(tmp_file.name))
+            return FileResponse(
+                path=tmp_file.name,
+                filename=f"container_src_dir_{task_id}.tar.gz",
+                media_type="application/gzip",
+                background=background_task,  # Clean up after download
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(
+            "Failed to download container source directory for task %s: %s", task_id, e
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to download container source directory: {str(e)}",
         )
 
 

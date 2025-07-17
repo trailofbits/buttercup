@@ -121,7 +121,7 @@ class Task:
         return llm.with_fallbacks(fallbacks)
 
     def get_harness_source(self) -> HarnessInfo | None:
-        return get_harness_source(self.redis, self.codequery, self.harness_name)
+        return get_harness_source(self.redis, self.challenge_task, self.harness_name)
 
     @staticmethod
     def clean_func_name(func_name: str) -> str:

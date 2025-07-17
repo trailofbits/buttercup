@@ -302,6 +302,8 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ int .Values.maxContextRetrieverRecursionLimit | default 80 | quote }}
 - name: TOB_PATCHER_MAX_MINUTES_RUN_POVS
   value: {{ int .Values.maxMinutesRunPOVs | default 30 | quote }}
+- name: PROGRAM_MODEL_API_URL
+  value: "http://{{ .Release.Name }}-program-model-api:8123"
 {{- end }}
 
 {{- define "buttercup.seedGenEnv" }}
@@ -321,6 +323,8 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ int .Values.maxCorpusSeedSize | quote }}
 - name: BUTTERCUP_SEED_GEN_SERVER__MAX_POV_SIZE
   value: {{ int .Values.global.maxPovSize | quote }}
+- name: PROGRAM_MODEL_API_URL
+  value: "http://{{ .Release.Name }}-program-model-api:8123"
 {{- end }}
 
 {{- define "buttercup.buildBotEnv" }}

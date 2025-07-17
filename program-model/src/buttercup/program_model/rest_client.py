@@ -35,7 +35,11 @@ class CodeQueryRest:
             base_url = os.getenv("PROGRAM_MODEL_API_URL", "http://localhost:8000")
 
         self.client = ProgramModelClient(base_url=base_url)
-        self.task_id = challenge.task_meta.task_id
+
+    @property
+    def task_id(self) -> str:
+        """Get the task ID from the challenge task."""
+        return str(self.challenge.task_meta.task_id)
 
     def get_functions(
         self,
@@ -172,16 +176,21 @@ class CodeQueryPersistentRest(CodeQueryRest):
 
         # Initialize the task in the remote service
         try:
-            response = self.client.initialize_task(self.task_id, work_dir)
-            logger.info("Initialized task %s: %s", self.task_id, response.message)
+            response = self.client.initialize_task(challenge, work_dir)
+            logger.info(
+                "Initialized task %s: %s", challenge.task_meta.task_id, response.message
+            )
+
         except ProgramModelClientError as e:
-            logger.error("Failed to initialize task %s: %s", self.task_id, e)
-            # Continue anyway - the task might already be initialized
+            logger.error(
+                "Failed to initialize task %s: %s", challenge.task_meta.task_id, e
+            )
+            raise e
 
     def __del__(self) -> None:
         """Clean up the task when the object is destroyed."""
         try:
-            if hasattr(self, "client") and hasattr(self, "task_id"):
-                self.client.cleanup_task(self.task_id)
+            if hasattr(self, "client") and hasattr(self, "challenge"):
+                self.client.cleanup_task(self.challenge.task_meta.task_id)
         except Exception:
             pass  # Ignore cleanup errors

@@ -67,7 +67,7 @@ class TestProgramModelAPI:
         """Test the health check endpoint."""
         response = client.get("/health")
         assert response.status_code == 200
-        assert response.json() == {"status": "healthy"}
+        assert response.json() == {"message": "Healthy", "status": "ok"}
 
     @patch("buttercup.program_model.api.server.ChallengeTask")
     @patch("buttercup.program_model.api.server.CodeQueryPersistent")
@@ -85,7 +85,7 @@ class TestProgramModelAPI:
 
         # Mock Path.exists to return True
         with patch("pathlib.Path.exists", return_value=True):
-            request_data = {"task_id": "test-task-123", "work_dir": "/test/work/dir"}
+            request_data = {"task_dir": "/test/task/dir", "work_dir": "/test/work/dir"}
 
             response = client.post("/tasks/test-task-123/init", json=request_data)
 
@@ -97,7 +97,7 @@ class TestProgramModelAPI:
     def test_initialize_task_missing_directory(self, client):
         """Test task initialization with missing directory."""
         with patch("pathlib.Path.exists", return_value=False):
-            request_data = {"task_id": "test-task-123", "work_dir": "/test/work/dir"}
+            request_data = {"task_dir": "/test/task/dir", "work_dir": "/test/work/dir"}
 
             response = client.post("/tasks/test-task-123/init", json=request_data)
 
@@ -214,5 +214,51 @@ class TestProgramModelAPI:
         """Test error when task is not initialized."""
         response = client.get("/tasks/uninitialized-task/functions?function_name=test")
 
+        assert response.status_code == 404
+        assert "not initialized" in response.json()["detail"]
+
+    def test_download_container_src_dir_success(
+        self,
+        mock_codequery_class,
+        mock_challenge_class,
+        client,
+        mock_challenge_task,
+        mock_codequery,
+    ):
+        """Test successful container source directory download."""
+        mock_challenge_class.return_value = mock_challenge_task
+        mock_codequery_class.return_value = mock_codequery
+
+        # Mock the container_src_dir to exist
+        mock_container_src_dir = Mock()
+        mock_container_src_dir.exists.return_value = True
+        mock_codequery._get_container_src_dir.return_value = mock_container_src_dir
+
+        # Mock Path.exists to return True
+        with patch("pathlib.Path.exists", return_value=True):
+            # First initialize the task
+            request_data = {"task_dir": "/test/task/dir", "work_dir": "/test/work/dir"}
+            client.post("/tasks/test-task-123/init", json=request_data)
+
+            # Then test the download endpoint
+            with patch("tarfile.open") as mock_tarfile:  # noqa: F841
+                with patch("tempfile.NamedTemporaryFile") as mock_tempfile:
+                    mock_tempfile.return_value.__enter__.return_value.name = (
+                        "/tmp/test.tar.gz"
+                    )
+                    mock_tempfile.return_value.__enter__.return_value.delete = False
+
+                    response = client.get("/tasks/test-task-123/container-src-dir")
+
+                    assert response.status_code == 200
+                    assert response.headers["content-type"] == "application/gzip"
+                    assert (
+                        "container_src_dir_test-task-123.tar.gz"
+                        in response.headers["content-disposition"]
+                    )
+
+    def test_download_container_src_dir_not_found(self, client):
+        """Test container source directory download when directory doesn't exist."""
+        response = client.get("/tasks/test-task-123/container-src-dir")
         assert response.status_code == 404
         assert "not initialized" in response.json()["detail"]
