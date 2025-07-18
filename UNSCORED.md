@@ -15,7 +15,7 @@ A list of vulnerabilities to find and patch is in this [spreadsheet](https://doc
 
 * Wait for all components to be `Running`: `watch 'kubectl get pods -n crs'`
 
-* `kubectl port-forward -n crs service/buttercup-competition-api 31323:1323`
+* `kubectl port-forward -n crs service/buttercup-ui 31323:1323`
 
 ## Steps
 
