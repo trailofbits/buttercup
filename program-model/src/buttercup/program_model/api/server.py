@@ -202,6 +202,25 @@ async def initialize_task(
                 detail="Invalid request parameters: task_dir and work_dir are required",
             )
 
+        if not task_dir.exists():
+            logger.error(
+                "Task directory does not exist: task_dir=%s",
+                task_dir,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Task directory does not exist",
+            )
+        if not work_dir.exists():
+            logger.error(
+                "Work directory does not exist: work_dir=%s",
+                work_dir,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Work directory does not exist",
+            )
+
         logger.info("Creating ChallengeTask...")
         try:
             challenge_task = ChallengeTask(read_only_task_dir=task_dir)

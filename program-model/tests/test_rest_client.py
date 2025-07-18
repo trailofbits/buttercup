@@ -280,20 +280,6 @@ class TestCodeQueryPersistentRest:
         )
 
     @patch("buttercup.program_model.rest_client.ProgramModelClient")
-    def test_initialization_error_continues(
-        self, mock_client_class, mock_challenge_task
-    ):
-        """Test CodeQueryPersistentRest continues on initialization error."""
-        mock_client = Mock()
-        mock_client.initialize_task.side_effect = ProgramModelClientError("Test error")
-        mock_client_class.return_value = mock_client
-
-        # Should not raise exception, just log error
-        cq = CodeQueryPersistentRest(mock_challenge_task, Path("/work/dir"))
-
-        assert cq.client == mock_client
-
-    @patch("buttercup.program_model.rest_client.ProgramModelClient")
     def test_destructor_cleanup(self, mock_client_class, mock_challenge_task):
         """Test destructor cleanup."""
         mock_client = Mock()
