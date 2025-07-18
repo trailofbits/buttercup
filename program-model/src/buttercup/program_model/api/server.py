@@ -26,6 +26,9 @@ from buttercup.program_model.api.models import (
     ErrorResponse,
     FunctionModel,
     FunctionSearchResponse,
+    HarnessInfoModel,
+    HarnessSearchRequest,
+    HarnessSearchResponse,
     TaskInitRequest,
     TaskInitResponse,
     TypeDefinitionModel,
@@ -33,6 +36,12 @@ from buttercup.program_model.api.models import (
     TypeUsageInfoModel,
 )
 from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.harness_finder import (
+    find_libfuzzer_harnesses,
+    find_jazzer_harnesses,
+    get_harness_source_candidates,
+    get_harness_source,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +190,14 @@ async def initialize_task(
 ) -> TaskInitResponse:
     """Initialize a CodeQuery instance for a task."""
     try:
+        if task_id in _codequery_instances:
+            logger.info("Task %s already initialized", task_id)
+            return TaskInitResponse(
+                task_id=task_id,
+                status="already_initialized",
+                message="Task already initialized",
+            )
+
         task_dir = Path(request.task_dir)
         work_dir = Path(request.work_dir)
 
@@ -477,6 +494,110 @@ async def get_type_calls(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get type calls: {str(e)}",
+        )
+
+
+@app.post("/tasks/{task_id}/harness/search", response_model=HarnessSearchResponse)
+async def search_harness(
+    request: HarnessSearchRequest,
+    task_id: str = FastAPIPath(..., description="Task ID"),
+) -> HarnessSearchResponse:
+    """Search for a harness by name."""
+    try:
+        codequery = get_codequery(task_id)
+        challenge_task = codequery.challenge
+
+        logger.info(
+            "Searching for harness %s in task %s", request.harness_name, task_id
+        )
+
+        # Get harness candidates
+        candidates = get_harness_source_candidates(challenge_task, request.harness_name)
+        candidate_paths = [str(candidate) for candidate in candidates]
+
+        # If no candidates found, return empty response
+        if not candidates:
+            return HarnessSearchResponse(
+                harness=None,
+                candidates=[],
+                total_candidates=0,
+            )
+
+        # Try to get the actual harness source
+        # Note: We don't have Redis in this context, so we'll use None
+        harness_info = get_harness_source(None, challenge_task, request.harness_name)
+
+        if harness_info:
+            # Convert to API model
+            harness_model = HarnessInfoModel(
+                file_path=str(harness_info.file_path),
+                code=harness_info.code,
+                harness_name=harness_info.harness_name,
+            )
+        else:
+            harness_model = None
+
+        return HarnessSearchResponse(
+            harness=harness_model,
+            candidates=candidate_paths,
+            total_candidates=len(candidates),
+        )
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as e:
+        logger.exception("Failed to search for harness: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search for harness: {str(e)}",
+        )
+
+
+@app.get("/tasks/{task_id}/harness/libfuzzer", response_model=list[str])
+async def get_libfuzzer_harnesses(
+    task_id: str = FastAPIPath(..., description="Task ID"),
+) -> list[str]:
+    """Get all libfuzzer harnesses in the task."""
+    try:
+        codequery = get_codequery(task_id)
+        challenge_task = codequery.challenge
+
+        logger.info("Finding libfuzzer harnesses in task %s", task_id)
+
+        harnesses = find_libfuzzer_harnesses(challenge_task.task_dir)
+        return [str(harness) for harness in harnesses]
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as e:
+        logger.exception("Failed to find libfuzzer harnesses: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to find libfuzzer harnesses: {str(e)}",
+        )
+
+
+@app.get("/tasks/{task_id}/harness/jazzer", response_model=list[str])
+async def get_jazzer_harnesses(
+    task_id: str = FastAPIPath(..., description="Task ID"),
+) -> list[str]:
+    """Get all jazzer harnesses in the task."""
+    try:
+        codequery = get_codequery(task_id)
+        challenge_task = codequery.challenge
+
+        logger.info("Finding jazzer harnesses in task %s", task_id)
+
+        harnesses = find_jazzer_harnesses(challenge_task.task_dir)
+        return [str(harness) for harness in harnesses]
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
+    except Exception as e:
+        logger.exception("Failed to find jazzer harnesses: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to find jazzer harnesses: {str(e)}",
         )
 
 

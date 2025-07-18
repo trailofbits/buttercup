@@ -121,7 +121,13 @@ class Task:
         return llm.with_fallbacks(fallbacks)
 
     def get_harness_source(self) -> HarnessInfo | None:
-        return get_harness_source(self.redis, self.challenge_task, self.harness_name)
+        # Use the REST API method if available, otherwise fall back to the old method
+        if hasattr(self.codequery, "search_harness"):
+            # Use the new REST API method
+            return self.codequery.search_harness(self.harness_name)
+        else:
+            # Fall back to the old method
+            return get_harness_source(self.redis, self.codequery, self.harness_name)
 
     @staticmethod
     def clean_func_name(func_name: str) -> str:

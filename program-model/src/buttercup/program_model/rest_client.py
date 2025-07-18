@@ -9,7 +9,12 @@ from typing import Optional
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.client import ProgramModelClient, ProgramModelClientError
-from buttercup.program_model.utils.common import Function, TypeDefinition, TypeUsageInfo
+from buttercup.program_model.utils.common import (
+    Function,
+    TypeDefinition,
+    TypeUsageInfo,
+)
+from buttercup.program_model.harness_models import HarnessInfo
 
 logger = logging.getLogger(__name__)
 
@@ -194,3 +199,51 @@ class CodeQueryPersistentRest(CodeQueryRest):
                 self.client.cleanup_task(self.challenge.task_meta.task_id)
         except Exception:
             pass  # Ignore cleanup errors
+
+    def get_type_calls(self, type_def: TypeDefinition) -> list[TypeUsageInfo]:
+        """Get type calls from the program-model service."""
+        try:
+            type_calls = self.client.get_type_calls(
+                self.task_id, type_def.name, type_def.file_path
+            )
+            return type_calls
+        except ProgramModelClientError as e:
+            logger.error("Failed to get type calls: %s", e)
+            return []
+
+    def search_harness(
+        self, harness_name: str, language: Optional[str] = None
+    ) -> Optional[HarnessInfo]:
+        """Search for a harness by name using the REST API."""
+        try:
+            response = self.client.search_harness(self.task_id, harness_name, language)
+
+            if response.harness is None:
+                return None
+
+            return HarnessInfo(
+                file_path=Path(response.harness.file_path),
+                code=response.harness.code,
+                harness_name=response.harness.harness_name,
+            )
+        except ProgramModelClientError as e:
+            logger.error("Failed to search for harness: %s", e)
+            return None
+
+    def get_libfuzzer_harnesses(self) -> list[Path]:
+        """Get all libfuzzer harnesses using the REST API."""
+        try:
+            harness_paths = self.client.get_libfuzzer_harnesses(self.task_id)
+            return [Path(path) for path in harness_paths]
+        except ProgramModelClientError as e:
+            logger.error("Failed to get libfuzzer harnesses: %s", e)
+            return []
+
+    def get_jazzer_harnesses(self) -> list[Path]:
+        """Get all jazzer harnesses using the REST API."""
+        try:
+            harness_paths = self.client.get_jazzer_harnesses(self.task_id)
+            return [Path(path) for path in harness_paths]
+        except ProgramModelClientError as e:
+            logger.error("Failed to get jazzer harnesses: %s", e)
+            return []

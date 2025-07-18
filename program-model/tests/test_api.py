@@ -94,15 +94,37 @@ class TestProgramModelAPI:
             assert response_data["task_id"] == "test-task-123"
             assert response_data["status"] == "initialized"
 
-    def test_initialize_task_missing_directory(self, client):
+    @patch("buttercup.program_model.api.server.ChallengeTask")
+    @patch("buttercup.program_model.api.server.CodeQueryPersistent")
+    def test_initialize_task_missing_directory(
+        self, mock_codequery_class, mock_challenge_class, client
+    ):
         """Test task initialization with missing directory."""
-        with patch("pathlib.Path.exists", return_value=False):
+        # Clear any existing task instances
+        from buttercup.program_model.api.server import _codequery_instances
+
+        _codequery_instances.clear()
+
+        # Configure mocks to not be called (since directory check should fail first)
+        mock_challenge_class.return_value = Mock()
+        mock_codequery_class.return_value = Mock()
+
+        # Patch Path.exists more specifically to target the server module
+        with patch("buttercup.program_model.api.server.Path") as mock_path_class:
+            mock_path = Mock()
+            mock_path.exists.return_value = False
+            mock_path_class.return_value = mock_path
+
             request_data = {"task_dir": "/test/task/dir", "work_dir": "/test/work/dir"}
 
             response = client.post("/tasks/test-task-123/init", json=request_data)
 
             assert response.status_code == 400
             assert "does not exist" in response.json()["detail"]
+
+            # Verify that the mock classes were not called since directory check failed
+            mock_challenge_class.assert_not_called()
+            mock_codequery_class.assert_not_called()
 
     @patch("buttercup.program_model.api.server.get_codequery")
     def test_search_functions(self, mock_get_codequery, client, mock_codequery):

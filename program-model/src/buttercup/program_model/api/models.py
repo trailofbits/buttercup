@@ -199,3 +199,32 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Additional error details")
     code: Optional[str] = Field(None, description="Error code")
+
+
+class HarnessInfoModel(BaseModel):
+    """API model for harness information."""
+
+    file_path: str = Field(..., description="Path to the harness file")
+    code: str = Field(..., description="Source code of the harness")
+    harness_name: str = Field(..., description="Name of the harness")
+
+
+class HarnessSearchRequest(BaseModel):
+    """Request model for harness search."""
+
+    harness_name: str = Field(..., description="Name of the harness to search for")
+    language: Optional[str] = Field(
+        None, description="Programming language (cpp, java, etc.)"
+    )
+
+
+class HarnessSearchResponse(BaseModel):
+    """Response model for harness search."""
+
+    harness: Optional[HarnessInfoModel] = Field(
+        None, description="Found harness information"
+    )
+    candidates: list[str] = Field(
+        default_factory=list, description="List of candidate file paths"
+    )
+    total_candidates: int = Field(..., description="Total number of candidates found")

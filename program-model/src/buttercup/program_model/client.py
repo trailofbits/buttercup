@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from buttercup.program_model.api.models import (
     ErrorResponse,
     FunctionSearchResponse,
+    HarnessSearchRequest,
+    HarnessSearchResponse,
     TaskInitRequest,
     TaskInitResponse,
     TypeSearchResponse,
@@ -251,6 +253,53 @@ class ProgramModelClient:
                 self._handle_error(response)
         except httpx.HTTPError as e:
             raise ProgramModelClientError(f"Failed to cleanup task: {e}")
+
+    def search_harness(
+        self, task_id: str, harness_name: str, language: Optional[str] = None
+    ) -> HarnessSearchResponse:
+        """Search for a harness by name."""
+        try:
+            request = HarnessSearchRequest(harness_name=harness_name, language=language)
+
+            response = self._client.post(
+                f"{self.base_url}/tasks/{task_id}/harness/search",
+                json=request.model_dump(),
+            )
+
+            if response.status_code != 200:
+                self._handle_error(response)
+
+            return HarnessSearchResponse.model_validate(response.json())
+        except httpx.HTTPError as e:
+            raise ProgramModelClientError(f"Failed to search for harness: {e}")
+
+    def get_libfuzzer_harnesses(self, task_id: str) -> list[str]:
+        """Get all libfuzzer harnesses in the task."""
+        try:
+            response = self._client.get(
+                f"{self.base_url}/tasks/{task_id}/harness/libfuzzer"
+            )
+
+            if response.status_code != 200:
+                self._handle_error(response)
+
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.HTTPError as e:
+            raise ProgramModelClientError(f"Failed to get libfuzzer harnesses: {e}")
+
+    def get_jazzer_harnesses(self, task_id: str) -> list[str]:
+        """Get all jazzer harnesses in the task."""
+        try:
+            response = self._client.get(
+                f"{self.base_url}/tasks/{task_id}/harness/jazzer"
+            )
+
+            if response.status_code != 200:
+                self._handle_error(response)
+
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.HTTPError as e:
+            raise ProgramModelClientError(f"Failed to get jazzer harnesses: {e}")
 
     def close(self) -> None:
         """Close the HTTP client."""
