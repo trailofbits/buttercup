@@ -115,7 +115,7 @@ For this example, the `read:packages` scope is required.
 Once you have your PAT, you will need to base64 encode it for use within `secrets.tf`:
 
 ```bash
-echo -n "ghcr_username:ghcr_token" | base64
+echo -n "ghcr_username:ghcr_token" | base64 --wrap=0
 ```
 
 > replace `ghcr_username` and `ghcr_token` with your GitHub username and your PAT respectively.
