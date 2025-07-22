@@ -99,16 +99,6 @@ deploy-production:
 	echo "CRS instance ID: $$crs_instance_id"
 	make wait-crs
 
-deploy-macbook:
-	@echo "Deploying to local Minikube environment for limited resources..."
-	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-macbook' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	make crs-instance-id
-	make wait-crs
-
 # Testing targets
 test:
 	@echo "Running test task..."

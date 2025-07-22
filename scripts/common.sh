@@ -207,6 +207,22 @@ install_just_mac() {
     fi
 }
 
+# Function to set Macbook k8s template
+k8s_template_macbook() {
+    print_status "Setting up Macbook template..."
+
+    # Source the env file to check current values
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    # Modify the k8s template
+    BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-minikube-macbook.template"
+    portable_sed "s|.*export BUTTERCUP_K8S_VALUES_TEMPLATE=.*|export BUTTERCUP_K8S_VALUES_TEMPLATE=\"$BUTTERCUP_K8S_VALUES_TEMPLATE\"|" deployment/env
+    
+    print_success "Macbook template setup completed"
+}
+
 # Function to check Docker
 check_docker() {
     print_status "Checking Docker..."

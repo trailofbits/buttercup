@@ -56,6 +56,7 @@ main() {
     install_git_lfs_mac
     install_just_mac
     setup_config
+    k8s_template_macbook
     
     verify_setup
     

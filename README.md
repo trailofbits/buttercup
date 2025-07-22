@@ -198,6 +198,24 @@ make clean
 cd deployment && make down
 ```
 
+## Macbook Development
+
+### Modify Resource Constraints
+
+See `deployment/k8s/values-minikube-macbook.template`.
+
+### Setup CRS
+
+```bash
+make setup-macbook
+
+make validate
+
+make deploy-local
+
+make test
+```
+
 ## Development Workflow
 
 ### Using Makefile Shortcuts
