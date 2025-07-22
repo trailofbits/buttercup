@@ -54,6 +54,16 @@ install_docker() {
     fi
 }
 
+install_docker_mac() {
+    print_status "Installing Docker (also installs Kubectl)..."
+    if ! command_exists docker; then
+        brew install --cask docker
+        print_success "Docker installed successfully"
+    else
+        print_success "Docker is already installed"
+    fi
+}
+
 # Function to install kubectl
 install_kubectl() {
     print_status "Installing kubectl..."
@@ -81,6 +91,16 @@ install_helm() {
     fi
 }
 
+install_helm_mac() {
+    print_status "Installing Helm..."
+    if ! command_exists helm; then
+        brew install helm
+        print_success "Helm installed successfully"
+    else
+        print_success "Helm is already installed"
+    fi
+}
+
 # Function to install Minikube
 install_minikube() {
     print_status "Installing Minikube..."
@@ -94,6 +114,16 @@ install_minikube() {
     fi
 }
 
+install_minikube_mac() {
+    print_status "Installing Minikube..."
+    if ! command_exists minikube; then
+        brew install minikube
+        print_success "Minikube installed successfully"
+    else
+        print_success "Minikube is already installed"
+    fi
+}
+
 # Function to install Git LFS
 install_git_lfs() {
     print_status "Installing Git LFS..."
@@ -101,6 +131,16 @@ install_git_lfs() {
         sudo apt-get update
         sudo apt-get install -y git-lfs
         git lfs install
+        print_success "Git LFS installed successfully"
+    else
+        print_success "Git LFS is already installed"
+    fi
+}
+
+install_git_lfs_mac() {
+    print_status "Installing Git LFS..."
+    if ! command_exists git-lfs; then
+        brew install git-lfs
         print_success "Git LFS installed successfully"
     else
         print_success "Git LFS is already installed"
@@ -125,6 +165,16 @@ install_just() {
             print_error "Could not install Just. Please install it manually."
             return 1
         fi
+        print_success "Just installed successfully"
+    else
+        print_success "Just is already installed"
+    fi
+}
+
+install_just_mac() {
+    print_status "Installing Just..."
+    if ! command_exists just; then
+        brew install just
         print_success "Just installed successfully"
     else
         print_success "Just is already installed"

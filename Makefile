@@ -9,12 +9,14 @@ help:
 	@echo "Setup:"
 	@echo "  setup-local       - Automated local development setup"
 	@echo "  setup-production  - Automated production AKS setup"
+	@echo "  setup-macbook     - Automated local development setup for limited resources"
 	@echo "  validate          - Validate current setup and configuration"
 	@echo ""
 	@echo "Deployment:"
 	@echo "  deploy            - Deploy to current environment (local or production)"
 	@echo "  deploy-local      - Deploy to local Minikube environment"
 	@echo "  deploy-production - Deploy to production AKS environment"
+	@echo "  deploy-macbook     - Deploy to local Minikube environment for limited resources"
 	@echo ""
 	@echo "Testing:"
 	@echo "  test              - Run test task"
@@ -26,6 +28,7 @@ help:
 	@echo "Cleanup:"
 	@echo "  clean             - Clean up deployment"
 	@echo "  clean-local       - Clean up local environment"
+	@echo "  clean-macbook      - Clean up local environment for limited resources"
 
 # Setup targets
 setup-local:
@@ -35,6 +38,10 @@ setup-local:
 setup-production:
 	@echo "Setting up production AKS environment..."
 	./scripts/setup-production.sh
+
+setup-macbook:
+	@echo "Setting up local development environment for limited resources..."
+	./scripts/setup-macbook.sh
 
 validate:
 	@echo "Validating setup..."
@@ -90,6 +97,16 @@ deploy-production:
 	cd deployment && make up
 	crs_instance_id=$$(make crs-instance-id)
 	echo "CRS instance ID: $$crs_instance_id"
+	make wait-crs
+
+deploy-macbook:
+	@echo "Deploying to local Minikube environment for limited resources..."
+	@if [ ! -f deployment/env ]; then \
+		echo "Error: Configuration file not found. Run 'make setup-macbook' first."; \
+		exit 1; \
+	fi
+	cd deployment && make up
+	make crs-instance-id
 	make wait-crs
 
 # Testing targets
