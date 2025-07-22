@@ -47,6 +47,8 @@ verify_setup() {
 # Main execution
 main() {
     print_status "Starting local development setup..."
+
+    brew_exists
     
     install_docker_mac
     install_helm_mac

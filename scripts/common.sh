@@ -55,6 +55,17 @@ check_not_root() {
     fi
 }
 
+# Function to check if brew exists
+brew_exists() {
+    print_status "Checking if brew exists..."
+    if ! command_exists brew; then
+        print_error "brew is not installed. Please install it from https://brew.sh/"
+        exit 1
+    else
+        print_success "brew is installed"
+    fi
+}
+
 # Function to install Docker
 install_docker() {
     print_status "Installing Docker..."
