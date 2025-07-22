@@ -47,8 +47,8 @@ dind-daemon:
   enabled: true
   resources:
     limits:
-      cpu: 16000m
-      memory: 32Gi
+      cpu: 8000m
+      memory: 16Gi
     requests:
       cpu: 1000m
       memory: 6Gi
@@ -56,7 +56,154 @@ dind-daemon:
 redis:
   master:
     persistence:
-      enabled: false
+      enabled: true
+      size: 50Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 16Gi
+      requests:
+        cpu: 1000m
+        memory: 8Gi
+
+task-server:
+  enabled: true
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 1Gi
+
+task-downloader:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  
+scheduler:
+  enabled: true
+  patchRequestsPerVulnerability: 1
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+program-model:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 8Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+build-bot:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+fuzzer-bot:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 16Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+merger-bot:
+  enabled: true
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+coverage-bot:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+    requests:
+      cpu: 250m
+      memory: 2Gi
+
+tracer-bot:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+pov-reproducer:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 4Gi
+
+seed-gen:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+patcher:
+  enabled: true
+  replicaCount: 1
+  maxPatchRetries: 10
+  maxContextRetrieverRecursionLimit: 100
+  maxMinutesRunPOVs: 30
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 6Gi
+    requests:
+      cpu: 500m
+      memory: 2Gi
+
+competition-api:
+  enabled: ${COMPETITION_API_ENABLED}
+
+mock-competition-api:
+  enabled: ${MOCK_COMPETITION_API_ENABLED}
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
@@ -68,8 +215,34 @@ litellm:
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
 
-competition-api:
-  enabled: ${COMPETITION_API_ENABLED}
+litellm-helm:
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 8Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
 
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
+  postgresql:
+    primary:
+      resources:
+        limits:
+          cpu: 8000m
+          memory: 16Gi
+        requests:
+          cpu: 2000m
+          memory: 2Gi
+
+registry-cache:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 100Gi
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 2000m
+      memory: 4Gi
