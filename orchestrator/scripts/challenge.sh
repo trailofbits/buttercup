@@ -368,7 +368,7 @@ submit_task() {
     json_data="${json_data%,}}"  # Remove trailing comma
 
     echo $json_data | jq -C '.'
-    curl -X 'POST' 'http://127.0.0.1:31323/webhook/trigger_task' -H 'Content-Type: application/json' -d "$json_data"
+    curl -X 'POST' 'http://localhost:31323/webhook/trigger_task' -H 'Content-Type: application/json' -d "$json_data"
 }
 
 # From: https://github.com/tob-challenges/example-crs-architecture/blob/879eaa9a6d5b761ecfcf78d3bda9c0c612c0fac7/docs/round_info/exhibition-round-1.md
