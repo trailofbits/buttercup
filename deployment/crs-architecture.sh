@@ -51,6 +51,11 @@ if [ "$DEPLOY_CLUSTER" = "true" ] && [ "$CLUSTER_TYPE" = "aks" ]; then
 	az account show --query "{SubscriptionID:id, Tenant:tenantId}" --output table || echo -e "${RED}Error: Failed to retrieve azure account status${NC}"
 fi
 
+# If not set, configure minikube memory to 32g
+if [ -z "$MINIKUBE_MEMORY" ]; then
+	MINIKUBE_MEMORY="32g"
+fi
+
 #deploy the AKS cluster and kubernetes resources function
 up() {
 
@@ -93,7 +98,7 @@ up() {
 				;;
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
-				minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
+				minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory="$MINIKUBE_MEMORY" --disk-size=80g --driver=docker --kubernetes-version=stable
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 

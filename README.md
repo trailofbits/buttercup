@@ -204,6 +204,10 @@ cd deployment && make down
 
 See `deployment/k8s/values-minikube-macbook.template`.
 
+By default, minikube is configured to use 16GB of memory.
+
+You may need to modify your `Docker Desktop -> Settings -> Resources` values accordingly (e.g., set memory to 20GB). If you do, quit and then reopen Docker Desktop.
+
 ### Setup CRS
 
 ```bash
@@ -211,7 +215,7 @@ make setup-macbook
 
 make validate
 
-make deploy-local
+make deploy-macbook
 
 make test
 ```

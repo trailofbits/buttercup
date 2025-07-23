@@ -36,7 +36,7 @@ global:
     hostname: "${CRS_API_HOSTNAME}"
     competition_api_key_id: ${COMPETITION_API_KEY_ID}
     competition_api_key_token: ${COMPETITION_API_KEY_TOKEN}
-    competition_api_url: "${COMPETITION_API_URL}"
+    competition_api_url: "ui"
 
   otel:
     endpoint: "${OTEL_ENDPOINT}"
@@ -47,66 +47,48 @@ dind-daemon:
   enabled: true
   resources:
     limits:
-      cpu: 8000m
-      memory: 16Gi
+      cpu: 2000m
+      memory: 8Gi
     requests:
-      cpu: 1000m
-      memory: 6Gi
+      cpu: 500m
+      memory: 1Gi
 
 redis:
   master:
     persistence:
-      enabled: true
-      size: 50Gi
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 16Gi
-      requests:
-        cpu: 1000m
-        memory: 8Gi
-
-task-server:
-  enabled: true
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
-      cpu: 250m
-      memory: 1Gi
+      enabled: false
 
 task-downloader:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 2000m
-      memory: 2Gi
-    requests:
-      cpu: 250m
+      cpu: 300m
       memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
   
 scheduler:
   enabled: true
   patchRequestsPerVulnerability: 1
   resources:
     limits:
-      cpu: 2000m
-      memory: 2Gi
+      cpu: 500m
+      memory: 512Mi
     requests:
       cpu: 250m
-      memory: 512Mi
+      memory: 256Mi
 
 program-model:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 8000m
-      memory: 8Gi
+      cpu: 300m
+      memory: 1Gi
     requests:
-      cpu: 250m
+      cpu: 100m
       memory: 512Mi
 
 build-bot:
@@ -114,76 +96,76 @@ build-bot:
   replicaCount: 1
   resources:
     limits:
-      cpu: 2000m
-      memory: 2Gi
+      cpu: 500m
+      memory: 512Mi
     requests:
       cpu: 250m
-      memory: 512Mi
+      memory: 256Mi
 
 fuzzer-bot:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 8000m
-      memory: 16Gi
-    requests:
       cpu: 500m
-      memory: 512Mi
+      memory: 4Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
 
 merger-bot:
   enabled: true
   resources:
     limits:
-      cpu: 2000m
-      memory: 8Gi
+      cpu: 1000m
+      memory: 2Gi
     requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 512Mi
 
 coverage-bot:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 2000m
-      memory: 8Gi
+      cpu: 1000m
+      memory: 2Gi
     requests:
       cpu: 250m
-      memory: 2Gi
+      memory: 256Mi
 
 tracer-bot:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 4000m
+      cpu: 300m
       memory: 2Gi
     requests:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 100m
+      memory: 256Mi
 
 pov-reproducer:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 8000m
-      memory: 4Gi
-    requests:
       cpu: 500m
-      memory: 4Gi
+      memory: 2Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
 
 seed-gen:
   enabled: true
   replicaCount: 1
   resources:
     limits:
-      cpu: 2000m
-      memory: 8Gi
-    requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
 
 patcher:
   enabled: true
@@ -193,14 +175,24 @@ patcher:
   maxMinutesRunPOVs: 30
   resources:
     limits:
-      cpu: 2000m
-      memory: 6Gi
-    requests:
       cpu: 500m
-      memory: 2Gi
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+ui:
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
 
 competition-api:
-  enabled: ${COMPETITION_API_ENABLED}
+  enabled: false
 
 mock-competition-api:
   enabled: ${MOCK_COMPETITION_API_ENABLED}
@@ -215,34 +207,17 @@ litellm:
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
 
-litellm-helm:
-  resources:
-    limits:
-      cpu: 8000m
-      memory: 8Gi
-    requests:
-      cpu: 1000m
-      memory: 1Gi
-
-  postgresql:
-    primary:
-      resources:
-        limits:
-          cpu: 8000m
-          memory: 16Gi
-        requests:
-          cpu: 2000m
-          memory: 2Gi
-
-registry-cache:
-  enabled: true
-  persistence:
-    enabled: true
-    size: 100Gi
-  resources:
-    limits:
-      cpu: 4000m
-      memory: 8Gi
-    requests:
-      cpu: 2000m
-      memory: 4Gi
+image-preloader:
+  baseImages:
+    - gcr.io/oss-fuzz/base-runner
+    - gcr.io/oss-fuzz/base-builder
+    - gcr.io/oss-fuzz/base-image
+    - gcr.io/oss-fuzz/base-clang
+    - gcr.io/oss-fuzz/base-runner-debug
+    - gcr.io/oss-fuzz-base/base-builder-jvm
+    - gcr.io/oss-fuzz-base/base-builder-ruby
+    - gcr.io/oss-fuzz-base/base-builder-go
+    - gcr.io/oss-fuzz-base/base-builder-python
+    - gcr.io/oss-fuzz-base/base-builder-rust
+  versions:
+    - latest
