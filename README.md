@@ -218,6 +218,17 @@ make validate
 make deploy-macbook
 
 make test
+
+```
+
+### Cleanup CRS
+
+```bash
+# Turn off the CRS
+minikube delete
+
+# Remove configs
+make clean-macbook
 ```
 
 ## Development Workflow

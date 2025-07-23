@@ -144,3 +144,8 @@ clean-local:
 	@echo "Cleaning up local environment..."
 	minikube delete || true
 	rm -f deployment/env
+
+clean-macbook:
+	@echo "Cleaning up local environment..."
+	minikube delete || true
+	rm -f deployment/env
