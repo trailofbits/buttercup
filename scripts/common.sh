@@ -314,8 +314,12 @@ configure_local_api_keys() {
     
     # GitHub Container Registry
     if [ -n "$GHCR_AUTH" ] && [ "$GHCR_AUTH" != "<your-ghcr-base64-auth>" ]; then
-        print_status "GitHub Container Registry authentication is already configured"
+        print_status "GitHub Personal Access Token is already configured"
     else
+        print_status "Configuring Github Personal Access Token"
+        # Can use a fine-grained PAT for local deployment but azure deployment requires a classic PAT
+        print_status "Local deployment required permissions: read challenge repos"
+        print_status "Azure deployment required permissions: read GHCR packages and challenge repos"
         read -p "Enter your GitHub username (press Enter to use 'USERNAME'): " ghcr_username
         if [ -z "$ghcr_username" ]; then
             ghcr_username="USERNAME"
@@ -324,7 +328,7 @@ configure_local_api_keys() {
         echo
         
         # Compute GHCR_AUTH
-        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64)
+        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
         sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
     fi
     
