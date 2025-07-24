@@ -222,12 +222,6 @@ make validate
 
 make deploy-macbook
 
-# Check information
-kubectl describe pod -n crs buttercup-build-bot
-kubectl get pods -n crs
-kubectl exec -it -n crs buttercup-build-bot -- /bin/bash
-# Execute `uname -a` to double-check that it's x86_64 architecture
-
 kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 bash ./orchestrator/scripts/challenge.sh single integration_test_delta_01 1800
 
