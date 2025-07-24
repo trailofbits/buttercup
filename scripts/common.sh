@@ -315,7 +315,7 @@ configure_ghcr() {
     echo
     
     # Compute GHCR_AUTH
-    ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64)
+    ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
     sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
 }
 
@@ -485,9 +485,10 @@ configure_local_api_keys() {
     echo -e "${BLUE}The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet).${NC}"
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
-    # GitHub Container Registry
-    echo -e "${BLUE}GitHub Container Registry: Required to pull private competition containers.${NC}"
-    echo -e "${BLUE}Your GitHub PAT needs 'package:read' permissions to access ghcr.io repositories.${NC}"
+    # GitHub Personal Access Token
+    echo -e "${BLUE}GitHub Personal Access Token: Required to pull private competition containers.${NC}"
+    echo -e "${BLUE}Local deployment required permissions: read challenge repos.${NC}"
+    echo -e "${BLUE}Azure deployment required permissions: read GHCR packages and challenge repos.${NC}"
     configure_service "GHCR_AUTH" "GitHub Container Registry authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" true "configure_ghcr"
     
     # Docker Hub credentials (optional)
