@@ -27,6 +27,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_linebreak() {
+    echo "----------------------"
+}
+
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -243,6 +247,7 @@ setup_config_file() {
 
 # Function to configure LangFuse
 configure_langfuse() {
+    print_linebreak
     print_status "Configuring LangFuse (optional monitoring)..."
     
     # Source the env file to check current values
@@ -476,22 +481,26 @@ configure_local_api_keys() {
     fi
     
     # OpenAI API Key (Optional)
+    print_linebreak
     print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
     print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
     configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
     
     # Anthropic API Key (Optional)
+    print_linebreak
     print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
     print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
     # GitHub Personal Access Token
-    print_status "GitHub Personal Access Token: Required to pull private competition containers."
+    print_linebreak
+    print_status "GitHub Personal Access Token: Required to access private resources."
     print_status "Local deployment required permissions: read challenge repos."
     print_status "Azure deployment required permissions: read GHCR packages and challenge repos."
     configure_service "GHCR_AUTH" "GitHub Container Registry authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" true "configure_ghcr"
     
     # Docker Hub credentials (optional)
+    print_linebreak
     print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
     print_status "Recommended for reliable builds, but not strictly required for operation."
     configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
@@ -526,6 +535,7 @@ configure_local_api_keys() {
 
 # Function to configure OTEL telemetry
 configure_otel() {
+    print_linebreak
     print_status "Configuring OpenTelemetry telemetry (optional)..."
     
     # Source the env file to check current values
