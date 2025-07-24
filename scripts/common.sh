@@ -250,8 +250,8 @@ configure_langfuse() {
         source deployment/env
     fi
     
-    echo -e "${BLUE}LangFuse: Optional LLM monitoring and observability platform.${NC}"
-    echo -e "${BLUE}Tracks AI model usage, costs, and performance metrics for debugging and optimization.${NC}"
+    print_status "LangFuse: Optional LLM monitoring and observability platform."
+    print_status "Tracks AI model usage, costs, and performance metrics for debugging and optimization."
     
     # Use a meaningful current value for the check
     local current_langfuse_config=""
@@ -476,24 +476,24 @@ configure_local_api_keys() {
     fi
     
     # OpenAI API Key (Optional)
-    echo -e "${BLUE}OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation.${NC}"
-    echo -e "${BLUE}The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini).${NC}"
+    print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
+    print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
     configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
     
     # Anthropic API Key (Optional)
-    echo -e "${BLUE}Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation.${NC}"
-    echo -e "${BLUE}The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet).${NC}"
+    print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
+    print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
     # GitHub Personal Access Token
-    echo -e "${BLUE}GitHub Personal Access Token: Required to pull private competition containers.${NC}"
-    echo -e "${BLUE}Local deployment required permissions: read challenge repos.${NC}"
-    echo -e "${BLUE}Azure deployment required permissions: read GHCR packages and challenge repos.${NC}"
+    print_status "GitHub Personal Access Token: Required to pull private competition containers."
+    print_status "Local deployment required permissions: read challenge repos."
+    print_status "Azure deployment required permissions: read GHCR packages and challenge repos."
     configure_service "GHCR_AUTH" "GitHub Container Registry authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" true "configure_ghcr"
     
     # Docker Hub credentials (optional)
-    echo -e "${BLUE}Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images.${NC}"
-    echo -e "${BLUE}Recommended for reliable builds, but not strictly required for operation.${NC}"
+    print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
+    print_status "Recommended for reliable builds, but not strictly required for operation."
     configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
     
     # Validate that at least one LLM API key is configured
@@ -533,8 +533,8 @@ configure_otel() {
         source deployment/env
     fi
     
-    echo -e "${BLUE}OpenTelemetry: Optional distributed tracing and metrics collection.${NC}"
-    echo -e "${BLUE}Provides detailed performance monitoring and system observability for debugging.${NC}"
+    print_status "OpenTelemetry: Optional distributed tracing and metrics collection."
+    print_status "Provides detailed performance monitoring and system observability for debugging."
     
     configure_service "OTEL" "OpenTelemetry configuration" "$OTEL_ENDPOINT" "<your-otel-endpoint>" false "configure_otel_wrapper"
 }
