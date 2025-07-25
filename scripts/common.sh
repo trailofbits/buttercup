@@ -308,19 +308,6 @@ read_and_set_config() {
 }
 
 # Helper function for GHCR configuration
-configure_ghcr() {
-    read -p "Enter your GitHub username (press Enter to use 'USERNAME'): " ghcr_username
-    if [ -z "$ghcr_username" ]; then
-        ghcr_username="USERNAME"
-    fi
-    read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
-    echo
-    
-    # Compute GHCR_AUTH
-    ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
-    sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
-}
-
 configure_ghcr_optional() {
     read -p "Enter your GitHub username (press Enter to skip): " ghcr_username
     if [ -n "$ghcr_username" ]; then
