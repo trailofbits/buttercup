@@ -308,17 +308,21 @@ read_and_set_config() {
 }
 
 # Helper function for GHCR configuration
-configure_ghcr() {
-    read -p "Enter your GitHub username (press Enter to use 'USERNAME'): " ghcr_username
-    if [ -z "$ghcr_username" ]; then
-        ghcr_username="USERNAME"
+configure_ghcr_optional() {
+    read -p "Enter your GitHub username (press Enter to skip): " ghcr_username
+    if [ -n "$ghcr_username" ]; then
+        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
+        echo
+        
+        # Compute GHCR_AUTH
+        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
+        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
+        return 0
+    else
+        # Clear GHCR_AUTH if skipped
+        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"\"|" deployment/env
+        return 1
     fi
-    read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
-    echo
-    
-    # Compute GHCR_AUTH
-    ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
-    sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
 }
 
 # Helper function for Docker Hub configuration
@@ -489,12 +493,11 @@ configure_local_api_keys() {
     print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
-    # GitHub Personal Access Token
+    # GitHub Personal Access Token (Optional)
     print_linebreak
-    print_status "GitHub Personal Access Token: Required to access private resources."
-    print_status "Local deployment required permissions: read challenge repos."
-    print_status "Azure deployment required permissions: read GHCR packages and challenge repos."
-    configure_service "GHCR_AUTH" "GitHub Container Registry authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" true "configure_ghcr"
+    print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
+    print_status "Only needed if Buttercup will access private repositories or packages."
+    configure_service "GHCR_AUTH" "GitHub authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" false "configure_ghcr_optional"
     
     # Docker Hub credentials (optional)
     print_linebreak
@@ -574,58 +577,6 @@ check_config() {
     else
         print_error "BUTTERCUP_K8S_VALUES_TEMPLATE is not set"
         return 1
-    fi
-}
-
-# Function to check Minikube configuration
-check_minikube_config() {
-    print_status "Checking Minikube configuration..."
-    
-    local errors=0
-    
-    # Check required API keys
-    local required_vars=(
-        "OPENAI_API_KEY"
-        "ANTHROPIC_API_KEY"
-        "GHCR_AUTH"
-    )
-    
-    for var in "${required_vars[@]}"; do
-        if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-            print_error "Required variable $var is not set or has placeholder value"
-            errors=$((errors + 1))
-        fi
-    done
-    
-    # Check optional LangFuse configuration
-    if [ "$LANGFUSE_ENABLED" = "true" ]; then
-        local langfuse_vars=(
-            "LANGFUSE_HOST"
-            "LANGFUSE_PUBLIC_KEY"
-            "LANGFUSE_SECRET_KEY"
-        )
-        
-        for var in "${langfuse_vars[@]}"; do
-            if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-                print_error "LangFuse variable $var is not set or has placeholder value"
-                errors=$((errors + 1))
-            fi
-        done
-    fi
-    
-    # Check optional OTEL configuration
-    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
-        if [ -z "$OTEL_PROTOCOL" ] || [ "$OTEL_PROTOCOL" = "<your-*>" ]; then
-            print_error "OTEL_PROTOCOL is not set when OTEL_ENDPOINT is configured"
-            errors=$((errors + 1))
-        fi
-    fi
-    
-    if [ $errors -eq 0 ]; then
-        print_success "Minikube configuration is valid"
-    else
-        print_error "Minikube configuration has $errors error(s)"
-        return $errors
     fi
 }
 

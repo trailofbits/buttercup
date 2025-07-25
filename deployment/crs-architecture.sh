@@ -70,6 +70,7 @@ up() {
 			GHCR_PAT=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f2)
 			GHCR_USERNAME=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f1)
 		else
+			# TODO: remove this warning when production deploy does not rely on private images
 			echo -e "${RED}Warning: GHCR_AUTH not set, Docker builds may fail to pull from ghcr.io${NC}"
 		fi
 
@@ -117,8 +118,6 @@ up() {
 						echo -e "  3. Format: echo 'USERNAME:TOKEN' | base64${NC}"
 						exit 1
 					fi
-				else
-					echo -e "${RED}Warning: GHCR_AUTH not set, Docker builds may fail to pull from ghcr.io${NC}"
 				fi
 
 				if [ -n "$FUZZER_BASE_IMAGE" ]; then
