@@ -321,6 +321,23 @@ configure_ghcr() {
     sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
 }
 
+configure_ghcr_optional() {
+    read -p "Enter your GitHub username (press Enter to skip): " ghcr_username
+    if [ -n "$ghcr_username" ]; then
+        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
+        echo
+        
+        # Compute GHCR_AUTH
+        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
+        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
+        return 0
+    else
+        # Clear GHCR_AUTH if skipped
+        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"\"|" deployment/env
+        return 1
+    fi
+}
+
 # Helper function for Docker Hub configuration
 configure_docker_hub() {
     read -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
@@ -489,12 +506,11 @@ configure_local_api_keys() {
     print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
-    # GitHub Personal Access Token
+    # GitHub Personal Access Token (Optional)
     print_linebreak
-    print_status "GitHub Personal Access Token: Required to access private resources."
-    print_status "Local deployment required permissions: read challenge repos."
-    print_status "Azure deployment required permissions: read GHCR packages and challenge repos."
-    configure_service "GHCR_AUTH" "GitHub Container Registry authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" true "configure_ghcr"
+    print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
+    print_status "Only needed if Buttercup will access private repositories or packages."
+    configure_service "GHCR_AUTH" "GitHub authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" false "configure_ghcr_optional"
     
     # Docker Hub credentials (optional)
     print_linebreak
@@ -583,19 +599,27 @@ check_minikube_config() {
     
     local errors=0
     
-    # Check required API keys
-    local required_vars=(
-        "OPENAI_API_KEY"
-        "ANTHROPIC_API_KEY"
-        "GHCR_AUTH"
-    )
+    # Validate that at least one LLM API key is configured
+    local openai_configured=false
+    local anthropic_configured=false
     
-    for var in "${required_vars[@]}"; do
-        if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-            print_error "Required variable $var is not set or has placeholder value"
-            errors=$((errors + 1))
-        fi
-    done
+    if [ -n "$OPENAI_API_KEY" ] && [ "$OPENAI_API_KEY" != "<your-openai-api-key>" ]; then
+        openai_configured=true
+    fi
+    
+    if [ -n "$ANTHROPIC_API_KEY" ] && [ "$ANTHROPIC_API_KEY" != "<your-anthropic-api-key>" ]; then
+        anthropic_configured=true
+    fi
+    
+    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ]; then
+        print_error "At least one LLM API key (OpenAI or Anthropic) must be configured"
+        errors=$((errors + 1))
+    fi
+    
+    # Check optional GHCR_AUTH (warn if not set but don't fail)
+    if [ -z "$GHCR_AUTH" ] || [ "$GHCR_AUTH" = "<your-ghcr-base64-auth>" ]; then
+        print_warning "GHCR_AUTH is not configured. Only public resources can be accessed"
+    fi
     
     # Check optional LangFuse configuration
     if [ "$LANGFUSE_ENABLED" = "true" ]; then
