@@ -159,11 +159,15 @@ up() {
 		-o jsonpath='{.data.crs-instance-id}')
 	echo -e "${GRN}CRS_INSTANCE_ID is $CRS_INSTANCE_ID${NC}"
 
+if [[ -n "${DOCKER_USERNAME}" ]] && [[ -n "${DOCKER_PAT}" ]]; then
 	kubectl create secret docker-registry docker-auth \
 		--namespace "$BUTTERCUP_NAMESPACE" \
 		--docker-server=docker.io \
 		--docker-username="$DOCKER_USERNAME" \
 		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
+else
+	echo -e "${GRN}Docker credentials have not been configured. Skipping creating optional docker-registry secret${NC}"
+fi
 
 	# Create TLS certificate for registry cache
 	echo -e "${BLU}Creating TLS certificate for registry cache${NC}"
