@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
 from redis import Redis, RedisError
 from google.protobuf.message import Message
+from functools import wraps
 from buttercup.common.datastructures.msg_pb2 import (
     BuildRequest,
     BuildOutput,
@@ -20,7 +20,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     POVReproduceResponse,
 )
 import logging
-from typing import Type, Generic, TypeVar, Literal, overload
+from typing import Type, Generic, TypeVar, Literal, overload, Callable, cast
 import uuid
 import os
 from enum import Enum
@@ -28,6 +28,8 @@ from typing import Any
 
 
 TIMES_DELIVERED_FIELD = "times_delivered"
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class QueueNames(str, Enum):
@@ -77,75 +79,6 @@ POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS = int(os.getenv("POV_REPRODUCER_RESPONS
 logger = logging.getLogger(__name__)
 
 
-class Queue(ABC):
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def pop(self): ...
-
-    def push(self, _): ...
-
-    @abstractmethod
-    def __iter__(self): ...
-
-
-class SerializationDeserializationQueue(Queue):
-    def __init__(self, subq: Queue, msg_builder):
-        super().__init__()
-        self.subq = subq
-        self.msg_builder = msg_builder
-
-    def push(self, it: Message):
-        if not it.IsInitialized():
-            logger.error("Uninitialized field in protobuf object")
-
-        bts = it.SerializeToString()
-        self.subq.push(bts)
-
-    def pop(self):
-        maybe_bts = self.subq.pop()
-        if maybe_bts is None:
-            return None
-
-        msg = self.msg_builder()
-        msg.ParseFromString(maybe_bts)
-        print("parsing message")
-        return msg
-
-    def __iter__(self):
-        for it in iter(self.subq):
-            msg = self.msg_builder()
-            msg.ParseFromString(it)
-            print(msg, type(msg))
-            yield msg
-
-
-class QueueIterMixin:
-    def __init__(self, qname: str, redis: Redis):
-        self.qname = qname
-        self.redis = redis
-
-    def __iter__(self):
-        return iter(self.redis.lrange(self.qname, 0, -1))
-
-
-class NormalQueue(QueueIterMixin, Queue):
-    def __init__(self, qname: str, redis: Redis):
-        super().__init__(qname, redis)
-        self.qname = qname
-        self.redis = redis
-
-    def push(self, it):
-        self.redis.lpush(self.qname, it)
-
-    def pop(self):
-        return self.redis.rpop(self.qname)
-
-    def __iter__(self):
-        return super().__iter__()
-
-
 # Type variable for protobuf Message subclasses
 # Used for type-hinting of reliable queue items
 MsgType = TypeVar("MsgType", bound=Message)
@@ -173,7 +106,7 @@ class ReliableQueue(Generic[MsgType]):
     group_name: str | None = None
     task_timeout_ms: int = 180000
     reader_name: str | None = None
-    last_stream_id: str | None = ">"
+    last_stream_id: str = ">"
     block_time: int | None = 200
 
     INAME = b"item"
@@ -203,16 +136,22 @@ class ReliableQueue(Generic[MsgType]):
         bts = item.SerializeToString()
         self.redis.xadd(self.queue_name, {self.INAME: bts})
 
-    def _ensure_group_name(func):
-        def wrapper(self, *args, **kwargs):
+    @staticmethod
+    def _ensure_group_name(func: F) -> F:
+        @wraps(func)
+        def wrapper(self: ReliableQueue[MsgType], *args: Any, **kwargs: Any) -> Any:
             if self.group_name is None:
                 raise ValueError("group_name must be set for this operation")
+
             return func(self, *args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     @_ensure_group_name
     def pop(self) -> RQItem[MsgType] | None:
+        assert self.group_name
+        assert self.reader_name
+
         streams_items = self.redis.xreadgroup(
             self.group_name,
             self.reader_name,
@@ -266,7 +205,7 @@ class ReliableQueue(Generic[MsgType]):
         if pending is None or len(pending) == 0:
             return 0
 
-        return pending[0][TIMES_DELIVERED_FIELD]
+        return cast(int, pending[0][TIMES_DELIVERED_FIELD])
 
     @_ensure_group_name
     def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:
@@ -276,7 +215,7 @@ class ReliableQueue(Generic[MsgType]):
 @dataclass
 class QueueConfig:
     queue_name: QueueNames
-    msg_builder: Type[MsgType]
+    msg_builder: Type
     task_timeout_ms: int
     group_names: list[GroupNames] = field(default_factory=list)
 
@@ -434,6 +373,11 @@ class QueueFactory:
         self, queue_name: Literal[QueueNames.POV_REPRODUCER_RESPONSES], group_name: GroupNames, **kwargs: Any
     ) -> ReliableQueue[POVReproduceResponse]: ...
 
+    @overload
+    def create(
+        self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
+    ) -> ReliableQueue[MsgType]: ...
+
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
     ) -> ReliableQueue[MsgType]:
@@ -454,7 +398,7 @@ class QueueFactory:
             queue_args["group_name"] = group_name
 
         queue_args.update(kwargs)
-        return ReliableQueue(**queue_args)
+        return ReliableQueue(**queue_args)  # type: ignore[arg-type]
 
 
 @dataclass

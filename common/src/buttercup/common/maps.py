@@ -22,14 +22,16 @@ class RedisMap(Generic[MsgType]):
 
         msg = self.msg_builder()
         msg.ParseFromString(it)
-        return msg
+        return msg  # type: ignore[no-any-return]
 
     def set(self, key: str, value: MsgType) -> None:
         self.redis.hset(self.hash_name, key, value.SerializeToString())
 
     def __iter__(self) -> Iterator[MsgType]:
         for key in self.redis.hkeys(self.hash_name):
-            yield self.get(key)
+            value = self.get(key)
+            if value is not None:
+                yield value
 
 
 HARNESS_WEIGHTS_MAP_NAME = "harness_weights"

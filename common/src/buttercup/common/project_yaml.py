@@ -14,11 +14,15 @@ class ProjectYaml:
     challenge_task: ChallengeTask
     project_name: str
     _language: str | None = field(init=False, default=None)
-    _sanitizers: list[str] | None = field(init=False, default=None)
-    _fuzzing_engines: list[str] | None = field(init=False, default=None)
+    _sanitizers: list[str] = field(init=False, default_factory=list)
+    _fuzzing_engines: list[str] = field(init=False, default_factory=list)
 
-    def __post_init__(self):
-        project_yaml_path = self.challenge_task.get_oss_fuzz_path() / "projects" / self.project_name / "project.yaml"
+    def __post_init__(self) -> None:
+        oss_fuzz_path = self.challenge_task.get_oss_fuzz_path()
+        if oss_fuzz_path is None:
+            raise ValueError("OSS-Fuzz path not found")
+
+        project_yaml_path = oss_fuzz_path / "projects" / self.project_name / "project.yaml"
 
         if not project_yaml_path.exists():
             raise FileNotFoundError(f"Could not find project.yaml at {project_yaml_path}")

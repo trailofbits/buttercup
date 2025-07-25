@@ -1,141 +1,327 @@
-# Trail of Bits AIxCC Finals CRS
+# Buttercup Cyber Reasoning System (CRS)
 
-## Dependencies
+**Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge) competition**. It's a comprehensive automated vulnerability detection and patching system designed to compete in AI-driven cybersecurity challenges.
 
-Follow the install instructions for the required dependencies:
+## Quick Start
 
-* [Docker install guide](https://docs.docker.com/engine/install/ubuntu/)
-* [kubectl install guide](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-* [helm install guide](https://helm.sh/docs/intro/install/):
-* [minikube install guide](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fdebian+package)
-* Git LFS for some tests
+Clone the repo with `--recurse-submodules` as some dependencies are submodules.
 
-## Configuration
+Choose your deployment method:
 
-Create a new configuration file, starting from the default template:
+- **[Local Development](#local-development)** - Quick setup for development and testing
+- **[Production AKS Deployment](#production-aks-deployment)** - Full production deployment on Azure Kubernetes Service
 
-```shell
-cp \
-  deployment/env.template \
-  deployment/env
+## Local Development
+
+The fastest way to get started with the **Buttercup CRS** system for development and testing.
+
+### Quick Setup (Recommended)
+
+Use our automated setup script:
+
+```bash
+make setup-local
 ```
 
-Next, configure the following options. Follow the instructions in the comments when setting the `GHCR_AUTH` value.
+This script will install all dependencies, configure the environment, and guide you through the setup process.
 
-```shell
-SCANTRON_GITHUB_PAT
-GHCR_AUTH
-OPENAI_API_KEY
-ANTHROPIC_API_KEY
-DOCKER_USERNAME
-DOCKER_PAT
+### Manual Setup
+
+If you prefer to set up manually, follow these steps:
+
+```bash
+# Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# Log out and back in for group changes to take effect
+
+# kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Minikube
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+# Git LFS (for some tests)
+sudo apt-get install git-lfs
+git lfs install
 ```
 
-### Settings specific to local development and testing
+#### Manual Configuration
 
-Use the hardcoded test credentials found in the comments:
+1. **Create configuration file:**
 
-```shell
-AZURE_ENABLED=false
-TAILSCALE_ENABLED=false
-COMPETITION_API_KEY_ID: `11111111-1111-1111-1111-111111111111`
-COMPETITION_API_KEY_TOKEN: `secret`
-CRS_KEY_ID="515cc8a0-3019-4c9f-8c1c-72d0b54ae561"
-CRS_KEY_TOKEN="VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB"
-CRS_API_HOSTNAME="<generated with: openssl rand -hex 16>"
-BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-minikube.template"
-OTEL_ENDPOINT="<insert endpoint url from aixcc vault, is pseudo secret>"
-OTEL_PROTOCOL="http"
+```bash
+cp deployment/env.template deployment/env
 ```
 
-Keep empty:
+2. **Configure the environment file** (`deployment/env`):
 
-```shell
-AZURE_API_BASE=""
-AZURE_API_KEY=""
+Look at the comments in the `deployment/env.template` for how to set variables.
+
+### Start Local Development Environment
+
+1. **Start the services:**
+
+```bash
+make deploy-local
 ```
 
-Commented out:
+2. **Verify deployment:**
 
-```shell
-CRS_URL
-CRS_API_HOSTNAME
-LANGFUSE_HOST
-LANGFUSE_PUBLIC_KEY
-LANGFUSE_SECRET_KEY
-OTEL_TOKEN
+```bash
+kubectl get pods -n crs
+kubectl get services -n crs
 ```
 
-When [re-running unscored rounds](orchestrator/src/buttercup/orchestrator/mock_competition_api/README.md), set this to `true`:
+3. **Submit the integration-test challenge to the CRS (for 30mins):**
 
-```shell
-MOCK_COMPETITION_API_ENABLED
+```bash
+make test
 ```
 
-## Authentication
+**Alternative manual commands:**
 
-### Docker
+```bash
+# Start services manually
+cd deployment && make up
 
-Log into ghcr.io:
+# Port forward manually
+kubectl port-forward -n crs service/buttercup-ui 31323:1323
 
-```shell
-docker login ghcr.io -u <username>
+# Test manually
+./orchestrator/scripts/task_integration_test.sh
 ```
 
-## Running the CRS
+## Production AKS Deployment
 
-### Starting the services
+> **⚠️ Notice:**  
+> The following production deployment instructions have **not been fully tested**.  
+> Please proceed with caution and verify each step in your environment.  
+> If you encounter issues, consult the script comments and configuration files for troubleshooting.
 
-```shell
+Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
+
+### Quick Setup (Recommended)
+
+Use our automated setup script:
+
+```bash
+make setup-production
+```
+
+This script will check prerequisites, help create service principals, configure the environment, and validate your setup.
+
+#### Manual Setup
+
+If you prefer to set up manually, follow these steps:
+
+##### Prerequisites
+
+- Azure CLI installed and configured
+- Terraform installed
+- Active Azure subscription
+- Access to competition Tailscale tailnet
+
+##### Azure Setup
+
+1. **Login to Azure:**
+
+```bash
+az login --tenant aixcc.tech
+```
+
+2. **Create Service Principal:**
+
+```bash
+# Get your subscription ID
+az account show --query "{SubscriptionID:id}" --output table
+
+# Create service principal (replace with your subscription ID)
+az ad sp create-for-rbac --name "ButtercupCRS" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
+```
+
+##### Production Configuration
+
+1. **Configure environment file:**
+
+```bash
+cp deployment/env.template deployment/env
+```
+
+2. **Update `deployment/env` for production:**
+
+Look at the comments in the `deployment/env.template` for how to set variables.
+In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
+
+### Deploy to AKS
+
+**Deploy the cluster and services:**
+
+```bash
+make deploy-production
+```
+
+**Alternative manual command:**
+
+```bash
 cd deployment && make up
 ```
 
-### Stopping the services
+### Scaling and Management
 
-```shell
-cd deployment && make down
-```
+- **Scale nodes:** Update `TF_VAR_usr_node_count` in your env file and run `make up`
+- **View logs:** `kubectl logs -n crs <pod-name>`
+- **Monitor resources:** `kubectl top pods -A`
 
-### Sending the example-libpng task to the system
+## Run Challenges
 
-```shell
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
-```
+```bash
+kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 
-```shell
-./orchestrator/scripts/task_crs.sh
-```
-
-Send a SARIF message
-
-```shell
-./orchestrator/scripts/send_sarif.sh <TASK-ID-FROM-TASK-CRS>
-```
-
-### Simulating Unscored Round 2
-
-```shell
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
-```
-
-```shell
 ./orchestrator/scripts/challenge.sh
 ```
 
-Check that patches get submitted to the bundler.
+## Cleanup
 
-```shell
-kubectl logs -n crs -l app=scheduler --tail=-1 --prefix | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
+```bash
+make clean
 ```
 
-If needing to debug, run the following to log into the pod.
+**Alternative manual command:**
 
-```shell
-kubectl get pods -n crs
+```bash
+cd deployment && make down
+```
 
+## Development Workflow
+
+### Using Makefile Shortcuts
+
+The **Buttercup CRS** project includes a Makefile with convenient shortcuts for common tasks:
+
+```bash
+# View all available commands
+make help
+
+# Setup
+make setup-local          # Automated local setup
+make setup-production     # Automated production setup
+make validate             # Validate current setup
+
+# Deployment
+make deploy               # Deploy to current environment
+make deploy-local         # Deploy to local Minikube
+make deploy-production    # Deploy to production AKS
+
+# Testing
+make test                 # Run test task
+
+# Development
+make lint                 # Lint all Python code
+make lint-component COMPONENT=orchestrator  # Lint specific component
+
+# Cleanup
+make clean                # Clean up deployment
+make clean-local          # Clean up local environment
+```
+
+### Running Tests
+
+```bash
+# Lint all Python code
+make lint
+
+# Lint specific component
+make lint-component COMPONENT=orchestrator
+
+# Run test task
+make test
+```
+
+**Alternative manual commands:**
+
+```bash
+# Lint Python code
+just lint-python-all
+
+# Run specific component tests
+just lint-python orchestrator
+
+# Test manually
+./orchestrator/scripts/task_upstream_libpng.sh
+./orchestrator/scripts/challenge.sh
+```
+
+### Docker Development
+
+```bash
+# Build and run with Docker Compose (only for local development and quick testing)
+docker-compose up -d
+```
+
+### Kubernetes Development
+
+```bash
+# Port forward for local access
+kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+
+# View logs
+kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
+
+# Debug pods
 kubectl exec -it -n crs <pod-name> -- /bin/bash
 ```
 
-## Run Unscored Challenges
+## Troubleshooting
 
-See [UNSCORED.md](UNSCORED.md)
+### Common Issues
+
+1. **Minikube won't start:**
+
+```bash
+minikube delete
+```
+
+2. **Docker permission issues:**
+
+```bash
+sudo usermod -aG docker $USER
+# Log out and back in
+```
+
+3. **Helm chart issues:**
+
+```bash
+helm repo update
+helm dependency update deployment/k8s/
+```
+
+4. **Azure authentication:**
+
+```bash
+az login --tenant aixcc.tech
+az account set --subscription <your-subscription-id>
+```
+
+### Getting Help
+
+- **Validate your setup:** `make validate` - Check if your environment is ready
+- Check the [Quick Reference Guide](QUICK_REFERENCE.md) for common commands and troubleshooting
+- Check the [deployment README](deployment/README.md) for detailed deployment information
+- Check logs: `kubectl logs -n crs <pod-name>`
+
+## Architecture
+
+The **Buttercup CRS** system consists of several components designed to work together for automated vulnerability detection and patching:
+
+- **Orchestrator**: Coordinates the overall repair process and manages the workflow
+- **Fuzzer**: Discovers vulnerabilities through intelligent fuzzing techniques
+- **Patcher**: Generates and applies security patches to fix vulnerabilities
+- **Program Model**: Analyzes code structure and semantics for better understanding
+- **Seed Generator**: Creates targeted test cases for vulnerability discovery
+- **Competition API**: Interfaces with the DARPA AIxCC competition platform
