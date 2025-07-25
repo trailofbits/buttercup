@@ -593,66 +593,6 @@ check_config() {
     fi
 }
 
-# Function to check Minikube configuration
-check_minikube_config() {
-    print_status "Checking Minikube configuration..."
-    
-    local errors=0
-    
-    # Validate that at least one LLM API key is configured
-    local openai_configured=false
-    local anthropic_configured=false
-    
-    if [ -n "$OPENAI_API_KEY" ] && [ "$OPENAI_API_KEY" != "<your-openai-api-key>" ]; then
-        openai_configured=true
-    fi
-    
-    if [ -n "$ANTHROPIC_API_KEY" ] && [ "$ANTHROPIC_API_KEY" != "<your-anthropic-api-key>" ]; then
-        anthropic_configured=true
-    fi
-    
-    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ]; then
-        print_error "At least one LLM API key (OpenAI or Anthropic) must be configured"
-        errors=$((errors + 1))
-    fi
-    
-    # Check optional GHCR_AUTH (warn if not set but don't fail)
-    if [ -z "$GHCR_AUTH" ] || [ "$GHCR_AUTH" = "<your-ghcr-base64-auth>" ]; then
-        print_warning "GHCR_AUTH is not configured. Only public resources can be accessed"
-    fi
-    
-    # Check optional LangFuse configuration
-    if [ "$LANGFUSE_ENABLED" = "true" ]; then
-        local langfuse_vars=(
-            "LANGFUSE_HOST"
-            "LANGFUSE_PUBLIC_KEY"
-            "LANGFUSE_SECRET_KEY"
-        )
-        
-        for var in "${langfuse_vars[@]}"; do
-            if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-                print_error "LangFuse variable $var is not set or has placeholder value"
-                errors=$((errors + 1))
-            fi
-        done
-    fi
-    
-    # Check optional OTEL configuration
-    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
-        if [ -z "$OTEL_PROTOCOL" ] || [ "$OTEL_PROTOCOL" = "<your-*>" ]; then
-            print_error "OTEL_PROTOCOL is not set when OTEL_ENDPOINT is configured"
-            errors=$((errors + 1))
-        fi
-    fi
-    
-    if [ $errors -eq 0 ]; then
-        print_success "Minikube configuration is valid"
-    else
-        print_error "Minikube configuration has $errors error(s)"
-        return $errors
-    fi
-}
-
 # Function to check AKS configuration
 check_aks_config() {
     print_status "Checking AKS configuration..."
