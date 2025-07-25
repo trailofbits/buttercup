@@ -111,10 +111,7 @@ install_git_lfs() {
 install_just() {
     print_status "Installing Just..."
     if ! command_exists just; then
-        if command_exists curl; then
-            # Install using the official installer
-            curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash
-        elif command_exists apt-get; then
+        if command_exists apt-get; then
             sudo apt-get update
             sudo apt-get install -y just
         elif command_exists yum; then
