@@ -24,14 +24,6 @@ jobs:
       issues: read
       id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-          token: ${{ secrets.GH_CLONE_REPO_PAT }}
-          submodules: true
-
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@beta

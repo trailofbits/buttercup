@@ -47,7 +47,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          token: ${{ secrets.GH_CLONE_REPO_PAT }}
           submodules: true
 
       - name: Set up Docker Buildx
