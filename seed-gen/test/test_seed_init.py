@@ -1,30 +1,29 @@
-"""Tests for SeedExploreTask"""
+"""Tests for SeedInitTask"""
 
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from langchain_core.messages import AIMessage
 
-from buttercup.seed_gen.seed_explore import SeedExploreTask
+from buttercup.seed_gen.seed_init import SeedInitTask
 from test.conftest import (
     mock_sandbox_exec_funcs,
 )
 
 
 @pytest.fixture
-def seed_explore_task(
+def seed_init_task(
     mock_challenge_task,
     mock_codequery,
     mock_project_yaml,
     mock_redis,
     mock_llm,
 ):
-    """Create a SeedExploreTask instance with mocked dependencies."""
+    """Create a SeedInitTask instance with mocked dependencies."""
     with (
         patch("buttercup.seed_gen.task.Task.get_llm", return_value=mock_llm),
     ):
-        task = SeedExploreTask(
+        task = SeedInitTask(
             package_name="test_package",
             harness_name="test_harness",
             challenge_task=mock_challenge_task,
@@ -37,7 +36,7 @@ def seed_explore_task(
 
 
 def test_do_task_success(
-    seed_explore_task,
+    seed_init_task,
     mock_llm,
     mock_harness_info,
     mock_llm_responses,
@@ -49,12 +48,12 @@ def test_do_task_success(
     out_dir = tmp_path / "out"
     out_dir.mkdir()
 
-    seed_explore_task.get_harness_source = Mock(return_value=mock_harness_info)
+    seed_init_task.get_harness_source = Mock(return_value=mock_harness_info)
 
     with (
         patch("buttercup.common.llm.get_langfuse_callbacks", return_value=[]),
         patch("opentelemetry.trace.get_tracer") as mock_tracer,
-        patch("buttercup.seed_gen.seed_explore.set_crs_attributes") as mock_set_attrs,
+        patch("buttercup.seed_gen.seed_init.set_crs_attributes") as mock_set_attrs,
         patch("buttercup.seed_gen.task.sandbox_exec_funcs") as mock_sandbox_exec,
     ):
         # Mock the tracer span
@@ -80,32 +79,32 @@ def test_do_task_success(
         mock_llm.invoke.side_effect = mock_llm_responses + seed_messages
 
         # Mock codequery for tools
-        seed_explore_task.codequery.get_functions = Mock(
+        seed_init_task.codequery.get_functions = Mock(
             return_value=mock_codequery_responses["get_functions"]
         )
-        seed_explore_task.codequery.get_callers = Mock(
+        seed_init_task.codequery.get_callers = Mock(
             return_value=mock_codequery_responses["get_callers"]
         )
-        seed_explore_task.codequery.get_types = Mock(
+        seed_init_task.codequery.get_types = Mock(
             return_value=mock_codequery_responses["get_types"]
         )
 
         # Mock challenge_task.exec_docker_cmd for cat tool
-        seed_explore_task.challenge_task.exec_docker_cmd = Mock(
+        seed_init_task.challenge_task.exec_docker_cmd = Mock(
             return_value=mock_challenge_task_responses["exec_docker_cmd"]
         )
 
-        seed_explore_task.do_task("target_function", [Path("/src/test.c")], out_dir)
+        seed_init_task.do_task(out_dir)
 
-        mock_tracer.assert_called_once_with("buttercup.seed_gen.seed_explore")
+        mock_tracer.assert_called_once_with("buttercup.seed_gen.seed_init")
         mock_set_attrs.assert_called_once()
 
         mock_sandbox_exec.assert_called()
 
-        seed_explore_task.codequery.get_functions.assert_called()
-        seed_explore_task.codequery.get_callers.assert_called()
-        seed_explore_task.codequery.get_types.assert_called()
-        seed_explore_task.challenge_task.exec_docker_cmd.assert_called()
+        seed_init_task.codequery.get_functions.assert_called()
+        seed_init_task.codequery.get_callers.assert_called()
+        seed_init_task.codequery.get_types.assert_called()
+        seed_init_task.challenge_task.exec_docker_cmd.assert_called()
 
         # Check that seed files were created
         seed_files = list(out_dir.glob("*.seed"))

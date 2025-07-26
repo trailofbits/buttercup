@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.messages.tool import ToolCall
 from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask
@@ -200,6 +202,108 @@ def mock_sandbox_exec_funcs(functions: str, output_dir: Path):
 
     seed2_path = output_dir / "gen_seed_2.seed"
     seed2_path.write_bytes(b"mock_seed_data_2")
+
+
+@pytest.fixture
+def mock_llm_responses():
+    """Create mock LLM responses for context gathering and seed generation."""
+    context_messages = [
+        AIMessage(
+            content="I'll gather context about the target function",
+            tool_calls=[
+                ToolCall(
+                    id="context_call_1",
+                    name="get_function_definition",
+                    args={"function_name": "target_function"},
+                )
+            ],
+        ),
+        AIMessage(
+            content="I need more context",
+            tool_calls=[
+                ToolCall(
+                    id="context_call_2",
+                    name="cat",
+                    args={"file_path": "/src/test.c"},
+                )
+            ],
+        ),
+        AIMessage(
+            content="I need more context",
+            tool_calls=[
+                ToolCall(
+                    id="context_call_3",
+                    name="get_callers",
+                    args={
+                        "function_name": "target_function",
+                        "file_path": "/src/test.c",
+                    },
+                )
+            ],
+        ),
+        AIMessage(
+            content="Doing a batch tool call with multiple tools",
+            tool_calls=[
+                ToolCall(
+                    id="context_call_4",
+                    name="batch_tool",
+                    args={
+                        "tool_calls": {
+                            "calls": [
+                                {
+                                    "tool_name": "get_function_definition",
+                                    "arguments": {"function_name": "target_function"},
+                                },
+                                {
+                                    "tool_name": "get_type_definition",
+                                    "arguments": {"type_name": "buffer_t"},
+                                },
+                            ]
+                        }
+                    },
+                )
+            ],
+        ),
+    ]
+    return context_messages
+
+
+@pytest.fixture
+def mock_codequery_responses():
+    """Create mock codequery responses for tools."""
+    return {
+        "get_functions": [
+            MagicMock(
+                name="target_function",
+                file_path=Path("/src/test.c"),
+                bodies=[MagicMock(body="int target_function(char* input) { /* function body */ }")],
+            )
+        ],
+        "get_callers": [
+            MagicMock(
+                file_path=Path("/src/main.c"),
+                bodies=[MagicMock(body='int main() { target_function("test"); return 0; }')],
+                name="main",
+            )
+        ],
+        "get_types": [
+            MagicMock(
+                name="buffer_t",
+                file_path=Path("/src/types.h"),
+                definition="typedef struct { char* data; size_t size; } buffer_t;",
+            )
+        ],
+    }
+
+
+@pytest.fixture
+def mock_challenge_task_responses():
+    """Create mock challenge task responses."""
+    return {
+        "exec_docker_cmd": MagicMock(
+            success=True, output=b"int target_function(char* input) { /* function body */ }"
+        )
+    }
 
 
 def pytest_addoption(parser):
