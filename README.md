@@ -122,7 +122,7 @@ buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP  
 3. **Submit the integration-test challenge to the CRS (for 30mins):**
 
 ```bash
-make integration-test
+make integration-task
 ```
 
 **Alternative manual commands:**
@@ -263,7 +263,7 @@ make deploy-azure         # Deploy to production AKS environment
 make status               # Check the status of the deployment
 
 # Testing
-make integration-test     # Run integration test task
+make integration-task     # Run integration test task
 
 # Development
 make lint                 # Lint all Python code
@@ -284,7 +284,7 @@ make lint
 make lint-component COMPONENT=orchestrator
 
 # Run test task
-make integration-test
+make integration-task
 ```
 
 **Alternative manual commands:**
