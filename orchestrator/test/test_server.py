@@ -3,7 +3,7 @@ from typing import Generator
 from uuid import uuid4
 import time
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from fastapi.encoders import jsonable_encoder
 from buttercup.orchestrator.task_server.models.types import (
     Task,
