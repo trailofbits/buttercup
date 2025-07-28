@@ -20,7 +20,7 @@ help:
 	@echo "  status            - Check the status of the deployment"
 	@echo ""
 	@echo "Testing:"
-	@echo "  test              - Run test task"
+	@echo "  integration-test  - Run integration-test task"
 	@echo ""
 	@echo "Development:"
 	@echo "  lint              - Lint all Python code"
@@ -102,8 +102,8 @@ status:
 	@kubectl get services -n $${BUTTERCUP_NAMESPACE:-crs}
 
 # Testing targets
-test:
-	@echo "Running test task..."
+integration-test:
+	@echo "Running integration test task..."
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
