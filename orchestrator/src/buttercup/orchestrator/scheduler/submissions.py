@@ -1,13 +1,8 @@
 from dataclasses import field, dataclass
-from functools import lru_cache
 import logging
-import base64
 import uuid
 from redis import Redis
 from typing import Callable, Iterator, List, Set, Tuple
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-import buttercup.common.node_local as node_local
 from pathlib import Path
 from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames
 from buttercup.common.sets import PoVReproduceStatus
@@ -28,7 +23,6 @@ from buttercup.common.datastructures.msg_pb2 import (
 )
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 from buttercup.orchestrator.scheduler.sarif_matcher import match
 from buttercup.common.challenge_task import ChallengeTask
@@ -37,7 +31,6 @@ from buttercup.common.stack_parsing import get_crash_data, get_inst_key
 from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 
 logger = logging.getLogger(__name__)
-
 
 
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
@@ -192,7 +185,6 @@ def _find_matching_build_output(patch: SubmissionEntryPatch, build_output: Build
         ),
         None,
     )
-
 
 
 @dataclass
@@ -526,7 +518,7 @@ class Submissions:
         for pov in _get_eligible_povs_for_submission(e):
             # For internal processing, we automatically accept and mark as passed
             pov.competition_pov_id = f"internal_{uuid.uuid4().hex[:8]}"
-            pov.result = SubmissionResult.ACCEPTED # Auto accept outside of competition
+            pov.result = SubmissionResult.ACCEPTED  # Auto accept outside of competition
             log_entry(e, i=i, msg="Processed POV internally")
             return True
 
@@ -762,7 +754,7 @@ class Submissions:
 
         # At this point, we have a good patch for internal processing.
         competition_patch_id = f"internal_patch_{uuid.uuid4().hex[:8]}"
-        status = SubmissionResult.ACCEPTED # automatically accepted outside of competition
+        status = SubmissionResult.ACCEPTED  # automatically accepted outside of competition
         patch.result = status
         patch.competition_patch_id = competition_patch_id
         log_entry(e, i=i, msg=f"Patch successfully processed internally id={competition_patch_id}")

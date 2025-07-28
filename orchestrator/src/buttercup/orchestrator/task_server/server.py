@@ -32,7 +32,6 @@ from buttercup.orchestrator.task_server.dependencies import (
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
-from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 settings = get_settings()
 logger = setup_package_logger("task-server", __name__, settings.log_level, settings.log_max_line_length)
