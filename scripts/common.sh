@@ -323,7 +323,7 @@ setup_config_file() {
     else
         print_warning "Configuration file already exists"
         if [ "$overwrite_existing" = "true" ]; then
-            read -p "Do you want to overwrite it? (y/n): " -n 1 -r
+            read -p "Do you want to overwrite it? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 cp deployment/env.template deployment/env
@@ -347,7 +347,7 @@ configure_langfuse() {
         print_status "LangFuse is already configured:"
         echo "  Host: $LANGFUSE_HOST"
         echo "  Public Key: $LANGFUSE_PUBLIC_KEY"
-        read -p "Do you want to reconfigure LangFuse? (y/n): " -n 1 -r
+        read -p "Do you want to reconfigure LangFuse? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             print_status "Keeping existing LangFuse configuration"
@@ -355,7 +355,7 @@ configure_langfuse() {
         fi
     fi
     
-    read -p "Do you want to enable LangFuse for LLM monitoring? (y/n): " -n 1 -r
+    read -p "Do you want to enable LangFuse for LLM monitoring? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "LangFuse configuration:"
@@ -454,7 +454,7 @@ configure_otel() {
         print_status "OpenTelemetry is already configured:"
         echo "  Endpoint: $OTEL_ENDPOINT"
         echo "  Protocol: $OTEL_PROTOCOL"
-        read -p "Do you want to reconfigure OpenTelemetry? (y/n): " -n 1 -r
+        read -p "Do you want to reconfigure OpenTelemetry? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             print_status "Keeping existing OpenTelemetry configuration"
@@ -462,7 +462,7 @@ configure_otel() {
         fi
     fi
     
-    read -p "Do you want to enable OpenTelemetry telemetry? (y/n): " -n 1 -r
+    read -p "Do you want to enable OpenTelemetry telemetry? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "OpenTelemetry configuration:"

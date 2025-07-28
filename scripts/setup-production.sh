@@ -24,7 +24,7 @@ setup_service_principal() {
     
     print_status "Current subscription: $subscription_name ($subscription_id)"
     
-    read -p "Do you want to create a new service principal? (y/n): " -n 1 -r
+    read -p "Do you want to create a new service principal? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         local sp_name="ButtercupCRS-$(date +%Y%m%d-%H%M%S)"
@@ -97,7 +97,7 @@ validate_config() {
 setup_remote_state() {
     print_status "Setting up Terraform remote state..."
     
-    read -p "Do you want to configure remote state storage? (y/n): " -n 1 -r
+    read -p "Do you want to configure remote state storage? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "This will create Azure resources for remote state storage"
