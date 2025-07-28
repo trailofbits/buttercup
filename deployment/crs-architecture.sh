@@ -75,6 +75,7 @@ up() {
 			GHCR_PAT=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f2)
 			GHCR_USERNAME=$(echo -n "$GHCR_AUTH" | base64 -d | cut -d: -f1)
 		else
+			# TODO: remove this warning when production deploy does not rely on private images
 			echo -e "${RED}Warning: GHCR_AUTH not set, Docker builds may fail to pull from ghcr.io${NC}"
 		fi
 
@@ -108,10 +109,20 @@ up() {
 				# Authenticate with GitHub Container Registry for Docker builds
 				if [ -n "$GHCR_AUTH" ]; then
 					echo -e "${BLU}Authenticating with GitHub Container Registry${NC}"
-					echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-					echo -e "${GRN}Docker login to ghcr.io completed${NC}"
-				else
-					echo -e "${RED}Warning: GHCR_AUTH not set, Docker builds may fail to pull from ghcr.io${NC}"
+					if echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin 2>/dev/null; then
+						echo -e "${GRN}Docker login to ghcr.io completed${NC}"
+					else
+						echo -e "${RED}Error: Failed to authenticate with GitHub Container Registry${NC}"
+						echo -e "${RED}This usually means:${NC}"
+						echo -e "${RED}  1. Your GHCR_AUTH variable is invalid or malformed${NC}"
+						echo -e "${RED}  2. Your GitHub Personal Access Token has expired${NC}"
+						echo -e "${RED}  3. Your PAT lacks 'package:read' permissions${NC}"
+						echo -e "To fix this:${NC}"
+						echo -e "  1. Run 'make setup-local' to reconfigure credentials${NC}"
+						echo -e "  2. Or manually set GHCR_AUTH in deployment/env${NC}"
+						echo -e "  3. Format: echo 'USERNAME:TOKEN' | base64${NC}"
+						exit 1
+					fi
 				fi
 
 				if [ -n "$FUZZER_BASE_IMAGE" ]; then
@@ -152,11 +163,15 @@ up() {
 		-o jsonpath='{.data.crs-instance-id}')
 	echo -e "${GRN}CRS_INSTANCE_ID is $CRS_INSTANCE_ID${NC}"
 
+if [[ -n "${DOCKER_USERNAME}" ]] && [[ -n "${DOCKER_PAT}" ]]; then
 	kubectl create secret docker-registry docker-auth \
 		--namespace "$BUTTERCUP_NAMESPACE" \
 		--docker-server=docker.io \
 		--docker-username="$DOCKER_USERNAME" \
 		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
+else
+	echo -e "${GRN}Docker credentials have not been configured. Skipping creating optional docker-registry secret${NC}"
+fi
 
 	# Create TLS certificate for registry cache
 	echo -e "${BLU}Creating TLS certificate for registry cache${NC}"

@@ -27,6 +27,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_linebreak() {
+    echo "----------------------"
+}
+
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -177,10 +181,7 @@ install_git_lfs_mac() {
 install_just() {
     print_status "Installing Just..."
     if ! command_exists just; then
-        if command_exists curl; then
-            # Install using the official installer
-            curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash
-        elif command_exists apt-get; then
+        if command_exists apt-get; then
             sudo apt-get update
             sudo apt-get install -y just
         elif command_exists yum; then
@@ -335,6 +336,7 @@ setup_config_file() {
 
 # Function to configure LangFuse
 configure_langfuse() {
+    print_linebreak
     print_status "Configuring LangFuse (optional monitoring)..."
     
     # Source the env file to check current values
@@ -342,24 +344,206 @@ configure_langfuse() {
         source deployment/env
     fi
     
-    # Check if LangFuse is already enabled
+    print_status "LangFuse: Optional LLM monitoring and observability platform."
+    print_status "Tracks AI model usage, costs, and performance metrics for debugging and optimization."
+    
+    # Use a meaningful current value for the check
+    local current_langfuse_config=""
     if [ "$LANGFUSE_ENABLED" = "true" ] && [ -n "$LANGFUSE_HOST" ] && [ -n "$LANGFUSE_PUBLIC_KEY" ]; then
-        print_status "LangFuse is already configured:"
-        echo "  Host: $LANGFUSE_HOST"
-        echo "  Public Key: $LANGFUSE_PUBLIC_KEY"
-        read -p "Do you want to reconfigure LangFuse? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_status "Keeping existing LangFuse configuration"
-            return
-        fi
+        current_langfuse_config="$LANGFUSE_HOST"
     fi
     
-    read -p "Do you want to enable LangFuse for LLM monitoring? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_status "LangFuse configuration:"
-        read -p "Enter LangFuse host URL: " langfuse_host
+    configure_service "LANGFUSE" "LangFuse configuration" "$current_langfuse_config" "" false "configure_langfuse_wrapper"
+}
+
+# Helper function to prompt for value update if already configured
+prompt_for_update() {
+    local var_name="$1"
+    local display_name="$2"
+    local current_value="$3"
+    local default_value="$4"
+    local is_secret="${5:-false}"
+    
+    if [ -n "$current_value" ] && [ "$current_value" != "$default_value" ]; then
+        echo -n "$display_name is already configured. Set a new value? (y/N): "
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            return 0  # Proceed with update
+        else
+            print_status "Keeping existing $display_name"
+            return 1  # Skip update
+        fi
+    fi
+    return 0  # Not configured, proceed with setup
+}
+
+# Helper function to read and set a configuration value
+read_and_set_config() {
+    local var_name="$1"
+    local display_name="$2"
+    local prompt_text="$3"
+    local is_secret="${4:-false}"
+    local value
+    
+    if [ "$is_secret" = true ]; then
+        read -s -p "$prompt_text" value
+        echo
+    else
+        read -p "$prompt_text" value
+    fi
+    
+    # Only update if value is not empty
+    if [ -n "$value" ]; then
+        portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+    fi
+    return 0
+}
+
+# Helper function for GHCR configuration
+configure_ghcr_optional() {
+    read -p "Enter your GitHub username (press Enter to skip): " ghcr_username
+    if [ -n "$ghcr_username" ]; then
+        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
+        echo
+        
+        # Compute GHCR_AUTH
+        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
+        portable_sed "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
+        return 0
+    else
+        # Clear GHCR_AUTH if skipped
+        portable_sed "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"\"|" deployment/env
+        return 1
+    fi
+}
+
+# Helper function for Docker Hub configuration
+configure_docker_hub() {
+    read -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
+    if [ -n "$docker_username" ]; then
+        read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+        echo
+        
+        # Set Docker credentials (handles both commented and uncommented lines)
+        portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
+        portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
+        return 0
+    fi
+    return 1
+}
+
+# Unified helper function to configure any service
+configure_service() {
+    local var_name="$1"
+    local display_name="$2"
+    local current_value="$3"
+    local default_value="$4"
+    local is_required="${5:-false}"
+    local config_function="$6"
+    
+    # Check if already configured and user wants to keep it
+    if ! prompt_for_update "$var_name" "$display_name" "$current_value" "$default_value"; then
+        return 0  # User chose to keep existing value, exit early
+    fi
+    
+    # At this point, we need to configure (either new or updating existing)
+    if [ "$is_required" = true ]; then
+        # Required - always prompt (no skip option)
+        if [ -n "$config_function" ]; then
+            $config_function
+            print_success "$display_name configured"
+        fi
+    else
+        # Optional - prompt with skip option
+        if [ -n "$config_function" ]; then
+            if $config_function; then
+                print_success "$display_name configured"
+            else
+                print_status "$display_name disabled"
+            fi
+        else
+            # No config function provided - use simple API key configuration
+            if configure_simple_api_key "$var_name" "Enter your $display_name (press Enter to skip): "; then
+                print_success "$display_name configured"
+            else
+                print_status "$display_name disabled"
+            fi
+        fi
+    fi
+}
+
+# Helper function for simple API key configuration
+configure_simple_api_key() {
+    local var_name="$1"
+    local prompt_text="$2"
+    local is_secret="${3:-true}"
+    local value
+    
+    if [ "$is_secret" = true ]; then
+        read -s -p "$prompt_text" value
+        echo
+    else
+        read -p "$prompt_text" value
+    fi
+    
+    if [ -n "$value" ]; then
+        portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        return 0
+    else
+        # Clear the key if skipped (set to empty string)
+        portable_sed "s|.*export $var_name=.*|export $var_name=\"\"|" deployment/env
+        return 1
+    fi
+}
+
+
+# Wrapper functions for specific configurations
+
+configure_docker_hub_optional() {
+    read -p "Enter your Docker Hub username (press Enter to skip): " docker_username
+    if [ -n "$docker_username" ]; then
+        read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+        echo
+        
+        # Set Docker credentials
+        portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
+        portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
+        return 0
+    else
+        # Clear Docker credentials if skipped
+        portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"\"|" deployment/env
+        portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"\"|" deployment/env
+        return 1
+    fi
+}
+
+configure_otel_wrapper() {
+    read -p "Enter OTEL endpoint URL (press Enter to skip): " otel_endpoint
+    if [ -n "$otel_endpoint" ]; then
+        read -p "Enter OTEL protocol (http/grpc): " otel_protocol
+        read -s -p "Enter OTEL token (optional, press Enter to skip): " otel_token
+        echo
+        
+        # Update the env file
+        portable_sed "s|.*export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
+        portable_sed "s|.*export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
+        
+        if [ -n "$otel_token" ]; then
+            portable_sed "s|.*export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
+        fi
+        return 0
+    else
+        # Disable OTEL
+        portable_sed "s|.*export OTEL_ENDPOINT=.*|# export OTEL_ENDPOINT=\"\"|" deployment/env
+        portable_sed "s|.*export OTEL_PROTOCOL=.*|# export OTEL_PROTOCOL=\"http\"|" deployment/env
+        portable_sed "s|.*export OTEL_TOKEN=.*|# export OTEL_TOKEN=\"\"|" deployment/env
+        return 1
+    fi
+}
+
+configure_langfuse_wrapper() {
+    read -p "Enter LangFuse host URL (press Enter to skip): " langfuse_host
+    if [ -n "$langfuse_host" ]; then
         read -p "Enter LangFuse public key: " langfuse_public_key
         read -s -p "Enter LangFuse secret key: " langfuse_secret_key
         echo
@@ -369,11 +553,14 @@ configure_langfuse() {
         portable_sed "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"$langfuse_host\"|" deployment/env
         portable_sed "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"$langfuse_public_key\"|" deployment/env
         portable_sed "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"$langfuse_secret_key\"|" deployment/env
-        
-        print_success "LangFuse configured successfully"
+        return 0
     else
-        print_status "LangFuse disabled"
+        # Disable and clear LangFuse configuration
         portable_sed "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=false|" deployment/env
+        portable_sed "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"\"|" deployment/env
+        return 1
     fi
 }
 
@@ -386,53 +573,51 @@ configure_local_api_keys() {
         source deployment/env
     fi
     
-    # OpenAI API Key
-    if [ -n "$OPENAI_API_KEY" ] && [ "$OPENAI_API_KEY" != "<your-openai-api-key>" ]; then
-        print_status "OpenAI API key is already configured"
-    else
-        read -s -p "Enter your OpenAI API key: " openai_key
-        echo
-        portable_sed "s|.*export OPENAI_API_KEY=.*|export OPENAI_API_KEY=\"$openai_key\"|" deployment/env
-    fi
+    # OpenAI API Key (Optional)
+    print_linebreak
+    print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
+    print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
+    configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
     
-    # Anthropic API Key
-    if [ -n "$ANTHROPIC_API_KEY" ] && [ "$ANTHROPIC_API_KEY" != "<your-anthropic-api-key>" ]; then
-        print_status "Anthropic API key is already configured"
-    else
-        read -s -p "Enter your Anthropic API key: " anthropic_key
-        echo
-        portable_sed "s|.*export ANTHROPIC_API_KEY=.*|export ANTHROPIC_API_KEY=\"$anthropic_key\"|" deployment/env
-    fi
+    # Anthropic API Key (Optional)
+    print_linebreak
+    print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
+    print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
+    configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
-    # GitHub Container Registry
-    if [ -n "$GHCR_AUTH" ] && [ "$GHCR_AUTH" != "<your-ghcr-base64-auth>" ]; then
-        print_status "GitHub Container Registry authentication is already configured"
-    else
-        read -p "Enter your GitHub username (press Enter to use 'USERNAME'): " ghcr_username
-        if [ -z "$ghcr_username" ]; then
-            ghcr_username="USERNAME"
-        fi
-        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
-        echo
-        
-        # Compute GHCR_AUTH
-        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64)
-        portable_sed "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
-    fi
+    # GitHub Personal Access Token (Optional)
+    print_linebreak
+    print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
+    print_status "Only needed if Buttercup will access private repositories or packages."
+    configure_service "GHCR_AUTH" "GitHub authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" false "configure_ghcr_optional"
     
     # Docker Hub credentials (optional)
-    if [ -n "$DOCKER_USERNAME" ] && [ "$DOCKER_USERNAME" != "<your-docker-username>" ]; then
-        print_status "Docker Hub credentials are already configured (username: $DOCKER_USERNAME)"
+    print_linebreak
+    print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
+    print_status "Recommended for reliable builds, but not strictly required for operation."
+    configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
+    
+    # Validate that at least one LLM API key is configured
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    if [ -z "$OPENAI_API_KEY" ] || [ "$OPENAI_API_KEY" = "<your-openai-api-key>" ]; then
+        openai_configured=false
     else
-        read -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
-        if [ -n "$docker_username" ]; then
-            read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
-            echo
-            
-            # Set Docker credentials (handles both commented and uncommented lines)
-            portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
-            portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
-        fi
+        openai_configured=true
+    fi
+    
+    if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "<your-anthropic-api-key>" ]; then
+        anthropic_configured=false
+    else
+        anthropic_configured=true
+    fi
+    
+    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ]; then
+        print_error "At least one LLM API key (OpenAI or Anthropic) must be configured."
+        print_error "Rerun the setup and set at least one LLM API key."
+        return 1
     fi
     
     print_success "API keys configured successfully"
@@ -442,6 +627,7 @@ configure_local_api_keys() {
 
 # Function to configure OTEL telemetry
 configure_otel() {
+    print_linebreak
     print_status "Configuring OpenTelemetry telemetry (optional)..."
     
     # Source the env file to check current values
@@ -449,43 +635,10 @@ configure_otel() {
         source deployment/env
     fi
     
-    # Check if OTEL is already configured
-    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ] && [ "$OTEL_ENDPOINT" != "<your-otel-endpoint>" ]; then
-        print_status "OpenTelemetry is already configured:"
-        echo "  Endpoint: $OTEL_ENDPOINT"
-        echo "  Protocol: $OTEL_PROTOCOL"
-        read -p "Do you want to reconfigure OpenTelemetry? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_status "Keeping existing OpenTelemetry configuration"
-            return
-        fi
-    fi
+    print_status "OpenTelemetry: Optional distributed tracing and metrics collection."
+    print_status "Provides detailed performance monitoring and system observability for debugging."
     
-    read -p "Do you want to enable OpenTelemetry telemetry? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_status "OpenTelemetry configuration:"
-        read -p "Enter OTEL endpoint URL: " otel_endpoint
-        read -p "Enter OTEL protocol (http/grpc): " otel_protocol
-        read -s -p "Enter OTEL token (optional, press Enter to skip): " otel_token
-        echo
-        
-        # Update the env file
-        portable_sed "s|.*export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
-        portable_sed "s|.*export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
-        
-        if [ -n "$otel_token" ]; then
-            portable_sed "s|.*export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
-        fi
-        
-        print_success "OpenTelemetry configured successfully"
-    else
-        print_status "OpenTelemetry disabled"
-        portable_sed "s|.*export OTEL_ENDPOINT=.*|# export OTEL_ENDPOINT=\"\"|" deployment/env
-        portable_sed "s|.*export OTEL_PROTOCOL=.*|# export OTEL_PROTOCOL=\"http\"|" deployment/env
-        portable_sed "s|.*export OTEL_TOKEN=.*|# export OTEL_TOKEN=\"\"|" deployment/env
-    fi
+    configure_service "OTEL" "OpenTelemetry configuration" "$OTEL_ENDPOINT" "<your-otel-endpoint>" false "configure_otel_wrapper"
 }
 
 # Function to check configuration file
@@ -516,58 +669,6 @@ check_config() {
     else
         print_error "BUTTERCUP_K8S_VALUES_TEMPLATE is not set"
         return 1
-    fi
-}
-
-# Function to check Minikube configuration
-check_minikube_config() {
-    print_status "Checking Minikube configuration..."
-    
-    local errors=0
-    
-    # Check required API keys
-    local required_vars=(
-        "OPENAI_API_KEY"
-        "ANTHROPIC_API_KEY"
-        "GHCR_AUTH"
-    )
-    
-    for var in "${required_vars[@]}"; do
-        if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-            print_error "Required variable $var is not set or has placeholder value"
-            errors=$((errors + 1))
-        fi
-    done
-    
-    # Check optional LangFuse configuration
-    if [ "$LANGFUSE_ENABLED" = "true" ]; then
-        local langfuse_vars=(
-            "LANGFUSE_HOST"
-            "LANGFUSE_PUBLIC_KEY"
-            "LANGFUSE_SECRET_KEY"
-        )
-        
-        for var in "${langfuse_vars[@]}"; do
-            if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
-                print_error "LangFuse variable $var is not set or has placeholder value"
-                errors=$((errors + 1))
-            fi
-        done
-    fi
-    
-    # Check optional OTEL configuration
-    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
-        if [ -z "$OTEL_PROTOCOL" ] || [ "$OTEL_PROTOCOL" = "<your-*>" ]; then
-            print_error "OTEL_PROTOCOL is not set when OTEL_ENDPOINT is configured"
-            errors=$((errors + 1))
-        fi
-    fi
-    
-    if [ $errors -eq 0 ]; then
-        print_success "Minikube configuration is valid"
-    else
-        print_error "Minikube configuration has $errors error(s)"
-        return $errors
     fi
 }
 

@@ -67,7 +67,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          token: ${{ secrets.GH_CLONE_REPO_PAT }}
           submodules: true
 
       - name: Set BUTTERCUP_NAMESPACE for PRs
@@ -93,7 +92,7 @@ jobs:
           sed -i "s|LANGFUSE_HOST=.*|LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}|" env
           sed -i "s|LANGFUSE_PUBLIC_KEY=.*|LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}|" env
           sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
-          sed -i "s|GHCR_AUTH=.*|GHCR_AUTH=$(echo "USERNAME:${{ secrets.GHCR_TOKEN }}" | base64)|" env
+          sed -i "s|GHCR_AUTH=.*|GHCR_AUTH=$(echo "USERNAME:${{ secrets.GHCR_TOKEN }}" | base64 --wrap=0)|" env
           sed -i "s|DOCKER_USERNAME=.*|DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}|" env
           sed -i "s|DOCKER_PAT=.*|DOCKER_PAT=${{ secrets.DOCKER_PAT }}|" env
           sed -i "s|SCANTRON_GITHUB_PAT=.*|SCANTRON_GITHUB_PAT=${{ secrets.SCANTRON_GITHUB_PAT }}|" env
