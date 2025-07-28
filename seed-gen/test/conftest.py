@@ -1,5 +1,6 @@
 """Shared test fixtures and utilities for seed-gen tests."""
 
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, Mock
 
@@ -11,6 +12,8 @@ from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
+from buttercup.common.reproduce_multiple import ReproduceMultiple
+from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.seed_gen.find_harness import HarnessInfo
@@ -324,3 +327,35 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "integration" in item.keywords:
             item.add_marker(skip_integration)
+
+
+@pytest.fixture
+def mock_reproduce_multiple():
+    """Create a mock ReproduceMultiple."""
+    reproduce_multiple = MagicMock(spec=ReproduceMultiple)
+
+    @contextmanager
+    def mock_context():
+        yield reproduce_multiple
+
+    reproduce_multiple.open = mock_context
+    reproduce_multiple.get_crashes = Mock(return_value=[])
+
+    return reproduce_multiple
+
+
+@pytest.fixture
+def mock_crash_submit():
+    """Create a mock CrashSubmit."""
+    crash_queue = MagicMock()
+    crash_set = MagicMock(spec=CrashSet)
+    crash_dir = MagicMock()
+    crash_dir.copy_file.return_value = "/tmp/crash_file"
+
+    crash_submit = MagicMock()
+    crash_submit.crash_queue = crash_queue
+    crash_submit.crash_set = crash_set
+    crash_submit.crash_dir = crash_dir
+    crash_submit.max_pov_size = 10000
+
+    return crash_submit

@@ -1,6 +1,5 @@
 """Tests for VulnDiscoveryDeltaTask"""
 
-from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -8,26 +7,10 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.messages.tool import ToolCall
 
-from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.seed_gen.vuln_discovery_delta import VulnDiscoveryDeltaTask
 from test.conftest import (
     mock_sandbox_exec_funcs,
 )
-
-
-@pytest.fixture
-def mock_reproduce_multiple():
-    """Create a mock ReproduceMultiple."""
-    reproduce_multiple = MagicMock(spec=ReproduceMultiple)
-
-    @contextmanager
-    def mock_context():
-        yield reproduce_multiple
-
-    reproduce_multiple.open = mock_context
-    reproduce_multiple.get_crashes = Mock(return_value=[])
-
-    return reproduce_multiple
 
 
 @pytest.fixture
@@ -38,6 +21,7 @@ def vuln_discovery_task(
     mock_redis,
     mock_reproduce_multiple,
     mock_llm,
+    mock_crash_submit,
 ):
     """Create a VulnDiscoveryDeltaTask instance with mocked dependencies."""
     with (
@@ -52,7 +36,7 @@ def vuln_discovery_task(
             redis=mock_redis,
             reproduce_multiple=mock_reproduce_multiple,
             sarifs=[],
-            crash_submit=None,
+            crash_submit=mock_crash_submit,
         )
 
         return task
@@ -63,6 +47,8 @@ def test_do_task_no_valid_povs(
     mock_llm,
     mock_harness_info,
     tmp_path,
+    mock_crash_submit,
+    mock_reproduce_multiple,
 ):
     """Test successful execution of do_task method with no valid PoVs found"""
     out_dir = tmp_path / "out"
@@ -211,12 +197,13 @@ def test_do_task_no_valid_povs(
         vuln_discovery_task.challenge_task.exec_docker_cmd.assert_called()
 
         mock_sandbox_exec.assert_called()
+        mock_reproduce_multiple.get_crashes.assert_called()
 
         for i in range(vuln_discovery_task.MAX_POV_ITERATIONS):
             iter_pov_files = list(out_dir.glob(f"iter{i}_*.seed"))
             assert (
                 len(iter_pov_files) == 2
-            ), f"Expected 2 PoV files for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            ), f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
 
             # Check the content of the PoV files
             iter_pov1_file = next(f for f in iter_pov_files if "gen_seed_1" in f.name)
@@ -224,3 +211,6 @@ def test_do_task_no_valid_povs(
 
             assert iter_pov1_file.read_bytes() == b"mock_seed_data_1"
             assert iter_pov2_file.read_bytes() == b"mock_seed_data_2"
+
+        mock_crash_submit.crash_set.add.assert_not_called()
+        mock_crash_submit.crash_queue.push.assert_not_called()
