@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-production validate deploy deploy-local deploy-production test clean
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy
 
 # Default target
 help:
@@ -8,13 +8,16 @@ help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  setup-local       - Automated local development setup"
-	@echo "  setup-production  - Automated production AKS setup"
+	@echo "  setup-azure       - Automated production AKS setup"
 	@echo "  validate          - Validate current setup and configuration"
 	@echo ""
 	@echo "Deployment:"
-	@echo "  deploy            - Deploy to current environment (local or production)"
+	@echo "  deploy            - Deploy to current environment (local or azure)"
 	@echo "  deploy-local      - Deploy to local Minikube environment"
-	@echo "  deploy-production - Deploy to production AKS environment"
+	@echo "  deploy-azure      - Deploy to production AKS environment"
+	@echo ""
+	@echo "Status:"
+	@echo "  status            - Check the status of the deployment"
 	@echo ""
 	@echo "Testing:"
 	@echo "  test              - Run test task"
@@ -24,15 +27,15 @@ help:
 	@echo "  lint-component    - Lint specific component (e.g., make lint-component COMPONENT=orchestrator)"
 	@echo ""
 	@echo "Cleanup:"
-	@echo "  clean             - Clean up deployment"
-	@echo "  clean-local       - Clean up local environment"
+	@echo "  undeploy          - Remove deployment and clean up resources"
+	@echo "  clean-local       - Delete Minikube cluster and remove local config"
 
 # Setup targets
 setup-local:
 	@echo "Setting up local development environment..."
 	./scripts/setup-local.sh
 
-setup-production:
+setup-azure:
 	@echo "Setting up production AKS environment..."
 	./scripts/setup-production.sh
 
@@ -81,10 +84,10 @@ deploy-local:
 	make crs-instance-id
 	make wait-crs
 
-deploy-production:
+deploy-azure:
 	@echo "Deploying to production AKS environment..."
 	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-production' first."; \
+		echo "Error: Configuration file not found. Run 'make setup-azure' first."; \
 		exit 1; \
 	fi
 	cd deployment && make up
@@ -101,11 +104,11 @@ status:
 # Testing targets
 test:
 	@echo "Running test task..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
 	@sleep 3
 	./orchestrator/scripts/task_integration_test.sh
 	@pkill -f "kubectl port-forward" || true
@@ -125,7 +128,7 @@ lint-component:
 	just lint-python $(COMPONENT)
 
 # Cleanup targets
-clean:
+undeploy:
 	@echo "Cleaning up deployment..."
 	cd deployment && make down
 

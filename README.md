@@ -152,7 +152,7 @@ Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service 
 Use our automated setup script:
 
 ```bash
-make setup-production
+make setup-azure
 ```
 
 This script will check prerequisites, help create service principals, configure the environment, and validate your setup.
@@ -204,7 +204,7 @@ In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
 **Deploy the cluster and services:**
 
 ```bash
-make deploy-production
+make deploy-azure
 ```
 
 **Alternative manual command:**
@@ -230,7 +230,7 @@ kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 ## Cleanup
 
 ```bash
-make clean
+make undeploy
 ```
 
 **Alternative manual command:**
@@ -250,17 +250,17 @@ The **Buttercup CRS** project includes a Makefile with convenient shortcuts for 
 make help
 
 # Setup
-make setup-local          # Automated local setup
-make setup-production     # Automated production setup
-make validate             # Validate current setup
+make setup-local          # Automated local development setup
+make setup-azure          # Automated production AKS setup
+make validate             # Validate current setup and configuration
 
 # Deployment
-make deploy               # Deploy to current environment
-make deploy-local         # Deploy to local Minikube
-make deploy-production    # Deploy to production AKS
+make deploy               # Deploy to current environment (local or azure)
+make deploy-local         # Deploy to local Minikube environment
+make deploy-azure         # Deploy to production AKS environment
 
 # Status
-make status               # Check deployment status
+make status               # Check the status of the deployment
 
 # Testing
 make test                 # Run test task
@@ -270,8 +270,8 @@ make lint                 # Lint all Python code
 make lint-component COMPONENT=orchestrator  # Lint specific component
 
 # Cleanup
-make clean                # Clean up deployment
-make clean-local          # Clean up local environment
+make undeploy             # Remove deployment and clean up resources
+make clean-local          # Delete Minikube cluster and remove local config
 ```
 
 ### Running Tests
