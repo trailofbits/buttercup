@@ -608,8 +608,6 @@ check_aks_config() {
         "GHCR_AUTH"
         "CRS_KEY_ID"
         "CRS_KEY_TOKEN"
-        "COMPETITION_API_KEY_ID"
-        "COMPETITION_API_KEY_TOKEN"
     )
     
     for var in "${api_vars[@]}"; do

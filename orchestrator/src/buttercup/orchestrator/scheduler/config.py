@@ -8,12 +8,6 @@ from pathlib import Path
 class ServeCommand(BaseSettings):
     sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
-    competition_api_url: Annotated[str, Field(default="http://competition-api:8080", description="Competition API URL")]
-    competition_api_key_id: Annotated[str, Field(default="api_key_id", description="Competition API username")]
-    competition_api_key_token: Annotated[str, Field(default="api_key_token", description="Competition API password")]
-    competition_api_cycle_time: Annotated[
-        float, Field(default=10.0, description="Min seconds between competition api interactions")
-    ]
     patch_submission_retry_limit: Annotated[
         int, Field(default=60, description="Number of retries for errored patch submissions.")
     ]

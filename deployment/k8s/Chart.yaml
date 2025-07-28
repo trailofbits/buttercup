@@ -43,9 +43,6 @@ dependencies:
   - name: patcher
     version: "0.0.1"
     repository: "file://charts/patcher"
-  - name: competition-api
-    version: "0.0.1"
-    repository: "file://charts/competition-api"
   - name: registry-cache
     version: "0.1.0"
     repository: "file://charts/registry-cache"

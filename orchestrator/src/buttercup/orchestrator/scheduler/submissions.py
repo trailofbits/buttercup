@@ -31,17 +31,6 @@ from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 from buttercup.orchestrator.scheduler.sarif_matcher import match
-from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture
-from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
-from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
-from buttercup.orchestrator.competition_api_client.models.types_bundle_submission import TypesBundleSubmission
-from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
-from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_submission import (
-    TypesSarifAssessmentSubmission,
-)
-from buttercup.orchestrator.competition_api_client.models.types_assessment import TypesAssessment
-from buttercup.orchestrator.competition_api_client.api_client import ApiClient
-from buttercup.orchestrator.competition_api_client.api import PovApi, PatchApi, BundleApi, BroadcastSarifAssessmentApi
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.stack_parsing import get_crash_data, get_inst_key
@@ -49,18 +38,6 @@ from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 
 logger = logging.getLogger(__name__)
 
-
-def _map_submission_status_to_result(status: TypesSubmissionStatus) -> SubmissionResult:
-    """Map TypesSubmissionStatus to SubmissionResult enum."""
-    mapping = {
-        TypesSubmissionStatus.SubmissionStatusAccepted: SubmissionResult.ACCEPTED,
-        TypesSubmissionStatus.SubmissionStatusPassed: SubmissionResult.PASSED,
-        TypesSubmissionStatus.SubmissionStatusFailed: SubmissionResult.FAILED,
-        TypesSubmissionStatus.SubmissionStatusDeadlineExceeded: SubmissionResult.DEADLINE_EXCEEDED,
-        TypesSubmissionStatus.SubmissionStatusErrored: SubmissionResult.ERRORED,
-        TypesSubmissionStatus.SubmissionStatusInconclusive: SubmissionResult.INCONCLUSIVE,
-    }
-    return mapping.get(status, SubmissionResult.ERRORED)  # Default to ERRORED for unknown statuses
 
 
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
@@ -217,402 +194,14 @@ def _find_matching_build_output(patch: SubmissionEntryPatch, build_output: Build
     )
 
 
-class CompetitionAPI:
-    """
-    Simplified interface for the competition API.
-
-    Handles submission formatting, error handling, and response parsing for:
-    - Vulnerability proofs (POVs)
-    - Patches
-    - Bundles (vulnerability + patch combinations)
-
-    Each method handles errors and returns results in a consistent format.
-    """
-
-    def __init__(self, api_client: ApiClient, task_registry: TaskRegistry):
-        """
-        Initialize with an API client.
-
-        Args:
-            api_client: Client for making HTTP requests
-            task_registry: Task registry for getting task metadata
-        """
-        self.api_client = api_client
-        self.task_registry = task_registry
-
-    @lru_cache(maxsize=10)
-    def _get_task_metadata(self, task_id: str) -> dict:
-        """Get the task metadata for a given task ID.
-
-        Note: this is cached because the task metadata is immutable.
-        """
-        return dict(self.task_registry.get(task_id).metadata)
-
-    def submit_pov(self, crash: TracedCrash) -> Tuple[str | None, SubmissionResult]:
-        """
-        Submit a vulnerability (POV) to the competition API.
-
-        Reads crash input, encodes as base64, and submits with required metadata.
-
-        Args:
-            crash: TracedCrash with crash details and metadata
-
-        Returns:
-            Tuple[str | None, SubmissionResult]:
-                - POV ID if successful, None otherwise
-                - Submission status
-        """
-        try:
-            # Read crash input file contents and encode as base64
-            with node_local.lopen(crash.crash.crash_input_path, "rb") as f:
-                crash_data = base64.b64encode(f.read()).decode()
-
-            # Create submission payload from crash data
-            submission = TypesPOVSubmission(
-                architecture=TypesArchitecture.ArchitectureX8664,
-                engine=crash.crash.target.engine,
-                fuzzer_name=crash.crash.harness_name,
-                sanitizer=crash.crash.target.sanitizer,
-                testcase=crash_data,
-            )
-
-            # Telemetry
-            tracer = trace.get_tracer(__name__)
-            with tracer.start_as_current_span("submit_pov_for_scoring") as span:
-                set_crs_attributes(
-                    span,
-                    crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
-                    crs_action_name="submit_pov_for_scoring",
-                    task_metadata=self._get_task_metadata(_task_id(crash)),
-                    extra_attributes={
-                        "crs.action.target.harness": crash.crash.harness_name,
-                    },
-                )
-
-                logger.debug(f"[{crash.crash.target.task_id}] Submitting POV for harness: {crash.crash.harness_name}")
-
-                # Submit Pov and get response
-                response = PovApi(api_client=self.api_client).v1_task_task_id_pov_post(
-                    task_id=crash.crash.target.task_id,
-                    payload=submission,
-                )
-                logger.debug(f"[{crash.crash.target.task_id}] POV submission response: {response}")
-                mapped_status = _map_submission_status_to_result(response.status)
-                if mapped_status not in [
-                    SubmissionResult.ACCEPTED,
-                    SubmissionResult.PASSED,
-                ]:
-                    logger.error(
-                        f"[{crash.crash.target.task_id}] POV submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}"
-                    )
-                    span.set_status(Status(StatusCode.ERROR))
-                    return None, mapped_status
-
-                span.set_status(Status(StatusCode.OK))
-                return response.pov_id, mapped_status
-        except Exception as e:
-            logger.error(f"[{crash.crash.target.task_id}] Failed to submit vulnerability: {e}")
-            return None, SubmissionResult.ERRORED
-
-    def get_pov_status(self, task_id: str, pov_id: str) -> SubmissionResult:
-        """
-        Get vulnerability submission status.
-
-        Args:
-            task_id: Task ID associated with the vulnerability
-            pov_id: POV ID from submit_vulnerability
-
-        Returns:
-            SubmissionResult: Current status (ACCEPTED, PASSED, FAILED, ERRORED, DEADLINE_EXCEEDED)
-        """
-        assert task_id
-        assert pov_id
-
-        response = PovApi(api_client=self.api_client).v1_task_task_id_pov_pov_id_get(task_id=task_id, pov_id=pov_id)
-        return _map_submission_status_to_result(response.status)
-
-    def submit_patch(self, task_id: str, patch: str) -> Tuple[str | None, SubmissionResult]:
-        """
-        Submit a patch to the competition API.
-
-        Args:
-            task_id: Task ID of the vulnerability being patched
-            patch: Patch content string
-
-        Returns:
-            Tuple[str | None, SubmissionResult]:
-                - Patch ID if accepted, None otherwise
-                - Submission status
-        """
-        assert task_id
-        assert patch
-
-        encoded_patch = base64.b64encode(patch.encode()).decode()
-        submission = TypesPatchSubmission(
-            patch=encoded_patch,
-        )
-
-        # Telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("submit_patch_for_scoring") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
-                crs_action_name="submit_patch_for_scoring",
-                task_metadata=self._get_task_metadata(task_id),
-            )
-
-            logger.debug(f"[{task_id}] Submitting patch")
-
-            response = PatchApi(api_client=self.api_client).v1_task_task_id_patch_post(
-                task_id=task_id, payload=submission
-            )
-            logger.debug(f"[{task_id}] Patch submission response: {response}")
-            mapped_status = _map_submission_status_to_result(response.status)
-            if mapped_status not in [
-                SubmissionResult.ACCEPTED,
-                SubmissionResult.PASSED,
-            ]:
-                logger.error(f"[{task_id}] Patch submission rejected (status: {response.status}) for harness: {patch}")
-                span.set_status(Status(StatusCode.ERROR))
-                return (None, mapped_status)
-
-            span.set_status(Status(StatusCode.OK))
-            return (response.patch_id, mapped_status)
-
-    def get_patch_status(self, task_id: str, patch_id: str) -> SubmissionResult:
-        """
-        Get patch submission status.
-
-        Args:
-            task_id: Task ID associated with the patch
-            patch_id: Patch ID from submit_patch
-
-        Returns:
-            SubmissionResult: Current status (ACCEPTED, PASSED, FAILED, ERRORED, DEADLINE_EXCEEDED)
-        """
-        assert task_id
-        assert patch_id
-
-        response = PatchApi(api_client=self.api_client).v1_task_task_id_patch_patch_id_get(
-            task_id=task_id, patch_id=patch_id
-        )
-        if response.functionality_tests_passing is not None:
-            logger.info(
-                f"[{task_id}] Patch {patch_id} functionality tests passing: {response.functionality_tests_passing}"
-            )
-        return _map_submission_status_to_result(response.status)
-
-    def submit_bundle(
-        self, task_id: str, pov_id: str, patch_id: str, sarif_id: str
-    ) -> Tuple[str | None, SubmissionResult]:
-        """
-        Submit a bundle (vulnerability + patch).
-
-        Args:
-            task_id: Task ID for the submission
-            pov_id: POV ID of verified vulnerability
-            patch_id: Patch ID of verified patch
-
-        Returns:
-            Tuple[str | None, SubmissionResult]:
-                - Bundle ID if successful, None otherwise
-                - Submission status
-        """
-        assert task_id
-        assert pov_id
-
-        submission = TypesBundleSubmission(
-            pov_id=pov_id,
-        )
-        if sarif_id:
-            submission.broadcast_sarif_id = sarif_id
-        if patch_id:
-            submission.patch_id = patch_id
-
-        # Telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("submit_bundle_for_scoring") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
-                crs_action_name="submit_bundle_for_scoring",
-                task_metadata=self._get_task_metadata(task_id),
-            )
-
-            logger.debug(f"[{task_id}] Submitting bundle for harness: {pov_id} {patch_id} {sarif_id}")
-
-            response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_post(
-                task_id=task_id, payload=submission
-            )
-            logger.debug(f"[{task_id}] Bundle submission response: {response}")
-            mapped_status = _map_submission_status_to_result(response.status)
-            if mapped_status not in [
-                SubmissionResult.ACCEPTED,
-                SubmissionResult.PASSED,
-            ]:
-                logger.error(f"[{task_id}] Bundle submission rejected (status: {response.status})")
-                span.set_status(Status(StatusCode.ERROR))
-                return (None, mapped_status)
-
-            span.set_status(Status(StatusCode.OK))
-            return (response.bundle_id, mapped_status)
-
-    def patch_bundle(
-        self, task_id: str, bundle_id: str, pov_id: str, patch_id: str, sarif_id: str
-    ) -> Tuple[bool, SubmissionResult]:
-        """
-        Submit a bundle patch with SARIF association.
-
-        Args:
-            task_id: Task ID for the submission
-            bundle_id: Bundle ID to patch
-            pov_id: POV ID of verified vulnerability
-            patch_id: Patch ID of verified patch
-            sarif_id: SARIF ID to associate with the bundle
-
-        Returns:
-            Tuple[bool, SubmissionResult]:
-                - True if successful, False otherwise
-                - Submission status
-        """
-        assert task_id
-        assert bundle_id
-        assert pov_id
-        assert patch_id
-        assert sarif_id
-
-        submission = TypesBundleSubmission(
-            bundle_id=bundle_id,
-            pov_id=pov_id,
-            patch_id=patch_id,
-            broadcast_sarif_id=sarif_id,
-        )
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("patch_bundle") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
-                crs_action_name="patch_bundle",
-                task_metadata=self._get_task_metadata(task_id),
-            )
-            response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_patch(
-                task_id=task_id, bundle_id=bundle_id, payload=submission
-            )
-            logger.debug(f"[{task_id}] Bundle patch submission response: {response}")
-            mapped_status = _map_submission_status_to_result(response.status)
-            if mapped_status not in [
-                SubmissionResult.ACCEPTED,
-                SubmissionResult.PASSED,
-            ]:
-                logger.error(
-                    f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}"
-                )
-                span.set_status(Status(StatusCode.ERROR))
-                return (False, mapped_status)
-
-            span.set_status(Status(StatusCode.OK))
-            return (True, mapped_status)
-
-    def delete_bundle(self, task_id: str, bundle_id: str) -> bool:
-        """
-        Delete a bundle by bundle_id.
-
-        Args:
-            task_id: Task ID for the submission
-            bundle_id: Bundle ID to delete
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        assert task_id
-        assert bundle_id
-
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("delete_bundle") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
-                crs_action_name="delete_bundle",
-                task_metadata=self._get_task_metadata(task_id),
-            )
-
-            try:
-                logger.debug(f"[{task_id}] Deleting bundle: {bundle_id}")
-                response = BundleApi(api_client=self.api_client).v1_task_task_id_bundle_bundle_id_delete(
-                    task_id=task_id, bundle_id=bundle_id
-                )
-                logger.debug(f"[{task_id}] Bundle deletion response: {response}")
-                span.set_status(Status(StatusCode.OK))
-                return True
-
-            except Exception as e:
-                logger.error(f"[{task_id}] Bundle deletion failed for bundle_id: {bundle_id}, error: {e}")
-                span.set_status(Status(StatusCode.ERROR))
-                return False
-
-    def submit_matching_sarif(self, task_id: str, sarif_id: str) -> Tuple[bool, SubmissionResult]:
-        """
-        Submit a matching assessment for a SARIF report.
-
-        Used to claim overlap between our vulnerability findings and a broadcast SARIF.
-
-        Args:
-            task_id: Task ID for the submission
-            sarif_id: ID of the broadcast SARIF report to assess
-
-        Returns:
-            Tuple[bool, SubmissionResult]:
-                - True if successful, False otherwise
-                - Submission status
-        """
-        assert task_id
-        assert sarif_id
-
-        # TODO: The description is the most basic I could think of. I don't know if we wanted to do something more fancy.
-        submission = TypesSarifAssessmentSubmission(
-            assessment=TypesAssessment.AssessmentCorrect,
-            description="Overlapping with our POV/patch",
-        )
-
-        # Telemetry
-        tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("submit_SARIF_for_scoring") as span:
-            set_crs_attributes(
-                span,
-                crs_action_category=CRSActionCategory.SCORING_SUBMISSION,
-                crs_action_name="submit_SARIF_for_scoring",
-                task_metadata=self._get_task_metadata(task_id),
-            )
-
-            response = BroadcastSarifAssessmentApi(
-                api_client=self.api_client
-            ).v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_post(
-                task_id=task_id, broadcast_sarif_id=sarif_id, payload=submission
-            )
-            logger.debug(f"[{task_id}] Matching SARIF submission response: {response}")
-            mapped_status = _map_submission_status_to_result(response.status)
-            if mapped_status not in [
-                SubmissionResult.ACCEPTED,
-                SubmissionResult.PASSED,
-            ]:
-                logger.error(
-                    f"[{task_id}] Matching SARIF submission rejected (status: {response.status}) for sarif_id: {sarif_id}"
-                )
-                span.set_status(Status(StatusCode.ERROR))
-                return (False, mapped_status)
-
-            span.set_status(Status(StatusCode.OK))
-            return (True, mapped_status)
-
 
 @dataclass
 class Submissions:
     """
-    Manages the complete lifecycle of vulnerability submissions to the competition API.
+    Manages the complete lifecycle of vulnerability processing and patch generation.
 
-    This class implements a state machine that coordinates the submission of vulnerabilities (POVs),
-    patches, and bundles to a competition API. It handles deduplication, async patch generation,
+    This class implements a state machine that coordinates vulnerability (POV) processing,
+    patch generation, and bundle creation. It handles deduplication, async patch generation,
     validation, and cross-submission optimization.
 
     High-Level Approach
@@ -624,13 +213,12 @@ class Submissions:
     - `record_patched_build()`: Called when patched builds are ready
     - `process_cycle()`: Main processing loop that advances all state machines
 
-    **Competition API Interaction Strategy:**
-    1. Submit POVs immediately to claim vulnerabilities
-    2. Request patches asynchronously via queues while POVs are being validated
+    **Internal Processing Strategy:**
+    1. Process POVs for internal vulnerability tracking and analysis
+    2. Request patches asynchronously via queues
     3. Test patches against all POVs to ensure complete mitigation
-    4. Submit patches only after POV validation passes and patch effectiveness is confirmed
+    4. Validate patches for effectiveness and correctness
     5. Create bundles combining POVs + patches + optional SARIF matches
-    6. Handle retries, errors, and state synchronization with competition API
 
     **Deduplication and Optimization:**
     - Similar crashes are detected and consolidated into single submissions
@@ -647,15 +235,14 @@ class Submissions:
     --------------------
 
     **POV States:**
-    - Submit immediately via `submit_vulnerability()` → ACCEPTED
-    - ACCEPTED → PASSED/FAILED/ERRORED (via competition API polling)
-    - ERRORED → retry submission
+    - Process immediately via `submit_vulnerability()` → ACCEPTED (internal processing)
+    - ACCEPTED → PASSED (automatic outside of competition)
 
     **Patch States:**
     - Request via queues → patch generated → recorded via `record_patch()`
-    - Test against all POVs for effectiveness → submit if all POVs mitigated
-    - ACCEPTED → PASSED/FAILED/ERRORED (via competition API polling)
-    - FAILED/ERRORED → advance to next patch or retry
+    - Test against all POVs for effectiveness → validate if all POVs mitigated
+    - ACCEPTED → PASSED (internal validation and testing)
+    - FAILED → advance to next patch or retry
 
     **Bundle States:**
     - Create when POV=PASSED and patch=PASSED
@@ -676,7 +263,6 @@ class Submissions:
     MATCHED_SARIFS = "matched_sarifs"
 
     redis: Redis
-    competition_api: CompetitionAPI
     task_registry: TaskRegistry
     tasks_storage_dir: Path
     patch_submission_retry_limit: int = 60
@@ -923,48 +509,40 @@ class Submissions:
         log_entry(e, i=index, msg="Recorded unique PoV")
         return True
 
-    def _submit_pov_if_needed(self, i: int, e: SubmissionEntry, _redis: Redis) -> bool:
+    def _process_pov_if_needed(self, i: int, e: SubmissionEntry, _redis: Redis) -> bool:
         """
-        Submit first eligible POV to competition API if none are pending/successful.
+        Process first eligible POV for internal tracking if none are processed/successful.
         Returns True if entry needs persistence, False otherwise.
         """
         if _get_first_successful_pov(e):
-            # We already have a successful POV, we don't need to submit more.
+            # We already have a successful POV, we don't need to process more.
             return False
 
         if _get_pending_pov_submissions(e):
-            # We have pending POVs, no need to submit yet another one.
+            # We have pending POVs, no need to process yet another one.
             return False
 
-        # No successful POV, and no pending POVs, we can submit a new one.
+        # No successful POV, and no pending POVs, we can process a new one.
         for pov in _get_eligible_povs_for_submission(e):
-            # A previous submission attempt errored, we want to submit again, but all other states are final.
-            pov_id, status = self.competition_api.submit_pov(pov.crash)
-            if pov_id:
-                pov.competition_pov_id = pov_id
-                pov.result = status
-                log_entry(e, i=i, msg="Submitted POV")
-                return True
-            else:
-                logger.error(
-                    f"[{_task_id(pov.crash)}] Failed to submit vulnerability. Competition API returned {status}. Will attempt the next PoV."
-                )
-                logger.debug(f"CrashInfo: {pov.crash}")
-                log_entry(e, i=i, msg="Failed to submit POV")
+            # For internal processing, we automatically accept and mark as passed
+            pov.competition_pov_id = f"internal_{uuid.uuid4().hex[:8]}"
+            pov.result = SubmissionResult.ACCEPTED # Auto accept outside of competition
+            log_entry(e, i=i, msg="Processed POV internally")
+            return True
 
         return False
 
     def _update_pov_status(self, i: int, e: SubmissionEntry, _redis: Redis) -> bool:
         """
-        Poll competition API for status updates on pending POVs.
+        Update status of pending POVs to PASSED for internal processing.
         Returns True if any status changed and entry needs persistence.
         """
         updated = False
         for pov in _get_pending_pov_submissions(e):
-            status = self.competition_api.get_pov_status(_task_id(pov.crash), pov.competition_pov_id)
-            if status != SubmissionResult.ACCEPTED:
-                pov.result = status
-                log_entry(e, i=i, msg=f"Updated POV status. New status {SubmissionResult.Name(status)}")
+            # For internal processing, automatically promote ACCEPTED to PASSED
+            if pov.result == SubmissionResult.ACCEPTED:
+                pov.result = SubmissionResult.PASSED
+                log_entry(e, i=i, msg=f"Updated POV status. New status {SubmissionResult.Name(pov.result)}")
                 updated = True
         return updated
 
@@ -1182,59 +760,26 @@ class Submissions:
             _advance_patch_idx(e)
             return True
 
-        # At this point, we have a good patch to submit.
-        competition_patch_id, status = self.competition_api.submit_patch(_task_id(e), patch.patch)
+        # At this point, we have a good patch for internal processing.
+        competition_patch_id = f"internal_patch_{uuid.uuid4().hex[:8]}"
+        status = SubmissionResult.ACCEPTED # automatically accepted outside of competition
         patch.result = status
-        if competition_patch_id:
-            # Good submission, record the patch id
-            patch.competition_patch_id = competition_patch_id
-            log_entry(e, i=i, msg=f"Patch successfully submitted id={competition_patch_id}")
-        elif status == SubmissionResult.ERRORED:
-            _increase_submission_attempts(e)
-            log_entry(e, i=i, msg=f"Patch submission errored, will try again. Attempts={e.patch_submission_attempts}")
-        elif status == SubmissionResult.FAILED or status == SubmissionResult.INCONCLUSIVE:
-            # Bad patch (or undecided state), move on to next
-            _advance_patch_idx(e)
-            log_entry(
-                e, i=i, msg=f"Patch submission failed, advancing to next patch. Attempts={e.patch_submission_attempts}"
-            )
-        else:
-            # This is a status we won't do anything about, just record it. If it is a timeout, next iteration will probably
-            # filter the SubmissionEntry so we won't try this patch again.
-            log_entry(e, i=i, msg=f"Patch submission returned unknown status {status}")
+        patch.competition_patch_id = competition_patch_id
+        log_entry(e, i=i, msg=f"Patch successfully processed internally id={competition_patch_id}")
 
         return True
 
     def _update_patch_status(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """
-        Update the status of any patch in the ACCEPTED state.
+        Update the status of any patch in the ACCEPTED state to PASSED for internal processing.
         """
         updated = False
         for patch in _get_pending_patch_submissions(e):
-            status = self.competition_api.get_patch_status(_task_id(e), patch.competition_patch_id)
-            patch.result = status
-            match status:
-                case SubmissionResult.PASSED:
-                    log_entry(e, i=i, msg="Patch passed")
-                    updated = True
-                case SubmissionResult.FAILED | SubmissionResult.INCONCLUSIVE:
-                    log_entry(e, i=i, msg="Patch failed. Will advance to next patch.")
-                    _advance_patch_idx(e)
-                    updated = True
-                case SubmissionResult.ERRORED:
-                    patch.competition_patch_id = None
-                    log_entry(e, i=i, msg="Patch errored. Will try again. Attempts={e.patch_submission_attempts}")
-                    _increase_submission_attempts(e)
-                    updated = True
-                case SubmissionResult.DEADLINE_EXCEEDED:
-                    patch.competition_patch_id = None
-                    log_entry(e, i=i, msg="Patch deadline exceeded. Will stop trying.")
-                    # NOTE: Not increasing patch index as we don't want another patch to be generated
-                    updated = True
-                case SubmissionResult.ACCEPTED:
-                    # No change
-                    pass
-
+            # For internal processing, automatically promote ACCEPTED patches to PASSED
+            if patch.result == SubmissionResult.ACCEPTED:
+                patch.result = SubmissionResult.PASSED
+                log_entry(e, i=i, msg="Patch passed internal validation")
+                updated = True
         return updated
 
     def _ensure_single_bundle(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
@@ -1251,13 +796,10 @@ class Submissions:
         last_bundle_id = e.bundles[-1].bundle_id
         task_id = _task_id(e)
         logger.debug(f"[{task_id}] Deleting bundle {last_bundle_id}")
-        if self.competition_api.delete_bundle(task_id, last_bundle_id):
-            log_entry(e, i=i, msg=f"Deleted bundle {last_bundle_id}")
-            e.bundles.pop()
-            return True
-
-        log_entry(e, i=i, msg=f"Failed to delete bundle {last_bundle_id}. Will keep trying.")
-        return False
+        # For internal processing, always succeed in "deleting" bundles
+        log_entry(e, i=i, msg=f"Deleted bundle {last_bundle_id} (internal)")
+        e.bundles.pop()
+        return True
 
     def _ensure_bundle_contents(
         self,
@@ -1282,32 +824,23 @@ class Submissions:
 
         task_id = _task_id(e)
         if nbundles == 0:
-            competition_bundle_id, status = self.competition_api.submit_bundle(
-                task_id, competition_pov_id, competition_patch_id or "", competition_sarif_id or ""
+            # For internal processing, create bundle with internal ID
+            competition_bundle_id = f"internal_bundle_{uuid.uuid4().hex[:8]}"
+            bundle = Bundle(
+                bundle_id=competition_bundle_id,
+                task_id=task_id,
+                competition_pov_id=competition_pov_id,
+                competition_patch_id=competition_patch_id,
+                competition_sarif_id=competition_sarif_id,
             )
-            if competition_bundle_id:
-                bundle = Bundle(
-                    bundle_id=competition_bundle_id,
-                    task_id=task_id,
-                    competition_pov_id=competition_pov_id,
-                    competition_patch_id=competition_patch_id,
-                    competition_sarif_id=competition_sarif_id,
-                )
 
-                e.bundles.append(bundle)
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Submitted bundle {competition_bundle_id} for patch {competition_patch_id} and sarif {competition_sarif_id}",
-                )
-                return True
-            else:
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Failed to submit bundle, status: {status}. Will keep trying (not much else we can do).",
-                )
-                return False
+            e.bundles.append(bundle)
+            log_entry(
+                e,
+                i=i,
+                msg=f"Created internal bundle {competition_bundle_id} for patch {competition_patch_id} and sarif {competition_sarif_id}",
+            )
+            return True
         else:
             # We have a previous bundle, check if it is still valid
             bundle = e.bundles[0]
@@ -1331,23 +864,13 @@ class Submissions:
 
             log_entry(e, i=i, msg="Patching bundle")
             # It bundles the wrong contents, patch the bundle using the correct contents.
-            success, status = self.competition_api.patch_bundle(
-                bundle.task_id,
-                bundle.bundle_id,
-                bundle.competition_pov_id,
-                bundle.competition_patch_id,
-                bundle.competition_sarif_id,
+            # For internal processing, always succeed in patching bundles
+            log_entry(
+                e,
+                i=i,
+                msg=f"Patched bundle {bundle.bundle_id} with patch {competition_patch_id} and sarif {competition_sarif_id} (internal)",
             )
-            if success:
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Patched bundle {bundle.bundle_id} with patch {competition_patch_id} and sarif {competition_sarif_id}",
-                )
-                return True
-
-            log_entry(e, i=i, msg=f"Failed to patch bundle {bundle.bundle_id}. Status: {status}. Will keep trying.")
-            return False
+            return True
 
     def _ensure_patch_is_bundled(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """
@@ -1459,17 +982,14 @@ class Submissions:
             return False
 
         if bundle.competition_sarif_id not in self.matched_sarifs:
-            # We have a bundle with a SARIF that hasn't been confirmed yet. Do that now.
-            success, status = self.competition_api.submit_matching_sarif(_task_id(e), bundle.competition_sarif_id)
-            if success:
-                self._insert_matched_sarif(redis, bundle.competition_sarif_id)
-                return True
-            else:
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Failed to confirm SARIF {bundle.competition_sarif_id}. Status: {status}. Will keep trying.",
-                )
+            # For internal processing, always succeed in matching SARIF
+            self._insert_matched_sarif(redis, bundle.competition_sarif_id)
+            log_entry(
+                e,
+                i=i,
+                msg=f"Matched SARIF {bundle.competition_sarif_id} internally",
+            )
+            return True
 
         # We have a bundle with a SARIF that has been confirmed, no need to do anything (or confirmation failed)
         return True
@@ -1766,7 +1286,7 @@ class Submissions:
                     # POV submission
                     if self._update_pov_status(i, e, pipe):
                         needs_persist = True
-                    if self._submit_pov_if_needed(i, e, pipe):
+                    if self._process_pov_if_needed(i, e, pipe):
                         needs_persist = True
 
                     # Post merge handling

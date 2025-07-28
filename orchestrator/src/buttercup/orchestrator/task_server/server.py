@@ -33,15 +33,10 @@ from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
 from urllib3.exceptions import MaxRetryError, NewConnectionError
-from buttercup.orchestrator.api_client_factory import create_api_client
-from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
-from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
 
 settings = get_settings()
 logger = setup_package_logger("task-server", __name__, settings.log_level, settings.log_max_line_length)
 logger.info("Redis URL: %s", settings.redis_url)
-logger.info("Competition API URL: %s", settings.competition_api_url)
-logger.info("Competition API Key ID: %s", settings.competition_api_username)
 logger.info("API Key ID: %s", settings.api_key_id)
 
 try:
@@ -152,30 +147,10 @@ def get_status_(
     CRS Status
     """
 
-    def is_competition_api_ready():
-        is_ready = False
-        api_client = create_api_client(
-            competition_api_url=settings.competition_api_url,
-            competition_api_username=settings.competition_api_username,
-            competition_api_password=settings.competition_api_password,
-        )
-        api = PingApi(api_client=api_client)
-
-        response = None
-        try:
-            response: TypesPingResponse = api.v1_ping_get()
-        except (MaxRetryError, NewConnectionError):
-            is_ready = False
-
-        if isinstance(response, TypesPingResponse):
-            if response.status:
-                is_ready = True
-
-        return is_ready
-
+    # For internal processing, always consider system ready
     return Status(
         details={},
-        ready=is_competition_api_ready(),
+        ready=True,
         since=0,
         state=StatusState(tasks=get_status_tasks_state(settings.redis_url)),
         version=__version__,

@@ -9,14 +9,3 @@ metadata:
 spec:
   externalName: placeholder
   type: ExternalName
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: competition-api-1-egress
-  namespace: tailscale
-  annotations:
-    tailscale.com/tailnet-fqdn: "api.tail7e9b4c.ts.net" #Competition API FQDN
-spec:
-  externalName: placeholder
-  type: ExternalName

@@ -178,11 +178,6 @@ seed-gen:
 patcher:
   enabled: true
 
-competition-api:
-  enabled: true
-
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
 
 # Registry cache configuration
 registry-cache:

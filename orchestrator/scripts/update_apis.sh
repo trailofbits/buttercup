@@ -31,28 +31,7 @@ TEMPDIR=$(mktemp -d)
 $PYTHON_CMD -m venv "$TEMPDIR/venv"
 . $TEMPDIR/venv/bin/activate
 
-# Update competition API client
-# Run docker with current user to ensure correct file permissions
-USER_ID=$(id -u)
-GROUP_ID=$(id -g)
-docker run --rm --user $USER_ID:$GROUP_ID -v "$(realpath example-crs-architecture/docs/api):/local" -v "$OUTPUT_DIR/src/buttercup/orchestrator:/out" openapitools/openapi-generator-cli generate \
-    -i /local/competition-swagger-v1.4.0.json \
-    -g python \
-    -o /out \
-    --package-name competition_api_client
-
-sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/competition_api_client.models,/buttercup.orchestrator.competition_api_client.models,/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/^import competition_api_client/import buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
-sed -i.bak 's/^import competition_api_client./import buttercup.orchestrator.competition_api_client./' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
-
-mkdir -p "$OUTPUT_DIR/docs"
-mkdir -p "$OUTPUT_DIR/test"
-cp -rv "$OUTPUT_DIR"/src/buttercup/orchestrator/docs/* "$OUTPUT_DIR/docs/"
-cp -rv "$OUTPUT_DIR"/src/buttercup/orchestrator/test/* "$OUTPUT_DIR/test/"
-rm -rf "$OUTPUT_DIR/src/buttercup/orchestrator/docs"
-rm -rf "$OUTPUT_DIR/src/buttercup/orchestrator/test"
+# Competition API client removed - no longer needed
 
 # Update task_server APIs
 pip install git+https://github.com/trail-of-forks/fastapi-code-generator

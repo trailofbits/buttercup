@@ -35,8 +35,5 @@ dependencies:
 - name: patcher
   repository: file://charts/patcher
   version: 0.0.1
-- name: competition-api
-  repository: file://charts/competition-api
-  version: 0.0.1
 digest: sha256:8ac9c249917d32604f6d59d65bc74e7a7a7eb46b7c71fbb982bd7b0dd038395a
 generated: "2025-03-26T13:45:05.979619483Z"

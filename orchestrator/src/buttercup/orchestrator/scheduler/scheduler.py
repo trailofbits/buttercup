@@ -19,9 +19,8 @@ from buttercup.common.datastructures.msg_pb2 import (
 )
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.orchestrator.scheduler.submissions import Submissions, CompetitionAPI
+from buttercup.orchestrator.scheduler.submissions import Submissions
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
-from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.common.utils import serve_loop
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
@@ -36,10 +35,6 @@ class Scheduler:
     scratch_dir: Path
     redis: Redis | None = None
     sleep_time: float = 1.0
-    competition_api_url: str = "http://competition-api:8080"
-    competition_api_key_id: str = "api_key_id"
-    competition_api_key_token: str = "api_key_token"
-    competition_api_cycle_time: float = 10.0  # Min seconds between competition api interactions
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
     concurrent_patch_requests_per_task: int = 12
@@ -98,9 +93,6 @@ class Scheduler:
     def __post_init__(self):
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
-            api_client = create_api_client(
-                self.competition_api_url, self.competition_api_key_id, self.competition_api_key_token
-            )
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
             self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.ORCHESTRATOR, block_time=None)
@@ -115,10 +107,9 @@ class Scheduler:
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
             self.task_registry = TaskRegistry(self.redis)
-            self.status_checker = StatusChecker(self.competition_api_cycle_time)
+            self.status_checker = StatusChecker(10.0)  # Default cycle time for internal processing
             self.submissions = Submissions(
                 redis=self.redis,
-                competition_api=CompetitionAPI(api_client, self.task_registry),
                 task_registry=self.task_registry,
                 tasks_storage_dir=self.tasks_storage_dir,
                 patch_submission_retry_limit=self.patch_submission_retry_limit,
