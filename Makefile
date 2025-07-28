@@ -92,6 +92,12 @@ deploy-production:
 	echo "CRS instance ID: $$crs_instance_id"
 	make wait-crs
 
+status:
+	@echo "----------PODS------------"
+	@kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs}
+	@echo "----------SERVICES--------"
+	@kubectl get services -n $${BUTTERCUP_NAMESPACE:-crs}
+
 # Testing targets
 test:
 	@echo "Running test task..."
