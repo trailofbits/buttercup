@@ -32,7 +32,6 @@ class TestSettings:
     redis_url: str = "redis://localhost:6379"
 
 
-
 settings = TestSettings()
 monkeypatch.setattr("buttercup.orchestrator.task_server.dependencies.get_settings", lambda: settings)
 
