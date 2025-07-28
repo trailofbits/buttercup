@@ -32,7 +32,6 @@ Create a production environment file with the following variables:
 
 #### Competition Configuration
 - TS_* variables: Enable as required
-- COMPETITION_API_* variables: Set according to competition requirements
 - CRS_* variables: Configure as needed
 - CRS_API_HOSTNAME: Set to competition-specific value (e.g., ethereal-logic-unscored-2)
   - For pre-competition testing: Append suffix (e.g., `-dev1`) to avoid LetsEncrypt rate limits
@@ -73,28 +72,6 @@ Create a production environment file with the following variables:
 - Make sure all pods are up and running:
    ```bash
    kubectl get pods -n crs
-   ```
-- Check the tailscale hostname is correct:
-   ```bash
-   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN https://ethereal-logic.tasker.aixcc.tech/tailscale/device/
-   ```
-- Check `/status` works well:
-   ```bash
-   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN https://ethereal-logic.tasker.aixcc.tech/crs/status/ethereal-logic-pre-final
-   ```
-- Rename Tailscale hostname if necessary:
-   ```bash
-   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN -X PATCH https://ethereal-logic.tasker.aixcc.tech/tailscale/device/ethereal-logic-internal-1806 -H 'Content-Type: application/json' -d '{"hostname":"ethereal-logic-final"}'
-   ```
-   Where `ethereal-logic-internal-1806` is the current hostname of your device (you can get it from the command `curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN https://ethereal-logic.tasker.aixcc.tech/tailscale/device/`) and `ethereal-logic-final` is the new hostname you want to test (e.g. the hostname the organizers want to see up and running for the round)
-- Task a simple challenge for testing:
-   ```bash
-   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN -X POST 'https://api.aixcc.tech/v1/request/ex3-lp-delta-01' --json '{"duration_secs":900}'
-   ```
-
-- List available challenges for testing:
-   ```bash
-   curl -u $COMPETITION_API_KEY_ID:$COMPETITION_API_KEY_TOKEN -X 'GET' 'https://api.aixcc.tech/v1/request/list/'
    ```
 
 - Monitor deployment logs for any errors

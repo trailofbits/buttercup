@@ -90,8 +90,6 @@ The crs-webapp image expects the following environment variables to be passed to
 
 - `CRS_KEY_ID` - The CRS's username/ID
 - `CRS_KEY_TOKEN` - The CRS's password
-- `COMPETITION_API_KEY_ID` - The competition APIs username/ID
-- `COMPETITION_API_KEY_TOKEN` - The competition APIs password
 
 These values can be generated with the following python calls:
 

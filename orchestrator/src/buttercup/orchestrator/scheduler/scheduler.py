@@ -352,17 +352,13 @@ class Scheduler:
 
         return any_updated
 
-    def competition_api_interactions(self) -> bool:
-        """Process vulnerabilities and patches, and check submission statuses.
+    def submissions_processing(self) -> bool:
+        """Process vulnerabilities and patches for internal tracking.
 
         This method:
-        1. Processes any new vulnerabilities from the traced_vulnerabilities_queue,
-           submitting them to the competition API
-        2. Processes any new patches from the patches_queue, recording them for
-           later submission once the associated vulnerability is validated
-        3. Periodically checks status of submitted vulnerabilities and patches via
-           the status_checker, which rate limits API calls
-        4. Submits patches for vulnerabilities that have passed validation
+        1. Processes any new vulnerabilities from the traced_vulnerabilities_queue
+        2. Processes any new patches from the patches_queue
+        3. Handles internal processing cycle for submissions
 
         Returns:
             bool: True if any items were processed from the queues, False otherwise
@@ -403,7 +399,7 @@ class Scheduler:
             self.serve_build_output,
             self.serve_index_output,
             self.update_expired_task_weights,
-            self.competition_api_interactions,
+            self.submissions_processing,
         ]
 
         # Execute each component and collect results

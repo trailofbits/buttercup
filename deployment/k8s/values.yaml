@@ -54,9 +54,6 @@ global:
     api_key_token_hash: "$argon2id$v=19$m=65536,t=3,p=4$Dg1v6NPGTyXPoOPF4ozD5A$wa/85ttk17bBsIASSwdR/uGz5UKN/bZuu4wu+JIy1iA"
     # api_url: "https://api.tail7e9b4c.ts.net"
     hostname: "buttercup-crs"
-    competition_api_key_id: 11111111-1111-1111-1111-111111111111
-    competition_api_key_token: secret
-    # competition_api_url: "https://api.tail7e9b4c.ts.net"
   otel:
     endpoint: "https://127.0.0.1:4318" # TODO: Change to the actual endpoint
     token: "token"

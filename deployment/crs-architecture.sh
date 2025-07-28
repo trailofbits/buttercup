@@ -35,12 +35,6 @@ else
 	LANGFUSE_ENABLED="false"
 fi
 
-if [ "$(echo "$MOCK_COMPETITION_API_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
-	MOCK_COMPETITION_API_ENABLED="true"
-else
-	MOCK_COMPETITION_API_ENABLED="false"
-fi
-
 BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE:-crs}
 DEPLOY_CLUSTER=${DEPLOY_CLUSTER:-true}
 CLUSTER_TYPE=${CLUSTER_TYPE:-minikube}
@@ -57,10 +51,8 @@ up() {
 	echo -e "${BLU}Applying environment variables to yaml from templates${NC}"
 	CLIENT_BASE64=$(echo -n "$TF_VAR_ARM_CLIENT_SECRET" | base64)
 	CRS_KEY_BASE64=$(echo -n "$CRS_KEY_TOKEN" | base64)
-	COMPETITION_API_KEY_BASE64=$(echo -n "$COMPETITION_API_KEY_TOKEN" | base64)
 	export CLIENT_BASE64
 	export CRS_KEY_BASE64
-	export COMPETITION_API_KEY_BASE64
 	export TS_DNS_IP
 
 	if [ "$DEPLOY_CLUSTER" = "true" ]; then

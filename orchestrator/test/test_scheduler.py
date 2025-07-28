@@ -104,7 +104,6 @@ def scheduler(
     mock_submissions,
 ):
     with (
-        patch("buttercup.orchestrator.competition_api_client.PatchApi", return_value=mock_patch_api),
         patch("buttercup.orchestrator.scheduler.scheduler.TaskRegistry", return_value=mock_task_registry),
         patch("buttercup.orchestrator.scheduler.scheduler.Submissions", return_value=mock_submissions),
     ):
@@ -113,9 +112,6 @@ def scheduler(
             tasks_storage_dir=Path("/tmp/task_downloads"),
             scratch_dir=Path("/tmp/crs_scratch"),
             redis=mock_redis,
-            competition_api_url="http://test-api:8080",
-            competition_api_key_id="test_key_id",
-            competition_api_key_token="test_key_token",
         )
 
         # Ensure key attributes are set up correctly from the mocked queues
@@ -483,7 +479,7 @@ def test_serve_item_processes_cancellations_then_updates_cache(scheduler):
     scheduler.serve_ready_task = Mock(return_value=False)
     scheduler.serve_build_output = Mock(return_value=False)
     scheduler.serve_index_output = Mock(return_value=False)
-    scheduler.competition_api_interactions = Mock(return_value=False)
+    scheduler.submissions_processing = Mock(return_value=False)
     scheduler.update_expired_task_weights = Mock(return_value=False)
 
     # Execute
@@ -496,7 +492,7 @@ def test_serve_item_processes_cancellations_then_updates_cache(scheduler):
     scheduler.serve_ready_task.assert_called_once()
     scheduler.serve_build_output.assert_called_once()
     scheduler.serve_index_output.assert_called_once()
-    scheduler.competition_api_interactions.assert_called_once()
+    scheduler.submissions_processing.assert_called_once()
     scheduler.update_expired_task_weights.assert_called_once()
 
 
@@ -621,8 +617,8 @@ def test_serve_ready_task_cancelled_task(mock_challenge_task, scheduler):
     scheduler.should_stop_processing = original_should_stop_processing
 
 
-def test_competition_api_interactions(scheduler):
-    """Test that competition_api_interactions processes traced crashes and patches."""
+def test_submissions_processing(scheduler):
+    """Test that submissions_processing processes traced crashes and patches."""
     # Create test data
     traced_crash = TracedCrash()
     traced_crash.crash.target.task_id = "test-task-id"
@@ -640,7 +636,7 @@ def test_competition_api_interactions(scheduler):
     scheduler.submissions.record_patch.return_value = True
 
     # Call the method
-    result = scheduler.competition_api_interactions()
+    result = scheduler.submissions_processing()
 
     # Verify interactions
     scheduler.submissions.submit_vulnerability.assert_called_once_with(traced_crash)
@@ -654,14 +650,14 @@ def test_competition_api_interactions(scheduler):
     assert result is True
 
 
-def test_competition_api_interactions_no_work(scheduler):
-    """Test that competition_api_interactions returns False when no items in queue."""
+def test_submissions_processing_no_work(scheduler):
+    """Test that submissions_processing returns False when no items in queue."""
     # Set up queue mocks with no items
     scheduler.traced_vulnerabilities_queue.pop.return_value = None
     scheduler.patches_queue.pop.return_value = None
 
     # Call the method
-    result = scheduler.competition_api_interactions()
+    result = scheduler.submissions_processing()
 
     # Verify
     scheduler.submissions.submit_vulnerability.assert_not_called()
@@ -671,8 +667,8 @@ def test_competition_api_interactions_no_work(scheduler):
     assert result is False
 
 
-def test_competition_api_interactions_failed_submissions(scheduler):
-    """Test that competition_api_interactions handles failed submissions."""
+def test_submissions_processing_failed_submissions(scheduler):
+    """Test that submissions_processing handles failed submissions."""
     # Create test data
     traced_crash = TracedCrash()
     traced_crash.crash.target.task_id = "test-task-id"
@@ -690,7 +686,7 @@ def test_competition_api_interactions_failed_submissions(scheduler):
     scheduler.submissions.record_patch.return_value = False
 
     # Call the method
-    result = scheduler.competition_api_interactions()
+    result = scheduler.submissions_processing()
 
     # Verify interactions
     scheduler.submissions.submit_vulnerability.assert_called_once_with(traced_crash)
