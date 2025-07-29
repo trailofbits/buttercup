@@ -94,7 +94,49 @@ up() {
 				;;
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
-				minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
+				
+				# Detect system resources and adjust minikube parameters
+				if [[ "$OSTYPE" == "darwin"* ]]; then
+					# macOS
+					AVAILABLE_CPUS=$(sysctl -n hw.ncpu)
+					AVAILABLE_MEMORY_BYTES=$(sysctl -n hw.memsize)
+					AVAILABLE_MEMORY_MB=$((AVAILABLE_MEMORY_BYTES / 1024 / 1024))
+				else
+					# Linux
+					AVAILABLE_CPUS=$(nproc)
+					AVAILABLE_MEMORY_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+					AVAILABLE_MEMORY_MB=$((AVAILABLE_MEMORY_KB / 1024))
+				fi
+				
+				# Calculate safe limits (leave 25% for system)
+				MINIKUBE_CPUS=$((AVAILABLE_CPUS > 7 ? 8 : AVAILABLE_CPUS > 4 ? AVAILABLE_CPUS - 1 : AVAILABLE_CPUS))
+				MINIKUBE_MEMORY_MB=$((AVAILABLE_MEMORY_MB * 75 / 100))
+				
+				# Check if system meets minimum requirements
+				if [ $AVAILABLE_CPUS -lt 2 ]; then
+					echo -e "${RED}Error: System has only ${AVAILABLE_CPUS} CPU(s), but Buttercup requires at least 2 CPUs${NC}"
+					echo -e "${RED}Please use a machine with more CPU cores${NC}"
+					exit 1
+				fi
+				
+				AVAILABLE_MEMORY_GB=$((AVAILABLE_MEMORY_MB / 1024))
+				if [ $AVAILABLE_MEMORY_MB -lt 16384 ]; then  # Need 16GB total for Buttercup components
+					echo -e "${RED}Error: System has only ${AVAILABLE_MEMORY_GB}GB RAM, but Buttercup requires at least 16GB${NC}"
+					echo -e "${RED}Please use a machine with more memory${NC}"
+					exit 1
+				fi
+				
+				# Ensure minimum requirements for minikube
+				MINIKUBE_CPUS=$((MINIKUBE_CPUS < 2 ? 2 : MINIKUBE_CPUS))
+				MINIKUBE_MEMORY_MB=$((MINIKUBE_MEMORY_MB < 4096 ? 4096 : MINIKUBE_MEMORY_MB))
+				
+				MINIKUBE_MEMORY_GB=$((MINIKUBE_MEMORY_MB / 1024))
+				
+				echo -e "${GRN}System resources: ${AVAILABLE_CPUS} CPUs, ${AVAILABLE_MEMORY_GB}GB RAM${NC}"
+				echo -e "${GRN}Minikube will use: ${MINIKUBE_CPUS} CPUs, ${MINIKUBE_MEMORY_GB}GB RAM${NC}"
+				echo -e "${BLU}Note: Recommended minimum is at least 8 CPUs and 64GB RAM${NC}"
+				
+				minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=${MINIKUBE_CPUS} --memory=${MINIKUBE_MEMORY_MB}mb --disk-size=80g --driver=docker --kubernetes-version=stable
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 
