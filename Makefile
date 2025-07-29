@@ -102,7 +102,7 @@ status:
 	@kubectl get services -n $${BUTTERCUP_NAMESPACE:-crs}
 
 # Testing targets
-integration-task:
+send-integration-task:
 	@echo "Running integration test task..."
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
