@@ -117,6 +117,7 @@ buttercup-redis-master     ClusterIP   10.108.61.77     <none>        6379/TCP  
 buttercup-registry-cache   ClusterIP   10.103.80.241    <none>        443/TCP    5m58s
 buttercup-task-server      ClusterIP   10.104.206.197   <none>        8000/TCP   5m58s
 buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP   5m58s
+All CRS pods up and running.
 ```
 
 3. **Submit the integration-test challenge to the CRS (for 30mins):**
