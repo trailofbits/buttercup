@@ -219,9 +219,6 @@ patcher:
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}
 
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
-
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
   azure:

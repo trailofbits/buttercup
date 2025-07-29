@@ -60,6 +60,3 @@ litellm:
 
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}
-
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
