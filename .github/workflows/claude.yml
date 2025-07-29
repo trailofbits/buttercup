@@ -37,7 +37,7 @@ jobs:
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader"
-          GIT_CONFIG_VALUE_0: "AUTHORIZATION: basic ${GITHUB_TOKEN}"
+          GIT_CONFIG_VALUE_0: "AUTHORIZATION: token ${GITHUB_TOKEN}"
         id: claude
         uses: anthropics/claude-code-action@beta
         with:
