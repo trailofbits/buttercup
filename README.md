@@ -284,7 +284,7 @@ make lint
 make lint-component COMPONENT=orchestrator
 
 # Run test task
-make integration-task
+make send-integration-task
 ```
 
 **Alternative manual commands:**
