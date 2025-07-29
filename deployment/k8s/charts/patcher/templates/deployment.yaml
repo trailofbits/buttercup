@@ -21,6 +21,7 @@ spec:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
       {{- include "buttercup.waitForDocker" . | nindent 6 }}
+      {{- include "buttercup.waitForProgramModelApi" . | nindent 6 }}
       containers:
       - name: patcher
         image: "{{ .Values.global.patcherImage.repository | default "patcher" }}:{{ .Values.global.patcherImage.tag | default "latest" }}"

@@ -10,9 +10,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl \
     patch \
-    codequery \
     rsync \
-    libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://get.docker.com | sh
@@ -46,20 +44,13 @@ ADD patcher /app/patcher
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd patcher && uv sync --frozen --no-editable
 
-
-FROM runtime-base AS cscope-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
-COPY external/aixcc-cscope /cscope
-RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
-
 FROM runtime-base AS runtime
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery rsync git && \
+    apt-get install -y rsync git && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
-COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY common/container-entrypoint.sh /container-entrypoint.sh
 
 WORKDIR /app/patcher

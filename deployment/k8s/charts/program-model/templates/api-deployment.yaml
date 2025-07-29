@@ -1,0 +1,46 @@
+{{- if .Values.api.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-program-model-api
+  labels:
+    app: program-model-api
+spec:
+  selector:
+    matchLabels:
+      app: program-model-api
+  template:
+    metadata:
+      labels:
+        app: program-model-api
+    spec:
+      {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      enableServiceLinks: false
+      initContainers:
+      {{- include "buttercup.waitForRedis" . | nindent 6 }}
+      {{- include "buttercup.waitForDocker" . | nindent 6 }}
+      containers:
+      - name: program-model-api
+        image: "{{ .Values.global.programModelImage.repository }}:{{ .Values.global.programModelImage.tag }}"
+        imagePullPolicy: {{ .Values.global.programModelImage.pullPolicy }}
+        command: ["buttercup-program-model-api", "--host", "0.0.0.0", "--port", "8000"]
+        ports:
+        - containerPort: 8123
+          targetPort: 8000
+          name: http
+        resources:
+          {{- toYaml .Values.api.resources | nindent 10 }}
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.programModelEnv" . | nindent 8 }}
+        {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
+        volumeMounts:
+        {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+        {{- include "buttercup.dockerSocketVolumeMount" . | nindent 8 }}
+      volumes:
+      {{- include "buttercup.volumes.scratch" . | nindent 6 }}
+      {{- include "buttercup.volumes.tasks" . | nindent 6 }}
+      {{- include "buttercup.dockerSocketVolume" . | nindent 6 }}
+      {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
+{{- end }} 

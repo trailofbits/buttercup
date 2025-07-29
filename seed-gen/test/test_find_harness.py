@@ -13,7 +13,7 @@ import buttercup.seed_gen.find_harness
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.maps import FunctionCoverage
 from buttercup.common.task_meta import TaskMeta
-from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
+from buttercup.program_model.codequery import CodeQuery
 from buttercup.seed_gen.find_harness import (
     find_jazzer_harnesses,
     find_libfuzzer_harnesses,
@@ -170,15 +170,15 @@ def codequery(challenge_task: ChallengeTask) -> CodeQuery:
 
 def test_find_libfuzzer_harnesses(codequery: CodeQuery):
     """Test finding libfuzzer harnesses in source code."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    subdir = source_path / "subdir"
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    subdir = container_src_dir / "subdir"
     subdir.mkdir(parents=True, exist_ok=True)
 
-    (source_path / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
-    (source_path / "normal.cpp").write_text(NORMAL_CPP)
+    (container_src_dir / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "normal.cpp").write_text(NORMAL_CPP)
     (subdir / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
-    (source_path / "multiline_fuzzer.cpp").write_text(MULTILINE_FUZZER_CPP)
+    (container_src_dir / "multiline_fuzzer.cpp").write_text(MULTILINE_FUZZER_CPP)
 
     # Find harnesses
     harnesses = find_libfuzzer_harnesses(codequery)
@@ -193,13 +193,13 @@ def test_find_libfuzzer_harnesses(codequery: CodeQuery):
 
 def test_find_jazzer_harnesses(codequery: CodeQuery):
     """Test finding jazzer harnesses in source code."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    subdir = source_path / "subdir"
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    subdir = container_src_dir / "subdir"
     subdir.mkdir(parents=True, exist_ok=True)
-    (source_path / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "normal.java").write_text(NORMAL_JAVA)
+    (container_src_dir / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "normal.java").write_text(NORMAL_JAVA)
     (subdir / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
-    (source_path / "MultilineFuzzer.java").write_text(MULTILINE_FUZZER_JAVA)
+    (container_src_dir / "MultilineFuzzer.java").write_text(MULTILINE_FUZZER_JAVA)
     # Find harnesses
     harnesses = find_jazzer_harnesses(codequery)
 
@@ -212,12 +212,12 @@ def test_find_jazzer_harnesses(codequery: CodeQuery):
 
 def test_find_harnesses_with_comments(codequery: CodeQuery):
     """Test finding harnesses when the target string appears in comments."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    container_src_dir.mkdir(parents=True, exist_ok=True)
 
     # Create files with target strings in comments
-    (source_path / "commented.cpp").write_text(NORMAL_CPP_WITH_COMMENT)
-    (source_path / "commented.java").write_text(NORMAL_JAVA_WITH_COMMENT)
+    (container_src_dir / "commented.cpp").write_text(NORMAL_CPP_WITH_COMMENT)
+    (container_src_dir / "commented.java").write_text(NORMAL_JAVA_WITH_COMMENT)
 
     # Find harnesses
     libfuzzer_harnesses = find_libfuzzer_harnesses(codequery)
@@ -230,43 +230,41 @@ def test_find_harnesses_with_comments(codequery: CodeQuery):
 
 def test_find_harnesses_in_oss_fuzz_project(codequery: CodeQuery):
     """Test finding harnesses when they are in the oss-fuzz project directory."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
     oss_fuzz_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project"
 
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir.mkdir(parents=True, exist_ok=True)
     oss_fuzz_path.mkdir(parents=True, exist_ok=True)
 
     # Create files with target strings in comments
     (oss_fuzz_path / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "fuzz_target1.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "fuzz_target1.cpp").write_text(FUZZ_TARGET_CPP)
     (oss_fuzz_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
     # Find harnesses
     libfuzzer_harnesses = find_libfuzzer_harnesses(codequery)
     jazzer_harnesses = find_jazzer_harnesses(codequery)
 
-    # Only expect harnesses from container_src_dir
+    # Only expect harnesses from source directory
     assert len(libfuzzer_harnesses) == 1
     assert "fuzz_target1.cpp" in {h.name for h in libfuzzer_harnesses}
-    assert len(jazzer_harnesses) == 0  # No Java harnesses in container_src_dir
+    assert len(jazzer_harnesses) == 0  # No Java harnesses in source directory
 
 
 def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
     """Test getting harness source candidates for C++ project."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    project_yaml_path = codequery.challenge.get_oss_fuzz_path() / "projects/my-project/project.yaml"
 
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: cpp\n")
 
     # Create test files
-    (source_path / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
-    (source_path / "normal.cpp").write_text(NORMAL_CPP)
-    (source_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
+    (container_src_dir / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "normal.cpp").write_text(NORMAL_CPP)
+    (container_src_dir / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
     # Test one candidate is similar
     candidates = get_harness_source_candidates(codequery, "fuzz_target")
@@ -286,23 +284,20 @@ def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
 
 
 def test_get_harness_source_cpp(codequery: CodeQuery):
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    project_yaml_path = codequery.challenge.get_oss_fuzz_path() / "projects/my-project/project.yaml"
 
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: cpp\n")
 
     # Create test files
-    (source_path / "src/fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "src/normal.cpp").write_text(NORMAL_CPP)
-    (source_path / "src/FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
+    (container_src_dir / "fuzz_target.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "normal.cpp").write_text(NORMAL_CPP)
+    (container_src_dir / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
 
     redis = MagicMock(spec=Redis)
-    with patch("buttercup.seed_gen.find_harness.CoverageMap") as coverage_map:
+    with patch("buttercup.program_model.harness_finder.CoverageMap") as coverage_map:
         harness_name = "fuzz_target"
         harness_info = get_harness_source(redis, codequery, harness_name)
         assert harness_info.code == FUZZ_TARGET_CPP
@@ -312,7 +307,7 @@ def test_get_harness_source_cpp(codequery: CodeQuery):
         coverage_map.assert_not_called()
 
         another_harness_name = "AnotherFuzzer"
-        (source_path / "src/another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
+        (container_src_dir / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
         harness_info = get_harness_source(redis, codequery, another_harness_name)
         assert harness_info.code == FUZZ_TARGET_CPP
         assert harness_info.file_path == Path("/src/another_fuzzer.c")
@@ -322,15 +317,19 @@ def test_get_harness_source_cpp(codequery: CodeQuery):
 
 
 def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    project_yaml_path = codequery.challenge.get_oss_fuzz_path() / "projects/my-project/project.yaml"
+
+    container_src_dir.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
+    project_yaml_path.write_text("language: cpp\n")
 
     # Create test files
-    (source_path / "src/curl_common_fuzz.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "src/bufq.c").write_text(FUZZ_TARGET_CPP_1)
+    (container_src_dir / "curl_common_fuzz.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "bufq.c").write_text(FUZZ_TARGET_CPP_1)
 
     redis = MagicMock(spec=Redis)
-    with patch("buttercup.seed_gen.find_harness.CoverageMap") as coverage_map:
+    with patch("buttercup.program_model.harness_finder.CoverageMap") as coverage_map:
 
         def side_effect(*args, **kwargs):
             mock = MagicMock()
@@ -373,20 +372,18 @@ def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
 
 def test_get_harness_source_candidates_java(codequery: CodeQuery):
     """Test getting harness source candidates for Java project."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    project_yaml_path = codequery.challenge.get_oss_fuzz_path() / "projects/my-project/project.yaml"
 
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: jvm\n")
 
     # Create test files
-    (source_path / "fuzztarget.cpp").write_text(FUZZ_TARGET_CPP)
-    (source_path / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
-    (source_path / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
-    (source_path / "FuzzTarget1.java").write_text(FUZZ_TARGET_JAVA)
+    (container_src_dir / "fuzztarget.cpp").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "another_fuzzer.c").write_text(FUZZ_TARGET_CPP)
+    (container_src_dir / "FuzzTarget.java").write_text(FUZZ_TARGET_JAVA)
+    (container_src_dir / "FuzzTarget1.java").write_text(FUZZ_TARGET_JAVA)
 
     # Test one candidate is similar
     candidates = get_harness_source_candidates(codequery, "FuzzTarget")
@@ -407,8 +404,8 @@ def test_get_harness_source_candidates_java(codequery: CodeQuery):
 
 def test_weird_libfuzzer_harnesses(codequery: CodeQuery):
     """Test finding libfuzzer harnesses with unusual but valid signatures."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    container_src_dir.mkdir(parents=True, exist_ok=True)
 
     # Test case 1: Function signature split across multiple lines with weird indentation
     weird_signature_cpp = """
@@ -464,10 +461,10 @@ extern "C" int LLVMFuzzerTestOneInput(\
 """
 
     # Write test files
-    (source_path / "weird_signature.cpp").write_text(weird_signature_cpp)
-    (source_path / "extra_spaces.cpp").write_text(extra_spaces_cpp)
-    (source_path / "commented_params.cpp").write_text(commented_params_cpp)
-    (source_path / "line_continuation.cpp").write_text(line_continuation_cpp)
+    (container_src_dir / "weird_signature.cpp").write_text(weird_signature_cpp)
+    (container_src_dir / "extra_spaces.cpp").write_text(extra_spaces_cpp)
+    (container_src_dir / "commented_params.cpp").write_text(commented_params_cpp)
+    (container_src_dir / "line_continuation.cpp").write_text(line_continuation_cpp)
 
     # Find harnesses
     harnesses = find_libfuzzer_harnesses(codequery)
@@ -483,8 +480,8 @@ extern "C" int LLVMFuzzerTestOneInput(\
 
 def test_weird_jazzer_harnesses(codequery: CodeQuery):
     """Test finding jazzer harnesses with unusual but valid signatures."""
-    source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    source_path.mkdir(parents=True, exist_ok=True)
+    container_src_dir = codequery.challenge.task_dir / "container_src_dir"
+    container_src_dir.mkdir(parents=True, exist_ok=True)
 
     # Test case 1: Annotation and method split across multiple lines
     split_annotation_java = """
@@ -542,10 +539,10 @@ public class LineContinuationFuzzer {
 """
 
     # Write test files
-    (source_path / "SplitAnnotationFuzzer.java").write_text(split_annotation_java)
-    (source_path / "ExtraSpacesFuzzer.java").write_text(extra_spaces_java)
-    (source_path / "InlineCommentsFuzzer.java").write_text(inline_comments_java)
-    (source_path / "LineContinuationFuzzer.java").write_text(line_continuation_java)
+    (container_src_dir / "SplitAnnotationFuzzer.java").write_text(split_annotation_java)
+    (container_src_dir / "ExtraSpacesFuzzer.java").write_text(extra_spaces_java)
+    (container_src_dir / "InlineCommentsFuzzer.java").write_text(inline_comments_java)
+    (container_src_dir / "LineContinuationFuzzer.java").write_text(line_continuation_java)
 
     # Find harnesses
     harnesses = find_jazzer_harnesses(codequery)
@@ -623,7 +620,7 @@ def curl_oss_fuzz_cq(curl_oss_fuzz_ct: ChallengeTask) -> Iterator[CodeQuery]:
 
 @pytest.mark.integration
 def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
-    harnesses = find_libfuzzer_harnesses(curl_oss_fuzz_cq)
+    harnesses = find_libfuzzer_harnesses(curl_oss_fuzz_cq.challenge)
     assert len(harnesses) == 8
     assert "curl_fuzzer.cc" in {h.name for h in harnesses}
     assert "fuzz_url.cc" in {h.name for h in harnesses}
@@ -665,7 +662,7 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
 def test_get_harness_source_candidates_curl(
     curl_oss_fuzz_cq: CodeQuery, harness_name: str, expected_first_match: str
 ):
-    harnesses = get_harness_source_candidates(curl_oss_fuzz_cq, harness_name)
+    harnesses = get_harness_source_candidates(curl_oss_fuzz_cq.challenge, harness_name)
     assert expected_first_match == harnesses[0].name
 
 
@@ -776,9 +773,9 @@ def test_get_harness_source(
 
         buttercup.seed_gen.find_harness._harness_source_cache = {}
 
-        harness_info = get_harness_source(redis, curl_oss_fuzz_cq, harness_name)
+        harness_info = get_harness_source(redis, curl_oss_fuzz_cq.challenge, harness_name)
         relative_source_path = expected_harness_source_path.lstrip("/")
-        actual_file = curl_oss_fuzz_cq.challenge.task_dir / CONTAINER_SRC_DIR / relative_source_path
+        actual_file = curl_oss_fuzz_cq.challenge.get_source_path() / relative_source_path
         assert harness_info.code == actual_file.read_text()
         assert harness_info.file_path == Path("/") / relative_source_path
         assert harness_info.harness_name == harness_name

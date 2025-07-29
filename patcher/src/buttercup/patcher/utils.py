@@ -5,7 +5,7 @@ import random
 from typing import Any, cast
 from functools import lru_cache
 from enum import Enum
-from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.rest_client import CodeQueryPersistentRest
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
@@ -177,6 +177,6 @@ def get_challenge(task_dir: Path, task_dir_ro: Path | None = None) -> ChallengeT
 
 
 @lru_cache(maxsize=100)
-def get_codequery(task_dir: Path, work_dir: Path) -> CodeQueryPersistent:
+def get_codequery(task_dir: Path, work_dir: Path) -> CodeQueryPersistentRest:
     challenge = get_challenge(task_dir)
-    return CodeQueryPersistent(challenge, work_dir=work_dir)
+    return CodeQueryPersistentRest(challenge, work_dir=work_dir)

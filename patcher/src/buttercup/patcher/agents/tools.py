@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from buttercup.common.challenge_task import CommandResult, ChallengeTask
-from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.rest_client import CodeQueryPersistentRest
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from typing import Annotated
 from pathlib import Path
@@ -101,7 +101,7 @@ def get_lines(
     return _wrap_command_output(f"get_lines {path} {start} {end}", get_lines_res_cmd, "\n".join(get_lines_output))
 
 
-def _get_codequery_function(codequery: CodeQueryPersistent, name: str, path: Path | None) -> Function:
+def _get_codequery_function(codequery: CodeQueryPersistentRest, name: str, path: Path | None) -> Function:
     functions = codequery.get_functions(name, path)
     if not functions:
         raise ValueError(f"No definition found for function {name} in {path}")

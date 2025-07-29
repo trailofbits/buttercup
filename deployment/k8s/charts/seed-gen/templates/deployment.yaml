@@ -21,6 +21,7 @@ spec:
       {{- include "buttercup.waitForRedis" . | nindent 6 }}
       {{- include "buttercup.waitForLiteLLM" . | nindent 6 }}
       {{- include "buttercup.waitForDocker" . | nindent 6 }}
+      {{- include "buttercup.waitForProgramModelApi" . | nindent 6 }}
       containers:
       - name: seed-gen
         image: "{{ .Values.global.seedGenImage.repository }}:{{ .Values.global.seedGenImage.tag }}"

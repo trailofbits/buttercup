@@ -21,7 +21,7 @@ from redis import Redis
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
 from buttercup.common.project_yaml import ProjectYaml
-from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.rest_client import CodeQueryPersistentRest as CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
@@ -121,7 +121,13 @@ class Task:
         return llm.with_fallbacks(fallbacks)
 
     def get_harness_source(self) -> HarnessInfo | None:
-        return get_harness_source(self.redis, self.codequery, self.harness_name)
+        # Use the REST API method if available, otherwise fall back to the old method
+        if hasattr(self.codequery, "search_harness"):
+            # Use the new REST API method
+            return self.codequery.search_harness(self.harness_name)
+        else:
+            # Fall back to the old method
+            return get_harness_source(self.redis, self.codequery, self.harness_name)
 
     @staticmethod
     def clean_func_name(func_name: str) -> str:

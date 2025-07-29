@@ -132,8 +132,28 @@ services:
         condition: service_healthy
       dind:
         condition: service_started
+      program-model-api:
+        condition: service_started
       # graphdb:
       #   condition: service_healthy
+
+  program-model-api:
+    build:
+      context: ./
+      dockerfile: ./program-model/Dockerfile
+    command: ["buttercup-program-model-api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:8000:8123"
+    env_file: env.dev.compose
+    volumes:
+      - ./crs_scratch:/crs_scratch
+      - ./tasks_storage:/tasks_storage
+      - ./node_data_storage/:/node_data
+    depends_on:
+      redis:
+        condition: service_healthy
+      dind:
+        condition: service_started
 
   coverage-bot:
     command: ["buttercup-coverage-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
@@ -248,12 +268,15 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - PROGRAM_MODEL_API_URL=http://program-model-api:8123
     depends_on:
       redis:
         condition: service_healthy
       litellm:
         condition: service_started
       dind:
+        condition: service_started
+      program-model-api:
         condition: service_started
 
   patcher:
@@ -269,10 +292,13 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - PROGRAM_MODEL_API_URL=http://program-model-api:8123
     depends_on:
       redis:
         condition: service_healthy
       dind:
+        condition: service_started
+      program-model-api:
         condition: service_started
 
   litellm:
