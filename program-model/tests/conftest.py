@@ -86,7 +86,7 @@ def oss_fuzz_task(
                 "clone",
                 "-b",
                 str(oss_fuzz_branch),
-                "https://github.com/aixcc-finals/oss-fuzz-aixcc.git",
+                "https://github.com/tob-challenges/oss-fuzz-aixcc.git",
             ],
             check=True,
             capture_output=True,
@@ -214,7 +214,7 @@ def commons_compress_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "apache-commons-compress",
         "challenge-state/cc-full-01",
         "afc-commons-compress",
-        "https://github.com/aixcc-finals/afc-commons-compress.git",
+        "https://github.com/tob-challenges/afc-commons-compress.git",
         "challenges/cc-full-01",
     )
 
@@ -231,7 +231,7 @@ def dropbear_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "dropbear",
         "challenge-state/db-full-01",
         "afc-dropbear",
-        "https://github.com/aixcc-finals/afc-dropbear.git",
+        "https://github.com/tob-challenges/afc-dropbear.git",
         "challenges/db-full-01",
     )
 
@@ -248,7 +248,7 @@ def freerdp_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "freerdp",
         "challenge-state/fp-full-01",
         "afc-freerdp",
-        "https://github.com/aixcc-finals/afc-freerdp.git",
+        "https://github.com/tob-challenges/afc-freerdp.git",
         "challenges/fp-full-01",
     )
 
@@ -333,7 +333,7 @@ def libpng_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "libpng",
         "challenge-state/lp-delta-01",
         "example-libpng",
-        "https://github.com/aixcc-finals/example-libpng.git",
+        "https://github.com/tob-challenges/example-libpng.git",
         "challenges/lp-delta-01",
     )
 
@@ -350,7 +350,7 @@ def libxml2_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "libxml2",
         "challenge-state/lx-full-01",
         "afc-libxml2",
-        "https://github.com/aixcc-finals/afc-libxml2.git",
+        "https://github.com/tob-challenges/afc-libxml2.git",
         "challenges/lx-full-01",
     )
 
@@ -401,7 +401,7 @@ def sqlite_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "sqlite3",
         "challenge-state/sq-full-01",
         "afc-sqlite3",
-        "https://github.com/aixcc-finals/afc-sqlite3.git",
+        "https://github.com/tob-challenges/afc-sqlite3.git",
         "challenges/sq-full-01",
     )
 
@@ -418,7 +418,7 @@ def zookeeper_oss_fuzz_task(tmp_path_factory: pytest.TempPathFactory):
         "zookeeper",
         "challenge-state/zk-full-01",
         "afc-zookeeper",
-        "https://github.com/aixcc-finals/afc-zookeeper.git",
+        "https://github.com/tob-challenges/afc-zookeeper.git",
         "challenges/zk-full-01",
     )
 

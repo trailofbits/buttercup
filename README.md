@@ -132,7 +132,7 @@ If you prefer to set up manually, follow these steps:
 1. **Login to Azure:**
 
 ```bash
-az login --tenant aixcc.tech
+az login --tenant <your-tenant-here>
 ```
 
 2. **Create Service Principal:**
@@ -304,7 +304,7 @@ helm dependency update deployment/k8s/
 4. **Azure authentication:**
 
 ```bash
-az login --tenant aixcc.tech
+az login --tenant <your-tenant>
 az account set --subscription <your-subscription-id>
 ```
 
@@ -324,4 +324,3 @@ The **Buttercup CRS** system consists of several components designed to work tog
 - **Patcher**: Generates and applies security patches to fix vulnerabilities
 - **Program Model**: Analyzes code structure and semantics for better understanding
 - **Seed Generator**: Creates targeted test cases for vulnerability discovery
-- **Competition API**: Interfaces with the DARPA AIxCC competition platform

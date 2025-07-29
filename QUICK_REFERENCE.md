@@ -19,7 +19,7 @@ cd deployment && make up
 ./scripts/setup-production.sh
 
 # Manual setup
-az login --tenant aixcc.tech
+az login --tenant <your-tenant>
 # Create service principal and configure deployment/env
 cd deployment && make up
 ```
@@ -137,7 +137,7 @@ helm lint deployment/k8s/
 #### Azure Issues
 ```bash
 # Authentication
-az login --tenant aixcc.tech
+az login --tenant <your-tenant-here>
 az account set --subscription <subscription-id>
 
 # Check service principal

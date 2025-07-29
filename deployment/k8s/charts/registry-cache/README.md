@@ -8,18 +8,18 @@ To use the registry cache in your deployments, modify your image references to u
 
 **Original image reference:**
 ```
-ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-orchestrator:main
+ghcr.io/trailofbits/buttercup/buttercup-orchestrator:main
 ```
 
 **Using the cache:**
 ```
-buttercup-registry-cache/aixcc-finals/afc-crs-trail-of-bits/buttercup-orchestrator:main
+buttercup-registry-cache/trailofbits/buttercup/buttercup-orchestrator:main
 ```
 
 or with release name:
 
 ```
-<release-name>-registry-cache/aixcc-finals/afc-crs-trail-of-bits/buttercup-orchestrator:main
+<release-name>-registry-cache/trailofbits/buttercup/buttercup-orchestrator:main
 ```
 
 The registry uses HTTP on port 80. 
