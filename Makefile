@@ -37,7 +37,7 @@ setup-local:
 
 setup-azure:
 	@echo "Setting up production AKS environment..."
-	./scripts/setup-production.sh
+	./scripts/setup-azure.sh
 
 validate:
 	@echo "Validating setup..."
