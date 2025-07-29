@@ -4,7 +4,7 @@
 
 ## Quick Start
 
-Clone the repo with `--recurse-submodules` as some dependencies are submodules.
+Checkout the repo with `--recurse-submodules` as some dependencies are submodules.
 
 Choose your deployment method:
 
