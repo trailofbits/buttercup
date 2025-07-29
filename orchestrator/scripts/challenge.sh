@@ -98,7 +98,7 @@ declare -A integration_test_delta_01=(
     ["challenge_repo_base_ref"]="4a714359c60858e3821bd478dc846de1d04dc977"
     ["challenge_repo_head_ref"]="challenges/integration-test-delta-01"
     ["fuzz_tooling_url"]="https://github.com/tob-challenges/oss-fuzz-aixcc.git"
-    ["fuzz_tooling_ref"]="challenge-state/integration-test-delta-01"
+    ["fuzz_tooling_ref"]="feature/macos-apple-silicon-support"
     ["fuzz_tooling_project_name"]="integration-test"
     ["duration"]=$delta_set_duration
 )
