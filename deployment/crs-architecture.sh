@@ -126,9 +126,6 @@ up() {
 					exit 1
 				fi
 				
-				# Ensure minimum requirements for minikube
-				MINIKUBE_CPUS=$((MINIKUBE_CPUS < 2 ? 2 : MINIKUBE_CPUS))
-				MINIKUBE_MEMORY_MB=$((MINIKUBE_MEMORY_MB < 4096 ? 4096 : MINIKUBE_MEMORY_MB))
 				
 				MINIKUBE_MEMORY_GB=$((MINIKUBE_MEMORY_MB / 1024))
 				
