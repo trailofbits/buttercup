@@ -20,7 +20,7 @@ help:
 	@echo "  status            - Check the status of the deployment"
 	@echo ""
 	@echo "Testing:"
-	@echo "  integration-task  - Run integration-test task"
+	@echo "  send-integration-task  - Run integration-test task"
 	@echo ""
 	@echo "Development:"
 	@echo "  lint              - Lint all Python code"
