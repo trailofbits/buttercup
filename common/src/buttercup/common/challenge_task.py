@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, Callable, TypeVar, cast
 from os import PathLike
-from functools import wraps
+from functools import wraps, cached_property
 import contextlib
 import logging
 import shlex
@@ -149,8 +149,6 @@ class ChallengeTask:
     SRC_DIR = "src"
     DIFF_DIR = "diff"
     OSS_FUZZ_DIR = "fuzz-tooling"
-
-    OSS_FUZZ_CONTAINER_ORG: str = field(default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz"))
 
     MAX_COMMIT_RETRIES = 3
 
@@ -450,8 +448,28 @@ class ChallengeTask:
             logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {str(e)}")
             return None
 
+    @cached_property
+    def oss_fuzz_container_org(self) -> str:
+        # Read the helper_path file and grep for the BASE_RUNNER_IMAGE line.
+        try:
+            with open(self._helper_path, "r", encoding="utf-8") as f:
+                for line in reversed(f.readlines()):
+                    if "BASE_RUNNER_IMAGE" in line:
+                        m = re.search(r"^BASE_RUNNER_IMAGE\s*=\s*['\"]([^'\"]+)['\"]", line)
+                        if m:
+                            image = m.group(1)
+                            if image.startswith("gcr.io/oss-fuzz"):
+                                return "gcr.io/oss-fuzz"
+                            elif image.startswith("ghcr.io/aixcc-finals"):
+                                return "aixcc-afc"
+                            break
+        except Exception as e:
+            logger.warning(f"Could not determine oss_fuzz_container_org from helper_path: {e}")
+
+        return "gcr.io/oss-fuzz"
+
     def container_image(self) -> str:
-        return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
+        return f"{self.oss_fuzz_container_org}/{self.project_name}"
 
     def container_src_dir(self) -> str:
         """
@@ -682,7 +700,7 @@ class ChallengeTask:
             "architecture": architecture,
             "e": env,
         }
-        if "aixcc" in self.OSS_FUZZ_CONTAINER_ORG:
+        if "aixcc" in self.oss_fuzz_container_org:
             kwargs["propagate_exit_code"] = True
             kwargs["err_result"] = FAILURE_ERR_RESULT
 
@@ -804,6 +822,7 @@ class ChallengeTask:
                     text=True,
                     check=True,
                     timeout=10,
+                    capture_output=True,
                 )
 
                 logger.info(f"[task {self.task_dir}] Successfully applied patch {diff_file}")

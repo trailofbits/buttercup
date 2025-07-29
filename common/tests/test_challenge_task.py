@@ -1239,3 +1239,340 @@ def test_apply_patch_diff_git_apply_failure(challenge_task: ChallengeTask):
 
         with pytest.raises(ChallengeTaskError, match="Error applying diff"):
             challenge_task.apply_patch_diff(diff_file=diff_file)
+
+
+def test_oss_fuzz_container_org_gcr_io_oss_fuzz(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with gcr.io/oss-fuzz BASE_RUNNER_IMAGE."""
+    # Create a mock helper.py file with gcr.io/oss-fuzz BASE_RUNNER_IMAGE
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'gcr.io/oss-fuzz-base/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_aixcc_finals(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with ghcr.io/aixcc-finals BASE_RUNNER_IMAGE."""
+    # Create a mock helper.py file with ghcr.io/aixcc-finals BASE_RUNNER_IMAGE
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'ghcr.io/aixcc-finals/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    assert challenge_task.oss_fuzz_container_org == "aixcc-afc"
+
+
+def test_oss_fuzz_container_org_unknown_image(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with unknown BASE_RUNNER_IMAGE returns default."""
+    # Create a mock helper.py file with unknown BASE_RUNNER_IMAGE
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'docker.io/unknown/registry/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when image doesn't match known patterns
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_no_base_runner_image(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org when BASE_RUNNER_IMAGE is not present."""
+    # Create a mock helper.py file without BASE_RUNNER_IMAGE
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when BASE_RUNNER_IMAGE is not found
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_malformed_line(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with malformed BASE_RUNNER_IMAGE line."""
+    # Create a mock helper.py file with malformed BASE_RUNNER_IMAGE line
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = gcr.io/oss-fuzz-base/base-runner  # Missing quotes
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when regex doesn't match
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_multiple_matches(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with multiple BASE_RUNNER_IMAGE lines (should use first match)."""
+    # Create a mock helper.py file with multiple BASE_RUNNER_IMAGE lines
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'ghcr.io/aixcc-finals/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+BASE_RUNNER_IMAGE = 'gcr.io/oss-fuzz-base/base-runner'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should use the last match
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_multiple_matches_with_comment(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with multiple BASE_RUNNER_IMAGE lines (should use first match)."""
+    # Create a mock helper.py file with multiple BASE_RUNNER_IMAGE lines
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'ghcr.io/aixcc-finals/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+# Comment mentioning BASE_RUNNER_IMAGE
+# BASE_RUNNER_IMAGE = 'gcr.io/oss-fuzz-base/base-runner'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should use the first match (aixcc-finals)
+    assert challenge_task.oss_fuzz_container_org == "aixcc-afc"
+
+
+def test_oss_fuzz_container_org_with_spaces(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with BASE_RUNNER_IMAGE line containing extra spaces."""
+    # Create a mock helper.py file with BASE_RUNNER_IMAGE line containing extra spaces
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE    =    'ghcr.io/aixcc-finals/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should handle extra spaces correctly
+    assert challenge_task.oss_fuzz_container_org == "aixcc-afc"
+
+
+def test_oss_fuzz_container_org_with_double_quotes(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with BASE_RUNNER_IMAGE using double quotes."""
+    # Create a mock helper.py file with BASE_RUNNER_IMAGE using double quotes
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = "ghcr.io/aixcc-finals/base-runner"
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should handle double quotes correctly
+    assert challenge_task.oss_fuzz_container_org == "aixcc-afc"
+
+
+def test_oss_fuzz_container_org_file_not_found(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org when helper.py file doesn't exist."""
+    # Create a non-existent helper.py file path
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "nonexistent_helper.py"
+
+    # Mock the _helper_path to point to non-existent file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when file doesn't exist
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_empty_file(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with empty helper.py file."""
+    # Create an empty helper.py file
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+    helper_file.write_text("")
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when file is empty
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_comment_only_file(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with helper.py file containing only comments."""
+    # Create a helper.py file with only comments
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+# This is a comment
+# BASE_RUNNER_IMAGE = 'ghcr.io/aixcc-finals/base-runner'
+# Another comment
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when no BASE_RUNNER_IMAGE line is found
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_partial_match(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with BASE_RUNNER_IMAGE that partially matches known patterns."""
+    # Create a mock helper.py file with BASE_RUNNER_IMAGE that partially matches
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'gcr.io/oss-fuzz-something-else/base-runner'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when image doesn't exactly match known patterns
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"
+
+
+def test_oss_fuzz_container_org_case_sensitive(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with case variations in BASE_RUNNER_IMAGE."""
+    # Create a mock helper.py file with case variations
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = 'GCR.IO/OSS-FUZZ-BASE/BASE-RUNNER'
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should return default when case doesn't match (case sensitive)
+    assert challenge_task.oss_fuzz_container_org == "gcr.io/oss-fuzz"

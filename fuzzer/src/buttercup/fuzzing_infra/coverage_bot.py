@@ -42,14 +42,12 @@ class CoverageBot(TaskLoop):
         wdir: str,
         python: str,
         allow_pull: bool,
-        base_image_url: str,
         llvm_cov_tool: str,
         sample_size: int,
     ):
         self.wdir = wdir
         self.python = python
         self.allow_pull = allow_pull
-        self.base_image_url = base_image_url
         self.llvm_cov_tool = llvm_cov_tool
         self.sample_size = sample_size
         logger.info(f"Coverage bot initialized with sample_size: {sample_size}")
@@ -230,7 +228,6 @@ def main():
         args.wdir,
         args.python,
         args.allow_pull,
-        args.base_image_url,
         args.llvm_cov_tool,
         args.sample_size,
     )
