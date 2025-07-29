@@ -122,7 +122,7 @@ buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP  
 3. **Submit the integration-test challenge to the CRS (for 30mins):**
 
 ```bash
-make integration-task
+make send-integration-task
 ```
 
 **Alternative manual commands:**
