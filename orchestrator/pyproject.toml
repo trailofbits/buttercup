@@ -89,4 +89,5 @@ warn_unused_configs = true
 warn_unused_ignores = true
 exclude = [
     'competition_api_client',
+    'ui/competition_api/models',
 ]
