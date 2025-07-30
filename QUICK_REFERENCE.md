@@ -16,7 +16,7 @@ cd deployment && make up
 ### Production AKS
 ```bash
 # Automated setup
-./scripts/setup-production.sh
+./scripts/setup-azure.sh
 
 # Manual setup
 az login --tenant aixcc.tech
@@ -184,7 +184,7 @@ kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
 
 ### Scripts
 - `scripts/setup-local.sh` - Local development setup
-- `scripts/setup-production.sh` - Production AKS setup
+- `scripts/setup-azure.sh` - Production AKS setup
 - `orchestrator/scripts/` - Testing and task scripts
 
 ### Documentation
