@@ -93,7 +93,7 @@ class Scheduler:
         """
         if self.task_registry is None:
             return False
-        return bool(self.task_registry.should_stop_processing(task_or_id, self.cached_cancelled_ids))
+        return self.task_registry.should_stop_processing(task_or_id, self.cached_cancelled_ids)  # type: ignore[no-any-return]
 
     def __post_init__(self) -> None:
         if self.redis is not None:

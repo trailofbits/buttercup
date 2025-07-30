@@ -66,9 +66,9 @@ def _map_submission_status_to_result(status: TypesSubmissionStatus) -> Submissio
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     """Get the task_id from the SubmissionEntry or TracedCrash."""
     if isinstance(e, TracedCrash):
-        return str(e.crash.target.task_id)
+        return e.crash.target.task_id  # type: ignore[no-any-return]
     elif isinstance(e, SubmissionEntry):
-        return str(e.crashes[0].crash.crash.target.task_id)
+        return e.crashes[0].crash.crash.target.task_id  # type: ignore[no-any-return]
     else:
         raise ValueError(f"Unknown submission entry type: {type(e)}")
 
@@ -178,7 +178,7 @@ def _get_first_successful_pov_id(e: SubmissionEntry) -> str | None:
     """
     pov = _get_first_successful_pov(e)
     if pov:
-        return str(pov.competition_pov_id)
+        return pov.competition_pov_id  # type: ignore[no-any-return]
     return None
 
 

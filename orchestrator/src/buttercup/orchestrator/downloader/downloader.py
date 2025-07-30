@@ -190,8 +190,8 @@ class Downloader:
 
         return True
 
-    def _do_download(self, tmp_task_dir: tempfile.TemporaryDirectory, task: Task) -> bool:
-        tmp_task_dir_path = Path(tmp_task_dir.name)
+    def _do_download(self, tmp_task_dir: str | Path, task: Task) -> bool:
+        tmp_task_dir_path = Path(tmp_task_dir)
         logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
         # Download and extract all sources
