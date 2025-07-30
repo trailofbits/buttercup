@@ -1,5 +1,4 @@
-# Mock Competition API Configuration
-# Set to false to disable the mock competition API entirely
+# UI Configuration
 enabled: true
 
 replicaCount: 1
