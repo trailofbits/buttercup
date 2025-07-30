@@ -9,6 +9,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 import buttercup.common.node_local as node_local
 from pathlib import Path
+from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames
 from buttercup.common.sets import PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import (
@@ -269,7 +270,7 @@ class CompetitionAPI:
 
             # Create submission payload from crash data
             submission = TypesPOVSubmission(
-                architecture=TypesArchitecture.ArchitectureX8664,
+                architecture=TypesArchitecture(ARCHITECTURE),
                 engine=crash.crash.target.engine,
                 fuzzer_name=crash.crash.harness_name,
                 sanitizer=crash.crash.target.sanitizer,

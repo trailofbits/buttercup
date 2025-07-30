@@ -51,8 +51,16 @@ Welcome to the documentation page for the AIxCC Final Competition.
     - [Challenge Sequencing](round_info/exhibition-round-1.md#challenge-sequencing)
 
   - [Exhibition Round 2](round_info/exhibition-round-2.md#exhibition-round-2)
+
     - [Repositories](round_info/exhibition-round-2.md#repositories)
+    - [Challenge Tasks Archive](round_info/exhibition-round-2.md#challenge-tasks-archive)
     - [Sequencing](round_info/exhibition-round-2.md#sequencing)
     - [Notes](round_info/exhibition-round-2.md#notes)
+
+  - [Exhibition Round 3](round_info/exhibition-round-3.md#exhibition-round-3)
+    - [Repositories](round_info/exhibition-round-3.md#repositories)
+    - [Challenge Tasks Archive](round_info/exhibition-round-3.md#challenge-tasks-archive)
+    - [Sequencing](round_info/exhibition-round-3.md#sequencing)
+    - [Notes](round_info/exhibition-round-3.md#notes)
 
 - [LLM Models](llm-models/README.md#llm-providers-and-models)

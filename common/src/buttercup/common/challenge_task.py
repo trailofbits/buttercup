@@ -19,6 +19,7 @@ from buttercup.common.utils import copyanything, get_diffs
 from buttercup.common.stack_parsing import get_crash_token
 from typing import Iterator
 import buttercup.common.node_local as node_local
+from buttercup.common.constants import ARCHITECTURE
 from packaging.version import Version
 
 logger = logging.getLogger(__name__)
@@ -532,7 +533,7 @@ class ChallengeTask:
         *,
         pull_latest_base_image: bool = False,
         cache: bool | None = None,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
     ) -> CommandResult:
         logger.info(
             "Building image for project %s | pull_latest_base_image=%s | cache=%s | architecture=%s",
@@ -560,7 +561,7 @@ class ChallengeTask:
         self,
         use_source_dir: bool = True,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
@@ -605,7 +606,7 @@ class ChallengeTask:
         self,
         use_source_dir: bool = True,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
@@ -634,7 +635,7 @@ class ChallengeTask:
         container_name: str,
         use_source_dir: bool = True,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
@@ -658,7 +659,7 @@ class ChallengeTask:
     def check_build(
         self,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
@@ -689,7 +690,7 @@ class ChallengeTask:
         crash_path: Path,
         fuzzer_args: list[str] | None = None,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         env: Dict[str, str] | None = None,
     ) -> ReproduceResult:
         logger.info(
@@ -735,7 +736,7 @@ class ChallengeTask:
         harness_name: str,
         fuzzer_args: list[str] | None = None,
         corpus_dir: Path | None = None,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
@@ -772,7 +773,7 @@ class ChallengeTask:
         self,
         harness_name: str,
         corpus_dir: str,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
