@@ -1477,6 +1477,32 @@ def main():
     assert challenge_task.oss_fuzz_container_org == "aixcc-afc"
 
 
+def test_oss_fuzz_container_org_with_format_string(challenge_task: ChallengeTask, tmp_path: Path):
+    """Test oss_fuzz_container_org with BASE_RUNNER_IMAGE using format string."""
+    # Create a mock helper.py file with BASE_RUNNER_IMAGE using format string
+    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
+    helper_file = oss_fuzz_path / "infra" / "helper.py"
+    helper_file.parent.mkdir(parents=True, exist_ok=True)
+
+    helper_content = """
+import os
+import sys
+
+BASE_RUNNER_IMAGE = f"ghcr.io/aixcc-finals/base-runner:v{{BASE_IMAGE_TAG}}"
+BASE_IMAGE_TAG = 'v1.0.0'
+
+def main():
+    pass
+"""
+    helper_file.write_text(helper_content)
+
+    # Mock the _helper_path to point to our created file
+    challenge_task._helper_path = helper_file
+
+    # Should handle double quotes correctly
+    assert challenge_task.oss_fuzz_container_org == "aixcc-afc"
+
+
 def test_oss_fuzz_container_org_file_not_found(challenge_task: ChallengeTask, tmp_path: Path):
     """Test oss_fuzz_container_org when helper.py file doesn't exist."""
     # Create a non-existent helper.py file path

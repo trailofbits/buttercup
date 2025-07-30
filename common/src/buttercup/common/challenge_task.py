@@ -155,6 +155,7 @@ class ChallengeTask:
     WORKDIR_REGEX = re.compile(r"\s*WORKDIR\s*([^\s]+)")
 
     _helper_path: Path = field(init=False)
+    _full_helper_path: Path = field(init=False)
     _image_built: bool = field(default=False)
 
     def __post_init__(self) -> None:
@@ -178,8 +179,9 @@ class ChallengeTask:
 
         self._helper_path = Path("infra/helper.py")
         oss_fuzz_path = self.get_oss_fuzz_path()
-        if not (oss_fuzz_path / self._helper_path).exists():
-            raise ChallengeTaskError(f"Missing required file: {oss_fuzz_path / self._helper_path}")
+        self._full_helper_path = oss_fuzz_path / self._helper_path
+        if not self._full_helper_path.exists():
+            raise ChallengeTaskError(f"Missing required file: {self._full_helper_path}")
 
         self._check_python_path()
 
@@ -451,22 +453,25 @@ class ChallengeTask:
     @cached_property
     def oss_fuzz_container_org(self) -> str:
         # Read the helper_path file and grep for the BASE_RUNNER_IMAGE line.
+        result = "gcr.io/oss-fuzz"
         try:
-            with open(self._helper_path, "r", encoding="utf-8") as f:
+            with self._full_helper_path.open("r") as f:
                 for line in reversed(f.readlines()):
                     if "BASE_RUNNER_IMAGE" in line:
-                        m = re.search(r"^BASE_RUNNER_IMAGE\s*=\s*['\"]([^'\"]+)['\"]", line)
+                        m = re.search(r"^BASE_RUNNER_IMAGE\s*=\s*f?['\"]([^'\"]+)['\"]", line)
                         if m:
                             image = m.group(1)
                             if image.startswith("gcr.io/oss-fuzz"):
-                                return "gcr.io/oss-fuzz"
+                                logger.info(f"Using oss-fuzz container org: {result}")
+                                break
                             elif image.startswith("ghcr.io/aixcc-finals"):
-                                return "aixcc-afc"
-                            break
-        except Exception as e:
-            logger.warning(f"Could not determine oss_fuzz_container_org from helper_path: {e}")
+                                result = "aixcc-afc"
+                                logger.info(f"Using aixcc-afc container org: {result}")
+                                break
+        except Exception:
+            logger.exception("Could not determine oss_fuzz_container_org from helper_path")
 
-        return "gcr.io/oss-fuzz"
+        return result
 
     def container_image(self) -> str:
         return f"{self.oss_fuzz_container_org}/{self.project_name}"
