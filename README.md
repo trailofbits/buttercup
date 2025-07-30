@@ -74,14 +74,56 @@ make deploy-local
 2. **Verify deployment:**
 
 ```bash
-kubectl get pods -n crs
-kubectl get services -n crs
+make status
+```
+
+When the deployment is succesful, you should see something like
+
+```shell
+$ make status
+----------PODS------------
+NAME                                         READY   STATUS      RESTARTS   AGE
+buttercup-build-bot-845f5b96d9-7t8bz         1/1     Running     0          5m58s
+buttercup-build-bot-845f5b96d9-bfsq9         1/1     Running     0          5m58s
+buttercup-build-bot-845f5b96d9-npns4         1/1     Running     0          5m58s
+buttercup-build-bot-845f5b96d9-sv5fr         1/1     Running     0          5m58s
+buttercup-coverage-bot-6749f57b9d-4gzfd      1/1     Running     0          5m58s
+buttercup-dind-452s6                         1/1     Running     0          5m58s
+buttercup-fuzzer-bot-74bc9b849d-2zkt6        1/1     Running     0          5m58s
+buttercup-image-preloader-97nfb              0/1     Completed   0          5m58s
+buttercup-litellm-5f87df944-2mq7z            1/1     Running     0          5m58s
+buttercup-litellm-migrations-ljjcl           0/1     Completed   0          5m58s
+buttercup-merger-bot-fz87v                   1/1     Running     0          5m58s
+buttercup-patcher-7597c965b8-6968s           1/1     Running     0          5m58s
+buttercup-postgresql-0                       1/1     Running     0          5m58s
+buttercup-pov-reproducer-5f948bd7cc-45rgp    1/1     Running     0          5m58s
+buttercup-program-model-67446b5cfc-24zfh     1/1     Running     0          5m58s
+buttercup-redis-master-0                     1/1     Running     0          5m58s
+buttercup-registry-cache-5787f86896-czt9b    1/1     Running     0          5m58s
+buttercup-scheduler-7c49bf75c5-swqkb         1/1     Running     0          5m58s
+buttercup-scratch-cleaner-hdt6z              1/1     Running     0          5m58s
+buttercup-seed-gen-6fdb9c94c9-4xmrp          1/1     Running     0          5m57s
+buttercup-task-downloader-54cd9fb577-g4lbg   1/1     Running     0          5m58s
+buttercup-task-server-7d8cd7cf49-zkt69       1/1     Running     0          5m58s
+buttercup-tracer-bot-5b9fb6c8b5-zcmxd        1/1     Running     0          5m58s
+buttercup-ui-5dcf7dfb8-njglh                 1/1     Running     0          5m58s
+----------SERVICES--------
+NAME                       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+buttercup-litellm          ClusterIP   10.96.88.226     <none>        4000/TCP   5m58s
+buttercup-postgresql       ClusterIP   10.111.161.207   <none>        5432/TCP   5m58s
+buttercup-postgresql-hl    ClusterIP   None             <none>        5432/TCP   5m58s
+buttercup-redis-headless   ClusterIP   None             <none>        6379/TCP   5m58s
+buttercup-redis-master     ClusterIP   10.108.61.77     <none>        6379/TCP   5m58s
+buttercup-registry-cache   ClusterIP   10.103.80.241    <none>        443/TCP    5m58s
+buttercup-task-server      ClusterIP   10.104.206.197   <none>        8000/TCP   5m58s
+buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP   5m58s
+All CRS pods up and running.
 ```
 
 3. **Submit the integration-test challenge to the CRS (for 30mins):**
 
 ```bash
-make test
+make send-integration-task
 ```
 
 **Alternative manual commands:**
@@ -111,7 +153,7 @@ Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service 
 Use our automated setup script:
 
 ```bash
-make setup-production
+make setup-azure
 ```
 
 This script will check prerequisites, help create service principals, configure the environment, and validate your setup.
@@ -163,7 +205,7 @@ In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
 **Deploy the cluster and services:**
 
 ```bash
-make deploy-production
+make deploy-azure
 ```
 
 **Alternative manual command:**
@@ -189,7 +231,7 @@ kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 ## Cleanup
 
 ```bash
-make clean
+make undeploy
 ```
 
 **Alternative manual command:**
@@ -209,25 +251,28 @@ The **Buttercup CRS** project includes a Makefile with convenient shortcuts for 
 make help
 
 # Setup
-make setup-local          # Automated local setup
-make setup-production     # Automated production setup
-make validate             # Validate current setup
+make setup-local          # Automated local development setup
+make setup-azure          # Automated production AKS setup
+make validate             # Validate current setup and configuration
 
 # Deployment
-make deploy               # Deploy to current environment
-make deploy-local         # Deploy to local Minikube
-make deploy-production    # Deploy to production AKS
+make deploy               # Deploy to current environment (local or azure)
+make deploy-local         # Deploy to local Minikube environment
+make deploy-azure         # Deploy to production AKS environment
+
+# Status
+make status               # Check the status of the deployment
 
 # Testing
-make test                 # Run test task
+make send-integration-task     # Run integration test task
 
 # Development
 make lint                 # Lint all Python code
 make lint-component COMPONENT=orchestrator  # Lint specific component
 
 # Cleanup
-make clean                # Clean up deployment
-make clean-local          # Clean up local environment
+make undeploy             # Remove deployment and clean up resources
+make clean-local          # Delete Minikube cluster and remove local config
 ```
 
 ### Running Tests
@@ -240,7 +285,7 @@ make lint
 make lint-component COMPONENT=orchestrator
 
 # Run test task
-make test
+make send-integration-task
 ```
 
 **Alternative manual commands:**
