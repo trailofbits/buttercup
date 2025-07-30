@@ -578,7 +578,7 @@ def curl_oss_fuzz_ct() -> Iterator[ChallengeTask]:
                 "-C",
                 str(oss_fuzz_dir),
                 "clone",
-                "git@github.com:aixcc-finals/oss-fuzz-aixcc.git",
+                "git@github.com:tob-challenges/oss-fuzz-aixcc.git",
             ],
             check=True,
         )
@@ -593,7 +593,7 @@ def curl_oss_fuzz_ct() -> Iterator[ChallengeTask]:
         subprocess.run(cmd, check=True)
 
         # Download curl source code
-        curl_url = "git@github.com:aixcc-finals/afc-curl.git"
+        curl_url = "git@github.com:tob-challenges/afc-curl.git"
         focus = "afc-curl"
         # Checkout specific curl commit for reproducibility
         subprocess.run(["git", "-C", str(source_dir), "clone", curl_url], check=True)

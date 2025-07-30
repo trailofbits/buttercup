@@ -16,16 +16,16 @@ resources:
 # List of images to pull
 # Define base image names and versions
 baseImages:
-  - ghcr.io/aixcc-finals/base-runner
-  - ghcr.io/aixcc-finals/base-builder
-  - ghcr.io/aixcc-finals/base-image
-  - ghcr.io/aixcc-finals/base-clang
-  - ghcr.io/aixcc-finals/base-runner-debug
-  - ghcr.io/aixcc-finals/base-builder-jvm
-  - ghcr.io/aixcc-finals/base-builder-ruby
-  - ghcr.io/aixcc-finals/base-builder-go
-  - ghcr.io/aixcc-finals/base-builder-python
-  - ghcr.io/aixcc-finals/base-builder-rust
+  - gcr.io/oss-fuzz/base-runner
+  - gcr.io/oss-fuzz/base-builder
+  - gcr.io/oss-fuzz/base-image
+  - gcr.io/oss-fuzz/base-clang
+  - gcr.io/oss-fuzz/base-runner-debug
+  - gcr.io/oss-fuzz/base-builder-jvm
+  - gcr.io/oss-fuzz/base-builder-ruby
+  - gcr.io/oss-fuzz/base-builder-go
+  - gcr.io/oss-fuzz/base-builder-python
+  - gcr.io/oss-fuzz/base-builder-rust
 
 versions:
   - v1.3.0
