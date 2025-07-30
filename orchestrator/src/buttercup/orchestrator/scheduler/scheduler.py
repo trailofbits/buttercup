@@ -95,7 +95,7 @@ class Scheduler:
             return False
         return self.task_registry.should_stop_processing(task_or_id, self.cached_cancelled_ids)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             api_client = create_api_client(

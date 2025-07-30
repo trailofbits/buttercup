@@ -88,7 +88,7 @@ class ApiToken(BaseModel):
 def check_auth(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     settings: Annotated[TaskServerSettings, Depends(get_settings)],
-):
+) -> str:
     """
     Authenticate user with Argon2id-hashed token.
 
