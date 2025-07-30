@@ -95,18 +95,18 @@ up() {
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
 				
-				# Detect system resources and adjust minikube parameters
-				if [[ "$OSTYPE" == "darwin"* ]]; then
-					# macOS
-					AVAILABLE_CPUS=$(sysctl -n hw.ncpu)
-					AVAILABLE_MEMORY_BYTES=$(sysctl -n hw.memsize)
-					AVAILABLE_MEMORY_MB=$((AVAILABLE_MEMORY_BYTES / 1024 / 1024))
-				else
-					# Linux
-					AVAILABLE_CPUS=$(nproc)
-					AVAILABLE_MEMORY_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-					AVAILABLE_MEMORY_MB=$((AVAILABLE_MEMORY_KB / 1024))
+				# Detect Docker-available resources and adjust minikube parameters
+				echo -e "${BLU}Getting Docker system information...${NC}"
+				if ! docker system info > /dev/null 2>&1; then
+					echo -e "${RED}Error: Docker is not running or not accessible${NC}"
+					echo -e "${RED}Please ensure Docker is installed and running${NC}"
+					exit 1
 				fi
+				
+				DOCKER_INFO=$(docker system info --format "{{.NCPU}},{{.MemTotal}}")
+				AVAILABLE_CPUS=$(echo "$DOCKER_INFO" | cut -d',' -f1)
+				AVAILABLE_MEMORY_BYTES=$(echo "$DOCKER_INFO" | cut -d',' -f2)
+				AVAILABLE_MEMORY_MB=$((AVAILABLE_MEMORY_BYTES / 1024 / 1024))
 				
 				# Calculate safe limits (leave 25% for system)
 				MINIKUBE_CPUS=$((AVAILABLE_CPUS > 7 ? 8 : AVAILABLE_CPUS > 4 ? AVAILABLE_CPUS - 1 : AVAILABLE_CPUS))
@@ -129,7 +129,7 @@ up() {
 				
 				MINIKUBE_MEMORY_GB=$((MINIKUBE_MEMORY_MB / 1024))
 				
-				echo -e "${GRN}System resources: ${AVAILABLE_CPUS} CPUs, ${AVAILABLE_MEMORY_GB}GB RAM${NC}"
+				echo -e "${GRN}Docker-available resources: ${AVAILABLE_CPUS} CPUs, ${AVAILABLE_MEMORY_GB}GB RAM${NC}"
 				echo -e "${GRN}Minikube will use: ${MINIKUBE_CPUS} CPUs, ${MINIKUBE_MEMORY_GB}GB RAM${NC}"
 				echo -e "${BLU}Note: Recommended minimum is at least 8 CPUs and 64GB RAM${NC}"
 				
