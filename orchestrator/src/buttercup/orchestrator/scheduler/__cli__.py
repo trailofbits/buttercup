@@ -32,7 +32,7 @@ def _prepare_build_output(command: ProcessBuildOutputCommand) -> BuildOutput:
     )
 
 
-def main():
+def main() -> None:
     settings = Settings()
     setup_package_logger("scheduler", __name__, settings.log_level, settings.log_max_line_length)
     logger.debug(f"Settings: {settings}")

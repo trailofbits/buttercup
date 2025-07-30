@@ -48,7 +48,7 @@ def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -
     return task
 
 
-def main():
+def main() -> None:
     settings = DownloaderSettings()
     setup_package_logger("task-downloader", __name__, settings.log_level, settings.log_max_line_length)
     command = get_subcommand(settings)

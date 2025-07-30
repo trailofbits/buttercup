@@ -2,7 +2,7 @@ import uvicorn
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 
 
-def main():
+def main() -> None:
     settings = TaskServerSettings()
     uvicorn.run(
         "buttercup.orchestrator.task_server.server:app",
