@@ -37,7 +37,7 @@ verify_setup() {
         print_success "Setup verification completed successfully!"
         print_status "Next steps:"
         echo "  1. Run: make deploy-local"
-        echo "  2. Test with: make send-integration-task"
+        echo "  2. Test with: make send-libucl-task"
     else
         print_error "Setup verification failed. Run 'make validate' for details."
         exit 1

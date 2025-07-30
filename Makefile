@@ -21,6 +21,7 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
+	@echo "  send-libucl-task  - Run libucl task"
 	@echo ""
 	@echo "Development:"
 	@echo "  lint              - Lint all Python code"
@@ -126,6 +127,18 @@ send-integration-task:
 	@sleep 3
 	./orchestrator/scripts/task_integration_test.sh
 	@pkill -f "kubectl port-forward" || true
+
+send-libucl-task:
+	@echo "Running libucl task..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@sleep 3
+	./orchestrator/scripts/task_upstream_libucl.sh
+	@pkill -f "kubectl port-forward" || true
+
 
 # Development targets
 lint:
