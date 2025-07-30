@@ -229,7 +229,7 @@ class CompetitionAPI:
     Each method handles errors and returns results in a consistent format.
     """
 
-    def __init__(self, api_client: ApiClient, task_registry: TaskRegistry):
+    def __init__(self, api_client: ApiClient, task_registry: TaskRegistry) -> None:
         """
         Initialize with an API client.
 

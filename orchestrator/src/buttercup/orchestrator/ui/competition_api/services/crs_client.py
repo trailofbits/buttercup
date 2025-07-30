@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class CRSClient:
-    def __init__(self, crs_base_url: str, username: Optional[str] = None, password: Optional[str] = None):
+    def __init__(self, crs_base_url: str, username: Optional[str] = None, password: Optional[str] = None) -> None:
         self.crs_base_url = crs_base_url.rstrip("/")
         self.username = username
         self.password = password

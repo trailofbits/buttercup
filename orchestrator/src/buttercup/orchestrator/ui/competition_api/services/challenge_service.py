@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class ChallengeService:
-    def __init__(self, storage_dir: Path, base_url: str):
+    def __init__(self, storage_dir: Path, base_url: str) -> None:
         self.storage_dir = storage_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.base_url = base_url
