@@ -302,12 +302,6 @@ just lint-python orchestrator
 ./orchestrator/scripts/challenge.sh
 ```
 
-### Docker Development
-
-```bash
-# Build and run with Docker Compose (only for local development and quick testing)
-docker-compose up -d
-```
 
 ### Kubernetes Development
 

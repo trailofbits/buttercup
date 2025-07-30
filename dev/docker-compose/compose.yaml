@@ -1,5 +1,5 @@
 include:
- - ./competition-server/compose.yaml
+ - ../../competition-server/compose.yaml
 
 services:
   # ugh the only solution i can come up with is a dind instance paired with every single build-bot we will need like k8s groups or something
@@ -14,10 +14,10 @@ services:
       - DOCKER_TLS_CERTDIR  # intentionally blank to optimize runtime
     volumes:
       - type: bind
-        source: ./crs_scratch
+        source: ../../crs_scratch
         target: /crs_scratch
       - shared-tmp:/tmp
-      - ./node_data_storage/:/node_data
+      - ../../node_data_storage/:/node_data
 
   redis:
     image: redis:7.4.2
@@ -29,7 +29,7 @@ services:
     # command: redis-server /mount/redis.conf
     # volumes:
       # - cache:/data
-      # - ./redis:/mount
+      # - ../../redis:/mount
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
       interval: 1s
@@ -38,14 +38,14 @@ services:
 
   stimulate-fuzzer-test:
     build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      context: ../../
+      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --build_type fuzzer --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE} --task_id 123e4567-e89b-12d3-a456-426614174000
     profiles:
       - fuzzer-test
     restart: no
     volumes:
-      - ./crs_scratch:/crs_scratch
+      - ../../crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
@@ -61,13 +61,13 @@ services:
 
   orchestrator-sim:
     build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      context: ../../
+      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
     profiles:
       - fuzzer-test
     volumes:
-      - ./crs_scratch:/crs_scratch
+      - ../../crs_scratch:/crs_scratch
     depends_on:
       redis:
         condition: service_healthy
@@ -93,9 +93,9 @@ services:
     ports:
       - "127.0.0.1:8182:8182"
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
-      - ./program-model/conf/schema.json:/opt/janusgraph/conf/schema.json
+      - ../../crs_scratch:/crs_scratch
+      - ../../program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
+      - ../../program-model/conf/schema.json:/opt/janusgraph/conf/schema.json
     depends_on:
       graphdb-storage:
         condition: service_healthy
@@ -119,14 +119,14 @@ services:
 
   program-model:
     build:
-      context: ./
-      dockerfile: ./program-model/Dockerfile
+      context: ../../
+      dockerfile: ../../program-model/Dockerfile
     command: ["buttercup-program-model", "serve"]
     env_file: env.dev.compose
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../tasks_storage:/tasks_storage
+      - ../../node_data_storage/:/node_data
     depends_on:
       redis:
         condition: service_healthy
@@ -138,12 +138,12 @@ services:
   coverage-bot:
     command: ["buttercup-coverage-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      context: ../../
+      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../tasks_storage:/tasks_storage
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -154,12 +154,12 @@ services:
   build-bot:
     command: ["buttercup-fuzzer-builder", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timer", "5000"]
     build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      context: ../../
+      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../tasks_storage:/tasks_storage
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -170,12 +170,12 @@ services:
   tracer-bot:
     command: ["buttercup-tracer-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      context: ../../
+      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../tasks_storage:/tasks_storage
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -185,13 +185,13 @@ services:
 
   fuzzer-bot:
     build:
-      context: ./
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      context: ../../
+      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
     command: ["buttercup-fuzzer", "--crs_scratch_dir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_count_limit", "100"]
     env_file: env.dev.compose
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../node_data_storage/:/node_data
     depends_on:
       redis:
         condition: service_healthy
@@ -199,11 +199,11 @@ services:
   task-downloader:
     build:
       context: .
-      dockerfile: ./orchestrator/Dockerfile
+      dockerfile: ../../orchestrator/Dockerfile
     command: ["buttercup-task-downloader", "serve"]
     volumes:
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ../../tasks_storage:/tasks_storage
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -212,7 +212,7 @@ services:
   task-server:
     build:
       context: .
-      dockerfile: ./orchestrator/Dockerfile
+      dockerfile: ../../orchestrator/Dockerfile
     command: ["buttercup-task-server"]
     ports:
       - "127.0.0.1:8000:8000"
@@ -224,12 +224,12 @@ services:
   scheduler:
     build:
       context: .
-      dockerfile: ./orchestrator/Dockerfile
+      dockerfile: ../../orchestrator/Dockerfile
     command: ["buttercup-scheduler", "serve"]
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./tasks_storage:/tasks_storage
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../tasks_storage:/tasks_storage
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     depends_on:
       redis:
@@ -238,11 +238,11 @@ services:
   seed-gen:
     build:
       context: .
-      dockerfile: ./seed-gen/Dockerfile
+      dockerfile: ../../seed-gen/Dockerfile
     command: ["seed-gen", "server"]
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     environment:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
@@ -259,11 +259,11 @@ services:
   patcher:
     build:
       context: .
-      dockerfile: ./patcher/Dockerfile
+      dockerfile: ../../patcher/Dockerfile
     command: ["buttercup-patcher", "serve"]
     volumes:
-      - ./crs_scratch:/crs_scratch
-      - ./node_data_storage/:/node_data
+      - ../../crs_scratch:/crs_scratch
+      - ../../node_data_storage/:/node_data
     env_file: env.dev.compose
     environment:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
@@ -308,7 +308,7 @@ services:
   buttercup-ui:
     build:
       context: .
-      dockerfile: ./orchestrator/Dockerfile
+      dockerfile: ../../orchestrator/Dockerfile
     command: ["buttercup-ui"]
     ports:
       - "127.0.0.1:1323:1323"
@@ -317,7 +317,7 @@ services:
 
 configs:
   litellm_config:
-    file: ./litellm/litellm_config.yaml
+    file: ../../litellm/litellm_config.yaml
 
 volumes:
   cache:
