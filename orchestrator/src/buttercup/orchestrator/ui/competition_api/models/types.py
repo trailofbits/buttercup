@@ -2,12 +2,14 @@
 #   filename:  /tmp/tmp.VWuWL8tFKl/openapi.json
 #   timestamp: 2025-07-08T08:17:32+00:00
 
+# mypy: ignore-errors
+
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class Architecture(Enum):
@@ -54,10 +56,10 @@ class Message(BaseModel):
 class POVSubmission(BaseModel):
     architecture: Architecture
     engine: FuzzingEngine
-    fuzzer_name: constr(max_length=4096) = Field(  # type: ignore[valid-type]
+    fuzzer_name: Annotated[str, StringConstraints(max_length=4096)] = Field(
         ..., description="Fuzz Tooling fuzzer that exercises this vuln\n\n4KiB max size"
     )
-    sanitizer: constr(max_length=4096) = Field(  # type: ignore[valid-type]
+    sanitizer: Annotated[str, StringConstraints(max_length=4096)] = Field(
         ...,
         description="Fuzz Tooling Sanitizer that exercises this vuln\n\n4KiB max size",
     )
@@ -95,7 +97,7 @@ class SARIFSubmission(BaseModel):
 
 class SarifAssessmentSubmission(BaseModel):
     assessment: Assessment
-    description: constr(max_length=131072) = Field(  # type: ignore[valid-type]
+    description: Annotated[str, StringConstraints(max_length=131072)] = Field(
         ...,
         description="Plain text reasoning for the assessment.\n\nMust be nonempty.\n\n128KiB max size",
     )
