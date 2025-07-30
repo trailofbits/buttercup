@@ -66,9 +66,9 @@ def _map_submission_status_to_result(status: TypesSubmissionStatus) -> Submissio
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     """Get the task_id from the SubmissionEntry or TracedCrash."""
     if isinstance(e, TracedCrash):
-        return e.crash.target.task_id
+        return str(e.crash.target.task_id)
     elif isinstance(e, SubmissionEntry):
-        return e.crashes[0].crash.crash.target.task_id
+        return str(e.crashes[0].crash.crash.target.task_id)
     else:
         raise ValueError(f"Unknown submission entry type: {type(e)}")
 
@@ -178,7 +178,7 @@ def _get_first_successful_pov_id(e: SubmissionEntry) -> str | None:
     """
     pov = _get_first_successful_pov(e)
     if pov:
-        return pov.competition_pov_id
+        return str(pov.competition_pov_id)
     return None
 
 
@@ -707,12 +707,12 @@ class Submissions:
     def _get_matched_sarifs(self, redis: Redis) -> Set[str]:
         """Get all matched SARIF IDs from Redis."""
         matched_sarifs = redis.smembers(self.MATCHED_SARIFS)
-        return set(matched_sarifs)  # type: ignore[arg-type]
+        return set(matched_sarifs)
 
     def _get_stored_submissions(self) -> List[SubmissionEntry]:
         """Get all stored submissions from Redis."""
         submissions_data = self.redis.lrange(self.SUBMISSIONS, 0, -1)
-        return [SubmissionEntry.FromString(raw) for raw in submissions_data]  # type: ignore[union-attr]
+        return [SubmissionEntry.FromString(raw) for raw in submissions_data]
 
     def _persist(self, redis: Redis, index: int, entry: SubmissionEntry) -> None:
         """Persist the submissions to Redis."""
@@ -721,7 +721,7 @@ class Submissions:
     def _push(self, entry: SubmissionEntry) -> int:
         """Push a submission to Redis."""
         result = self.redis.rpush(self.SUBMISSIONS, entry.SerializeToString())
-        return int(result)  # type: ignore[arg-type]
+        return int(result)
 
     def _enumerate_submissions(self) -> Iterator[tuple[int, SubmissionEntry]]:
         """Enumerate all submissions belonging to active tasks."""

@@ -81,7 +81,7 @@ class CRSClient:
                 status_data = response.json()
                 ready = status_data.get("ready", False)
                 logger.info(f"CRS ping successful. Ready: {ready}")
-                return ready
+                return bool(ready)
             else:
                 logger.error(f"CRS ping failed. Status: {response.status_code}, Response: {response.text}")
                 return False

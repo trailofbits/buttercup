@@ -134,7 +134,7 @@ def check_auth(
     # Verify token using Argon2id
     try:
         ph.verify(token_hash, token)
-        return key_id
+        return str(key_id)
     except VerifyMismatchError:
         logger.warning(f"Invalid token provided for key ID {key_id}")
         raise HTTPException(
