@@ -63,9 +63,6 @@ ui:
 competition-api:
   enabled: false
 
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
-
 image-preloader:
   baseImages:
     - gcr.io/oss-fuzz/base-runner
