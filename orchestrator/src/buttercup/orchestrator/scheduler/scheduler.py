@@ -209,6 +209,9 @@ class Scheduler:
 
     def serve_ready_task(self) -> bool:
         """Handle a ready task"""
+        assert self.ready_queue is not None
+        assert self.index_queue is not None
+        assert self.build_requests_queue is not None
         task_ready_item: RQItem[TaskReady] | None = self.ready_queue.pop()
 
         if task_ready_item is not None:
@@ -258,6 +261,7 @@ class Scheduler:
 
     def _process_regular_build_output(self, build_output: BuildOutput) -> bool:
         """Process the BuildOutput for a regular build (for fuzzing, coverage, etc.)"""
+        assert self.harness_map is not None
         try:
             targets = self.process_build_output(build_output)
             for target in targets:
@@ -274,6 +278,8 @@ class Scheduler:
 
     def serve_build_output(self) -> bool:
         """Handle a build output"""
+        assert self.build_output_queue is not None
+        assert self.build_map is not None
         build_output_item = self.build_output_queue.pop()
         if build_output_item is None:
             return False
@@ -305,6 +311,7 @@ class Scheduler:
 
     def serve_index_output(self) -> bool:
         """Handle an index output message"""
+        assert self.index_output_queue is not None
         index_output_item = self.index_output_queue.pop()
         if index_output_item is not None:
             try:
@@ -376,6 +383,10 @@ class Scheduler:
         Returns:
             bool: True if any items were processed from the queues, False otherwise
         """
+        assert self.traced_vulnerabilities_queue is not None
+        assert self.patches_queue is not None
+        assert self.submissions is not None
+        assert self.status_checker is not None
         collected_item = False
         vuln_item: RQItem[TracedCrash] | None = self.traced_vulnerabilities_queue.pop()
         if vuln_item is not None:
@@ -393,7 +404,7 @@ class Scheduler:
                 self.patches_queue.ack_item(patch_item.item_id)
                 collected_item = True
 
-        def do_check():
+        def do_check() -> bool:
             self.submissions.process_cycle()
             return True
 
@@ -402,6 +413,7 @@ class Scheduler:
         return collected_item
 
     def serve_item(self) -> bool:
+        assert self.cancellation is not None
         # Run all scheduler components and track if any did work
         # Order is important: process_cancellations should be run first,
         # followed by update_cached_cancelled_ids
@@ -420,7 +432,7 @@ class Scheduler:
         results = [component() for component in components]
         return any(results)
 
-    def serve(self):
+    def serve(self) -> None:
         """Main orchestrator loop that drives task progress forward.
 
         This is the central scheduling loop that coordinates all components of the orchestrator.
