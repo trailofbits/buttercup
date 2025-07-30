@@ -39,7 +39,7 @@ services:
   stimulate-fuzzer-test:
     build:
       context: ../../
-      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --build_type fuzzer --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE} --task_id 123e4567-e89b-12d3-a456-426614174000
     profiles:
       - fuzzer-test
@@ -62,7 +62,7 @@ services:
   orchestrator-sim:
     build:
       context: ../../
-      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
     profiles:
       - fuzzer-test
@@ -120,7 +120,7 @@ services:
   program-model:
     build:
       context: ../../
-      dockerfile: ../../program-model/Dockerfile
+      dockerfile: ./program-model/Dockerfile
     command: ["buttercup-program-model", "serve"]
     env_file: env.dev.compose
     volumes:
@@ -139,7 +139,7 @@ services:
     command: ["buttercup-coverage-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ../../
-      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -155,7 +155,7 @@ services:
     command: ["buttercup-fuzzer-builder", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timer", "5000"]
     build:
       context: ../../
-      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -171,7 +171,7 @@ services:
     command: ["buttercup-tracer-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ../../
-      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -186,7 +186,7 @@ services:
   fuzzer-bot:
     build:
       context: ../../
-      dockerfile: ../../fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
     command: ["buttercup-fuzzer", "--crs_scratch_dir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_count_limit", "100"]
     env_file: env.dev.compose
     volumes:
@@ -198,8 +198,8 @@ services:
 
   task-downloader:
     build:
-      context: .
-      dockerfile: ../../orchestrator/Dockerfile
+      context: ../../
+      dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-task-downloader", "serve"]
     volumes:
       - ../../tasks_storage:/tasks_storage
@@ -211,8 +211,8 @@ services:
 
   task-server:
     build:
-      context: .
-      dockerfile: ../../orchestrator/Dockerfile
+      context: ../../
+      dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-task-server"]
     ports:
       - "127.0.0.1:8000:8000"
@@ -223,8 +223,8 @@ services:
 
   scheduler:
     build:
-      context: .
-      dockerfile: ../../orchestrator/Dockerfile
+      context: ../../
+      dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-scheduler", "serve"]
     volumes:
       - ../../crs_scratch:/crs_scratch
@@ -237,8 +237,8 @@ services:
 
   seed-gen:
     build:
-      context: .
-      dockerfile: ../../seed-gen/Dockerfile
+      context: ../../
+      dockerfile: ./seed-gen/Dockerfile
     command: ["seed-gen", "server"]
     volumes:
       - ../../crs_scratch:/crs_scratch
@@ -258,8 +258,8 @@ services:
 
   patcher:
     build:
-      context: .
-      dockerfile: ../../patcher/Dockerfile
+      context: ../../
+      dockerfile: ./patcher/Dockerfile
     command: ["buttercup-patcher", "serve"]
     volumes:
       - ../../crs_scratch:/crs_scratch
@@ -307,8 +307,8 @@ services:
 
   buttercup-ui:
     build:
-      context: .
-      dockerfile: ../../orchestrator/Dockerfile
+      context: ../../
+      dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-ui"]
     ports:
       - "127.0.0.1:1323:1323"
