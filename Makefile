@@ -107,8 +107,11 @@ test:
 # Development targets
 lint:
 	@echo "Linting all Python code..."
-	just lint-python-all
+	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+		make --no-print-directory lint-component COMPONENT=$$component; \
+	done
 
+# Note: only some components run mypy
 lint-component:
 	@if [ -z "$(COMPONENT)" ]; then \
 		echo "Error: COMPONENT not specified. Usage: make lint-component COMPONENT=<component>"; \
@@ -116,7 +119,10 @@ lint-component:
 		exit 1; \
 	fi
 	@echo "Linting $(COMPONENT)..."
-	just lint-python $(COMPONENT)
+	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "program-model" ]; then \
+		cd $(COMPONENT) && uv run mypy; \
+	fi
 
 # Cleanup targets
 clean:
