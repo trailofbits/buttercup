@@ -83,55 +83,37 @@ def get_run_data_dir() -> Path:
 
 
 def save_artifact(
-    task_id: str, artifact_type: str, artifact_id: str, content: str | dict, is_base64: bool = False
+    task_id: str,
+    artifact_type: str,
+    artifact_id: str,
+    content: str | dict,
+    is_base64: bool = False,
 ) -> bool:
-    """Save an artifact to the appropriate directory structure.
-
-    Args:
-        task_id: The task ID
-        artifact_type: Type of artifact ('povs', 'patches', 'bundles')
-        artifact_id: Unique identifier for the artifact
-        content: The content to save (string or dict)
-        is_base64: Whether the content is base64 encoded and needs decoding
-
-    Returns:
-        True if saved successfully, False otherwise
-    """
+    """Save an artifact to the appropriate directory structure."""
     try:
         run_dir = get_run_data_dir()
         task_dir = run_dir / task_id / artifact_type
         task_dir.mkdir(parents=True, exist_ok=True)
 
-        # Determine file extension and content processing
         if artifact_type == "bundles":
             file_path = task_dir / f"{artifact_id}.json"
-            if isinstance(content, dict):
-                content_to_save = json.dumps(content, indent=2)
-            else:
-                content_to_save = content
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(json.dumps(content, indent=2))
         elif artifact_type == "patches":
+            assert isinstance(content, str)
             file_path = task_dir / f"{artifact_id}.patch"
-            if is_base64:
-                content_to_save = base64.b64decode(content).decode("utf-8")
-            else:
-                content_to_save = content
+            data = base64.b64decode(content).decode("utf-8") if is_base64 else content
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(data)
         elif artifact_type == "povs":
+            assert isinstance(content, str)
             file_path = task_dir / f"{artifact_id}.bin"
-            if is_base64:
-                # Save binary content for POVs
-                with open(file_path, "wb") as f:
-                    f.write(base64.b64decode(content))
-                logger.info(f"Saved {artifact_type} artifact: {file_path}")
-                return True
-            else:
-                content_to_save = content
+            data_bin = base64.b64decode(content) if is_base64 else content.encode("utf-8")
+            with file_path.open("wb") as f:
+                f.write(data_bin)
         else:
             logger.error(f"Unknown artifact type: {artifact_type}")
             return False
-
-        # Save text content
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content_to_save)
 
         logger.info(f"Saved {artifact_type} artifact: {file_path}")
         return True
@@ -139,6 +121,21 @@ def save_artifact(
     except Exception as e:
         logger.error(f"Failed to save {artifact_type} artifact {artifact_id} for task {task_id}: {e}")
         return False
+
+
+def save_bundle(task_id: str, bundle_id: str, content: dict) -> bool:
+    """Save a bundle to the appropriate directory structure."""
+    return save_artifact(task_id, "bundles", bundle_id, content)
+
+
+def save_patch(task_id: str, patch_id: str, content: str) -> bool:
+    """Save a patch to the appropriate directory structure."""
+    return save_artifact(task_id, "patches", patch_id, content, True)
+
+
+def save_pov(task_id: str, pov_id: str, content: str) -> bool:
+    """Save a POV to the appropriate directory structure."""
+    return save_artifact(task_id, "povs", pov_id, content, True)
 
 
 class Challenge(BaseModel):
@@ -320,7 +317,7 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> Bundle
     logger.info(f"Bundle details: {json.dumps(body.dict(), indent=2)}")
 
     # Save bundle to disk
-    save_artifact(task_id, "bundles", bundle_id, body.dict())
+    save_bundle(task_id, bundle_id, body.dict())
 
     return BundleSubmissionResponse(bundle_id=bundle_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
@@ -426,7 +423,7 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSub
     logger.info(f"Patch size: {len(body.patch)} bytes")
 
     # Save patch to disk
-    save_artifact(task_id, "patches", patch_id, body.patch, is_base64=True)
+    save_patch(task_id, patch_id, body.patch)
 
     return PatchSubmissionResponse(
         patch_id=patch_id, status=SubmissionStatus.SubmissionStatusAccepted, functionality_tests_passing=None
@@ -477,7 +474,7 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissio
     logger.info(f"POV testcase size: {len(body.testcase)} bytes")
 
     # Save POV testcase to disk
-    save_artifact(task_id, "povs", pov_id, body.testcase, is_base64=True)
+    save_pov(task_id, pov_id, body.testcase)
 
     return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
