@@ -323,12 +323,13 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
 
         # Store task data for dashboard
         task_id = task.tasks[0].task_id
+        name = challenge.name or task_id
         now = datetime.now()
         deadline = now + timedelta(seconds=challenge.duration)
         
         tasks_storage[task_id] = {
             "task_id": task_id,
-            "name": challenge.name,
+            "name": name,
             "project_name": challenge.fuzz_tooling_project_name,
             "status": "active",
             "duration": challenge.duration,
@@ -680,9 +681,6 @@ def trigger_task(
     Trigger a task
     """
     logger.info(f"Triggering task: {body.model_dump()}")
-    if body.name is None:
-        body.name = str(uuid.uuid4())
-
     return _create_task(body, challenge_service, crs_client)
 
 
