@@ -27,7 +27,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     SubmissionResult,
     Patch,
 )
-from buttercup.common.sarif_store import SARIFStore
+from buttercup.common.sarif_store import SARIFStore, SARIFBroadcastDetail
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
@@ -67,9 +67,9 @@ def _map_submission_status_to_result(status: TypesSubmissionStatus) -> Submissio
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     """Get the task_id from the SubmissionEntry or TracedCrash."""
     if isinstance(e, TracedCrash):
-        return e.crash.target.task_id
+        return e.crash.target.task_id  # type: ignore[no-any-return]
     elif isinstance(e, SubmissionEntry):
-        return e.crashes[0].crash.crash.target.task_id
+        return e.crashes[0].crash.crash.target.task_id  # type: ignore[no-any-return]
     else:
         raise ValueError(f"Unknown submission entry type: {type(e)}")
 
@@ -179,7 +179,7 @@ def _get_first_successful_pov_id(e: SubmissionEntry) -> str | None:
     """
     pov = _get_first_successful_pov(e)
     if pov:
-        return pov.competition_pov_id
+        return pov.competition_pov_id  # type: ignore[no-any-return]
     return None
 
 
@@ -230,7 +230,7 @@ class CompetitionAPI:
     Each method handles errors and returns results in a consistent format.
     """
 
-    def __init__(self, api_client: ApiClient, task_registry: TaskRegistry):
+    def __init__(self, api_client: ApiClient, task_registry: TaskRegistry) -> None:
         """
         Initialize with an API client.
 
@@ -707,11 +707,13 @@ class Submissions:
 
     def _get_matched_sarifs(self, redis: Redis) -> Set[str]:
         """Get all matched SARIF IDs from Redis."""
-        return set(redis.smembers(self.MATCHED_SARIFS))
+        matched_sarifs = redis.smembers(self.MATCHED_SARIFS)
+        return set(matched_sarifs)
 
     def _get_stored_submissions(self) -> List[SubmissionEntry]:
         """Get all stored submissions from Redis."""
-        return [SubmissionEntry.FromString(raw) for raw in self.redis.lrange(self.SUBMISSIONS, 0, -1)]
+        submissions_data = self.redis.lrange(self.SUBMISSIONS, 0, -1)
+        return [SubmissionEntry.FromString(raw) for raw in submissions_data]
 
     def _persist(self, redis: Redis, index: int, entry: SubmissionEntry) -> None:
         """Persist the submissions to Redis."""
@@ -719,7 +721,8 @@ class Submissions:
 
     def _push(self, entry: SubmissionEntry) -> int:
         """Push a submission to Redis."""
-        return self.redis.rpush(self.SUBMISSIONS, entry.SerializeToString())
+        result = self.redis.rpush(self.SUBMISSIONS, entry.SerializeToString())
+        return int(result)
 
     def _enumerate_submissions(self) -> Iterator[tuple[int, SubmissionEntry]]:
         """Enumerate all submissions belonging to active tasks."""
@@ -1381,7 +1384,7 @@ class Submissions:
             i, e, redis, competition_pov_id, competition_patch_id=current_patch.competition_patch_id
         )
 
-    def _get_available_sarifs_for_matching(self, task_id: str):
+    def _get_available_sarifs_for_matching(self, task_id: str) -> List[SARIFBroadcastDetail]:
         """Get SARIFs that are available for matching for the given task.
 
         Returns SARIFs for the task that haven't been used in any existing bundles.

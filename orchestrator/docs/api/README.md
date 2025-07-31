@@ -73,7 +73,7 @@ CRS->>API: Modify Bundle
 
 ### Request Integration Test Task
 
-After deploying your CRS, you now have the ability to task your CRS with a simple “[integration test](https://github.com/aixcc-finals/integration-test/tree/challenges/integration-test-delta-01)” challenge (delta scan) to
+After deploying your CRS, you now have the ability to task your CRS with a simple “[integration test](https://github.com/tob-challenges/integration-test/tree/challenges/integration-test-delta-01)” challenge (delta scan) to
 make sure your CRS and Telemetry are working as expected prior to the opening of the Round.
 
 This endpoint is available from now until 5 minutes prior to the opening of a Round. It is accessible from the internet and from inside the tailnet. `duration_secs` is an optional parameter, and defaults to 4 hours.

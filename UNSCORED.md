@@ -32,12 +32,12 @@ A list of vulnerabilities to find and patch is in this [spreadsheet](https://doc
 ### Validate the correct Vulnerability and Patch
 
 ```shell
-git clone git@github.com:aixcc-finals/example-libpng.git
+git clone git@github.com:tob-challenges/example-libpng.git
 cd example-libpng/
 git checkout challenges/lp-delta-01
 cd ../
 
-git clone git@github.com:aixcc-finals/oss-fuzz-aixcc.git
+git clone git@github.com:tob-challenges/oss-fuzz-aixcc.git
 cd oss-fuzz-aixcc/
 git checkout challenge-state/lp-delta-01
 

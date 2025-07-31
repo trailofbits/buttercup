@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/aixcc-finals/base-runner:v1.3.0
+ARG BASE_IMAGE=gcr.io/oss-fuzz-base/base-runner
 
 FROM $BASE_IMAGE AS base-image
 

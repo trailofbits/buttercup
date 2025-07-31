@@ -88,7 +88,7 @@ class ApiToken(BaseModel):
 def check_auth(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     settings: Annotated[TaskServerSettings, Depends(get_settings)],
-):
+) -> str:
     """
     Authenticate user with Argon2id-hashed token.
 
@@ -134,7 +134,7 @@ def check_auth(
     # Verify token using Argon2id
     try:
         ph.verify(token_hash, token)
-        return key_id
+        return str(key_id)
     except VerifyMismatchError:
         logger.warning(f"Invalid token provided for key ID {key_id}")
         raise HTTPException(
@@ -152,7 +152,7 @@ def get_status_(
     CRS Status
     """
 
-    def is_competition_api_ready():
+    def is_competition_api_ready() -> bool:
         is_ready = False
         api_client = create_api_client(
             competition_api_url=settings.competition_api_url,
@@ -161,9 +161,9 @@ def get_status_(
         )
         api = PingApi(api_client=api_client)
 
-        response = None
+        response: TypesPingResponse | None = None
         try:
-            response: TypesPingResponse = api.v1_ping_get()
+            response = api.v1_ping_get()
         except (MaxRetryError, NewConnectionError):
             is_ready = False
 
