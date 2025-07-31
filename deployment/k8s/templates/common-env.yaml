@@ -393,6 +393,6 @@ Service-specific environment variables that utilize the standardized variables
     secretKeyRef:
       name: ghcr
       key: username
-{{- end}
+{{- end }}
 
 

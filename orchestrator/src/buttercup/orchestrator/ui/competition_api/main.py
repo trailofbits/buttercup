@@ -37,6 +37,7 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
 )
 from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
 from buttercup.orchestrator.ui.config import Settings
+from functools import cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ def get_crs_client() -> CRSClient:
     return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
 
 
+@cache
 def get_run_data_dir() -> Path:
     """Get or create the current run data directory with timestamp."""
     settings = get_settings()
