@@ -12,11 +12,11 @@ Buttercup is a Cyber Reasoning System (CRS) developed by Trail of Bits for the A
 
 ```bash
 # Build specific component (from project root)
-just lint-python <component>  # Format, lint, and type-check a component
-just lint-python-all          # Format, lint, and type-check all components
+make lint-component COMPONENT=<component>  # Format, lint, and type-check a component
+make lint                                   # Format, lint, and type-check all components
 
 # Example: lint the patcher component
-just lint-python patcher
+make lint-component COMPONENT=patcher
 ```
 
 ### Testing
