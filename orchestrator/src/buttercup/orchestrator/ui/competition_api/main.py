@@ -6,9 +6,13 @@ from __future__ import annotations
 
 import uuid
 import json
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
+from pathlib import Path
 
-from fastapi import FastAPI, Depends
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from buttercup.orchestrator.ui.competition_api.models.types import (
@@ -48,6 +52,39 @@ app = FastAPI(
 # Global settings instance
 _settings: Settings | None = None
 
+# In-memory storage for tasks and artifacts (can be moved to database later)
+tasks_storage: Dict[str, Dict[str, Any]] = {}
+dashboard_stats = {
+    "activeTasks": 0,
+    "totalPovs": 0,
+    "totalPatches": 0,
+    "totalBundles": 0
+}
+
+# Dashboard models
+class TaskInfo(BaseModel):
+    task_id: str
+    name: Optional[str] = None
+    project_name: str
+    status: str  # active, completed, expired
+    duration: int
+    deadline: str
+    challenge_repo_url: Optional[str] = None
+    challenge_repo_head_ref: Optional[str] = None
+    challenge_repo_base_ref: Optional[str] = None
+    fuzz_tooling_url: Optional[str] = None
+    fuzz_tooling_ref: Optional[str] = None
+    povs: List[Dict[str, Any]] = []
+    patches: List[Dict[str, Any]] = []
+    bundles: List[Dict[str, Any]] = []
+    created_at: str
+
+class DashboardStats(BaseModel):
+    activeTasks: int
+    totalPovs: int
+    totalPatches: int
+    totalBundles: int
+
 
 def get_settings() -> Settings:
     """Get application settings singleton."""
@@ -67,6 +104,79 @@ def get_crs_client() -> CRSClient:
     """Get CRS client instance."""
     settings = get_settings()
     return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
+
+
+# Mount static files
+static_dir = Path(__file__).parent.parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Utility functions for task management
+def calculate_task_status(deadline_str: str) -> str:
+    """Calculate task status based on deadline."""
+    try:
+        deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+        now = datetime.now(deadline.tzinfo)
+        if now > deadline:
+            return "expired"
+        return "active"
+    except:
+        return "active"  # Default to active if parsing fails
+
+def update_dashboard_stats():
+    """Update dashboard statistics from current tasks."""
+    global dashboard_stats
+    
+    active_count = 0
+    total_povs = 0
+    total_patches = 0
+    total_bundles = 0
+    
+    for task_data in tasks_storage.values():
+        if calculate_task_status(task_data["deadline"]) == "active":
+            active_count += 1
+        
+        total_povs += len(task_data.get("povs", []))
+        total_patches += len(task_data.get("patches", []))
+        total_bundles += len(task_data.get("bundles", []))
+    
+    dashboard_stats.update({
+        "activeTasks": active_count,
+        "totalPovs": total_povs,
+        "totalPatches": total_patches,
+        "totalBundles": total_bundles
+    })
+
+def get_or_create_task(task_id: str) -> Dict[str, Any]:
+    """Get or create a task entry in storage."""
+    if task_id not in tasks_storage:
+        # Create default task entry
+        now = datetime.now()
+        deadline = now + timedelta(hours=2)  # Default 2 hour duration
+        
+        tasks_storage[task_id] = {
+            "task_id": task_id,
+            "name": None,
+            "project_name": "unknown",
+            "status": "active",
+            "duration": 7200,
+            "deadline": deadline.isoformat(),
+            "challenge_repo_url": None,
+            "challenge_repo_head_ref": None,
+            "challenge_repo_base_ref": None,
+            "fuzz_tooling_url": None,
+            "fuzz_tooling_ref": None,
+            "povs": [],
+            "patches": [],
+            "bundles": [],
+            "created_at": now.isoformat()
+        }
+    
+    # Update status based on deadline
+    task_data = tasks_storage[task_id]
+    task_data["status"] = calculate_task_status(task_data["deadline"])
+    
+    return task_data
 
 
 class Challenge(BaseModel):
@@ -125,6 +235,61 @@ def get_v1_crs_ping_(crs_client: CRSClient = Depends(get_crs_client)) -> dict:
     }
 
 
+# Dashboard endpoints
+@app.get("/", response_class=HTMLResponse, tags=["dashboard"])
+def get_dashboard() -> HTMLResponse:
+    """
+    Serve the main dashboard HTML page
+    """
+    static_dir = Path(__file__).parent.parent / "static"
+    html_file = static_dir / "index.html"
+    
+    if html_file.exists():
+        return HTMLResponse(content=html_file.read_text(), status_code=200)
+    else:
+        return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
+
+
+@app.get("/v1/dashboard/stats", response_model=DashboardStats, tags=["dashboard"])
+def get_dashboard_stats() -> DashboardStats:
+    """
+    Get dashboard statistics
+    """
+    update_dashboard_stats()
+    return DashboardStats(**dashboard_stats)
+
+
+@app.get("/v1/dashboard/tasks", response_model=List[TaskInfo], tags=["dashboard"])
+def get_dashboard_tasks() -> List[TaskInfo]:
+    """
+    Get list of all tasks for dashboard
+    """
+    update_dashboard_stats()
+    tasks_list = []
+    
+    for task_data in tasks_storage.values():
+        # Update status before returning
+        task_data["status"] = calculate_task_status(task_data["deadline"])
+        tasks_list.append(TaskInfo(**task_data))
+    
+    # Sort by created_at descending (newest first)
+    tasks_list.sort(key=lambda x: x.created_at, reverse=True)
+    return tasks_list
+
+
+@app.get("/v1/dashboard/tasks/{task_id}", response_model=TaskInfo, tags=["dashboard"])
+def get_dashboard_task(task_id: str) -> TaskInfo:
+    """
+    Get detailed information about a specific task
+    """
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_data = tasks_storage[task_id]
+    task_data["status"] = calculate_task_status(task_data["deadline"])
+    return TaskInfo(**task_data)
+
+
 @app.get(
     "/v1/request/list/",
     response_model=RequestListResponse,
@@ -156,14 +321,37 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
             duration_secs=challenge.duration,
         )
 
+        # Store task data for dashboard
+        task_id = task.tasks[0].task_id
+        now = datetime.now()
+        deadline = now + timedelta(seconds=challenge.duration)
+        
+        tasks_storage[task_id] = {
+            "task_id": task_id,
+            "name": challenge.name,
+            "project_name": challenge.fuzz_tooling_project_name,
+            "status": "active",
+            "duration": challenge.duration,
+            "deadline": deadline.isoformat(),
+            "challenge_repo_url": challenge.challenge_repo_url,
+            "challenge_repo_head_ref": challenge.challenge_repo_head_ref,
+            "challenge_repo_base_ref": challenge.challenge_repo_base_ref,
+            "fuzz_tooling_url": challenge.fuzz_tooling_url,
+            "fuzz_tooling_ref": challenge.fuzz_tooling_ref,
+            "povs": [],
+            "patches": [],
+            "bundles": [],
+            "created_at": now.isoformat()
+        }
+
         # Send task to CRS via POST /v1/task endpoint
         if crs_client.submit_task(task):
-            logger.info(f"Task {task.tasks[0].task_id} submitted successfully to CRS")
+            logger.info(f"Task {task_id} submitted successfully to CRS")
             return Message(
-                message=f"Task {task.tasks[0].task_id} created and submitted to CRS for challenge {challenge.name}"
+                message=f"Task {task_id} created and submitted to CRS for challenge {challenge.name}"
             )
         else:
-            logger.error(f"Failed to submit task {task.tasks[0].task_id} to CRS")
+            logger.error(f"Failed to submit task {task_id} to CRS")
             return Error(message="Failed to submit task to CRS")
 
     except Exception as e:
@@ -246,6 +434,16 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> Bundle
     bundle_id = str(uuid.uuid4())
     logger.info(f"Bundle submission - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Bundle details: {json.dumps(body.dict(), indent=2)}")
+    
+    # Store bundle in task storage
+    task_data = get_or_create_task(task_id)
+    bundle_data = {
+        "bundle_id": bundle_id,
+        "timestamp": datetime.now().isoformat(),
+        **body.dict()
+    }
+    task_data["bundles"].append(bundle_data)
+    
     return BundleSubmissionResponse(bundle_id=bundle_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
 
@@ -348,6 +546,16 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSub
     patch_id = str(uuid.uuid4())
     logger.info(f"Patch submission - Task: {task_id}, Patch ID: {patch_id}")
     logger.info(f"Patch size: {len(body.patch)} bytes")
+    
+    # Store patch in task storage
+    task_data = get_or_create_task(task_id)
+    patch_data = {
+        "patch_id": patch_id,
+        "timestamp": datetime.now().isoformat(),
+        **body.dict()
+    }
+    task_data["patches"].append(patch_data)
+    
     return PatchSubmissionResponse(
         patch_id=patch_id, status=SubmissionStatus.SubmissionStatusAccepted, functionality_tests_passing=None
     )
@@ -395,6 +603,16 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissio
         f"POV details: Architecture: {body.architecture}, Engine: {body.engine}, Fuzzer: {body.fuzzer_name}, Sanitizer: {body.sanitizer}"
     )
     logger.info(f"POV testcase size: {len(body.testcase)} bytes")
+    
+    # Store POV in task storage
+    task_data = get_or_create_task(task_id)
+    pov_data = {
+        "pov_id": pov_id,
+        "timestamp": datetime.now().isoformat(),
+        **body.dict()
+    }
+    task_data["povs"].append(pov_data)
+    
     return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
 

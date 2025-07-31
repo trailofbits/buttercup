@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buttercup CRS Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-title">Buttercup CRS Dashboard</h1>
+            <div class="nav-buttons">
+                <button id="submit-task-btn" class="btn btn-primary">Submit Task</button>
+                <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <!-- System Status Cards -->
+        <section class="status-cards">
+            <div class="card">
+                <h3>Active Tasks</h3>
+                <div class="stat-number" id="active-tasks">-</div>
+                <div class="stat-label">Currently running</div>
+            </div>
+            <div class="card">
+                <h3>Total PoVs</h3>
+                <div class="stat-number" id="total-povs">-</div>
+                <div class="stat-label">Vulnerabilities found</div>
+            </div>
+            <div class="card">
+                <h3>Total Patches</h3>
+                <div class="stat-number" id="total-patches">-</div>
+                <div class="stat-label">Fixes generated</div>
+            </div>
+            <div class="card">
+                <h3>Total Bundles</h3>
+                <div class="stat-number" id="total-bundles">-</div>
+                <div class="stat-label">Submissions made</div>
+            </div>
+        </section>
+
+        <!-- Tasks List -->
+        <section class="tasks-section">
+            <div class="section-header">
+                <h2>Tasks</h2>
+                <div class="filter-controls">
+                    <select id="status-filter">
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="expired">Expired</option>
+                    </select>
+                </div>
+            </div>
+            <div class="tasks-container" id="tasks-container">
+                <!-- Tasks will be populated dynamically -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Task Submission Modal -->
+    <div id="task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Submit New Task</h2>
+                <span class="close" id="close-modal">&times;</span>
+            </div>
+            <form id="task-form">
+                <div class="form-group">
+                    <label for="task-name">Task Name:</label>
+                    <input type="text" id="task-name" name="name" placeholder="Optional custom name">
+                </div>
+                <div class="form-group">
+                    <label for="challenge-repo-url">Challenge Repository URL:</label>
+                    <input type="url" id="challenge-repo-url" name="challenge_repo_url" required 
+                           placeholder="git@github.com:user/repo.git">
+                </div>
+                <div class="form-group">
+                    <label for="challenge-repo-head-ref">Challenge Repository Head Ref:</label>
+                    <input type="text" id="challenge-repo-head-ref" name="challenge_repo_head_ref" required
+                           placeholder="main or commit hash">
+                </div>
+                <div class="form-group">
+                    <label for="challenge-repo-base-ref">Challenge Repository Base Ref:</label>
+                    <input type="text" id="challenge-repo-base-ref" name="challenge_repo_base_ref"
+                           placeholder="Optional base ref for delta analysis">
+                </div>
+                <div class="form-group">
+                    <label for="fuzz-tooling-url">Fuzz Tooling URL:</label>
+                    <input type="url" id="fuzz-tooling-url" name="fuzz_tooling_url" required
+                           placeholder="git@github.com:google/oss-fuzz.git">
+                </div>
+                <div class="form-group">
+                    <label for="fuzz-tooling-ref">Fuzz Tooling Ref:</label>
+                    <input type="text" id="fuzz-tooling-ref" name="fuzz_tooling_ref" required
+                           placeholder="master or commit hash">
+                </div>
+                <div class="form-group">
+                    <label for="fuzz-tooling-project-name">Project Name:</label>
+                    <input type="text" id="fuzz-tooling-project-name" name="fuzz_tooling_project_name" required
+                           placeholder="libpng">
+                </div>
+                <div class="form-group">
+                    <label for="harnesses-included">
+                        <input type="checkbox" id="harnesses-included" name="harnesses_included">
+                        Harnesses Included
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="duration">Duration (seconds):</label>
+                    <input type="number" id="duration" name="duration" required min="60" max="86400" value="7200"
+                           placeholder="7200">
+                </div>
+                <div class="form-buttons">
+                    <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Task Detail Modal -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="detail-title">Task Details</h2>
+                <span class="close" id="close-detail-modal">&times;</span>
+            </div>
+            <div id="detail-content">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
