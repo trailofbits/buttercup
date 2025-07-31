@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint-python lint-python-all
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope
 
 # Default target
 help:
@@ -26,8 +26,6 @@ help:
 	@echo "  install-cscope    - Install cscope tool"
 	@echo "  lint              - Lint all Python code"
 	@echo "  lint-component    - Lint specific component (e.g., make lint-component COMPONENT=orchestrator)"
-	@echo "  lint-python       - Lint specific Python component (e.g., make lint-python COMPONENT=orchestrator)"
-	@echo "  lint-python-all   - Lint all Python components"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  undeploy          - Remove deployment and clean up resources"
@@ -164,20 +162,3 @@ clean-local:
 install-cscope:
 	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
-lint-python:
-	@if [ -z "$(COMPONENT)" ]; then \
-		echo "Error: COMPONENT not specified. Usage: make lint-python COMPONENT=<component>"; \
-		echo "Available components: common, fuzzer, orchestrator, patcher, program-model, seed-gen"; \
-		exit 1; \
-	fi
-	@echo "Linting Python component $(COMPONENT)..."
-	cd $(COMPONENT) && uv sync --all-extras && uv run ruff format && uv run ruff check --fix && uv run mypy
-
-lint-python-all:
-	@echo "Linting all Python components..."
-	make lint-python COMPONENT=common
-	make lint-python COMPONENT=fuzzer
-	make lint-python COMPONENT=orchestrator
-	make lint-python COMPONENT=patcher
-	make lint-python COMPONENT=program-model
-	make lint-python COMPONENT=seed-gen
