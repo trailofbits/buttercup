@@ -57,7 +57,7 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ./orchestrator/scripts/send_sarif.sh <TASK-ID>
 
 # Run unscored challenges
-./orchestrator/scripts/challenge.sh
+./orchestrator/scripts/challenge.py
 ```
 
 ### Development
