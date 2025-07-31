@@ -730,7 +730,19 @@ def download_patch(task_id: str, patch_id: str) -> Response:
         raise HTTPException(status_code=404, detail="Patch not found")
     
     patch_content = patch.get("patch", "")
-    if isinstance(patch_content, bytes):
+    if isinstance(patch_content, str):
+        # Try to decode if it's base64
+        import base64
+        try:
+            # Check if it looks like base64
+            if len(patch_content) > 0 and all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in patch_content):
+                decoded = base64.b64decode(patch_content)
+                content = decoded
+            else:
+                content = patch_content.encode('utf-8')
+        except:
+            content = patch_content.encode('utf-8')
+    elif isinstance(patch_content, bytes):
         content = patch_content
     else:
         content = str(patch_content).encode('utf-8')

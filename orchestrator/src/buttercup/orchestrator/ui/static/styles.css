@@ -577,3 +577,38 @@ form {
         flex-wrap: wrap;
     }
 }
+
+/* Hexdump and patch preview styles */
+.hex-preview {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    background: #1e1e1e !important;
+    color: #d4d4d4;
+    padding: 1rem !important;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.patch-preview {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    background: #f8f8f8 !important;
+    color: #333;
+    padding: 0.5rem !important;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Make dashboard stats clickable */
+.status-card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
