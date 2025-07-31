@@ -44,6 +44,21 @@ check_not_root() {
     fi
 }
 
+# Portable sed in-place editing function
+# Usage: portable_sed "pattern" "file"
+portable_sed() {
+    local pattern="$1"
+    local file="$2"
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS requires empty string after -i
+        sed -i '' "$pattern" "$file"
+    else
+        # Linux doesn't accept backup extension
+        sed -i "$pattern" "$file"
+    fi
+}
+
 # Function to install Docker
 install_docker() {
     print_status "Installing Docker..."
@@ -272,7 +287,7 @@ read_and_set_config() {
     
     # Only update if value is not empty
     if [ -n "$value" ]; then
-        sed -i "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
     fi
     return 0
 }
@@ -286,11 +301,11 @@ configure_ghcr_optional() {
         
         # Compute GHCR_AUTH
         ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
-        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
+        portable_sed "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
         return 0
     else
         # Clear GHCR_AUTH if skipped
-        sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"\"|" deployment/env
+        portable_sed "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"\"|" deployment/env
         return 1
     fi
 }
@@ -303,8 +318,8 @@ configure_docker_hub() {
         echo
         
         # Set Docker credentials (handles both commented and uncommented lines)
-        sed -i "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
-        sed -i "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
+        portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
+        portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
         return 0
     fi
     return 1
@@ -365,11 +380,11 @@ configure_simple_api_key() {
     fi
     
     if [ -n "$value" ]; then
-        sed -i "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
         return 0
     else
         # Clear the key if skipped (set to empty string)
-        sed -i "s|.*export $var_name=.*|export $var_name=\"\"|" deployment/env
+        portable_sed "s|.*export $var_name=.*|export $var_name=\"\"|" deployment/env
         return 1
     fi
 }
@@ -384,13 +399,13 @@ configure_docker_hub_optional() {
         echo
         
         # Set Docker credentials
-        sed -i "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
-        sed -i "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
+        portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
+        portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
         return 0
     else
         # Clear Docker credentials if skipped
-        sed -i "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"\"|" deployment/env
-        sed -i "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"\"|" deployment/env
+        portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"\"|" deployment/env
+        portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"\"|" deployment/env
         return 1
     fi
 }
@@ -403,18 +418,18 @@ configure_otel_wrapper() {
         echo
         
         # Update the env file
-        sed -i "s|.*export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
-        sed -i "s|.*export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
+        portable_sed "s|.*export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
+        portable_sed "s|.*export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
         
         if [ -n "$otel_token" ]; then
-            sed -i "s|.*export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
+            portable_sed "s|.*export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
         fi
         return 0
     else
         # Disable OTEL
-        sed -i "s|.*export OTEL_ENDPOINT=.*|# export OTEL_ENDPOINT=\"\"|" deployment/env
-        sed -i "s|.*export OTEL_PROTOCOL=.*|# export OTEL_PROTOCOL=\"http\"|" deployment/env
-        sed -i "s|.*export OTEL_TOKEN=.*|# export OTEL_TOKEN=\"\"|" deployment/env
+        portable_sed "s|.*export OTEL_ENDPOINT=.*|# export OTEL_ENDPOINT=\"\"|" deployment/env
+        portable_sed "s|.*export OTEL_PROTOCOL=.*|# export OTEL_PROTOCOL=\"http\"|" deployment/env
+        portable_sed "s|.*export OTEL_TOKEN=.*|# export OTEL_TOKEN=\"\"|" deployment/env
         return 1
     fi
 }
@@ -427,17 +442,17 @@ configure_langfuse_wrapper() {
         echo
         
         # Update the env file
-        sed -i "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=true|" deployment/env
-        sed -i "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"$langfuse_host\"|" deployment/env
-        sed -i "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"$langfuse_public_key\"|" deployment/env
-        sed -i "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"$langfuse_secret_key\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=true|" deployment/env
+        portable_sed "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"$langfuse_host\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"$langfuse_public_key\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"$langfuse_secret_key\"|" deployment/env
         return 0
     else
         # Disable and clear LangFuse configuration
-        sed -i "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=false|" deployment/env
-        sed -i "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"\"|" deployment/env
-        sed -i "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"\"|" deployment/env
-        sed -i "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=false|" deployment/env
+        portable_sed "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"\"|" deployment/env
         return 1
     fi
 }
