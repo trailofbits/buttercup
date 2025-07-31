@@ -120,10 +120,10 @@ buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP  
 All CRS pods up and running.
 ```
 
-3. **Submit the LibUCL project to the CRS (for 30mins):**
+3. **Submit the libpng project to the CRS (for 30mins):**
 
 ```bash
-make send-libucl-task
+make send-libpng-task
 ```
 
 **Alternative manual commands:**
@@ -265,7 +265,7 @@ make status               # Check the status of the deployment
 
 # Testing
 make send-integration-task     # Run integration test task
-make send-libucl-task          # Run libucl test task
+make send-libpng-task          # Run libpng test task
 
 # Development
 make lint                 # Lint all Python code
