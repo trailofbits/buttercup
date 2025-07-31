@@ -798,9 +798,9 @@ def download_patch(task_id: str, patch_id: str) -> Response:
     elif isinstance(patch_content, str):
         # First, try to decode as base64 if it looks like base64
         try:
-            patch_content = base64.b64decode(patch_content)
+            content = base64.b64decode(patch_content)
         except Exception:
-            patch_content = patch_content.encode("utf-8")
+            content = patch_content.encode("utf-8")
     else:
         # Convert other types to string
         content = str(patch_content).encode("utf-8")
