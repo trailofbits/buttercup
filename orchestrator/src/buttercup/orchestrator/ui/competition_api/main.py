@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import uuid
 import json
+import base64
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -38,6 +39,7 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
 )
 from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
 from buttercup.orchestrator.ui.config import Settings
+from functools import cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -81,6 +83,71 @@ class DashboardStats(BaseModel):
     totalPovs: int
     totalPatches: int
     totalBundles: int
+
+
+@cache
+def get_run_data_dir() -> Path:
+    """Get or create the current run data directory with timestamp."""
+    settings = get_settings()
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    run_dir = settings.run_data_dir / f"run-data-{timestamp}"
+    return run_dir
+
+
+def save_artifact(
+    task_id: str,
+    artifact_type: str,
+    artifact_id: str,
+    content: str | dict,
+    is_base64: bool = False,
+) -> bool:
+    """Save an artifact to the appropriate directory structure."""
+    try:
+        run_dir = get_run_data_dir()
+        task_dir = run_dir / task_id / artifact_type
+        task_dir.mkdir(parents=True, exist_ok=True)
+
+        if artifact_type == "bundles":
+            file_path = task_dir / f"{artifact_id}.json"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(json.dumps(content, indent=2))
+        elif artifact_type == "patches":
+            assert isinstance(content, str)
+            file_path = task_dir / f"{artifact_id}.patch"
+            data = base64.b64decode(content).decode("utf-8") if is_base64 else content
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(data)
+        elif artifact_type == "povs":
+            assert isinstance(content, str)
+            file_path = task_dir / f"{artifact_id}.bin"
+            data_bin = base64.b64decode(content) if is_base64 else content.encode("utf-8")
+            with file_path.open("wb") as f:
+                f.write(data_bin)
+        else:
+            logger.error(f"Unknown artifact type: {artifact_type}")
+            return False
+
+        logger.info(f"Saved {artifact_type} artifact: {file_path}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to save {artifact_type} artifact {artifact_id} for task {task_id}: {e}")
+        return False
+
+
+def save_bundle(task_id: str, bundle_id: str, content: dict) -> bool:
+    """Save a bundle to the appropriate directory structure."""
+    return save_artifact(task_id, "bundles", bundle_id, content)
+
+
+def save_patch(task_id: str, patch_id: str, content: str) -> bool:
+    """Save a patch to the appropriate directory structure."""
+    return save_artifact(task_id, "patches", patch_id, content, True)
+
+
+def save_pov(task_id: str, pov_id: str, content: str) -> bool:
+    """Save a POV to the appropriate directory structure."""
+    return save_artifact(task_id, "povs", pov_id, content, True)
 
 
 def get_settings() -> Settings:
@@ -436,10 +503,13 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> Bundle
     logger.info(f"Bundle submission - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Bundle details: {json.dumps(body.dict(), indent=2)}")
 
-    # Store bundle in task storage
+    # Store bundle in task storage for dashboard
     task_data = get_or_create_task(task_id)
     bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
     task_data["bundles"].append(bundle_data)
+
+    # Save bundle to disk
+    save_bundle(task_id, bundle_id, body.dict())
 
     return BundleSubmissionResponse(bundle_id=bundle_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
@@ -544,10 +614,13 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSub
     logger.info(f"Patch submission - Task: {task_id}, Patch ID: {patch_id}")
     logger.info(f"Patch size: {len(body.patch)} bytes")
 
-    # Store patch in task storage
+    # Store patch in task storage for dashboard
     task_data = get_or_create_task(task_id)
     patch_data = {"patch_id": patch_id, "timestamp": datetime.now().isoformat(), **body.dict()}
     task_data["patches"].append(patch_data)
+
+    # Save patch to disk
+    save_patch(task_id, patch_id, body.patch)
 
     return PatchSubmissionResponse(
         patch_id=patch_id, status=SubmissionStatus.SubmissionStatusAccepted, functionality_tests_passing=None
@@ -597,10 +670,13 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissio
     )
     logger.info(f"POV testcase size: {len(body.testcase)} bytes")
 
-    # Store POV in task storage
+    # Store POV in task storage for dashboard
     task_data = get_or_create_task(task_id)
     pov_data = {"pov_id": pov_id, "timestamp": datetime.now().isoformat(), **body.dict()}
     task_data["povs"].append(pov_data)
+
+    # Save POV testcase to disk
+    save_pov(task_id, pov_id, body.testcase)
 
     return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
@@ -669,6 +745,9 @@ def trigger_task(
     Trigger a task
     """
     logger.info(f"Triggering task: {body.model_dump()}")
+    if body.name is None:
+        body.name = str(uuid.uuid4())
+
     return _create_task(body, challenge_service, crs_client)
 
 
