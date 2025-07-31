@@ -292,10 +292,10 @@ make send-integration-task
 
 ```bash
 # Lint Python code
-just lint-python-all
+make lint-python-all
 
 # Run specific component tests
-just lint-python orchestrator
+make lint-python COMPONENT=orchestrator
 
 # Test manually
 ./orchestrator/scripts/task_upstream_libpng.sh

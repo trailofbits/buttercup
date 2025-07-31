@@ -159,7 +159,6 @@ main() {
     
     check_azure_cli
     check_terraform
-    install_just
     setup_service_principal
     setup_config
     setup_remote_state

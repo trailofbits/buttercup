@@ -111,26 +111,6 @@ install_git_lfs() {
     fi
 }
 
-# Function to install Just
-install_just() {
-    print_status "Installing Just..."
-    if ! command_exists just; then
-        if command_exists apt-get; then
-            sudo apt-get update
-            sudo apt-get install -y just
-        elif command_exists yum; then
-            sudo yum install -y just
-        elif command_exists brew; then
-            brew install just
-        else
-            print_error "Could not install Just. Please install it manually."
-            return 1
-        fi
-        print_success "Just installed successfully"
-    else
-        print_success "Just is already installed"
-    fi
-}
 
 # Function to check Docker
 check_docker() {
@@ -209,16 +189,6 @@ check_terraform() {
     fi
 }
 
-# Function to check Just
-check_just() {
-    print_status "Checking Just..."
-    if command_exists just; then
-        print_success "Just is installed"
-    else
-        print_error "Just is not installed"
-        return 1
-    fi
-}
 
 # Function to setup configuration file
 setup_config_file() {
