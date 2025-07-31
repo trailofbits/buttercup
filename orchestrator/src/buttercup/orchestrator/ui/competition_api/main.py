@@ -745,9 +745,6 @@ def trigger_task(
     Trigger a task
     """
     logger.info(f"Triggering task: {body.model_dump()}")
-    if body.name is None:
-        body.name = str(uuid.uuid4())
-
     return _create_task(body, challenge_service, crs_client)
 
 
