@@ -17,7 +17,9 @@ help:
 	@echo "  deploy-azure      - Deploy to production AKS environment"
 	@echo ""
 	@echo "Status:"
-	@echo "  status            - Check the status of the deployment"
+	@echo "  status              - Check the status of the deployment"
+	@echo "  crs-instance-id     - Get the CRS instance ID"
+	@echo "  download-artifacts  - Download submitted artifacts from the CRS"
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
@@ -116,6 +118,14 @@ status:
 	@echo "----------SERVICES--------"
 	@kubectl get services -n $${BUTTERCUP_NAMESPACE:-crs}
 	@make --no-print-directory check-crs
+
+download-artifacts:
+	@echo "Downloading artifacts from the CRS..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	./scripts/download_artifacts.sh
 
 # Testing targets
 send-integration-task:
