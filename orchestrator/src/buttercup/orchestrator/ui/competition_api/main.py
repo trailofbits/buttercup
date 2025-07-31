@@ -66,7 +66,7 @@ class TaskInfo(BaseModel):
     task_id: str
     name: Optional[str] = None
     project_name: str
-    status: str  # active, completed, expired
+    status: str  # active, expired
     duration: int
     deadline: str
     challenge_repo_url: Optional[str] = None
@@ -152,14 +152,14 @@ def get_or_create_task(task_id: str) -> Dict[str, Any]:
     if task_id not in tasks_storage:
         # Create default task entry
         now = datetime.now()
-        deadline = now + timedelta(hours=2)  # Default 2 hour duration
+        deadline = now + timedelta(minutes=30)  # Default 30 minute duration
         
         tasks_storage[task_id] = {
             "task_id": task_id,
             "name": None,
             "project_name": "unknown",
             "status": "active",
-            "duration": 7200,
+            "duration": 1800,
             "deadline": deadline.isoformat(),
             "challenge_repo_url": None,
             "challenge_repo_head_ref": None,

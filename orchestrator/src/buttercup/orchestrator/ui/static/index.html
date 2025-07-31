@@ -50,7 +50,6 @@
                     <select id="status-filter">
                         <option value="all">All Status</option>
                         <option value="active">Active</option>
-                        <option value="completed">Completed</option>
                         <option value="expired">Expired</option>
                     </select>
                 </div>
@@ -76,7 +75,7 @@
                 <div class="form-group">
                     <label for="challenge-repo-url">Challenge Repository URL:</label>
                     <input type="url" id="challenge-repo-url" name="challenge_repo_url" required 
-                           placeholder="git@github.com:user/repo.git">
+                           placeholder="https://github.com/user/repo.git">
                 </div>
                 <div class="form-group">
                     <label for="challenge-repo-head-ref">Challenge Repository Head Ref:</label>
@@ -91,12 +90,12 @@
                 <div class="form-group">
                     <label for="fuzz-tooling-url">Fuzz Tooling URL:</label>
                     <input type="url" id="fuzz-tooling-url" name="fuzz_tooling_url" required
-                           placeholder="git@github.com:google/oss-fuzz.git">
+                           value="https://github.com/google/oss-fuzz" placeholder="https://github.com/google/oss-fuzz">
                 </div>
                 <div class="form-group">
                     <label for="fuzz-tooling-ref">Fuzz Tooling Ref:</label>
                     <input type="text" id="fuzz-tooling-ref" name="fuzz_tooling_ref" required
-                           placeholder="master or commit hash">
+                           value="master" placeholder="master or commit hash">
                 </div>
                 <div class="form-group">
                     <label for="fuzz-tooling-project-name">Project Name:</label>
@@ -105,14 +104,14 @@
                 </div>
                 <div class="form-group">
                     <label for="harnesses-included">
-                        <input type="checkbox" id="harnesses-included" name="harnesses_included">
+                        <input type="checkbox" id="harnesses-included" name="harnesses_included" checked>
                         Harnesses Included
                     </label>
                 </div>
                 <div class="form-group">
                     <label for="duration">Duration (seconds):</label>
-                    <input type="number" id="duration" name="duration" required min="60" max="86400" value="7200"
-                           placeholder="7200">
+                    <input type="number" id="duration" name="duration" required min="60" max="86400" value="1800"
+                           placeholder="1800">
                 </div>
                 <div class="form-buttons">
                     <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
