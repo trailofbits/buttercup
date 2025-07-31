@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
 
 # Default target
 help:
