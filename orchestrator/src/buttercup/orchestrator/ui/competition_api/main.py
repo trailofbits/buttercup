@@ -189,7 +189,7 @@ def calculate_task_status(deadline_str: str) -> str:
         return "active"  # Default to active if parsing fails
 
 
-def update_dashboard_stats():
+def update_dashboard_stats() -> None:
     """Update dashboard statistics from current tasks."""
     global dashboard_stats
 
@@ -767,8 +767,6 @@ def download_pov(task_id: str, pov_id: str) -> Response:
     testcase = pov.get("testcase", b"")
     if isinstance(testcase, str):
         # If it's a base64 string, decode it
-        import base64
-
         try:
             testcase = base64.b64decode(testcase)
         except Exception:
@@ -802,29 +800,10 @@ def download_patch(task_id: str, patch_id: str) -> Response:
         content = patch_content
     elif isinstance(patch_content, str):
         # First, try to decode as base64 if it looks like base64
-        import base64
-
         try:
-            # Check if it's likely base64 (only base64 chars, proper length)
-            clean_content = patch_content.strip()
-            if (
-                len(clean_content) > 0
-                and len(clean_content) % 4 == 0
-                and all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" for c in clean_content)
-            ):
-                decoded = base64.b64decode(clean_content, validate=True)
-                # Try to decode as UTF-8, if it fails keep the bytes
-                try:
-                    decoded.decode("utf-8")
-                    content = decoded
-                except UnicodeDecodeError:
-                    content = decoded
-            else:
-                # Not base64, treat as plain text
-                content = patch_content.encode("utf-8")
+            patch_content = base64.b64decode(patch_content)
         except Exception:
-            # If base64 decode fails, treat as plain text
-            content = patch_content.encode("utf-8")
+            patch_content = patch_content.encode("utf-8")
     else:
         # Convert other types to string
         content = str(patch_content).encode("utf-8")
@@ -848,28 +827,8 @@ def download_bundle(task_id: str, bundle_id: str) -> Response:
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found")
 
-    # Create a serializable copy of the bundle data
-    def make_serializable(obj):
-        """Convert an object to a JSON-serializable format"""
-        if hasattr(obj, "dict"):
-            # Pydantic model
-            return obj.dict()
-        elif hasattr(obj, "__dict__"):
-            # Regular object with attributes
-            return {k: make_serializable(v) for k, v in obj.__dict__.items()}
-        elif isinstance(obj, dict):
-            return {k: make_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [make_serializable(item) for item in obj]
-        elif isinstance(obj, (str, int, float, bool, type(None))):
-            return obj
-        else:
-            # For other types, convert to string
-            return str(obj)
-
     try:
-        serializable_bundle = make_serializable(bundle)
-        bundle_json = json.dumps(serializable_bundle, indent=2)
+        bundle_json = json.dumps(bundle, indent=2)
     except Exception as e:
         # Fallback: create a basic JSON structure
         bundle_json = json.dumps(
