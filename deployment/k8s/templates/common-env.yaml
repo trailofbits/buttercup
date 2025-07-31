@@ -373,6 +373,8 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ .Values.global.crs.api_key_token | quote }}
 - name: BUTTERCUP_UI_STORAGE_DIR
   value: "/data/challenges"
+- name: BUTTERCUP_UI_RUN_DATA_DIR
+  value: "/tmp/buttercup-run-data"
 - name: BUTTERCUP_UI_EXTERNAL_HOST
   value: {{ .Values.service.external_host | default (printf "%s-ui.%s.svc.cluster.local" .Release.Name .Release.Namespace) | quote }}
 - name: BUTTERCUP_UI_HOST
@@ -391,6 +393,6 @@ Service-specific environment variables that utilize the standardized variables
     secretKeyRef:
       name: ghcr
       key: username
-{{- end }}
+{{- end}
 
 
