@@ -131,7 +131,7 @@ up() {
 				
 				echo -e "${GRN}Docker-available resources: ${AVAILABLE_CPUS} CPUs, ${AVAILABLE_MEMORY_GB}GB RAM${NC}"
 				echo -e "${GRN}Minikube will use: ${MINIKUBE_CPUS} CPUs, ${MINIKUBE_MEMORY_GB}GB RAM${NC}"
-				echo -e "${BLU}Note: Recommended minimum is at least 8 CPUs and 64GB RAM${NC}"
+				echo -e "${BLU}Note: Recommended minimum is at least 5 CPUs and 10GB RAM${NC}"
 				
 				minikube status | grep -q "Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=${MINIKUBE_CPUS} --memory=${MINIKUBE_MEMORY_MB}mb --disk-size=80g --driver=docker --kubernetes-version=stable
 				echo -e "${GRN}Minikube cluster status:${NC}"
