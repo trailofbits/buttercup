@@ -314,6 +314,31 @@ CHALLENGE_MAP: dict[str, dict[str, Any]] = {
 }
 
 
+def print_request(req, file=sys.stderr):
+    """Print a request object."""
+
+    print(f"{req.get_method()} {req.full_url}", file=file)
+
+    headers = dict(req.headers)
+    max_key_len = max(len(k) for k in headers.keys()) if headers else 0
+    for key, value in headers.items():
+        print(f"{key.ljust(max_key_len)}: {value}", file=file)
+
+    if req.data:
+        if isinstance(req.data, bytes):
+            try:
+                data_str = req.data.decode("utf-8")
+                data_json = json.loads(data_str)
+                print(json.dumps(data_json, indent=2), file=file)
+
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                print(f"{req.data}", file=file)
+        else:
+            print(f"{req.data}", file=file)
+
+    print("\n")
+
+
 def submit_task(task_name: str, overrides: list[tuple[str, Any]] = []) -> None:
     """Submit a task to the orchestrator."""
     if task_name not in CHALLENGE_MAP:
@@ -325,14 +350,12 @@ def submit_task(task_name: str, overrides: list[tuple[str, Any]] = []) -> None:
     for override in overrides:
         task_data[override[0]] = override[1]
 
-    json_data = json.dumps(task_data, indent=2)
-    print(json_data)
-
     try:
         url = "http://localhost:31323/webhook/trigger_task"
         json_bytes = json.dumps(task_data).encode("utf-8")
 
         req = urllib.request.Request(url, data=json_bytes, headers={"Content-Type": "application/json"})
+        print_request(req)
 
         with urllib.request.urlopen(req) as response:
             response_data = response.read().decode("utf-8")
