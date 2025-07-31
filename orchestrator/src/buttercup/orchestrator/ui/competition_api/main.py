@@ -734,13 +734,27 @@ def download_patch(task_id: str, patch_id: str) -> Response:
         # Try to decode if it's base64
         import base64
         try:
-            # Check if it looks like base64
-            if len(patch_content) > 0 and all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in patch_content):
-                decoded = base64.b64decode(patch_content)
-                content = decoded
+            # More flexible base64 detection - check if it decodes without error
+            # and contains reasonable characters
+            if len(patch_content) > 0:
+                # Remove any whitespace for testing
+                clean_content = patch_content.strip()
+                if len(clean_content) % 4 == 0:  # Base64 should be multiple of 4
+                    decoded = base64.b64decode(clean_content, validate=True)
+                    # Check if decoded content looks like text
+                    try:
+                        decoded_str = decoded.decode('utf-8')
+                        # If it successfully decodes as UTF-8, use the decoded version
+                        content = decoded
+                    except UnicodeDecodeError:
+                        # If not UTF-8, it might be binary data, but still use decoded
+                        content = decoded
+                else:
+                    content = patch_content.encode('utf-8')
             else:
                 content = patch_content.encode('utf-8')
-        except:
+        except Exception:
+            # If base64 decode fails, treat as plain text
             content = patch_content.encode('utf-8')
     elif isinstance(patch_content, bytes):
         content = patch_content

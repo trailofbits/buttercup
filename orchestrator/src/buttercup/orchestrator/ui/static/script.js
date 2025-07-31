@@ -79,6 +79,10 @@ function setupEventListeners() {
     });
     
     // Dashboard stat navigation
+    elements.activeTasks.addEventListener('click', () => {
+        switchTab('tasks');
+    });
+    
     elements.totalPovs.addEventListener('click', () => {
         switchTab('povs');
     });
@@ -364,6 +368,7 @@ function renderTasks() {
                 <div class="task-meta">
                     <span>Project: ${task.project_name}</span>
                     <span>Duration: ${formatDuration(task.duration)}</span>
+                    <span>Created: ${formatTimestamp(task.created_at)}</span>
                     <span>Deadline: ${formatTimestamp(task.deadline)}</span>
                 </div>
             </div>
@@ -491,6 +496,8 @@ function renderTaskDetail(task) {
                     </div>
                     <div class="detail-label">Duration:</div>
                     <div class="detail-value">${formatDuration(task.duration)}</div>
+                    <div class="detail-label">Created:</div>
+                    <div class="detail-value">${formatTimestamp(task.created_at)}</div>
                     <div class="detail-label">Deadline:</div>
                     <div class="detail-value">${formatTimestamp(task.deadline)}</div>
                     <div class="detail-label">Repository:</div>
@@ -688,7 +695,7 @@ function renderArtifactDetail(detailData, type) {
                 try {
                     const decoded = atob(artifact.testcase);
                     testcaseSize = decoded.length;
-                    testcasePreview = createHexdumpPreview(decoded, 256); // First 256 bytes
+                    testcasePreview = createHexdumpPreview(decoded, 128); // Use consistent 128 bytes like task detail
                 } catch (e) {
                     testcaseSize = artifact.testcase.length;
                     testcasePreview = artifact.testcase.substring(0, 100) + '...';
@@ -706,7 +713,7 @@ function renderArtifactDetail(detailData, type) {
                 <div class="detail-label">Testcase Size:</div>
                 <div class="detail-value">${testcaseSize} bytes</div>
                 <div class="detail-label">Testcase Preview:</div>
-                <div class="detail-value"><pre style="white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">${testcasePreview}</pre></div>
+                <div class="detail-value"><pre class="hex-preview">${testcasePreview}</pre></div>
             `;
             break;
         case 'patch':
@@ -875,6 +882,7 @@ function getMockTasks() {
             project_name: "libpng",
             status: "active",
             duration: 1800,
+            created_at: new Date(now.getTime() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
             deadline: deadline1.toISOString(),
             challenge_repo_url: "https://github.com/pnggroup/libpng",
             challenge_repo_head_ref: "libpng16",
@@ -907,6 +915,7 @@ function getMockTasks() {
             project_name: "libxml2",
             status: "expired",
             duration: 1800,
+            created_at: new Date(now.getTime() - 90 * 60 * 1000).toISOString(), // 1.5 hours ago
             deadline: deadline2.toISOString(),
             challenge_repo_url: "https://github.com/GNOME/libxml2",
             challenge_repo_head_ref: "master",
