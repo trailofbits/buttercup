@@ -48,17 +48,17 @@ def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -
     return task
 
 
-def main():
+def main() -> None:
     settings = DownloaderSettings()
     setup_package_logger("task-downloader", __name__, settings.log_level, settings.log_max_line_length)
     command = get_subcommand(settings)
     if isinstance(command, DownloaderServeCommand):
-        redis = Redis.from_url(command.redis_url, decode_responses=False)
+        redis = Redis.from_url(command.redis_url, decode_responses=False)  # type: ignore[unreachable]
         with Downloader(settings.download_dir, command.sleep_time, redis) as downloader:
             downloader.serve()
     elif isinstance(command, DownloaderProcessCommand):
         # Allow to use file:// URLs in the downloader
-        session = requests.Session()
+        session = requests.Session()  # type: ignore[unreachable]
         session.mount("file://", FileAdapter())
 
         task = prepare_task(command, session)
