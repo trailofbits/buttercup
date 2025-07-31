@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -684,3 +684,161 @@ def trigger_task(
         body.name = str(uuid.uuid4())
 
     return _create_task(body, challenge_service, crs_client)
+
+
+# Download endpoints for PoVs, Patches, and Bundles
+@app.get("/v1/dashboard/tasks/{task_id}/povs/{pov_id}/download", tags=["dashboard"])
+def download_pov(task_id: str, pov_id: str) -> Response:
+    """Download a PoV testcase"""
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_data = tasks_storage[task_id]
+    pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
+    
+    if not pov:
+        raise HTTPException(status_code=404, detail="PoV not found")
+    
+    testcase = pov.get("testcase", b"")
+    if isinstance(testcase, str):
+        # If it's a base64 string, decode it
+        import base64
+        try:
+            testcase = base64.b64decode(testcase)
+        except:
+            testcase = testcase.encode('utf-8')
+    elif not isinstance(testcase, bytes):
+        testcase = str(testcase).encode('utf-8')
+    
+    return Response(
+        content=testcase,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename=pov_{pov_id}.bin"}
+    )
+
+
+@app.get("/v1/dashboard/tasks/{task_id}/patches/{patch_id}/download", tags=["dashboard"])
+def download_patch(task_id: str, patch_id: str) -> Response:
+    """Download a patch"""
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_data = tasks_storage[task_id]
+    patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
+    
+    if not patch:
+        raise HTTPException(status_code=404, detail="Patch not found")
+    
+    patch_content = patch.get("patch", "")
+    if isinstance(patch_content, bytes):
+        content = patch_content
+    else:
+        content = str(patch_content).encode('utf-8')
+    
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=patch_{patch_id}.patch"}
+    )
+
+
+@app.get("/v1/dashboard/tasks/{task_id}/bundles/{bundle_id}/download", tags=["dashboard"])
+def download_bundle(task_id: str, bundle_id: str) -> Response:
+    """Download a bundle as JSON"""
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task_data = tasks_storage[task_id]
+    bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
+    
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    
+    bundle_json = json.dumps(bundle, indent=2)
+    
+    return Response(
+        content=bundle_json,
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=bundle_{bundle_id}.json"}
+    )
+
+
+# Detail view endpoints
+@app.get("/v1/dashboard/povs/{pov_id}", tags=["dashboard"])
+def get_pov_detail(pov_id: str) -> Dict[str, Any]:
+    """Get detailed information about a specific PoV"""
+    for task_data in tasks_storage.values():
+        pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
+        if pov:
+            return {
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "pov": pov
+            }
+    
+    raise HTTPException(status_code=404, detail="PoV not found")
+
+
+@app.get("/v1/dashboard/patches/{patch_id}", tags=["dashboard"])
+def get_patch_detail(patch_id: str) -> Dict[str, Any]:
+    """Get detailed information about a specific patch"""
+    for task_data in tasks_storage.values():
+        patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
+        if patch:
+            return {
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "patch": patch
+            }
+    
+    raise HTTPException(status_code=404, detail="Patch not found")
+
+
+@app.get("/v1/dashboard/bundles/{bundle_id}", tags=["dashboard"])
+def get_bundle_detail(bundle_id: str) -> Dict[str, Any]:
+    """Get detailed information about a specific bundle"""
+    for task_data in tasks_storage.values():
+        bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
+        if bundle:
+            return {
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "bundle": bundle
+            }
+    
+    raise HTTPException(status_code=404, detail="Bundle not found")
+
+
+# List all PoVs and Patches across tasks
+@app.get("/v1/dashboard/povs", tags=["dashboard"])
+def get_all_povs() -> List[Dict[str, Any]]:
+    """Get all PoVs across all tasks"""
+    all_povs = []
+    for task_data in tasks_storage.values():
+        for pov in task_data.get("povs", []):
+            all_povs.append({
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "pov": pov
+            })
+    
+    # Sort by timestamp descending
+    all_povs.sort(key=lambda x: x["pov"].get("timestamp", ""), reverse=True)
+    return all_povs
+
+
+@app.get("/v1/dashboard/patches", tags=["dashboard"])
+def get_all_patches() -> List[Dict[str, Any]]:
+    """Get all patches across all tasks"""
+    all_patches = []
+    for task_data in tasks_storage.values():
+        for patch in task_data.get("patches", []):
+            all_patches.append({
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "patch": patch
+            })
+    
+    # Sort by timestamp descending
+    all_patches.sort(key=lambda x: x["patch"].get("timestamp", ""), reverse=True)
+    return all_patches
