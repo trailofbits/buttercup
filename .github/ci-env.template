@@ -26,4 +26,3 @@ export LANGFUSE_PUBLIC_KEY=replace-me
 export LANGFUSE_SECRET_KEY=replace-me
 export DOCKER_USERNAME=replace-me
 export DOCKER_PAT=replace-me
-export FUZZ_TOOLING_CONTAINER_ORG=replace-me

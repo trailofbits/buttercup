@@ -1,6 +1,5 @@
 global:
   environment: "aks"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
     host: "${LANGFUSE_HOST}"

@@ -47,7 +47,6 @@ env:
   BUNDLE_TIMEOUT: ${{ inputs.bundle_timeout || 5 }}
   SARIF_TIMEOUT: ${{ inputs.sarif_timeout || 5 }}
   SEED_GEN_TIMEOUT: ${{ inputs.seed_gen_timeout || 25 }}
-  FUZZ_TOOLING_CONTAINER_ORG: ${{ inputs.fuzz_tooling_container_org || 'aixcc-afc' }}
 
 permissions:
   contents: read
@@ -96,7 +95,6 @@ jobs:
           sed -i "s|DOCKER_USERNAME=.*|DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}|" env
           sed -i "s|DOCKER_PAT=.*|DOCKER_PAT=${{ secrets.DOCKER_PAT }}|" env
           sed -i "s|SCANTRON_GITHUB_PAT=.*|SCANTRON_GITHUB_PAT=${{ secrets.SCANTRON_GITHUB_PAT }}|" env
-          sed -i "s|FUZZ_TOOLING_CONTAINER_ORG=.*|FUZZ_TOOLING_CONTAINER_ORG=${{ env.FUZZ_TOOLING_CONTAINER_ORG }}|" env
 
         working-directory: deployment
 
