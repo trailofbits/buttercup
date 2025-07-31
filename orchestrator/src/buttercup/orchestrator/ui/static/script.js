@@ -78,6 +78,15 @@ function setupEventListeners() {
         });
     });
     
+    // Dashboard stat navigation
+    elements.totalPovs.addEventListener('click', () => {
+        switchTab('povs');
+    });
+    
+    elements.totalPatches.addEventListener('click', () => {
+        switchTab('patches');
+    });
+    
     // Close modals when clicking outside
     window.addEventListener('click', (event) => {
         if (event.target === elements.taskModal) {
@@ -541,21 +550,43 @@ function renderArtifact(artifact, type) {
     
     switch (type) {
         case 'pov':
-            // Handle binary PoV data safely
+            // Handle binary PoV data safely - show hexdump preview
             if (artifact.testcase) {
                 if (typeof artifact.testcase === 'string') {
-                    // If it's already a string, show it (might be base64)
-                    const preview = artifact.testcase.length > 200 
-                        ? artifact.testcase.substring(0, 200) + '...' 
-                        : artifact.testcase;
-                    content = `<div class="artifact-content">Type: Binary Data\nSize: ${artifact.testcase.length} bytes\nPreview (Base64): ${preview}</div>`;
+                    try {
+                        // Try to decode base64 and create hexdump
+                        const decoded = atob(artifact.testcase);
+                        const hexPreview = createHexdumpPreview(decoded, 128); // First 128 bytes
+                        content = `<div class="artifact-content">Type: Binary Data\nSize: ${decoded.length} bytes\nHex Preview:\n<pre class="hex-preview">${hexPreview}</pre></div>`;
+                    } catch (e) {
+                        // Not base64, show as text preview
+                        const preview = artifact.testcase.length > 200 
+                            ? artifact.testcase.substring(0, 200) + '...' 
+                            : artifact.testcase;
+                        content = `<div class="artifact-content">Type: Text Data\nSize: ${artifact.testcase.length} bytes\nPreview: ${preview}</div>`;
+                    }
                 } else {
                     content = `<div class="artifact-content">Type: Binary Data\nSize: ${JSON.stringify(artifact.testcase).length} bytes</div>`;
                 }
             }
             break;
         case 'patch':
-            content = `<div class="artifact-content">${artifact.patch || 'No patch content'}</div>`;
+            // Decode patch content if it's base64
+            let patchContent = artifact.patch || 'No patch content';
+            if (typeof patchContent === 'string' && patchContent.length > 0) {
+                try {
+                    // Check if it looks like base64
+                    if (patchContent.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
+                        patchContent = atob(patchContent);
+                    }
+                } catch (e) {
+                    // Not base64, use as is
+                }
+            }
+            const patchPreview = patchContent.length > 300 
+                ? patchContent.substring(0, 300) + '...' 
+                : patchContent;
+            content = `<div class="artifact-content"><pre class="patch-preview">${patchPreview}</pre></div>`;
             break;
         case 'bundle':
             content = `<div class="artifact-content">${JSON.stringify(artifact, null, 2)}</div>`;
@@ -650,6 +681,19 @@ function renderArtifactDetail(detailData, type) {
     
     switch (type) {
         case 'pov':
+            // Show hexdump preview for PoV
+            let testcasePreview = 'No testcase data';
+            let testcaseSize = 0;
+            if (artifact.testcase && typeof artifact.testcase === 'string') {
+                try {
+                    const decoded = atob(artifact.testcase);
+                    testcaseSize = decoded.length;
+                    testcasePreview = createHexdumpPreview(decoded, 256); // First 256 bytes
+                } catch (e) {
+                    testcaseSize = artifact.testcase.length;
+                    testcasePreview = artifact.testcase.substring(0, 100) + '...';
+                }
+            }
             specificContent = `
                 <div class="detail-label">Architecture:</div>
                 <div class="detail-value">${artifact.architecture || 'N/A'}</div>
@@ -660,15 +704,30 @@ function renderArtifactDetail(detailData, type) {
                 <div class="detail-label">Sanitizer:</div>
                 <div class="detail-value">${artifact.sanitizer || 'N/A'}</div>
                 <div class="detail-label">Testcase Size:</div>
-                <div class="detail-value">${artifact.testcase ? (typeof artifact.testcase === 'string' ? artifact.testcase.length : JSON.stringify(artifact.testcase).length) : 0} bytes</div>
+                <div class="detail-value">${testcaseSize} bytes</div>
+                <div class="detail-label">Testcase Preview:</div>
+                <div class="detail-value"><pre style="white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">${testcasePreview}</pre></div>
             `;
             break;
         case 'patch':
+            // Decode patch content if it's base64
+            let patchContent = artifact.patch || 'No patch content';
+            let originalSize = patchContent.length;
+            if (typeof patchContent === 'string' && patchContent.length > 0) {
+                try {
+                    // Check if it looks like base64
+                    if (patchContent.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
+                        patchContent = atob(patchContent);
+                    }
+                } catch (e) {
+                    // Not base64, use as is
+                }
+            }
             specificContent = `
                 <div class="detail-label">Patch Size:</div>
-                <div class="detail-value">${(artifact.patch || '').length} characters</div>
+                <div class="detail-value">${originalSize} characters (${patchContent.length} decoded)</div>
                 <div class="detail-label">Patch Content:</div>
-                <div class="detail-value"><pre style="white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto;">${artifact.patch || 'No patch content'}</pre></div>
+                <div class="detail-value"><pre style="white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto;">${patchContent}</pre></div>
             `;
             break;
         case 'bundle':
@@ -760,6 +819,50 @@ function showNotification(message, type = 'info') {
 }
 
 // Mock data for development/fallback
+// Helper function to create hexdump preview
+function createHexdumpPreview(data, maxBytes = 128) {
+    const bytes = [];
+    for (let i = 0; i < Math.min(data.length, maxBytes); i++) {
+        bytes.push(data.charCodeAt(i) & 0xFF);
+    }
+    
+    let result = '';
+    for (let i = 0; i < bytes.length; i += 16) {
+        // Address
+        const addr = i.toString(16).padStart(8, '0');
+        result += addr + '  ';
+        
+        // Hex bytes
+        const lineBytes = bytes.slice(i, i + 16);
+        for (let j = 0; j < 16; j++) {
+            if (j < lineBytes.length) {
+                result += lineBytes[j].toString(16).padStart(2, '0') + ' ';
+            } else {
+                result += '   ';
+            }
+            if (j === 7) result += ' ';
+        }
+        
+        // ASCII representation
+        result += ' |';
+        for (let j = 0; j < lineBytes.length; j++) {
+            const byte = lineBytes[j];
+            if (byte >= 32 && byte <= 126) {
+                result += String.fromCharCode(byte);
+            } else {
+                result += '.';
+            }
+        }
+        result += '|\n';
+    }
+    
+    if (data.length > maxBytes) {
+        result += `\n... (${data.length - maxBytes} more bytes)`;
+    }
+    
+    return result;
+}
+
 function getMockTasks() {
     const now = new Date();
     const deadline1 = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
