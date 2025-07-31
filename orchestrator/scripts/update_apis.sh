@@ -22,7 +22,7 @@ PROJECT_DIR=$(dirname "$SCRIPT_DIR")
 
 cd "$PROJECT_DIR" || exit 1
 
-git clone git@github.com:aixcc-finals/example-crs-architecture.git || true
+git clone git@github.com:tob-challenges/example-crs-architecture.git || true
 git -C example-crs-architecture pull
 
 cp -rv example-crs-architecture/docs/ "$OUTPUT_DIR/src/buttercup/orchestrator/docs/"

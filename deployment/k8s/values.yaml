@@ -4,32 +4,32 @@ global:
   environment: "minikube"
   logMaxLineLength: 10240
   orchestratorImage:
-    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-orchestrator
+    repository: ghcr.io/trailofbits/buttercup/buttercup-orchestrator
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   fuzzerImage:
-    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-fuzzer
+    repository: ghcr.io/trailofbits/buttercup/buttercup-fuzzer
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   seedGenImage:
-    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-seed-gen
+    repository: ghcr.io/trailofbits/buttercup/buttercup-seed-gen
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   patcherImage:
-    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-patcher
+    repository: ghcr.io/trailofbits/buttercup/buttercup-patcher
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   programModelImage:
-    repository: ghcr.io/aixcc-finals/afc-crs-trail-of-bits/buttercup-program-model
+    repository: ghcr.io/trailofbits/buttercup/buttercup-program-model
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   competitionApiImage:
-    repository: ghcr.io/aixcc-finals/example-crs-architecture/competition-test-api
+    repository: ghcr.io/tob-challenges/example-crs-architecture/competition-test-api
     tag: v1.4-rc1
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]

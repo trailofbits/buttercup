@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class CRSClient:
-    def __init__(self, crs_base_url: str, username: Optional[str] = None, password: Optional[str] = None):
+    def __init__(self, crs_base_url: str, username: Optional[str] = None, password: Optional[str] = None) -> None:
         self.crs_base_url = crs_base_url.rstrip("/")
         self.username = username
         self.password = password
@@ -81,7 +81,7 @@ class CRSClient:
                 status_data = response.json()
                 ready = status_data.get("ready", False)
                 logger.info(f"CRS ping successful. Ready: {ready}")
-                return ready
+                return bool(ready)
             else:
                 logger.error(f"CRS ping failed. Status: {response.status_code}, Response: {response.text}")
                 return False

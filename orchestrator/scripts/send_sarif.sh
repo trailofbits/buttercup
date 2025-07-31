@@ -65,7 +65,7 @@ JSON_DATA=$(cat <<EOF
             },
             "properties": {
               "github/alertNumber": 2,
-              "github/alertUrl": "https://api.github.com/repos/aixcc-finals/example-libpng/code-scanning/alerts/2"
+              "github/alertUrl": "https://api.github.com/repos/tob-challenges/example-libpng/code-scanning/alerts/2"
             },
             "rule": {
               "id": "CWE-121",
@@ -99,7 +99,7 @@ JSON_DATA=$(cat <<EOF
         "versionControlProvenance": [
           {
             "branch": "refs/heads/challenges/full-scan",
-            "repositoryUri": "https://github.com/aixcc-finals/example-libpng",
+            "repositoryUri": "https://github.com/tob-challenges/example-libpng",
             "revisionId": "fdacd5a1dcff42175117d674b0fda9f8a005ae88"
           }
         ]

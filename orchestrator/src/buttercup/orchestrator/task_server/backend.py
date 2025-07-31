@@ -52,7 +52,7 @@ def _api_task_to_proto(task: Task) -> list[TaskProto]:
                 case SourceType.SourceTypeDiff:
                     source_detail.source_type = SourceDetailProto.SourceType.SOURCE_TYPE_DIFF
                 case _:
-                    logger.warning(f"Unknown source type: {source.source_type}")
+                    logger.warning(f"Unknown source type: {source.source_type}")  # type: ignore[unreachable]
             source_detail.url = source.url
 
         # Convert deadline from milliseconds to seconds (we don't need the precision)
