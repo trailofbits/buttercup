@@ -70,7 +70,7 @@ def tika_challenge_task_path(tmp_path: Path) -> Path:
     source_dir.mkdir(parents=True)
 
     subprocess.run(
-        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/aixcc-finals/oss-fuzz-aixcc.git"], check=True
+        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/tob-challenges/oss-fuzz-aixcc.git"], check=True
     )
     subprocess.run(
         [
@@ -83,7 +83,7 @@ def tika_challenge_task_path(tmp_path: Path) -> Path:
         check=True,
     )
 
-    tika_url = "https://github.com/aixcc-finals/afc-tika"
+    tika_url = "https://github.com/tob-challenges/afc-tika"
     subprocess.run(["git", "-C", str(source_dir), "clone", tika_url], check=True)
     subprocess.run(
         ["git", "-C", str(source_dir / "afc-tika"), "checkout", "challenges/tk-full-01"],

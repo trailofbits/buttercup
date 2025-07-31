@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class ChallengeService:
-    def __init__(self, storage_dir: Path, base_url: str):
+    def __init__(self, storage_dir: Path, base_url: str) -> None:
         self.storage_dir = storage_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.base_url = base_url
@@ -143,7 +143,7 @@ class ChallengeService:
                     shutil.copytree(sub_path, ref_sub_path, ignore=shutil.ignore_patterns(".git", ".aixcc"))
 
                     # Create a git-diff file between the two directories (base_sub_path and ref_sub_path)
-                    result = subprocess.run(
+                    diff_result = subprocess.run(
                         ["git", "diff", "--binary", "--no-index", base_sub_path.as_posix(), ref_sub_path.as_posix()],
                         cwd=base_temp_path,
                         capture_output=True,
@@ -151,7 +151,7 @@ class ChallengeService:
                     diff_path = base_temp_path / "diff"
                     diff_path.mkdir(parents=True, exist_ok=True)
                     diff_file = diff_path / "ref.diff"
-                    diff_content = result.stdout
+                    diff_content = diff_result.stdout
                     diff_content = diff_content.replace(base_sub_path.as_posix().encode(), b"")
                     diff_content = diff_content.replace(ref_sub_path.as_posix().encode(), b"")
                     diff_file.write_bytes(diff_content)

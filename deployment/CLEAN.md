@@ -5,7 +5,7 @@ Sometimes the cloud infrastructure fills up on disk space and needs to be cleane
 ## Login into Azure
 
 ```shell
-az login --tenant=aixcc.tech
+az login --tenant=<your-tenant>
 ```
 
 ## Configure kubectl to use the Azure CI cluster
