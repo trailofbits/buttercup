@@ -27,6 +27,7 @@ class TypesArchitecture(str, Enum):
     allowed enum values
     """
     ArchitectureX8664 = 'x86_64'
+    ArchitectureAArch64 = 'aarch64'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:

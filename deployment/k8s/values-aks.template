@@ -1,6 +1,5 @@
 global:
   environment: "aks"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
     host: "${LANGFUSE_HOST}"
@@ -37,6 +36,3 @@ litellm:
 
 competition-api:
   enabled: true
-
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}

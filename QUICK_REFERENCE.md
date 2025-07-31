@@ -16,10 +16,10 @@ cd deployment && make up
 ### Production AKS
 ```bash
 # Automated setup
-./scripts/setup-production.sh
+./scripts/setup-azure.sh
 
 # Manual setup
-az login --tenant aixcc.tech
+az login --tenant <your-tenant>
 # Create service principal and configure deployment/env
 cd deployment && make up
 ```
@@ -63,8 +63,8 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ### Development
 ```bash
 # Lint Python code
-just lint-python-all
-just lint-python <component>
+make lint
+make lint-component COMPONENT=<component>
 
 # Docker development
 docker-compose up -d
@@ -137,7 +137,7 @@ helm lint deployment/k8s/
 #### Azure Issues
 ```bash
 # Authentication
-az login --tenant aixcc.tech
+az login --tenant <your-tenant-here>
 az account set --subscription <subscription-id>
 
 # Check service principal
@@ -184,7 +184,7 @@ kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
 
 ### Scripts
 - `scripts/setup-local.sh` - Local development setup
-- `scripts/setup-production.sh` - Production AKS setup
+- `scripts/setup-azure.sh` - Production AKS setup
 - `orchestrator/scripts/` - Testing and task scripts
 
 ### Documentation

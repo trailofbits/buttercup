@@ -1,6 +1,5 @@
 global:
   environment: "aks"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   orchestratorImage:
     tag: "${BUTTERCUP_NAMESPACE}"
   fuzzerImage:
@@ -56,9 +55,6 @@ litellm:
 
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}
-
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
 
 patcher:
   maxMinutesRunPOVs: 10

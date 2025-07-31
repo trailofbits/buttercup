@@ -19,6 +19,8 @@ jobs:
             continue-on-error: false
           - component: common
             continue-on-error: false
+          - component: orchestrator
+            continue-on-error: false
 
     runs-on: ubuntu-latest
     steps:

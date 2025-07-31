@@ -35,16 +35,9 @@ else
 	LANGFUSE_ENABLED="false"
 fi
 
-if [ "$(echo "$MOCK_COMPETITION_API_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
-	MOCK_COMPETITION_API_ENABLED="true"
-else
-	MOCK_COMPETITION_API_ENABLED="false"
-fi
-
 BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE:-crs}
 DEPLOY_CLUSTER=${DEPLOY_CLUSTER:-true}
 CLUSTER_TYPE=${CLUSTER_TYPE:-minikube}
-FUZZ_TOOLING_CONTAINER_ORG=${FUZZ_TOOLING_CONTAINER_ORG:-aixcc-afc}
 
 if [ "$DEPLOY_CLUSTER" = "true" ] && [ "$CLUSTER_TYPE" = "aks" ]; then
 	echo -e "${GRN}Current azure account status:${NC}"

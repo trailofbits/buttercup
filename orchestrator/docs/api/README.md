@@ -73,7 +73,7 @@ CRS->>API: Modify Bundle
 
 ### Request Integration Test Task
 
-After deploying your CRS, you now have the ability to task your CRS with a simple “[integration test](https://github.com/aixcc-finals/integration-test/tree/challenges/integration-test-delta-01)” challenge (delta scan) to
+After deploying your CRS, you now have the ability to task your CRS with a simple “[integration test](https://github.com/tob-challenges/integration-test/tree/challenges/integration-test-delta-01)” challenge (delta scan) to
 make sure your CRS and Telemetry are working as expected prior to the opening of the Round.
 
 This endpoint is available from now until 5 minutes prior to the opening of a Round. It is accessible from the internet and from inside the tailnet. `duration_secs` is an optional parameter, and defaults to 4 hours.
@@ -93,6 +93,79 @@ Here is an example curl you may use to trigger the integration testing task.
 ```bash
 curl -u 11111111-1111-1111-1111-111111111111:pY8rLk7FvQ2hZm9GwUx3Ej5BnTcV4So0 -X 'POST' 'https://api.aixcc.tech/v1/request/delta/' -H 'Content-Type: application/json' -d '{"duration_secs": 3600 }'
 ```
+
+### Request Arbitrary Exhibition 3 Task
+
+We have updated the production Competition API /v1/request/ endpoint to include all exhibition3 challenges. Exercising this endpoint should look the same as exercising the /v1/request/delta/ endpoint, but
+instead of putting delta in the URL path, you can input the challenge name.
+
+For example:
+
+```bash
+curl -u <team-id>:<secret> -X 'POST' 'https://api.aixcc.tech/v1/request/ex3-tk-full-01/' --json '{"duration_secs":43200}'
+```
+
+You may, of course, still use /v1/request/delta/, and you will get the same integration test challenge as you would have before Exhibition 3. In order to get a list of the challenges that are available, you may use
+the /v1/request/list/ endpoint:
+
+```bash
+curl -u <team-id>:<secret> -X 'GET' 'https://api.aixcc.tech/v1/request/list/'
+```
+
+Some teams have noted that the hosted competitor test servers were having issues scaling to respond to the number of submissions. Unfortunately, this is a limit. The official competition API, however, is built to
+handle hundreds of POVs at the same time. So if you are running into any issues with the competitor test server, we highly recommend you use this new endpoint. We will still also still be updating the competitor test
+servers as we have been before when updates are made to evaluation scripts.
+
+Use the following URL/hostname configurations in order to use this new requesting feature:
+
+**CRS API URL**: `https://<team-moniker>-final.tail7e9b4c.ts.net`
+
+**Competition API URL**: `https://api.tail7e9b4c.ts.net`
+
+Here's a reference for which challenge names correspond to which repos:
+
+- **Apache Commons Compress**
+  - ex3-cc-delta-02
+  - ex3-cc-delta-03
+  - ex3-cc-full-01
+- **FreeRDP**
+  - ex3-fp-delta-01
+  - ex3-fp-full-01
+- **Integration Test** (There should be no significant differences between "ex3-integration-test-delta-01" and "delta")
+  - ex3-integration-test-delta-01
+  - ex3-integration-test-unharnessed-delta-01
+  - delta
+- **libpng**
+  - ex3-lp-delta-01
+- **libxml2**
+  - ex3-lx-delta-01
+  - ex3-lx-delta-02
+- **sqlite3**
+  - ex3-sq-delta-01
+  - ex3-sq-delta-02
+  - ex3-sq-delta-03
+  - ex3-sq-full-01
+- **Apache Tika**
+  - ex3-tk-full-01
+  - ex3-tk-delta-02
+  - ex3-tk-delta-03
+  - ex3-tk-delta-04
+  - ex3-tk-delta-05
+- **Apache Zookeeper**
+  - ex3-zk-delta-01
+  - ex3-zk-delta-02
+  - ex3-zk-full-01
+- **Curl**
+  - ex3-cu-full-01
+  - ex3-cu-delta-01
+- **libexif**
+  - ex3-ex-delta-01
+- **libpostal**
+  - ex3-libpostal-full-01
+- **s2n-tls**
+  - ex3-s2n_tls-full-01
+- **IPF**
+  - ex3-ipf-full-01
 
 ## CRS API Task Statuses
 

@@ -1,6 +1,5 @@
 global:
   environment: "minikube"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   orchestratorImage:
     repository: localhost/orchestrator
     tag: "latest"
@@ -63,9 +62,6 @@ ui:
 
 competition-api:
   enabled: false
-
-mock-competition-api:
-  enabled: ${MOCK_COMPETITION_API_ENABLED}
 
 image-preloader:
   baseImages:
