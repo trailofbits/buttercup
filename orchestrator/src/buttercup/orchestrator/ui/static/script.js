@@ -542,7 +542,7 @@ function renderArtifacts(title, artifacts, type) {
 // Render individual artifact
 function renderArtifact(artifact, type) {
     let content = '';
-    let artifactId = artifact.id || artifact.pov_id || artifact.patch_id || artifact.bundle_id;
+    let artifactId = artifact.id || artifact.bundle_id || artifact.pov_id || artifact.patch_id;
     let taskId = ''; // We'll need to find this from the current task context
     
     // Find task ID for download button
@@ -615,7 +615,8 @@ function renderArtifact(artifact, type) {
 // Download artifact
 async function downloadArtifact(type, taskId, artifactId) {
     try {
-        const response = await fetch(`${API_BASE}/v1/dashboard/tasks/${taskId}/${type}s/${artifactId}/download`);
+        const type_plural = type === 'patch' ? 'patches' : type === 'pov' ? 'povs' : type === 'bundle' ? 'bundles' : `${type}s`;
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks/${taskId}/${type_plural}/${artifactId}/download`);
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
