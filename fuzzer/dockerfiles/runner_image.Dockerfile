@@ -13,7 +13,7 @@ RUN uv python install python3.10
 FROM base-image AS runner-base
 RUN apt-get update
 # TODO(Ian): maybe we should have a different base image for the builder
-RUN apt-get install ca-certificates curl
+RUN apt-get install -y ca-certificates curl
 RUN install -m 0755 -d /etc/apt/keyrings
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 RUN chmod a+r /etc/apt/keyrings/docker.asc

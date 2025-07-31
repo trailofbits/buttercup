@@ -124,14 +124,6 @@ Define Docker Host environment variable for Unix socket
 {{- end }}
 
 {{/*
-Define OSS-Fuzz container organization environment variable
-*/}}
-{{- define "buttercup.env.ossFuzzContainerOrg" }}
-- name: OSS_FUZZ_CONTAINER_ORG
-  value: "{{ .Values.global.ossFuzzContainerOrg | default "aixcc-afc" }}"
-{{- end }}
-
-{{/*
 Define persistent log directory environment variable
 */}}
 {{- define "buttercup.env.persistentLogDir" }}
@@ -148,7 +140,6 @@ Define common environment for all services
 {{- include "buttercup.env.timeouts" . | nindent 0 }}
 {{- include "buttercup.env.dirs" . | nindent 0 }}
 {{- include "buttercup.env.nodeData" . | nindent 0 }}
-{{- include "buttercup.env.ossFuzzContainerOrg" . | nindent 0 }}
 {{- include "buttercup.env.persistentLogDir" . | nindent 0 }}
 {{- end }}
 
