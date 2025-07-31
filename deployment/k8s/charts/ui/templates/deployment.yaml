@@ -30,6 +30,8 @@ spec:
         volumeMounts:
           - name: data-volume
             mountPath: /data
+          - name: run-data-volume
+            mountPath: /tmp/buttercup-run-data
         command: ["buttercup-ui"]
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
@@ -48,4 +50,13 @@ spec:
       volumes:
         - name: data-volume
           emptyDir: {}
+        {{- if eq .Values.global.environment "minikube" }}
+        - name: run-data-volume
+          hostPath:
+            path: /data/{{ .Release.Name }}-run-data
+            type: DirectoryOrCreate
+        {{- else }}
+        - name: run-data-volume
+          emptyDir: {}
+        {{- end }}
 {{- end }} 
