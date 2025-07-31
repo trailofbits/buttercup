@@ -113,15 +113,15 @@ up() {
 				MINIKUBE_MEMORY_MB=$((AVAILABLE_MEMORY_MB * 75 / 100))
 				
 				# Check if system meets minimum requirements
-				if [ $AVAILABLE_CPUS -lt 2 ]; then
-					echo -e "${RED}Error: System has only ${AVAILABLE_CPUS} CPU(s), but Buttercup requires at least 2 CPUs${NC}"
+				if [ "$AVAILABLE_CPUS" -lt 5 ]; then
+					echo -e "${RED}Error: System has only ${AVAILABLE_CPUS} CPU(s), but Buttercup requires at least 5 CPUs${NC}"
 					echo -e "${RED}Please use a machine with more CPU cores${NC}"
 					exit 1
 				fi
 				
 				AVAILABLE_MEMORY_GB=$((AVAILABLE_MEMORY_MB / 1024))
-				if [ $AVAILABLE_MEMORY_MB -lt 16384 ]; then  # Need 16GB total for Buttercup components
-					echo -e "${RED}Error: System has only ${AVAILABLE_MEMORY_GB}GB RAM, but Buttercup requires at least 16GB${NC}"
+				if [ "$AVAILABLE_MEMORY_MB" -lt 10240 ]; then  # Need 10GB dedicated to k8s cluster for Buttercup components
+					echo -e "${RED}Error: System has only ${AVAILABLE_MEMORY_GB}GB RAM, but Buttercup requires at least 10GB${NC}"
 					echo -e "${RED}Please use a machine with more memory${NC}"
 					exit 1
 				fi
