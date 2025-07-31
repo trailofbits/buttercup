@@ -42,22 +42,52 @@
             </div>
         </section>
 
-        <!-- Tasks List -->
-        <section class="tasks-section">
-            <div class="section-header">
-                <h2>Tasks</h2>
-                <div class="filter-controls">
-                    <select id="status-filter">
-                        <option value="all">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="expired">Expired</option>
-                    </select>
+        <!-- Navigation Tabs -->
+        <nav class="tab-navigation">
+            <button class="tab-button active" data-tab="tasks">Tasks</button>
+            <button class="tab-button" data-tab="povs">PoVs</button>
+            <button class="tab-button" data-tab="patches">Patches</button>
+        </nav>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Tasks Tab -->
+            <section id="tasks-tab" class="tab-pane active">
+                <div class="section-header">
+                    <h2>Tasks</h2>
+                    <div class="filter-controls">
+                        <select id="status-filter">
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="expired">Expired</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-            <div class="tasks-container" id="tasks-container">
-                <!-- Tasks will be populated dynamically -->
-            </div>
-        </section>
+                <div class="tasks-container" id="tasks-container">
+                    <!-- Tasks will be populated dynamically -->
+                </div>
+            </section>
+
+            <!-- PoVs Tab -->
+            <section id="povs-tab" class="tab-pane">
+                <div class="section-header">
+                    <h2>All PoVs</h2>
+                </div>
+                <div class="artifacts-container" id="povs-container">
+                    <!-- PoVs will be populated dynamically -->
+                </div>
+            </section>
+
+            <!-- Patches Tab -->
+            <section id="patches-tab" class="tab-pane">
+                <div class="section-header">
+                    <h2>All Patches</h2>
+                </div>
+                <div class="artifacts-container" id="patches-container">
+                    <!-- Patches will be populated dynamically -->
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- Task Submission Modal -->

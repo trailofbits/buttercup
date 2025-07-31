@@ -87,11 +87,60 @@ body {
     font-size: 0.8rem;
 }
 
+/* Tab navigation */
+.tab-navigation {
+    display: flex;
+    background: white;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 0;
+    overflow: hidden;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 1rem 2rem;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+    background: #f8f9fa;
+    color: #333;
+}
+
+.tab-button.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: #f8f9fa;
+}
+
+/* Tab content */
+.tab-content {
+    background: white;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
 /* Tasks section */
-.tasks-section {
+.tasks-section, .tab-pane {
     background: white;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     overflow: hidden;
 }
 
@@ -433,6 +482,69 @@ form {
     font-size: 3rem;
     margin-bottom: 1rem;
     opacity: 0.3;
+}
+
+/* Artifacts container */
+.artifacts-container {
+    padding: 1.5rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.artifact-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.artifact-list-item:hover {
+    background: #f0f0f0;
+    border-color: #ddd;
+    transform: translateY(-1px);
+}
+
+.artifact-info {
+    flex: 1;
+}
+
+.artifact-task-name {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.artifact-meta {
+    font-size: 0.9rem;
+    color: #666;
+    display: flex;
+    gap: 1rem;
+}
+
+.artifact-timestamp {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.download-button {
+    padding: 0.5rem 1rem;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s ease;
+}
+
+.download-button:hover {
+    background: #5a6bd8;
 }
 
 /* Responsive design */

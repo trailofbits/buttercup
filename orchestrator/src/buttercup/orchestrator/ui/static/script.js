@@ -1,11 +1,14 @@
 // Global state
 let tasks = [];
+let allPovs = [];
+let allPatches = [];
 let dashboardStats = {
     activeTasks: 0,
     totalPovs: 0,
     totalPatches: 0,
     totalBundles: 0
 };
+let currentTab = 'tasks';
 
 // API base URL - will be set dynamically
 const API_BASE = '';
@@ -21,13 +24,17 @@ const elements = {
     taskForm: document.getElementById('task-form'),
     cancelBtn: document.getElementById('cancel-btn'),
     tasksContainer: document.getElementById('tasks-container'),
+    povsContainer: document.getElementById('povs-container'),
+    patchesContainer: document.getElementById('patches-container'),
     statusFilter: document.getElementById('status-filter'),
     activeTasks: document.getElementById('active-tasks'),
     totalPovs: document.getElementById('total-povs'),
     totalPatches: document.getElementById('total-patches'),
     totalBundles: document.getElementById('total-bundles'),
     detailTitle: document.getElementById('detail-title'),
-    detailContent: document.getElementById('detail-content')
+    detailContent: document.getElementById('detail-content'),
+    tabButtons: document.querySelectorAll('.tab-button'),
+    tabPanes: document.querySelectorAll('.tab-pane')
 };
 
 // Initialize the dashboard
@@ -63,6 +70,14 @@ function setupEventListeners() {
     
     elements.statusFilter.addEventListener('change', filterTasks);
     
+    // Tab navigation
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.getAttribute('data-tab');
+            switchTab(tabName);
+        });
+    });
+    
     // Close modals when clicking outside
     window.addEventListener('click', (event) => {
         if (event.target === elements.taskModal) {
@@ -74,6 +89,36 @@ function setupEventListeners() {
     });
 }
 
+// Tab switching
+function switchTab(tabName) {
+    currentTab = tabName;
+    
+    // Update tab buttons
+    elements.tabButtons.forEach(button => {
+        if (button.getAttribute('data-tab') === tabName) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+    
+    // Update tab panes
+    elements.tabPanes.forEach(pane => {
+        if (pane.id === `${tabName}-tab`) {
+            pane.classList.add('active');
+        } else {
+            pane.classList.remove('active');
+        }
+    });
+    
+    // Load content for the active tab
+    if (tabName === 'povs') {
+        loadAndRenderPovs();
+    } else if (tabName === 'patches') {
+        loadAndRenderPatches();
+    }
+}
+
 // Load dashboard data
 async function loadDashboard() {
     try {
@@ -82,7 +127,9 @@ async function loadDashboard() {
         // Load tasks and stats in parallel
         await Promise.all([
             loadTasks(),
-            loadStats()
+            loadStats(),
+            loadAllPovs(),
+            loadAllPatches()
         ]);
         
         updateDashboard();
@@ -127,6 +174,68 @@ async function loadStats() {
     }
 }
 
+// Load all PoVs from API
+async function loadAllPovs() {
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/povs`);
+        if (response.ok) {
+            allPovs = await response.json();
+        } else {
+            // Fallback to extracting from tasks
+            allPovs = extractPovsFromTasks();
+        }
+    } catch (error) {
+        console.warn('PoVs API not available, extracting from tasks');
+        allPovs = extractPovsFromTasks();
+    }
+}
+
+// Load all patches from API
+async function loadAllPatches() {
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/patches`);
+        if (response.ok) {
+            allPatches = await response.json();
+        } else {
+            // Fallback to extracting from tasks
+            allPatches = extractPatchesFromTasks();
+        }
+    } catch (error) {
+        console.warn('Patches API not available, extracting from tasks');
+        allPatches = extractPatchesFromTasks();
+    }
+}
+
+// Extract PoVs from tasks data
+function extractPovsFromTasks() {
+    const povs = [];
+    tasks.forEach(task => {
+        (task.povs || []).forEach(pov => {
+            povs.push({
+                task_id: task.task_id,
+                task_name: task.name || task.project_name,
+                pov: pov
+            });
+        });
+    });
+    return povs.sort((a, b) => new Date(b.pov.timestamp || 0) - new Date(a.pov.timestamp || 0));
+}
+
+// Extract patches from tasks data
+function extractPatchesFromTasks() {
+    const patches = [];
+    tasks.forEach(task => {
+        (task.patches || []).forEach(patch => {
+            patches.push({
+                task_id: task.task_id,
+                task_name: task.name || task.project_name,
+                patch: patch
+            });
+        });
+    });
+    return patches.sort((a, b) => new Date(b.patch.timestamp || 0) - new Date(a.patch.timestamp || 0));
+}
+
 // Calculate stats from tasks data
 function calculateStatsFromTasks() {
     dashboardStats.activeTasks = tasks.filter(task => task.status === 'active').length;
@@ -143,8 +252,85 @@ function updateDashboard() {
     elements.totalPatches.textContent = dashboardStats.totalPatches;
     elements.totalBundles.textContent = dashboardStats.totalBundles;
     
-    // Update tasks list
-    renderTasks();
+    // Update current tab content
+    if (currentTab === 'tasks') {
+        renderTasks();
+    } else if (currentTab === 'povs') {
+        renderPovs();
+    } else if (currentTab === 'patches') {
+        renderPatches();
+    }
+}
+
+// Load and render PoVs
+async function loadAndRenderPovs() {
+    await loadAllPovs();
+    renderPovs();
+}
+
+// Load and render patches
+async function loadAndRenderPatches() {
+    await loadAllPatches();
+    renderPatches();
+}
+
+// Render PoVs list
+function renderPovs() {
+    if (allPovs.length === 0) {
+        elements.povsContainer.innerHTML = `
+            <div class="no-data">
+                <div class="no-data-icon">🐛</div>
+                <p>No PoVs found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    elements.povsContainer.innerHTML = allPovs.map(item => `
+        <div class="artifact-list-item" onclick="showArtifactDetail('pov', '${item.pov.pov_id}')">
+            <div class="artifact-info">
+                <div class="artifact-task-name">Task: ${item.task_name}</div>
+                <div class="artifact-meta">
+                    <span>ID: ${item.pov.pov_id}</span>
+                    <span>Architecture: ${item.pov.architecture || 'N/A'}</span>
+                    <span>Engine: ${item.pov.engine || 'N/A'}</span>
+                </div>
+                <div class="artifact-timestamp">${formatTimestamp(item.pov.timestamp)}</div>
+            </div>
+            <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('pov', '${item.task_id}', '${item.pov.pov_id}')">
+                Download
+            </button>
+        </div>
+    `).join('');
+}
+
+// Render patches list
+function renderPatches() {
+    if (allPatches.length === 0) {
+        elements.patchesContainer.innerHTML = `
+            <div class="no-data">
+                <div class="no-data-icon">🔧</div>
+                <p>No patches found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    elements.patchesContainer.innerHTML = allPatches.map(item => `
+        <div class="artifact-list-item" onclick="showArtifactDetail('patch', '${item.patch.patch_id}')">
+            <div class="artifact-info">
+                <div class="artifact-task-name">Task: ${item.task_name}</div>
+                <div class="artifact-meta">
+                    <span>ID: ${item.patch.patch_id}</span>
+                    <span>Size: ${(item.patch.patch || '').length} chars</span>
+                </div>
+                <div class="artifact-timestamp">${formatTimestamp(item.patch.timestamp)}</div>
+            </div>
+            <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
+                Download
+            </button>
+        </div>
+    `).join('');
 }
 
 // Render tasks list
@@ -218,6 +404,12 @@ async function handleTaskSubmission(event) {
     taskData.harnesses_included = formData.has('harnesses_included');
     taskData.duration = parseInt(taskData.duration);
     
+    // Get submit button and show loading state
+    const submitBtn = elements.taskForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+    
     try {
         const response = await fetch(`${API_BASE}/webhook/trigger_task`, {
             method: 'POST',
@@ -242,6 +434,10 @@ async function handleTaskSubmission(event) {
     } catch (error) {
         console.error('Error submitting task:', error);
         showNotification('Network error occurred', 'error');
+    } finally {
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
     }
 }
 
@@ -330,6 +526,18 @@ function renderArtifacts(title, artifacts, type) {
 // Render individual artifact
 function renderArtifact(artifact, type) {
     let content = '';
+    let artifactId = artifact.id || artifact.pov_id || artifact.patch_id || artifact.bundle_id;
+    let taskId = ''; // We'll need to find this from the current task context
+    
+    // Find task ID for download button
+    const currentTask = tasks.find(t => 
+        (t.povs && t.povs.some(p => p.pov_id === artifactId)) ||
+        (t.patches && t.patches.some(p => p.patch_id === artifactId)) ||
+        (t.bundles && t.bundles.some(b => b.bundle_id === artifactId))
+    );
+    if (currentTask) {
+        taskId = currentTask.task_id;
+    }
     
     switch (type) {
         case 'pov':
@@ -355,12 +563,145 @@ function renderArtifact(artifact, type) {
     }
     
     return `
-        <div class="artifact-item">
+        <div class="artifact-item" onclick="showArtifactDetail('${type}', '${artifactId}')">
             <div class="artifact-header">
-                <div class="artifact-id">${artifact.id || artifact.pov_id || artifact.patch_id || artifact.bundle_id}</div>
+                <div class="artifact-id">${artifactId}</div>
                 <div class="artifact-timestamp">${formatTimestamp(artifact.timestamp || new Date().toISOString())}</div>
+                ${taskId ? `<button class="download-button" onclick="event.stopPropagation(); downloadArtifact('${type}', '${taskId}', '${artifactId}')">Download</button>` : ''}
             </div>
             ${content}
+        </div>
+    `;
+}
+
+// Download artifact
+async function downloadArtifact(type, taskId, artifactId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks/${taskId}/${type}s/${artifactId}/download`);
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            
+            // Get filename from Content-Disposition header
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `${type}_${artifactId}`;
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (match) {
+                    filename = match[1];
+                }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification('Download started', 'success');
+        } else {
+            showNotification('Download failed', 'error');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification('Download error', 'error');
+    }
+}
+
+// Show artifact detail modal
+async function showArtifactDetail(type, artifactId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/${type}s/${artifactId}`);
+        let detailData;
+        
+        if (response.ok) {
+            detailData = await response.json();
+        } else {
+            // Fallback to find in local data
+            if (type === 'pov') {
+                detailData = allPovs.find(p => p.pov.pov_id === artifactId);
+            } else if (type === 'patch') {
+                detailData = allPatches.find(p => p.patch.patch_id === artifactId);
+            }
+        }
+        
+        if (detailData) {
+            elements.detailTitle.textContent = `${type.toUpperCase()}: ${artifactId}`;
+            elements.detailContent.innerHTML = renderArtifactDetail(detailData, type);
+            elements.detailModal.style.display = 'block';
+        } else {
+            showNotification('Artifact not found', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading artifact detail:', error);
+        showNotification('Error loading artifact detail', 'error');
+    }
+}
+
+// Render artifact detail
+function renderArtifactDetail(detailData, type) {
+    const artifact = detailData.pov || detailData.patch || detailData.bundle || detailData;
+    const artifactId = artifact.pov_id || artifact.patch_id || artifact.bundle_id;
+    
+    let specificContent = '';
+    
+    switch (type) {
+        case 'pov':
+            specificContent = `
+                <div class="detail-label">Architecture:</div>
+                <div class="detail-value">${artifact.architecture || 'N/A'}</div>
+                <div class="detail-label">Engine:</div>
+                <div class="detail-value">${artifact.engine || 'N/A'}</div>
+                <div class="detail-label">Fuzzer:</div>
+                <div class="detail-value">${artifact.fuzzer_name || 'N/A'}</div>
+                <div class="detail-label">Sanitizer:</div>
+                <div class="detail-value">${artifact.sanitizer || 'N/A'}</div>
+                <div class="detail-label">Testcase Size:</div>
+                <div class="detail-value">${artifact.testcase ? (typeof artifact.testcase === 'string' ? artifact.testcase.length : JSON.stringify(artifact.testcase).length) : 0} bytes</div>
+            `;
+            break;
+        case 'patch':
+            specificContent = `
+                <div class="detail-label">Patch Size:</div>
+                <div class="detail-value">${(artifact.patch || '').length} characters</div>
+                <div class="detail-label">Patch Content:</div>
+                <div class="detail-value"><pre style="white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto;">${artifact.patch || 'No patch content'}</pre></div>
+            `;
+            break;
+        case 'bundle':
+            specificContent = `
+                <div class="detail-label">Bundle Content:</div>
+                <div class="detail-value"><pre style="white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 4px; max-height: 300px; overflow-y: auto;">${JSON.stringify(artifact, null, 2)}</pre></div>
+            `;
+            break;
+    }
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <div class="detail-section">
+                <h3>Artifact Information</h3>
+                <div class="detail-grid">
+                    <div class="detail-label">ID:</div>
+                    <div class="detail-value">${artifactId}</div>
+                    <div class="detail-label">Task:</div>
+                    <div class="detail-value">${detailData.task_name}</div>
+                    <div class="detail-label">Task ID:</div>
+                    <div class="detail-value">${detailData.task_id}</div>
+                    <div class="detail-label">Timestamp:</div>
+                    <div class="detail-value">${formatTimestamp(artifact.timestamp)}</div>
+                    ${specificContent}
+                </div>
+                ${detailData.task_id ? `
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn btn-primary" onclick="downloadArtifact('${type}', '${detailData.task_id}', '${artifactId}')">
+                        Download ${type.toUpperCase()}
+                    </button>
+                </div>
+                ` : ''}
+            </div>
         </div>
     `;
 }
