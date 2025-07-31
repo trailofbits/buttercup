@@ -54,12 +54,8 @@ _settings: Settings | None = None
 
 # In-memory storage for tasks and artifacts (can be moved to database later)
 tasks_storage: Dict[str, Dict[str, Any]] = {}
-dashboard_stats = {
-    "activeTasks": 0,
-    "totalPovs": 0,
-    "totalPatches": 0,
-    "totalBundles": 0
-}
+dashboard_stats = {"activeTasks": 0, "totalPovs": 0, "totalPatches": 0, "totalBundles": 0}
+
 
 # Dashboard models
 class TaskInfo(BaseModel):
@@ -78,6 +74,7 @@ class TaskInfo(BaseModel):
     patches: List[Dict[str, Any]] = []
     bundles: List[Dict[str, Any]] = []
     created_at: str
+
 
 class DashboardStats(BaseModel):
     activeTasks: int
@@ -111,41 +108,46 @@ static_dir = Path(__file__).parent.parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+
 # Utility functions for task management
 def calculate_task_status(deadline_str: str) -> str:
     """Calculate task status based on deadline."""
     try:
-        deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+        deadline = datetime.fromisoformat(deadline_str.replace("Z", "+00:00"))
         now = datetime.now(deadline.tzinfo)
         if now > deadline:
             return "expired"
         return "active"
-    except:
+    except Exception:
         return "active"  # Default to active if parsing fails
+
 
 def update_dashboard_stats():
     """Update dashboard statistics from current tasks."""
     global dashboard_stats
-    
+
     active_count = 0
     total_povs = 0
     total_patches = 0
     total_bundles = 0
-    
+
     for task_data in tasks_storage.values():
         if calculate_task_status(task_data["deadline"]) == "active":
             active_count += 1
-        
+
         total_povs += len(task_data.get("povs", []))
         total_patches += len(task_data.get("patches", []))
         total_bundles += len(task_data.get("bundles", []))
-    
-    dashboard_stats.update({
-        "activeTasks": active_count,
-        "totalPovs": total_povs,
-        "totalPatches": total_patches,
-        "totalBundles": total_bundles
-    })
+
+    dashboard_stats.update(
+        {
+            "activeTasks": active_count,
+            "totalPovs": total_povs,
+            "totalPatches": total_patches,
+            "totalBundles": total_bundles,
+        }
+    )
+
 
 def get_or_create_task(task_id: str) -> Dict[str, Any]:
     """Get or create a task entry in storage."""
@@ -153,7 +155,7 @@ def get_or_create_task(task_id: str) -> Dict[str, Any]:
         # Create default task entry
         now = datetime.now()
         deadline = now + timedelta(minutes=30)  # Default 30 minute duration
-        
+
         tasks_storage[task_id] = {
             "task_id": task_id,
             "name": None,
@@ -169,13 +171,13 @@ def get_or_create_task(task_id: str) -> Dict[str, Any]:
             "povs": [],
             "patches": [],
             "bundles": [],
-            "created_at": now.isoformat()
+            "created_at": now.isoformat(),
         }
-    
+
     # Update status based on deadline
     task_data = tasks_storage[task_id]
     task_data["status"] = calculate_task_status(task_data["deadline"])
-    
+
     return task_data
 
 
@@ -243,7 +245,7 @@ def get_dashboard() -> HTMLResponse:
     """
     static_dir = Path(__file__).parent.parent / "static"
     html_file = static_dir / "index.html"
-    
+
     if html_file.exists():
         return HTMLResponse(content=html_file.read_text(), status_code=200)
     else:
@@ -266,12 +268,12 @@ def get_dashboard_tasks() -> List[TaskInfo]:
     """
     update_dashboard_stats()
     tasks_list = []
-    
+
     for task_data in tasks_storage.values():
         # Update status before returning
         task_data["status"] = calculate_task_status(task_data["deadline"])
         tasks_list.append(TaskInfo(**task_data))
-    
+
     # Sort by created_at descending (newest first)
     tasks_list.sort(key=lambda x: x.created_at, reverse=True)
     return tasks_list
@@ -284,7 +286,7 @@ def get_dashboard_task(task_id: str) -> TaskInfo:
     """
     if task_id not in tasks_storage:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     task_data = tasks_storage[task_id]
     task_data["status"] = calculate_task_status(task_data["deadline"])
     return TaskInfo(**task_data)
@@ -326,7 +328,7 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
         name = challenge.name or task_id
         now = datetime.now()
         deadline = now + timedelta(seconds=challenge.duration)
-        
+
         tasks_storage[task_id] = {
             "task_id": task_id,
             "name": name,
@@ -342,15 +344,13 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
             "povs": [],
             "patches": [],
             "bundles": [],
-            "created_at": now.isoformat()
+            "created_at": now.isoformat(),
         }
 
         # Send task to CRS via POST /v1/task endpoint
         if crs_client.submit_task(task):
             logger.info(f"Task {task_id} submitted successfully to CRS")
-            return Message(
-                message=f"Task {task_id} created and submitted to CRS for challenge {challenge.name}"
-            )
+            return Message(message=f"Task {task_id} created and submitted to CRS for challenge {challenge.name}")
         else:
             logger.error(f"Failed to submit task {task_id} to CRS")
             return Error(message="Failed to submit task to CRS")
@@ -435,16 +435,12 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> Bundle
     bundle_id = str(uuid.uuid4())
     logger.info(f"Bundle submission - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Bundle details: {json.dumps(body.dict(), indent=2)}")
-    
+
     # Store bundle in task storage
     task_data = get_or_create_task(task_id)
-    bundle_data = {
-        "bundle_id": bundle_id,
-        "timestamp": datetime.now().isoformat(),
-        **body.dict()
-    }
+    bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
     task_data["bundles"].append(bundle_data)
-    
+
     return BundleSubmissionResponse(bundle_id=bundle_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
 
@@ -547,16 +543,12 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSub
     patch_id = str(uuid.uuid4())
     logger.info(f"Patch submission - Task: {task_id}, Patch ID: {patch_id}")
     logger.info(f"Patch size: {len(body.patch)} bytes")
-    
+
     # Store patch in task storage
     task_data = get_or_create_task(task_id)
-    patch_data = {
-        "patch_id": patch_id,
-        "timestamp": datetime.now().isoformat(),
-        **body.dict()
-    }
+    patch_data = {"patch_id": patch_id, "timestamp": datetime.now().isoformat(), **body.dict()}
     task_data["patches"].append(patch_data)
-    
+
     return PatchSubmissionResponse(
         patch_id=patch_id, status=SubmissionStatus.SubmissionStatusAccepted, functionality_tests_passing=None
     )
@@ -604,16 +596,12 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissio
         f"POV details: Architecture: {body.architecture}, Engine: {body.engine}, Fuzzer: {body.fuzzer_name}, Sanitizer: {body.sanitizer}"
     )
     logger.info(f"POV testcase size: {len(body.testcase)} bytes")
-    
+
     # Store POV in task storage
     task_data = get_or_create_task(task_id)
-    pov_data = {
-        "pov_id": pov_id,
-        "timestamp": datetime.now().isoformat(),
-        **body.dict()
-    }
+    pov_data = {"pov_id": pov_id, "timestamp": datetime.now().isoformat(), **body.dict()}
     task_data["povs"].append(pov_data)
-    
+
     return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.SubmissionStatusAccepted)
 
 
@@ -690,28 +678,29 @@ def download_pov(task_id: str, pov_id: str) -> Response:
     """Download a PoV testcase"""
     if task_id not in tasks_storage:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     task_data = tasks_storage[task_id]
     pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
-    
+
     if not pov:
         raise HTTPException(status_code=404, detail="PoV not found")
-    
+
     testcase = pov.get("testcase", b"")
     if isinstance(testcase, str):
         # If it's a base64 string, decode it
         import base64
+
         try:
             testcase = base64.b64decode(testcase)
-        except:
-            testcase = testcase.encode('utf-8')
+        except Exception:
+            testcase = testcase.encode("utf-8")
     elif not isinstance(testcase, bytes):
-        testcase = str(testcase).encode('utf-8')
-    
+        testcase = str(testcase).encode("utf-8")
+
     return Response(
         content=testcase,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename=pov_{pov_id}.bin"}
+        headers={"Content-Disposition": f"attachment; filename=pov_{pov_id}.bin"},
     )
 
 
@@ -720,49 +709,51 @@ def download_patch(task_id: str, patch_id: str) -> Response:
     """Download a patch"""
     if task_id not in tasks_storage:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     task_data = tasks_storage[task_id]
     patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
-    
+
     if not patch:
         raise HTTPException(status_code=404, detail="Patch not found")
-    
+
     patch_content = patch.get("patch", "")
-    
+
     # Handle different types of patch content
     if isinstance(patch_content, bytes):
         content = patch_content
     elif isinstance(patch_content, str):
         # First, try to decode as base64 if it looks like base64
         import base64
+
         try:
             # Check if it's likely base64 (only base64 chars, proper length)
             clean_content = patch_content.strip()
-            if (len(clean_content) > 0 and 
-                len(clean_content) % 4 == 0 and 
-                all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in clean_content)):
-                
+            if (
+                len(clean_content) > 0
+                and len(clean_content) % 4 == 0
+                and all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" for c in clean_content)
+            ):
                 decoded = base64.b64decode(clean_content, validate=True)
                 # Try to decode as UTF-8, if it fails keep the bytes
                 try:
-                    decoded.decode('utf-8')
+                    decoded.decode("utf-8")
                     content = decoded
                 except UnicodeDecodeError:
                     content = decoded
             else:
                 # Not base64, treat as plain text
-                content = patch_content.encode('utf-8')
+                content = patch_content.encode("utf-8")
         except Exception:
             # If base64 decode fails, treat as plain text
-            content = patch_content.encode('utf-8')
+            content = patch_content.encode("utf-8")
     else:
         # Convert other types to string
-        content = str(patch_content).encode('utf-8')
-    
+        content = str(patch_content).encode("utf-8")
+
     return Response(
         content=content,
         media_type="text/plain",
-        headers={"Content-Disposition": f"attachment; filename=patch_{patch_id}.patch"}
+        headers={"Content-Disposition": f"attachment; filename=patch_{patch_id}.patch"},
     )
 
 
@@ -771,20 +762,20 @@ def download_bundle(task_id: str, bundle_id: str) -> Response:
     """Download a bundle as JSON"""
     if task_id not in tasks_storage:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     task_data = tasks_storage[task_id]
     bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
-    
+
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found")
-    
+
     # Create a serializable copy of the bundle data
     def make_serializable(obj):
         """Convert an object to a JSON-serializable format"""
-        if hasattr(obj, 'dict'):
+        if hasattr(obj, "dict"):
             # Pydantic model
             return obj.dict()
-        elif hasattr(obj, '__dict__'):
+        elif hasattr(obj, "__dict__"):
             # Regular object with attributes
             return {k: make_serializable(v) for k, v in obj.__dict__.items()}
         elif isinstance(obj, dict):
@@ -796,22 +787,25 @@ def download_bundle(task_id: str, bundle_id: str) -> Response:
         else:
             # For other types, convert to string
             return str(obj)
-    
+
     try:
         serializable_bundle = make_serializable(bundle)
         bundle_json = json.dumps(serializable_bundle, indent=2)
     except Exception as e:
         # Fallback: create a basic JSON structure
-        bundle_json = json.dumps({
-            "bundle_id": bundle.get("bundle_id", bundle_id),
-            "timestamp": bundle.get("timestamp", ""),
-            "error": f"Could not serialize full bundle data: {str(e)}"
-        }, indent=2)
-    
+        bundle_json = json.dumps(
+            {
+                "bundle_id": bundle.get("bundle_id", bundle_id),
+                "timestamp": bundle.get("timestamp", ""),
+                "error": f"Could not serialize full bundle data: {str(e)}",
+            },
+            indent=2,
+        )
+
     return Response(
         content=bundle_json,
         media_type="application/json",
-        headers={"Content-Disposition": f"attachment; filename=bundle_{bundle_id}.json"}
+        headers={"Content-Disposition": f"attachment; filename=bundle_{bundle_id}.json"},
     )
 
 
@@ -825,9 +819,9 @@ def get_pov_detail(pov_id: str) -> Dict[str, Any]:
             return {
                 "task_id": task_data["task_id"],
                 "task_name": task_data.get("name") or task_data["project_name"],
-                "pov": pov
+                "pov": pov,
             }
-    
+
     raise HTTPException(status_code=404, detail="PoV not found")
 
 
@@ -840,9 +834,9 @@ def get_patch_detail(patch_id: str) -> Dict[str, Any]:
             return {
                 "task_id": task_data["task_id"],
                 "task_name": task_data.get("name") or task_data["project_name"],
-                "patch": patch
+                "patch": patch,
             }
-    
+
     raise HTTPException(status_code=404, detail="Patch not found")
 
 
@@ -855,9 +849,9 @@ def get_bundle_detail(bundle_id: str) -> Dict[str, Any]:
             return {
                 "task_id": task_data["task_id"],
                 "task_name": task_data.get("name") or task_data["project_name"],
-                "bundle": bundle
+                "bundle": bundle,
             }
-    
+
     raise HTTPException(status_code=404, detail="Bundle not found")
 
 
@@ -868,12 +862,14 @@ def get_all_povs() -> List[Dict[str, Any]]:
     all_povs = []
     for task_data in tasks_storage.values():
         for pov in task_data.get("povs", []):
-            all_povs.append({
-                "task_id": task_data["task_id"],
-                "task_name": task_data.get("name") or task_data["project_name"],
-                "pov": pov
-            })
-    
+            all_povs.append(
+                {
+                    "task_id": task_data["task_id"],
+                    "task_name": task_data.get("name") or task_data["project_name"],
+                    "pov": pov,
+                }
+            )
+
     # Sort by timestamp descending
     all_povs.sort(key=lambda x: x["pov"].get("timestamp", ""), reverse=True)
     return all_povs
@@ -885,12 +881,14 @@ def get_all_patches() -> List[Dict[str, Any]]:
     all_patches = []
     for task_data in tasks_storage.values():
         for patch in task_data.get("patches", []):
-            all_patches.append({
-                "task_id": task_data["task_id"],
-                "task_name": task_data.get("name") or task_data["project_name"],
-                "patch": patch
-            })
-    
+            all_patches.append(
+                {
+                    "task_id": task_data["task_id"],
+                    "task_name": task_data.get("name") or task_data["project_name"],
+                    "patch": patch,
+                }
+            )
+
     # Sort by timestamp descending
     all_patches.sort(key=lambda x: x["patch"].get("timestamp", ""), reverse=True)
     return all_patches
