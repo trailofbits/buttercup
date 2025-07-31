@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
 
 # Default target
 help:
@@ -17,13 +17,16 @@ help:
 	@echo "  deploy-azure      - Deploy to production AKS environment"
 	@echo ""
 	@echo "Status:"
-	@echo "  status            - Check the status of the deployment"
+	@echo "  status              - Check the status of the deployment"
+	@echo "  crs-instance-id     - Get the CRS instance ID"
+	@echo "  download-artifacts  - Download submitted artifacts from the CRS"
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
 	@echo "  send-libpng-task  - Run libpng task"
 	@echo ""
 	@echo "Development:"
+	@echo "  install-cscope    - Install cscope tool"
 	@echo "  lint              - Lint all Python code"
 	@echo "  lint-component    - Lint specific component (e.g., make lint-component COMPONENT=orchestrator)"
 	@echo ""
@@ -116,6 +119,14 @@ status:
 	@kubectl get services -n $${BUTTERCUP_NAMESPACE:-crs}
 	@make --no-print-directory check-crs
 
+download-artifacts:
+	@echo "Downloading artifacts from the CRS..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	./scripts/download_artifacts.sh
+
 # Testing targets
 send-integration-task:
 	@echo "Running integration test task..."
@@ -155,7 +166,7 @@ lint-component:
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "program-model" ]; then \
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ]; then \
 		cd $(COMPONENT) && uv run mypy; \
 	fi
 
@@ -183,3 +194,8 @@ clean-local:
 	@echo "Cleaning up local environment..."
 	minikube delete || true
 	rm -f deployment/env
+
+# Additional targets migrated from justfile
+install-cscope:
+	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
+
