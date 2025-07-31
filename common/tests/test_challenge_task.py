@@ -1,6 +1,7 @@
 from pathlib import Path
 import pytest
 from unittest.mock import MagicMock, patch
+from dirty_equals import IsStr
 import subprocess
 import os
 import base64
@@ -159,7 +160,15 @@ def test_build_image(challenge_task: ChallengeTask, mock_subprocess):
 
     # Verify the command and working directory
     args, kwargs = mock_subprocess.call_args
-    assert args[0] == ["python", "infra/helper.py", "build_image", "--no-pull", "example_project"]
+    assert args[0] == [
+        "python",
+        "infra/helper.py",
+        "build_image",
+        "--no-pull",
+        "--architecture",
+        IsStr,
+        "example_project",
+    ]
     assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
 
     # Verify output was read
@@ -181,6 +190,8 @@ def test_build_fuzzers(challenge_task: ChallengeTask, mock_subprocess):
         "python",
         "infra/helper.py",
         "build_fuzzers",
+        "--architecture",
+        IsStr,
         "--engine",
         "libfuzzer",
         "--sanitizer",
@@ -202,6 +213,8 @@ def test_check_build(challenge_task: ChallengeTask, mock_subprocess):
         "python",
         "infra/helper.py",
         "check_build",
+        "--architecture",
+        IsStr,
         "--engine",
         "libfuzzer",
         "--sanitizer",
@@ -222,7 +235,15 @@ def test_reproduce_pov(challenge_task: ChallengeTask, mock_subprocess):
     assert result.did_crash() is False
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
-    assert args[0][:-1] == ["python", "infra/helper.py", "reproduce", "example_project", "fuzz_target"]
+    assert args[0][:-1] == [
+        "python",
+        "infra/helper.py",
+        "reproduce",
+        "--architecture",
+        IsStr,
+        "example_project",
+        "fuzz_target",
+    ]
     assert args[0][-1].endswith("/crash-sample")
     assert kwargs["cwd"] == challenge_task.task_dir / challenge_task.get_oss_fuzz_subpath()
 
@@ -270,7 +291,15 @@ def test_build_image_custom_python(challenge_task_custom_python: ChallengeTask, 
     assert result.success is True
     mock_subprocess.assert_called_once()
     args, kwargs = mock_subprocess.call_args
-    assert args[0] == ["/usr/bin/python3", "infra/helper.py", "build_image", "--no-pull", "example_project"]
+    assert args[0] == [
+        "/usr/bin/python3",
+        "infra/helper.py",
+        "build_image",
+        "--no-pull",
+        "--architecture",
+        IsStr,
+        "example_project",
+    ]
     assert kwargs["cwd"] == challenge_task_custom_python.task_dir / challenge_task_custom_python.get_oss_fuzz_subpath()
 
 
@@ -288,6 +317,8 @@ def test_build_fuzzers_custom_python(challenge_task_custom_python: ChallengeTask
         "/usr/bin/python3",
         "infra/helper.py",
         "build_fuzzers",
+        "--architecture",
+        IsStr,
         "--engine",
         "libfuzzer",
         "--sanitizer",
