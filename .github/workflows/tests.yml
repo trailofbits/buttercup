@@ -10,7 +10,8 @@ jobs:
   test:
     strategy:
       matrix:
-        component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
+        component:
+          [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
         python:
           - "3.12"
         # TODO: Add integration tests back in
@@ -49,8 +50,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y codequery just ripgrep git-lfs
-          just install-cscope
+          sudo apt-get install -y codequery ripgrep git-lfs
+          make install-cscope
 
       - name: Prepare environment
         run: |
