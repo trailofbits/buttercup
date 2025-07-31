@@ -10,9 +10,6 @@ from pathlib import Path
 
 class BuilderSettings(BaseModel):
     allow_pull: Annotated[bool, Field(default=True, description="Allow pull")]
-    base_image_url: Annotated[
-        str, Field(default="gcr.io/oss-fuzz", description="Base image URL")
-    ]
 
 
 class WorkerSettings(BaseModel):

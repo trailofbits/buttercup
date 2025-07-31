@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 from dataclasses import dataclass, field
 from buttercup.common.queues import (
@@ -33,9 +32,6 @@ class ProgramModel:
     wdir: Path | None = None
     python: str | None = None
     allow_pull: bool = True
-    base_image_url: str = field(
-        default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz")
-    )
 
     def __post_init__(self) -> None:
         """Post-initialization setup."""

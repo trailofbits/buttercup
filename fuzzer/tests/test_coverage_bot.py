@@ -24,7 +24,6 @@ def coverage_bot(redis_client):
         wdir="/tmp",
         python="python3",
         allow_pull=True,
-        base_image_url="test_image",
         llvm_cov_tool="llvm-cov",
         sample_size=10,
     )
@@ -38,7 +37,6 @@ def test_sample_corpus_with_zero_sample_size(redis_client):
         wdir="/tmp",
         python="python3",
         allow_pull=True,
-        base_image_url="test_image",
         llvm_cov_tool="llvm-cov",
         sample_size=0,
     )
@@ -72,7 +70,6 @@ def test_sample_corpus_with_positive_sample_size(redis_client):
         wdir="/tmp",
         python="python3",
         allow_pull=True,
-        base_image_url="test_image",
         llvm_cov_tool="llvm-cov",
         sample_size=3,
     )
@@ -122,7 +119,6 @@ def test_sample_corpus_with_fewer_files_than_sample_size(redis_client):
         wdir="/tmp",
         python="python3",
         allow_pull=True,
-        base_image_url="test_image",
         llvm_cov_tool="llvm-cov",
         sample_size=10,
     )
