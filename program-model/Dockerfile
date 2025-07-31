@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:24.04@sha256:f8b860e4f9036f2694571770da292642eebcc4c2ea0c70a1a9244c2a1d436cd9
+ARG BASE_IMAGE=ubuntu:24.04
 
 FROM $BASE_IMAGE AS base
 RUN apt-get update && apt-get install -y software-properties-common

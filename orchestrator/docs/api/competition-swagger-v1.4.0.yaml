@@ -2,9 +2,11 @@ definitions:
   types.Architecture:
     enum:
       - x86_64
+      - aarch64
     type: string
     x-enum-varnames:
       - ArchitectureX8664
+      - ArchitectureAArch64
   types.Assessment:
     enum:
       - correct
