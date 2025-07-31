@@ -53,7 +53,6 @@ main() {
     install_helm
     install_minikube
     install_git_lfs
-    install_just
     setup_config
     
     verify_setup

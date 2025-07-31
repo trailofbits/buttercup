@@ -290,10 +290,10 @@ make lint-component COMPONENT=orchestrator
 
 ```bash
 # Lint Python code
-just lint-python-all
+make lint
 
 # Run specific component tests
-just lint-python orchestrator
+make lint-component COMPONENT=orchestrator
 
 # Test manually
 ./orchestrator/scripts/task_upstream_libpng.sh

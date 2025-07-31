@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
 
 # Default target
 help:
@@ -24,6 +24,7 @@ help:
 	@echo "  send-libpng-task  - Run libpng task"
 	@echo ""
 	@echo "Development:"
+	@echo "  install-cscope    - Install cscope tool"
 	@echo "  lint              - Lint all Python code"
 	@echo "  lint-component    - Lint specific component (e.g., make lint-component COMPONENT=orchestrator)"
 	@echo ""
@@ -183,3 +184,8 @@ clean-local:
 	@echo "Cleaning up local environment..."
 	minikube delete || true
 	rm -f deployment/env
+
+# Additional targets migrated from justfile
+install-cscope:
+	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
+

@@ -63,8 +63,8 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ### Development
 ```bash
 # Lint Python code
-just lint-python-all
-just lint-python <component>
+make lint
+make lint-component COMPONENT=<component>
 
 # Docker development
 docker-compose up -d
