@@ -71,36 +71,17 @@ make lint
 make lint-component COMPONENT=orchestrator
 
 # Run test task
-make send-integration-task
+make send-libpng-task
 ```
 
-**Alternative manual commands:**
-
-```bash
-# Lint Python code
-just lint-python-all
-
-# Run specific component tests
-just lint-python orchestrator
-
-# Test manually
-./orchestrator/scripts/task_upstream_libpng.sh
-./orchestrator/scripts/challenge.sh
-```
 
 ### Development Tools
 
-#### Docker Development
-
-```bash
-# Build and run with Docker Compose (only for local development and quick testing)
-docker-compose up -d
-```
 
 #### Kubernetes Development
 
 ```bash
-# Port forward for local access
+# Port forward for local access  
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
 # View logs
@@ -109,6 +90,8 @@ kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
 # Debug pods
 kubectl exec -it -n crs <pod-name> -- /bin/bash
 ```
+
+Note: For Docker Compose development, you should first `cd deployment/docker-compose` before running docker-compose commands.
 
 ## Component Architecture
 
@@ -155,25 +138,6 @@ Each component should include:
 4. **Lint your code** using `make lint` or component-specific linting
 5. **Create a pull request** with a clear description of your changes
 
-### Running Component Tests
-
-For individual component testing:
-
-```bash
-# Test specific components
-cd <component> && uv run pytest
-
-# Test with coverage
-cd <component> && uv run pytest --cov
-
-# Common component test commands:
-cd common && uv run pytest
-cd orchestrator && uv run pytest
-cd fuzzer && uv run pytest
-cd patcher && uv run pytest
-cd program-model && uv run pytest
-cd seed-gen && uv run pytest
-```
 
 ### Python Package Management
 

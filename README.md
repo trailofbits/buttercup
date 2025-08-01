@@ -7,14 +7,14 @@
 ### Minimum Requirements
 
 - **CPU:** 8 cores
-- **Memory:** 64 GB RAM  
-- **Storage:** 100 GB available disk space
+- **Memory:** 16 GB RAM (10 GB for basic system)
+- **Storage:** 50 GB available disk space
 - **Network:** Stable internet connection for downloading dependencies
 
 ### Supported Systems
 
 - **Linux x86_64** (fully supported)
-- **ARM64** (in development)
+- **ARM64** (only for upstream Google OSS-Fuzz projects, not for AIxCC challenges)
 
 ### Required System Packages
 
@@ -38,7 +38,6 @@ Buttercup CRS works with:
 - **C source code repositories** that are OSS-Fuzz compatible
 - **Java source code repositories** that are OSS-Fuzz compatible
 - Projects that build successfully and have existing fuzzing harnesses
-- Open source projects with standard build systems (Make, CMake, Maven, Gradle)
 
 ## Quick Start
 
@@ -82,7 +81,7 @@ When deployment is successful, you should see all pods in "Running" status.
 3. **Test the system:**
 
 ```bash
-make send-integration-task
+make send-libpng-task
 ```
 
 ## Using the GUI
@@ -105,8 +104,6 @@ Navigate to `http://localhost:31323` in your web browser.
 
 - **System Status:** View the status of all system components
 - **Task Management:** Monitor active vulnerability discovery and patching tasks
-- **Results Dashboard:** View discovered vulnerabilities and generated patches
-- **Log Viewer:** Access system logs and debugging information
 
 ## Creating and Running Challenges
 
@@ -122,22 +119,13 @@ kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 ./orchestrator/scripts/challenge.sh
 ```
 
-### Creating Custom Challenges
+### Pre-defined Challenges
 
-1. **Prepare your target repository:**
-   - Ensure it's OSS-Fuzz compatible
-   - Has working build system
-   - Includes fuzzing harnesses
+Use the available pre-defined challenges:
 
-2. **Create task configuration:**
-   - Place repository in the appropriate format
-   - Configure build and fuzzing parameters
-
-3. **Submit to CRS:**
-   - Use the task submission scripts in `orchestrator/scripts/`
-   - Monitor progress through the GUI
-
-For detailed challenge creation instructions, see the [orchestrator documentation](orchestrator/README.md).
+```bash
+make send-libpng-task
+```
 
 ## Common Operations
 
@@ -148,6 +136,8 @@ make status
 ```
 
 ### Accessing Logs
+
+For system logs and monitoring, use SigNoz if configured:
 
 ```bash
 # View all pods
