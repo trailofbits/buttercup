@@ -10,11 +10,7 @@ on:
       trigger_task_data:
         description: "competition-api webhook/trigger_task data (JSON)"
         required: true
-        default: "{\"challenge_repo_url\": \"git@github.com:tob-challenges/example-libpng.git\", \"challenge_repo_base_ref\": \"0cc367aaeaac3f888f255cee5d394968996f736e\", \"challenge_repo_head_ref\": \"fdacd5a1dcff42175117d674b0fda9f8a005ae88\", \"fuzz_tooling_url\": \"git@github.com:tob-challenges/oss-fuzz-aixcc.git\", \"fuzz_tooling_ref\": \"d5fbd68fca66e6fa4f05899170d24e572b01853d\", \"fuzz_tooling_project_name\": \"libpng\", \"duration\": 7200}"
-      fuzz_tooling_container_org:
-        description: "Org-part of the container image for the fuzz-tooling repo (default to aixcc-afc). Alternative is gcr.io/oss-fuzz"
-        required: false
-        default: ""
+        default: '{"challenge_repo_url": "git@github.com:tob-challenges/example-libpng.git", "challenge_repo_base_ref": "0cc367aaeaac3f888f255cee5d394968996f736e", "challenge_repo_head_ref": "fdacd5a1dcff42175117d674b0fda9f8a005ae88", "fuzz_tooling_url": "git@github.com:tob-challenges/oss-fuzz-aixcc.git", "fuzz_tooling_ref": "d5fbd68fca66e6fa4f05899170d24e572b01853d", "fuzz_tooling_project_name": "libpng", "duration": 7200}'
       build_timeout:
         description: "Timeout for fuzzer build in minutes"
         required: false
@@ -53,14 +49,7 @@ permissions:
   packages: write
 
 jobs:
-  build-and-push:
-    uses: ./.github/workflows/docker.yml
-    with:
-      suffix: "-${{ github.run_number }}"
-      push: true
-
   integration:
-    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,9 +81,7 @@ jobs:
           sed -i "s|LANGFUSE_PUBLIC_KEY=.*|LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}|" env
           sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
           sed -i "s|GHCR_AUTH=.*|GHCR_AUTH=$(echo "USERNAME:${{ secrets.GHCR_TOKEN }}" | base64 --wrap=0)|" env
-          sed -i "s|DOCKER_USERNAME=.*|DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}|" env
-          sed -i "s|DOCKER_PAT=.*|DOCKER_PAT=${{ secrets.DOCKER_PAT }}|" env
-          sed -i "s|SCANTRON_GITHUB_PAT=.*|SCANTRON_GITHUB_PAT=${{ secrets.SCANTRON_GITHUB_PAT }}|" env
+          sed -i "s|OTEL_ENDPOINT=.*|OTEL_ENDPOINT=${{ secrets.OTEL_ENDPOINT }}|" env
 
         working-directory: deployment
 
@@ -104,22 +91,9 @@ jobs:
           echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
 
       - name: Run CRS
-        run: make up
-        working-directory: deployment
+        run: make deploy-local
 
-      - name: Wait for pods to be ready
-        run: |
-          kubectl get pods -n $BUTTERCUP_NAMESPACE
-          while ! kubectl wait --for=condition=ready pod -l app=competition-api -n $BUTTERCUP_NAMESPACE --timeout=10s; do
-            echo "Waiting for competition-api pod to be ready..."
-            echo "--------------------------------"
-            kubectl get all,cm,secret,ing -n $BUTTERCUP_NAMESPACE || true
-            kubectl describe pod -n $BUTTERCUP_NAMESPACE -l app=task-server || true
-            echo "--------------------------------"
-            sleep 3
-          done
-
-      - name: Submit a custom task to the CRS
+      - name: Submit example-libpng task to the CRS
         if: github.event_name == 'workflow_dispatch'
         run: |
           kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
@@ -132,10 +106,7 @@ jobs:
       - name: Submit example-libpng task to the CRS
         if: github.event_name != 'workflow_dispatch'
         run: |
-          kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
-          sleep 5
-          ./orchestrator/scripts/task_crs.sh
-          sleep 5
+          make send-libpng-task
 
       - name: Wait for fuzzer build processing
         timeout-minutes: ${{ fromJSON(env.FUZZER_BUILD_TIMEOUT) }}
@@ -220,24 +191,26 @@ jobs:
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "Matching SARIF submission response"; do
             sleep 60
           done
-      
-      - name: Collect logs
-        run: |
-          ./collect-logs.sh
-          mkdir -p docker_logs
-          cp -rv crs_pod_logs_* docker_logs
-        if: always()
-        working-directory: deployment
+
+      # Disable them for now because they can contain sensitive information
+      # - name: Collect logs
+      #   run: |
+      #     ./collect-logs.sh
+      #     mkdir -p docker_logs
+      #     cp -rv crs_pod_logs_* docker_logs
+      #   if: always()
+      #   working-directory: deployment
 
       - name: Turn off CRS
-        run: make down
-        working-directory: deployment
+        run: |
+          make undeploy
+          make clean-local
         if: always()
 
-      - name: Upload Docker logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-logs
-          path: deployment/docker_logs/
-          retention-days: 4
-        if: always()
+      # - name: Upload Docker logs
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: docker-logs
+      #     path: deployment/docker_logs/
+      #     retention-days: 4
+      #   if: always()
