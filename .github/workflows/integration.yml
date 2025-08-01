@@ -91,7 +91,7 @@ jobs:
       - name: Submit custom task to the CRS
         if: github.event_name == 'workflow_dispatch'
         run: |
-          kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
+          kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-ui 31323:1323 &
           sleep 5
           ./orchestrator/scripts/custom_task_crs.sh "$DATA"
           sleep 5
@@ -101,7 +101,10 @@ jobs:
       - name: Submit example-libpng task to the CRS
         if: github.event_name != 'workflow_dispatch'
         run: |
-          make send-libpng-task
+          kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-ui 31323:1323 &
+          sleep 5
+          ./orchestrator/scripts/task_crs.sh
+          sleep 5
 
       - name: Wait for fuzzer build processing
         timeout-minutes: ${{ fromJSON(env.FUZZER_BUILD_TIMEOUT) }}
@@ -160,7 +163,7 @@ jobs:
             pkill -f "kubectl port-forward.*buttercup-competition-api" || true
 
             # Start port forwarding in background
-            kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
+            kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-ui 31323:1323 &
 
             # Give port-forward time to establish
             sleep 5
