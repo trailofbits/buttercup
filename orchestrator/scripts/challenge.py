@@ -548,41 +548,32 @@ def single(challenge_name: str, duration: int) -> None:
     time.sleep(duration)
 
 
-def usage() -> None:
-    """Print usage information."""
-    print("Usage: python challenge.py [sim1|sim2|sim3|all|testing|single <name> <duration>]\n")
-
-    print("sim1          = Simulate round 1.")
-    print("sim2          = Simulate round 2.")
-    print("sim3          = Simulate round 3.")
-    print("all           = Run one challenge from each repository.")
-    print("testing       = Run all challenges briefly for testing.")
-    print("single <name> <duration> = Run one challenge for a given duration in seconds.\n")
-
-    print("name = The name of the challenge to run:")
-    print("\tcc_full_01 | cc_delta_02 | cc_delta_03")
-    print("\tcu_full_01 | cu_delta_01")
-    print("\tdb_full_01")
-    print("\tex_delta_01")
-    print("\tfp_full_01 | fp_delta_01")
-    print("\tintegration_test_delta_01 | integration_test_unharnessed_delta_01")
-    print("\tipf_full_01")
-    print("\tlo_full_01")
-    print("\tlp_delta_01")
-    print("\tlx_full_01 | lx_delta_01 | lx_ex1_delta_01 | lx_delta_02")
-    print("\ts2n_full_01")
-    print("\tsq_full_01 | sq_delta_01 | sq_delta_02 | sq_delta_03")
-    print("\ttk_full_01 | tk_delta_01 | tk_delta_02 | tk_delta_03 | tk_delta_04 | tk_delta_05")
-    print("\tzk_full_01 | zk_delta_01 | zk_ex1_delta_01 | zk_delta_02\n")
-
-    print("\tlx_full_updated -> using the most recent version of helper.py")
-
-
 def main() -> None:
     """Main function."""
+    epilog_text = """
+name = The name of the challenge to run:
+  cc_full_01 | cc_delta_02 | cc_delta_03
+  cu_full_01 | cu_delta_01
+  db_full_01
+  ex_delta_01
+  fp_full_01 | fp_delta_01
+  integration_test_delta_01 | integration_test_unharnessed_delta_01
+  ipf_full_01
+  lo_full_01
+  lp_delta_01
+  lx_full_01 | lx_delta_01 | lx_ex1_delta_01 | lx_delta_02
+  s2n_full_01
+  sq_full_01 | sq_delta_01 | sq_delta_02 | sq_delta_03
+  tk_full_01 | tk_delta_01 | tk_delta_02 | tk_delta_03 | tk_delta_04 | tk_delta_05
+  zk_full_01 | zk_delta_01 | zk_ex1_delta_01 | zk_delta_02
+
+  lx_full_updated -> using the most recent version of helper.py
+"""
+
     parser = argparse.ArgumentParser(
         description="Challenge submission utility",
-        usage="python challenge.py [sim1|sim2|sim3|all|testing|single <name> <duration>]",
+        epilog=epilog_text,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
@@ -611,7 +602,7 @@ def main() -> None:
     if hasattr(args, "func"):
         args.func(args)
     else:
-        usage()
+        parser.print_help()
         sys.exit(1)
 
 
