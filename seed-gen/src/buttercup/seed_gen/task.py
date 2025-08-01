@@ -30,6 +30,30 @@ from buttercup.seed_gen.utils import extract_code
 logger = logging.getLogger(__name__)
 
 
+class BaseTaskState(BaseModel):
+    """Base state for all tasks."""
+
+    harness: "HarnessInfo" = Field(description="Harness info")
+    messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
+    retrieved_context: Annotated[dict[str, "ToolCallResult"], operator.or_] = Field(
+        description="Context retrieved by tools, keyed by tool call", default_factory=dict
+    )
+    generated_functions: str = Field(description="The generated seed functions", default="")
+    context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
+    task: "Task" = Field(description="The task instance")
+    output_dir: Path = Field(description="Directory to save generated seeds")
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def format_retrieved_context(self) -> str:
+        """Format retrieved context for prompt"""
+        context = ""
+        if self.retrieved_context:
+            for call_result in self.retrieved_context.values():
+                context += f"{call_result}\n"
+        return context
+
+
 class TaskName(str, Enum):
     SEED_INIT = "seed-init"
     SEED_EXPLORE = "seed-explore"
@@ -236,7 +260,7 @@ class Task:
         self,
         system_prompt: str,
         user_prompt: str,
-        state: "BaseTaskState",
+        state: BaseTaskState,
         prompt_vars: dict[str, Any],
     ) -> Command:
         """Base method for getting context that can be used by different tasks"""
@@ -254,11 +278,11 @@ class Task:
         )
         return cmd
 
-    def _continue_context_retrieval(self, state: "BaseTaskState") -> bool:
+    def _continue_context_retrieval(self, state: BaseTaskState) -> bool:
         """Determine if we should continue the context retrieval iteration"""
         return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
 
-    def _execute_python_funcs(self, state: "BaseTaskState") -> None:
+    def _execute_python_funcs(self, state: BaseTaskState) -> None:
         """Execute python functions"""
         logger.info("Executing python functions")
         sandbox_exec_funcs(state.generated_functions, state.output_dir)
@@ -299,7 +323,7 @@ class Task:
     @staticmethod
     def _get_function_definition(
         function_name: str,
-        state: "BaseTaskState",
+        state: BaseTaskState,
         tool_call_id: str,
     ) -> Command:
         """Implementation of get_function_definition tool"""
@@ -349,7 +373,7 @@ class Task:
     @staticmethod
     def _get_type_definition(
         type_name: str,
-        state: "BaseTaskState",
+        state: BaseTaskState,
         tool_call_id: str,
     ) -> Command:
         """Implementation of get_type_definition tool"""
@@ -400,7 +424,7 @@ class Task:
     @staticmethod
     def _cat(
         file_path: str,
-        state: "BaseTaskState",
+        state: BaseTaskState,
         tool_call_id: str,
     ) -> Command:
         """Implementation of cat tool"""
@@ -452,7 +476,7 @@ class Task:
     def _get_callers(
         function_name: str,
         file_path: str,
-        state: "BaseTaskState",
+        state: BaseTaskState,
         tool_call_id: str,
     ) -> Command:
         logger.info("Tool call: get_callers for %s in %s", function_name, file_path)
@@ -507,7 +531,7 @@ class Task:
 @tool
 def get_function_definition(
     function_name: str,
-    state: Annotated["BaseTaskState", InjectedState],
+    state: Annotated[BaseTaskState, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Retrieves the source code definition of a function from the codebase.
@@ -525,7 +549,7 @@ def get_function_definition(
 @tool
 def get_type_definition(
     type_name: str,
-    state: Annotated["BaseTaskState", InjectedState],
+    state: Annotated[BaseTaskState, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Retrieves the source code definition of a type from the codebase.
@@ -543,7 +567,7 @@ def get_type_definition(
 @tool
 def cat(
     file_path: str,
-    state: Annotated["BaseTaskState", InjectedState],
+    state: Annotated[BaseTaskState, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Read the contents of a file. Use this tool selectively as it could return a large amount of text.
@@ -562,7 +586,7 @@ def cat(
 def get_callers(
     function_name: str,
     file_path: str,
-    state: Annotated["BaseTaskState", InjectedState],
+    state: Annotated[BaseTaskState, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Get the callers of a function.
@@ -577,7 +601,7 @@ def get_callers(
 @tool
 def batch_tool(
     tool_calls: BatchToolCalls,
-    state: Annotated["BaseTaskState", InjectedState],
+    state: Annotated[BaseTaskState, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Execute multiple tool calls in a single invocation.
@@ -644,27 +668,3 @@ def batch_tool(
             "retrieved_context": combined_context,
         }
     )
-
-
-class BaseTaskState(BaseModel):
-    """Base state for all tasks."""
-
-    harness: HarnessInfo = Field(description="Harness info")
-    messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
-    retrieved_context: Annotated[dict[str, ToolCallResult], operator.or_] = Field(
-        description="Context retrieved by tools, keyed by tool call", default_factory=dict
-    )
-    generated_functions: str = Field(description="The generated seed functions", default="")
-    context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
-    task: Task = Field(description="The task instance")
-    output_dir: Path = Field(description="Directory to save generated seeds")
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    def format_retrieved_context(self) -> str:
-        """Format retrieved context for prompt"""
-        context = ""
-        if self.retrieved_context:
-            for call_result in self.retrieved_context.values():
-                context += f"{call_result}\n"
-        return context
