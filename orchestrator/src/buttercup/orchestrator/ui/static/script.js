@@ -16,6 +16,7 @@ const API_BASE = '';
 // DOM elements
 const elements = {
     submitTaskBtn: document.getElementById('submit-task-btn'),
+    submitExampleBtn: document.getElementById('submit-example-btn'),
     refreshBtn: document.getElementById('refresh-btn'),
     taskModal: document.getElementById('task-modal'),
     detailModal: document.getElementById('detail-modal'),
@@ -51,6 +52,8 @@ function setupEventListeners() {
     elements.submitTaskBtn.addEventListener('click', () => {
         elements.taskModal.style.display = 'block';
     });
+    
+    elements.submitExampleBtn.addEventListener('click', handleExampleTaskSubmission);
     
     elements.refreshBtn.addEventListener('click', loadDashboard);
     
@@ -408,6 +411,53 @@ function filterTasks() {
 }
 
 // Handle task submission
+// Handle example task submission
+async function handleExampleTaskSubmission() {
+    const exampleTaskData = {
+        challenge_repo_url: "https://github.com/tob-challenges/example-libpng",
+        challenge_repo_base_ref: "5bf8da2d7953974e5dfbd778429c3affd461f51a",
+        challenge_repo_head_ref: "challenges/lp-delta-01",
+        fuzz_tooling_url: "https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref: "master",
+        fuzz_tooling_project_name: "libpng",
+        duration: 1800
+    };
+    
+    // Get submit button and show loading state
+    const submitBtn = elements.submitExampleBtn;
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/webhook/trigger_task`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(exampleTaskData)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showNotification('Example libpng task submitted successfully!', 'success');
+            
+            // Refresh dashboard after a short delay
+            setTimeout(loadDashboard, 1000);
+        } else {
+            const error = await response.json();
+            showNotification(`Error: ${error.message || 'Failed to submit example task'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting example task:', error);
+        showNotification('Network error occurred', 'error');
+    } finally {
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
 async function handleTaskSubmission(event) {
     event.preventDefault();
     

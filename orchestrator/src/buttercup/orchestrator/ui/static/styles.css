@@ -280,6 +280,15 @@ body {
     background-color: #5a6268;
 }
 
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
 /* Modal styles */
 .modal {
     display: none;
