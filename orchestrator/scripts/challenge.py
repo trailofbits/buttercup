@@ -339,7 +339,7 @@ def print_request(req, file=sys.stderr):
     print("\n")
 
 
-def submit_task(task_name: str, overrides: list[tuple[str, Any]] = []) -> None:
+def submit_task(task_name: str, **kwargs: Any) -> None:
     """Submit a task to the orchestrator."""
     if task_name not in CHALLENGE_MAP:
         print(f"Error: Unknown task '{task_name}'")
@@ -347,8 +347,8 @@ def submit_task(task_name: str, overrides: list[tuple[str, Any]] = []) -> None:
 
     task_data = CHALLENGE_MAP[task_name].copy()
 
-    for override in overrides:
-        task_data[override[0]] = override[1]
+    for key, value in kwargs.items():
+        task_data[key] = value
 
     try:
         url = "http://localhost:31323/webhook/trigger_task"
@@ -371,8 +371,8 @@ def sim1() -> None:
     """Simulate round 1."""
     delta_set_duration = 48 * HOURS
 
-    submit_task("zk_ex1_delta_01", [("duration", delta_set_duration)])
-    submit_task("lx_ex1_delta_01", [("duration", delta_set_duration)])
+    submit_task("zk_ex1_delta_01", duration=delta_set_duration)
+    submit_task("lx_ex1_delta_01", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
@@ -382,33 +382,33 @@ def sim2() -> None:
     full_set_duration = 24 * HOURS
     delta_set_duration = 8 * HOURS
 
-    submit_task("fp_full_01", [("duration", full_set_duration)])
-    submit_task("lx_full_01", [("duration", full_set_duration)])
-    submit_task("sq_full_01", [("duration", full_set_duration)])
+    submit_task("fp_full_01", duration=full_set_duration)
+    submit_task("lx_full_01", duration=full_set_duration)
+    submit_task("sq_full_01", duration=full_set_duration)
 
     time.sleep(full_set_duration)
 
-    submit_task("cc_full_01", [("duration", full_set_duration)])
-    submit_task("zk_full_01", [("duration", full_set_duration)])
-    submit_task("db_full_01", [("duration", full_set_duration)])
+    submit_task("cc_full_01", duration=full_set_duration)
+    submit_task("zk_full_01", duration=full_set_duration)
+    submit_task("db_full_01", duration=full_set_duration)
 
     time.sleep(full_set_duration)
 
-    submit_task("fp_delta_01", [("duration", delta_set_duration)])
-    submit_task("lx_delta_02", [("duration", delta_set_duration)])
-    submit_task("integration_test_delta_01", [("duration", delta_set_duration)])
-    submit_task("lp_delta_01", [("duration", delta_set_duration)])
+    submit_task("fp_delta_01", duration=delta_set_duration)
+    submit_task("lx_delta_02", duration=delta_set_duration)
+    submit_task("integration_test_delta_01", duration=delta_set_duration)
+    submit_task("lp_delta_01", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
-    submit_task("sq_delta_01", [("duration", delta_set_duration)])
-    submit_task("lx_delta_01", [("duration", delta_set_duration)])
+    submit_task("sq_delta_01", duration=delta_set_duration)
+    submit_task("lx_delta_01", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
-    submit_task("zk_delta_01", [("duration", delta_set_duration)])
-    submit_task("cc_delta_02", [("duration", delta_set_duration)])
-    submit_task("cc_delta_03", [("duration", delta_set_duration)])
+    submit_task("zk_delta_01", duration=delta_set_duration)
+    submit_task("cc_delta_02", duration=delta_set_duration)
+    submit_task("cc_delta_03", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
@@ -418,57 +418,57 @@ def sim3() -> None:
     full_set_duration = 12 * HOURS
     delta_set_duration = 6 * HOURS
 
-    submit_task("fp_full_01", [("duration", full_set_duration)])
-    submit_task("sq_full_01", [("duration", full_set_duration)])
-    submit_task("db_full_01", [("duration", full_set_duration)])
-    submit_task("lo_full_01", [("duration", full_set_duration)])
-    submit_task("cu_full_01", [("duration", full_set_duration)])
+    submit_task("fp_full_01", duration=full_set_duration)
+    submit_task("sq_full_01", duration=full_set_duration)
+    submit_task("db_full_01", duration=full_set_duration)
+    submit_task("lo_full_01", duration=full_set_duration)
+    submit_task("cu_full_01", duration=full_set_duration)
 
     time.sleep(full_set_duration)
 
-    submit_task("cc_full_01", [("duration", full_set_duration)])
-    submit_task("zk_full_01", [("duration", full_set_duration)])
-    submit_task("tk_full_01", [("duration", full_set_duration)])
+    submit_task("cc_full_01", duration=full_set_duration)
+    submit_task("zk_full_01", duration=full_set_duration)
+    submit_task("tk_full_01", duration=full_set_duration)
 
     time.sleep(full_set_duration)
 
-    submit_task("fp_delta_01", [("duration", delta_set_duration)])
-    submit_task("integration_test_delta_01", [("duration", delta_set_duration)])
-    submit_task("lp_delta_01", [("duration", delta_set_duration)])
-    submit_task("cu_delta_01", [("duration", delta_set_duration)])
-    submit_task("ex_delta_01", [("duration", delta_set_duration)])
+    submit_task("fp_delta_01", duration=delta_set_duration)
+    submit_task("integration_test_delta_01", duration=delta_set_duration)
+    submit_task("lp_delta_01", duration=delta_set_duration)
+    submit_task("cu_delta_01", duration=delta_set_duration)
+    submit_task("ex_delta_01", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
-    submit_task("sq_delta_01", [("duration", delta_set_duration)])
-    submit_task("sq_delta_02", [("duration", delta_set_duration)])
-    submit_task("sq_delta_03", [("duration", delta_set_duration)])
-    submit_task("lx_delta_01", [("duration", delta_set_duration)])
-    submit_task("lx_delta_02", [("duration", delta_set_duration)])
+    submit_task("sq_delta_01", duration=delta_set_duration)
+    submit_task("sq_delta_02", duration=delta_set_duration)
+    submit_task("sq_delta_03", duration=delta_set_duration)
+    submit_task("lx_delta_01", duration=delta_set_duration)
+    submit_task("lx_delta_02", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
-    submit_task("tk_delta_01", [("duration", delta_set_duration)])
-    submit_task("tk_delta_02", [("duration", delta_set_duration)])
-    submit_task("tk_delta_03", [("duration", delta_set_duration)])
-    submit_task("tk_delta_04", [("duration", delta_set_duration)])
-    submit_task("tk_delta_05", [("duration", delta_set_duration)])
+    submit_task("tk_delta_01", duration=delta_set_duration)
+    submit_task("tk_delta_02", duration=delta_set_duration)
+    submit_task("tk_delta_03", duration=delta_set_duration)
+    submit_task("tk_delta_04", duration=delta_set_duration)
+    submit_task("tk_delta_05", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
-    submit_task("zk_delta_01", [("duration", delta_set_duration)])
-    submit_task("zk_delta_02", [("duration", delta_set_duration)])
-    submit_task("cc_delta_02", [("duration", delta_set_duration)])
-    submit_task("cc_delta_03", [("duration", delta_set_duration)])
+    submit_task("zk_delta_01", duration=delta_set_duration)
+    submit_task("zk_delta_02", duration=delta_set_duration)
+    submit_task("cc_delta_02", duration=delta_set_duration)
+    submit_task("cc_delta_03", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
-    submit_task("ipf_full_01", [("duration", full_set_duration)])
-    submit_task("s2n_full_01", [("duration", full_set_duration)])
+    submit_task("ipf_full_01", duration=full_set_duration)
+    submit_task("s2n_full_01", duration=full_set_duration)
 
     time.sleep(full_set_duration)
 
-    submit_task("integration_test_unharnessed_delta_01", [("duration", delta_set_duration)])
+    submit_task("integration_test_unharnessed_delta_01", duration=delta_set_duration)
 
     time.sleep(delta_set_duration)
 
@@ -478,20 +478,20 @@ def all_challenges() -> None:
     full_set_duration = 12 * HOURS
     delta_set_duration = 6 * HOURS
 
-    submit_task("cc_full_01", [("duration", full_set_duration)])
-    submit_task("cu_full_01", [("duration", full_set_duration)])
-    submit_task("db_full_01", [("duration", full_set_duration)])
-    submit_task("ex_delta_01", [("duration", delta_set_duration)])
-    submit_task("fp_full_01", [("duration", full_set_duration)])
-    submit_task("integration_test_delta_01", [("duration", delta_set_duration)])
-    submit_task("ipf_full_01", [("duration", full_set_duration)])
-    submit_task("lo_full_01", [("duration", full_set_duration)])
-    submit_task("lp_delta_01", [("duration", delta_set_duration)])
-    submit_task("lx_full_01", [("duration", full_set_duration)])
-    submit_task("s2n_full_01", [("duration", full_set_duration)])
-    submit_task("sq_full_01", [("duration", full_set_duration)])
-    submit_task("tk_full_01", [("duration", full_set_duration)])
-    submit_task("zk_full_01", [("duration", full_set_duration)])
+    submit_task("cc_full_01", duration=full_set_duration)
+    submit_task("cu_full_01", duration=full_set_duration)
+    submit_task("db_full_01", duration=full_set_duration)
+    submit_task("ex_delta_01", duration=delta_set_duration)
+    submit_task("fp_full_01", duration=full_set_duration)
+    submit_task("integration_test_delta_01", duration=delta_set_duration)
+    submit_task("ipf_full_01", duration=full_set_duration)
+    submit_task("lo_full_01", duration=full_set_duration)
+    submit_task("lp_delta_01", duration=delta_set_duration)
+    submit_task("lx_full_01", duration=full_set_duration)
+    submit_task("s2n_full_01", duration=full_set_duration)
+    submit_task("sq_full_01", duration=full_set_duration)
+    submit_task("tk_full_01", duration=full_set_duration)
+    submit_task("zk_full_01", duration=full_set_duration)
 
 
 def testing() -> None:
@@ -537,13 +537,13 @@ def testing() -> None:
     ]
 
     for challenge_name, duration in challenges:
-        submit_task(challenge_name, [("duration", duration)])
+        submit_task(challenge_name, duration=duration)
         time.sleep(full_set_duration)
 
 
 def single(challenge_name: str, duration: int) -> None:
     """Run one challenge for a given duration in seconds."""
-    submit_task(challenge_name, [("duration", duration)])
+    submit_task(challenge_name, duration=duration)
     time.sleep(duration)
 
 
