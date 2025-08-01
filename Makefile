@@ -50,6 +50,10 @@ validate:
 # Deployment targets
 deploy:
 	@echo "Deploying to current environment..."
+	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
+		exit 1; \
+	fi
 	cd deployment && make up
 	make wait-crs
 
@@ -97,6 +101,10 @@ deploy-local:
 		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
 		exit 1; \
 	fi
+	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
+		exit 1; \
+	fi
 	cd deployment && make up
 	make crs-instance-id
 	make wait-crs
@@ -105,6 +113,10 @@ deploy-azure:
 	@echo "Deploying to production AKS environment..."
 	@if [ ! -f deployment/env ]; then \
 		echo "Error: Configuration file not found. Run 'make setup-azure' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
 	cd deployment && make up
