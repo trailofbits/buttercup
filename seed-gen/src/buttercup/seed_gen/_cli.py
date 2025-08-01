@@ -56,7 +56,7 @@ def command_process(settings: Settings) -> None:
     if not isinstance(command, ProcessCommand):
         return
 
-    command_outdir = command.output_dir
+    command_outdir = command.output_dir  # type: ignore[unreachable]
 
     init_telemetry("seed-gen")
     ro_challenge_task = ChallengeTask(read_only_task_dir=command.challenge_task_dir)
@@ -149,6 +149,6 @@ def main() -> None:
     )
     command = get_subcommand(settings)
     if isinstance(command, ProcessCommand):
-        command_process(settings)
+        command_process(settings)  # type: ignore[unreachable]
     else:
         command_server(settings)

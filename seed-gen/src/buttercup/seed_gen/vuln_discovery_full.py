@@ -13,6 +13,7 @@ from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_FULL_WRITE_POV_SYSTEM_PROMPT,
     VULN_FULL_WRITE_POV_USER_PROMPT,
 )
+from buttercup.seed_gen.task import BaseTaskState
 from buttercup.seed_gen.vuln_base_task import VulnBaseState, VulnBaseTask
 
 logger = logging.getLogger(__name__)
@@ -25,13 +26,16 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     MAX_CONTEXT_ITERATIONS = 8
 
     @override
-    def _gather_context(self, state: VulnBaseState) -> Command:
+    def _gather_context(self, state: BaseTaskState) -> Command:
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
+        from typing import cast
+
+        vuln_state = cast("VulnBaseState", state)
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
-            "sarif_hints": state.format_sarif_hints(),
+            "sarif_hints": vuln_state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
@@ -45,16 +49,19 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         return res
 
     @override
-    def _analyze_bug(self, state: VulnBaseState) -> Command:
+    def _analyze_bug(self, state: BaseTaskState) -> Command:
         """Analyze the diff for vulnerabilities"""
+        from typing import cast
+
+        vuln_state = cast("VulnBaseState", state)
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
-            "sarif_hints": state.format_sarif_hints(),
+            "sarif_hints": vuln_state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
-            "previous_attempts": state.format_pov_attempts(),
+            "previous_attempts": vuln_state.format_pov_attempts(),
         }
         res = self._analyze_bug_base(
             VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT, VULN_FULL_ANALYZE_BUG_USER_PROMPT, prompt_vars
@@ -62,16 +69,19 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         return res
 
     @override
-    def _write_pov(self, state: VulnBaseState) -> Command:
+    def _write_pov(self, state: BaseTaskState) -> Command:
         """Write PoV functions for the vulnerability"""
+        from typing import cast
+
+        vuln_state = cast("VulnBaseState", state)
         prompt_vars = {
-            "analysis": state.analysis,
+            "analysis": vuln_state.analysis,
             "harness": str(state.harness),
             "max_povs": self.VULN_DISCOVERY_MAX_POV_COUNT,
             "retrieved_context": state.format_retrieved_context(),
             "pov_examples": self.get_pov_examples(),
             "fuzzer_name": self.get_fuzzer_name(),
-            "previous_attempts": state.format_pov_attempts(),
+            "previous_attempts": vuln_state.format_pov_attempts(),
         }
         res = self._write_pov_base(
             VULN_FULL_WRITE_POV_SYSTEM_PROMPT,

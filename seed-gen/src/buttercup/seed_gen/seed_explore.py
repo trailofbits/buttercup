@@ -34,13 +34,16 @@ class SeedExploreTask(SeedBaseTask):
     TARGET_FUNCTION_FUZZY_THRESHOLD = 50
 
     @override
-    def _generate_seeds(self, state: SeedExploreState) -> Command:
+    def _generate_seeds(self, state: BaseTaskState) -> Command:
         """Generate seed functions using collected function definitions"""
         logger.info("Generating seeds")
+        from typing import cast
+
+        seed_state = cast("SeedExploreState", state)
         prompt_vars = {
             "count": self.SEED_EXPLORE_SEED_COUNT,
             "harness": str(state.harness),
-            "target_function": str(state.target_function),
+            "target_function": str(seed_state.target_function),
             "retrieved_context": state.format_retrieved_context(),
         }
         generated_functions = self._generate_python_funcs_base(
@@ -49,12 +52,15 @@ class SeedExploreTask(SeedBaseTask):
         return Command(update={"generated_functions": generated_functions})
 
     @override
-    def _get_context(self, state: SeedExploreState) -> Command:
+    def _get_context(self, state: BaseTaskState) -> Command:
         """Generate tool calls to retrieve context"""
 
         logger.info("Getting context")
+        from typing import cast
+
+        seed_state = cast("SeedExploreState", state)
         prompt_vars = {
-            "target_function": str(state.target_function),
+            "target_function": str(seed_state.target_function),
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
         }
@@ -90,10 +96,10 @@ class SeedExploreTask(SeedBaseTask):
                 crs_action_name="seed_gen_explore",
                 task_metadata=dict(self.challenge_task.task_meta.metadata),
                 extra_attributes={
-                    "gen_ai.request.model": self.llm.model_name,
+                    "gen_ai.request.model": getattr(self.llm, "model_name", "unknown"),
                 },
             )
-            chain.invoke(state)
+            chain.invoke(state)  # type: ignore[arg-type]
 
     def do_task(
         self, target_function_name: str, target_function_paths: list[Path], output_dir: Path

@@ -38,7 +38,9 @@ class TaskCounter:
             The new count after incrementing
         """
         key = self._get_counter_key(harness_name, package_name, task_id, task_name)
-        return self.redis.incr(key)
+        result = self.redis.incr(key)
+        # Redis incr() returns int but mypy thinks it could be Awaitable
+        return int(result) if result is not None else 0  # type: ignore[arg-type]
 
     def get_count(self, harness_name: str, package_name: str, task_id: str, task_name: str) -> int:
         """Get the current count for a specific task run.
@@ -54,7 +56,9 @@ class TaskCounter:
         """
         key = self._get_counter_key(harness_name, package_name, task_id, task_name)
         count = self.redis.get(key)
-        return int(count) if count is not None else 0
+        if count is None:
+            return 0
+        return int(count) if isinstance(count, str | bytes | int) else 0
 
     def get_all_counts(self, harness_name: str, package_name: str, task_id: str) -> dict[str, int]:
         """Get counts for all task types for a specific harness/package/task combination.
