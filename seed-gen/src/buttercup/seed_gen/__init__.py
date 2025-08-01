@@ -1,3 +1,3 @@
 """The `seed-gen` APIs."""
 
-__module_name__ = "seed_gen"
+__module_name__ = "seed_gen"  # mypy fixes applied
