@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import time
 import urllib.request
@@ -336,7 +337,7 @@ def print_request(req, file=sys.stderr):
         else:
             print(f"{req.data}", file=file)
 
-    print("\n")
+    print("\n", file=file)
 
 
 def submit_task(task_name: str, **kwargs: Any) -> None:
@@ -579,33 +580,36 @@ def usage() -> None:
 
 def main() -> None:
     """Main function."""
-    if len(sys.argv) < 2:
-        usage()
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Challenge submission utility",
+        usage="python challenge.py [sim1|sim2|sim3|all|testing|single <name> <duration>]",
+    )
 
-    command = sys.argv[1]
+    subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
 
-    if command == "sim1":
-        sim1()
-    elif command == "sim2":
-        sim2()
-    elif command == "sim3":
-        sim3()
-    elif command == "all":
-        all_challenges()
-    elif command == "testing":
-        testing()
-    elif command == "single":
-        if len(sys.argv) != 4:
-            usage()
-            sys.exit(1)
-        challenge_name = sys.argv[2]
-        try:
-            duration = int(sys.argv[3])
-        except ValueError:
-            print("Error: duration must be an integer")
-            sys.exit(1)
-        single(challenge_name, duration)
+    sim1_parser = subparsers.add_parser("sim1", help="Simulate round 1")
+    sim1_parser.set_defaults(func=lambda args: sim1())
+
+    sim2_parser = subparsers.add_parser("sim2", help="Simulate round 2")
+    sim2_parser.set_defaults(func=lambda args: sim2())
+
+    sim3_parser = subparsers.add_parser("sim3", help="Simulate round 3")
+    sim3_parser.set_defaults(func=lambda args: sim3())
+
+    all_parser = subparsers.add_parser("all", help="Run one challenge from each repository")
+    all_parser.set_defaults(func=lambda args: all_challenges())
+
+    testing_parser = subparsers.add_parser("testing", help="Run all challenges briefly for testing")
+    testing_parser.set_defaults(func=lambda args: testing())
+
+    single_parser = subparsers.add_parser("single", help="Run one challenge")
+    single_parser.add_argument("name", type=str, help="Challenge name")
+    single_parser.add_argument("duration", type=int, help="Duration in seconds")
+    single_parser.set_defaults(func=lambda args: single(args.name, args.duration))
+
+    args = parser.parse_args()
+    if hasattr(args, "func"):
+        args.func(args)
     else:
         usage()
         sys.exit(1)
