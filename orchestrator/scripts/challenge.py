@@ -594,7 +594,7 @@ name = The name of the challenge to run:
     testing_parser.set_defaults(func=lambda args: testing())
 
     single_parser = subparsers.add_parser("single", help="Run one challenge")
-    single_parser.add_argument("name", type=str, help="Challenge name")
+    single_parser.add_argument("name", type=str, choices=list(CHALLENGE_MAP.keys()), help="Challenge name")
     single_parser.add_argument("duration", type=int, help="Duration in seconds")
     single_parser.set_defaults(func=lambda args: single(args.name, args.duration))
 
