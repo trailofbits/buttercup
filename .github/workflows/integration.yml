@@ -88,7 +88,7 @@ jobs:
       - name: Run CRS
         run: make deploy-local
 
-      - name: Submit example-libpng task to the CRS
+      - name: Submit custom task to the CRS
         if: github.event_name == 'workflow_dispatch'
         run: |
           kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-competition-api 31323:1323 &
