@@ -10,7 +10,8 @@ jobs:
   lint:
     strategy:
       matrix:
-        component: [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
+        component:
+          [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
         continue-on-error: [true]
         include:
           - component: patcher
@@ -20,6 +21,8 @@ jobs:
           - component: common
             continue-on-error: false
           - component: orchestrator
+            continue-on-error: false
+          - component: seed-gen
             continue-on-error: false
 
     runs-on: ubuntu-latest
