@@ -137,7 +137,7 @@ make status
 
 ### Accessing Logs
 
-For system logs and monitoring, use SigNoz if configured:
+For system logs and monitoring, use SigNoz if configured, otherwise you can use kubectl:
 
 ```bash
 # View all pods
