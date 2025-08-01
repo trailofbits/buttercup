@@ -59,12 +59,12 @@ deploy:
 
 wait-crs:
 	@echo "Waiting for CRS deployment to be ready..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
 	@while true; do \
-		PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+		PENDING=$$(kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs} --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
 		if [ "$$PENDING" -eq 0 ]; then \
 			echo "All CRS pods are running."; \
 			break; \
@@ -75,11 +75,11 @@ wait-crs:
 	done
 
 check-crs:
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	@PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+	@PENDING=$$(kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs} --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
 	if [ "$$PENDING" -eq 0 ]; then \
 		echo "All CRS pods up and running."; \
 	else \
@@ -89,11 +89,11 @@ check-crs:
 
 crs-instance-id:
 	@echo "Getting CRS instance ID..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	echo "CRS instance ID: $$(kubectl get configmap -n crs crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
+	echo "CRS instance ID: $$(kubectl get configmap -n $${BUTTERCUP_NAMESPACE:-crs} crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
 
 deploy-local:
 	@echo "Deploying to local Minikube environment..."
