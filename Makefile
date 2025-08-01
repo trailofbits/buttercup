@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task submit-project
 
 # Default target
 help:
@@ -24,6 +24,7 @@ help:
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
 	@echo "  send-libpng-task  - Run libpng task"
+	@echo "  submit-project    - Interactive custom challenge submission"
 	@echo ""
 	@echo "Development:"
 	@echo "  install-cscope    - Install cscope tool"
@@ -160,6 +161,18 @@ send-libpng-task:
 	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
 	@sleep 3
 	./orchestrator/scripts/task_crs.sh
+	@pkill -f "kubectl port-forward" || true
+
+submit-project:
+	@echo "Interactive custom challenge submission..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	@echo "Setting up port forwarding..."
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@sleep 3
+	python3 ./scripts/submit-project.py
 	@pkill -f "kubectl port-forward" || true
 
 # Development targets
