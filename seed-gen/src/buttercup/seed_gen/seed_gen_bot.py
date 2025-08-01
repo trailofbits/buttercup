@@ -114,7 +114,9 @@ class SeedGenBot(TaskLoop):
         tasks, weights = zip(*task_distribution)
         return random.choices(tasks, weights=weights, k=1)[0]
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]):
+    def run_task(
+        self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]
+    ) -> None:
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
         project_yaml = ProjectYaml(ro_challenge_task, task.package_name)

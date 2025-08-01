@@ -246,7 +246,7 @@ class Task:
             ("human", user_prompt.format(**prompt_vars)),
         ]
         res = self.llm_with_tools.invoke([*prompt, *state.messages])
-        cmd = Command(
+        cmd: Command = Command(
             update={
                 "messages": [res],
                 "context_iteration": state.context_iteration + 1,

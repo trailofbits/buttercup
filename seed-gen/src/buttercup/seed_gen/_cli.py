@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 def command_server(settings: Settings) -> None:
     """Seed-gen worker server"""
+    if settings.server is None:
+        raise ValueError("Server command not provided")
+
     os.makedirs(settings.wdir, exist_ok=True)
     if settings.server.corpus_root:
         os.makedirs(settings.server.corpus_root, exist_ok=True)
@@ -38,10 +41,10 @@ def command_server(settings: Settings) -> None:
     seed_gen_bot = SeedGenBot(
         redis,
         settings.server.sleep_time,
-        settings.wdir,
+        str(settings.wdir),
         max_corpus_seed_size=settings.server.max_corpus_seed_size,
         max_pov_size=settings.server.max_pov_size,
-        corpus_root=settings.server.corpus_root,
+        corpus_root=str(settings.server.corpus_root) if settings.server.corpus_root else None,
         crash_dir_count_limit=settings.server.crash_dir_count_limit,
     )
     seed_gen_bot.run()
