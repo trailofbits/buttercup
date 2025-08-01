@@ -47,6 +47,9 @@ redis:
     persistence:
       enabled: false
 
+build-bot:
+  replicaCount: 1
+
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
   azure:
