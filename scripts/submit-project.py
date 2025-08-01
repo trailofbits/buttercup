@@ -15,6 +15,12 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional
 
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 
 def run_git_command(cmd: list[str], cwd: Optional[Path] = None) -> str:
     """Run a git command and return its output."""
@@ -41,8 +47,12 @@ def get_default_branch(repo_url: str) -> str:
         for line in result.stdout.split('\n'):
             if line.startswith('ref: refs/heads/'):
                 # Format is "ref: refs/heads/branch<TAB>HEAD"
-                branch_part = line.split('/')[-1]
-                return branch_part.split('\t')[0].strip()
+                parts = line.split('/')
+                if len(parts) >= 3:
+                    branch_part = parts[-1]
+                    tab_parts = branch_part.split('\t')
+                    if tab_parts:
+                        return tab_parts[0].strip()
         
         # Fallback to common default branch names
         return "main"
@@ -79,7 +89,7 @@ def ask_yes_no(question: str, default: bool = True) -> bool:
         print("Please answer 'y' or 'n'")
 
 
-def ask_string(question: str, default: Optional[str] = None) -> str:
+def ask_string(question: str, default: Optional[str] = None, required: bool = True) -> str:
     """Ask for a string input with optional default."""
     prompt = f"{question}"
     if default:
@@ -92,6 +102,8 @@ def ask_string(question: str, default: Optional[str] = None) -> str:
             return response
         if default:
             return default
+        if not required:
+            return ""
         print("This field is required.")
 
 
@@ -115,6 +127,26 @@ def ask_integer(question: str, default: Optional[int] = None, min_val: int = 1) 
             return value
         except ValueError:
             print("Please enter a valid integer")
+
+
+def get_challenge_repo_from_ossfuzz_project(project_name: str) -> Optional[str]:
+    """Attempt to determine challenge repository URL from OSS-Fuzz project name."""
+    if not HAS_YAML:
+        return None
+        
+    project_yaml_url = f"https://raw.githubusercontent.com/google/oss-fuzz/master/projects/{project_name}/project.yaml"
+    
+    try:
+        response = requests.get(project_yaml_url, timeout=10)
+        if response.status_code == 200:
+            project_config = yaml.safe_load(response.text)
+            if isinstance(project_config, dict) and 'main_repo' in project_config:
+                return project_config['main_repo']
+    except Exception:
+        # If we can't determine it automatically, that's fine - user can specify manually
+        pass
+    
+    return None
 
 
 def main():
@@ -144,11 +176,41 @@ Examples:
     print("=== Buttercup CRS Challenge Submission ===")
     print()
     
-    # Challenge repository questions
-    print("Challenge Repository:")
-    challenge_repo_url = ask_string("Challenge repository URL")
+    # Fuzzing tooling questions (ask first)
+    print("Fuzzing Configuration:")
+    use_upstream_oss_fuzz = ask_yes_no("Do you want to use upstream google/oss-fuzz?", True)
+    
+    if use_upstream_oss_fuzz:
+        fuzz_tooling_url = "https://github.com/google/oss-fuzz"
+        fuzz_tooling_ref = "master"
+        
+        # Get project name and try to auto-detect challenge repo
+        fuzz_tooling_project_name = ask_string("OSS-Fuzz project name")
+        
+        print("Attempting to auto-detect challenge repository from OSS-Fuzz project...")
+        auto_detected_repo = get_challenge_repo_from_ossfuzz_project(fuzz_tooling_project_name)
+        
+        if auto_detected_repo:
+            print(f"Auto-detected challenge repository: {auto_detected_repo}")
+            use_auto_detected = ask_yes_no("Use this repository?", True)
+            if use_auto_detected:
+                challenge_repo_url = auto_detected_repo
+            else:
+                challenge_repo_url = ask_string("Challenge repository URL")
+        else:
+            if not HAS_YAML:
+                print("Note: Install PyYAML for automatic repository detection from OSS-Fuzz projects")
+            else:
+                print("Could not auto-detect repository from OSS-Fuzz project")
+            challenge_repo_url = ask_string("Challenge repository URL")
+    else:
+        fuzz_tooling_url = ask_string("Custom oss-fuzz repository URL")
+        fuzz_tooling_ref = ask_string("OSS-Fuzz repository reference", "master")
+        fuzz_tooling_project_name = ask_string("OSS-Fuzz project name")
+        challenge_repo_url = ask_string("Challenge repository URL")
     
     # Validate the repository URL
+    print()
     print("Validating repository URL...")
     if not validate_git_repo(challenge_repo_url):
         print(f"Error: Could not access repository at {challenge_repo_url}")
@@ -158,6 +220,7 @@ Examples:
     
     # Branch/commit analysis
     print()
+    print("Challenge Repository Analysis:")
     analyze_specific_ref = ask_yes_no("Do you want to analyze a specific branch/commit?", False)
     
     if analyze_specific_ref:
@@ -183,22 +246,8 @@ Examples:
         challenge_repo_head_ref = default_branch
         challenge_repo_base_ref = None
     
-    # Fuzzing tooling questions
-    print()
-    print("Fuzzing Configuration:")
-    use_upstream_oss_fuzz = ask_yes_no("Do you want to use upstream google/oss-fuzz?", True)
-    
-    if use_upstream_oss_fuzz:
-        fuzz_tooling_url = "https://github.com/google/oss-fuzz"
-        fuzz_tooling_ref = "master"
-    else:
-        fuzz_tooling_url = ask_string("Custom oss-fuzz repository URL")
-        fuzz_tooling_ref = ask_string("OSS-Fuzz repository reference", "master")
-    
-    fuzz_tooling_project_name = ask_string("OSS-Fuzz project name")
-    
-    # Harnesses
-    harnesses_included = ask_yes_no("Are harnesses included in the project?", True)
+    # Harnesses are always included (non-configurable as per review)
+    harnesses_included = True
     
     # Duration
     print()
@@ -275,7 +324,7 @@ Examples:
     except requests.RequestException as e:
         print(f"✗ Network error: {e}")
         print("Make sure the CRS is running and accessible at the specified URL.")
-        print("You can check with: kubectl port-forward -n crs service/buttercup-ui 31323:1323")
+        print("You can check with: kubectl port-forward -n crs service/buttercup-competition-api 31323:1323")
 
 
 if __name__ == "__main__":
