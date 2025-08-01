@@ -28,10 +28,7 @@ setup_config() {
     configure_otel
 
     # Configure pod resources and replica counts
-    echo "setting pod resources"
     configure_pod_resources
-    echo "done"
-    
 }
 
 # Function to verify setup
