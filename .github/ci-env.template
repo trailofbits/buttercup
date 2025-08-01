@@ -1,5 +1,5 @@
 export BUTTERCUP_K8S_VALUES_TEMPLATE=./k8s/values-upstream-minikube.template
-export DEPLOY_CLUSTER=false
+export DEPLOY_CLUSTER=true
 export CLUSTER_TYPE=minikube
 export TAILSCALE_ENABLED=false
 export COMPETITION_API_ENABLED=false
