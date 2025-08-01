@@ -69,7 +69,7 @@ class CRSClient:
 
             response = requests.post(
                 url,
-                json=broadcast,
+                json=broadcast.model_dump(),
                 auth=auth,
                 headers={"Content-Type": "application/json"},
                 timeout=30,
