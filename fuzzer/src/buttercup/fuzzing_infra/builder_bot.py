@@ -35,7 +35,7 @@ class BuilderBot:
     _build_outputs_queue: ReliableQueue[BuildOutput] = field(init=False)
     _registry: TaskRegistry | None = field(init=False, default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         queue_factory = QueueFactory(self.redis)
         self._build_requests_queue = queue_factory.create(QueueNames.BUILD, GroupNames.BUILDER_BOT)
         self._build_outputs_queue = queue_factory.create(QueueNames.BUILD_OUTPUT)
@@ -107,10 +107,10 @@ class BuilderBot:
         )
 
         # Check if task should not be processed (expired or cancelled)
-        if self._registry.should_stop_processing(msg.task_id):
+        if self._registry is not None and self._registry.should_stop_processing(msg.task_id):
             logger.info(f"Skipping expired or cancelled task {msg.task_id}")
             self._build_requests_queue.ack_item(rqit.item_id)
-            return
+            return False
 
         task_dir = Path(msg.task_dir)
         if self.allow_caching:
@@ -188,11 +188,11 @@ class BuilderBot:
             self._build_requests_queue.ack_item(rqit.item_id)
             return True
 
-    def run(self):
+    def run(self) -> None:
         serve_loop(self.serve_item, self.seconds_sleep)
 
 
-def main():
+def main() -> None:
     args = BuilderBotSettings()
 
     setup_package_logger("builder-bot", __name__, args.log_level, args.log_max_line_length)
