@@ -22,7 +22,8 @@ PROJECT_DIR=$(dirname "$SCRIPT_DIR")
 
 cd "$PROJECT_DIR" || exit 1
 
-git clone git@github.com:tob-challenges/example-crs-architecture.git || true
+# Clone the repo, but ignore LFS files to avoid downloading large files
+GIT_LFS_SKIP_SMUDGE=1 git clone git@github.com:tob-challenges/example-crs-architecture.git || true
 git -C example-crs-architecture pull
 
 cp -rv example-crs-architecture/docs/ "$OUTPUT_DIR/src/buttercup/orchestrator/docs/"

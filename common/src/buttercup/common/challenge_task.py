@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, Callable, TypeVar, cast
 from os import PathLike
-from functools import wraps
+from functools import wraps, cached_property
 import contextlib
 import logging
 import shlex
@@ -19,6 +19,7 @@ from buttercup.common.utils import copyanything, get_diffs
 from buttercup.common.stack_parsing import get_crash_token
 from typing import Iterator
 import buttercup.common.node_local as node_local
+from buttercup.common.constants import ARCHITECTURE
 from packaging.version import Version
 
 logger = logging.getLogger(__name__)
@@ -150,13 +151,12 @@ class ChallengeTask:
     DIFF_DIR = "diff"
     OSS_FUZZ_DIR = "fuzz-tooling"
 
-    OSS_FUZZ_CONTAINER_ORG: str = field(default_factory=lambda: os.getenv("OSS_FUZZ_CONTAINER_ORG", "gcr.io/oss-fuzz"))
-
     MAX_COMMIT_RETRIES = 3
 
     WORKDIR_REGEX = re.compile(r"\s*WORKDIR\s*([^\s]+)")
 
     _helper_path: Path = field(init=False)
+    _full_helper_path: Path = field(init=False)
     _image_built: bool = field(default=False)
 
     def __post_init__(self) -> None:
@@ -180,8 +180,9 @@ class ChallengeTask:
 
         self._helper_path = Path("infra/helper.py")
         oss_fuzz_path = self.get_oss_fuzz_path()
-        if not (oss_fuzz_path / self._helper_path).exists():
-            raise ChallengeTaskError(f"Missing required file: {oss_fuzz_path / self._helper_path}")
+        self._full_helper_path = oss_fuzz_path / self._helper_path
+        if not self._full_helper_path.exists():
+            raise ChallengeTaskError(f"Missing required file: {self._full_helper_path}")
 
         self._check_python_path()
 
@@ -450,8 +451,31 @@ class ChallengeTask:
             logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {str(e)}")
             return None
 
+    @cached_property
+    def oss_fuzz_container_org(self) -> str:
+        # Read the helper_path file and grep for the BASE_RUNNER_IMAGE line.
+        result = "gcr.io/oss-fuzz"
+        try:
+            with self._full_helper_path.open("r") as f:
+                for line in reversed(f.readlines()):
+                    if "BASE_RUNNER_IMAGE" in line:
+                        m = re.search(r"^BASE_RUNNER_IMAGE\s*=\s*f?['\"]([^'\"]+)['\"]", line)
+                        if m:
+                            image = m.group(1)
+                            if image.startswith("gcr.io/oss-fuzz"):
+                                logger.info(f"Using oss-fuzz container org: {result}")
+                                break
+                            elif image.startswith("ghcr.io/aixcc-finals"):
+                                result = "aixcc-afc"
+                                logger.info(f"Using aixcc-afc container org: {result}")
+                                break
+        except Exception:
+            logger.exception("Could not determine oss_fuzz_container_org from helper_path")
+
+        return result
+
     def container_image(self) -> str:
-        return f"{self.OSS_FUZZ_CONTAINER_ORG}/{self.project_name}"
+        return f"{self.oss_fuzz_container_org}/{self.project_name}"
 
     def container_src_dir(self) -> str:
         """
@@ -509,7 +533,7 @@ class ChallengeTask:
         *,
         pull_latest_base_image: bool = False,
         cache: bool | None = None,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
     ) -> CommandResult:
         logger.info(
             "Building image for project %s | pull_latest_base_image=%s | cache=%s | architecture=%s",
@@ -537,7 +561,7 @@ class ChallengeTask:
         self,
         use_source_dir: bool = True,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
@@ -582,7 +606,7 @@ class ChallengeTask:
         self,
         use_source_dir: bool = True,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
@@ -611,7 +635,7 @@ class ChallengeTask:
         container_name: str,
         use_source_dir: bool = True,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
@@ -635,7 +659,7 @@ class ChallengeTask:
     def check_build(
         self,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
@@ -666,7 +690,7 @@ class ChallengeTask:
         crash_path: Path,
         fuzzer_args: list[str] | None = None,
         *,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         env: Dict[str, str] | None = None,
     ) -> ReproduceResult:
         logger.info(
@@ -682,7 +706,7 @@ class ChallengeTask:
             "architecture": architecture,
             "e": env,
         }
-        if "aixcc" in self.OSS_FUZZ_CONTAINER_ORG:
+        if "aixcc" in self.oss_fuzz_container_org:
             kwargs["propagate_exit_code"] = True
             kwargs["err_result"] = FAILURE_ERR_RESULT
 
@@ -712,7 +736,7 @@ class ChallengeTask:
         harness_name: str,
         fuzzer_args: list[str] | None = None,
         corpus_dir: Path | None = None,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
         env: Dict[str, str] | None = None,
@@ -749,7 +773,7 @@ class ChallengeTask:
         self,
         harness_name: str,
         corpus_dir: str,
-        architecture: str | None = None,
+        architecture: str | None = ARCHITECTURE,
         env: Dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
@@ -804,6 +828,7 @@ class ChallengeTask:
                     text=True,
                     check=True,
                     timeout=10,
+                    capture_output=True,
                 )
 
                 logger.info(f"[task {self.task_dir}] Successfully applied patch {diff_file}")

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScratchCleaner:
     redis: Redis
-    scratch_dir: Path
+    scratch_dir: Path | None
     sleep_time: float = 60.0
     delete_old_tasks_scratch_delta_seconds: int = 1800  # 30 minutes default
 

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import difflib
+import logging
+import re
 import uuid
 import langgraph.errors
 from langchain_core.messages import BaseMessage
 from langgraph.prebuilt import InjectedState
 from langchain_core.prompts import MessagesPlaceholder
-import logging
-import re
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
@@ -502,14 +504,33 @@ class SWEAgent(PatcherAgentBase):
         new_code_snippet = orig_code_snippet.replace(code_snippet.old_code, code_snippet.code)
         file_content = file_content.replace(orig_code_snippet, new_code_snippet)
 
-        patch = difflib.unified_diff(
-            orig_file_content.splitlines(),
-            file_content.splitlines(),
-            lineterm="",
-            fromfile="a/" + str(file_path),
-            tofile="b/" + str(file_path),
-        )
-        patch_str = "\n".join(patch) + "\n"
+        # Use git diff to generate the patch properly
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+
+            # Create temporary files for comparison
+            orig_file = temp_dir_path / "orig"
+            new_file = temp_dir_path / "new"
+            orig_file.write_text(orig_file_content)
+            new_file.write_text(file_content)
+
+            # Run git diff to generate the patch
+            try:
+                result = subprocess.run(
+                    ["git", "diff", "--no-index", "--binary", str(orig_file.name), str(new_file.name)],
+                    capture_output=True,
+                    text=True,
+                    cwd=temp_dir_path,
+                    timeout=30,
+                )
+
+                patch_str = result.stdout
+                patch_str = patch_str.replace(f"a/{orig_file.name}", f"a/{file_path}")
+                patch_str = patch_str.replace(f"b/{new_file.name}", f"b/{file_path}")
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+                logger.warning("git diff failed: %s", e)
+                return None
+
         if not patch_str.strip():
             logger.warning(
                 "Could not generate a valid patch for %s (%d)",

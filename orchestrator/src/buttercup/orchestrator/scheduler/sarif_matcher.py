@@ -218,7 +218,11 @@ def _match_frame(frame: Frame, sarif_infos: List[SarifInfo]) -> SarifMatch | Non
             matches_function = frame.function == info.function
             matches_filename = frame.file.name == info.file.name
             matches_full_path = frame.file == info.file
-            stripped_matches_function = stripped_function_match(frame.function, info.function)
+            stripped_matches_function = (
+                frame.function is not None
+                and info.function is not None
+                and stripped_function_match(frame.function, info.function)
+            )
 
             # Either match lines and filename (or full path) or function name
             location_match = matches_lines and (matches_filename or matches_full_path)

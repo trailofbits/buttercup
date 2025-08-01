@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     storage_dir: Annotated[
         Path, Field(default=Path("/tmp/buttercup-storage"), description="Directory for storing tarballs")
     ]
+    run_data_dir: Annotated[
+        Path, Field(default=Path("/tmp/buttercup-run-data"), description="Directory for storing run data artifacts")
+    ]
 
     # Database configuration (for future use)
     database_url: Annotated[Optional[str], Field(default=None, description="Database URL for storing submissions")]
