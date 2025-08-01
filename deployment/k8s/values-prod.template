@@ -236,6 +236,9 @@ litellm-helm:
     requests:
       cpu: 1000m
       memory: 1Gi
+  proxy_config:
+    litellm_settings:
+      max_budget: ${LITELLM_MAX_BUDGET}
 
   postgresql:
     primary:

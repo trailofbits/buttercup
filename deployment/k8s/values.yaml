@@ -371,6 +371,10 @@ litellm-helm:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
       database_url: "postgresql://litellm_user:litellm_password11@buttercup-postgresql:5432/litellm"
       store_model_in_db: true
+
+    litellm_settings:
+      max_budget: 100
+      budget_duration: 30d
       # store_prompts_in_spend_logs: true
 
 restartPolicy: Always

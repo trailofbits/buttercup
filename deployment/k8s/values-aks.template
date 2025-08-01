@@ -34,5 +34,10 @@ litellm:
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
 
+litellm-helm:
+  proxy_config:
+    litellm_settings:
+      max_budget: ${LITELLM_MAX_BUDGET}
+
 competition-api:
   enabled: true
