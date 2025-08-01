@@ -6,14 +6,14 @@ import urllib.request
 import sys
 from typing import Any
 
-SECONDS: int = 1
-MINUTES: int = 60 * SECONDS
-HOURS: int = 60 * MINUTES
+SECONDS = 1
+MINUTES = 60 * SECONDS
+HOURS = 60 * MINUTES
 
-FULL_SET_DURATION: int = 24 * HOURS
-DELTA_SET_DURATION: int = 8 * HOURS
+FULL_SET_DURATION = 24 * HOURS
+DELTA_SET_DURATION = 8 * HOURS
 
-CHALLENGE_MAP: dict[str, dict[str, Any]] = {
+CHALLENGE_MAP = {
     "cc_full_01": {
         "challenge_repo_url": "https://github.com/tob-challenges/afc-commons-compress.git",
         "challenge_repo_head_ref": "challenges/cc-full-01",
