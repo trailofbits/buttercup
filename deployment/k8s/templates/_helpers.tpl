@@ -28,12 +28,28 @@ Define the Redis init container template that can be included in multiple deploy
 {{- end -}}
 
 {{/*
-Define the LiteLLM health check init container template
+Define the LiteLLM health check init container template with secret passed via volume
 */}}
 {{- define "buttercup.waitForLiteLLM" -}}
 - name: wait-for-litellm
   image: curlimages/curl:8.6.0
-  command: ['sh', '-c', 'until curl --silent -f http://{{ .Release.Name }}-litellm:4000/health/readiness; do echo waiting for litellm; sleep 2; done;']
+  command:
+    - sh
+    - -c
+    - |
+      for i in $(seq 1 60); do
+        if curl --silent -f -H "Authorization: Bearer $(cat /etc/secrets/API_KEY)" -X POST http://{{ .Release.Name }}-litellm:4000/key/health; then
+          exit 0
+        fi
+        echo "waiting for litellm and key to be ready..."
+        sleep 2
+      done
+      echo "litellm or key not ready after 120s"
+      exit 1
+  volumeMounts:
+    - name: api-key-secret
+      mountPath: /etc/secrets
+      readOnly: true
 {{- end -}}
 
 {{/*
@@ -186,4 +202,14 @@ Define a wait-for-docker init container that checks if the Docker socket is avai
   command: ['sh', '-c', 'until [ -S {{ include "buttercup.core.dockerSocketPath" . }} ]; do echo waiting for docker socket; sleep 2; done;']
   volumeMounts:
   {{- include "buttercup.dockerSocketVolumeMount" . | nindent 2 }}
+{{- end -}}
+
+{{/*
+Define api-key-secret volume with configurable secret name
+Usage: {{- include "buttercup.apiKeySecretVolume" (dict "secretName" "litellm-api-user") | nindent 8 }}
+*/}}
+{{- define "buttercup.apiKeySecretVolume" -}}
+- name: api-key-secret
+  secret:
+    secretName: {{ .secretName }}
 {{- end -}}

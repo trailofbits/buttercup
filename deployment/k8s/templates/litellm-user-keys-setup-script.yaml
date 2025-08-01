@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-user-keys-setup-script
+data:
+  create_litellm_user_keys.py: |
+    #!/usr/bin/env python3
+    import os
+    import urllib.request
+    import urllib.error
+    import json
+    import time
+
+    def wait_for_litellm_ready(litellm_url, max_retries=30, retry_interval=10):
+        """Wait for LiteLLM to be ready by checking its health endpoint"""
+        print(f"Waiting for LiteLLM to be ready at {litellm_url}...")
+        
+        for attempt in range(max_retries):
+            try:
+                # Try to connect to the health endpoint
+                req = urllib.request.Request(f"{litellm_url}/health/readiness")
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    if response.getcode() == 200:
+                        print("LiteLLM is ready!")
+                        return True
+                
+                time.sleep(retry_interval)
+            except (urllib.error.URLError, urllib.error.HTTPError, Exception) as e:
+                print(f"Attempt {attempt + 1}/{max_retries}: LiteLLM not ready yet ({e})")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {retry_interval} seconds...")
+                    time.sleep(retry_interval)
+        
+        raise RuntimeError(f"LiteLLM did not become ready after {max_retries} attempts")
+
+    def main():
+        litellm_url = os.environ.get("LITELLM_URL")
+        master_key = os.environ.get("LITELLM_MASTER_KEY")
+        if not litellm_url or not master_key:
+            raise RuntimeError("LITELLM_URL and LITELLM_MASTER_KEY must be set")
+
+        # Wait for LiteLLM to be ready before proceeding
+        wait_for_litellm_ready(litellm_url)
+
+        # Example: create user keys for seed-gen and patcher
+        user = "llm-user"
+        data = json.dumps({
+            "user": user,
+            "max_budget": 1
+        }).encode('utf-8')
+        headers = {
+            "Authorization": f"Bearer {master_key}",
+            "Content-Type": "application/json"
+        }
+
+        req = urllib.request.Request(
+            f"{litellm_url}/key/generate",
+            data=data,
+            headers=headers,
+            method="POST"
+        )
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                resp_data = json.loads(response.read().decode('utf-8'))
+                api_key = resp_data.get("key")
+                if not api_key:
+                    raise RuntimeError(f"Failed to get key for {user}")
+                with open(f"/output/{user}_api_key", "w") as f:
+                    f.write(api_key)
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"HTTP error occurred: {e}")
+
+    if __name__ == "__main__":
+        main()
