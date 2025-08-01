@@ -85,11 +85,6 @@ jobs:
 
         working-directory: deployment
 
-      - name: Set KUBECONFIG from Secret
-        run: |
-          echo "${{ secrets.KUBECONFIG }}" > kubeconfig.yaml
-          echo "KUBECONFIG=$(pwd)/kubeconfig.yaml" >> $GITHUB_ENV
-
       - name: Run CRS
         run: make deploy-local
 
