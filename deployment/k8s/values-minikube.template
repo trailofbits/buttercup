@@ -47,6 +47,54 @@ redis:
   master:
     persistence:
       enabled: false
+    resources:
+      limits:
+        cpu: ${REDIS_CPU_LIMIT}
+        memory: ${REDIS_MEMORY_LIMIT}
+      requests:
+        cpu: ${REDIS_CPU_REQUEST}
+        memory: ${REDIS_MEMORY_REQUEST}
+
+# Service-specific configurations with dynamic resource allocation
+build-bot:
+  replicaCount: ${BUILD_BOT_REPLICAS}
+  resources:
+    limits:
+      cpu: ${BUILD_BOT_CPU_LIMIT}
+      memory: ${BUILD_BOT_MEMORY_LIMIT}
+    requests:
+      cpu: ${BUILD_BOT_CPU_REQUEST}
+      memory: ${BUILD_BOT_MEMORY_REQUEST}
+
+scheduler:
+  resources:
+    limits:
+      cpu: ${SCHEDULER_CPU_LIMIT}
+      memory: ${SCHEDULER_MEMORY_LIMIT}
+    requests:
+      cpu: ${SCHEDULER_CPU_REQUEST}
+      memory: ${SCHEDULER_MEMORY_REQUEST}
+
+dind-daemon:
+  resources:
+    limits:
+      cpu: ${DIND_CPU_LIMIT}
+      memory: ${DIND_MEMORY_LIMIT}
+    requests:
+      cpu: ${DIND_CPU_REQUEST}
+      memory: ${DIND_MEMORY_REQUEST}
+
+scratch-cleaner:
+  resources:
+    limits:
+      cpu: ${SCRATCH_CLEANER_CPU_LIMIT}
+      memory: ${SCRATCH_CLEANER_MEMORY_LIMIT}
+    requests:
+      cpu: ${SCRATCH_CLEANER_CPU_REQUEST}
+      memory: ${SCRATCH_CLEANER_MEMORY_REQUEST}
+
+litellm-helm:
+  replicaCount: ${LITELLM_REPLICAS}
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"

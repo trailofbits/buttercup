@@ -20,12 +20,18 @@ setup_config() {
     
     # Configure required API keys
     configure_local_api_keys
-    
+
     # Configure LangFuse (optional)
     configure_langfuse
     
     # Configure OTEL telemetry (optional)
     configure_otel
+
+    # Configure pod resources and replica counts
+    echo "setting pod resources"
+    configure_pod_resources
+    echo "done"
+    
 }
 
 # Function to verify setup

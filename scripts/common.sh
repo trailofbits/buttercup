@@ -314,8 +314,12 @@ configure_ghcr_optional() {
         read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
         echo
         
-        # Compute GHCR_AUTH
-        ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
+        # Compute GHCR_AUTH - handle macOS/Linux base64 differences
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64)
+        else
+            ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
+        fi
         sed -i "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
         return 0
     else
@@ -577,6 +581,37 @@ check_config() {
     else
         print_error "BUTTERCUP_K8S_VALUES_TEMPLATE is not set"
         return 1
+    fi
+}
+
+# Function to configure pod resources and replica counts
+configure_pod_resources() {
+    print_status "Configuring pod resources and replica counts..."
+    
+    # Only run resource detection for minikube deployments
+    local cluster_type="${CLUSTER_TYPE:-minikube}"
+    if [ "$cluster_type" != "minikube" ]; then
+        print_status "Non-minikube deployment detected (${cluster_type}), using default resource values"
+        return 0
+    fi
+    
+    # Check if the resource detection script exists
+    local detect_script="$SCRIPT_DIR/detect-resources.sh"
+    if [ ! -f "$detect_script" ]; then
+        print_warning "Resource detection script not found, using default values"
+        return 0
+    fi
+    
+    # Run the resource detection script to update deployment/env
+    if [ -f "deployment/env" ]; then
+        print_status "Running automatic resource detection for minikube deployment..."
+        if bash "$detect_script" "deployment/env"; then
+            print_success "Pod resources automatically configured based on system capabilities"
+        else
+            print_warning "Resource detection failed, using default values from template"
+        fi
+    else
+        print_warning "deployment/env not found, skipping resource detection"
     fi
 }
 
