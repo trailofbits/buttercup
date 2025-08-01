@@ -9,6 +9,7 @@ import json
 import base64
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
@@ -111,6 +112,11 @@ def save_artifact(
             data_bin = base64.b64decode(content) if is_base64 else content.encode("utf-8")
             with file_path.open("wb") as f:
                 f.write(data_bin)
+        elif artifact_type == "sarifs":
+            assert isinstance(content, dict)
+            file_path = task_dir / f"{artifact_id}.sarif"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(json.dumps(content, indent=2))
         else:
             logger.error(f"Unknown artifact type: {artifact_type}")
             return False
@@ -136,6 +142,11 @@ def save_patch(task_id: str, patch_id: str, content: str) -> bool:
 def save_pov(task_id: str, pov_id: str, content: str) -> bool:
     """Save a POV to the appropriate directory structure."""
     return save_artifact(task_id, "povs", pov_id, content, True)
+
+
+def save_sarif(task_id: str, sarif_id: str, content: dict) -> bool:
+    """Save a SARIF to the appropriate directory structure."""
+    return save_artifact(task_id, "sarifs", sarif_id, content, True)
 
 
 class Challenge(BaseModel):
@@ -238,6 +249,27 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
     except Exception as e:
         logger.error(f"Error creating task for challenge {challenge.name}: {e}")
         return Error(message=f"Failed to create task: {str(e)}")
+
+
+def _create_sarif_broadcast(
+    body: dict[str, Any], challenge_service: ChallengeService, crs_client: CRSClient
+) -> Message | Error:
+    """
+    Create a SARIF Broadcast
+    """
+    if "task_id" not in body:
+        return Error(message="Task ID is required")
+    task_id = body["task_id"]
+
+    if "sarif" not in body:
+        return Error(message="SARIF body is required")
+
+    sarif = body["sarif"]
+    broadcast = challenge_service.create_sarif_broadcast(task_id, sarif)
+    if crs_client.submit_sarif_broadcast(broadcast):
+        return Message(message=f"SARIF Broadcast for Task {task_id} created and submitted to CRS")
+    else:
+        return Error(message=f"Failed to submit SARIF Broadcast for Task {task_id} to CRS")
 
 
 @app.post(
@@ -516,7 +548,12 @@ def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission) -
     submitted_sarif_id = str(uuid.uuid4())
     logger.info(f"SARIF submission - Task: {task_id}, Submitted SARIF ID: {submitted_sarif_id}")
     logger.info(f"SARIF content: {json.dumps(body.sarif, indent=2)}")
-    return Error(message="Not implemented")
+
+    save_sarif(task_id, submitted_sarif_id, body.sarif)
+
+    return SARIFSubmissionResponse(
+        submitted_sarif_id=submitted_sarif_id, status=SubmissionStatus.SubmissionStatusPassed
+    )
 
 
 @app.get("/files/{tarball_name}.tar.gz", tags=["files"])
@@ -547,3 +584,16 @@ def trigger_task(
         body.name = str(uuid.uuid4())
 
     return _create_task(body, challenge_service, crs_client)
+
+
+@app.post("/webhook/sarif")
+def trigger_sarif(
+    body: dict[str, Any],
+    challenge_service: ChallengeService = Depends(get_challenge_service),
+    crs_client: CRSClient = Depends(get_crs_client),
+) -> Message | Error:
+    """
+    Trigger a SARIF Broadcast
+    """
+    logger.info(f"Triggering SARIF Broadcast: {json.dumps(body, indent=2)}")
+    return _create_sarif_broadcast(body, challenge_service, crs_client)

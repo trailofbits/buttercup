@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import logging
 import requests
-from typing import Optional
 
-from buttercup.orchestrator.ui.competition_api.models.crs_types import Task
+from buttercup.orchestrator.ui.competition_api.models.crs_types import Task, SARIFBroadcast
 
 logger = logging.getLogger(__name__)
 
 
 class CRSClient:
-    def __init__(self, crs_base_url: str, username: Optional[str] = None, password: Optional[str] = None) -> None:
+    def __init__(self, crs_base_url: str, username: str | None = None, password: str | None = None) -> None:
         self.crs_base_url = crs_base_url.rstrip("/")
         self.username = username
         self.password = password
@@ -52,6 +51,41 @@ class CRSClient:
 
         except Exception as e:
             logger.error(f"Error submitting task to CRS: {e}")
+            return False
+
+    def submit_sarif_broadcast(self, broadcast: SARIFBroadcast) -> bool:
+        """
+        Submit a SARIF Broadcast to the CRS via POST /v1/sarif/ endpoint
+        """
+        url = f"{self.crs_base_url}/v1/sarif/"
+
+        # Prepare authentication if provided
+        auth = None
+        if self.username and self.password:
+            auth = (self.username, self.password)
+
+        try:
+            logger.info(f"Submitting SARIF Broadcasts for {len(broadcast.broadcasts)} tasks to CRS at {url}")
+
+            response = requests.post(
+                url,
+                json=broadcast,
+                auth=auth,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+            )
+
+            if response.status_code in (202, 200):
+                logger.info("SARIF Broadcasts submitted successfully to CRS")
+                return True
+            else:
+                logger.error(
+                    f"Failed to submit SARIF Broadcasts to CRS. Status: {response.status_code}, Response: {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Error submitting SARIF Broadcasts to CRS: {e}")
             return False
 
     def ping(self) -> bool:
