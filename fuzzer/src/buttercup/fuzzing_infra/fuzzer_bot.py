@@ -47,7 +47,7 @@ class FuzzerBot(TaskLoop):
     def required_builds(self) -> List[BuildTypeHint]:
         return [BuildType.FUZZER]
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:
         with scratch_dir() as td:
             logger.info(f"Running fuzzer for {task.harness_name} | {task.package_name} | {task.task_id}")
 
@@ -130,7 +130,7 @@ class FuzzerBot(TaskLoop):
                     logger.info(f"Fuzzer finished for {build.engine} | {build.sanitizer} | {task.harness_name}")
 
 
-def main():
+def main() -> None:
     args = FuzzerBotSettings()
     setup_package_logger("fuzzer-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("fuzzer")
