@@ -214,7 +214,7 @@ install-cscope:
 	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
 web-ui:
-	@echo "Opening web UI..."
+	@echo "Opening web UI (https://localhost:31323/)..."
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
