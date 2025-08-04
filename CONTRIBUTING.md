@@ -41,7 +41,7 @@ make deploy-azure         # Deploy to production AKS environment
 make status               # Check the status of the deployment
 
 # Testing
-make send-integration-task     # Run integration test task
+make send-libpng-task          # Run libpng test task
 
 # Development
 make lint                 # Lint all Python code

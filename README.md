@@ -122,23 +122,10 @@ buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP  
 All CRS pods up and running.
 ```
 
-3. **Submit the libpng project to the CRS (for 30mins):**
+3. **Send a simple challenge to the system:**
 
 ```bash
 make send-libpng-task
-```
-
-**Alternative manual commands:**
-
-```bash
-# Start services manually
-cd deployment && make up
-
-# Port forward manually
-kubectl port-forward -n crs service/buttercup-ui 31323:1323
-
-# Test manually
-./orchestrator/scripts/task_integration_test.sh
 ```
 
 ## Production AKS Deployment
@@ -229,7 +216,6 @@ make deploy-azure         # Deploy to production AKS environment
 make status               # Check the status of the deployment
 
 # Testing
-make send-integration-task     # Run integration test task
 make send-libpng-task          # Run libpng test task
 
 # Development
@@ -241,32 +227,9 @@ make undeploy             # Remove deployment and clean up resources
 make clean-local          # Delete Minikube cluster and remove local config
 ```
 
-### Running Tests
+### Accessing Logs
 
-```bash
-# Lint all Python code
-make lint
-
-# Lint specific component
-make lint-component COMPONENT=orchestrator
-```
-
-**Alternative manual commands:**
-
-```bash
-# Lint Python code
-make lint
-
-# Run specific component tests
-make lint-component COMPONENT=orchestrator
-
-# Test manually
-./orchestrator/scripts/task_upstream_libpng.sh
-./orchestrator/scripts/challenge.py
-```
-
-
-### Kubernetes Development
+For system logs and monitoring, use SigNoz if configured, otherwise you can use kubectl:
 
 ```bash
 # View all pods
