@@ -19,7 +19,9 @@ logger = setup_package_logger("fuzzer-orchestrator", __name__)
 DEFAULT_WEIGHT = 1.0
 
 
-def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: BuildMap, sleep_time_seconds: int):
+def loop(
+    output_queue: ReliableQueue, target_list: HarnessWeights, build_map: BuildMap, sleep_time_seconds: int
+) -> None:
     while True:
         time.sleep(sleep_time_seconds)
         output: RQItem = output_queue.pop()
@@ -50,7 +52,7 @@ def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: Bu
             output_queue.ack_item(output.item_id)
 
 
-def main():
+def main() -> None:
     prsr = argparse.ArgumentParser("Fuzzing orchestrator")
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
     prsr.add_argument("--timer", default=1000, type=int)

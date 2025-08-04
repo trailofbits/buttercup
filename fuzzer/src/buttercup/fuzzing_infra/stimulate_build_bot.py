@@ -4,7 +4,7 @@ from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildType
 
 
-def main():
+def main() -> None:
     prsr = argparse.ArgumentParser("stimulate build bot manually")
     prsr.add_argument("--target_package", required=True)
     prsr.add_argument("--ossfuzz", required=True)

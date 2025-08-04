@@ -75,11 +75,11 @@ class TracerBot:
         self.queue.ack_item(item.item_id)
         return True
 
-    def run(self):
+    def run(self) -> None:
         serve_loop(self.serve_item, self.seconds_sleep)
 
 
-def main():
+def main() -> None:
     args = TracerSettings()
 
     setup_package_logger("tracer-bot", __name__, "DEBUG", None)
