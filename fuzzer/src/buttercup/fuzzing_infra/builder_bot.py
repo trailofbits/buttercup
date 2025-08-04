@@ -107,7 +107,7 @@ class BuilderBot:
         )
 
         # Check if task should not be processed (expired or cancelled)
-        if self._registry is not None and self._registry.should_stop_processing(msg.task_id):
+        if self._registry.should_stop_processing(msg.task_id):
             logger.info(f"Skipping expired or cancelled task {msg.task_id}")
             self._build_requests_queue.ack_item(rqit.item_id)
             return False
