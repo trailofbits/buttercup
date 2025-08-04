@@ -91,8 +91,6 @@ kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
 kubectl exec -it -n crs <pod-name> -- /bin/bash
 ```
 
-Note: For Docker Compose development, you should first `cd deployment/docker-compose` before running docker-compose commands.
-
 ## Component Architecture
 
 The system consists of several key components:
@@ -128,7 +126,6 @@ Each component should include:
 - All untrusted code execution must happen in isolated Docker containers
 - Never expose or log secrets and keys
 - Never commit secrets or keys to the repository
-- Use DinD (Docker-in-Docker) for additional isolation when needed
 
 ### Submitting Changes
 

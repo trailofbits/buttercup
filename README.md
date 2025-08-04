@@ -81,16 +81,28 @@ make status
 When a deployment is successful, you should see all pods in "Running" or "Completed" status.
 
 
-5. Send Buttercup a simple task:
+5. Send Buttercup a simple task
+
+**Note:** When tasked, Buttercup will start consuming third-party AI resources. 
+
+This command will make Buttercup pull down an example repo [example-libpng](https://github.com/tob-challenges/example-libpng) with a known vulnerability. Buttercup will start fuzzing it to find and patch vulnerabilities. 
 
 ```bash
 make send-libpng-task
 ```
 
 6. Access Buttercup's web-based GUI
+
+Run:
+
 ```bash
 make web-ui
 ```
+
+Then navigate to `http://localhost:31323` in your web browser.
+
+In the GUI you can monitor active tasks and see when Buttercup finds bugs and generates patches for them.
+
 
 7. Stop Buttercup
 
@@ -99,27 +111,6 @@ make web-ui
 ```bash
 make undeploy
 ```
-
-## Using the GUI
-
-The Buttercup CRS includes a web-based user interface for monitoring and managing the system.
-
-### Accessing the GUI
-
-1. **Start port forwarding:**
-
-```bash
-kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
-```
-
-2. **Open in browser:**
-
-Navigate to `http://localhost:31323` in your web browser.
-
-### GUI Features
-
-- **System Status:** View the status of all system components
-- **Task Management:** Monitor active vulnerability discovery and patching tasks
 
 ## Creating and Running Challenges
 
