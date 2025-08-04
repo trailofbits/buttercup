@@ -1,6 +1,5 @@
 global:
   environment: "minikube"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   orchestratorImage:
     repository: localhost/orchestrator
     tag: "latest"
@@ -48,8 +47,12 @@ redis:
     persistence:
       enabled: false
 
+build-bot:
+  replicaCount: 1
+
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"

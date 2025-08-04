@@ -1,6 +1,5 @@
 global:
   environment: "aks"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
     host: "${LANGFUSE_HOST}"
@@ -27,6 +26,7 @@ volumes:
 
 litellm:
   masterKey: "your-secure-master-key"  # Generate with: openssl rand -hex 16
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"

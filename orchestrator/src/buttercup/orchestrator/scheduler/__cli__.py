@@ -32,13 +32,13 @@ def _prepare_build_output(command: ProcessBuildOutputCommand) -> BuildOutput:
     )
 
 
-def main():
+def main() -> None:
     settings = Settings()
     setup_package_logger("scheduler", __name__, settings.log_level, settings.log_max_line_length)
     logger.debug(f"Settings: {settings}")
     command = get_subcommand(settings)
     if isinstance(command, ServeCommand):
-        init_telemetry("scheduler")
+        init_telemetry("scheduler")  # type: ignore[unreachable]
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         scheduler = Scheduler(
             settings.tasks_storage_dir,
@@ -54,12 +54,12 @@ def main():
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):
-        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)
+        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)  # type: ignore[unreachable]
         task = _prepare_ready_task(command)
         build_request = scheduler.process_ready_task(task)
         print(build_request)
     elif isinstance(command, ProcessBuildOutputCommand):
-        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)
+        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)  # type: ignore[unreachable]
         build_output = _prepare_build_output(command)
         targets = scheduler.process_build_output(build_output)
         print(targets)

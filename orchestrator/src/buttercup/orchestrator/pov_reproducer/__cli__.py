@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     settings = Settings()
     setup_package_logger("pov-reproducer", __name__, settings.log_level)
     logger.info(f"Starting POV Reproducer with settings: {settings}")

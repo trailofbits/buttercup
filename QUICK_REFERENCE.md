@@ -57,14 +57,14 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ./orchestrator/scripts/send_sarif.sh <TASK-ID>
 
 # Run unscored challenges
-./orchestrator/scripts/challenge.sh
+./orchestrator/scripts/challenge.py
 ```
 
 ### Development
 ```bash
 # Lint Python code
-just lint-python-all
-just lint-python <component>
+make lint
+make lint-component COMPONENT=<component>
 
 # Docker development
 docker-compose up -d

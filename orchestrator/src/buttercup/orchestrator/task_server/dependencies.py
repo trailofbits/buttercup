@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache
-def get_settings():
+def get_settings() -> TaskServerSettings:
     return TaskServerSettings()
 
 

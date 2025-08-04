@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy
+.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
 
 # Default target
 help:
@@ -17,12 +17,16 @@ help:
 	@echo "  deploy-azure      - Deploy to production AKS environment"
 	@echo ""
 	@echo "Status:"
-	@echo "  status            - Check the status of the deployment"
+	@echo "  status              - Check the status of the deployment"
+	@echo "  crs-instance-id     - Get the CRS instance ID"
+	@echo "  download-artifacts  - Download submitted artifacts from the CRS"
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
+	@echo "  send-libpng-task  - Run libpng task"
 	@echo ""
 	@echo "Development:"
+	@echo "  install-cscope    - Install cscope tool"
 	@echo "  lint              - Lint all Python code"
 	@echo "  lint-component    - Lint specific component (e.g., make lint-component COMPONENT=orchestrator)"
 	@echo ""
@@ -46,17 +50,21 @@ validate:
 # Deployment targets
 deploy:
 	@echo "Deploying to current environment..."
+	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
+		exit 1; \
+	fi
 	cd deployment && make up
 	make wait-crs
 
 wait-crs:
 	@echo "Waiting for CRS deployment to be ready..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
 	@while true; do \
-		PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+		PENDING=$$(kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs} --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
 		if [ "$$PENDING" -eq 0 ]; then \
 			echo "All CRS pods are running."; \
 			break; \
@@ -67,11 +75,11 @@ wait-crs:
 	done
 
 check-crs:
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	@PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+	@PENDING=$$(kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs} --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
 	if [ "$$PENDING" -eq 0 ]; then \
 		echo "All CRS pods up and running."; \
 	else \
@@ -81,16 +89,20 @@ check-crs:
 
 crs-instance-id:
 	@echo "Getting CRS instance ID..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	echo "CRS instance ID: $$(kubectl get configmap -n crs crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
+	echo "CRS instance ID: $$(kubectl get configmap -n $${BUTTERCUP_NAMESPACE:-crs} crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
 
 deploy-local:
 	@echo "Deploying to local Minikube environment..."
 	@if [ ! -f deployment/env ]; then \
 		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
 	cd deployment && make up
@@ -101,6 +113,10 @@ deploy-azure:
 	@echo "Deploying to production AKS environment..."
 	@if [ ! -f deployment/env ]; then \
 		echo "Error: Configuration file not found. Run 'make setup-azure' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
 	cd deployment && make up
@@ -115,6 +131,14 @@ status:
 	@kubectl get services -n $${BUTTERCUP_NAMESPACE:-crs}
 	@make --no-print-directory check-crs
 
+download-artifacts:
+	@echo "Downloading artifacts from the CRS..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	./scripts/download_artifacts.sh
+
 # Testing targets
 send-integration-task:
 	@echo "Running integration test task..."
@@ -125,7 +149,20 @@ send-integration-task:
 	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
 	@sleep 3
 	./orchestrator/scripts/task_integration_test.sh
-	@pkill -f "kubectl port-forward" || true
+	pkill -f "kubectl port-forward" || true
+	exit 0
+
+send-libpng-task:
+	@echo "Running libpng task..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@sleep 3
+	./orchestrator/scripts/task_crs.sh
+	pkill -f "kubectl port-forward" || true
+	exit 0
 
 # Development targets
 lint:
@@ -134,7 +171,7 @@ lint:
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
-# Note: only some components run mypy
+# Note: common, patcher, orchestrator, program-model, seed-gen run mypy
 lint-component:
 	@if [ -z "$(COMPONENT)" ]; then \
 		echo "Error: COMPONENT not specified. Usage: make lint-component COMPONENT=<component>"; \
@@ -143,9 +180,24 @@ lint-component:
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "program-model" ]; then \
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ]; then \
 		cd $(COMPONENT) && uv run mypy; \
 	fi
+
+reformat:
+	@echo "Reformatting all Python code..."
+	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+		make --no-print-directory reformat-component COMPONENT=$$component; \
+	done
+
+reformat-component:
+	@if [ -z "$(COMPONENT)" ]; then \
+		echo "Error: COMPONENT not specified. Usage: make reformat-component COMPONENT=<component>"; \
+		echo "Available components: common, fuzzer, orchestrator, patcher, program-model, seed-gen"; \
+		exit 1; \
+	fi
+	@echo "Reformatting $(COMPONENT)..."
+	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format && uv run ruff check --fix
 
 # Cleanup targets
 undeploy:
@@ -156,3 +208,23 @@ clean-local:
 	@echo "Cleaning up local environment..."
 	minikube delete || true
 	rm -f deployment/env
+
+# Additional targets migrated from justfile
+install-cscope:
+	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
+
+web-ui:
+	@echo "Opening web UI..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@sleep 3
+	@if command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open http://localhost:31323; \
+	elif command -v open >/dev/null 2>&1; then \
+		open http://localhost:31323; \
+	else \
+		echo "Please open http://localhost:31323 in your browser."; \
+	fi

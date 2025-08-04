@@ -44,6 +44,7 @@ from buttercup.patcher.agents.tools import (
     get_callers,
 )
 from buttercup.common.llm import create_default_llm_with_temperature, ButtercupLLM
+from buttercup.common.constants import ARCHITECTURE
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import create_react_agent
 from langchain_core.prompts import MessagesPlaceholder
@@ -313,6 +314,8 @@ class QEAgent(PatcherAgentBase):
             }
 
             # Process completed builds and return immediately on first failure
+            # (unless it is AArch64 architecture, where some sanitizers may fail
+            # to build)
             for future in concurrent.futures.as_completed(future_to_sanitizer):
                 sanitizer = future_to_sanitizer[future]
                 try:
@@ -320,47 +323,54 @@ class QEAgent(PatcherAgentBase):
                     last_patch_attempt.build_stdout = cp_output.output
                     last_patch_attempt.build_stderr = cp_output.error
 
-                    if not patch_success or not build_success:
-                        if not patch_success:
-                            logger.warning(
-                                "Failed to apply patch to Challenge Task %s with sanitizer %s",
-                                self.challenge.name,
-                                sanitizer,
-                            )
-                            last_patch_attempt.status = PatchStatus.APPLY_FAILED
-                        else:  # not build_success
-                            logger.warning(
-                                "Failed to rebuild Challenge Task %s with patch and sanitizer %s",
-                                self.challenge.name,
-                                sanitizer,
-                            )
-                            last_patch_attempt.status = PatchStatus.BUILD_FAILED
-
-                        # Cancel remaining futures and clean up any built challenges
-                        for remaining_future in future_to_sanitizer:
-                            remaining_future.cancel()
-
-                        # Clean up any successfully built challenge directories since we're failing
-                        for built_dir in last_patch_attempt.built_challenges.values():
-                            try:
-                                ChallengeTask(read_only_task_dir=built_dir, local_task_dir=built_dir).cleanup()
-                            except Exception:
-                                pass  # Ignore cleanup errors
-
-                        last_patch_attempt.built_challenges = {}
-
-                        return Command(
-                            update={
-                                "patch_attempts": last_patch_attempt,
-                                "execution_info": execution_info,
-                            },
-                            goto=PatcherAgentName.REFLECTION.value,
-                        )
-                    else:
+                    if patch_success and build_success and built_task_dir:
                         # Store the successfully built challenge directory
-                        if built_task_dir:
-                            last_patch_attempt.built_challenges[sanitizer] = built_task_dir
+                        last_patch_attempt.built_challenges[sanitizer] = built_task_dir
+                        continue
 
+                    if not patch_success:
+                        logger.warning(
+                            "Failed to apply patch to Challenge Task %s with sanitizer %s",
+                            self.challenge.name,
+                            sanitizer,
+                        )
+                        last_patch_attempt.status = PatchStatus.APPLY_FAILED
+                    elif not build_success:
+                        if ARCHITECTURE == "aarch64":
+                            logger.warning(
+                                "Failed to rebuild Challenge Task %s with patch and sanitizer %s, but this may happen on AArch64, just move on.",
+                                self.challenge.name,
+                                sanitizer,
+                            )
+                            continue
+
+                        logger.warning(
+                            "Failed to rebuild Challenge Task %s with patch and sanitizer %s",
+                            self.challenge.name,
+                            sanitizer,
+                        )
+                        last_patch_attempt.status = PatchStatus.BUILD_FAILED
+
+                    # Cancel remaining futures and clean up any built challenges
+                    for remaining_future in future_to_sanitizer:
+                        remaining_future.cancel()
+
+                    # Clean up any successfully built challenge directories since we're failing
+                    for built_dir in last_patch_attempt.built_challenges.values():
+                        try:
+                            ChallengeTask(read_only_task_dir=built_dir, local_task_dir=built_dir).cleanup()
+                        except Exception:
+                            pass  # Ignore cleanup errors
+
+                    last_patch_attempt.built_challenges = {}
+
+                    return Command(
+                        update={
+                            "patch_attempts": last_patch_attempt,
+                            "execution_info": execution_info,
+                        },
+                        goto=PatcherAgentName.REFLECTION.value,
+                    )
                 except Exception as exc:
                     logger.error("Build with sanitizer %s generated an exception: %s", sanitizer, exc)
                     last_patch_attempt.status = PatchStatus.BUILD_FAILED
@@ -386,6 +396,17 @@ class QEAgent(PatcherAgentBase):
                         },
                         goto=PatcherAgentName.REFLECTION.value,
                     )
+
+        if not last_patch_attempt.built_challenges:
+            logger.error("Failed to build Challenge Task %s with any sanitizer", self.challenge.name)
+            last_patch_attempt.status = PatchStatus.BUILD_FAILED
+            return Command(
+                update={
+                    "patch_attempts": last_patch_attempt,
+                    "execution_info": execution_info,
+                },
+                goto=PatcherAgentName.REFLECTION.value,
+            )
 
         logger.info("Challenge Task %s rebuilt with patch", self.challenge.name)
         last_patch_attempt.build_succeeded = True

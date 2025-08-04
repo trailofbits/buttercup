@@ -19,7 +19,7 @@ A list of vulnerabilities to find and patch is in this [spreadsheet](https://doc
 
 ## Steps
 
-* Run CRS on a challenge: `./orchestrator/scripts/challenge.sh`
+* Run CRS on a challenge: `./orchestrator/scripts/challenge.py`
 
 * Validate Vulnerabilities and Patches
   * We found the correct vulnerability if the ground-truth patch fixes the vulnerability.
@@ -67,7 +67,7 @@ python3 infra/helper.py build_fuzzers --clean --sanitizer address --engine libfu
 
 ### Submit challenge
 
-* `./orchestrator/scripts/challenge.sh single lp_delta_01`
+* `./orchestrator/scripts/challenge.py single lp_delta_01`
 
 * `kubectl port-forward -n crs service/buttercup-redis-master 16379:6379`
 

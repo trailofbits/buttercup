@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 import uuid
 
 from fastapi import HTTPException
@@ -21,13 +21,15 @@ from buttercup.orchestrator.ui.competition_api.models.crs_types import (
     Task,
     TaskDetail,
     TaskType,
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class ChallengeService:
-    def __init__(self, storage_dir: Path, base_url: str):
+    def __init__(self, storage_dir: Path, base_url: str) -> None:
         self.storage_dir = storage_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.base_url = base_url
@@ -143,7 +145,7 @@ class ChallengeService:
                     shutil.copytree(sub_path, ref_sub_path, ignore=shutil.ignore_patterns(".git", ".aixcc"))
 
                     # Create a git-diff file between the two directories (base_sub_path and ref_sub_path)
-                    result = subprocess.run(
+                    diff_result = subprocess.run(
                         ["git", "diff", "--binary", "--no-index", base_sub_path.as_posix(), ref_sub_path.as_posix()],
                         cwd=base_temp_path,
                         capture_output=True,
@@ -151,7 +153,7 @@ class ChallengeService:
                     diff_path = base_temp_path / "diff"
                     diff_path.mkdir(parents=True, exist_ok=True)
                     diff_file = diff_path / "ref.diff"
-                    diff_content = result.stdout
+                    diff_content = diff_result.stdout
                     diff_content = diff_content.replace(base_sub_path.as_posix().encode(), b"")
                     diff_content = diff_content.replace(ref_sub_path.as_posix().encode(), b"")
                     diff_file.write_bytes(diff_content)
@@ -299,3 +301,23 @@ class ChallengeService:
 
         logger.info(f"Created task {task_id} for challenge {fuzz_tooling_project_name}")
         return task
+
+    def create_sarif_broadcast(self, task_id: str, sarif: dict[str, Any]) -> SARIFBroadcast:
+        """
+        Create a SARIF Broadcast for a task
+        """
+        sarif_id = str(uuid.uuid4())
+        message_id = str(uuid.uuid4())
+        message_time = int(time.time() * 1000)
+        return SARIFBroadcast(
+            broadcasts=[
+                SARIFBroadcastDetail(
+                    metadata={},
+                    sarif=sarif,
+                    sarif_id=sarif_id,
+                    task_id=task_id,
+                )
+            ],
+            message_id=message_id,
+            message_time=message_time,
+        )

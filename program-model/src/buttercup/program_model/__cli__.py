@@ -38,7 +38,6 @@ def main() -> None:
             wdir=settings.scratch_dir,
             python=command.python,
             allow_pull=command.allow_pull,
-            base_image_url=command.base_image_url,
         ) as program_model:
             program_model.serve()
     elif isinstance(command, ProcessCommand):
@@ -47,7 +46,6 @@ def main() -> None:
             wdir=settings.scratch_dir,
             python=command.python,
             allow_pull=command.allow_pull,
-            base_image_url=command.base_image_url,
         ) as program_model:
             program_model.process_task(task)
 

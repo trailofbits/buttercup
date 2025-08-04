@@ -1,6 +1,5 @@
 global:
   environment: "aks"
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   orchestratorImage:
     tag: "${BUTTERCUP_NAMESPACE}"
   fuzzerImage:
@@ -46,6 +45,7 @@ redis:
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"

@@ -29,9 +29,9 @@ class Downloader:
     task_queue: ReliableQueue | None = field(init=False, default=None)
     ready_queue: ReliableQueue | None = field(init=False, default=None)
     registry: TaskRegistry | None = field(init=False, default=None)
-    session: requests.Session = field(init=False, default=None)
+    session: requests.Session = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.redis is not None:
             logger.debug("Using Redis for task queue and registry")
             queue_factory = QueueFactory(self.redis)
@@ -105,7 +105,7 @@ class Downloader:
                 except ValueError:
                     return False
 
-            def safe_extract(tar, path: Path) -> None:
+            def safe_extract(tar: tarfile.TarFile, path: Path) -> None:
                 for member in tar.getmembers():
                     member_path = path / member.name
                     if not is_within_directory(path, member_path):
@@ -190,22 +190,26 @@ class Downloader:
 
         return True
 
-    def _do_download(self, tmp_task_dir: tempfile.TemporaryDirectory, task: Task) -> bool:
-        tmp_task_dir = Path(tmp_task_dir)
+    def _do_download(self, tmp_task_dir: str | Path, task: Task) -> bool:
+        tmp_task_dir_path = Path(tmp_task_dir)
         logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
         # Download and extract all sources
-        success = self._download_and_extract_sources(task.task_id, tmp_task_dir, task.sources)
+        success = self._download_and_extract_sources(task.task_id, tmp_task_dir_path, task.sources)
         if not success:
             logger.error(f"Failed to download and extract sources for task {task.task_id}")
             return False
 
         # Store the task meta in the tasks storage directory
         task_meta = TaskMeta(task.project_name, task.focus, task.task_id, dict(task.metadata))
-        task_meta.save(tmp_task_dir)
+        task_meta.save(tmp_task_dir_path)
         return True
 
     def serve_item(self) -> bool:
+        assert self.task_queue is not None
+        assert self.ready_queue is not None
+        assert self.registry is not None
+
         rq_item = self.task_queue.pop()
 
         if rq_item is None:
@@ -224,7 +228,7 @@ class Downloader:
 
         return True
 
-    def serve(self):
+    def serve(self) -> None:
         """Main loop to process tasks from queue"""
         if self.task_queue is None:
             raise ValueError("Task queue is not initialized")
@@ -235,13 +239,15 @@ class Downloader:
         logger.info("Starting downloader service")
         serve_loop(self.serve_item, self.sleep_time)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources used by the downloader"""
         if self.session:
             self.session.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "Downloader":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+    ) -> None:
         self.cleanup()

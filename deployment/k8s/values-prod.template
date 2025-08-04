@@ -1,7 +1,6 @@
 global:
   environment: "aks"
 
-  ossFuzzContainerOrg: "${FUZZ_TOOLING_CONTAINER_ORG}"
   logMaxLineLength: 10240
   orchestratorImage:
     tag: "v0.5.0"
@@ -221,6 +220,7 @@ competition-api:
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"

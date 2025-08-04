@@ -72,6 +72,9 @@ setup_config() {
     
     # Configure required API keys
     configure_local_api_keys
+
+    # Configure LLM Budget
+    configure_llm_budget
     
     # Configure LangFuse (optional)
     configure_langfuse
@@ -159,7 +162,6 @@ main() {
     
     check_azure_cli
     check_terraform
-    install_just
     setup_service_principal
     setup_config
     setup_remote_state

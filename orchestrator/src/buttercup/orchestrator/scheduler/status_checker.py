@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class StatusChecker:
     """Class that handles status checking with rate limiting."""
 
-    def __init__(self, check_interval: float = 60.0):
+    def __init__(self, check_interval: float = 60.0) -> None:
         """Initialize the status checker.
 
         Args:

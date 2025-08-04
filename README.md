@@ -11,8 +11,11 @@
 - **Storage:** 50 GB available disk space
 - **Network:** Stable internet connection for downloading dependencies
 
-### Supported Systems
+Note: Buttercup uses hosted LLMs, which cost money. Limit your per-deployment spend with the built-in LLM budget.
 
+## Local Development
+
+### Supported Systems
 - **Linux x86_64** (fully supported)
 - **ARM64** (only for upstream Google OSS-Fuzz projects, not for AIxCC challenges)
 
@@ -76,7 +79,76 @@ make deploy-local
 make status
 ```
 
-When deployment is successful, you should see all pods in "Running" status.
+When deployment is successful, you should see all pods in "Running" status:
+
+```shell
+$ make status
+----------PODS------------
+NAME                                         READY   STATUS      RESTARTS   AGE
+buttercup-build-bot-845f5b96d9-7t8bz         1/1     Running     0          5m58s
+buttercup-build-bot-845f5b96d9-bfsq9         1/1     Running     0          5m58s
+buttercup-build-bot-845f5b96d9-npns4         1/1     Running     0          5m58s
+buttercup-build-bot-845f5b96d9-sv5fr         1/1     Running     0          5m58s
+buttercup-coverage-bot-6749f57b9d-4gzfd      1/1     Running     0          5m58s
+buttercup-dind-452s6                         1/1     Running     0          5m58s
+buttercup-fuzzer-bot-74bc9b849d-2zkt6        1/1     Running     0          5m58s
+buttercup-image-preloader-97nfb              0/1     Completed   0          5m58s
+buttercup-litellm-5f87df944-2mq7z            1/1     Running     0          5m58s
+buttercup-litellm-migrations-ljjcl           0/1     Completed   0          5m58s
+buttercup-merger-bot-fz87v                   1/1     Running     0          5m58s
+buttercup-patcher-7597c965b8-6968s           1/1     Running     0          5m58s
+buttercup-postgresql-0                       1/1     Running     0          5m58s
+buttercup-pov-reproducer-5f948bd7cc-45rgp    1/1     Running     0          5m58s
+buttercup-program-model-67446b5cfc-24zfh     1/1     Running     0          5m58s
+buttercup-redis-master-0                     1/1     Running     0          5m58s
+buttercup-registry-cache-5787f86896-czt9b    1/1     Running     0          5m58s
+buttercup-scheduler-7c49bf75c5-swqkb         1/1     Running     0          5m58s
+buttercup-scratch-cleaner-hdt6z              1/1     Running     0          5m58s
+buttercup-seed-gen-6fdb9c94c9-4xmrp          1/1     Running     0          5m57s
+buttercup-task-downloader-54cd9fb577-g4lbg   1/1     Running     0          5m58s
+buttercup-task-server-7d8cd7cf49-zkt69       1/1     Running     0          5m58s
+buttercup-tracer-bot-5b9fb6c8b5-zcmxd        1/1     Running     0          5m58s
+buttercup-ui-5dcf7dfb8-njglh                 1/1     Running     0          5m58s
+----------SERVICES--------
+NAME                       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+buttercup-litellm          ClusterIP   10.96.88.226     <none>        4000/TCP   5m58s
+buttercup-postgresql       ClusterIP   10.111.161.207   <none>        5432/TCP   5m58s
+buttercup-postgresql-hl    ClusterIP   None             <none>        5432/TCP   5m58s
+buttercup-redis-headless   ClusterIP   None             <none>        6379/TCP   5m58s
+buttercup-redis-master     ClusterIP   10.108.61.77     <none>        6379/TCP   5m58s
+buttercup-registry-cache   ClusterIP   10.103.80.241    <none>        443/TCP    5m58s
+buttercup-task-server      ClusterIP   10.104.206.197   <none>        8000/TCP   5m58s
+buttercup-ui               ClusterIP   10.106.49.166    <none>        1323/TCP   5m58s
+All CRS pods up and running.
+```
+
+3. **Submit the libpng project to the CRS (for 30mins):**
+
+```bash
+make send-libpng-task
+```
+
+**Alternative manual commands:**
+
+```bash
+# Start services manually
+cd deployment && make up
+
+# Port forward manually
+kubectl port-forward -n crs service/buttercup-ui 31323:1323
+
+# Test manually
+./orchestrator/scripts/task_integration_test.sh
+```
+
+## Production AKS Deployment
+
+> **⚠️ Notice:**  
+> The following production deployment instructions have **not been fully tested**.  
+> Please proceed with caution and verify each step in your environment.  
+> If you encounter issues, consult the script comments and configuration files for troubleshooting.
+
+Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
 
 3. **Test the system:**
 
@@ -115,8 +187,9 @@ To run challenges against the CRS:
 # Start the UI port forwarding (if not already running)
 kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 
+
 # Run the challenge script
-./orchestrator/scripts/challenge.sh
+./orchestrator/scripts/challenge.py
 ```
 
 ### Pre-defined Challenges
@@ -138,6 +211,62 @@ make status
 ### Accessing Logs
 
 For system logs and monitoring, use SigNoz if configured, otherwise you can use kubectl:
+=======
+# View all available commands
+make help
+
+# Setup
+make setup-local          # Automated local development setup
+make setup-azure          # Automated production AKS setup
+make validate             # Validate current setup and configuration
+
+# Deployment
+make deploy               # Deploy to current environment (local or azure)
+make deploy-local         # Deploy to local Minikube environment
+make deploy-azure         # Deploy to production AKS environment
+
+# Status
+make status               # Check the status of the deployment
+
+# Testing
+make send-integration-task     # Run integration test task
+make send-libpng-task          # Run libpng test task
+
+# Development
+make lint                 # Lint all Python code
+make lint-component COMPONENT=orchestrator  # Lint specific component
+
+# Cleanup
+make undeploy             # Remove deployment and clean up resources
+make clean-local          # Delete Minikube cluster and remove local config
+```
+
+### Running Tests
+
+```bash
+# Lint all Python code
+make lint
+
+# Lint specific component
+make lint-component COMPONENT=orchestrator
+```
+
+**Alternative manual commands:**
+
+```bash
+# Lint Python code
+make lint
+
+# Run specific component tests
+make lint-component COMPONENT=orchestrator
+
+# Test manually
+./orchestrator/scripts/task_upstream_libpng.sh
+./orchestrator/scripts/challenge.py
+```
+
+
+### Kubernetes Development
 
 ```bash
 # View all pods
