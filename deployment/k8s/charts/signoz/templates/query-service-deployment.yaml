@@ -1,0 +1,110 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.names.fullname" . }}-query-service
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: query-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: query-service
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: query-service
+    spec:
+      initContainers:
+        - name: schema-migrator-sync
+          image: {{ .Values.images.schema_migrator }}
+          command:
+            - sync
+            - --dsn=tcp://{{ include "common.names.fullname" . }}-clickhouse:9000
+            - --up=
+          volumeMounts:
+            {{- if .Values.persistence.sqlite.enabled }}
+            - name: sqlite-data
+              mountPath: /var/lib/signoz
+            {{- end }}
+        - name: schema-migrator-async
+          image: {{ .Values.images.schema_migrator }}
+          command:
+            - async
+            - --dsn=tcp://{{ include "common.names.fullname" . }}-clickhouse:9000
+            - --up=
+          volumeMounts:
+            {{- if .Values.persistence.sqlite.enabled }}
+            - name: sqlite-data
+              mountPath: /var/lib/signoz
+            {{- end }}
+      containers:
+        - name: query-service
+          image: {{ .Values.images.query_service }}
+          args:
+            - --config=/root/config/prometheus.yml
+            - --use-logs-new-schema=true
+            - --use-trace-new-schema=true
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: pprof
+              containerPort: 6060
+          env:
+            - name: ClickHouseUrl
+              value: "tcp://{{ include "common.names.fullname" . }}-clickhouse:9000"
+            - name: ALERTMANAGER_API_PREFIX
+              value: "http://{{ include "common.names.fullname" . }}-alertmanager:9093/api/"
+            - name: SIGNOZ_SQLSTORE_SQLITE_PATH
+              value: "/var/lib/signoz/signoz.db"
+            - name: DASHBOARDS_PATH
+              value: "/root/config/dashboards"
+            - name: STORAGE
+              value: "clickhouse"
+            - name: GODEBUG
+              value: "netdns=go"
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: DEPLOYMENT_TYPE
+              value: "docker-standalone-amd"
+          volumeMounts:
+            - name: signoz-config
+              mountPath: /root/config/prometheus.yml
+              subPath: prometheus.yml
+            - name: signoz-config
+              mountPath: /root/config/dashboards
+              readOnly: true
+            {{- if .Values.persistence.sqlite.enabled }}
+            - name: sqlite-data
+              mountPath: /var/lib/signoz
+            {{- end }}
+          {{- if .Values.resources.query_service }}
+          resources:
+            {{- toYaml .Values.resources.query_service | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: signoz-config
+          configMap:
+            name: {{ include "common.names.fullname" . }}-signoz-config
+        {{- if .Values.persistence.sqlite.enabled }}
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: {{ include "common.names.fullname" . }}-sqlite-data
+        {{- end }}
+      restartPolicy: Always
+{{- end }}

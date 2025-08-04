@@ -58,3 +58,6 @@ dependencies:
   - name: ui
     version: "0.0.1"
     repository: "file://charts/ui"
+  - name: signoz
+    version: "0.1.0"
+    repository: "file://charts/signoz"

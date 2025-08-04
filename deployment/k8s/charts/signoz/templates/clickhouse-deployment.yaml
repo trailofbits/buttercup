@@ -1,0 +1,103 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.names.fullname" . }}-clickhouse
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: clickhouse
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: clickhouse
+    spec:
+      initContainers:
+        - name: init-clickhouse
+          image: {{ .Values.images.clickhouse }}
+          command:
+            - bash
+            - -c
+            - |
+              version="v0.0.1"
+              node_os=$(uname -s | tr '[:upper:]' '[:lower:]')
+              node_arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
+              echo "Fetching histogram-binary for ${node_os}/${node_arch}"
+              cd /tmp
+              wget -O histogram-quantile.tar.gz "https://github.com/SigNoz/signoz/releases/download/histogram-quantile%2F${version}/histogram-quantile_${node_os}_${node_arch}.tar.gz"
+              tar -xvzf histogram-quantile.tar.gz
+              mv histogram-quantile /var/lib/clickhouse/user_scripts/histogramQuantile
+          volumeMounts:
+            - name: clickhouse-user-scripts
+              mountPath: /var/lib/clickhouse/user_scripts
+      containers:
+        - name: clickhouse
+          image: {{ .Values.images.clickhouse }}
+          ports:
+            - name: http
+              containerPort: 8123
+            - name: native
+              containerPort: 9000
+            - name: interserver
+              containerPort: 9009
+          env:
+            - name: CLICKHOUSE_DB
+              value: "signoz"
+            - name: CLICKHOUSE_USER
+              value: "clickhouse"
+            - name: CLICKHOUSE_PASSWORD
+              value: "clickhouse"
+          volumeMounts:
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/config.xml
+              subPath: config.xml
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/users.xml
+              subPath: users.xml
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/custom-function.xml
+              subPath: custom-function.xml
+            - name: clickhouse-config
+              mountPath: /etc/clickhouse-server/config.d/cluster.xml
+              subPath: cluster.xml
+            - name: clickhouse-user-scripts
+              mountPath: /var/lib/clickhouse/user_scripts
+            {{- if .Values.persistence.clickhouse.enabled }}
+            - name: clickhouse-data
+              mountPath: /var/lib/clickhouse
+            {{- end }}
+          {{- if .Values.resources.clickhouse }}
+          resources:
+            {{- toYaml .Values.resources.clickhouse | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8123
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8123
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: clickhouse-config
+          configMap:
+            name: {{ include "common.names.fullname" . }}-clickhouse-config
+        - name: clickhouse-user-scripts
+          emptyDir: {}
+        {{- if .Values.persistence.clickhouse.enabled }}
+        - name: clickhouse-data
+          persistentVolumeClaim:
+            claimName: {{ include "common.names.fullname" . }}-clickhouse-data
+        {{- end }}
+      restartPolicy: Always
+{{- end }}

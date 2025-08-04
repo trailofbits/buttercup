@@ -1,5 +1,6 @@
 include:
  - ../../competition-server/compose.yaml
+ - signoz/compose.yaml
 
 services:
   # ugh the only solution i can come up with is a dind instance paired with every single build-bot we will need like k8s groups or something

@@ -1,0 +1,72 @@
+enabled: false
+
+# SigNoz image tags
+images:
+  query_service: signoz/query-service:0.71.0
+  frontend: signoz/frontend:0.71.0
+  otel_collector: signoz/signoz-otel-collector:0.111.26
+  alertmanager: signoz/alertmanager:0.23.7
+  schema_migrator: signoz/signoz-schema-migrator:0.111.24
+  clickhouse: clickhouse/clickhouse-server:24.1.2-alpine
+  zookeeper: bitnami/zookeeper:3.7.1
+  logspout: gliderlabs/logspout:v3.2.14
+
+# Resources
+resources:
+  clickhouse:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+      
+  query_service:
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+      
+  otel_collector:
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+
+# Service configuration
+service:
+  frontend:
+    port: 3301
+    type: ClusterIP
+  otel_collector:
+    grpc_port: 4317
+    tcp_port: 2255
+    type: ClusterIP
+
+# Persistence
+persistence:
+  clickhouse:
+    enabled: true
+    storageClass: ""
+    size: 20Gi
+  alertmanager:
+    enabled: true
+    storageClass: ""
+    size: 1Gi
+  zookeeper:
+    enabled: true
+    storageClass: ""
+    size: 1Gi
+  sqlite:
+    enabled: true
+    storageClass: ""
+    size: 1Gi
+
+# Authentication for OTEL collector
+auth:
+  username: "username"
+  password: "password"

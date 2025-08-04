@@ -1,0 +1,74 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.names.fullname" . }}-zookeeper
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: zookeeper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zookeeper
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: zookeeper
+    spec:
+      containers:
+        - name: zookeeper
+          image: {{ .Values.images.zookeeper }}
+          ports:
+            - name: client
+              containerPort: 2181
+            - name: follower
+              containerPort: 2888
+            - name: election
+              containerPort: 3888
+            - name: metrics
+              containerPort: 9141
+          env:
+            - name: ZOO_SERVER_ID
+              value: "1"
+            - name: ALLOW_ANONYMOUS_LOGIN
+              value: "yes"
+            - name: ZOO_AUTOPURGE_INTERVAL
+              value: "1"
+            - name: ZOO_ENABLE_PROMETHEUS_METRICS
+              value: "yes"
+            - name: ZOO_PROMETHEUS_METRICS_PORT_NUMBER
+              value: "9141"
+          {{- if .Values.persistence.zookeeper.enabled }}
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /bitnami/zookeeper
+          {{- end }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      {{- if .Values.persistence.zookeeper.enabled }}
+      volumes:
+        - name: zookeeper-data
+          persistentVolumeClaim:
+            claimName: {{ include "common.names.fullname" . }}-zookeeper-data
+      {{- end }}
+      restartPolicy: Always
+{{- end }}

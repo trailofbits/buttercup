@@ -1,0 +1,159 @@
+{{- if .Values.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.names.fullname" . }}-clickhouse
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: native
+      protocol: TCP
+      name: native
+    - port: 8123
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9009
+      targetPort: interserver
+      protocol: TCP
+      name: interserver
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.names.fullname" . }}-zookeeper
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2181
+      targetPort: client
+      protocol: TCP
+      name: client
+    - port: 2888
+      targetPort: follower
+      protocol: TCP
+      name: follower
+    - port: 3888
+      targetPort: election
+      protocol: TCP
+      name: election
+    - port: 9141
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: zookeeper
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.names.fullname" . }}-query-service
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: query-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 6060
+      targetPort: pprof
+      protocol: TCP
+      name: pprof
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: query-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.names.fullname" . }}-otel-collector
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  type: {{ .Values.service.otel_collector.type }}
+  ports:
+    - port: {{ .Values.service.otel_collector.grpc_port }}
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: 4318
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+    - port: {{ .Values.service.otel_collector.tcp_port }}
+      targetPort: tcp-log
+      protocol: TCP
+      name: tcp-log
+    - port: 1777
+      targetPort: pprof
+      protocol: TCP
+      name: pprof
+    - port: 13133
+      targetPort: health
+      protocol: TCP
+      name: health
+    - port: 8888
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.names.fullname" . }}-frontend
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+    - port: {{ .Values.service.frontend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "common.names.fullname" . }}-alertmanager
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "common.labels.matchLabels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+{{- end }}

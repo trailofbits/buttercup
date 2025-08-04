@@ -1,0 +1,54 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.names.fullname" . }}-alertmanager
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: alertmanager
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: {{ .Values.images.alertmanager }}
+          args:
+            - --queryService.url=http://{{ include "common.names.fullname" . }}-query-service:8080
+            - --storage.path=/data
+          ports:
+            - name: http
+              containerPort: 9093
+          {{- if .Values.persistence.alertmanager.enabled }}
+          volumeMounts:
+            - name: alertmanager-data
+              mountPath: /data
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      {{- if .Values.persistence.alertmanager.enabled }}
+      volumes:
+        - name: alertmanager-data
+          persistentVolumeClaim:
+            claimName: {{ include "common.names.fullname" . }}-alertmanager-data
+      {{- end }}
+      restartPolicy: Always
+{{- end }}

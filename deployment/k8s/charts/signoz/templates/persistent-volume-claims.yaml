@@ -1,0 +1,97 @@
+{{- if .Values.enabled }}
+{{- if .Values.persistence.clickhouse.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "common.names.fullname" . }}-clickhouse-data
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.persistence.clickhouse.storageClass }}
+  {{- if (eq "-" .Values.persistence.clickhouse.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: "{{ .Values.persistence.clickhouse.storageClass }}"
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.clickhouse.size | quote }}
+{{- end }}
+
+{{- if .Values.persistence.alertmanager.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "common.names.fullname" . }}-alertmanager-data
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.persistence.alertmanager.storageClass }}
+  {{- if (eq "-" .Values.persistence.alertmanager.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: "{{ .Values.persistence.alertmanager.storageClass }}"
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.alertmanager.size | quote }}
+{{- end }}
+
+{{- if .Values.persistence.zookeeper.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "common.names.fullname" . }}-zookeeper-data
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: zookeeper
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.persistence.zookeeper.storageClass }}
+  {{- if (eq "-" .Values.persistence.zookeeper.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: "{{ .Values.persistence.zookeeper.storageClass }}"
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.zookeeper.size | quote }}
+{{- end }}
+
+{{- if .Values.persistence.sqlite.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "common.names.fullname" . }}-sqlite-data
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: query-service
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.persistence.sqlite.storageClass }}
+  {{- if (eq "-" .Values.persistence.sqlite.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: "{{ .Values.persistence.sqlite.storageClass }}"
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.sqlite.size | quote }}
+{{- end }}
+{{- end }}

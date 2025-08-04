@@ -1,0 +1,78 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "common.names.fullname" . }}-otel-collector
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: otel-collector
+  template:
+    metadata:
+      labels:
+        {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: {{ .Values.images.otel_collector }}
+          args:
+            - --config=/etc/otel-collector-config.yaml
+            - --manager-config=/etc/manager-config.yaml
+            - --copy-path=/var/tmp/collector-config.yaml
+            - --feature-gates=-pkg.translator.prometheus.NormalizeName
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: pprof
+              containerPort: 1777
+            - name: health
+              containerPort: 13133
+            - name: metrics
+              containerPort: 8888
+            - name: tcp-log
+              containerPort: 2255
+          env:
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "host.name=signoz-host,os.type=linux"
+            - name: LOW_CARDINAL_EXCEPTION_GROUPING
+              value: "false"
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel-collector-config.yaml
+              subPath: otel-collector-config.yaml
+            - name: signoz-config
+              mountPath: /etc/manager-config.yaml
+              subPath: otel-collector-opamp-config.yaml
+          {{- if .Values.resources.otel_collector }}
+          resources:
+            {{- toYaml .Values.resources.otel_collector | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: otel-config
+          configMap:
+            name: {{ include "common.names.fullname" . }}-otel-config
+        - name: signoz-config
+          configMap:
+            name: {{ include "common.names.fullname" . }}-signoz-config
+      restartPolicy: Always
+{{- end }}
