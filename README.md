@@ -88,21 +88,16 @@ make send-libpng-task
 ```
 
 6. Access Buttercup's web-based GUI
+```bash
+make web-ui
+```
 
+7. Stop Buttercup
 
-## Production AKS Deployment
-
-> **⚠️ Notice:**  
-> The following production deployment instructions have **not been fully tested**.  
-> Please proceed with caution and verify each step in your environment.  
-> If you encounter issues, consult the script comments and configuration files for troubleshooting.
-
-Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
-
-3. **Test the system:**
+**Note:** This is an important step to ensure Buttercup shuts down and stops consuming third-party AI resources.
 
 ```bash
-make send-libpng-task
+make undeploy
 ```
 
 ## Using the GUI
@@ -203,26 +198,6 @@ kubectl logs -n crs <pod-name>
 # Follow logs in real-time
 kubectl logs -n crs <pod-name> -f
 ```
-
-### Stopping the System
-
-```bash
-make undeploy
-```
-
-## Advanced Usage
-
-### Production Deployment
-
-For production deployment on Azure Kubernetes Service, see the [AKS Deployment Guide](AKS_DEPLOYMENT.md).
-
-### Development
-
-For development workflows and contributing guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Troubleshooting
-
-For troubleshooting help and common commands, see the [Quick Reference Guide](QUICK_REFERENCE.md).
 
 ## Architecture
 
