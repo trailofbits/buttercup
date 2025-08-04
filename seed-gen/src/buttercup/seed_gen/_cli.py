@@ -41,7 +41,7 @@ def command_server(settings: Settings) -> None:
     seed_gen_bot = SeedGenBot(
         redis,
         settings.server.sleep_time,
-        str(settings.wdir),
+        settings.wdir,
         max_corpus_seed_size=settings.server.max_corpus_seed_size,
         max_pov_size=settings.server.max_pov_size,
         corpus_root=str(settings.server.corpus_root) if settings.server.corpus_root else None,

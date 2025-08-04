@@ -45,7 +45,7 @@ class SeedGenBot(TaskLoop):
         self,
         redis: Redis,
         timer_seconds: int,
-        wdir: str,
+        wdir: Path,
         max_corpus_seed_size: int,
         max_pov_size: int,
         crash_dir_count_limit: int | None = None,
@@ -139,13 +139,13 @@ class SeedGenBot(TaskLoop):
 
             logger.info("Initializing codequery")
             try:
-                codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
+                codequery = CodeQueryPersistent(challenge_task, work_dir=self.wdir)
             except Exception as e:
                 logger.exception(f"Failed to initialize codequery: {e}.")
                 return
 
             corp = Corpus(
-                self.wdir,
+                self.wdir.as_posix(),
                 task.task_id,
                 task.harness_name,
                 copy_corpus_max_size=self.max_corpus_seed_size,
@@ -182,7 +182,7 @@ class SeedGenBot(TaskLoop):
                     crash_queue=self.crash_queue,
                     crash_set=self.crash_set,
                     crash_dir=CrashDir(
-                        self.wdir,
+                        self.wdir.as_posix(),
                         task.task_id,
                         task.harness_name,
                         count_limit=self.crash_dir_count_limit,
