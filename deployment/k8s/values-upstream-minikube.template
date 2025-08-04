@@ -80,3 +80,6 @@ image-preloader:
     - gcr.io/oss-fuzz-base/base-builder-rust
   versions:
     - latest
+
+signoz:
+  enabled: true

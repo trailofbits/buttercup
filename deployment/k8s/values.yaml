@@ -375,3 +375,7 @@ litellm-helm:
 
 restartPolicy: Always
 
+# SigNoz observability platform
+signoz:
+  enabled: false
+

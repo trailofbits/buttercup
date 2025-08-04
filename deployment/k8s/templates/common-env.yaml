@@ -85,12 +85,21 @@ Define Docker Host environment variable for Unix socket
 {{- end }}
 
 {{- define "buttercup.env.telemetry" }}
+{{- if and .Values.signoz.enabled }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "http://{{ .Release.Name }}-signoz-otel-collector:4317"
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: "Authorization=Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: "grpc"
+{{- else }}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: "{{ .Values.global.otel.endpoint }}"
 - name: OTEL_EXPORTER_OTLP_HEADERS
   value: "Authorization=Basic {{ .Values.global.otel.token }}"
 - name: OTEL_EXPORTER_OTLP_PROTOCOL
   value: "{{ .Values.global.otel.protocol | default "grpc" }}"
+{{- end }}
 - name: CRS_INSTANCE_ID
   valueFrom:
     configMapKeyRef:
