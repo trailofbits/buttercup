@@ -99,7 +99,7 @@ The system consists of several key components:
 - **Fuzzer** (`/fuzzer/`): Automated vulnerability discovery (build-bot, fuzzer-bot, coverage-bot, tracer-bot)
 - **Program Model** (`/program-model/`): Semantic code analysis using CodeQuery and Tree-sitter
 - **Patcher** (`/patcher/`): LLM-powered automated patch generation
-- **Seed Generation** (`/seed-gen/`): Intelligent test case generation
+- **Seed Generation** (`/seed-gen/`): Intelligent input generation
 
 ## Contribution Guidelines
 
