@@ -1,4 +1,4 @@
-name: Docker Compose integration tests
+name: Minikube Integration Tests
 
 on:
   push:
