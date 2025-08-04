@@ -26,7 +26,7 @@ def extract_code(msg: AIMessage) -> str:
     content = msg.content
 
     if not isinstance(content, str):
-        raise OutputParserException("Content is not a string. Content is %s", type(content))
+        raise OutputParserException(f"Content is not a string. Content is {type(content)}")
 
     # Try to get last complete markdown block
     find_iter = re.finditer(r"```([A-Za-z]*)\n(.*?)```", content, re.DOTALL)
