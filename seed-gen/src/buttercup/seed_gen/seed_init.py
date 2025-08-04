@@ -77,10 +77,10 @@ class SeedInitTask(SeedBaseTask):
                 crs_action_name="seed_gen_init",
                 task_metadata=dict(self.challenge_task.task_meta.metadata),
                 extra_attributes={
-                    "gen_ai.request.model": self.llm.model_name,
+                    "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
                 },
             )
-            chain.invoke(state)
+            chain.invoke(state)  # type: ignore[arg-type]
 
     def do_task(self, output_dir: Path) -> None:
         """Do seed-init task"""

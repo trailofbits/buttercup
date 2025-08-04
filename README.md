@@ -227,7 +227,7 @@ cd deployment && make up
 ```bash
 kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
 
-./orchestrator/scripts/challenge.sh
+./orchestrator/scripts/challenge.py
 ```
 
 ## Cleanup
@@ -299,7 +299,7 @@ make lint-component COMPONENT=orchestrator
 
 # Test manually
 ./orchestrator/scripts/task_upstream_libpng.sh
-./orchestrator/scripts/challenge.sh
+./orchestrator/scripts/challenge.py
 ```
 
 

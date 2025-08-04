@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 import uuid
 
 from fastapi import HTTPException
@@ -21,6 +21,8 @@ from buttercup.orchestrator.ui.competition_api.models.crs_types import (
     Task,
     TaskDetail,
     TaskType,
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
 )
 
 logger = logging.getLogger(__name__)
@@ -299,3 +301,23 @@ class ChallengeService:
 
         logger.info(f"Created task {task_id} for challenge {fuzz_tooling_project_name}")
         return task
+
+    def create_sarif_broadcast(self, task_id: str, sarif: dict[str, Any]) -> SARIFBroadcast:
+        """
+        Create a SARIF Broadcast for a task
+        """
+        sarif_id = str(uuid.uuid4())
+        message_id = str(uuid.uuid4())
+        message_time = int(time.time() * 1000)
+        return SARIFBroadcast(
+            broadcasts=[
+                SARIFBroadcastDetail(
+                    metadata={},
+                    sarif=sarif,
+                    sarif_id=sarif_id,
+                    task_id=task_id,
+                )
+            ],
+            message_id=message_id,
+            message_time=message_time,
+        )
