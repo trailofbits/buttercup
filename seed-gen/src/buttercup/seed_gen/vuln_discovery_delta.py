@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import override
+from typing import cast, override
 
 from langgraph.types import Command
 from pydantic import Field
@@ -35,9 +35,8 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
     def _gather_context(self, state: BaseTaskState) -> Command:
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
-        from typing import cast
-
-        vuln_state = cast("VulnDiscoveryDeltaState", state)
+        vuln_state = cast(VulnDiscoveryDeltaState, state)
+        assert isinstance(state, VulnDiscoveryDeltaState)
         prompt_vars = {
             "diff": vuln_state.diff_content,
             "harness": str(state.harness),
@@ -58,9 +57,8 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
     @override
     def _analyze_bug(self, state: BaseTaskState) -> Command:
         """Analyze the diff for vulnerabilities"""
-        from typing import cast
-
-        vuln_state = cast("VulnDiscoveryDeltaState", state)
+        vuln_state = cast(VulnDiscoveryDeltaState, state)
+        assert isinstance(state, VulnDiscoveryDeltaState)
         prompt_vars = {
             "diff": vuln_state.diff_content,
             "harness": str(state.harness),
@@ -79,9 +77,8 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
     @override
     def _write_pov(self, state: BaseTaskState) -> Command:
         """Write PoV functions for the vulnerability"""
-        from typing import cast
-
-        vuln_state = cast("VulnDiscoveryDeltaState", state)
+        vuln_state = cast(VulnDiscoveryDeltaState, state)
+        assert isinstance(state, VulnDiscoveryDeltaState)
         prompt_vars = {
             "analysis": vuln_state.analysis,
             "harness": str(state.harness),

@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import override
+from typing import cast, override
 
 from langgraph.types import Command
 
@@ -29,9 +29,8 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     def _gather_context(self, state: BaseTaskState) -> Command:
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
-        from typing import cast
-
-        vuln_state = cast("VulnBaseState", state)
+        vuln_state = cast(VulnBaseState, state)
+        assert isinstance(state, VulnBaseState)
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
@@ -51,9 +50,8 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     @override
     def _analyze_bug(self, state: BaseTaskState) -> Command:
         """Analyze the diff for vulnerabilities"""
-        from typing import cast
-
-        vuln_state = cast("VulnBaseState", state)
+        vuln_state = cast(VulnBaseState, state)
+        assert isinstance(state, VulnBaseState)
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
@@ -71,9 +69,8 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     @override
     def _write_pov(self, state: BaseTaskState) -> Command:
         """Write PoV functions for the vulnerability"""
-        from typing import cast
-
-        vuln_state = cast("VulnBaseState", state)
+        vuln_state = cast(VulnBaseState, state)
+        assert isinstance(state, VulnBaseState)
         prompt_vars = {
             "analysis": vuln_state.analysis,
             "harness": str(state.harness),

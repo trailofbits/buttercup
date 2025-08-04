@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import override
+from typing import cast, override
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
@@ -37,9 +37,8 @@ class SeedExploreTask(SeedBaseTask):
     def _generate_seeds(self, state: BaseTaskState) -> Command:
         """Generate seed functions using collected function definitions"""
         logger.info("Generating seeds")
-        from typing import cast
-
-        seed_state = cast("SeedExploreState", state)
+        seed_state = cast(SeedExploreState, state)
+        assert isinstance(state, SeedExploreState)
         prompt_vars = {
             "count": self.SEED_EXPLORE_SEED_COUNT,
             "harness": str(state.harness),
@@ -56,9 +55,8 @@ class SeedExploreTask(SeedBaseTask):
         """Generate tool calls to retrieve context"""
 
         logger.info("Getting context")
-        from typing import cast
-
-        seed_state = cast("SeedExploreState", state)
+        seed_state = cast(SeedExploreState, state)
+        assert isinstance(state, SeedExploreState)
         prompt_vars = {
             "target_function": str(seed_state.target_function),
             "harness": str(state.harness),
