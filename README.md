@@ -19,6 +19,8 @@
 
 **Note:** Buttercup uses third-party AI providers (LLMs from companies like OpenAI, Anthropic and Google), which cost money. Please ensure that you manage per-deployment costs by using the built-in LLM budget setting.
 
+**Note:** Buttercup works best with access to models from OpenAI **and** Anthropic, but can be run with at least one API key from one third-party provider (support for Gemini coming soon).
+
 ### Supported Systems
 - **Linux x86_64** (fully supported)
 - **ARM64** (partial support for upstream Google OSS-Fuzz projects)
