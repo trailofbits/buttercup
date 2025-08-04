@@ -89,7 +89,7 @@ def scratch_path() -> NodeLocalPath:
     return scratch_dir
 
 
-def scratch_dir() -> Any:
+def scratch_dir() -> Iterator[TmpDir]:
     """Return a temporary directory in the scratch directory"""
     return temp_dir(scratch_path())
 
