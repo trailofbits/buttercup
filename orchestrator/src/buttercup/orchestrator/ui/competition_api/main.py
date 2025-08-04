@@ -10,7 +10,6 @@ import base64
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from typing import Any
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -85,6 +84,7 @@ class DashboardStats(BaseModel):
     totalPatches: int
     totalBundles: int
 
+
 class Challenge(BaseModel):
     name: str | None = None
 
@@ -127,6 +127,7 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
+
 
 @cache
 def get_run_data_dir() -> Path:
@@ -183,6 +184,56 @@ def save_artifact(
         return False
 
 
+def get_artifact(task_id: str, artifact_type: str, artifact_id: str) -> Any:
+    """Get an artifact from the appropriate directory structure."""
+    try:
+        run_dir = get_run_data_dir()
+        task_dir = run_dir / task_id / artifact_type
+        if artifact_type == "bundles":
+            file_path = task_dir / f"{artifact_id}.json"
+            return json.load(file_path.open("r", encoding="utf-8"))
+        elif artifact_type == "patches":
+            file_path = task_dir / f"{artifact_id}.patch"
+            return file_path.read_text()
+        elif artifact_type == "povs":
+            file_path = task_dir / f"{artifact_id}.bin"
+            return file_path.read_bytes()
+        elif artifact_type == "sarifs":
+            file_path = task_dir / f"{artifact_id}.sarif"
+            return json.load(file_path.open("r", encoding="utf-8"))
+        else:
+            logger.error(f"Unknown artifact type: {artifact_type}")
+            return None
+    except Exception:
+        logger.exception(f"Failed to get {artifact_type} artifact {artifact_id} for task {task_id}")
+        return None
+
+
+def delete_artifact(task_id: str, artifact_type: str, artifact_id: str) -> bool:
+    try:
+        run_dir = get_run_data_dir()
+        task_dir = run_dir / task_id / artifact_type
+        if artifact_type == "bundles":
+            file_path = task_dir / f"{artifact_id}.json"
+        elif artifact_type == "patches":
+            file_path = task_dir / f"{artifact_id}.patch"
+        elif artifact_type == "povs":
+            file_path = task_dir / f"{artifact_id}.bin"
+        elif artifact_type == "sarifs":
+            file_path = task_dir / f"{artifact_id}.sarif"
+        else:
+            logger.error(f"Unknown artifact type: {artifact_type}")
+            return False
+
+        # Rename the file to mark it as deleted (append .deleted to the filename)
+        deleted_path = file_path.with_suffix(file_path.suffix + ".deleted")
+        file_path.rename(deleted_path)
+        return True
+    except Exception:
+        logger.exception(f"Failed to get {artifact_type} artifact {artifact_id} for task {task_id}")
+        return False
+
+
 def save_bundle(task_id: str, bundle_id: str, content: dict) -> bool:
     """Save a bundle to the appropriate directory structure."""
     return save_artifact(task_id, "bundles", bundle_id, content)
@@ -201,6 +252,16 @@ def save_pov(task_id: str, pov_id: str, content: str) -> bool:
 def save_sarif(task_id: str, sarif_id: str, content: dict) -> bool:
     """Save a SARIF to the appropriate directory structure."""
     return save_artifact(task_id, "sarifs", sarif_id, content, True)
+
+
+def get_bundle(task_id: str, bundle_id: str) -> dict | None:
+    artifact = get_artifact(task_id, "bundles", bundle_id)
+    if artifact is None:
+        return None
+
+    assert isinstance(artifact, dict)
+    return artifact
+
 
 def get_challenge_service() -> ChallengeService:
     """Get challenge service instance."""
@@ -510,7 +571,7 @@ def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
     logger.info(
         f"SARIF Assessment submission - Task: {task_id}, Broadcast SARIF ID: {broadcast_sarif_id}, Assessment: {body.assessment}, Description: {body.description[:100]}..."
     )
-    return Error(message="Not implemented")
+    return SarifAssessmentResponse(status=SubmissionStatus.SubmissionStatusAccepted)
 
 
 @app.post(
@@ -559,7 +620,20 @@ def get_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> Bundl
     Get Bundle
     """
     logger.info(f"Bundle retrieval - Task: {task_id}, Bundle ID: {bundle_id}")
-    return Error(message="Not implemented")
+    bundle = get_bundle(task_id, bundle_id)
+    if bundle is None:
+        return Error(message=f"Bundle {bundle_id} not found")
+
+    return BundleSubmissionResponseVerbose(
+        broadcast_sarif_id=bundle.get("broadcast_sarif_id"),
+        bundle_id=bundle_id,
+        description=bundle.get("description"),
+        freeform_id=bundle.get("freeform_id"),
+        patch_id=bundle.get("patch_id"),
+        pov_id=bundle.get("pov_id"),
+        status=bundle.get("status"),
+        submitted_sarif_id=bundle.get("submitted_sarif_id"),
+    )
 
 
 @app.delete(
@@ -578,6 +652,7 @@ def delete_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> st
     Delete Bundle
     """
     logger.info(f"Bundle deletion - Task: {task_id}, Bundle ID: {bundle_id}")
+    delete_artifact(task_id, "bundles", bundle_id)
     return None
 
 
@@ -600,7 +675,26 @@ def patch_v1_task_task_id_bundle_bundle_id_(
     """
     logger.info(f"Bundle update - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Updated bundle details: {json.dumps(body.dict(), indent=2)}")
-    return Error(message="Not implemented")
+
+    # Store bundle in task storage for dashboard
+    task_data = get_or_create_task(task_id)
+    bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
+    task_data["bundles"].append(bundle_data)
+
+    # Save bundle to disk
+    bundle = body.dict()
+    save_bundle(task_id, bundle_id, bundle)
+
+    return BundleSubmissionResponseVerbose(
+        broadcast_sarif_id=bundle.get("broadcast_sarif_id"),
+        bundle_id=bundle_id,
+        description=bundle.get("description"),
+        freeform_id=bundle.get("freeform_id"),
+        patch_id=bundle.get("patch_id"),
+        pov_id=bundle.get("pov_id"),
+        status=bundle.get("status"),
+        submitted_sarif_id=bundle.get("submitted_sarif_id"),
+    )
 
 
 @app.post(
@@ -793,6 +887,7 @@ def trigger_sarif(
     """
     logger.info(f"Triggering SARIF Broadcast: {json.dumps(body, indent=2)}")
     return _create_sarif_broadcast(body, challenge_service, crs_client)
+
 
 # Download endpoints for PoVs, Patches, and Bundles
 @app.get("/v1/dashboard/tasks/{task_id}/povs/{pov_id}/download", tags=["dashboard"])
