@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast, override
+from typing import override
 
 from langgraph.types import Command
 from pydantic import Field
@@ -14,7 +14,6 @@ from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_DELTA_WRITE_POV_SYSTEM_PROMPT,
     VULN_DELTA_WRITE_POV_USER_PROMPT,
 )
-from buttercup.seed_gen.task import BaseTaskState
 from buttercup.seed_gen.utils import get_diff_content
 from buttercup.seed_gen.vuln_base_task import VulnBaseState, VulnBaseTask
 
@@ -32,16 +31,14 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
     MAX_CONTEXT_ITERATIONS = 6
 
     @override
-    def _gather_context(self, state: BaseTaskState) -> Command:
+    def _gather_context(self, state: VulnDiscoveryDeltaState) -> Command:  # type: ignore[override]
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
-        vuln_state = cast(VulnDiscoveryDeltaState, state)
-        assert isinstance(state, VulnDiscoveryDeltaState)
         prompt_vars = {
-            "diff": vuln_state.diff_content,
+            "diff": state.diff_content,
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
-            "sarif_hints": vuln_state.format_sarif_hints(),
+            "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
@@ -55,19 +52,17 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         return res
 
     @override
-    def _analyze_bug(self, state: BaseTaskState) -> Command:
+    def _analyze_bug(self, state: VulnDiscoveryDeltaState) -> Command:  # type: ignore[override]
         """Analyze the diff for vulnerabilities"""
-        vuln_state = cast(VulnDiscoveryDeltaState, state)
-        assert isinstance(state, VulnDiscoveryDeltaState)
         prompt_vars = {
-            "diff": vuln_state.diff_content,
+            "diff": state.diff_content,
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
-            "sarif_hints": vuln_state.format_sarif_hints(),
+            "sarif_hints": state.format_sarif_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
-            "previous_attempts": vuln_state.format_pov_attempts(),
+            "previous_attempts": state.format_pov_attempts(),
         }
         res = self._analyze_bug_base(
             VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT, VULN_DELTA_ANALYZE_BUG_USER_PROMPT, prompt_vars
@@ -75,19 +70,17 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
         return res
 
     @override
-    def _write_pov(self, state: BaseTaskState) -> Command:
+    def _write_pov(self, state: VulnDiscoveryDeltaState) -> Command:  # type: ignore[override]
         """Write PoV functions for the vulnerability"""
-        vuln_state = cast(VulnDiscoveryDeltaState, state)
-        assert isinstance(state, VulnDiscoveryDeltaState)
         prompt_vars = {
-            "analysis": vuln_state.analysis,
+            "analysis": state.analysis,
             "harness": str(state.harness),
-            "diff": vuln_state.diff_content,
+            "diff": state.diff_content,
             "max_povs": self.VULN_DISCOVERY_MAX_POV_COUNT,
             "retrieved_context": state.format_retrieved_context(),
             "pov_examples": self.get_pov_examples(),
             "fuzzer_name": self.get_fuzzer_name(),
-            "previous_attempts": vuln_state.format_pov_attempts(),
+            "previous_attempts": state.format_pov_attempts(),
         }
         res = self._write_pov_base(
             VULN_DELTA_WRITE_POV_SYSTEM_PROMPT,

@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import cast, override
+from typing import override
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
@@ -34,15 +34,13 @@ class SeedExploreTask(SeedBaseTask):
     TARGET_FUNCTION_FUZZY_THRESHOLD = 50
 
     @override
-    def _generate_seeds(self, state: BaseTaskState) -> Command:
+    def _generate_seeds(self, state: SeedExploreState) -> Command:  # type: ignore[override]
         """Generate seed functions using collected function definitions"""
         logger.info("Generating seeds")
-        seed_state = cast(SeedExploreState, state)
-        assert isinstance(state, SeedExploreState)
         prompt_vars = {
             "count": self.SEED_EXPLORE_SEED_COUNT,
             "harness": str(state.harness),
-            "target_function": str(seed_state.target_function),
+            "target_function": str(state.target_function),
             "retrieved_context": state.format_retrieved_context(),
         }
         generated_functions = self._generate_python_funcs_base(
@@ -51,14 +49,12 @@ class SeedExploreTask(SeedBaseTask):
         return Command(update={"generated_functions": generated_functions})
 
     @override
-    def _get_context(self, state: BaseTaskState) -> Command:
+    def _get_context(self, state: SeedExploreState) -> Command:  # type: ignore[override]
         """Generate tool calls to retrieve context"""
 
         logger.info("Getting context")
-        seed_state = cast(SeedExploreState, state)
-        assert isinstance(state, SeedExploreState)
         prompt_vars = {
-            "target_function": str(seed_state.target_function),
+            "target_function": str(state.target_function),
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
         }
