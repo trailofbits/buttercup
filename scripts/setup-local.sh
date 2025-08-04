@@ -47,15 +47,89 @@ verify_setup() {
     fi
 }
 
-# Main execution
-main() {
-    print_status "Starting local development setup..."
-    
+install_linux() {
     install_docker
     install_kubectl
     install_helm
     install_minikube
     install_git_lfs
+}
+
+# Function to check if Homebrew exists
+check_brew() {
+    if ! command_exists brew; then
+        print_error "Homebrew (brew) is not installed!"
+        print_error "Please install Homebrew first: https://brew.sh/"
+        exit 1
+    fi
+}
+
+install_docker_mac() {
+    if command_exists docker; then
+        print_success "Docker is already installed"
+    else
+        print_status "Installing Docker..."
+        brew install --cask docker
+    fi
+}
+
+install_helm_mac() {
+    if command_exists helm; then
+        print_success "Helm is already installed"
+    else
+        print_status "Installing Helm..."
+        brew install helm
+    fi
+}
+
+install_minikube_mac() {
+    if command_exists minikube; then
+        print_success "Minikube is already installed"
+    else
+        print_status "Installing Minikube..."
+        brew install minikube
+    fi
+}
+
+install_git_lfs_mac() {
+    if command_exists git-lfs; then
+        print_success "Git LFS is already installed"
+    else
+        print_status "Installing Git LFS..."
+        brew install git-lfs
+    fi
+}
+
+install_macos() {
+    check_brew
+    install_docker_mac
+    install_helm_mac
+    install_minikube_mac
+    install_git_lfs_mac
+}
+
+# Main execution
+main() {
+    print_status "Starting local development setup..."
+
+    # Detect operating system and install dependencies
+    OS="$(uname -s)"
+    case "$OS" in
+        Linux*)
+            print_status "Detected Linux - installing Linux dependencies..."
+            install_linux
+            ;;
+        Darwin*)
+            print_status "Detected macOS - installing macOS dependencies..."
+            install_macos
+            ;;
+        *)
+            print_error "Unsupported operating system: $OS"
+            print_error "This script supports Linux and macOS only."
+            exit 1
+            ;;
+    esac
+
     setup_config
     
     verify_setup
