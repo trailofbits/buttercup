@@ -14,7 +14,7 @@
 
 - **CPU:** 8 cores
 - **Memory:** 16 GB RAM
-- **Storage:** 50 GB available disk space
+- **Storage:** 100 GB available disk space
 - **Network:** Stable internet connection for downloading dependencies
 
 **Note:** Buttercup uses third-party AI providers (LLMs from companies like OpenAI, Anthropic and Google), which cost money. Please ensure that you manage per-deployment costs by using the built-in LLM budget setting.
