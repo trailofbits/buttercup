@@ -23,6 +23,8 @@ spec:
                 secretKeyRef:
                   name: buttercup-litellm-api-secrets
                   key: BUTTERCUP_LITELLM_KEY
+            - name: LITELLM_MAX_BUDGET
+              value: {{ .Values.litellm.maxBudget | default "100" | quote }}
           volumeMounts:
             - name: script
               mountPath: /scripts

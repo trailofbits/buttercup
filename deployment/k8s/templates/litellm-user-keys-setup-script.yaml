@@ -36,8 +36,9 @@ data:
     def main():
         litellm_url = os.environ.get("LITELLM_URL")
         master_key = os.environ.get("LITELLM_MASTER_KEY")
-        if not litellm_url or not master_key:
-            raise RuntimeError("LITELLM_URL and LITELLM_MASTER_KEY must be set")
+        max_budget = os.environ.get("LITELLM_MAX_BUDGET")
+        if not litellm_url or not master_key or not max_budget:
+            raise RuntimeError("LITELLM_URL, LITELLM_MASTER_KEY, and LITELLM_MAX_BUDGET must be set")
 
         # Wait for LiteLLM to be ready before proceeding
         wait_for_litellm_ready(litellm_url)
@@ -46,7 +47,7 @@ data:
         user = "llm-user"
         data = json.dumps({
             "user": user,
-            "max_budget": 1
+            "max_budget": float(max_budget)
         }).encode('utf-8')
         headers = {
             "Authorization": f"Bearer {master_key}",

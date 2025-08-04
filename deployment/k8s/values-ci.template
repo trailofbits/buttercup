@@ -45,6 +45,7 @@ redis:
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"
@@ -52,11 +53,6 @@ litellm:
     apiKey: "${OPENAI_API_KEY}"
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
-
-litellm-helm:
-  proxy_config:
-    litellm_settings:
-      max_budget: ${LITELLM_MAX_BUDGET}
 
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}

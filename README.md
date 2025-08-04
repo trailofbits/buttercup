@@ -11,6 +11,8 @@ Choose your deployment method:
 - **[Local Development](#local-development)** - Quick setup for development and testing
 - **[Production AKS Deployment](#production-aks-deployment)** - Full production deployment on Azure Kubernetes Service
 
+Note: Buttercup uses hosted LLMs, which cost money. Limit your per-deployment spend with the built-in LLM budget.
+
 ## Local Development
 
 The fastest way to get started with the **Buttercup CRS** system for development and testing.
