@@ -118,7 +118,7 @@ make undeploy
 
 ## Accessing Logs
 
-To view system logs and telemtry you can use Langfuse or SigNoz if you configured them during setup. Otherwise you can access logs via `kubectl` commands:
+To view system logs and telemetry you can use Langfuse or SigNoz if you configured them during setup. Otherwise you can access logs via `kubectl` commands:
 
 ```bash
 # View all pods
