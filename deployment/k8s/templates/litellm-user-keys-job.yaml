@@ -17,11 +17,11 @@ spec:
           command: ["python", "/scripts/create_litellm_user_keys.py"]
           env:
             - name: LITELLM_URL
-              value: "http://buttercup-litellm:4000"
+              value: "http://{{ .Release.Name }}-litellm:4000"
             - name: LITELLM_MASTER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: buttercup-litellm-api-secrets
+                  name: {{ .Release.Name }}-litellm-api-secrets
                   key: BUTTERCUP_LITELLM_KEY
             - name: LITELLM_MAX_BUDGET
               value: {{ .Values.litellm.maxBudget | default "100" | quote }}
@@ -37,7 +37,7 @@ spec:
             - -c
             - |
               while [ ! -f /output/llm-user_api_key ]; do echo "Waiting for user key to be created..."; sleep 2; done
-              kubectl create secret generic litellm-api-user -n crs --from-file=API_KEY=/output/llm-user_api_key --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret generic litellm-api-user -n {{ .Release.Namespace }} --from-file=API_KEY=/output/llm-user_api_key --dry-run=client -o yaml | kubectl apply -f -
           volumeMounts:
             - name: output
               mountPath: /output
