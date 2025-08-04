@@ -56,7 +56,7 @@ Buttercup works with:
 1. Clone the repository with submodules:
 
 ```bash
-git clone --recurse-submodules <repository-url>
+git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
 cd buttercup
 ```
 
