@@ -180,7 +180,7 @@ lint-component:
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ]; then \
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ] || [ "$(COMPONENT)" = "fuzzer" ]; then \
 		cd $(COMPONENT) && uv run mypy; \
 	fi
 

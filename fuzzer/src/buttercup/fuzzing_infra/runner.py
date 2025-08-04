@@ -47,7 +47,7 @@ class Runner:
             logger.debug(f"Fuzzer logs: {results.logs}")
             return results
 
-    def merge_corpus(self, conf: FuzzConfiguration, output_dir: str):
+    def merge_corpus(self, conf: FuzzConfiguration, output_dir: str) -> None:
         logger.info(f"Merging corpus with {conf.engine} | {conf.sanitizer} | {conf.target_path}")
         job_name = f"{conf.engine}_{conf.sanitizer}"
         os.environ["JOB_NAME"] = job_name
@@ -60,7 +60,7 @@ class Runner:
                 )
 
 
-def main():
+def main() -> None:
     prsr = argparse.ArgumentParser("Fuzzer runner")
     prsr.add_argument("--timeout", required=True, type=int)
     prsr.add_argument("--corpusdir", required=True)

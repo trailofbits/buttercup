@@ -5,8 +5,8 @@ import json
 import logging
 from dataclasses import dataclass
 from buttercup.common.project_yaml import ProjectYaml, Language
-from bs4 import BeautifulSoup
-from typing import Any
+from bs4 import BeautifulSoup, Tag
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class CoverageRunner:
         Reference for coverage data format:
             https://github.com/llvm/llvm-project/blob/main/llvm/tools/llvm-cov/CoverageExporterJson.cpp
         """
-        function_coverage = []
+        function_coverage: list[CoveredFunction] = []
 
         if "data" not in coverage_data:
             logger.error("Invalid coverage data format: 'data' field missing")
@@ -114,20 +114,32 @@ class CoverageRunner:
             soup = BeautifulSoup(f, "xml")
             covered_functions = []
             for target_class in soup.find_all("class"):
+                target_class = cast(Tag, target_class)
                 file_paths = []
                 source_file_name = target_class.get("sourcefilename")
                 if source_file_name is not None:
                     file_paths.append(source_file_name)
 
                 for method in target_class.find_all("method"):
+                    method = cast(Tag, method)
                     method_name = method.get("name")
+                    if method_name is None:
+                        continue
+                    method_name = str(method_name)
                     for ctr in method.find_all("counter"):
+                        ctr = cast(Tag, ctr)
                         if ctr.get("type") == "LINE":
-                            covered_lines = int(ctr.get("covered"))
-                            total_lines = int(ctr.get("missed")) + int(ctr.get("covered"))
+                            covered_attr = ctr.get("covered")
+                            missed_attr = ctr.get("missed")
+                            if covered_attr is None or missed_attr is None:
+                                continue
+                            covered_lines = int(str(covered_attr))
+                            total_lines = int(str(missed_attr)) + int(str(covered_attr))
                             if covered_lines > 0:
                                 covered_functions.append(
-                                    CoveredFunction(method_name, total_lines, covered_lines, file_paths)
+                                    CoveredFunction(
+                                        method_name, total_lines, covered_lines, [str(f) for f in file_paths]
+                                    )
                                 )
 
         return covered_functions
@@ -171,7 +183,7 @@ class CoverageRunner:
         return CoverageRunner._process_function_coverage(coverage)
 
 
-def main():
+def main() -> None:
     prsr = argparse.ArgumentParser("Coverage runner")
     prsr.add_argument("--allow-pull", action="store_true", default=False)
     prsr.add_argument("--base-image-url", default="gcr.io/oss-fuzz")
