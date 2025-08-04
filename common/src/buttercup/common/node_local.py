@@ -8,6 +8,7 @@ import tarfile
 from tempfile import NamedTemporaryFile
 import tempfile
 from typing import Any, Iterator, TypeAlias
+from contextlib import AbstractContextManager
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ def scratch_path() -> NodeLocalPath:
     return scratch_dir
 
 
-def scratch_dir() -> Any:
+def scratch_dir() -> AbstractContextManager[TmpDir]:
     """Return a temporary directory in the scratch directory"""
     return temp_dir(scratch_path())
 

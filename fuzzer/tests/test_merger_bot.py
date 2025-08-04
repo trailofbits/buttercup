@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch, MagicMock
 from redis import Redis
+from pathlib import Path
 
 from buttercup.fuzzing_infra.corpus_merger import MergerBot, BaseCorpus, PartitionedCorpus
 from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
@@ -195,8 +196,8 @@ class TestBaseCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.basename to extract filename
         basename_mock.side_effect = lambda path: path.split("/")[-1]
@@ -207,14 +208,14 @@ class TestBaseCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif args[0] == local_dir:
+            elif str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif args[0] == remote_dir:
+            elif str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
             else:
-                return "/".join(args)
+                return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -284,8 +285,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -294,12 +295,12 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif args[0] == local_dir:
+            elif str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif args[0] == remote_dir:
+            elif str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             else:
-                return "/".join(args)
+                return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -344,8 +345,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -356,14 +357,14 @@ class TestPartitionedCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif args[0] == local_dir:
+            elif str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif args[0] == remote_dir:
+            elif str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
             else:
-                return "/".join(args)
+                return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -423,8 +424,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -433,12 +434,12 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif args[0] == local_dir:
+            elif str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif args[0] == remote_dir:
+            elif str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             else:
-                return "/".join(args)
+                return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -490,8 +491,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
         corpus_instance.remote_path = "/remote/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -502,12 +503,12 @@ class TestPartitionedCorpus(unittest.TestCase):
                 return f"/corpus/path/{args[1]}"
             elif args[0] == "/remote/path":
                 return f"/remote/path/{args[1]}"
-            elif args[0] == local_dir:
+            elif str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif args[0] == remote_dir:
+            elif str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             else:
-                return "/".join(args)
+                return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -587,8 +588,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock FinalCorpus to return a known instance
         final_corpus_instance = MagicMock()
@@ -603,14 +604,14 @@ class TestPartitionedCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif args[0] == local_dir:
+            elif str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif args[0] == remote_dir:
+            elif str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
             else:
-                return "/".join(args)
+                return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -652,7 +653,7 @@ class TestPartitionedCorpus(unittest.TestCase):
         final_corpus = partitioned_corpus.to_final()
 
         # Verify corpus was hashed
-        corpus_instance.hash_corpus.assert_called_once_with(remote_dir)
+        corpus_instance.hash_corpus.assert_called_once_with("/tmp/remote_dir")
 
         # Verify FinalCorpus was created with the right parameters
         expected_push_remotely = {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
