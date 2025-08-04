@@ -34,7 +34,7 @@ class SeedExploreTask(SeedBaseTask):
     TARGET_FUNCTION_FUZZY_THRESHOLD = 50
 
     @override
-    def _generate_seeds(self, state: SeedExploreState) -> Command:
+    def _generate_seeds(self, state: SeedExploreState) -> Command:  # type: ignore[override]
         """Generate seed functions using collected function definitions"""
         logger.info("Generating seeds")
         prompt_vars = {
@@ -49,7 +49,7 @@ class SeedExploreTask(SeedBaseTask):
         return Command(update={"generated_functions": generated_functions})
 
     @override
-    def _get_context(self, state: SeedExploreState) -> Command:
+    def _get_context(self, state: SeedExploreState) -> Command:  # type: ignore[override]
         """Generate tool calls to retrieve context"""
 
         logger.info("Getting context")
@@ -90,10 +90,10 @@ class SeedExploreTask(SeedBaseTask):
                 crs_action_name="seed_gen_explore",
                 task_metadata=dict(self.challenge_task.task_meta.metadata),
                 extra_attributes={
-                    "gen_ai.request.model": self.llm.model_name,
+                    "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
                 },
             )
-            chain.invoke(state)
+            chain.invoke(state)  # type: ignore[arg-type]
 
     def do_task(
         self, target_function_name: str, target_function_paths: list[Path], output_dir: Path

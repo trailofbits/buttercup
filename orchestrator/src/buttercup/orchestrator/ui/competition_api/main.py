@@ -85,6 +85,50 @@ class DashboardStats(BaseModel):
     totalBundles: int
 
 
+class Challenge(BaseModel):
+    name: str | None = None
+
+    challenge_repo_url: str
+    challenge_repo_head_ref: str
+    fuzz_tooling_url: str
+    fuzz_tooling_ref: str
+    fuzz_tooling_project_name: str
+    duration: int
+    challenge_repo_base_ref: str | None = None
+
+
+# NOTE: Make this dynamic and modifiable through the UI/API
+challenges = [
+    Challenge(
+        name="upstream-libpng",
+        challenge_repo_url="https://github.com/pnggroup/libpng",
+        challenge_repo_head_ref="libpng16",
+        fuzz_tooling_url="https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref="master",
+        fuzz_tooling_project_name="libpng",
+        duration=1800,
+    ),
+    Challenge(
+        name="upstream-libpng-delta",
+        challenge_repo_url="https://github.com/pnggroup/libpng",
+        challenge_repo_head_ref="2b978915d82377df13fcbb1fb56660195ded868a",
+        challenge_repo_base_ref="640204280f8109d7165f95d2b177f89baf20b253",
+        fuzz_tooling_url="https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref="master",
+        fuzz_tooling_project_name="libpng",
+        duration=1800,
+    ),
+]
+
+
+def get_settings() -> Settings:
+    """Get application settings singleton."""
+    global _settings
+    if _settings is None:
+        _settings = Settings()
+    return _settings
+
+
 @cache
 def get_run_data_dir() -> Path:
     """Get or create the current run data directory with timestamp."""
@@ -123,6 +167,11 @@ def save_artifact(
             data_bin = base64.b64decode(content) if is_base64 else content.encode("utf-8")
             with file_path.open("wb") as f:
                 f.write(data_bin)
+        elif artifact_type == "sarifs":
+            assert isinstance(content, dict)
+            file_path = task_dir / f"{artifact_id}.sarif"
+            with file_path.open("w", encoding="utf-8") as f:
+                f.write(json.dumps(content, indent=2))
         else:
             logger.error(f"Unknown artifact type: {artifact_type}")
             return False
@@ -132,6 +181,56 @@ def save_artifact(
 
     except Exception as e:
         logger.error(f"Failed to save {artifact_type} artifact {artifact_id} for task {task_id}: {e}")
+        return False
+
+
+def get_artifact(task_id: str, artifact_type: str, artifact_id: str) -> Any:
+    """Get an artifact from the appropriate directory structure."""
+    try:
+        run_dir = get_run_data_dir()
+        task_dir = run_dir / task_id / artifact_type
+        if artifact_type == "bundles":
+            file_path = task_dir / f"{artifact_id}.json"
+            return json.load(file_path.open("r", encoding="utf-8"))
+        elif artifact_type == "patches":
+            file_path = task_dir / f"{artifact_id}.patch"
+            return file_path.read_text()
+        elif artifact_type == "povs":
+            file_path = task_dir / f"{artifact_id}.bin"
+            return file_path.read_bytes()
+        elif artifact_type == "sarifs":
+            file_path = task_dir / f"{artifact_id}.sarif"
+            return json.load(file_path.open("r", encoding="utf-8"))
+        else:
+            logger.error(f"Unknown artifact type: {artifact_type}")
+            return None
+    except Exception:
+        logger.exception(f"Failed to get {artifact_type} artifact {artifact_id} for task {task_id}")
+        return None
+
+
+def delete_artifact(task_id: str, artifact_type: str, artifact_id: str) -> bool:
+    try:
+        run_dir = get_run_data_dir()
+        task_dir = run_dir / task_id / artifact_type
+        if artifact_type == "bundles":
+            file_path = task_dir / f"{artifact_id}.json"
+        elif artifact_type == "patches":
+            file_path = task_dir / f"{artifact_id}.patch"
+        elif artifact_type == "povs":
+            file_path = task_dir / f"{artifact_id}.bin"
+        elif artifact_type == "sarifs":
+            file_path = task_dir / f"{artifact_id}.sarif"
+        else:
+            logger.error(f"Unknown artifact type: {artifact_type}")
+            return False
+
+        # Rename the file to mark it as deleted (append .deleted to the filename)
+        deleted_path = file_path.with_suffix(file_path.suffix + ".deleted")
+        file_path.rename(deleted_path)
+        return True
+    except Exception:
+        logger.exception(f"Failed to get {artifact_type} artifact {artifact_id} for task {task_id}")
         return False
 
 
@@ -150,12 +249,18 @@ def save_pov(task_id: str, pov_id: str, content: str) -> bool:
     return save_artifact(task_id, "povs", pov_id, content, True)
 
 
-def get_settings() -> Settings:
-    """Get application settings singleton."""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
+def save_sarif(task_id: str, sarif_id: str, content: dict) -> bool:
+    """Save a SARIF to the appropriate directory structure."""
+    return save_artifact(task_id, "sarifs", sarif_id, content, True)
+
+
+def get_bundle(task_id: str, bundle_id: str) -> dict | None:
+    artifact = get_artifact(task_id, "bundles", bundle_id)
+    if artifact is None:
+        return None
+
+    assert isinstance(artifact, dict)
+    return artifact
 
 
 def get_challenge_service() -> ChallengeService:
@@ -246,42 +351,6 @@ def get_or_create_task(task_id: str) -> Dict[str, Any]:
     task_data["status"] = calculate_task_status(task_data["deadline"])
 
     return task_data
-
-
-class Challenge(BaseModel):
-    name: str | None = None
-
-    challenge_repo_url: str
-    challenge_repo_head_ref: str
-    fuzz_tooling_url: str
-    fuzz_tooling_ref: str
-    fuzz_tooling_project_name: str
-    duration: int
-    challenge_repo_base_ref: str | None = None
-
-
-# NOTE: Make this dynamic and modifiable through the UI/API
-challenges = [
-    Challenge(
-        name="upstream-libpng",
-        challenge_repo_url="https://github.com/pnggroup/libpng",
-        challenge_repo_head_ref="libpng16",
-        fuzz_tooling_url="https://github.com/google/oss-fuzz",
-        fuzz_tooling_ref="master",
-        fuzz_tooling_project_name="libpng",
-        duration=1800,
-    ),
-    Challenge(
-        name="upstream-libpng-delta",
-        challenge_repo_url="https://github.com/pnggroup/libpng",
-        challenge_repo_head_ref="2b978915d82377df13fcbb1fb56660195ded868a",
-        challenge_repo_base_ref="640204280f8109d7165f95d2b177f89baf20b253",
-        fuzz_tooling_url="https://github.com/google/oss-fuzz",
-        fuzz_tooling_ref="master",
-        fuzz_tooling_project_name="libpng",
-        duration=1800,
-    ),
-]
 
 
 @app.get("/v1/ping/", response_model=PingResponse, tags=["ping"])
@@ -427,6 +496,27 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
         return Error(message=f"Failed to create task: {str(e)}")
 
 
+def _create_sarif_broadcast(
+    body: dict[str, Any], challenge_service: ChallengeService, crs_client: CRSClient
+) -> Message | Error:
+    """
+    Create a SARIF Broadcast
+    """
+    if "task_id" not in body:
+        return Error(message="Task ID is required")
+    task_id = body["task_id"]
+
+    if "sarif" not in body:
+        return Error(message="SARIF body is required")
+
+    sarif = body["sarif"]
+    broadcast = challenge_service.create_sarif_broadcast(task_id, sarif)
+    if crs_client.submit_sarif_broadcast(broadcast):
+        return Message(message=f"SARIF Broadcast for Task {task_id} created and submitted to CRS")
+    else:
+        return Error(message=f"Failed to submit SARIF Broadcast for Task {task_id} to CRS")
+
+
 @app.post(
     "/v1/request/{challenge_name}",
     response_model=Message,
@@ -481,7 +571,7 @@ def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
     logger.info(
         f"SARIF Assessment submission - Task: {task_id}, Broadcast SARIF ID: {broadcast_sarif_id}, Assessment: {body.assessment}, Description: {body.description[:100]}..."
     )
-    return Error(message="Not implemented")
+    return SarifAssessmentResponse(status=SubmissionStatus.SubmissionStatusAccepted)
 
 
 @app.post(
@@ -530,7 +620,20 @@ def get_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> Bundl
     Get Bundle
     """
     logger.info(f"Bundle retrieval - Task: {task_id}, Bundle ID: {bundle_id}")
-    return Error(message="Not implemented")
+    bundle = get_bundle(task_id, bundle_id)
+    if bundle is None:
+        return Error(message=f"Bundle {bundle_id} not found")
+
+    return BundleSubmissionResponseVerbose(
+        broadcast_sarif_id=bundle.get("broadcast_sarif_id"),
+        bundle_id=bundle_id,
+        description=bundle.get("description"),
+        freeform_id=bundle.get("freeform_id"),
+        patch_id=bundle.get("patch_id"),
+        pov_id=bundle.get("pov_id"),
+        submitted_sarif_id=bundle.get("submitted_sarif_id"),
+        status=SubmissionStatus.SubmissionStatusAccepted,
+    )
 
 
 @app.delete(
@@ -549,6 +652,7 @@ def delete_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> st
     Delete Bundle
     """
     logger.info(f"Bundle deletion - Task: {task_id}, Bundle ID: {bundle_id}")
+    delete_artifact(task_id, "bundles", bundle_id)
     return None
 
 
@@ -571,7 +675,26 @@ def patch_v1_task_task_id_bundle_bundle_id_(
     """
     logger.info(f"Bundle update - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Updated bundle details: {json.dumps(body.dict(), indent=2)}")
-    return Error(message="Not implemented")
+
+    # Store bundle in task storage for dashboard
+    task_data = get_or_create_task(task_id)
+    bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
+    task_data["bundles"].append(bundle_data)
+
+    # Save bundle to disk
+    bundle = body.dict()
+    save_bundle(task_id, bundle_id, bundle)
+
+    return BundleSubmissionResponseVerbose(
+        broadcast_sarif_id=bundle.get("broadcast_sarif_id"),
+        bundle_id=bundle_id,
+        description=bundle.get("description"),
+        freeform_id=bundle.get("freeform_id"),
+        patch_id=bundle.get("patch_id"),
+        pov_id=bundle.get("pov_id"),
+        submitted_sarif_id=bundle.get("submitted_sarif_id"),
+        status=SubmissionStatus.SubmissionStatusAccepted,
+    )
 
 
 @app.post(
@@ -718,7 +841,12 @@ def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission) -
     submitted_sarif_id = str(uuid.uuid4())
     logger.info(f"SARIF submission - Task: {task_id}, Submitted SARIF ID: {submitted_sarif_id}")
     logger.info(f"SARIF content: {json.dumps(body.sarif, indent=2)}")
-    return Error(message="Not implemented")
+
+    save_sarif(task_id, submitted_sarif_id, body.sarif)
+
+    return SARIFSubmissionResponse(
+        submitted_sarif_id=submitted_sarif_id, status=SubmissionStatus.SubmissionStatusPassed
+    )
 
 
 @app.get("/files/{tarball_name}.tar.gz", tags=["files"])
@@ -746,6 +874,19 @@ def trigger_task(
     """
     logger.info(f"Triggering task: {body.model_dump()}")
     return _create_task(body, challenge_service, crs_client)
+
+
+@app.post("/webhook/sarif")
+def trigger_sarif(
+    body: dict[str, Any],
+    challenge_service: ChallengeService = Depends(get_challenge_service),
+    crs_client: CRSClient = Depends(get_crs_client),
+) -> Message | Error:
+    """
+    Trigger a SARIF Broadcast
+    """
+    logger.info(f"Triggering SARIF Broadcast: {json.dumps(body, indent=2)}")
+    return _create_sarif_broadcast(body, challenge_service, crs_client)
 
 
 # Download endpoints for PoVs, Patches, and Bundles
