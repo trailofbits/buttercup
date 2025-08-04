@@ -2,7 +2,10 @@
 
 import argparse
 import json
+import os
+import re
 import subprocess
+import tempfile
 import time
 import urllib.request
 import sys
@@ -550,23 +553,42 @@ def single(challenge_name: str, duration: int) -> None:
 
 
 def get_project_git_url_from_oss_fuzz(oss_fuzz_url: str, oss_fuzz_ref: str, project_name: str) -> Optional[str]:
-    """Get project git URL from oss-fuzz project.yaml using grep."""
+    """Get project git URL from oss-fuzz project.yaml."""
+    temp_dir = None
     try:
-        # Create a temporary directory and clone/fetch the project.yaml
-        cmd = [
-            "bash", "-c", 
-            f"git clone --depth 1 --branch {oss_fuzz_ref} {oss_fuzz_url} /tmp/oss-fuzz-temp 2>/dev/null && "
-            f"grep -E '^main_repo:' /tmp/oss-fuzz-temp/projects/{project_name}/project.yaml | "
-            f"sed 's/main_repo: *//g' | tr -d '\"'"
+        # Create a temporary directory and clone the oss-fuzz repository
+        temp_dir = tempfile.mkdtemp(prefix="oss-fuzz-")
+        
+        # Clone the repository
+        clone_cmd = [
+            "git", "clone", "--depth", "1", "--branch", oss_fuzz_ref,
+            oss_fuzz_url, temp_dir
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        result = subprocess.run(clone_cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            return None
+        
+        # Read and parse the project.yaml file
+        project_yaml_path = os.path.join(temp_dir, "projects", project_name, "project.yaml")
+        if not os.path.exists(project_yaml_path):
+            return None
+            
+        with open(project_yaml_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # Look for lines starting with 'main_repo:'
+                if line.startswith('main_repo:'):
+                    # Extract the URL after 'main_repo:'
+                    main_repo_match = re.match(r'^main_repo:\s*["\']?([^"\']+)["\']?', line)
+                    if main_repo_match:
+                        return main_repo_match.group(1).strip()
+        
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, IOError, OSError):
         pass
     finally:
-        # Clean up
-        subprocess.run(["rm", "-rf", "/tmp/oss-fuzz-temp"], capture_output=True)
+        # Clean up temporary directory
+        if temp_dir and os.path.exists(temp_dir):
+            subprocess.run(["rm", "-rf", temp_dir], capture_output=True)
     return None
 
 
