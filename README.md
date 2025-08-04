@@ -1,8 +1,6 @@
 # Buttercup Cyber Reasoning System (CRS)
 
-**Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge) competition**. It's a comprehensive automated vulnerability detection and patching system designed to compete in AI-driven cybersecurity challenges.
-
-Buttercup finds and patches software vulnerabilities in open-source code repositories like [example-libpng](https://github.com/tob-challenges/example-libpng). It starts by running an AI/ML-assisted fuzzing campaign (built on oss-fuzz) for the program. When vulnerabilities are found, Buttercup analyzes them and uses a multi-agent AI-driven patcher to repair the vulnerability.
+**Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge)**. Buttercup finds and patches software vulnerabilities in open-source code repositories like [example-libpng](https://github.com/tob-challenges/example-libpng). It starts by running an AI/ML-assisted fuzzing campaign (built on oss-fuzz) for the program. When vulnerabilities are found, Buttercup analyzes them and uses a multi-agent AI-driven patcher to repair the vulnerability.
 
 ## System Requirements
 
@@ -14,8 +12,6 @@ Buttercup finds and patches software vulnerabilities in open-source code reposit
 - **Network:** Stable internet connection for downloading dependencies
 
 **Note:** Buttercup uses third-party AI providers (LLMs from companies like OpenAI, Anthropic and Google), which cost money. Please ensure that you manage per-deployment costs by using the built-in LLM budget setting.
-
-## Local Development
 
 ### Supported Systems
 - **Linux x86_64** (fully supported)
@@ -39,7 +35,7 @@ sudo dnf install -y make curl git
 brew install make curl git
 ```
 
-## Supported Targets
+### Supported Targets
 
 Buttercup CRS works with:
 
