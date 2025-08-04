@@ -4,17 +4,23 @@ This guide provides detailed manual setup instructions for the Buttercup CRS sys
 
 ## Prerequisites
 
-Before starting manual setup, ensure you have the following system packages installed:
+Before starting manual setup, ensure you have the following dependencies installed:
 
-- `make` - Build automation tool
-- `curl` - Command-line tool for transferring data
-- `git` - Version control system
-- Docker (for containerization)
-- kubectl (for Kubernetes management)
-- Helm (for Kubernetes package management)
-- Minikube (for local Kubernetes cluster)
+### System Packages
 
-## Manual Installation Steps
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y make curl git
+
+# RHEL/CentOS/Fedora  
+sudo yum install -y make curl git
+# or
+sudo dnf install -y make curl git
+
+# MacOS
+brew install make curl git
+```
 
 ### Docker
 
@@ -73,7 +79,7 @@ cd deployment && make up
 kubectl port-forward -n crs service/buttercup-ui 31323:1323
 
 # Test manually
-./orchestrator/scripts/task_integration_test.sh
+./orchestrator/scripts/task_crs.sh
 ```
 
 ## Verification
