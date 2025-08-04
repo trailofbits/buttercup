@@ -621,7 +621,7 @@ def yes_no_prompt(question: str, default: bool = True) -> bool:
             print("Please answer 'y' or 'n'")
 
 
-def submit_project() -> None:
+def submit_project(dry_run: bool = False) -> None:
     """Interactive script to submit a custom challenge project."""
     print("=== Buttercup Custom Challenge Submission ===\n")
 
@@ -712,6 +712,20 @@ def submit_project() -> None:
     print("\n=== Final Configuration ===")
     print(json.dumps(task_data, indent=2))
 
+    if dry_run:
+        print("\n=== DRY RUN MODE ===")
+        print("This is a dry run - no task will be submitted.")
+        print("The following configuration would be submitted:")
+        print_request(
+            urllib.request.Request(
+                "http://127.0.0.1:31323/webhook/trigger_task",
+                data=json.dumps(task_data).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+        )
+        print("✓ Dry run completed successfully!")
+        return
+
     if not yes_no_prompt("\nSubmit this configuration?", True):
         print("Cancelled.")
         return
@@ -790,7 +804,10 @@ name = The name of the challenge to run:
     submit_project_parser = subparsers.add_parser(
         "submit-project", help="Interactive submission of custom challenge project"
     )
-    submit_project_parser.set_defaults(func=lambda args: submit_project())
+    submit_project_parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be submitted without actually submitting"
+    )
+    submit_project_parser.set_defaults(func=lambda args: submit_project(dry_run=args.dry_run))
 
     args = parser.parse_args()
     if hasattr(args, "func"):
