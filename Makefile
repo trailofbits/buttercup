@@ -167,7 +167,7 @@ send-libpng-task:
 # Development targets
 lint:
 	@echo "Linting all Python code..."
-	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+	@set -e; for component in common orchestrator fuzzer program-model seed-gen patcher; do \
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
@@ -214,7 +214,7 @@ install-cscope:
 	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
 web-ui:
-	@echo "Opening web UI..."
+	@echo "Opening web UI (https://localhost:31323/)..."
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \

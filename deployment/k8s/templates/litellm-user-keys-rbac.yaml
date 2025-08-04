@@ -15,7 +15,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
-  resourceNames: ["buttercup-litellm-api-secrets", "litellm-api-user"]
+  resourceNames: ["{{ .Release.Name }}-litellm-api-secrets", "litellm-api-user"]
   verbs: ["get"]
 - apiGroups: [""]
   resources: ["secrets"]
