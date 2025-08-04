@@ -1,6 +1,12 @@
 # Buttercup Cyber Reasoning System (CRS)
 
-**Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge)**. Buttercup finds and patches software vulnerabilities in open-source code repositories like [example-libpng](https://github.com/tob-challenges/example-libpng). It starts by running an AI/ML-assisted fuzzing campaign (built on oss-fuzz) for the program. When vulnerabilities are found, Buttercup analyzes them and uses a multi-agent AI-driven patcher to repair the vulnerability.
+**Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge)**. Buttercup finds and patches software vulnerabilities in open-source code repositories like [example-libpng](https://github.com/tob-challenges/example-libpng). It starts by running an AI/ML-assisted fuzzing campaign (built on oss-fuzz) for the program. When vulnerabilities are found, Buttercup analyzes them and uses a multi-agent AI-driven patcher to repair the vulnerability. **Buttercup** system consists of several components:
+
+- **Orchestrator**: Coordinates the overall task process and manages the workflow
+- **Seed Generator**: Creates targeted test cases for vulnerability discovery
+- **Fuzzer**: Discovers vulnerabilities through intelligent fuzzing techniques
+- **Program Model**: Analyzes code structure and semantics for better understanding
+- **Patcher**: Generates and applies security patches to fix vulnerabilities
 
 ## System Requirements
 
@@ -37,7 +43,7 @@ brew install make curl git
 
 ### Supported Targets
 
-Buttercup CRS works with:
+Buttercup works with:
 
 - **C source code repositories** that are OSS-Fuzz compatible
 - **Java source code repositories** that are OSS-Fuzz compatible
@@ -108,72 +114,9 @@ In the GUI you can monitor active tasks and see when Buttercup finds bugs and ge
 make undeploy
 ```
 
-## Creating and Running Challenges
+## Accessing Logs
 
-### Running Challenges
-
-To run challenges against the CRS:
-
-```bash
-# Start the UI port forwarding (if not already running)
-kubectl port-forward -n crs service/buttercup-ui 31323:1323 &
-
-
-# Run the challenge script
-./orchestrator/scripts/challenge.py
-```
-
-### Pre-defined Challenges
-
-Use the available pre-defined challenges:
-
-```bash
-make send-libpng-task
-```
-
-## Common Operations
-
-### Viewing System Status
-
-```bash
-make status
-```
-
-### Accessing Logs
-
-For system logs and monitoring, use SigNoz if configured, otherwise you can use kubectl:
-=======
-# View all available commands
-make help
-
-# Setup
-make setup-local          # Automated local development setup
-make setup-azure          # Automated production AKS setup
-make validate             # Validate current setup and configuration
-
-# Deployment
-make deploy               # Deploy to current environment (local or azure)
-make deploy-local         # Deploy to local Minikube environment
-make deploy-azure         # Deploy to production AKS environment
-
-# Status
-make status               # Check the status of the deployment
-
-# Testing
-make send-libpng-task          # Run libpng test task
-
-# Development
-make lint                 # Lint all Python code
-make lint-component COMPONENT=orchestrator  # Lint specific component
-
-# Cleanup
-make undeploy             # Remove deployment and clean up resources
-make clean-local          # Delete Minikube cluster and remove local config
-```
-
-### Accessing Logs
-
-For system logs and monitoring, use SigNoz if configured, otherwise you can use kubectl:
+To view system logs and telemtry you can use Langfuse or SigNoz if you configured them during setup. Otherwise you can access logs via `kubectl` commands:
 
 ```bash
 # View all pods
@@ -185,16 +128,6 @@ kubectl logs -n crs <pod-name>
 # Follow logs in real-time
 kubectl logs -n crs <pod-name> -f
 ```
-
-## Architecture
-
-The **Buttercup CRS** system consists of several components designed to work together for automated vulnerability detection and patching:
-
-- **Orchestrator**: Coordinates the overall repair process and manages the workflow
-- **Fuzzer**: Discovers vulnerabilities through intelligent fuzzing techniques
-- **Patcher**: Generates and applies security patches to fix vulnerabilities
-- **Program Model**: Analyzes code structure and semantics for better understanding
-- **Seed Generator**: Creates targeted test cases for vulnerability discovery
 
 ## Additional Resources
 
