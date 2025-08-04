@@ -2,6 +2,9 @@ dependencies:
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 17.17.1
+- name: dind-daemon
+  repository: file://charts/dind-daemon
+  version: 0.1.0
 - name: litellm-helm
   repository: oci://ghcr.io/berriai
   version: 0.1.615
@@ -38,5 +41,20 @@ dependencies:
 - name: competition-api
   repository: file://charts/competition-api
   version: 0.0.1
-digest: sha256:8ac9c249917d32604f6d59d65bc74e7a7a7eb46b7c71fbb982bd7b0dd038395a
-generated: "2025-03-26T13:45:05.979619483Z"
+- name: registry-cache
+  repository: file://charts/registry-cache
+  version: 0.1.0
+- name: pov-reproducer
+  repository: file://charts/pov-reproducer
+  version: 0.1.0
+- name: scratch-cleaner
+  repository: file://charts/scratch-cleaner
+  version: 0.0.1
+- name: ui
+  repository: file://charts/ui
+  version: 0.1.0
+- name: signoz
+  repository: https://charts.signoz.io
+  version: 0.71.0
+digest: sha256:7175e733201e2be1f90820b1515a650edc4afefe4c57cc6fb9978a03bbdf6920
+generated: "2025-08-04T14:19:11.272734+02:00"

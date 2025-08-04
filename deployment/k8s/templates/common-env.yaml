@@ -85,7 +85,7 @@ Define Docker Host environment variable for Unix socket
 {{- end }}
 
 {{- define "buttercup.env.telemetry" }}
-{{- if and .Values.signoz.enabled }}
+{{- if .Values.global.signoz.deployed }}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: "http://{{ .Release.Name }}-signoz-otel-collector:4317"
 - name: OTEL_EXPORTER_OTLP_HEADERS

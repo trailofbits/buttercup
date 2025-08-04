@@ -20,6 +20,7 @@ help:
 	@echo "  status              - Check the status of the deployment"
 	@echo "  crs-instance-id     - Get the CRS instance ID"
 	@echo "  download-artifacts  - Download submitted artifacts from the CRS"
+	@echo "  signoz-ui           - Open the SigNoz UI"
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
@@ -211,3 +212,34 @@ clean-local:
 install-cscope:
 	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
+signoz-ui:
+	@echo "Opening SigNoz UI..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-signoz-frontend 33301:3301 &
+	@sleep 3
+	@if command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open http://localhost:33301; \
+	elif command -v open >/dev/null 2>&1; then \
+		open http://localhost:33301; \
+	else \
+		echo "Please open http://localhost:33301 in your browser."; \
+	fi
+
+web-ui:
+	@echo "Opening web UI..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@sleep 3
+	@if command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open http://localhost:31323; \
+	elif command -v open >/dev/null 2>&1; then \
+		open http://localhost:31323; \
+	else \
+		echo "Please open http://localhost:31323 in your browser."; \
+	fi

@@ -521,17 +521,40 @@ configure_local_api_keys() {
 # Function to configure OTEL telemetry
 configure_otel() {
     print_linebreak
-    print_status "Configuring OpenTelemetry telemetry (optional)..."
+    print_status "Configuring SigNoz deployment (optional)..."
     
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
     
-    print_status "OpenTelemetry: Optional distributed tracing and metrics collection."
+    print_status "SigNoz: Optional observability platform for distributed tracing and metrics."
     print_status "Provides detailed performance monitoring and system observability for debugging."
-    
-    configure_service "OTEL" "OpenTelemetry configuration" "$OTEL_ENDPOINT" "<your-otel-endpoint>" false "configure_otel_wrapper"
+
+    # Check if already configured and user wants to keep it
+    if [ "$DEPLOY_SIGNOZ" = "true" ]; then
+        if ! prompt_for_update "DEPLOY_SIGNOZ" "SigNoz deployment" "local" "" false; then
+            return 0  # User chose to keep existing value, exit early
+        fi
+    fi
+
+    read -p "Do you want to deploy a local version of SigNoz? (Y/n): " -r response
+    response=${response:-Y}
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        # Deploy local SigNoz
+        portable_sed "s|.*export DEPLOY_SIGNOZ=.*|export DEPLOY_SIGNOZ=true|" deployment/env
+        print_success "Local SigNoz deployment configured"
+    else
+        # Don't deploy local SigNoz
+        portable_sed "s|.*export DEPLOY_SIGNOZ=.*|export DEPLOY_SIGNOZ=false|" deployment/env
+        read -p "Do you want to configure a custom OpenTelemetry endpoint? (y/N): " -r otel_response
+        otel_response=${otel_response:-N}
+        if [[ "$otel_response" =~ ^[Yy]$ ]]; then
+            configure_otel_wrapper
+        else
+            print_status "OpenTelemetry configuration skipped"
+        fi
+    fi
 }
 
 # Function to check configuration file
@@ -636,8 +659,10 @@ check_aks_config() {
         done
     fi
     
-    # Check optional OTEL configuration
-    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
+    # Check optional SigNoz/OTEL configuration
+    if [ "$DEPLOY_SIGNOZ" = "true" ]; then
+        print_status "SigNoz local deployment is enabled"
+    elif [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
         if [ -z "$OTEL_PROTOCOL" ] || [ "$OTEL_PROTOCOL" = "<your-*>" ]; then
             print_error "OTEL_PROTOCOL is not set when OTEL_ENDPOINT is configured"
             errors=$((errors + 1))

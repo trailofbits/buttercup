@@ -27,6 +27,9 @@ global:
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"
 
+  signoz:
+    deployed: ${DEPLOY_SIGNOZ}
+
   crs:
     api_key_id: ${CRS_KEY_ID}
     api_key_token: ${CRS_KEY_TOKEN}
@@ -82,4 +85,4 @@ image-preloader:
     - latest
 
 signoz:
-  enabled: true
+  enabled: ${DEPLOY_SIGNOZ}

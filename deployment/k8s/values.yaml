@@ -47,6 +47,8 @@ global:
     host: "https://cloud.langfuse.com"
     publicKey: "pk-lf-..."  # Replace with your actual public key
     secretKey: "sk-lf-..."  # Replace with your actual secret key
+  signoz:
+    deployed: false
   crs:
     api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
     api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
@@ -378,4 +380,3 @@ restartPolicy: Always
 # SigNoz observability platform
 signoz:
   enabled: false
-
