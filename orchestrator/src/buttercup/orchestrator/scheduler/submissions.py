@@ -1781,8 +1781,8 @@ class Submissions:
                         self._persist(pipe, i, e)
                         pipe.execute()
 
-            except Exception as err:
-                logger.error(f"[{i}:{_task_id(e)}] Error processing submission: {err}")
+            except Exception:
+                logger.exception(f"[{i}:{_task_id(e)}] Error processing submission")
                 # NOTE: The question is if we should raise at some point. Worst case we are stuck in a error-condition
                 # that can only be fixed by a restart of the scheduler. However, we don't know that. If we raise, we risk
                 # the scheduler only attempting the first vulnerability and the rest of the cycle being skipped. This could
