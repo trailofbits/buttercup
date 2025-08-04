@@ -11,7 +11,10 @@ from buttercup.orchestrator.ui.competition_api.models.crs_types import (
     Task,
     TaskDetail,
     TaskType,
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
 )
+import time
 
 
 class TestChallengeService:
@@ -306,3 +309,121 @@ class TestChallengeService:
                     with readme_file as f:
                         content = f.read().decode("utf-8")
                         assert "# Test Repository" in content
+
+    def test_create_sarif_broadcast(self, challenge_service):
+        """Test SARIF broadcast creation."""
+        # Test data
+        task_id = "test-task-123"
+        sarif_data = {
+            "version": "2.1.0",
+            "$schema": "https://json.schemastore.org/sarif-2.1.0-json-schema.json",
+            "runs": [
+                {
+                    "tool": {"driver": {"name": "test-tool", "version": "1.0.0"}},
+                    "results": [
+                        {
+                            "ruleId": "test-rule",
+                            "level": "error",
+                            "message": {"text": "Test vulnerability found"},
+                            "locations": [
+                                {
+                                    "physicalLocation": {
+                                        "artifactLocation": {"uri": "src/main.c"},
+                                        "region": {"startLine": 10, "startColumn": 5},
+                                    }
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+
+        # Create SARIF broadcast
+        broadcast = challenge_service.create_sarif_broadcast(task_id, sarif_data)
+
+        # Verify broadcast structure
+        assert isinstance(broadcast, SARIFBroadcast)
+        assert broadcast.message_id is not None
+        assert broadcast.message_time > 0
+        assert len(broadcast.broadcasts) == 1
+
+        # Verify broadcast detail
+        broadcast_detail = broadcast.broadcasts[0]
+        assert isinstance(broadcast_detail, SARIFBroadcastDetail)
+        assert broadcast_detail.task_id == task_id
+        assert broadcast_detail.sarif_id is not None
+        assert broadcast_detail.metadata == {}
+        assert broadcast_detail.sarif == sarif_data
+
+        # Verify UUID format for IDs
+        import uuid
+
+        try:
+            uuid.UUID(broadcast.message_id)
+            uuid.UUID(broadcast_detail.sarif_id)
+        except ValueError:
+            pytest.fail("Message ID or SARIF ID is not a valid UUID")
+
+        # Verify message time is recent (within last 5 seconds)
+        current_time = int(time.time() * 1000)
+        assert abs(broadcast.message_time - current_time) < 5000
+
+    def test_create_sarif_broadcast_empty_sarif(self, challenge_service):
+        """Test SARIF broadcast creation with empty SARIF data."""
+        task_id = "test-task-456"
+        empty_sarif = {}
+
+        broadcast = challenge_service.create_sarif_broadcast(task_id, empty_sarif)
+
+        assert isinstance(broadcast, SARIFBroadcast)
+        assert len(broadcast.broadcasts) == 1
+        assert broadcast.broadcasts[0].sarif == empty_sarif
+        assert broadcast.broadcasts[0].task_id == task_id
+
+    def test_create_sarif_broadcast_complex_sarif(self, challenge_service):
+        """Test SARIF broadcast creation with complex SARIF data."""
+        task_id = "test-task-789"
+        complex_sarif = {
+            "version": "2.1.0",
+            "$schema": "https://json.schemastore.org/sarif-2.1.0-json-schema.json",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "complex-tool",
+                            "version": "2.0.0",
+                            "informationUri": "https://example.com/tool",
+                        }
+                    },
+                    "results": [
+                        {
+                            "ruleId": "CVE-2023-1234",
+                            "level": "error",
+                            "message": {
+                                "text": "Buffer overflow vulnerability",
+                                "markdown": "**Buffer overflow** vulnerability found",
+                            },
+                            "locations": [
+                                {
+                                    "physicalLocation": {
+                                        "artifactLocation": {"uri": "src/vulnerable.c", "uriBaseId": "SRCROOT"},
+                                        "region": {"startLine": 25, "startColumn": 10, "endLine": 25, "endColumn": 15},
+                                    }
+                                }
+                            ],
+                            "properties": {"security-severity": "HIGH", "tags": ["buffer-overflow", "memory-safety"]},
+                        }
+                    ],
+                    "invocations": [{"executionSuccessful": True, "commandLine": "fuzzer --target vulnerable.c"}],
+                }
+            ],
+        }
+
+        broadcast = challenge_service.create_sarif_broadcast(task_id, complex_sarif)
+
+        assert isinstance(broadcast, SARIFBroadcast)
+        assert len(broadcast.broadcasts) == 1
+        assert broadcast.broadcasts[0].sarif == complex_sarif
+        assert broadcast.broadcasts[0].task_id == task_id
+        assert broadcast.broadcasts[0].metadata == {}

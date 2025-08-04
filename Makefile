@@ -60,12 +60,12 @@ deploy:
 
 wait-crs:
 	@echo "Waiting for CRS deployment to be ready..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
 	@while true; do \
-		PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+		PENDING=$$(kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs} --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
 		if [ "$$PENDING" -eq 0 ]; then \
 			echo "All CRS pods are running."; \
 			break; \
@@ -76,11 +76,11 @@ wait-crs:
 	done
 
 check-crs:
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	@PENDING=$$(kubectl get pods -n crs --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
+	@PENDING=$$(kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs} --no-headers 2>/dev/null | grep -v 'Completed' | grep -v 'Running' | wc -l); \
 	if [ "$$PENDING" -eq 0 ]; then \
 		echo "All CRS pods up and running."; \
 	else \
@@ -90,11 +90,11 @@ check-crs:
 
 crs-instance-id:
 	@echo "Getting CRS instance ID..."
-	@if ! kubectl get namespace crs >/dev/null 2>&1; then \
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	echo "CRS instance ID: $$(kubectl get configmap -n crs crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
+	echo "CRS instance ID: $$(kubectl get configmap -n $${BUTTERCUP_NAMESPACE:-crs} crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
 
 deploy-local:
 	@echo "Deploying to local Minikube environment..."
@@ -150,7 +150,8 @@ send-integration-task:
 	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
 	@sleep 3
 	./orchestrator/scripts/task_integration_test.sh
-	@pkill -f "kubectl port-forward" || true
+	pkill -f "kubectl port-forward" || true
+	exit 0
 
 send-libpng-task:
 	@echo "Running libpng task..."
@@ -161,7 +162,8 @@ send-libpng-task:
 	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
 	@sleep 3
 	./orchestrator/scripts/task_crs.sh
-	@pkill -f "kubectl port-forward" || true
+	pkill -f "kubectl port-forward" || true
+	exit 0
 
 # Development targets
 lint:
@@ -170,7 +172,7 @@ lint:
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
-# Note: only some components run mypy
+# Note: common, patcher, orchestrator, program-model, seed-gen run mypy
 lint-component:
 	@if [ -z "$(COMPONENT)" ]; then \
 		echo "Error: COMPONENT not specified. Usage: make lint-component COMPONENT=<component>"; \
@@ -179,7 +181,7 @@ lint-component:
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ]; then \
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ]; then \
 		cd $(COMPONENT) && uv run mypy; \
 	fi
 

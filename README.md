@@ -300,6 +300,20 @@ make lint-component COMPONENT=orchestrator
 ./orchestrator/scripts/challenge.py
 ```
 
+### Viewing the CRS results and logs
+
+You can monitor the results provided by the CRS with the WebUI:
+
+```bash
+make web-ui
+```
+
+Also, if you have deployed the local SigNoz (`DEPLOY_SIGNOZ` variable in `env`),
+you can track the logs and traces there with:
+
+```bash
+make signoz-ui
+```
 
 ### Kubernetes Development
 

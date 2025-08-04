@@ -11,7 +11,7 @@ SEED_EXEC_RUNNER = resolve_module_subpath("sandbox/runner.py")
 logger = logging.getLogger(__name__)
 
 
-def sandbox_exec_funcs(functions: str, output_dir: Path):
+def sandbox_exec_funcs(functions: str, output_dir: Path) -> None:
     """Run functions in wasm sandbox and save seeds to output_dir"""
     with tempfile.TemporaryDirectory() as workdir_str:
         workdir = Path(workdir_str)
