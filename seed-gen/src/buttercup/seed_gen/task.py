@@ -30,30 +30,6 @@ from buttercup.seed_gen.utils import extract_code
 logger = logging.getLogger(__name__)
 
 
-class BaseTaskState(BaseModel):
-    """Base state for all tasks."""
-
-    harness: "HarnessInfo" = Field(description="Harness info")
-    messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
-    retrieved_context: Annotated[dict[str, "ToolCallResult"], operator.or_] = Field(
-        description="Context retrieved by tools, keyed by tool call", default_factory=dict
-    )
-    generated_functions: str = Field(description="The generated seed functions", default="")
-    context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
-    task: "Task" = Field(description="The task instance")
-    output_dir: Path = Field(description="Directory to save generated seeds")
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    def format_retrieved_context(self) -> str:
-        """Format retrieved context for prompt"""
-        context = ""
-        if self.retrieved_context:
-            for call_result in self.retrieved_context.values():
-                context += f"{call_result}\n"
-        return context
-
-
 class TaskName(str, Enum):
     SEED_INIT = "seed-init"
     SEED_EXPLORE = "seed-explore"
@@ -134,7 +110,7 @@ class Task:
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
         llm_callbacks = get_langfuse_callbacks()
-        llm_instance = create_default_llm(
+        llm = create_default_llm(
             model_name=llm.value,
             callbacks=llm_callbacks,
         )
@@ -142,7 +118,7 @@ class Task:
         for fallback_llm in fallback_llms:
             fallback = create_default_llm(model_name=fallback_llm.value, callbacks=llm_callbacks)
             fallbacks.append(fallback)
-        return llm_instance.with_fallbacks(fallbacks)  # type: ignore[no-any-return]
+        return llm.with_fallbacks(fallbacks)  # type: ignore[no-any-return]
 
     def get_harness_source(self) -> HarnessInfo | None:
         return get_harness_source(self.redis, self.codequery, self.harness_name)
@@ -176,7 +152,7 @@ class Task:
     def _do_get_function_def(
         self,
         function_name: str,
-        function_paths: list[Path],
+        function_paths: Sequence[Path | None],
         fuzzy: bool = False,
         fuzzy_threshold: int = 80,
     ) -> Function | None:
@@ -229,7 +205,7 @@ class Task:
                 return function_def
 
         function_def = self._do_get_function_def(
-            function_name, [], fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
+            function_name, [None], fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
         )
         if function_def is not None:
             return function_def
@@ -260,7 +236,7 @@ class Task:
         self,
         system_prompt: str,
         user_prompt: str,
-        state: BaseTaskState,
+        state: "BaseTaskState",
         prompt_vars: dict[str, Any],
     ) -> Command:
         """Base method for getting context that can be used by different tasks"""
@@ -278,18 +254,18 @@ class Task:
         )
         return cmd
 
-    def _continue_context_retrieval(self, state: BaseTaskState) -> bool:
+    def _continue_context_retrieval(self, state: "BaseTaskState") -> bool:
         """Determine if we should continue the context retrieval iteration"""
         return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
 
-    def _execute_python_funcs(self, state: BaseTaskState) -> None:
+    def _execute_python_funcs(self, state: "BaseTaskState") -> None:
         """Execute python functions"""
         logger.info("Executing python functions")
         sandbox_exec_funcs(state.generated_functions, state.output_dir)
 
     def _do_get_type_defs(self, type_name: str) -> list[TypeDefinition]:
         """Get type definitions"""
-        type_defs: list[TypeDefinition] = self.codequery.get_types(type_name)
+        type_defs = self.codequery.get_types(type_name)
 
         if len(type_defs) > self.MAX_TYPE_DEFS:
             logger.info(
@@ -301,30 +277,11 @@ class Task:
             type_defs = type_defs[: self.MAX_TYPE_DEFS]
         else:
             logger.info("Got %d type defs for %s", len(type_defs), type_name)
-        return type_defs
-
-    def _do_get_callers(
-        self,
-        function_name: str,
-    ) -> list[Function]:
-        """Get the callers of a function"""
-        max_callers = 20
-        callers: list[Function] = self.codequery.get_callers(function_name)
-        if len(callers) > max_callers:
-            logger.info(
-                "Found %d callers for %s, truncating to %d",
-                len(callers),
-                function_name,
-                max_callers,
-            )
-            callers = callers[:max_callers]
-        return callers
+        return type_defs  # type: ignore[no-any-return]
 
     @staticmethod
     def _get_function_definition(
-        function_name: str,
-        state: BaseTaskState,
-        tool_call_id: str,
+        function_name: str, state: "BaseTaskState", tool_call_id: str
     ) -> Command:
         """Implementation of get_function_definition tool"""
         logger.info("Tool call: get_function_definition for %s", function_name)
@@ -373,7 +330,7 @@ class Task:
     @staticmethod
     def _get_type_definition(
         type_name: str,
-        state: BaseTaskState,
+        state: "BaseTaskState",
         tool_call_id: str,
     ) -> Command:
         """Implementation of get_type_definition tool"""
@@ -424,7 +381,7 @@ class Task:
     @staticmethod
     def _cat(
         file_path: str,
-        state: BaseTaskState,
+        state: "BaseTaskState",
         tool_call_id: str,
     ) -> Command:
         """Implementation of cat tool"""
@@ -472,11 +429,28 @@ class Task:
             }
         )
 
+    def _do_get_callers(
+        self,
+        function_name: str,
+    ) -> list[Function]:
+        """Get the callers of a function"""
+        max_callers = 20
+        callers = self.codequery.get_callers(function_name)
+        if len(callers) > max_callers:
+            logger.info(
+                "Found %d callers for %s, truncating to %d",
+                len(callers),
+                function_name,
+                max_callers,
+            )
+            callers = callers[:max_callers]
+        return callers  # type: ignore[no-any-return]
+
     @staticmethod
     def _get_callers(
         function_name: str,
         file_path: str,
-        state: BaseTaskState,
+        state: "BaseTaskState",
         tool_call_id: str,
     ) -> Command:
         logger.info("Tool call: get_callers for %s in %s", function_name, file_path)
@@ -527,11 +501,35 @@ class Task:
         )
 
 
-# Tool functions - these need to be outside the class to work with @tool decorator
+class BaseTaskState(BaseModel):
+    """Base state for all tasks."""
+
+    harness: HarnessInfo = Field(description="Harness info")
+    messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
+    retrieved_context: Annotated[dict[str, ToolCallResult], operator.or_] = Field(
+        description="Context retrieved by tools, keyed by tool call", default_factory=dict
+    )
+    generated_functions: str = Field(description="The generated seed functions", default="")
+    context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
+    task: Task = Field(description="The task instance")
+    output_dir: Path = Field(description="Directory to save generated seeds")
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def format_retrieved_context(self) -> str:
+        """Format retrieved context for prompt"""
+        context = ""
+        if self.retrieved_context:
+            for call_result in self.retrieved_context.values():
+                context += f"{call_result}\n"
+        return context
+
+
 @tool
 def get_function_definition(
     function_name: str,
-    state: Annotated[BaseTaskState, InjectedState],
+    *,
+    state: Annotated[BaseModel, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Retrieves the source code definition of a function from the codebase.
@@ -541,15 +539,17 @@ def get_function_definition(
 
     Notes:
     - If looking up a method in a Java program, only specify the method name.
-      For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+        For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
     """
+    assert isinstance(state, BaseTaskState)
     return Task._get_function_definition(function_name, state, tool_call_id)
 
 
 @tool
 def get_type_definition(
     type_name: str,
-    state: Annotated[BaseTaskState, InjectedState],
+    *,
+    state: Annotated[BaseModel, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Retrieves the source code definition of a type from the codebase.
@@ -561,47 +561,15 @@ def get_type_definition(
         - It will return multiple type definitions if there are multiple matches.
         - This tool cannot look up functions.
     """
+    assert isinstance(state, BaseTaskState)
     return Task._get_type_definition(type_name, state, tool_call_id)
-
-
-@tool
-def cat(
-    file_path: str,
-    state: Annotated[BaseTaskState, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """Read the contents of a file. Use this tool selectively as it could return a large amount of text.
-
-    Args:
-        file_path: The path to the file to read
-
-    Notes:
-        - Specify the absolute path to the file.
-        - Prefer other tools when possible since this tool could return a large amount of text.
-    """  # noqa: E501
-    return Task._cat(file_path, state, tool_call_id)
-
-
-@tool
-def get_callers(
-    function_name: str,
-    file_path: str,
-    state: Annotated[BaseTaskState, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
-) -> Command:
-    """Get the callers of a function.
-
-    Args:
-        function_name: The name of the function to get callers for
-        file_path: The path to the file containing the function
-    """
-    return Task._get_callers(function_name, file_path, state, tool_call_id)
 
 
 @tool
 def batch_tool(
     tool_calls: BatchToolCalls,
-    state: Annotated[BaseTaskState, InjectedState],
+    *,
+    state: Annotated[BaseModel, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
     """Execute multiple tool calls in a single invocation.
@@ -615,6 +583,7 @@ def batch_tool(
         - The tool_calls argument must be a dictionary that exactly follows the tool_calls schema
         - Do not include '</invoke>' in your tool_calls argument.
     """  # noqa: E501
+    assert isinstance(state, BaseTaskState)
     logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
     max_calls_in_batch = 10
     results = []
@@ -647,14 +616,16 @@ def batch_tool(
     combined_message = ""
     combined_context = {}
     for i, result in enumerate(results):
-        if isinstance(result, Command) and result.update is not None:
-            if "messages" in result.update:
+        if isinstance(result, Command):
+            # TODO: We should check for dict type here
+            if "messages" in result.update:  # type: ignore[operator]
                 result_combined = "\n".join(
-                    message.content for message in result.update["messages"]
+                    message.content
+                    for message in result.update["messages"]  # type: ignore[index]
                 )
                 combined_message += f"Batched call {i}:\n{result_combined}\n"
-            if "retrieved_context" in result.update:
-                combined_context.update(result.update["retrieved_context"])
+            if "retrieved_context" in result.update:  # type: ignore[operator]
+                combined_context.update(result.update["retrieved_context"])  # type: ignore[index]
 
     # Anthropic API expects 1 tool message per tool call ID
     return Command(
@@ -668,3 +639,41 @@ def batch_tool(
             "retrieved_context": combined_context,
         }
     )
+
+
+@tool
+def cat(
+    file_path: str,
+    *,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Read the contents of a file. Use this tool selectively as it could return a large amount of text.
+
+    Args:
+        file_path: The path to the file to read
+
+    Notes:
+        - Specify the absolute path to the file.
+        - Prefer other tools when possible since this tool could return a large amount of text.
+    """  # noqa: E501
+    assert isinstance(state, BaseTaskState)
+    return Task._cat(file_path, state, tool_call_id)
+
+
+@tool
+def get_callers(
+    function_name: str,
+    file_path: str,
+    *,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Get the callers of a function.
+
+    Args:
+        function_name: The name of the function to get callers for
+        file_path: The path to the file containing the function
+    """
+    assert isinstance(state, BaseTaskState)
+    return Task._get_callers(function_name, file_path, state, tool_call_id)

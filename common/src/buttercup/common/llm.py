@@ -4,7 +4,6 @@ from typing import Any
 import requests
 import functools
 from langchain_core.language_models import BaseChatModel
-from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain_core.runnables import ConfigurableField
