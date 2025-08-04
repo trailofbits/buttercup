@@ -3,7 +3,7 @@
 **Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge)**. Buttercup finds and patches software vulnerabilities in open-source code repositories like [example-libpng](https://github.com/tob-challenges/example-libpng). It starts by running an AI/ML-assisted fuzzing campaign (built on oss-fuzz) for the program. When vulnerabilities are found, Buttercup analyzes them and uses a multi-agent AI-driven patcher to repair the vulnerability. **Buttercup** system consists of several components:
 
 - **Orchestrator**: Coordinates the overall task process and manages the workflow
-- **Seed Generator**: Creates targeted test cases for vulnerability discovery
+- **Seed Generator**: Creates inputs for vulnerability discovery
 - **Fuzzer**: Discovers vulnerabilities through intelligent fuzzing techniques
 - **Program Model**: Analyzes code structure and semantics for better understanding
 - **Patcher**: Generates and applies security patches to fix vulnerabilities
