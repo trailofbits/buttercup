@@ -16,6 +16,7 @@ dependencies = [
     "requests>=2.32.3",
     "requests-file>=2.1.0",
     "rich>=13.9.4",
+    "sqlalchemy>=2.0.0",
     "typing-extensions>=4.12.2",
     "urllib3>=2.3.0",
     "uvicorn>=0.34.0",

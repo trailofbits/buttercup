@@ -39,6 +39,7 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
 )
 from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
 from buttercup.orchestrator.ui.config import Settings
+from buttercup.orchestrator.ui.database import DatabaseManager
 from functools import cache
 import logging
 
@@ -51,11 +52,11 @@ app = FastAPI(
     servers=[{"url": "/"}],
 )
 
-# Global settings instance
+# Global settings and database instances
 _settings: Settings | None = None
+_database_manager: DatabaseManager | None = None
 
-# In-memory storage for tasks and artifacts (can be moved to database later)
-tasks_storage: Dict[str, Dict[str, Any]] = {}
+# Compatibility - keeping dashboard_stats as backup/cache
 dashboard_stats = {"activeTasks": 0, "totalPovs": 0, "totalPatches": 0, "totalBundles": 0}
 
 
@@ -127,6 +128,15 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
+
+
+def get_database_manager() -> DatabaseManager:
+    """Get database manager singleton."""
+    global _database_manager
+    if _database_manager is None:
+        settings = get_settings()
+        _database_manager = DatabaseManager(settings.database_url)
+    return _database_manager
 
 
 @cache
@@ -297,19 +307,22 @@ def calculate_task_status(deadline_str: str) -> str:
 def update_dashboard_stats() -> None:
     """Update dashboard statistics from current tasks."""
     global dashboard_stats
-
+    
+    db = get_database_manager()
+    tasks = db.get_all_tasks()
+    
     active_count = 0
     total_povs = 0
     total_patches = 0
     total_bundles = 0
 
-    for task_data in tasks_storage.values():
-        if calculate_task_status(task_data["deadline"]) == "active":
+    for task in tasks:
+        if calculate_task_status(task.deadline) == "active":
             active_count += 1
 
-        total_povs += len(task_data.get("povs", []))
-        total_patches += len(task_data.get("patches", []))
-        total_bundles += len(task_data.get("bundles", []))
+        total_povs += len(task.povs)
+        total_patches += len(task.patches)
+        total_bundles += len(task.bundles)
 
     dashboard_stats.update(
         {
@@ -323,33 +336,17 @@ def update_dashboard_stats() -> None:
 
 def get_or_create_task(task_id: str) -> Dict[str, Any]:
     """Get or create a task entry in storage."""
-    if task_id not in tasks_storage:
-        # Create default task entry
-        now = datetime.now()
-        deadline = now + timedelta(minutes=30)  # Default 30 minute duration
-
-        tasks_storage[task_id] = {
-            "task_id": task_id,
-            "name": None,
-            "project_name": "unknown",
-            "status": "active",
-            "duration": 1800,
-            "deadline": deadline.isoformat(),
-            "challenge_repo_url": None,
-            "challenge_repo_head_ref": None,
-            "challenge_repo_base_ref": None,
-            "fuzz_tooling_url": None,
-            "fuzz_tooling_ref": None,
-            "povs": [],
-            "patches": [],
-            "bundles": [],
-            "created_at": now.isoformat(),
-        }
-
-    # Update status based on deadline
-    task_data = tasks_storage[task_id]
+    db = get_database_manager()
+    task = db.get_or_create_task(task_id)
+    
+    # Convert to dictionary format and update status
+    task_data = db.task_to_dict(task)
     task_data["status"] = calculate_task_status(task_data["deadline"])
-
+    
+    # Update status in database if it changed
+    if task.status != task_data["status"]:
+        db.update_task(task_id, {"status": task_data["status"]})
+    
     return task_data
 
 
@@ -403,10 +400,13 @@ def get_dashboard_tasks() -> List[TaskInfo]:
     Get list of all tasks for dashboard
     """
     update_dashboard_stats()
+    db = get_database_manager()
+    tasks = db.get_all_tasks()
+    
     tasks_list = []
-
-    for task_data in tasks_storage.values():
-        # Update status before returning
+    for task in tasks:
+        # Convert to dict format and update status
+        task_data = db.task_to_dict(task)
         task_data["status"] = calculate_task_status(task_data["deadline"])
         tasks_list.append(TaskInfo(**task_data))
 
@@ -420,10 +420,13 @@ def get_dashboard_task(task_id: str) -> TaskInfo:
     """
     Get detailed information about a specific task
     """
-    if task_id not in tasks_storage:
+    db = get_database_manager()
+    task = db.get_task(task_id)
+    
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task_data = tasks_storage[task_id]
+    task_data = db.task_to_dict(task)
     task_data["status"] = calculate_task_status(task_data["deadline"])
     return TaskInfo(**task_data)
 
@@ -459,13 +462,14 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
             duration_secs=challenge.duration,
         )
 
-        # Store task data for dashboard
+        # Store task data in database
         task_id = task.tasks[0].task_id
         name = challenge.name or task_id
         now = datetime.now()
         deadline = now + timedelta(seconds=challenge.duration)
 
-        tasks_storage[task_id] = {
+        db = get_database_manager()
+        task_data = {
             "task_id": task_id,
             "name": name,
             "project_name": challenge.fuzz_tooling_project_name,
@@ -477,11 +481,9 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
             "challenge_repo_base_ref": challenge.challenge_repo_base_ref,
             "fuzz_tooling_url": challenge.fuzz_tooling_url,
             "fuzz_tooling_ref": challenge.fuzz_tooling_ref,
-            "povs": [],
-            "patches": [],
-            "bundles": [],
             "created_at": now.isoformat(),
         }
+        db.create_task(task_data)
 
         # Send task to CRS via POST /v1/task endpoint
         if crs_client.submit_task(task):
@@ -593,12 +595,19 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> Bundle
     logger.info(f"Bundle submission - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Bundle details: {json.dumps(body.dict(), indent=2)}")
 
-    # Store bundle in task storage for dashboard
-    task_data = get_or_create_task(task_id)
-    bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
-    task_data["bundles"].append(bundle_data)
+    # Store bundle in database
+    db = get_database_manager()
+    get_or_create_task(task_id)  # Ensure task exists
+    
+    bundle_data = {
+        "bundle_id": bundle_id, 
+        "task_id": task_id,
+        "timestamp": datetime.now().isoformat(), 
+        **body.dict()
+    }
+    db.create_bundle(bundle_data)
 
-    # Save bundle to disk
+    # Save bundle to disk (for backward compatibility)
     save_bundle(task_id, bundle_id, body.dict())
 
     return BundleSubmissionResponse(bundle_id=bundle_id, status=SubmissionStatus.SubmissionStatusAccepted)
@@ -676,12 +685,19 @@ def patch_v1_task_task_id_bundle_bundle_id_(
     logger.info(f"Bundle update - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Updated bundle details: {json.dumps(body.dict(), indent=2)}")
 
-    # Store bundle in task storage for dashboard
-    task_data = get_or_create_task(task_id)
-    bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
-    task_data["bundles"].append(bundle_data)
+    # Update bundle in database (create new entry with same ID)
+    db = get_database_manager()
+    get_or_create_task(task_id)  # Ensure task exists
+    
+    bundle_data = {
+        "bundle_id": bundle_id, 
+        "task_id": task_id,
+        "timestamp": datetime.now().isoformat(), 
+        **body.dict()
+    }
+    db.create_bundle(bundle_data)  # Note: This creates a new entry
 
-    # Save bundle to disk
+    # Save bundle to disk (for backward compatibility)
     bundle = body.dict()
     save_bundle(task_id, bundle_id, bundle)
 
@@ -737,12 +753,19 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSub
     logger.info(f"Patch submission - Task: {task_id}, Patch ID: {patch_id}")
     logger.info(f"Patch size: {len(body.patch)} bytes")
 
-    # Store patch in task storage for dashboard
-    task_data = get_or_create_task(task_id)
-    patch_data = {"patch_id": patch_id, "timestamp": datetime.now().isoformat(), **body.dict()}
-    task_data["patches"].append(patch_data)
+    # Store patch in database
+    db = get_database_manager()
+    get_or_create_task(task_id)  # Ensure task exists
+    
+    patch_data = {
+        "patch_id": patch_id, 
+        "task_id": task_id,
+        "timestamp": datetime.now().isoformat(), 
+        **body.dict()
+    }
+    db.create_patch(patch_data)
 
-    # Save patch to disk
+    # Save patch to disk (for backward compatibility)
     save_patch(task_id, patch_id, body.patch)
 
     return PatchSubmissionResponse(
@@ -793,12 +816,19 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissio
     )
     logger.info(f"POV testcase size: {len(body.testcase)} bytes")
 
-    # Store POV in task storage for dashboard
-    task_data = get_or_create_task(task_id)
-    pov_data = {"pov_id": pov_id, "timestamp": datetime.now().isoformat(), **body.dict()}
-    task_data["povs"].append(pov_data)
+    # Store POV in database
+    db = get_database_manager()
+    get_or_create_task(task_id)  # Ensure task exists
+    
+    pov_data = {
+        "pov_id": pov_id, 
+        "task_id": task_id,
+        "timestamp": datetime.now().isoformat(), 
+        **body.dict()
+    }
+    db.create_pov(pov_data)
 
-    # Save POV testcase to disk
+    # Save POV testcase to disk (for backward compatibility)
     save_pov(task_id, pov_id, body.testcase)
 
     return POVSubmissionResponse(pov_id=pov_id, status=SubmissionStatus.SubmissionStatusAccepted)
@@ -893,16 +923,18 @@ def trigger_sarif(
 @app.get("/v1/dashboard/tasks/{task_id}/povs/{pov_id}/download", tags=["dashboard"])
 def download_pov(task_id: str, pov_id: str) -> Response:
     """Download a PoV testcase"""
-    if task_id not in tasks_storage:
+    db = get_database_manager()
+    task = db.get_task(task_id)
+    
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task_data = tasks_storage[task_id]
-    pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
+    pov = next((p for p in task.povs if p.pov_id == pov_id), None)
 
     if not pov:
         raise HTTPException(status_code=404, detail="PoV not found")
 
-    testcase = pov.get("testcase", b"")
+    testcase = pov.testcase or b""
     if isinstance(testcase, str):
         # If it's a base64 string, decode it
         try:
@@ -922,16 +954,18 @@ def download_pov(task_id: str, pov_id: str) -> Response:
 @app.get("/v1/dashboard/tasks/{task_id}/patches/{patch_id}/download", tags=["dashboard"])
 def download_patch(task_id: str, patch_id: str) -> Response:
     """Download a patch"""
-    if task_id not in tasks_storage:
+    db = get_database_manager()
+    task = db.get_task(task_id)
+    
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task_data = tasks_storage[task_id]
-    patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
+    patch = next((p for p in task.patches if p.patch_id == patch_id), None)
 
     if not patch:
         raise HTTPException(status_code=404, detail="Patch not found")
 
-    patch_content = patch.get("patch", "")
+    patch_content = patch.patch or ""
 
     # Handle different types of patch content
     if isinstance(patch_content, bytes):
@@ -956,23 +990,40 @@ def download_patch(task_id: str, patch_id: str) -> Response:
 @app.get("/v1/dashboard/tasks/{task_id}/bundles/{bundle_id}/download", tags=["dashboard"])
 def download_bundle(task_id: str, bundle_id: str) -> Response:
     """Download a bundle as JSON"""
-    if task_id not in tasks_storage:
+    db = get_database_manager()
+    task = db.get_task(task_id)
+    
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task_data = tasks_storage[task_id]
-    bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
+    bundle = next((b for b in task.bundles if b.bundle_id == bundle_id), None)
 
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found")
 
     try:
-        bundle_json = json.dumps(bundle, indent=2)
+        # Convert bundle to dict format for JSON serialization
+        bundle_dict = {
+            "bundle_id": bundle.bundle_id,
+            "timestamp": bundle.timestamp,
+            "description": bundle.description,
+            "broadcast_sarif_id": bundle.broadcast_sarif_id,
+            "freeform_id": bundle.freeform_id,
+            "patch_id": bundle.patch_id,
+            "pov_id": bundle.pov_id,
+            "submitted_sarif_id": bundle.submitted_sarif_id,
+        }
+        if bundle.additional_data:
+            additional = json.loads(bundle.additional_data)
+            bundle_dict.update(additional)
+            
+        bundle_json = json.dumps(bundle_dict, indent=2)
     except Exception as e:
         # Fallback: create a basic JSON structure
         bundle_json = json.dumps(
             {
-                "bundle_id": bundle.get("bundle_id", bundle_id),
-                "timestamp": bundle.get("timestamp", ""),
+                "bundle_id": bundle_id,
+                "timestamp": bundle.timestamp or "",
                 "error": f"Could not serialize full bundle data: {str(e)}",
             },
             indent=2,
@@ -989,13 +1040,30 @@ def download_bundle(task_id: str, bundle_id: str) -> Response:
 @app.get("/v1/dashboard/povs/{pov_id}", tags=["dashboard"])
 def get_pov_detail(pov_id: str) -> Dict[str, Any]:
     """Get detailed information about a specific PoV"""
-    for task_data in tasks_storage.values():
-        pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
+    db = get_database_manager()
+    
+    # Find POV across all tasks
+    for task in db.get_all_tasks():
+        pov = next((p for p in task.povs if p.pov_id == pov_id), None)
         if pov:
+            # Convert POV to dict format
+            pov_dict = {
+                "pov_id": pov.pov_id,
+                "timestamp": pov.timestamp,
+                "architecture": pov.architecture,
+                "engine": pov.engine,
+                "fuzzer_name": pov.fuzzer_name,
+                "sanitizer": pov.sanitizer,
+                "testcase": pov.testcase,
+            }
+            if pov.additional_data:
+                additional = json.loads(pov.additional_data)
+                pov_dict.update(additional)
+                
             return {
-                "task_id": task_data["task_id"],
-                "task_name": task_data.get("name") or task_data["project_name"],
-                "pov": pov,
+                "task_id": task.task_id,
+                "task_name": task.name or task.project_name,
+                "pov": pov_dict,
             }
 
     raise HTTPException(status_code=404, detail="PoV not found")
@@ -1004,13 +1072,26 @@ def get_pov_detail(pov_id: str) -> Dict[str, Any]:
 @app.get("/v1/dashboard/patches/{patch_id}", tags=["dashboard"])
 def get_patch_detail(patch_id: str) -> Dict[str, Any]:
     """Get detailed information about a specific patch"""
-    for task_data in tasks_storage.values():
-        patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
+    db = get_database_manager()
+    
+    # Find patch across all tasks
+    for task in db.get_all_tasks():
+        patch = next((p for p in task.patches if p.patch_id == patch_id), None)
         if patch:
+            # Convert patch to dict format
+            patch_dict = {
+                "patch_id": patch.patch_id,
+                "timestamp": patch.timestamp,
+                "patch": patch.patch,
+            }
+            if patch.additional_data:
+                additional = json.loads(patch.additional_data)
+                patch_dict.update(additional)
+                
             return {
-                "task_id": task_data["task_id"],
-                "task_name": task_data.get("name") or task_data["project_name"],
-                "patch": patch,
+                "task_id": task.task_id,
+                "task_name": task.name or task.project_name,
+                "patch": patch_dict,
             }
 
     raise HTTPException(status_code=404, detail="Patch not found")
@@ -1019,13 +1100,31 @@ def get_patch_detail(patch_id: str) -> Dict[str, Any]:
 @app.get("/v1/dashboard/bundles/{bundle_id}", tags=["dashboard"])
 def get_bundle_detail(bundle_id: str) -> Dict[str, Any]:
     """Get detailed information about a specific bundle"""
-    for task_data in tasks_storage.values():
-        bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
+    db = get_database_manager()
+    
+    # Find bundle across all tasks
+    for task in db.get_all_tasks():
+        bundle = next((b for b in task.bundles if b.bundle_id == bundle_id), None)
         if bundle:
+            # Convert bundle to dict format
+            bundle_dict = {
+                "bundle_id": bundle.bundle_id,
+                "timestamp": bundle.timestamp,
+                "description": bundle.description,
+                "broadcast_sarif_id": bundle.broadcast_sarif_id,
+                "freeform_id": bundle.freeform_id,
+                "patch_id": bundle.patch_id,
+                "pov_id": bundle.pov_id,
+                "submitted_sarif_id": bundle.submitted_sarif_id,
+            }
+            if bundle.additional_data:
+                additional = json.loads(bundle.additional_data)
+                bundle_dict.update(additional)
+                
             return {
-                "task_id": task_data["task_id"],
-                "task_name": task_data.get("name") or task_data["project_name"],
-                "bundle": bundle,
+                "task_id": task.task_id,
+                "task_name": task.name or task.project_name,
+                "bundle": bundle_dict,
             }
 
     raise HTTPException(status_code=404, detail="Bundle not found")
@@ -1035,14 +1134,30 @@ def get_bundle_detail(bundle_id: str) -> Dict[str, Any]:
 @app.get("/v1/dashboard/povs", tags=["dashboard"])
 def get_all_povs() -> List[Dict[str, Any]]:
     """Get all PoVs across all tasks"""
+    db = get_database_manager()
     all_povs = []
-    for task_data in tasks_storage.values():
-        for pov in task_data.get("povs", []):
+    
+    for task in db.get_all_tasks():
+        for pov in task.povs:
+            # Convert POV to dict format
+            pov_dict = {
+                "pov_id": pov.pov_id,
+                "timestamp": pov.timestamp,
+                "architecture": pov.architecture,
+                "engine": pov.engine,
+                "fuzzer_name": pov.fuzzer_name,
+                "sanitizer": pov.sanitizer,
+                "testcase": pov.testcase,
+            }
+            if pov.additional_data:
+                additional = json.loads(pov.additional_data)
+                pov_dict.update(additional)
+                
             all_povs.append(
                 {
-                    "task_id": task_data["task_id"],
-                    "task_name": task_data.get("name") or task_data["project_name"],
-                    "pov": pov,
+                    "task_id": task.task_id,
+                    "task_name": task.name or task.project_name,
+                    "pov": pov_dict,
                 }
             )
 
@@ -1054,14 +1169,26 @@ def get_all_povs() -> List[Dict[str, Any]]:
 @app.get("/v1/dashboard/patches", tags=["dashboard"])
 def get_all_patches() -> List[Dict[str, Any]]:
     """Get all patches across all tasks"""
+    db = get_database_manager()
     all_patches = []
-    for task_data in tasks_storage.values():
-        for patch in task_data.get("patches", []):
+    
+    for task in db.get_all_tasks():
+        for patch in task.patches:
+            # Convert patch to dict format
+            patch_dict = {
+                "patch_id": patch.patch_id,
+                "timestamp": patch.timestamp,
+                "patch": patch.patch,
+            }
+            if patch.additional_data:
+                additional = json.loads(patch.additional_data)
+                patch_dict.update(additional)
+                
             all_patches.append(
                 {
-                    "task_id": task_data["task_id"],
-                    "task_name": task_data.get("name") or task_data["project_name"],
-                    "patch": patch,
+                    "task_id": task.task_id,
+                    "task_name": task.name or task.project_name,
+                    "patch": patch_dict,
                 }
             )
 
