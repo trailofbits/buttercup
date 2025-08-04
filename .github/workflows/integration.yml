@@ -50,7 +50,7 @@ permissions:
 
 jobs:
   integration:
-    runs-on: gha-ubuntu-32
+    runs-on: ubuntu-2404-8x32
     steps:
       - uses: actions/checkout@v4
         with:
