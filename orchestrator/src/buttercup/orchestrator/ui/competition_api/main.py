@@ -631,8 +631,8 @@ def get_v1_task_task_id_bundle_bundle_id_(task_id: str, bundle_id: str) -> Bundl
         freeform_id=bundle.get("freeform_id"),
         patch_id=bundle.get("patch_id"),
         pov_id=bundle.get("pov_id"),
-        status=bundle.get("status"),
         submitted_sarif_id=bundle.get("submitted_sarif_id"),
+        status=SubmissionStatus.SubmissionStatusAccepted,
     )
 
 
@@ -692,8 +692,8 @@ def patch_v1_task_task_id_bundle_bundle_id_(
         freeform_id=bundle.get("freeform_id"),
         patch_id=bundle.get("patch_id"),
         pov_id=bundle.get("pov_id"),
-        status=bundle.get("status"),
         submitted_sarif_id=bundle.get("submitted_sarif_id"),
+        status=SubmissionStatus.SubmissionStatusAccepted,
     )
 
 
