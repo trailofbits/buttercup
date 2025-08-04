@@ -59,7 +59,6 @@ All Python components use consistent formatting and linting standards:
 - **Formatter:** `ruff format`
 - **Linter:** `ruff check`
 - **Type Checker:** `mypy` (for common, patcher, and program-model components)
-- **Line Length:** 120 characters
 
 ### Running Tests
 
