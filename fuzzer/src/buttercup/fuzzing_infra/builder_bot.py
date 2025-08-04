@@ -33,7 +33,7 @@ class BuilderBot:
 
     _build_requests_queue: ReliableQueue[BuildRequest] = field(init=False)
     _build_outputs_queue: ReliableQueue[BuildOutput] = field(init=False)
-    _registry: TaskRegistry | None = field(init=False, default=None)
+    _registry: TaskRegistry = field(init=False)
 
     def __post_init__(self) -> None:
         queue_factory = QueueFactory(self.redis)
