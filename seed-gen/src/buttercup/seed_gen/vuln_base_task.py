@@ -278,8 +278,8 @@ class VulnBaseTask(Task):
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_bug", self._analyze_bug)
         workflow.add_node("write_pov", self._write_pov)
-        workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)  # type: ignore[call-overload]
-        workflow.add_node("test_povs", self._test_povs)  # type: ignore[call-overload]
+        workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)
+        workflow.add_node("test_povs", self._test_povs)
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")
@@ -338,17 +338,17 @@ class VulnBaseTask(Task):
                     crs_action_name="seed_gen_vuln_discovery",
                     task_metadata=dict(self.challenge_task.task_meta.metadata),
                     extra_attributes={
-                        "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
+                        "gen_ai.request.model": self.llm.model_name,
                     },
                 )
-                chain.invoke(state)  # type: ignore[arg-type]
+                chain.invoke(state)
 
         except Exception as err:
             logger.exception(
                 "Failed vuln-discovery for challenge %s: %s", self.package_name, str(err)
             )
 
-    def sample_sarifs(self) -> list[SARIFBroadcastDetail]:
+    def sample_sarifs(self) -> bool:
         """Sample SARIFs for the task"""
         if random.random() <= VulnBaseTask.SARIF_PROBABILITY:
             logger.info("Using %d SARIFs for challenge %s", len(self.sarifs), self.package_name)

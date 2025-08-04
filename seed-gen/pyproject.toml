@@ -36,7 +36,6 @@ dev = [
     "pytest ~= 8.3.4",
     "ruff ~= 0.6.2",
     "tqdm ~= 4.67.1",
-    "types-redis",
 ]
 
 [project.scripts]

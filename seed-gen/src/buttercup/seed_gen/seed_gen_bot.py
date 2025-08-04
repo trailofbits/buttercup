@@ -22,7 +22,7 @@ from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
 from buttercup.seed_gen.task_counter import TaskCounter
-from buttercup.seed_gen.vuln_base_task import CrashSubmit, VulnBaseTask
+from buttercup.seed_gen.vuln_base_task import CrashSubmit
 from buttercup.seed_gen.vuln_discovery_delta import VulnDiscoveryDeltaTask
 from buttercup.seed_gen.vuln_discovery_full import VulnDiscoveryFullTask
 
@@ -112,12 +112,9 @@ class SeedGenBot(TaskLoop):
             ]
 
         tasks, weights = zip(*task_distribution)
-        result = random.choices(tasks, weights=weights, k=1)
-        return str(result[0]) if result else ""
+        return random.choices(tasks, weights=weights, k=1)[0]
 
-    def run_task(
-        self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]
-    ) -> None:
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]):
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
         project_yaml = ProjectYaml(ro_challenge_task, task.package_name)
@@ -191,7 +188,7 @@ class SeedGenBot(TaskLoop):
                 )
                 with reproduce_multiple.open() as mult:
                     if is_delta:
-                        vuln_discovery: VulnBaseTask = VulnDiscoveryDeltaTask(
+                        vuln_discovery = VulnDiscoveryDeltaTask(
                             task.package_name,
                             task.harness_name,
                             challenge_task,

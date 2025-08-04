@@ -171,7 +171,7 @@ lint:
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
-# Note: common, patcher, orchestrator, program-model, seed-gen run mypy
+# Note: only some components run mypy
 lint-component:
 	@if [ -z "$(COMPONENT)" ]; then \
 		echo "Error: COMPONENT not specified. Usage: make lint-component COMPONENT=<component>"; \
@@ -180,7 +180,7 @@ lint-component:
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ]; then \
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ]; then \
 		cd $(COMPONENT) && uv run mypy; \
 	fi
 

@@ -25,7 +25,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     MAX_CONTEXT_ITERATIONS = 8
 
     @override
-    def _gather_context(self, state: VulnBaseState) -> Command:  # type: ignore[override]
+    def _gather_context(self, state: VulnBaseState) -> Command:
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
         prompt_vars = {
@@ -45,7 +45,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         return res
 
     @override
-    def _analyze_bug(self, state: VulnBaseState) -> Command:  # type: ignore[override]
+    def _analyze_bug(self, state: VulnBaseState) -> Command:
         """Analyze the diff for vulnerabilities"""
         prompt_vars = {
             "harness": str(state.harness),
@@ -62,7 +62,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         return res
 
     @override
-    def _write_pov(self, state: VulnBaseState) -> Command:  # type: ignore[override]
+    def _write_pov(self, state: VulnBaseState) -> Command:
         """Write PoV functions for the vulnerability"""
         prompt_vars = {
             "analysis": state.analysis,

@@ -30,9 +30,6 @@ logger = logging.getLogger(__name__)
 
 def command_server(settings: Settings) -> None:
     """Seed-gen worker server"""
-    if settings.server is None:
-        raise ValueError("Server command not provided")
-
     os.makedirs(settings.wdir, exist_ok=True)
     if settings.server.corpus_root:
         os.makedirs(settings.server.corpus_root, exist_ok=True)
@@ -41,10 +38,10 @@ def command_server(settings: Settings) -> None:
     seed_gen_bot = SeedGenBot(
         redis,
         settings.server.sleep_time,
-        str(settings.wdir),
+        settings.wdir,
         max_corpus_seed_size=settings.server.max_corpus_seed_size,
         max_pov_size=settings.server.max_pov_size,
-        corpus_root=str(settings.server.corpus_root) if settings.server.corpus_root else None,
+        corpus_root=settings.server.corpus_root,
         crash_dir_count_limit=settings.server.crash_dir_count_limit,
     )
     seed_gen_bot.run()
@@ -56,7 +53,7 @@ def command_process(settings: Settings) -> None:
     if not isinstance(command, ProcessCommand):
         return
 
-    command_outdir = command.output_dir  # type: ignore[unreachable]
+    command_outdir = command.output_dir
 
     init_telemetry("seed-gen")
     ro_challenge_task = ChallengeTask(read_only_task_dir=command.challenge_task_dir)
@@ -149,6 +146,6 @@ def main() -> None:
     )
     command = get_subcommand(settings)
     if isinstance(command, ProcessCommand):
-        command_process(settings)  # type: ignore[unreachable]
+        command_process(settings)
     else:
         command_server(settings)
