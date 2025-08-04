@@ -8,7 +8,7 @@ Before contributing, set up your local development environment:
 
 ```bash
 # Clone with submodules
-git clone --recurse-submodules <repository-url>
+git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
 
 # Quick setup (recommended)
 make setup-local
