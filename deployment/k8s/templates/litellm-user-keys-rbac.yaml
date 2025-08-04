@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: litellm-user-keys-setup
+  labels:
+    app.kubernetes.io/name: litellm-user-keys-setup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: litellm-user-keys-setup
+  labels:
+    app.kubernetes.io/name: litellm-user-keys-setup
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["buttercup-litellm-api-secrets", "litellm-api-user"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["litellm-api-user"]
+  verbs: ["update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: litellm-user-keys-setup
+  labels:
+    app.kubernetes.io/name: litellm-user-keys-setup
+subjects:
+- kind: ServiceAccount
+  name: litellm-user-keys-setup
+roleRef:
+  kind: Role
+  name: litellm-user-keys-setup
+  apiGroup: rbac.authorization.k8s.io 

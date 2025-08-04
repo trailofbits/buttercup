@@ -26,6 +26,7 @@ volumes:
 
 litellm:
   masterKey: "your-secure-master-key"  # Generate with: openssl rand -hex 16
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"
