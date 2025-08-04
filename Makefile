@@ -24,6 +24,7 @@ help:
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
 	@echo "  send-libpng-task  - Run libpng task"
+	@echo "  submit-project    - Interactive custom challenge submission"
 	@echo ""
 	@echo "Development:"
 	@echo "  install-cscope    - Install cscope tool"
@@ -160,6 +161,17 @@ send-libpng-task:
 	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
 	@sleep 3
 	./orchestrator/scripts/task_crs.sh
+	@pkill -f "kubectl port-forward" || true
+
+submit-project:
+	@echo "Starting interactive custom challenge submission..."
+	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@sleep 3
+	cd orchestrator && python3 scripts/challenge.py submit-project
 	@pkill -f "kubectl port-forward" || true
 
 # Development targets

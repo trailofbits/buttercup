@@ -2,10 +2,11 @@
 
 import argparse
 import json
+import subprocess
 import time
 import urllib.request
 import sys
-from typing import Any
+from typing import Any, Optional
 
 SECONDS = 1
 MINUTES = 60 * SECONDS
@@ -548,6 +549,175 @@ def single(challenge_name: str, duration: int) -> None:
     time.sleep(duration)
 
 
+def get_project_git_url_from_oss_fuzz(oss_fuzz_url: str, oss_fuzz_ref: str, project_name: str) -> Optional[str]:
+    """Get project git URL from oss-fuzz project.yaml using grep."""
+    try:
+        # Create a temporary directory and clone/fetch the project.yaml
+        cmd = [
+            "bash", "-c", 
+            f"git clone --depth 1 --branch {oss_fuzz_ref} {oss_fuzz_url} /tmp/oss-fuzz-temp 2>/dev/null && "
+            f"grep -E '^main_repo:' /tmp/oss-fuzz-temp/projects/{project_name}/project.yaml | "
+            f"sed 's/main_repo: *//g' | tr -d '\"'"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        pass
+    finally:
+        # Clean up
+        subprocess.run(["rm", "-rf", "/tmp/oss-fuzz-temp"], capture_output=True)
+    return None
+
+
+def get_default_branch(repo_url: str) -> str:
+    """Get the default branch name for a repository."""
+    try:
+        cmd = ["git", "ls-remote", "--symref", repo_url, "HEAD"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                if line.startswith('ref: refs/heads/'):
+                    branch_name = line.split('/')[-1].strip()
+                    # Remove any trailing whitespace or tab characters
+                    branch_name = branch_name.split()[0] if branch_name else "main"
+                    return branch_name
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        pass
+    return "main"
+
+
+def yes_no_prompt(question: str, default: bool = True) -> bool:
+    """Ask a yes/no question with a default answer."""
+    default_str = "Y/n" if default else "y/N"
+    while True:
+        response = input(f"{question} [{default_str}]: ").strip().lower()
+        if response == "":
+            return default
+        elif response in ["y", "yes"]:
+            return True
+        elif response in ["n", "no"]:
+            return False
+        else:
+            print("Please answer 'y' or 'n'")
+
+
+def submit_project() -> None:
+    """Interactive script to submit a custom challenge project."""
+    print("=== Buttercup Custom Challenge Submission ===\n")
+    
+    task_data = {}
+    
+    # Question 1: OSS-Fuzz usage
+    use_upstream_oss_fuzz = yes_no_prompt("Do you want to use upstream google/oss-fuzz?", True)
+    
+    if use_upstream_oss_fuzz:
+        task_data["fuzz_tooling_url"] = "https://github.com/google/oss-fuzz"
+        task_data["fuzz_tooling_ref"] = "master"
+    else:
+        custom_oss_fuzz_url = input("Enter custom oss-fuzz URL: ").strip()
+        custom_oss_fuzz_ref = input("Enter custom oss-fuzz ref [master]: ").strip() or "master"
+        task_data["fuzz_tooling_url"] = custom_oss_fuzz_url
+        task_data["fuzz_tooling_ref"] = custom_oss_fuzz_ref
+    
+    # Question 2: OSS-Fuzz project name
+    project_name = input("What's the oss-fuzz project name? ").strip()
+    if not project_name:
+        print("Error: Project name is required")
+        return
+    task_data["fuzz_tooling_project_name"] = project_name
+    
+    # Determine project URL from oss-fuzz
+    print(f"\nLooking up project URL from oss-fuzz...")
+    project_url = get_project_git_url_from_oss_fuzz(
+        task_data["fuzz_tooling_url"], 
+        task_data["fuzz_tooling_ref"], 
+        project_name
+    )
+    
+    # Question 3: Confirm or provide project URL
+    if project_url:
+        print(f"Determined project URL: {project_url}")
+        if not yes_no_prompt("Is this URL correct?", True):
+            project_url = input("Please provide the correct project URL: ").strip()
+    else:
+        print("Could not determine project URL from oss-fuzz")
+        project_url = input("Please provide the project URL: ").strip()
+    
+    if not project_url:
+        print("Error: Project URL is required")
+        return
+    task_data["challenge_repo_url"] = project_url
+    
+    # Question 4: Specific branch/commit analysis
+    analyze_specific = yes_no_prompt("Do you want to analyze a specific branch/commit?", False)
+    
+    if analyze_specific:
+        branch_or_commit = input("Enter branch/commit (use '..' for diff mode, e.g., 'base..head'): ").strip()
+        if not branch_or_commit:
+            print("Error: Branch/commit is required")
+            return
+            
+        if ".." in branch_or_commit:
+            # Diff mode
+            base_ref, head_ref = branch_or_commit.split("..", 1)
+            task_data["challenge_repo_base_ref"] = base_ref.strip()
+            task_data["challenge_repo_head_ref"] = head_ref.strip()
+            print(f"Using diff mode: {base_ref} -> {head_ref}")
+        else:
+            # Full mode
+            task_data["challenge_repo_head_ref"] = branch_or_commit
+            print(f"Using full mode: analyzing {branch_or_commit}")
+    else:
+        # Use default branch
+        default_branch = get_default_branch(project_url)
+        task_data["challenge_repo_head_ref"] = default_branch
+        print(f"Using default branch: {default_branch}")
+    
+    # Question 5: Analysis duration
+    while True:
+        try:
+            duration_minutes = input("How long should the analysis last? (in minutes) [30]: ").strip()
+            if not duration_minutes:
+                duration_minutes = "30"
+            duration_seconds = int(duration_minutes) * MINUTES
+            task_data["duration"] = duration_seconds
+            break
+        except ValueError:
+            print("Please enter a valid number of minutes")
+    
+    # Set default values
+    task_data["harnesses_included"] = True
+    
+    # Display final configuration
+    print("\n=== Final Configuration ===")
+    print(json.dumps(task_data, indent=2))
+    
+    if not yes_no_prompt("\nSubmit this configuration?", True):
+        print("Cancelled.")
+        return
+    
+    # Submit the task
+    try:
+        url = "http://127.0.0.1:31323/webhook/trigger_task"
+        json_bytes = json.dumps(task_data).encode("utf-8")
+        
+        req = urllib.request.Request(url, data=json_bytes, headers={"Content-Type": "application/json"})
+        print("\n=== Submitting Request ===")
+        print_request(req)
+        
+        with urllib.request.urlopen(req) as response:
+            response_data = response.read().decode("utf-8")
+            print(f"Response status: {response.status}")
+            if response.status == 200:
+                print("✓ Task submitted successfully!")
+            else:
+                print(f"✗ Error response: {response_data}")
+                
+    except Exception as e:
+        print(f"✗ Error submitting task: {e}")
+
+
 def main() -> None:
     """Main function."""
     epilog_text = """
@@ -597,6 +767,9 @@ name = The name of the challenge to run:
     single_parser.add_argument("name", type=str, choices=list(CHALLENGE_MAP.keys()), help="Challenge name")
     single_parser.add_argument("duration", type=int, help="Duration in seconds")
     single_parser.set_defaults(func=lambda args: single(args.name, args.duration))
+
+    submit_project_parser = subparsers.add_parser("submit-project", help="Interactive submission of custom challenge project")
+    submit_project_parser.set_defaults(func=lambda args: submit_project())
 
     args = parser.parse_args()
     if hasattr(args, "func"):
