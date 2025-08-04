@@ -7,12 +7,14 @@ from __future__ import annotations
 import uuid
 import json
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Depends
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from buttercup.orchestrator.ui.competition_api.models.types import (
@@ -53,6 +55,71 @@ app = FastAPI(
 # Global settings instance
 _settings: Settings | None = None
 
+# In-memory storage for tasks and artifacts (can be moved to database later)
+tasks_storage: Dict[str, Dict[str, Any]] = {}
+dashboard_stats = {"activeTasks": 0, "totalPovs": 0, "totalPatches": 0, "totalBundles": 0}
+
+
+# Dashboard models
+class TaskInfo(BaseModel):
+    task_id: str
+    name: Optional[str] = None
+    project_name: str
+    status: str  # active, expired
+    duration: int
+    deadline: str
+    challenge_repo_url: Optional[str] = None
+    challenge_repo_head_ref: Optional[str] = None
+    challenge_repo_base_ref: Optional[str] = None
+    fuzz_tooling_url: Optional[str] = None
+    fuzz_tooling_ref: Optional[str] = None
+    povs: List[Dict[str, Any]] = []
+    patches: List[Dict[str, Any]] = []
+    bundles: List[Dict[str, Any]] = []
+    created_at: str
+
+
+class DashboardStats(BaseModel):
+    activeTasks: int
+    totalPovs: int
+    totalPatches: int
+    totalBundles: int
+
+class Challenge(BaseModel):
+    name: str | None = None
+
+    challenge_repo_url: str
+    challenge_repo_head_ref: str
+    fuzz_tooling_url: str
+    fuzz_tooling_ref: str
+    fuzz_tooling_project_name: str
+    duration: int
+    challenge_repo_base_ref: str | None = None
+
+
+# NOTE: Make this dynamic and modifiable through the UI/API
+challenges = [
+    Challenge(
+        name="upstream-libpng",
+        challenge_repo_url="https://github.com/pnggroup/libpng",
+        challenge_repo_head_ref="libpng16",
+        fuzz_tooling_url="https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref="master",
+        fuzz_tooling_project_name="libpng",
+        duration=1800,
+    ),
+    Challenge(
+        name="upstream-libpng-delta",
+        challenge_repo_url="https://github.com/pnggroup/libpng",
+        challenge_repo_head_ref="2b978915d82377df13fcbb1fb56660195ded868a",
+        challenge_repo_base_ref="640204280f8109d7165f95d2b177f89baf20b253",
+        fuzz_tooling_url="https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref="master",
+        fuzz_tooling_project_name="libpng",
+        duration=1800,
+    ),
+]
+
 
 def get_settings() -> Settings:
     """Get application settings singleton."""
@@ -60,19 +127,6 @@ def get_settings() -> Settings:
     if _settings is None:
         _settings = Settings()
     return _settings
-
-
-def get_challenge_service() -> ChallengeService:
-    """Get challenge service instance."""
-    settings = get_settings()
-    return ChallengeService(settings.storage_dir, f"http://{settings.external_host}:{settings.port}")
-
-
-def get_crs_client() -> CRSClient:
-    """Get CRS client instance."""
-    settings = get_settings()
-    return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
-
 
 @cache
 def get_run_data_dir() -> Path:
@@ -148,41 +202,94 @@ def save_sarif(task_id: str, sarif_id: str, content: dict) -> bool:
     """Save a SARIF to the appropriate directory structure."""
     return save_artifact(task_id, "sarifs", sarif_id, content, True)
 
-
-class Challenge(BaseModel):
-    name: str | None = None
-
-    challenge_repo_url: str
-    challenge_repo_head_ref: str
-    fuzz_tooling_url: str
-    fuzz_tooling_ref: str
-    fuzz_tooling_project_name: str
-    duration: int
-    challenge_repo_base_ref: str | None = None
+def get_challenge_service() -> ChallengeService:
+    """Get challenge service instance."""
+    settings = get_settings()
+    return ChallengeService(settings.storage_dir, f"http://{settings.external_host}:{settings.port}")
 
 
-# NOTE: Make this dynamic and modifiable through the UI/API
-challenges = [
-    Challenge(
-        name="upstream-libpng",
-        challenge_repo_url="https://github.com/pnggroup/libpng",
-        challenge_repo_head_ref="libpng16",
-        fuzz_tooling_url="https://github.com/google/oss-fuzz",
-        fuzz_tooling_ref="master",
-        fuzz_tooling_project_name="libpng",
-        duration=1800,
-    ),
-    Challenge(
-        name="upstream-libpng-delta",
-        challenge_repo_url="https://github.com/pnggroup/libpng",
-        challenge_repo_head_ref="2b978915d82377df13fcbb1fb56660195ded868a",
-        challenge_repo_base_ref="640204280f8109d7165f95d2b177f89baf20b253",
-        fuzz_tooling_url="https://github.com/google/oss-fuzz",
-        fuzz_tooling_ref="master",
-        fuzz_tooling_project_name="libpng",
-        duration=1800,
-    ),
-]
+def get_crs_client() -> CRSClient:
+    """Get CRS client instance."""
+    settings = get_settings()
+    return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
+
+
+# Mount static files
+static_dir = Path(__file__).parent.parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+
+# Utility functions for task management
+def calculate_task_status(deadline_str: str) -> str:
+    """Calculate task status based on deadline."""
+    try:
+        deadline = datetime.fromisoformat(deadline_str.replace("Z", "+00:00"))
+        now = datetime.now(deadline.tzinfo)
+        if now > deadline:
+            return "expired"
+        return "active"
+    except Exception:
+        return "active"  # Default to active if parsing fails
+
+
+def update_dashboard_stats() -> None:
+    """Update dashboard statistics from current tasks."""
+    global dashboard_stats
+
+    active_count = 0
+    total_povs = 0
+    total_patches = 0
+    total_bundles = 0
+
+    for task_data in tasks_storage.values():
+        if calculate_task_status(task_data["deadline"]) == "active":
+            active_count += 1
+
+        total_povs += len(task_data.get("povs", []))
+        total_patches += len(task_data.get("patches", []))
+        total_bundles += len(task_data.get("bundles", []))
+
+    dashboard_stats.update(
+        {
+            "activeTasks": active_count,
+            "totalPovs": total_povs,
+            "totalPatches": total_patches,
+            "totalBundles": total_bundles,
+        }
+    )
+
+
+def get_or_create_task(task_id: str) -> Dict[str, Any]:
+    """Get or create a task entry in storage."""
+    if task_id not in tasks_storage:
+        # Create default task entry
+        now = datetime.now()
+        deadline = now + timedelta(minutes=30)  # Default 30 minute duration
+
+        tasks_storage[task_id] = {
+            "task_id": task_id,
+            "name": None,
+            "project_name": "unknown",
+            "status": "active",
+            "duration": 1800,
+            "deadline": deadline.isoformat(),
+            "challenge_repo_url": None,
+            "challenge_repo_head_ref": None,
+            "challenge_repo_base_ref": None,
+            "fuzz_tooling_url": None,
+            "fuzz_tooling_ref": None,
+            "povs": [],
+            "patches": [],
+            "bundles": [],
+            "created_at": now.isoformat(),
+        }
+
+    # Update status based on deadline
+    task_data = tasks_storage[task_id]
+    task_data["status"] = calculate_task_status(task_data["deadline"])
+
+    return task_data
 
 
 @app.get("/v1/ping/", response_model=PingResponse, tags=["ping"])
@@ -203,6 +310,61 @@ def get_v1_crs_ping_(crs_client: CRSClient = Depends(get_crs_client)) -> dict:
         "crs_ready": crs_ready,
         "crs_base_url": crs_client.crs_base_url,
     }
+
+
+# Dashboard endpoints
+@app.get("/", response_class=HTMLResponse, tags=["dashboard"])
+def get_dashboard() -> HTMLResponse:
+    """
+    Serve the main dashboard HTML page
+    """
+    static_dir = Path(__file__).parent.parent / "static"
+    html_file = static_dir / "index.html"
+
+    if html_file.exists():
+        return HTMLResponse(content=html_file.read_text(), status_code=200)
+    else:
+        return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
+
+
+@app.get("/v1/dashboard/stats", response_model=DashboardStats, tags=["dashboard"])
+def get_dashboard_stats() -> DashboardStats:
+    """
+    Get dashboard statistics
+    """
+    update_dashboard_stats()
+    return DashboardStats(**dashboard_stats)
+
+
+@app.get("/v1/dashboard/tasks", response_model=List[TaskInfo], tags=["dashboard"])
+def get_dashboard_tasks() -> List[TaskInfo]:
+    """
+    Get list of all tasks for dashboard
+    """
+    update_dashboard_stats()
+    tasks_list = []
+
+    for task_data in tasks_storage.values():
+        # Update status before returning
+        task_data["status"] = calculate_task_status(task_data["deadline"])
+        tasks_list.append(TaskInfo(**task_data))
+
+    # Sort by created_at descending (newest first)
+    tasks_list.sort(key=lambda x: x.created_at, reverse=True)
+    return tasks_list
+
+
+@app.get("/v1/dashboard/tasks/{task_id}", response_model=TaskInfo, tags=["dashboard"])
+def get_dashboard_task(task_id: str) -> TaskInfo:
+    """
+    Get detailed information about a specific task
+    """
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task_data = tasks_storage[task_id]
+    task_data["status"] = calculate_task_status(task_data["deadline"])
+    return TaskInfo(**task_data)
 
 
 @app.get(
@@ -236,14 +398,36 @@ def _create_task(challenge: Challenge, challenge_service: ChallengeService, crs_
             duration_secs=challenge.duration,
         )
 
+        # Store task data for dashboard
+        task_id = task.tasks[0].task_id
+        name = challenge.name or task_id
+        now = datetime.now()
+        deadline = now + timedelta(seconds=challenge.duration)
+
+        tasks_storage[task_id] = {
+            "task_id": task_id,
+            "name": name,
+            "project_name": challenge.fuzz_tooling_project_name,
+            "status": "active",
+            "duration": challenge.duration,
+            "deadline": deadline.isoformat(),
+            "challenge_repo_url": challenge.challenge_repo_url,
+            "challenge_repo_head_ref": challenge.challenge_repo_head_ref,
+            "challenge_repo_base_ref": challenge.challenge_repo_base_ref,
+            "fuzz_tooling_url": challenge.fuzz_tooling_url,
+            "fuzz_tooling_ref": challenge.fuzz_tooling_ref,
+            "povs": [],
+            "patches": [],
+            "bundles": [],
+            "created_at": now.isoformat(),
+        }
+
         # Send task to CRS via POST /v1/task endpoint
         if crs_client.submit_task(task):
-            logger.info(f"Task {task.tasks[0].task_id} submitted successfully to CRS")
-            return Message(
-                message=f"Task {task.tasks[0].task_id} created and submitted to CRS for challenge {challenge.name}"
-            )
+            logger.info(f"Task {task_id} submitted successfully to CRS")
+            return Message(message=f"Task {task_id} created and submitted to CRS for challenge {challenge.name}")
         else:
-            logger.error(f"Failed to submit task {task.tasks[0].task_id} to CRS")
+            logger.error(f"Failed to submit task {task_id} to CRS")
             return Error(message="Failed to submit task to CRS")
 
     except Exception as e:
@@ -347,6 +531,11 @@ def post_v1_task_task_id_bundle_(task_id: str, body: BundleSubmission) -> Bundle
     bundle_id = str(uuid.uuid4())
     logger.info(f"Bundle submission - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Bundle details: {json.dumps(body.dict(), indent=2)}")
+
+    # Store bundle in task storage for dashboard
+    task_data = get_or_create_task(task_id)
+    bundle_data = {"bundle_id": bundle_id, "timestamp": datetime.now().isoformat(), **body.dict()}
+    task_data["bundles"].append(bundle_data)
 
     # Save bundle to disk
     save_bundle(task_id, bundle_id, body.dict())
@@ -454,6 +643,11 @@ def post_v1_task_task_id_patch_(task_id: str, body: PatchSubmission) -> PatchSub
     logger.info(f"Patch submission - Task: {task_id}, Patch ID: {patch_id}")
     logger.info(f"Patch size: {len(body.patch)} bytes")
 
+    # Store patch in task storage for dashboard
+    task_data = get_or_create_task(task_id)
+    patch_data = {"patch_id": patch_id, "timestamp": datetime.now().isoformat(), **body.dict()}
+    task_data["patches"].append(patch_data)
+
     # Save patch to disk
     save_patch(task_id, patch_id, body.patch)
 
@@ -504,6 +698,11 @@ def post_v1_task_task_id_pov_(task_id: str, body: POVSubmission) -> POVSubmissio
         f"POV details: Architecture: {body.architecture}, Engine: {body.engine}, Fuzzer: {body.fuzzer_name}, Sanitizer: {body.sanitizer}"
     )
     logger.info(f"POV testcase size: {len(body.testcase)} bytes")
+
+    # Store POV in task storage for dashboard
+    task_data = get_or_create_task(task_id)
+    pov_data = {"pov_id": pov_id, "timestamp": datetime.now().isoformat(), **body.dict()}
+    task_data["povs"].append(pov_data)
 
     # Save POV testcase to disk
     save_pov(task_id, pov_id, body.testcase)
@@ -580,9 +779,6 @@ def trigger_task(
     Trigger a task
     """
     logger.info(f"Triggering task: {body.model_dump()}")
-    if body.name is None:
-        body.name = str(uuid.uuid4())
-
     return _create_task(body, challenge_service, crs_client)
 
 
@@ -597,3 +793,183 @@ def trigger_sarif(
     """
     logger.info(f"Triggering SARIF Broadcast: {json.dumps(body, indent=2)}")
     return _create_sarif_broadcast(body, challenge_service, crs_client)
+
+# Download endpoints for PoVs, Patches, and Bundles
+@app.get("/v1/dashboard/tasks/{task_id}/povs/{pov_id}/download", tags=["dashboard"])
+def download_pov(task_id: str, pov_id: str) -> Response:
+    """Download a PoV testcase"""
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task_data = tasks_storage[task_id]
+    pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
+
+    if not pov:
+        raise HTTPException(status_code=404, detail="PoV not found")
+
+    testcase = pov.get("testcase", b"")
+    if isinstance(testcase, str):
+        # If it's a base64 string, decode it
+        try:
+            testcase = base64.b64decode(testcase)
+        except Exception:
+            testcase = testcase.encode("utf-8")
+    elif not isinstance(testcase, bytes):
+        testcase = str(testcase).encode("utf-8")
+
+    return Response(
+        content=testcase,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename=pov_{pov_id}.bin"},
+    )
+
+
+@app.get("/v1/dashboard/tasks/{task_id}/patches/{patch_id}/download", tags=["dashboard"])
+def download_patch(task_id: str, patch_id: str) -> Response:
+    """Download a patch"""
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task_data = tasks_storage[task_id]
+    patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
+
+    if not patch:
+        raise HTTPException(status_code=404, detail="Patch not found")
+
+    patch_content = patch.get("patch", "")
+
+    # Handle different types of patch content
+    if isinstance(patch_content, bytes):
+        content = patch_content
+    elif isinstance(patch_content, str):
+        # First, try to decode as base64 if it looks like base64
+        try:
+            content = base64.b64decode(patch_content)
+        except Exception:
+            content = patch_content.encode("utf-8")
+    else:
+        # Convert other types to string
+        content = str(patch_content).encode("utf-8")
+
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=patch_{patch_id}.patch"},
+    )
+
+
+@app.get("/v1/dashboard/tasks/{task_id}/bundles/{bundle_id}/download", tags=["dashboard"])
+def download_bundle(task_id: str, bundle_id: str) -> Response:
+    """Download a bundle as JSON"""
+    if task_id not in tasks_storage:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task_data = tasks_storage[task_id]
+    bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
+
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+
+    try:
+        bundle_json = json.dumps(bundle, indent=2)
+    except Exception as e:
+        # Fallback: create a basic JSON structure
+        bundle_json = json.dumps(
+            {
+                "bundle_id": bundle.get("bundle_id", bundle_id),
+                "timestamp": bundle.get("timestamp", ""),
+                "error": f"Could not serialize full bundle data: {str(e)}",
+            },
+            indent=2,
+        )
+
+    return Response(
+        content=bundle_json,
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=bundle_{bundle_id}.json"},
+    )
+
+
+# Detail view endpoints
+@app.get("/v1/dashboard/povs/{pov_id}", tags=["dashboard"])
+def get_pov_detail(pov_id: str) -> Dict[str, Any]:
+    """Get detailed information about a specific PoV"""
+    for task_data in tasks_storage.values():
+        pov = next((p for p in task_data.get("povs", []) if p.get("pov_id") == pov_id), None)
+        if pov:
+            return {
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "pov": pov,
+            }
+
+    raise HTTPException(status_code=404, detail="PoV not found")
+
+
+@app.get("/v1/dashboard/patches/{patch_id}", tags=["dashboard"])
+def get_patch_detail(patch_id: str) -> Dict[str, Any]:
+    """Get detailed information about a specific patch"""
+    for task_data in tasks_storage.values():
+        patch = next((p for p in task_data.get("patches", []) if p.get("patch_id") == patch_id), None)
+        if patch:
+            return {
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "patch": patch,
+            }
+
+    raise HTTPException(status_code=404, detail="Patch not found")
+
+
+@app.get("/v1/dashboard/bundles/{bundle_id}", tags=["dashboard"])
+def get_bundle_detail(bundle_id: str) -> Dict[str, Any]:
+    """Get detailed information about a specific bundle"""
+    for task_data in tasks_storage.values():
+        bundle = next((b for b in task_data.get("bundles", []) if b.get("bundle_id") == bundle_id), None)
+        if bundle:
+            return {
+                "task_id": task_data["task_id"],
+                "task_name": task_data.get("name") or task_data["project_name"],
+                "bundle": bundle,
+            }
+
+    raise HTTPException(status_code=404, detail="Bundle not found")
+
+
+# List all PoVs and Patches across tasks
+@app.get("/v1/dashboard/povs", tags=["dashboard"])
+def get_all_povs() -> List[Dict[str, Any]]:
+    """Get all PoVs across all tasks"""
+    all_povs = []
+    for task_data in tasks_storage.values():
+        for pov in task_data.get("povs", []):
+            all_povs.append(
+                {
+                    "task_id": task_data["task_id"],
+                    "task_name": task_data.get("name") or task_data["project_name"],
+                    "pov": pov,
+                }
+            )
+
+    # Sort by timestamp descending
+    all_povs.sort(key=lambda x: x["pov"].get("timestamp", ""), reverse=True)
+    return all_povs
+
+
+@app.get("/v1/dashboard/patches", tags=["dashboard"])
+def get_all_patches() -> List[Dict[str, Any]]:
+    """Get all patches across all tasks"""
+    all_patches = []
+    for task_data in tasks_storage.values():
+        for patch in task_data.get("patches", []):
+            all_patches.append(
+                {
+                    "task_id": task_data["task_id"],
+                    "task_name": task_data.get("name") or task_data["project_name"],
+                    "patch": patch,
+                }
+            )
+
+    # Sort by timestamp descending
+    all_patches.sort(key=lambda x: x["patch"].get("timestamp", ""), reverse=True)
+    return all_patches
