@@ -177,9 +177,31 @@ sanitizers:
 
 ## Submitting Your Challenge
 
-With your project repository and oss-fuzz fork ready, you can now submit your challenge to Buttercup for analysis. There are two ways to do this:
+With your project repository and oss-fuzz fork ready, you can now submit your challenge to Buttercup for analysis. There are three ways to do this:
 
-### Option 1: Direct API Call
+### Option 1: Using the Challenge Script
+
+First, add your challenge configuration to the `CHALLENGE_MAP` in `orchestrator/scripts/challenge.py`:
+
+```python
+"my_custom_challenge": {
+    "challenge_repo_url": "https://github.com/your-org/your-project.git",
+    "challenge_repo_head_ref": "main",
+    "fuzz_tooling_url": "https://github.com/your-org/oss-fuzz-fork.git",
+    "fuzz_tooling_ref": "main",
+    "fuzz_tooling_project_name": "your-project",
+    "duration": 3600,
+},
+```
+
+Then run your challenge:
+
+```bash
+cd orchestrator/scripts
+python challenge.py single my_custom_challenge 3600
+```
+
+### Option 2: Direct API Call
 
 For one-off submissions or when testing new configurations, use the HTTP API directly:
 
@@ -192,12 +214,11 @@ curl -X 'POST' 'http://localhost:31323/webhook/trigger_task' \
     "fuzz_tooling_url": "https://github.com/your-org/oss-fuzz-fork.git",
     "fuzz_tooling_ref": "main",
     "fuzz_tooling_project_name": "your-project",
-    "duration": 3600,
-    "harnesses_included": true
+    "duration": 3600
   }'
 ```
 
-### Option 2: Web Interface
+### Option 3: Web Interface
 
 For a user-friendly approach, run `make web-ui` and open `http://localhost:31323` in your browser. The web interface provides a form where you can enter all the challenge parameters and submit them with a single click.
 
@@ -256,7 +277,7 @@ kubectl logs -n crs -l app=scheduler --tail=-1 --prefix | \
 | Problem | Symptoms | Solution |
 |---------|----------|----------|
 | **Build failures** | Fuzzer compilation errors | Verify your `build.sh` works with oss-fuzz base images. Test locally with `docker run gcr.io/oss-fuzz-base/base-builder` |
-| **Missing harnesses** | "No harnesses found" errors | Check `harnesses_included` setting and ensure harness files contain the expected function signatures |
+| **Missing harnesses** | "No harnesses found" errors | Ensure harness files contain the expected function signatures |
 | **Timeouts** | Analysis stops prematurely | Increase the `duration` parameter, especially for large codebases |
 | **Resource limits** | Pods getting killed (OOMKilled) | Check pod memory/CPU limits and adjust Kubernetes resource constraints |
 | **Git access issues** | Clone/fetch failures | Verify repository URLs are accessible and authentication is configured |
