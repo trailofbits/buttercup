@@ -13,15 +13,6 @@ resources:
     cpu: 4000m
     memory: 8Gi
 
-dind:
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 4000m
-      memory: 8Gi
-
 nodeSelector: {}
 tolerations: []
 affinity: {}
