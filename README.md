@@ -138,3 +138,4 @@ kubectl logs -n crs <pod-name> -f
 - [AKS Deployment Guide](AKS_DEPLOYMENT.md) - Production deployment on Azure
 - [Contributing Guidelines](CONTRIBUTING.md) - Development workflow and standards
 - [Deployment Documentation](deployment/README.md) - Advanced deployment configuration
+- [Writing Custom Challenges](CUSTOM_CHALLENGES.md) - Custom project configuration and setup
