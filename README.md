@@ -13,7 +13,7 @@
 ### Minimum Requirements
 
 - **CPU:** 8 cores
-- **Memory:** 64 GB RAM
+- **Memory:** 16 GB RAM
 - **Storage:** 100 GB available disk space
 - **Network:** Stable internet connection for downloading dependencies
 
@@ -22,6 +22,7 @@
 **Note:** Buttercup works best with access to models from OpenAI **and** Anthropic, but can be run with at least one API key from one third-party provider (support for Gemini coming soon).
 
 ### Supported Systems
+
 - **Linux x86_64** (fully supported)
 - **ARM64** (partial support for upstream Google OSS-Fuzz projects)
 
@@ -34,7 +35,7 @@ Before setup, ensure you have these packages installed:
 sudo apt-get update
 sudo apt-get install -y make curl git
 
-# RHEL/CentOS/Fedora  
+# RHEL/CentOS/Fedora
 sudo yum install -y make curl git
 # or
 sudo dnf install -y make curl git
@@ -84,12 +85,11 @@ make status
 
 When a deployment is successful, you should see all pods in "Running" or "Completed" status.
 
-
 5. Send Buttercup a simple task
 
-**Note:** When tasked, Buttercup will start consuming third-party AI resources. 
+**Note:** When tasked, Buttercup will start consuming third-party AI resources.
 
-This command will make Buttercup pull down an example repo [example-libpng](https://github.com/tob-challenges/example-libpng) with a known vulnerability. Buttercup will start fuzzing it to find and patch vulnerabilities. 
+This command will make Buttercup pull down an example repo [example-libpng](https://github.com/tob-challenges/example-libpng) with a known vulnerability. Buttercup will start fuzzing it to find and patch vulnerabilities.
 
 ```bash
 make send-libpng-task
@@ -107,10 +107,9 @@ Then navigate to `http://localhost:31323` in your web browser.
 
 In the GUI you can monitor active tasks and see when Buttercup finds bugs and generates patches for them.
 
-
 7. Stop Buttercup
 
-**Note:** This is an important step to ensure Buttercup shuts down and stops consuming third-party AI resources.
+**Note:** The system has a LLM maximum budget and tasks sent to the CRS have a fixed duration you can configure (30 minutes for the example-libpng task used above), however we still recommend you shut the system down when done with it.
 
 ```bash
 make undeploy
