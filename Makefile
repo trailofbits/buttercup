@@ -220,6 +220,10 @@ signoz-ui:
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
+	@if ! kubectl get service/buttercup-signoz-frontend -n $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: SigNoz is not deployed. Set DEPLOY_SIGNOZ=true in deployment/env and redeploy."; \
+		exit 1; \
+	fi
 	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-signoz-frontend 33301:3301 &
 	@sleep 3
 	@if command -v xdg-open >/dev/null 2>&1; then \
