@@ -10,6 +10,7 @@ from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
 from buttercup.common.logger import setup_package_logger
 from redis import Redis
 from typing import List
+from os import PathLike
 import random
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
@@ -25,7 +26,6 @@ from opentelemetry.trace import Status, StatusCode
 from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 import datetime
 import shutil
-from tempfile import TemporaryDirectory
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class FinalCorpus:
             self._push_remotely.clear()
         return n
 
-    def delete_locally(self):
+    def delete_locally(self) -> int:
         """
         Delete the files from local storage.
         """
@@ -81,13 +81,13 @@ class PartitionedCorpus:
     """
 
     corpus: Corpus
-    local_dir: TemporaryDirectory
-    remote_dir: TemporaryDirectory
+    local_dir: PathLike[str]
+    remote_dir: PathLike[str]
     local_only_files: set[str]
     remote_files: set[str]
     max_local_files: int = 500
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Shuffle and limit the local_only_files to max_local_files
         local_files_list = list(self.local_only_files)
         random.shuffle(local_files_list)
@@ -97,7 +97,7 @@ class PartitionedCorpus:
 
         for file in local_files_list:
             try:
-                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.local_dir, file))
+                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(str(self.local_dir), file))
                 new_local_only_files.add(file)
                 if len(new_local_only_files) >= self.max_local_files:
                     break
@@ -111,10 +111,10 @@ class PartitionedCorpus:
 
         for file in self.remote_files:
             try:
-                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.remote_dir, file))
+                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(str(self.remote_dir), file))
             except Exception as e:
                 # Copy this from the remote storage instead (slow, but shouldn't dissappear from there)
-                shutil.copy(os.path.join(self.corpus.remote_path, file), os.path.join(self.remote_dir, file))
+                shutil.copy(os.path.join(self.corpus.remote_path, file), os.path.join(str(self.remote_dir), file))
                 logger.debug(f"Error copying file {file} to remote directory: {e}. Copied from remote storage instead.")
 
     def to_final(self) -> FinalCorpus:
@@ -125,10 +125,10 @@ class PartitionedCorpus:
         Will rehash any files in the remote_directory as the merge operation may have changed the file names.
         Then it will partition the files into push_remotely and delete_locally sets and return a FinalCorpus object.
         """
-        self.corpus.hash_corpus(self.remote_dir)
+        self.corpus.hash_corpus(str(self.remote_dir))
 
         # Partition the files into push_remotely and delete_locally sets
-        files_in_new_remote_dir = set(os.listdir(self.remote_dir))
+        files_in_new_remote_dir = set(os.listdir(str(self.remote_dir)))
 
         # All remote files must still be in merged files
         assert self.remote_files.issubset(files_in_new_remote_dir), "Some remote files were lost during merge"
@@ -150,16 +150,16 @@ class PartitionedCorpus:
 class BaseCorpus:
     """
     Represents the initial corpus state, before any merge operations have been performed.
-    - local_dir: TemporaryDirectory for the local corpus
-    - remote_dir: TemporaryDirectory for the remote corpus
+    - local_dir: PathLike directory for the local corpus
+    - remote_dir: PathLike directory for the remote corpus
 
     NOTE: Before `partition_corpus` is called, it is required that the `MergedCorpusSetLock` is held.
     Otherwise, we risk adding more corpus to remote storage than is needed from a coverage perspective.
     """
 
     corpus: Corpus
-    local_dir: TemporaryDirectory
-    remote_dir: TemporaryDirectory
+    local_dir: PathLike[str]
+    remote_dir: PathLike[str]
     max_local_files: int = 500
 
     def partition_corpus(self) -> PartitionedCorpus:
@@ -205,7 +205,16 @@ class MergerBot:
     def required_builds(self) -> List[BuildTypeHint]:
         return [BuildType.FUZZER]
 
-    def _run_merge_operation(self, task, build, remote_dir, local_dir, local_only_files, remote_files, corp: Corpus):
+    def _run_merge_operation(
+        self,
+        task: WeightedHarness,
+        build: BuildOutput,
+        remote_dir: PathLike[str],
+        local_dir: PathLike[str],
+        local_only_files: set[str],
+        remote_files: set[str],
+        corp: Corpus,
+    ) -> None:
         """
         Run the merge operation to find which local files add coverage.
 
@@ -228,7 +237,7 @@ class MergerBot:
 
                 # Run merge from local_dir to remote_dir to find which files add coverage
                 fuzz_conf = FuzzConfiguration(
-                    local_dir,
+                    str(local_dir),
                     str(build_dir / task.harness_name),
                     build.engine,
                     build.sanitizer,
@@ -255,10 +264,10 @@ class MergerBot:
                     )
 
                     # We specify the remote_dir as the target dir as that will cause any `local_dir` files that adds coverage to be moved to remote_dir.
-                    self.runner.merge_corpus(fuzz_conf, remote_dir)
+                    self.runner.merge_corpus(fuzz_conf, str(remote_dir))
                     span.set_status(Status(StatusCode.OK))
 
-    def run_task(self, task: WeightedHarness, builds: list[BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: list[BuildOutput]) -> bool:
         """
         Strategy:
         Given a task/WeightedHarness, we want to merge the local corpus into the remote corpus if it adds coverage
@@ -378,11 +387,11 @@ class MergerBot:
 
         return did_work
 
-    def run(self):
+    def run(self) -> None:
         serve_loop(self.serve_item, 10.0)
 
 
-def main():
+def main() -> None:
     args = FuzzerBotSettings()
 
     setup_package_logger("corpus-merger", __name__, args.log_level, args.log_max_line_length)

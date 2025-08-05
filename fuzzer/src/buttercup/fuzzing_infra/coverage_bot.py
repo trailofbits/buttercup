@@ -7,7 +7,7 @@ from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, FunctionCoverage
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.maps import CoverageMap
-from typing import List
+from typing import List, Generator
 from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.corpus import Corpus
@@ -57,7 +57,7 @@ class CoverageBot(TaskLoop):
         return [BuildType.COVERAGE]
 
     @contextmanager
-    def _sample_corpus(self, corpus: Corpus):
+    def _sample_corpus(self, corpus: Corpus) -> Generator[tuple[str, list[str]], None, None]:
         """Sample the corpus to the given size and return a temporary directory
         with symlinks to the sampled input files.
 
@@ -109,7 +109,7 @@ class CoverageBot(TaskLoop):
 
             yield (tmp_dir.path, remaining_files)
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:
         coverage_builds = builds[BuildType.COVERAGE]
         if len(coverage_builds) <= 0:
             logger.error(f"No coverage build found for {task.task_id}")
@@ -176,11 +176,11 @@ class CoverageBot(TaskLoop):
         old_function_coverage = coverage_map.get_function_coverage(function_coverage.function_name, function_paths_list)
         if old_function_coverage is None:
             return True
-        return function_coverage.covered_lines > old_function_coverage.covered_lines
+        return function_coverage.covered_lines > old_function_coverage.covered_lines  # type: ignore[no-any-return]
 
     def _submit_function_coverage(
         self, func_coverage: list[CoveredFunction], harness_name: str, package_name: str, task_id: str
-    ):
+    ) -> None:
         """
         Store function coverage in Redis.
 
@@ -210,7 +210,7 @@ class CoverageBot(TaskLoop):
         logger.info(f"Updated coverage for {updated_functions} functions in Redis")
 
 
-def main():
+def main() -> None:
     args = CoverageBotSettings()
 
     setup_package_logger("coverage-bot", __name__, args.log_level, args.log_max_line_length)
