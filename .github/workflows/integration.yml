@@ -1,4 +1,4 @@
-name: Docker Compose integration tests
+name: Minikube Integration Tests
 
 on:
   push:
@@ -50,7 +50,7 @@ permissions:
 
 jobs:
   integration:
-    runs-on: gha-ubuntu-32
+    runs-on: gha-ubuntu-8
     steps:
       - uses: actions/checkout@v4
         with:
