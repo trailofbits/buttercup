@@ -13,7 +13,7 @@
 ### Minimum Requirements
 
 - **CPU:** 8 cores
-- **Memory:** 64 GB RAM
+- **Memory:** 16 GB RAM
 - **Storage:** 100 GB available disk space
 - **Network:** Stable internet connection for downloading dependencies
 
