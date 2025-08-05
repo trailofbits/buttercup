@@ -168,7 +168,7 @@ send-libpng-task:
 # Development targets
 lint:
 	@echo "Linting all Python code..."
-	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+	@set -e; for component in common orchestrator fuzzer program-model seed-gen patcher; do \
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
@@ -181,7 +181,7 @@ lint-component:
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ]; then \
+	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ] || [ "$(COMPONENT)" = "fuzzer" ]; then \
 		cd $(COMPONENT) && uv run mypy; \
 	fi
 
@@ -235,7 +235,7 @@ signoz-ui:
 	fi
 
 web-ui:
-	@echo "Opening web UI..."
+	@echo "Opening web UI (https://localhost:31323/)..."
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \

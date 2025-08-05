@@ -72,6 +72,9 @@ setup_config() {
     
     # Configure required API keys
     configure_local_api_keys
+
+    # Configure LLM Budget
+    configure_llm_budget
     
     # Configure LangFuse (optional)
     configure_langfuse

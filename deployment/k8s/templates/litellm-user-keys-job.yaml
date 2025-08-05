@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: litellm-user-keys-setup
+  labels:
+    app.kubernetes.io/name: litellm-user-keys-setup
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+spec:
+  template:
+    spec:
+      serviceAccountName: litellm-user-keys-setup
+      restartPolicy: OnFailure
+      containers:
+        - name: user-keys-setup
+          image: python:3.11
+          command: ["python", "/scripts/create_litellm_user_keys.py"]
+          env:
+            - name: LITELLM_URL
+              value: "http://{{ .Release.Name }}-litellm:4000"
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-litellm-api-secrets
+                  key: BUTTERCUP_LITELLM_KEY
+            - name: LITELLM_MAX_BUDGET
+              value: {{ .Values.litellm.maxBudget | default "100" | quote }}
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+            - name: output
+              mountPath: /output
+        - name: secret-setup
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              while [ ! -f /output/llm-user_api_key ]; do echo "Waiting for user key to be created..."; sleep 2; done
+              kubectl create secret generic litellm-api-user -n {{ .Release.Namespace }} --from-file=API_KEY=/output/llm-user_api_key --dry-run=client -o yaml | kubectl apply -f -
+          volumeMounts:
+            - name: output
+              mountPath: /output
+      volumes:
+        - name: script
+          configMap:
+            name: litellm-user-keys-setup-script
+        - name: output
+          emptyDir: {} 

@@ -457,6 +457,18 @@ configure_langfuse_wrapper() {
     fi
 }
 
+configure_llm_budget_wrapper() {
+    read -p "Enter LLM budget (press Enter for \$100 default): " budget_value
+    if [ -n "$budget_value" ]; then
+        # Set the budget value
+        portable_sed "s|.*export LITELLM_MAX_BUDGET=.*|export LITELLM_MAX_BUDGET=\"$budget_value\"|" deployment/env
+    else
+        # Use default value
+        portable_sed "s|.*export LITELLM_MAX_BUDGET=.*|export LITELLM_MAX_BUDGET=\"100\"|" deployment/env
+    fi
+    return 0
+}
+
 # Function to configure required API keys for local development
 configure_local_api_keys() {
     print_status "Configuring required API keys for local development..."
@@ -516,6 +528,20 @@ configure_local_api_keys() {
     print_success "API keys configured successfully"
 }
 
+configure_llm_budget() {
+    print_linebreak
+    print_status "Configuring LLM Budget..."
+
+    # Source the env file to check current values
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+
+    print_status "LLM Budget: Maximum budget for LiteLLM."
+    print_status "Set LLM budget across all components. Budget is per-deployment."
+
+    configure_service "LITELLM_MAX_BUDGET" "LiteLLM max budget" "$LITELLM_MAX_BUDGET" "100" false "configure_llm_budget_wrapper"
+}
 
 
 # Function to configure OTEL telemetry

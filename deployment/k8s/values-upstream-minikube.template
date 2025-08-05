@@ -55,6 +55,7 @@ build-bot:
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"
