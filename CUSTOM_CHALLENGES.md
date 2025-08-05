@@ -107,9 +107,13 @@ In your oss-fuzz fork, create a new directory at `projects/your-project-name/` c
 
 | File | Purpose |
 |------|----------|
-| `Dockerfile` | Defines the build environment and dependencies |
-| `build.sh` | Compiles your project and creates fuzzer binaries |
-| `project.yaml` | Metadata about your project *(recommended)* |
+| [`Dockerfile`][11] | Defines the build environment and dependencies |
+| [`build.sh`][12] | Compiles your project and creates fuzzer binaries |
+| [`project.yaml`][13] | Metadata about your project *(recommended)* |
+
+[11]: https://google.github.io/oss-fuzz/getting-started/new-project-guide/#dockerfile
+[12]: https://google.github.io/oss-fuzz/getting-started/new-project-guide/#buildsh
+[13]: https://google.github.io/oss-fuzz/getting-started/new-project-guide/#projectyaml
 
 ### Creating the Dockerfile
 
