@@ -88,7 +88,7 @@ up() {
 				;;
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
-				minikube status | grep -q "kubelet: Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
+				minikube status | grep -q "kubelet: Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=6 --memory=10g --disk-size=80g --driver=docker --kubernetes-version=stable
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 
