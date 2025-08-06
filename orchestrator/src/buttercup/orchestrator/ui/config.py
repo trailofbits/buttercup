@@ -35,8 +35,10 @@ class Settings(BaseSettings):
         Path, Field(default=Path("/tmp/buttercup-run-data"), description="Directory for storing run data artifacts")
     ]
 
-    # Database configuration (for future use)
-    database_url: Annotated[Optional[str], Field(default=None, description="Database URL for storing submissions")]
+    # Database configuration
+    database_url: Annotated[
+        str, Field(default="sqlite:///buttercup_ui.db", description="Database URL for storing submissions")
+    ]
 
     class Config:
         env_prefix = "BUTTERCUP_UI_"

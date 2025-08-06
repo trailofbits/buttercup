@@ -97,6 +97,12 @@ volumes:
     storageClass: ""  # Empty string will use cluster default
     size: "10Gi"
     accessMode: ReadWriteMany
+  ui_db:
+    enabled: true
+    # When using AKS, specify the appropriate storage class for ReadWriteMany support
+    storageClass: ""  # Empty string will use cluster default
+    size: "1Gi"
+    accessMode: ReadWriteOnce
 
 
 # Dind daemon chart configuration

@@ -5,6 +5,10 @@ Define constants for directories that are used across multiple services
 /crs_scratch
 {{- end -}}
 
+{{- define "buttercup.dirs.ui_db_storage" -}}
+/ui_db_storage
+{{- end -}}
+
 {{/*
 Define imagePullSecrets for pod specs - using ghcr-auth to match Terraform
 */}}

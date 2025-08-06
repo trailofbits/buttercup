@@ -768,7 +768,7 @@ async function showArtifactDetail(type, artifactId) {
 // Render artifact detail
 function renderArtifactDetail(detailData, type) {
     const artifact = detailData.pov || detailData.patch || detailData.bundle || detailData;
-    const artifactId = artifact.pov_id || artifact.patch_id || artifact.bundle_id;
+    const artifactId = artifact.id || artifact.bundle_id || artifact.pov_id || artifact.patch_id;
     
     let specificContent = '';
     
