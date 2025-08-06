@@ -22,6 +22,7 @@
 **Note:** Buttercup works best with access to models from OpenAI **and** Anthropic, but can be run with at least one API key from one third-party provider (support for Gemini coming soon).
 
 ### Supported Systems
+
 - **Linux x86_64** (fully supported)
 - **ARM64** (partial support for upstream Google OSS-Fuzz projects)
 
@@ -34,7 +35,7 @@ Before setup, ensure you have these packages installed:
 sudo apt-get update
 sudo apt-get install -y make curl git
 
-# RHEL/CentOS/Fedora  
+# RHEL/CentOS/Fedora
 sudo yum install -y make curl git
 # or
 sudo dnf install -y make curl git
@@ -84,12 +85,11 @@ make status
 
 When a deployment is successful, you should see all pods in "Running" or "Completed" status.
 
-
 5. Send Buttercup a simple task
 
-**Note:** When tasked, Buttercup will start consuming third-party AI resources. 
+**Note:** When tasked, Buttercup will start consuming third-party AI resources.
 
-This command will make Buttercup pull down an example repo [example-libpng](https://github.com/tob-challenges/example-libpng) with a known vulnerability. Buttercup will start fuzzing it to find and patch vulnerabilities. 
+This command will make Buttercup pull down an example repo [example-libpng](https://github.com/tob-challenges/example-libpng) with a known vulnerability. Buttercup will start fuzzing it to find and patch vulnerabilities.
 
 ```bash
 make send-libpng-task
@@ -107,7 +107,6 @@ Then navigate to `http://localhost:31323` in your web browser.
 
 In the GUI you can monitor active tasks and see when Buttercup finds bugs and generates patches for them.
 
-
 7. Stop Buttercup
 
 **Note:** This is an important step to ensure Buttercup shuts down and stops consuming third-party AI resources.
@@ -118,18 +117,21 @@ make undeploy
 
 ## Accessing Logs
 
-To view system logs and telemetry you can use Langfuse or SigNoz if you configured them during setup. Otherwise you can access logs via `kubectl` commands:
+Buttercup includes local SigNoz deployment by default for comprehensive system observability. You can access logs, traces, and metrics through the SigNoz UI:
 
 ```bash
-# View all pods
-kubectl get pods -n crs
-
-# View specific pod logs
-kubectl logs -n crs <pod-name>
-
-# Follow logs in real-time
-kubectl logs -n crs <pod-name> -f
+make signoz-ui
 ```
+
+Then navigate to `http://localhost:33301` in your web browser to view:
+- Distributed traces
+- Application metrics 
+- Error monitoring
+- Performance insights
+
+If you configured LangFuse during setup, you can also monitor LLM usage and costs there.
+
+For additional log access methods, see the [Quick Reference Guide](QUICK_REFERENCE.md).
 
 ## Additional Resources
 
