@@ -96,7 +96,7 @@ Define Docker Host environment variable for Unix socket
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: "{{ .Values.global.otel.endpoint }}"
 - name: OTEL_EXPORTER_OTLP_HEADERS
-  value: "Authorization=Basic {{ .Values.global.otel.token }}"
+  value: "Authorization={{ .Values.global.otel.token }}"
 - name: OTEL_EXPORTER_OTLP_PROTOCOL
   value: "{{ .Values.global.otel.protocol | default "grpc" }}"
 {{- end }}

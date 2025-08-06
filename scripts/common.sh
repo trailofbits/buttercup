@@ -414,7 +414,7 @@ configure_otel_wrapper() {
     read -p "Enter OTEL endpoint URL (press Enter to skip): " otel_endpoint
     if [ -n "$otel_endpoint" ]; then
         read -p "Enter OTEL protocol (http/grpc): " otel_protocol
-        read -s -p "Enter OTEL token (optional, press Enter to skip): " otel_token
+        read -s -p "Enter OTEL token (including Basic or Bearer, optional, press Enter to skip): " otel_token
         echo
         
         # Update the env file
