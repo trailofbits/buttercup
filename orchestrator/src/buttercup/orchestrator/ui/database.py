@@ -1,345 +1,313 @@
 """Database models and operations for buttercup-ui."""
 
-import json
 import logging
+from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Iterator
+import uuid
 
 from sqlalchemy import (
     BLOB,
-    Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
     create_engine,
+    func,
+    DateTime,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, relationship, sessionmaker
+from sqlalchemy.orm import Session, relationship, sessionmaker, DeclarativeBase, Mapped, mapped_column
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 class Task(Base):
     """Task model for storing task information."""
-    
+
     __tablename__ = "tasks"
-    
-    task_id = Column(String, primary_key=True)
-    name = Column(String)
-    project_name = Column(String)
-    status = Column(String)
-    duration = Column(Integer)
-    deadline = Column(String)
-    challenge_repo_url = Column(String)
-    challenge_repo_head_ref = Column(String)
-    challenge_repo_base_ref = Column(String)
-    fuzz_tooling_url = Column(String)
-    fuzz_tooling_ref = Column(String)
-    created_at = Column(String)
-    
+
+    task_id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String)
+    project_name: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    duration: Mapped[int] = mapped_column(Integer)
+    deadline: Mapped[datetime] = mapped_column(DateTime)
+    challenge_repo_url: Mapped[str] = mapped_column(String)
+    challenge_repo_head_ref: Mapped[str] = mapped_column(String)
+    challenge_repo_base_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    fuzz_tooling_url: Mapped[str] = mapped_column(String)
+    fuzz_tooling_ref: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
     # Relationships
-    povs = relationship("POV", back_populates="task", cascade="all, delete-orphan")
-    patches = relationship("Patch", back_populates="task", cascade="all, delete-orphan")
-    bundles = relationship("Bundle", back_populates="task", cascade="all, delete-orphan")
+    povs: Mapped[list["POV"]] = relationship("POV", back_populates="task", cascade="all, delete-orphan")
+    patches: Mapped[list["Patch"]] = relationship("Patch", back_populates="task", cascade="all, delete-orphan")
+    bundles: Mapped[list["Bundle"]] = relationship("Bundle", back_populates="task", cascade="all, delete-orphan")
 
 
 class POV(Base):
     """POV (Proof of Vulnerability) model."""
-    
+
     __tablename__ = "povs"
-    
-    pov_id = Column(String, primary_key=True)
-    task_id = Column(String, ForeignKey("tasks.task_id"), nullable=False)
-    timestamp = Column(String)
-    architecture = Column(String)
-    engine = Column(String)
-    fuzzer_name = Column(String)
-    sanitizer = Column(String)
-    testcase = Column(BLOB)
-    
-    # Additional fields from POVSubmission
-    additional_data = Column(Text)  # JSON string for additional fields
-    
+
+    pov_id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.task_id"), nullable=False)
+    architecture: Mapped[str] = mapped_column(String)
+    engine: Mapped[str] = mapped_column(String)
+    fuzzer_name: Mapped[str] = mapped_column(String)
+    sanitizer: Mapped[str] = mapped_column(String)
+    testcase: Mapped[bytes] = mapped_column(BLOB)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
     # Relationship
-    task = relationship("Task", back_populates="povs")
+    task: Mapped[Task] = relationship("Task", back_populates="povs")
 
 
 class Patch(Base):
     """Patch model for storing code patches."""
-    
+
     __tablename__ = "patches"
-    
-    patch_id = Column(String, primary_key=True)
-    task_id = Column(String, ForeignKey("tasks.task_id"), nullable=False)
-    timestamp = Column(String)
-    patch = Column(Text)
-    
-    # Additional fields from PatchSubmission
-    additional_data = Column(Text)  # JSON string for additional fields
-    
-    # Relationship
-    task = relationship("Task", back_populates="patches")
+
+    patch_id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.task_id"), nullable=False)
+    patch: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    task: Mapped[Task] = relationship("Task", back_populates="patches")
 
 
 class Bundle(Base):
     """Bundle model for storing submission bundles."""
-    
+
     __tablename__ = "bundles"
-    
-    bundle_id = Column(String, primary_key=True)
-    task_id = Column(String, ForeignKey("tasks.task_id"), nullable=False)
-    timestamp = Column(String)
-    description = Column(Text)
-    broadcast_sarif_id = Column(String)
-    freeform_id = Column(String)
-    patch_id = Column(String)
-    pov_id = Column(String)
-    submitted_sarif_id = Column(String)
-    
-    # Additional fields from BundleSubmission
-    additional_data = Column(Text)  # JSON string for additional fields
-    
-    # Relationship
-    task = relationship("Task", back_populates="bundles")
+
+    bundle_id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.task_id"), nullable=False)
+    description: Mapped[str] = mapped_column(Text)
+    broadcast_sarif_id: Mapped[str] = mapped_column(String)
+    freeform_id: Mapped[str] = mapped_column(String)
+    patch_id: Mapped[str] = mapped_column(String)
+    pov_id: Mapped[str] = mapped_column(String)
+    submitted_sarif_id: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    task: Mapped[Task] = relationship("Task", back_populates="bundles")
 
 
 class DatabaseManager:
     """Database manager for buttercup-ui operations."""
-    
+
     def __init__(self, database_url: str):
         self.database_url = database_url
         self.engine = create_engine(database_url)
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine)
         self._create_tables()
-    
-    def _create_tables(self):
+
+    def _create_tables(self) -> None:
         """Create all database tables."""
         Base.metadata.create_all(bind=self.engine)
         logger.info("Database tables created/verified")
-    
+
     def get_session(self) -> Session:
         """Get a database session."""
         return self.SessionLocal()
-    
-    # Task operations
-    def create_task(self, task_data: Dict[str, Any]) -> Task:
-        """Create a new task."""
+
+    # Context manager methods for session-scoped queries
+    @contextmanager
+    def get_all_tasks(self) -> Iterator[list[Task]]:
+        """Context manager: yields all tasks with session open."""
         with self.get_session() as session:
-            task = Task(**task_data)
-            session.add(task)
+            tasks = session.query(Task).all()
+            yield tasks
             session.commit()
-            session.refresh(task)
-            logger.info(f"Created task: {task.task_id}")
-            return task
-    
-    def get_task(self, task_id: str) -> Optional[Task]:
-        """Get a task by ID."""
-        with self.get_session() as session:
-            return session.query(Task).filter(Task.task_id == task_id).first()
-    
-    def get_all_tasks(self) -> List[Task]:
-        """Get all tasks."""
-        with self.get_session() as session:
-            return session.query(Task).all()
-    
-    def update_task(self, task_id: str, task_data: Dict[str, Any]) -> Optional[Task]:
-        """Update a task."""
+
+    @contextmanager
+    def get_task(self, task_id: str) -> Iterator[Task | None]:
+        """Context manager: yields a task by ID with session open."""
         with self.get_session() as session:
             task = session.query(Task).filter(Task.task_id == task_id).first()
-            if task:
-                for key, value in task_data.items():
-                    setattr(task, key, value)
-                session.commit()
-                session.refresh(task)
-                logger.info(f"Updated task: {task_id}")
-                return task
-            return None
-    
-    def get_or_create_task(self, task_id: str) -> Task:
-        """Get or create a task."""
-        task = self.get_task(task_id)
-        if not task:
-            from datetime import datetime, timedelta
-            now = datetime.now()
-            deadline = now + timedelta(minutes=30)  # Default 30 minute duration
-            
-            task_data = {
-                "task_id": task_id,
-                "name": None,
-                "project_name": "unknown",
-                "status": "active",
-                "duration": 1800,
-                "deadline": deadline.isoformat(),
-                "challenge_repo_url": None,
-                "challenge_repo_head_ref": None,
-                "challenge_repo_base_ref": None,
-                "fuzz_tooling_url": None,
-                "fuzz_tooling_ref": None,
-                "created_at": now.isoformat(),
-            }
-            task = self.create_task(task_data)
-        return task
-    
+            yield task
+            session.commit()
+
+    @contextmanager
+    def get_povs_for_task(self, task_id: str) -> Iterator[list[POV]]:
+        """Context manager: yields all POVs for a task with session open."""
+        with self.get_session() as session:
+            povs = session.query(POV).filter(POV.task_id == task_id).all()
+            yield povs
+            session.commit()
+
+    @contextmanager
+    def get_pov(self, pov_id: str, task_id: str | None = None) -> Iterator[POV | None]:
+        """Context manager: yields a POV by ID with session open."""
+        with self.get_session() as session:
+            if task_id:
+                pov = session.query(POV).filter(POV.task_id == task_id, POV.pov_id == pov_id).first()
+            else:
+                pov = session.query(POV).filter(POV.pov_id == pov_id).first()
+            yield pov
+            session.commit()
+
+    @contextmanager
+    def get_all_povs(self) -> Iterator[list[POV]]:
+        """Context manager: yields all POVs with session open."""
+        with self.get_session() as session:
+            povs = session.query(POV).all()
+            yield povs
+            session.commit()
+
+    @contextmanager
+    def get_patches_for_task(self, task_id: str) -> Iterator[list[Patch]]:
+        """Context manager: yields all patches for a task with session open."""
+        with self.get_session() as session:
+            patches = session.query(Patch).filter(Patch.task_id == task_id).all()
+            yield patches
+            session.commit()
+
+    @contextmanager
+    def get_patch(self, patch_id: str, task_id: str | None = None) -> Iterator[Patch | None]:
+        """Context manager: yields a patch by ID with session open."""
+        with self.get_session() as session:
+            if task_id:
+                patch = session.query(Patch).filter(Patch.task_id == task_id, Patch.patch_id == patch_id).first()
+            else:
+                patch = session.query(Patch).filter(Patch.patch_id == patch_id).first()
+            yield patch
+            session.commit()
+
+    @contextmanager
+    def get_all_patches(self) -> Iterator[list[Patch]]:
+        """Context manager: yields all patches with session open."""
+        with self.get_session() as session:
+            patches = session.query(Patch).all()
+            yield patches
+            session.commit()
+
+    @contextmanager
+    def get_bundles_for_task(self, task_id: str) -> Iterator[list[Bundle]]:
+        """Context manager: yields all bundles for a task with session open."""
+        with self.get_session() as session:
+            bundles = session.query(Bundle).filter(Bundle.task_id == task_id).all()
+            yield bundles
+            session.commit()
+
+    @contextmanager
+    def get_bundle(self, bundle_id: str, task_id: str | None = None) -> Iterator[Bundle | None]:
+        """Context manager: yields a bundle by ID with session open."""
+        with self.get_session() as session:
+            if task_id:
+                bundle = session.query(Bundle).filter(Bundle.task_id == task_id, Bundle.bundle_id == bundle_id).first()
+            else:
+                bundle = session.query(Bundle).filter(Bundle.bundle_id == bundle_id).first()
+            yield bundle
+            session.commit()
+
+    @contextmanager
+    def get_all_bundles(self) -> Iterator[list[Bundle]]:
+        """Context manager: yields all bundles with session open."""
+        with self.get_session() as session:
+            bundles = session.query(Bundle).all()
+            yield bundles
+            session.commit()
+
+    # Task operations
+    def create_task(
+        self,
+        *,
+        task_id: str,
+        name: str,
+        project_name: str,
+        status: str,
+        duration: int,
+        deadline: datetime,
+        challenge_repo_url: str,
+        challenge_repo_head_ref: str,
+        challenge_repo_base_ref: str | None,
+        fuzz_tooling_url: str,
+        fuzz_tooling_ref: str,
+    ) -> Task:
+        """Create a new task."""
+        with self.get_session() as session:
+            task = Task(
+                task_id=task_id,
+                name=name,
+                project_name=project_name,
+                status=status,
+                duration=duration,
+                deadline=deadline,
+                challenge_repo_url=challenge_repo_url,
+                challenge_repo_head_ref=challenge_repo_head_ref,
+                challenge_repo_base_ref=challenge_repo_base_ref,
+                fuzz_tooling_url=fuzz_tooling_url,
+                fuzz_tooling_ref=fuzz_tooling_ref,
+            )
+            session.add(task)
+            session.commit()
+            logger.info(f"Created task: {task.task_id}")
+            return task
+
     # POV operations
-    def create_pov(self, pov_data: Dict[str, Any]) -> POV:
+    def create_pov(
+        self, *, task_id: str, architecture: str, engine: str, fuzzer_name: str, sanitizer: str, testcase: str
+    ) -> POV:
         """Create a new POV."""
         with self.get_session() as session:
-            # Extract additional data
-            additional_data = {}
-            basic_fields = {"pov_id", "task_id", "timestamp", "architecture", "engine", "fuzzer_name", "sanitizer", "testcase"}
-            for key, value in pov_data.items():
-                if key not in basic_fields:
-                    additional_data[key] = value
-            
-            pov_data_filtered = {k: v for k, v in pov_data.items() if k in basic_fields}
-            pov_data_filtered["additional_data"] = json.dumps(additional_data) if additional_data else None
-            
-            pov = POV(**pov_data_filtered)
+            pov = POV(
+                task_id=task_id,
+                architecture=architecture,
+                engine=engine,
+                fuzzer_name=fuzzer_name,
+                sanitizer=sanitizer,
+                testcase=testcase,
+            )
             session.add(pov)
             session.commit()
-            session.refresh(pov)
             logger.info(f"Created POV: {pov.pov_id}")
             return pov
-    
-    def get_povs_for_task(self, task_id: str) -> List[POV]:
-        """Get all POVs for a task."""
-        with self.get_session() as session:
-            return session.query(POV).filter(POV.task_id == task_id).all()
-    
-    def get_all_povs(self) -> List[POV]:
-        """Get all POVs."""
-        with self.get_session() as session:
-            return session.query(POV).all()
-    
+
     # Patch operations
-    def create_patch(self, patch_data: Dict[str, Any]) -> Patch:
+    def create_patch(self, *, task_id: str, patch: str) -> Patch:
         """Create a new patch."""
         with self.get_session() as session:
-            # Extract additional data
-            additional_data = {}
-            basic_fields = {"patch_id", "task_id", "timestamp", "patch"}
-            for key, value in patch_data.items():
-                if key not in basic_fields:
-                    additional_data[key] = value
-            
-            patch_data_filtered = {k: v for k, v in patch_data.items() if k in basic_fields}
-            patch_data_filtered["additional_data"] = json.dumps(additional_data) if additional_data else None
-            
-            patch = Patch(**patch_data_filtered)
-            session.add(patch)
+            patch_obj = Patch(task_id=task_id, patch=patch)
+            session.add(patch_obj)
             session.commit()
-            session.refresh(patch)
-            logger.info(f"Created patch: {patch.patch_id}")
-            return patch
-    
-    def get_patches_for_task(self, task_id: str) -> List[Patch]:
-        """Get all patches for a task."""
-        with self.get_session() as session:
-            return session.query(Patch).filter(Patch.task_id == task_id).all()
-    
-    def get_all_patches(self) -> List[Patch]:
-        """Get all patches."""
-        with self.get_session() as session:
-            return session.query(Patch).all()
-    
-    # Bundle operations  
-    def create_bundle(self, bundle_data: Dict[str, Any]) -> Bundle:
+            logger.info(f"Created patch: {patch_obj.patch_id}")
+            return patch_obj
+
+    # Bundle operations
+    def create_bundle(
+        self,
+        *,
+        broadcast_sarif_id: str | None = None,
+        description: str | None = None,
+        freeform_id: str | None = None,
+        patch_id: str | None = None,
+        pov_id: str | None = None,
+        submitted_sarif_id: str | None = None,
+    ) -> Bundle:
         """Create a new bundle."""
         with self.get_session() as session:
-            # Extract additional data
-            additional_data = {}
-            basic_fields = {"bundle_id", "task_id", "timestamp", "description", "broadcast_sarif_id", 
-                          "freeform_id", "patch_id", "pov_id", "submitted_sarif_id"}
-            for key, value in bundle_data.items():
-                if key not in basic_fields:
-                    additional_data[key] = value
-            
-            bundle_data_filtered = {k: v for k, v in bundle_data.items() if k in basic_fields}
-            bundle_data_filtered["additional_data"] = json.dumps(additional_data) if additional_data else None
-            
-            bundle = Bundle(**bundle_data_filtered)
+            bundle = Bundle(
+                broadcast_sarif_id=broadcast_sarif_id,
+                description=description,
+                freeform_id=freeform_id,
+                patch_id=patch_id,
+                pov_id=pov_id,
+                submitted_sarif_id=submitted_sarif_id,
+            )
             session.add(bundle)
             session.commit()
-            session.refresh(bundle)
             logger.info(f"Created bundle: {bundle.bundle_id}")
             return bundle
-    
-    def get_bundles_for_task(self, task_id: str) -> List[Bundle]:
-        """Get all bundles for a task."""
+
+    def delete_bundle(self, bundle: Bundle) -> None:
+        """Delete a bundle."""
         with self.get_session() as session:
-            return session.query(Bundle).filter(Bundle.task_id == task_id).all()
-    
-    def get_all_bundles(self) -> List[Bundle]:
-        """Get all bundles."""
-        with self.get_session() as session:
-            return session.query(Bundle).all()
-    
-    # Utility methods for converting models to dicts (for compatibility with existing code)
-    def task_to_dict(self, task: Task) -> Dict[str, Any]:
-        """Convert a Task model to dictionary format compatible with existing code."""
-        povs = []
-        for pov in task.povs:
-            pov_dict = {
-                "pov_id": pov.pov_id,
-                "timestamp": pov.timestamp,
-                "architecture": pov.architecture,
-                "engine": pov.engine,
-                "fuzzer_name": pov.fuzzer_name,
-                "sanitizer": pov.sanitizer,
-                "testcase": pov.testcase,
-            }
-            if pov.additional_data:
-                additional = json.loads(pov.additional_data)
-                pov_dict.update(additional)
-            povs.append(pov_dict)
-        
-        patches = []
-        for patch in task.patches:
-            patch_dict = {
-                "patch_id": patch.patch_id,
-                "timestamp": patch.timestamp,
-                "patch": patch.patch,
-            }
-            if patch.additional_data:
-                additional = json.loads(patch.additional_data)
-                patch_dict.update(additional)
-            patches.append(patch_dict)
-        
-        bundles = []
-        for bundle in task.bundles:
-            bundle_dict = {
-                "bundle_id": bundle.bundle_id,
-                "timestamp": bundle.timestamp,
-                "description": bundle.description,
-                "broadcast_sarif_id": bundle.broadcast_sarif_id,
-                "freeform_id": bundle.freeform_id,
-                "patch_id": bundle.patch_id,
-                "pov_id": bundle.pov_id,
-                "submitted_sarif_id": bundle.submitted_sarif_id,
-            }
-            if bundle.additional_data:
-                additional = json.loads(bundle.additional_data)
-                bundle_dict.update(additional)
-            bundles.append(bundle_dict)
-        
-        return {
-            "task_id": task.task_id,
-            "name": task.name,
-            "project_name": task.project_name,
-            "status": task.status,
-            "duration": task.duration,
-            "deadline": task.deadline,
-            "challenge_repo_url": task.challenge_repo_url,
-            "challenge_repo_head_ref": task.challenge_repo_head_ref,
-            "challenge_repo_base_ref": task.challenge_repo_base_ref,
-            "fuzz_tooling_url": task.fuzz_tooling_url,
-            "fuzz_tooling_ref": task.fuzz_tooling_ref,
-            "created_at": task.created_at,
-            "povs": povs,
-            "patches": patches,
-            "bundles": bundles,
-        }
+            session.delete(bundle)
+            session.commit()
+            logger.info(f"Deleted bundle: {bundle.bundle_id}")

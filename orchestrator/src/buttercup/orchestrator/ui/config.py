@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     ]
 
     # Database configuration
-    database_url: Annotated[str, Field(default="sqlite:///buttercup_ui.db", description="Database URL for storing submissions")]
+    database_url: Annotated[
+        str, Field(default="sqlite:///buttercup_ui.db", description="Database URL for storing submissions")
+    ]
 
     class Config:
         env_prefix = "BUTTERCUP_UI_"

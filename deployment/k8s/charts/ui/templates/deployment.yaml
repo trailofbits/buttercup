@@ -32,6 +32,7 @@ spec:
             mountPath: /data
           - name: run-data-volume
             mountPath: /tmp/buttercup-run-data
+          {{- include "buttercup.volumeMounts.ui_db" . | nindent 10 }}
         command: ["buttercup-ui"]
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
@@ -59,4 +60,5 @@ spec:
         - name: run-data-volume
           emptyDir: {}
         {{- end }}
+        {{- include "buttercup.volumes.ui_db" . | nindent 8 }}
 {{- end }} 

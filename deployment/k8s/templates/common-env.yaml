@@ -367,6 +367,8 @@ Service-specific environment variables that utilize the standardized variables
   value: "/tmp/buttercup-run-data"
 - name: BUTTERCUP_UI_EXTERNAL_HOST
   value: {{ .Values.service.external_host | default (printf "%s-ui.%s.svc.cluster.local" .Release.Name .Release.Namespace) | quote }}
+- name: BUTTERCUP_UI_DATABASE_URL
+  value: "sqlite:///{{ include "buttercup.dirs.ui_db_storage" . }}/buttercup_ui.db"
 - name: BUTTERCUP_UI_HOST
   value: {{ .Values.service.host | default "0.0.0.0" | quote }}
 - name: BUTTERCUP_UI_PORT

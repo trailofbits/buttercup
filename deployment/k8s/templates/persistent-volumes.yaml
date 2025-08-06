@@ -91,3 +91,40 @@ spec:
   {{- end }}
 {{- end }}
 ---
+
+{{- if .Values.ui.enabled }}
+{{- if eq .Values.environment "minikube" }}
+# For Minikube environment, create a hostPath PersistentVolume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-ui-db
+spec:
+  capacity:
+    storage: {{ .Values.volumes.ui_db.size }}
+  accessModes:
+    - {{ .Values.volumes.ui_db.accessMode }}
+  {{- if .Values.volumes.ui_db.storageClass }}
+  storageClassName: {{ .Values.volumes.ui_db.storageClass }}
+  {{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/{{ .Release.Name }}-ui-db
+    type: DirectoryOrCreate
+{{- end }}
+---
+# PVC will be used in both Minikube and AKS environments
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-ui-db
+spec:
+  accessModes:
+    - {{ .Values.volumes.ui_db.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.volumes.ui_db.size }}
+  {{- if .Values.volumes.ui_db.storageClass }}
+  storageClassName: {{ .Values.volumes.ui_db.storageClass }}
+  {{- end }}
+{{- end }}
