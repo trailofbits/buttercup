@@ -397,6 +397,17 @@ def get_dashboard_stats() -> DashboardStats:
     return DashboardStats(**dashboard_stats)
 
 
+@app.get("/v1/dashboard/config", tags=["dashboard"])
+def get_dashboard_config() -> dict:
+    """
+    Get dashboard configuration including instance ID
+    """
+    settings = get_settings()
+    return {
+        "crs_instance_id": settings.crs_instance_id
+    }
+
+
 @app.get("/v1/dashboard/tasks", response_model=List[TaskInfo], tags=["dashboard"])
 def get_dashboard_tasks() -> List[TaskInfo]:
     """

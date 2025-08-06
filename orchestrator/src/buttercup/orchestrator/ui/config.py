@@ -37,6 +37,9 @@ class Settings(BaseSettings):
 
     # Database configuration (for future use)
     database_url: Annotated[Optional[str], Field(default=None, description="Database URL for storing submissions")]
+    
+    # Instance identification
+    crs_instance_id: Annotated[Optional[str], Field(default=None, description="CRS instance identifier")]
 
     class Config:
         env_prefix = "BUTTERCUP_UI_"
