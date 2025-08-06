@@ -88,7 +88,20 @@ up() {
 				;;
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
-				minikube status | grep -q "kubelet: Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=6 --memory=10g --disk-size=80g --driver=docker --kubernetes-version=stable
+				# Minikube defaults
+				MINIKUBE_CPU="${MINIKUBE_CPU:-6}"
+				MINIKUBE_MEMORY_GB="${MINIKUBE_MEMORY_GB:-10}"
+				MINIKUBE_DISK_GB="${MINIKUBE_DISK_GB:-80}"
+
+				echo -e "${BLU}Using Minikube configuration: CPU=${MINIKUBE_CPU}, Memory=${MINIKUBE_MEMORY_GB}GB, Disk=${MINIKUBE_DISK_GB}GB${NC}"
+				minikube status | grep -q "kubelet: Running" || minikube start \
+					--force \
+					--extra-config=kubeadm.skip-phases=preflight \
+					--cpus="${MINIKUBE_CPU}" \
+					--memory="${MINIKUBE_MEMORY_GB}g" \
+					--disk-size="${MINIKUBE_DISK_GB}g" \
+					--driver=docker \
+					--kubernetes-version=stable
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 
