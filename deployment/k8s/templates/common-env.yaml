@@ -373,11 +373,6 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ .Values.service.port | quote }}
 - name: BUTTERCUP_UI_LOG_LEVEL
   value: {{ include "buttercup.core.logLevel" . }}
-- name: BUTTERCUP_UI_CRS_INSTANCE_ID
-  valueFrom:
-    configMapKeyRef:
-      name: crs-instance-id
-      key: crs-instance-id
 - name: GITHUB_PAT
   valueFrom:
     secretKeyRef:
