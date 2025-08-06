@@ -855,7 +855,9 @@ def post_v1_task_task_id_pov_(
     Submit Vulnerability
     """
     logger.info(f"POV submission - Task: {task_id}")
-    logger.debug(f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}")
+    logger.debug(
+        f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}"
+    )
 
     with database_manager.get_task(task_id) as task:
         if task is None:
