@@ -389,13 +389,10 @@ langfuse:
   # Default configuration for local deployment
   langfuse:
     salt:
-      value: "langfuse-default-salt-please-change-in-production"
-    encryptionKey:
-      value: "a1b2c3d4e5f6789012345678901234567890123456789012345678901234abcd"
+      value: "secureSalt"
     nextauth:
       secret:
         value: "langfuse-nextauth-secret-change-in-production"
-      url: "http://localhost:3000"
   
   # Use internal PostgreSQL for local development
   postgresql:
@@ -439,16 +436,3 @@ langfuse:
         requests:
           cpu: 100m
           memory: 256Mi
-  
-  # Use internal MinIO for S3-compatible storage
-  s3:
-    enabled: true
-    auth:
-      rootPassword: "minio_dev_password"
-    resources:
-      limits:
-        cpu: 250m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 256Mi
