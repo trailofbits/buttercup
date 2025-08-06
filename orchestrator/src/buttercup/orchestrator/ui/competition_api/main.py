@@ -336,7 +336,7 @@ def pov_to_pov_info(pov: POV) -> dict[str, Any]:
         "engine": pov.engine,
         "fuzzer_name": pov.fuzzer_name,
         "sanitizer": pov.sanitizer,
-        "testcase": pov.testcase,
+        "testcase": base64.b64encode(pov.testcase),
     }
 
 
@@ -534,7 +534,7 @@ def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
 
-    return task_to_task_info(task)
+        return task_to_task_info(task)
 
 
 @app.get(
@@ -855,7 +855,7 @@ def post_v1_task_task_id_pov_(
     Submit Vulnerability
     """
     logger.info(f"POV submission - Task: {task_id}")
-    logger.debug(f"POV details: {json.dumps(body.model_dump(), indent=2)}")
+    logger.debug(f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}")
 
     with database_manager.get_task(task_id) as task:
         if task is None:
@@ -867,7 +867,7 @@ def post_v1_task_task_id_pov_(
         engine=body.engine.value,
         fuzzer_name=body.fuzzer_name,
         sanitizer=body.sanitizer,
-        testcase=body.testcase,
+        testcase=base64.b64decode(body.testcase),
     )
     save_pov(task_id, pov.pov_id, body.testcase)
 
