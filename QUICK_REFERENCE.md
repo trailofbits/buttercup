@@ -40,8 +40,10 @@ kubectl get services -n crs
 # Port forwarding
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
-# View logs
+# View logs (alternative to SigNoz UI)
+kubectl get pods -n crs
 kubectl logs -n crs <pod-name>
+kubectl logs -n crs <pod-name> -f  # Follow logs in real-time
 kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
 
 # Debug pods

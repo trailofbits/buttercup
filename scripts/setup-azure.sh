@@ -79,7 +79,7 @@ setup_config() {
     # Configure LangFuse (optional)
     configure_langfuse
     
-    # Configure OTEL telemetry (optional)
+    # Configure SigNoz deployment (optional)
     configure_otel
 }
 
