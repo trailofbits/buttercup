@@ -87,16 +87,6 @@ export OTEL_PROTOCOL="http"  # or "grpc"
 export OTEL_TOKEN="your-otel-token"  # optional
 ```
 
-3. **Alternative external observability platforms:**
-You can also configure other OTEL-compatible platforms like:
-- Jaeger
-- Zipkin
-- DataDog APM
-- New Relic
-- Honeycomb
-
-Simply set the appropriate `OTEL_ENDPOINT` and `OTEL_PROTOCOL` for your chosen platform.
-
 ## Start Services Manually
 
 ```bash
