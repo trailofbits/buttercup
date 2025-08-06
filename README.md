@@ -117,26 +117,21 @@ make undeploy
 
 ## Accessing Logs
 
-To view system logs and telemetry you can use Langfuse or SigNoz if you configured them during setup.
-If you have deployed the local SigNoz (`DEPLOY_SIGNOZ=true` in `deployment/env`),
-you can track the logs and traces there with:
+Buttercup includes local SigNoz deployment by default for comprehensive system observability. You can access logs, traces, and metrics through the SigNoz UI:
 
 ```bash
 make signoz-ui
 ```
 
-Otherwise you can access logs via `kubectl` commands:
+Then navigate to `http://localhost:33301` in your web browser to view:
+- Distributed traces
+- Application metrics 
+- Error monitoring
+- Performance insights
 
-```bash
-# View all pods
-kubectl get pods -n crs
+If you configured LangFuse during setup, you can also monitor LLM usage and costs there.
 
-# View specific pod logs
-kubectl logs -n crs <pod-name>
-
-# Follow logs in real-time
-kubectl logs -n crs <pod-name> -f
-```
+For additional log access methods, see the [Quick Reference Guide](QUICK_REFERENCE.md).
 
 ## Additional Resources
 

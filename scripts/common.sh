@@ -544,17 +544,17 @@ configure_llm_budget() {
 }
 
 
-# Function to configure OTEL telemetry
+# Function to configure OTEL telemetry (simplified for local deployment)
 configure_otel() {
     print_linebreak
-    print_status "Configuring SigNoz deployment (optional)..."
+    print_status "Configuring SigNoz for local observability..."
     
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
     
-    print_status "SigNoz: Optional observability platform for distributed tracing and metrics."
+    print_status "SigNoz: Local observability platform for distributed tracing and metrics."
     print_status "Provides detailed performance monitoring and system observability for debugging."
 
     # Check if already configured and user wants to keep it
@@ -564,23 +564,9 @@ configure_otel() {
         fi
     fi
 
-    read -p "Do you want to deploy a local version of SigNoz? (Y/n): " -r response
-    response=${response:-Y}
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-        # Deploy local SigNoz
-        portable_sed "s|.*export DEPLOY_SIGNOZ=.*|export DEPLOY_SIGNOZ=true|" deployment/env
-        print_success "Local SigNoz deployment configured"
-    else
-        # Don't deploy local SigNoz
-        portable_sed "s|.*export DEPLOY_SIGNOZ=.*|export DEPLOY_SIGNOZ=false|" deployment/env
-        read -p "Do you want to configure a custom OpenTelemetry endpoint? (y/N): " -r otel_response
-        otel_response=${otel_response:-N}
-        if [[ "$otel_response" =~ ^[Yy]$ ]]; then
-            configure_otel_wrapper
-        else
-            print_status "OpenTelemetry configuration skipped"
-        fi
-    fi
+    # Enable local SigNoz deployment by default for quickstart
+    portable_sed "s|.*export DEPLOY_SIGNOZ=.*|export DEPLOY_SIGNOZ=true|" deployment/env
+    print_success "Local SigNoz deployment enabled for observability"
 }
 
 # Function to check configuration file

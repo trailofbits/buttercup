@@ -69,6 +69,34 @@ cp deployment/env.template deployment/env
 
 Look at the comments in the `deployment/env.template` for how to set variables.
 
+### External SigNoz Configuration
+
+If you want to use an external SigNoz instance instead of the default local deployment, you can configure custom OpenTelemetry settings:
+
+1. **Disable local SigNoz deployment:**
+```bash
+# In deployment/env
+export DEPLOY_SIGNOZ=false
+```
+
+2. **Configure external OTEL endpoint:**
+```bash
+# In deployment/env
+export OTEL_ENDPOINT="https://your-signoz-instance.com"
+export OTEL_PROTOCOL="http"  # or "grpc"
+export OTEL_TOKEN="your-otel-token"  # optional
+```
+
+3. **Alternative external observability platforms:**
+You can also configure other OTEL-compatible platforms like:
+- Jaeger
+- Zipkin
+- DataDog APM
+- New Relic
+- Honeycomb
+
+Simply set the appropriate `OTEL_ENDPOINT` and `OTEL_PROTOCOL` for your chosen platform.
+
 ## Start Services Manually
 
 ```bash
