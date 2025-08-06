@@ -39,6 +39,7 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
 )
 from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
 from buttercup.orchestrator.ui.config import Settings
+from buttercup.common.telemetry import crs_instance_id
 from functools import cache
 import logging
 
@@ -395,6 +396,16 @@ def get_dashboard_stats() -> DashboardStats:
     """
     update_dashboard_stats()
     return DashboardStats(**dashboard_stats)
+
+
+@app.get("/v1/dashboard/config", tags=["dashboard"])
+def get_dashboard_config() -> dict:
+    """
+    Get dashboard configuration including instance ID
+    """
+    return {
+        "crs_instance_id": crs_instance_id,
+    }
 
 
 @app.get("/v1/dashboard/tasks", response_model=List[TaskInfo], tags=["dashboard"])

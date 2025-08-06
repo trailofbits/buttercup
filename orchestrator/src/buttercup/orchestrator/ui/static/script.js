@@ -8,6 +8,9 @@ let dashboardStats = {
     totalPatches: 0,
     totalBundles: 0
 };
+let dashboardConfig = {
+    crs_instance_id: null
+};
 let currentTab = 'tasks';
 
 // API base URL - will be set dynamically
@@ -135,17 +138,49 @@ function switchTab(tabName) {
     }
 }
 
+// Load dashboard configuration
+async function loadConfig() {
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/config`);
+        if (response.ok) {
+            dashboardConfig = await response.json();
+            updatePageTitle();
+        } else {
+            console.warn('Config API not available');
+        }
+    } catch (error) {
+        console.warn('Config API not available, using defaults');
+    }
+}
+
+// Update page title with instance ID
+function updatePageTitle() {
+    const baseTitle = 'Buttercup CRS Dashboard';
+    const navTitle = document.querySelector('.nav-title');
+    const pageTitle = document.querySelector('title');
+    
+    if (dashboardConfig.crs_instance_id) {
+        const newTitle = `${baseTitle} (${dashboardConfig.crs_instance_id})`;
+        if (navTitle) navTitle.textContent = newTitle;
+        if (pageTitle) pageTitle.textContent = newTitle;
+    } else {
+        if (navTitle) navTitle.textContent = baseTitle;
+        if (pageTitle) pageTitle.textContent = baseTitle;
+    }
+}
+
 // Load dashboard data
 async function loadDashboard() {
     try {
         elements.refreshBtn.innerHTML = '<span class="spinner"></span>';
         
-        // Load tasks and stats in parallel
+        // Load tasks, stats, and config in parallel
         await Promise.all([
             loadTasks(),
             loadStats(),
             loadAllPovs(),
-            loadAllPatches()
+            loadAllPatches(),
+            loadConfig()
         ]);
         
         updateDashboard();

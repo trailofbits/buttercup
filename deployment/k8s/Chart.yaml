@@ -56,5 +56,9 @@ dependencies:
     version: "0.0.1"
     repository: "file://charts/scratch-cleaner"
   - name: ui
-    version: "0.0.1"
+    version: "0.1.0"
     repository: "file://charts/ui"
+  - name: signoz
+    version: "0.71.0"
+    repository: "https://charts.signoz.io"
+    condition: signoz.enabled

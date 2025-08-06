@@ -27,6 +27,9 @@ global:
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"
 
+  signoz:
+    deployed: ${DEPLOY_SIGNOZ}
+
   crs:
     api_key_id: ${CRS_KEY_ID}
     api_key_token: ${CRS_KEY_TOKEN}
@@ -81,3 +84,6 @@ image-preloader:
     - gcr.io/oss-fuzz-base/base-builder-rust
   versions:
     - latest
+
+signoz:
+  enabled: ${DEPLOY_SIGNOZ}
