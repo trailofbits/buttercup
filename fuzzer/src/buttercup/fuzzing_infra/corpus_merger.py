@@ -97,7 +97,7 @@ class PartitionedCorpus:
 
         for file in local_files_list:
             try:
-                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(str(self.local_dir), file))
+                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.local_dir, file))
                 new_local_only_files.add(file)
                 if len(new_local_only_files) >= self.max_local_files:
                     break
@@ -111,10 +111,10 @@ class PartitionedCorpus:
 
         for file in self.remote_files:
             try:
-                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(str(self.remote_dir), file))
+                shutil.copy(os.path.join(self.corpus.path, file), os.path.join(self.remote_dir, file))
             except Exception as e:
                 # Copy this from the remote storage instead (slow, but shouldn't dissappear from there)
-                shutil.copy(os.path.join(self.corpus.remote_path, file), os.path.join(str(self.remote_dir), file))
+                shutil.copy(os.path.join(self.corpus.remote_path, file), os.path.join(self.remote_dir, file))
                 logger.debug(f"Error copying file {file} to remote directory: {e}. Copied from remote storage instead.")
 
     def to_final(self) -> FinalCorpus:
@@ -125,10 +125,10 @@ class PartitionedCorpus:
         Will rehash any files in the remote_directory as the merge operation may have changed the file names.
         Then it will partition the files into push_remotely and delete_locally sets and return a FinalCorpus object.
         """
-        self.corpus.hash_corpus(str(self.remote_dir))
+        self.corpus.hash_corpus(os.fspath(self.remote_dir))
 
         # Partition the files into push_remotely and delete_locally sets
-        files_in_new_remote_dir = set(os.listdir(str(self.remote_dir)))
+        files_in_new_remote_dir = set(os.listdir(self.remote_dir))
 
         # All remote files must still be in merged files
         assert self.remote_files.issubset(files_in_new_remote_dir), "Some remote files were lost during merge"
@@ -237,7 +237,7 @@ class MergerBot:
 
                 # Run merge from local_dir to remote_dir to find which files add coverage
                 fuzz_conf = FuzzConfiguration(
-                    str(local_dir),
+                    os.fspath(local_dir),
                     str(build_dir / task.harness_name),
                     build.engine,
                     build.sanitizer,
@@ -264,7 +264,7 @@ class MergerBot:
                     )
 
                     # We specify the remote_dir as the target dir as that will cause any `local_dir` files that adds coverage to be moved to remote_dir.
-                    self.runner.merge_corpus(fuzz_conf, str(remote_dir))
+                    self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir))
                     span.set_status(Status(StatusCode.OK))
 
     def run_task(self, task: WeightedHarness, builds: list[BuildOutput]) -> bool:
