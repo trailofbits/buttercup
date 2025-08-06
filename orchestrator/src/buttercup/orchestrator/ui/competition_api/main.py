@@ -344,7 +344,7 @@ def patch_to_patch_info(patch: Patch) -> dict[str, Any]:
     return {
         "patch_id": patch.patch_id,
         "timestamp": patch.created_at,
-        "patch": patch.patch,
+        "patch": base64.b64encode(patch.patch.encode("utf-8", errors="ignore")),
     }
 
 
@@ -802,7 +802,7 @@ def post_v1_task_task_id_patch_(
 
     patch = database_manager.create_patch(
         task_id=task_id,
-        patch=body.patch,
+        patch=base64.b64decode(body.patch).decode("utf-8", errors="ignore"),
     )
     save_patch(task_id, patch.patch_id, body.patch)
 
