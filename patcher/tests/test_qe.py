@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import os
 from langgraph.types import Command
 from langgraph.constants import END
+from buttercup.common.constants import ARCHITECTURE
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableSequence
@@ -470,7 +471,7 @@ def test_is_valid_patched_language_missing_binary(
 
         # Mock exists method to return False for language identifier binary
         def exists_side_effect():
-            return not str(mock_path_instance).endswith("language-identifier")
+            return not str(mock_path_instance).endswith(f"language-identifier-{ARCHITECTURE}")
 
         mock_path_instance.exists.side_effect = exists_side_effect
 
@@ -519,7 +520,7 @@ def test_is_valid_patched_language_missing_file(
 
         # Mock exists method to return True only for language identifier binary
         def exists_side_effect():
-            return str(mock_path_instance).endswith("language-identifier")
+            return str(mock_path_instance).endswith(f"language-identifier-{ARCHITECTURE}")
 
         mock_path_instance.exists.side_effect = exists_side_effect
 

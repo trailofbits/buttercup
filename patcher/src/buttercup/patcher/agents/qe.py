@@ -746,7 +746,9 @@ class QEAgent(PatcherAgentBase):
         language = ProjectYaml(self.challenge, self.challenge.project_name).unified_language
 
         # Find language identifier binary using importlib resources
-        identifier_bin = importlib.resources.files("buttercup.patcher.bins").joinpath("language-identifier")
+        identifier_bin = importlib.resources.files("buttercup.patcher.bins").joinpath(
+            f"language-identifier-{ARCHITECTURE}"
+        )
         identifier_bin = Path(str(identifier_bin)).resolve()
         if not identifier_bin.exists():
             logger.error("Could not find language identifier binary at %s", identifier_bin)
