@@ -49,6 +49,8 @@ global:
     secretKey: "sk-lf-..."  # Replace with your actual secret key
   signoz:
     deployed: false
+  langfuse:
+    deployed: false
   crs:
     api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
     api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
@@ -380,3 +382,73 @@ restartPolicy: Always
 # SigNoz observability platform
 signoz:
   enabled: false
+
+# LangFuse LLM observability platform
+langfuse:
+  enabled: false
+  # Default configuration for local deployment
+  langfuse:
+    salt:
+      value: "langfuse-default-salt-please-change-in-production"
+    encryptionKey:
+      value: "a1b2c3d4e5f6789012345678901234567890123456789012345678901234abcd"
+    nextauth:
+      secret:
+        value: "langfuse-nextauth-secret-change-in-production"
+      url: "http://localhost:3000"
+  
+  # Use internal PostgreSQL for local development
+  postgresql:
+    enabled: true
+    auth:
+      username: "langfuse"
+      password: "langfuse_dev_password"
+      database: "langfuse"
+    primary:
+      resources:
+        limits:
+          cpu: 500m
+          memory: 1Gi
+        requests:
+          cpu: 100m
+          memory: 256Mi
+  
+  # Use internal ClickHouse for analytics
+  clickhouse:
+    enabled: true
+    auth:
+      password: "clickhouse_dev_password"
+    resources:
+      limits:
+        cpu: 1
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  
+  # Use internal Redis for caching
+  redis:
+    enabled: true
+    auth:
+      password: "redis_dev_password"
+    master:
+      resources:
+        limits:
+          cpu: 250m
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 256Mi
+  
+  # Use internal MinIO for S3-compatible storage
+  s3:
+    enabled: true
+    auth:
+      rootPassword: "minio_dev_password"
+    resources:
+      limits:
+        cpu: 250m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi

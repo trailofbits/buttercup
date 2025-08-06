@@ -62,3 +62,7 @@ dependencies:
     version: "0.71.0"
     repository: "https://charts.signoz.io"
     condition: signoz.enabled
+  - name: langfuse
+    version: "1.3.4"
+    repository: "https://langfuse.github.io/langfuse-k8s"
+    condition: langfuse.enabled

@@ -155,8 +155,21 @@ Define common environment for all services
 Define Langfuse environment variables
 */}}
 {{- define "buttercup.env.langfuse" }}
-{{- if .Values.global.langfuse.enabled }}
-{{- /* Set Langfuse environment variables from Kubernetes secret */ -}}
+{{- if or .Values.global.langfuse.enabled .Values.global.langfuse.deployed }}
+{{- if .Values.global.langfuse.deployed }}
+{{- /* Use local deployed LangFuse service */ -}}
+- name: LANGFUSE_ENABLED
+  value: "true"
+- name: LANGFUSE_HOST
+  value: "http://{{ .Release.Name }}-langfuse:3000"
+- name: LANGFUSE_PUBLIC_KEY
+  value: "pk-lf-local-dev-key-change-in-production"
+- name: LANGFUSE_SECRET_KEY
+  value: "sk-lf-local-dev-secret-change-in-production"
+{{- else if .Values.global.langfuse.enabled }}
+{{- /* Set Langfuse environment variables from Kubernetes secret for external service */ -}}
+- name: LANGFUSE_ENABLED
+  value: "true"
 - name: LANGFUSE_HOST
   valueFrom:
     secretKeyRef:
@@ -172,6 +185,7 @@ Define Langfuse environment variables
     secretKeyRef:
       name: {{ .Release.Name }}-langfuse-secrets
       key: LANGFUSE_SECRET_KEY
+{{- end }}
 {{- end }}
 {{- end }}
 

@@ -29,6 +29,8 @@ global:
 
   signoz:
     deployed: ${DEPLOY_SIGNOZ}
+  langfuse:
+    deployed: ${DEPLOY_LANGFUSE}
 
   crs:
     api_key_id: ${CRS_KEY_ID}
@@ -87,3 +89,6 @@ image-preloader:
 
 signoz:
   enabled: ${DEPLOY_SIGNOZ}
+
+langfuse:
+  enabled: ${DEPLOY_LANGFUSE}
