@@ -283,6 +283,7 @@ class DatabaseManager:
     def create_bundle(
         self,
         *,
+        task_id: str,
         broadcast_sarif_id: str | None = None,
         description: str | None = None,
         freeform_id: str | None = None,
@@ -293,6 +294,7 @@ class DatabaseManager:
         """Create a new bundle."""
         with self.get_session() as session:
             bundle = Bundle(
+                task_id=task_id,
                 broadcast_sarif_id=broadcast_sarif_id,
                 description=description,
                 freeform_id=freeform_id,

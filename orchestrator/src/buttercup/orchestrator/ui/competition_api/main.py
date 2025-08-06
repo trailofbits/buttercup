@@ -634,6 +634,7 @@ def post_v1_task_task_id_bundle_(
     logger.debug(f"Bundle details: {json.dumps(body.model_dump(), indent=2)}")
 
     bundle = database_manager.create_bundle(
+        task_id=task_id,
         broadcast_sarif_id=body.broadcast_sarif_id,
         description=body.description,
         freeform_id=body.freeform_id,
