@@ -13,7 +13,7 @@
 ### Minimum Requirements
 
 - **CPU:** 8 cores
-- **Memory:** 64 GB RAM
+- **Memory:** 16 GB RAM
 - **Storage:** 100 GB available disk space
 - **Network:** Stable internet connection for downloading dependencies
 
@@ -138,3 +138,4 @@ kubectl logs -n crs <pod-name> -f
 - [AKS Deployment Guide](AKS_DEPLOYMENT.md) - Production deployment on Azure
 - [Contributing Guidelines](CONTRIBUTING.md) - Development workflow and standards
 - [Deployment Documentation](deployment/README.md) - Advanced deployment configuration
+- [Writing Custom Challenges](CUSTOM_CHALLENGES.md) - Custom project configuration and setup
