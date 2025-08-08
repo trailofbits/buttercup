@@ -66,14 +66,9 @@ jobs:
             Bash(git log*),
             Bash(git branch*),
             Bash(git show*),
-            Bash(git fetch*),
-            Bash(git pull*),
-            Bash(git checkout*),
             Bash(git add*),
             Bash(git commit*),
-            Bash(git push*),
-            Bash(git merge --ff-only *),
-            Bash(git rebase --abort),
+            Bash(git push),
             Bash(ls*),
             Bash(cat *),
             Bash(head *),
@@ -89,7 +84,13 @@ jobs:
             Bash(python -m *),
             Bash(npm run*),
             Bash(pnpm run*),
-            Bash(./scripts/*.sh)
+            Bash(./scripts/setup-local.sh),
+            Bash(./scripts/setup-azure.sh),
+            Bash(./scripts/validate-setup.sh),
+            Bash(./deployment/collect-logs.sh),
+            Bash(./deployment/collect-data.sh),
+            Bash(./orchestrator/scripts/task_crs.sh),
+            Bash(./orchestrator/scripts/send_sarif.sh)
           
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           # custom_instructions: |
