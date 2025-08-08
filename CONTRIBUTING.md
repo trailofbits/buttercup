@@ -120,6 +120,55 @@ Each component should include:
 - Integration tests using Docker containers
 - Test data stored in `<component>/tests/data/`
 
+### Integration Testing
+
+Buttercup has three tiers of testing to balance thoroughness with CI resources:
+
+#### Test Tiers
+
+1. **Unit Tests** (5-10 min)
+   - Run automatically on all PRs and pushes
+   - Fast, focused tests without external dependencies
+   - Run with: `pytest` (no flags)
+
+2. **Component Integration Tests** (15-30 min)
+   - Test interactions with Redis, CodeQuery, file systems
+   - Require additional setup (codequery, ripgrep, cscope)
+   - Run with: `pytest --runintegration`
+   - **When they run:**
+     - Daily at 2 AM UTC (automated)
+     - PRs labeled with `integration-tests`
+     - Manual trigger via Actions tab
+
+3. **Full System Integration** (90+ min)
+   - Complete end-to-end test with Minikube
+   - Tests full CRS workflow: fuzzing → vuln discovery → patching
+   - **When they run:**
+     - Weekly on Sundays at 3 AM UTC
+     - PRs labeled with `full-integration`
+     - Manual trigger via Actions tab
+
+#### Running Integration Tests Locally
+
+```bash
+# Component integration tests
+cd <component>
+uv run pytest --runintegration
+
+# Full system test
+make deploy-local
+make send-libpng-task
+# Monitor with: kubectl logs -n crs -l app=scheduler --tail=-1
+```
+
+#### Triggering Integration Tests on PRs
+
+Add labels to your PR:
+- `integration-tests` - Runs component integration tests
+- `full-integration` - Runs full Minikube system test
+
+**Note:** Use these labels judiciously as integration tests consume significant CI resources.
+
 ### Security Considerations
 
 - All untrusted code execution must happen in isolated Docker containers

@@ -1,10 +1,13 @@
 name: Minikube Integration Tests
 
 on:
-  push:
-    branches:
-      - main
-      - "ci/**"
+  # Weekly schedule - Sundays at 3 AM UTC
+  schedule:
+    - cron: '0 3 * * 0'
+  # Pull requests with 'full-integration' label
+  pull_request:
+    types: [labeled, synchronize]
+  # Manual trigger
   workflow_dispatch:
     inputs:
       trigger_task_data:
@@ -59,6 +62,10 @@ permissions:
 
 jobs:
   integration:
+    # Only run on PRs if they have the 'full-integration' label
+    if: |
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'full-integration')
     runs-on: gha-ubuntu-8
     steps:
       - uses: actions/checkout@v4
