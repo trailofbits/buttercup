@@ -23,6 +23,7 @@ global:
 
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
+    deployed: ${DEPLOY_LANGFUSE}
     host: "${LANGFUSE_HOST}"
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"
@@ -87,3 +88,30 @@ image-preloader:
 
 signoz:
   enabled: ${DEPLOY_SIGNOZ}
+
+langfuse:
+  enabled: ${DEPLOY_LANGFUSE}
+  # Minimum configuration for local deployment
+  langfuse:
+    salt:
+      value: "secureSalt"
+    nextauth:
+      secret:
+        value: "langfuse-nextauth-secret-change-in-production"
+  
+  postgresql:
+    auth:
+      username: langfuse
+      password: "langfuse_dev_password"
+  
+  clickhouse:
+    auth:
+      password: "clickhouse_dev_password"
+  
+  redis:
+    auth:
+      password: "redis_dev_password"
+  
+  s3:
+    auth:
+      rootPassword: "minio_dev_password"
