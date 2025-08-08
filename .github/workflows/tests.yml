@@ -88,11 +88,18 @@ jobs:
         if: matrix.component == 'seed-gen'
         working-directory: seed-gen
 
-      - name: Install dependencies
+      - name: Install dependencies for program-model and seed-gen
+        if: matrix.component == 'program-model' || matrix.component == 'seed-gen'
         run: |
           sudo apt-get update
-          sudo apt-get install -y codequery ripgrep git-lfs
+          sudo apt-get install -y codequery ripgrep
           make install-cscope
+
+      - name: Install minimal dependencies
+        if: matrix.component != 'program-model' && matrix.component != 'seed-gen'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
 
       - name: Prepare environment
         run: |
@@ -104,13 +111,72 @@ jobs:
       - name: Setup ${{ matrix.component }} component
         run: |
           uv sync --all-extras --frozen
+          # Install test reporting tools if not already present
+          uv pip install pytest-html pytest-cov
         working-directory: ${{ matrix.component }}
 
       - name: Run tests on ${{ matrix.component }} component
-        run: uv run --frozen pytest -svv ${{ matrix.pytest_args }}
+        run: |
+          # Convert component name to Python module name (e.g., seed-gen -> seed_gen)
+          PYTHON_MODULE=$(echo "${{ matrix.component }}" | tr '-' '_')
+          uv run --frozen pytest -svv ${{ matrix.pytest_args }} \
+            --junit-xml=test-results.xml \
+            --html=test-report.html \
+            --self-contained-html \
+            --cov=${PYTHON_MODULE} \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term
         env:
           PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
         working-directory: ${{ matrix.component }}
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "### Test Results: ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f ${{ matrix.component }}/test-results.xml ]; then
+            python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('${{ matrix.component }}/test-results.xml')
+          root = tree.getroot()
+          tests = root.get('tests', '0')
+          failures = root.get('failures', '0')
+          errors = root.get('errors', '0')
+          skipped = root.get('skipped', '0')
+          time = root.get('time', '0')
+          print(f'- **Total Tests**: {tests}')
+          print(f'- **Passed**: {int(tests) - int(failures) - int(errors) - int(skipped)}')
+          print(f'- **Failed**: {failures}')
+          print(f'- **Errors**: {errors}')
+          print(f'- **Skipped**: {skipped}')
+          print(f'- **Duration**: {float(time):.2f}s')
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.component }}-py${{ matrix.python }}
+          path: |
+            ${{ matrix.component }}/test-results.xml
+            ${{ matrix.component }}/test-report.html
+            ${{ matrix.component }}/coverage.xml
+            ${{ matrix.component }}/htmlcov/
+          retention-days: 30
+
+      - name: Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ${{ matrix.component }}/coverage.xml
+          flags: ${{ matrix.component }}
+          name: ${{ matrix.component }}-py${{ matrix.python }}
+          fail_ci_if_error: false  # Don't fail if codecov is down
 
   # Fuzzer tests are experimental and may fail
   # Run them separately so they don't block other components
@@ -148,11 +214,10 @@ jobs:
             ${{ runner.os }}-uv-fuzzer-
             ${{ runner.os }}-uv-
 
-      - name: Install dependencies
+      - name: Install dependencies for fuzzer
         run: |
           sudo apt-get update
-          sudo apt-get install -y codequery ripgrep git-lfs
-          make install-cscope
+          sudo apt-get install -y ripgrep
 
       - name: Prepare environment
         run: |
@@ -164,8 +229,60 @@ jobs:
       - name: Setup fuzzer component
         run: |
           uv sync --all-extras --frozen
+          # Install test reporting tools if not already present
+          uv pip install pytest-html pytest-cov
         working-directory: fuzzer
 
       - name: Run tests on fuzzer component (experimental)
-        run: uv run --frozen pytest -svv
+        run: |
+          # Convert component name to Python module name (for consistency)
+          PYTHON_MODULE=$(echo "fuzzer" | tr '-' '_')
+          uv run --frozen pytest -svv \
+            --junit-xml=test-results.xml \
+            --html=test-report.html \
+            --self-contained-html \
+            --cov=${PYTHON_MODULE} \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term || true  # Don't fail the job
         working-directory: fuzzer
+
+      - name: Generate test summary for fuzzer
+        if: always()
+        run: |
+          echo "### Test Results: fuzzer (experimental) ⚠️" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Note: Fuzzer tests are experimental and may fail*" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f fuzzer/test-results.xml ]; then
+            python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('fuzzer/test-results.xml')
+          root = tree.getroot()
+          tests = root.get('tests', '0')
+          failures = root.get('failures', '0')
+          errors = root.get('errors', '0')
+          skipped = root.get('skipped', '0')
+          time = root.get('time', '0')
+          print(f'- **Total Tests**: {tests}')
+          print(f'- **Passed**: {int(tests) - int(failures) - int(errors) - int(skipped)}')
+          print(f'- **Failed**: {failures}')
+          print(f'- **Errors**: {errors}')
+          print(f'- **Skipped**: {skipped}')
+          print(f'- **Duration**: {float(time):.2f}s')
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload fuzzer test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-fuzzer-experimental
+          path: |
+            fuzzer/test-results.xml
+            fuzzer/test-report.html
+            fuzzer/coverage.xml
+            fuzzer/htmlcov/
+          retention-days: 30
