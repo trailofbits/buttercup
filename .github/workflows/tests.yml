@@ -79,15 +79,15 @@ jobs:
         if: matrix.component == 'seed-gen'
         working-directory: seed-gen
 
-      - name: Install dependencies for program-model and seed-gen
-        if: matrix.component == 'program-model' || matrix.component == 'seed-gen'
+      - name: Install dependencies for program-model, seed-gen, and patcher
+        if: matrix.component == 'program-model' || matrix.component == 'seed-gen' || matrix.component == 'patcher'
         run: |
           sudo apt-get update
           sudo apt-get install -y codequery ripgrep
           make install-cscope
 
       - name: Install minimal dependencies
-        if: matrix.component != 'program-model' && matrix.component != 'seed-gen'
+        if: matrix.component != 'program-model' && matrix.component != 'seed-gen' && matrix.component != 'patcher'
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
