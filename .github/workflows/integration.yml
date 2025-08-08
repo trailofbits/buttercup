@@ -40,6 +40,10 @@ on:
         required: false
         default: ""
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FUZZER_BUILD_TIMEOUT: ${{ inputs.build_timeout || 25 }}
   VULN_TIMEOUT: ${{ inputs.vuln_timeout || 25 }}
