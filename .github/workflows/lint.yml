@@ -6,26 +6,19 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     strategy:
       matrix:
         component:
           [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
-        continue-on-error: [true]
-        include:
-          - component: patcher
-            continue-on-error: false
-          - component: program-model
-            continue-on-error: false
-          - component: common
-            continue-on-error: false
-          - component: orchestrator
-            continue-on-error: false
-          - component: seed-gen
-            continue-on-error: false
 
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.component == 'fuzzer' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,18 +27,31 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
+      - name: Setup uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: ${{ runner.os }}-uv-${{ matrix.component }}-${{ hashFiles(format('{0}/uv.lock', matrix.component)) }}
+          restore-keys: |
+            ${{ runner.os }}-uv-${{ matrix.component }}-
+            ${{ runner.os }}-uv-
+
       - name: Setup ${{ matrix.component }} component
         run: uv sync --all-extras
         working-directory: ${{ matrix.component }}
 
       - name: Run ruff on ${{ matrix.component }}
-        run: uv run ruff format --check && uv run ruff check
+        run: |
+          uv run ruff format --check --diff
+          uv run ruff check --output-format=github
         working-directory: ${{ matrix.component }}
 
       - name: Run mypy on ${{ matrix.component }}
         run: uv run mypy
         working-directory: ${{ matrix.component }}
-        continue-on-error: ${{ matrix.continue-on-error }}
+        continue-on-error: ${{ matrix.component == 'fuzzer' }}
 
   check-protobuf:
     runs-on: ubuntu-24.04
