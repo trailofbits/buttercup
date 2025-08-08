@@ -29,12 +29,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
+          submodules: true
 
       - name: Run Claude Code
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: "url.https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/.insteadof"
+          GIT_CONFIG_VALUE_0: "https://github.com/"
         id: claude
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          timeout_minutes: "60"
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
@@ -50,7 +57,7 @@ jobs:
           # assignee_trigger: "claude-bot"
           
           # Optional: Allow Claude to run specific commands
-          # allowed_tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
+          allowed_tools: "Bash(make lint),Bash(cd deployment && make up),Bash(uv run pytest)"
           
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           # custom_instructions: |
