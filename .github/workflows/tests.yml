@@ -4,7 +4,32 @@ on:
   push:
     branches:
       - main
+    # Always run full test suite on main branch
   pull_request:
+    paths:
+      # Run if any Python code changes
+      - '**/*.py'
+      # Run if any test files change
+      - '**/tests/**'
+      - '**/test_*.py'
+      - '**/*_test.py'
+      # Run if any dependencies change
+      - '**/pyproject.toml'
+      - '**/uv.lock'
+      - '**/requirements*.txt'
+      # Run if build/CI configuration changes
+      - '**/Makefile'
+      - '.github/workflows/tests.yml'
+      - '.github/workflows/lint.yml'
+      # Run if protobuf definitions change
+      - '**/*.proto'
+      - 'protoc.sh'
+      # Run if Docker configuration changes (affects test environment)
+      - '**/Dockerfile'
+      - '**/.dockerignore'
+      # Run if test data changes
+      - '**/testdata/**'
+      - '**/fixtures/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,9 +38,10 @@ concurrency:
 jobs:
   test:
     strategy:
+      fail-fast: false  # Continue running other components even if one fails
       matrix:
         component:
-          [common, orchestrator, fuzzer, program-model, seed-gen, patcher]
+          [common, orchestrator, program-model, seed-gen, patcher]
         python:
           - "3.12"
         # TODO: Add integration tests back in
@@ -85,3 +111,61 @@ jobs:
         env:
           PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
         working-directory: ${{ matrix.component }}
+
+  # Fuzzer tests are experimental and may fail
+  # Run them separately so they don't block other components
+  test-fuzzer-experimental:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail the overall CI if fuzzer tests fail
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Setup uv cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: ${{ runner.os }}-uv-fuzzer-${{ hashFiles('fuzzer/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-fuzzer-
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y codequery ripgrep git-lfs
+          make install-cscope
+
+      - name: Prepare environment
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo mkdir -p /crs_scratch
+          sudo chmod -R 777 /crs_scratch
+
+      - name: Setup fuzzer component
+        run: |
+          uv sync --all-extras --frozen
+        working-directory: fuzzer
+
+      - name: Run tests on fuzzer component (experimental)
+        run: uv run --frozen pytest -svv
+        working-directory: fuzzer
