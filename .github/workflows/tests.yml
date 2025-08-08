@@ -6,30 +6,8 @@ on:
       - main
     # Always run full test suite on main branch
   pull_request:
-    paths:
-      # Run if any Python code changes
-      - '**/*.py'
-      # Run if any test files change
-      - '**/tests/**'
-      - '**/test_*.py'
-      - '**/*_test.py'
-      # Run if any dependencies change
-      - '**/pyproject.toml'
-      - '**/uv.lock'
-      - '**/requirements*.txt'
-      # Run if build/CI configuration changes
-      - '**/Makefile'
-      - '.github/workflows/tests.yml'
-      - '.github/workflows/lint.yml'
-      # Run if protobuf definitions change
-      - '**/*.proto'
-      - 'protoc.sh'
-      # Run if Docker configuration changes (affects test environment)
-      - '**/Dockerfile'
-      - '**/.dockerignore'
-      # Run if test data changes
-      - '**/testdata/**'
-      - '**/fixtures/**'
+    # TEMPORARILY REMOVED PATH FILTERING TO DEBUG CI
+    # Will re-enable after confirming tests pass
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -64,7 +42,7 @@ jobs:
         #     pytest_args: "--runintegration"
 
     runs-on: ubuntu-latest
-    if: matrix.should_run
+    # Removed if: matrix.should_run since we're not using path filtering right now
     services:
       redis:
         image: redis
@@ -186,9 +164,7 @@ jobs:
   # Fuzzer tests are experimental and may fail
   # Run them separately so they don't block other components
   test-fuzzer-experimental:
-    needs: changes
-    # Only run if fuzzer changed or we need to run all tests
-    if: needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true'
+    # Removed needs: changes since we're not using path filtering right now
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't fail the overall CI if fuzzer tests fail
     services:
