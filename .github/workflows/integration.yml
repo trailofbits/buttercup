@@ -35,6 +35,10 @@ on:
         description: "Timeout for SARIF submission in minutes"
         required: false
         default: ""
+      merger_timeout:
+        description: "Timeout for merger bot in minutes"
+        required: false
+        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,6 +51,7 @@ env:
   BUNDLE_TIMEOUT: ${{ inputs.bundle_timeout || 5 }}
   SARIF_TIMEOUT: ${{ inputs.sarif_timeout || 5 }}
   SEED_GEN_TIMEOUT: ${{ inputs.seed_gen_timeout || 25 }}
+  MERGER_TIMEOUT: ${{ inputs.merger_timeout || 10 }}
 
 permissions:
   contents: read
@@ -134,6 +139,16 @@ jobs:
         timeout-minutes: ${{ fromJSON(env.SEED_GEN_TIMEOUT) }}
         run: |
           while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=seed-gen -c seed-gen --tail=-1 | grep "Copied [1-9][0-9]* files to corpus"; do
+            sleep 60
+          done
+
+      - name: Wait for merger-bot to submit files to remote corpus and prune local corpus
+        timeout-minutes: ${{ fromJSON(env.MERGER_TIMEOUT) }}
+        run: |
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=merger-bot -c merger-bot --tail=-1  | grep "Synced [1-9][0-9]* files that add coverage to remote corpus"; do
+            sleep 60
+          done
+          while ! kubectl logs -n $BUTTERCUP_NAMESPACE -l app=merger-bot -c merger-bot --tail=-1  | grep "Removed [1-9][0-9]* files from local corpus .* that don't add coverage"; do
             sleep 60
           done
 
