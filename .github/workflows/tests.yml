@@ -34,6 +34,9 @@ jobs:
           - component: patcher
             coverage_module: buttercup.patcher
             python: "3.12"
+          - component: fuzzer
+            coverage_module: buttercup.fuzzer
+            python: "3.12"
         # TODO: Add integration tests back in
         # include:
         #   - component: common
@@ -87,7 +90,14 @@ jobs:
           make install-cscope
 
       - name: Install minimal dependencies
-        if: matrix.component != 'program-model' && matrix.component != 'seed-gen' && matrix.component != 'patcher'
+        if: matrix.component != 'program-model' && matrix.component != 'seed-gen' && matrix.component != 'patcher' && matrix.component != 'fuzzer'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+      
+      # Fuzzer only needs ripgrep, no codequery
+      - name: Install fuzzer dependencies
+        if: matrix.component == 'fuzzer'
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
@@ -161,117 +171,9 @@ jobs:
 
       # Coverage will be uploaded in a separate job after all tests complete
 
-  # Fuzzer tests are experimental and may fail
-  # Run them separately so they don't block other components
-  test-fuzzer-experimental:
-    # Removed needs: changes since we're not using path filtering right now
-    runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail the overall CI if fuzzer tests fail
-    services:
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          submodules: true
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Setup uv cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: ${{ runner.os }}-uv-fuzzer-${{ hashFiles('fuzzer/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-fuzzer-
-            ${{ runner.os }}-uv-
-
-      - name: Install dependencies for fuzzer
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ripgrep
-
-      - name: Prepare environment
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo mkdir -p /crs_scratch
-          sudo chmod -R 777 /crs_scratch
-
-      - name: Setup fuzzer component
-        run: |
-          uv sync --all-extras --frozen
-          # Install test reporting tools in isolated environment
-          uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
-        working-directory: fuzzer
-
-      - name: Run tests on fuzzer component (experimental)
-        run: |
-          uv run --frozen pytest -svv \
-            --junit-xml=test-results.xml \
-            --html=test-report.html \
-            --self-contained-html \
-            --cov=buttercup.fuzzer \
-            --cov-report=xml \
-            --cov-report=html \
-            --cov-report=term || true  # Don't fail the job
-        working-directory: fuzzer
-
-      - name: Generate test summary for fuzzer
-        if: always()
-        run: |
-          echo "### Test Results: fuzzer (experimental) ⚠️" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "*Note: Fuzzer tests are experimental and may fail*" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f fuzzer/test-results.xml ]; then
-            python -c "
-          import xml.etree.ElementTree as ET
-          tree = ET.parse('fuzzer/test-results.xml')
-          root = tree.getroot()
-          tests = root.get('tests', '0')
-          failures = root.get('failures', '0')
-          errors = root.get('errors', '0')
-          skipped = root.get('skipped', '0')
-          time = root.get('time', '0')
-          print(f'- **Total Tests**: {tests}')
-          print(f'- **Passed**: {int(tests) - int(failures) - int(errors) - int(skipped)}')
-          print(f'- **Failed**: {failures}')
-          print(f'- **Errors**: {errors}')
-          print(f'- **Skipped**: {skipped}')
-          print(f'- **Duration**: {float(time):.2f}s')
-          " >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No test results found" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload fuzzer test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-fuzzer-experimental
-          path: |
-            fuzzer/test-results.xml
-            fuzzer/test-report.html
-            fuzzer/coverage.xml
-            fuzzer/htmlcov/
-          retention-days: 30
-
   # Consolidated coverage upload after all tests complete
   coverage-upload:
-    needs: [test, test-fuzzer-experimental]
+    needs: [test]
     if: always()
     runs-on: ubuntu-latest
     steps:

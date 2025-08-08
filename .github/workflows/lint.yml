@@ -123,14 +123,12 @@ jobs:
         run: uv run mypy
         working-directory: ${{ matrix.component }}
 
-  # Fuzzer is experimental and may have linting issues
-  # Run it separately so it doesn't block other components
-  lint-fuzzer-experimental:
+  # Lint fuzzer component
+  lint-fuzzer:
     needs: changes
     # Only run if fuzzer changed or we need to run all
     if: needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail the overall CI if fuzzer has issues
     steps:
       - uses: actions/checkout@v4
         with:
@@ -154,16 +152,22 @@ jobs:
         run: uv sync --all-extras
         working-directory: fuzzer
 
-      - name: Run ruff on fuzzer (experimental)
+      - name: Run ruff on fuzzer
         run: |
           uv run ruff format --check --diff
           uv run ruff check --output-format=github
         working-directory: fuzzer
 
-      - name: Run mypy on fuzzer (experimental)
+      # Type checking for fuzzer has known issues due to complex dependencies
+      # and external library type stubs. This is technical debt, not instability.
+      - name: Run mypy on fuzzer
         run: uv run mypy
         working-directory: fuzzer
-        continue-on-error: true  # Fuzzer's type checking is known to have issues
+        continue-on-error: true  # Known type checking issues - tracked for future resolution
+        
+      - name: Report mypy status
+        if: failure()
+        run: echo "::warning file=fuzzer::Fuzzer component has type checking issues that need attention"
 
   check-protobuf:
     needs: changes
