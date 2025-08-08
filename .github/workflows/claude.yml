@@ -22,7 +22,7 @@ jobs:
       contents: read
       pull-requests: read
       issues: read
-      id-token: write
+      id-token: write  # Required for OIDC authentication (used by Codecov and other services)
       actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository

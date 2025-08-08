@@ -40,10 +40,22 @@ jobs:
     strategy:
       fail-fast: false  # Continue running other components even if one fails
       matrix:
-        component:
-          [common, orchestrator, program-model, seed-gen, patcher]
-        python:
-          - "3.12"
+        include:
+          - component: common
+            coverage_module: buttercup.common
+            python: "3.12"
+          - component: orchestrator
+            coverage_module: buttercup.orchestrator
+            python: "3.12"
+          - component: program-model
+            coverage_module: buttercup.program_model
+            python: "3.12"
+          - component: seed-gen
+            coverage_module: buttercup.seed_gen
+            python: "3.12"
+          - component: patcher
+            coverage_module: buttercup.patcher
+            python: "3.12"
         # TODO: Add integration tests back in
         # include:
         #   - component: common
@@ -52,6 +64,7 @@ jobs:
         #     pytest_args: "--runintegration"
 
     runs-on: ubuntu-latest
+    if: matrix.should_run
     services:
       redis:
         image: redis
@@ -111,19 +124,18 @@ jobs:
       - name: Setup ${{ matrix.component }} component
         run: |
           uv sync --all-extras --frozen
-          # Install test reporting tools if not already present
-          uv pip install pytest-html pytest-cov
+          # Install test reporting tools in isolated environment
+          # This avoids adding them to every component's dependencies
+          uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
         working-directory: ${{ matrix.component }}
 
       - name: Run tests on ${{ matrix.component }} component
         run: |
-          # Convert component name to Python module name (e.g., seed-gen -> seed_gen)
-          PYTHON_MODULE=$(echo "${{ matrix.component }}" | tr '-' '_')
           uv run --frozen pytest -svv ${{ matrix.pytest_args }} \
             --junit-xml=test-results.xml \
             --html=test-report.html \
             --self-contained-html \
-            --cov=${PYTHON_MODULE} \
+            --cov=${{ matrix.coverage_module }} \
             --cov-report=xml \
             --cov-report=html \
             --cov-report=term
@@ -169,18 +181,14 @@ jobs:
             ${{ matrix.component }}/htmlcov/
           retention-days: 30
 
-      - name: Upload coverage reports
-        if: always()
-        uses: codecov/codecov-action@v4
-        with:
-          file: ${{ matrix.component }}/coverage.xml
-          flags: ${{ matrix.component }}
-          name: ${{ matrix.component }}-py${{ matrix.python }}
-          fail_ci_if_error: false  # Don't fail if codecov is down
+      # Coverage will be uploaded in a separate job after all tests complete
 
   # Fuzzer tests are experimental and may fail
   # Run them separately so they don't block other components
   test-fuzzer-experimental:
+    needs: changes
+    # Only run if fuzzer changed or we need to run all tests
+    if: needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't fail the overall CI if fuzzer tests fail
     services:
@@ -229,19 +237,17 @@ jobs:
       - name: Setup fuzzer component
         run: |
           uv sync --all-extras --frozen
-          # Install test reporting tools if not already present
-          uv pip install pytest-html pytest-cov
+          # Install test reporting tools in isolated environment
+          uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
         working-directory: fuzzer
 
       - name: Run tests on fuzzer component (experimental)
         run: |
-          # Convert component name to Python module name (for consistency)
-          PYTHON_MODULE=$(echo "fuzzer" | tr '-' '_')
           uv run --frozen pytest -svv \
             --junit-xml=test-results.xml \
             --html=test-report.html \
             --self-contained-html \
-            --cov=${PYTHON_MODULE} \
+            --cov=buttercup.fuzzer \
             --cov-report=xml \
             --cov-report=html \
             --cov-report=term || true  # Don't fail the job
@@ -286,3 +292,23 @@ jobs:
             fuzzer/coverage.xml
             fuzzer/htmlcov/
           retention-days: 30
+
+  # Consolidated coverage upload after all tests complete
+  coverage-upload:
+    needs: [test, test-fuzzer-experimental]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: coverage-reports
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: coverage-reports
+          files: '*/coverage.xml,**/coverage.xml'
+          fail_ci_if_error: false
+          verbose: true

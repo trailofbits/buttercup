@@ -7,36 +7,89 @@ on:
     # Always run full suite on main branch
   pull_request:
     paths:
-      # Run if any Python code changes
-      - '**/*.py'
-      # Run if any dependencies change
-      - '**/pyproject.toml'
-      - '**/uv.lock'
-      - '**/requirements*.txt'
-      # Run if build/CI configuration changes
-      - '**/Makefile'
+      # Component-specific triggers
+      - 'common/**'
+      - 'orchestrator/**'
+      - 'fuzzer/**'
+      - 'program-model/**'
+      - 'seed-gen/**'
+      - 'patcher/**'
+      # Workflow changes
       - '.github/workflows/lint.yml'
       - '.github/workflows/tests.yml'
-      # Run if protobuf definitions change
-      - '**/*.proto'
+      # Global configuration that affects linting
+      - 'Makefile'
       - 'protoc.sh'
-      # Run if Docker configuration changes
-      - '**/Dockerfile'
-      - '**/.dockerignore'
+      - '**/*.proto'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Detect which components need linting based on changed files
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      common: ${{ steps.filter.outputs.common }}
+      orchestrator: ${{ steps.filter.outputs.orchestrator }}
+      fuzzer: ${{ steps.filter.outputs.fuzzer }}
+      program-model: ${{ steps.filter.outputs.program-model }}
+      seed-gen: ${{ steps.filter.outputs.seed-gen }}
+      patcher: ${{ steps.filter.outputs.patcher }}
+      run-all: ${{ steps.filter.outputs.workflow || steps.filter.outputs.global }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            common:
+              - 'common/**'
+            orchestrator:
+              - 'orchestrator/**'
+            fuzzer:
+              - 'fuzzer/**'
+            program-model:
+              - 'program-model/**'
+            seed-gen:
+              - 'seed-gen/**'
+            patcher:
+              - 'patcher/**'
+            workflow:
+              - '.github/workflows/lint.yml'
+            global:
+              - 'Makefile'
+              - 'protoc.sh'
+              - '**/*.proto'
+
   lint:
+    needs: changes
+    # Run if any component changed OR if we need to run all
+    if: |
+      needs.changes.outputs.run-all == 'true' ||
+      needs.changes.outputs.common == 'true' ||
+      needs.changes.outputs.orchestrator == 'true' ||
+      needs.changes.outputs.program-model == 'true' ||
+      needs.changes.outputs.seed-gen == 'true' ||
+      needs.changes.outputs.patcher == 'true'
     strategy:
       fail-fast: false  # Continue running other components even if one fails
       matrix:
-        component:
-          [common, orchestrator, program-model, seed-gen, patcher]
+        include:
+          - component: common
+            should_run: ${{ needs.changes.outputs.common == 'true' || needs.changes.outputs.run-all == 'true' }}
+          - component: orchestrator
+            should_run: ${{ needs.changes.outputs.orchestrator == 'true' || needs.changes.outputs.run-all == 'true' }}
+          - component: program-model
+            should_run: ${{ needs.changes.outputs.program-model == 'true' || needs.changes.outputs.run-all == 'true' }}
+          - component: seed-gen
+            should_run: ${{ needs.changes.outputs.seed-gen == 'true' || needs.changes.outputs.run-all == 'true' }}
+          - component: patcher
+            should_run: ${{ needs.changes.outputs.patcher == 'true' || needs.changes.outputs.run-all == 'true' }}
 
     runs-on: ubuntu-latest
+    if: matrix.should_run
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,6 +126,9 @@ jobs:
   # Fuzzer is experimental and may have linting issues
   # Run it separately so it doesn't block other components
   lint-fuzzer-experimental:
+    needs: changes
+    # Only run if fuzzer changed or we need to run all
+    if: needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't fail the overall CI if fuzzer has issues
     steps:
@@ -110,6 +166,9 @@ jobs:
         continue-on-error: true  # Fuzzer's type checking is known to have issues
 
   check-protobuf:
+    needs: changes
+    # Run if protobuf files changed or we need to run all
+    if: needs.changes.outputs.run-all == 'true' || contains(github.event.head_commit.modified, '.proto') || contains(github.event.head_commit.modified, 'protoc.sh')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

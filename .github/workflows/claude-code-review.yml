@@ -23,7 +23,7 @@ jobs:
       contents: read
       pull-requests: read
       issues: read
-      id-token: write
+      id-token: write  # Required for OIDC authentication (used by Codecov and other services)
     
     steps:
       - name: Checkout repository
