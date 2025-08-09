@@ -119,6 +119,7 @@ ignore = ["COM812", "ISC001"]  # Formatter conflicts
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"test/test_submissions.py" = ["S101", "D", "UP045"]  # UP045: Protobuf enums don't support | operator
 "*/__cli__.py" = ["T201"]  # Allow print in CLI modules
 "*/auth_tool.py" = ["T201"]
 

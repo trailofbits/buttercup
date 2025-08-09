@@ -1,7 +1,7 @@
 import base64
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional  # noqa: UP045 - Required for protobuf enum annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -87,7 +87,7 @@ class SubmissionEntryBuilder:
         self,
         task_id: str | None = None,
         competition_pov_id: str | None = None,
-        result: Optional[SubmissionResult] = None,
+        result: Optional[SubmissionResult] = None,  # noqa: UP045 - protobuf enum
         crash_input_path: str | None = None,
         harness_name: str | None = None,
         sanitizer: str | None = None,
@@ -135,7 +135,7 @@ class SubmissionEntryBuilder:
         internal_patch_id: str | None = None,
         patch_content: str | None = None,
         competition_patch_id: str | None = None,
-        result: Optional[SubmissionResult] = None,
+        result: Optional[SubmissionResult] = None,  # noqa: UP045 - protobuf enum
     ):
         """Add a patch to the submission entry.
 
@@ -201,7 +201,7 @@ class SubmissionEntryBuilder:
         patch_internal_id: str | None = None,
         sanitizer: str | None = None,
         engine: str | None = None,
-        build_type: Optional[BuildType] = None,
+        build_type: Optional[BuildType] = None,  # noqa: UP045 - protobuf enum
         apply_diff: bool | None = None,
         task_dir: str | None = None,
         task_id: str | None = None,
