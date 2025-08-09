@@ -1,9 +1,9 @@
 name: Minikube Integration Tests
 
 on:
-  # Weekly schedule - Sundays at 3 AM UTC
+  # Daily schedule - 3 AM UTC
   schedule:
-    - cron: '0 3 * * 0'
+    - cron: "0 3 * * *"
   # Pull requests with 'full-integration' label
   pull_request:
     types: [labeled, synchronize]
