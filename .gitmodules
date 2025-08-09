@@ -1,3 +1,3 @@
-[submodule "external/aixcc-cscope"]
-	path = external/aixcc-cscope
-	url = https://github.com/trailofbits/aixcc-cscope.git
+[submodule "external/buttercup-cscope"]
+	path = external/buttercup-cscope
+	url = https://github.com/trail-of-forks/buttercup-cscope
