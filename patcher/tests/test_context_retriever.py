@@ -1,42 +1,39 @@
 """Tests for the ContextRetrieverAgent."""
 
-import pytest
 import os
-from unittest.mock import patch
-from pydantic import BaseModel
-from contextlib import contextmanager
-from langchain_core.tools import tool
-from pathlib import Path
 import shutil
 import subprocess
-from langchain_core.tools import StructuredTool
-from langchain_core.runnables import Runnable, RunnableSequence
-from unittest.mock import MagicMock
-from typing import Iterator
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import pytest
 from langchain_core.language_models import BaseChatModel
-from buttercup.patcher.agents.context_retriever import (
-    ContextRetrieverAgent,
-)
+from langchain_core.messages import AIMessage
+from langchain_core.messages.tool import ToolCall
+from langchain_core.runnables import Runnable, RunnableSequence
+from langchain_core.tools import StructuredTool, tool
+from langgraph.types import Command
+from pydantic import BaseModel
+from redis import Redis
 
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.common.task_meta import TaskMeta
 from buttercup.patcher.agents.common import (
-    ContextRetrieverState,
-    CodeSnippetRequest,
-    PatcherAgentState,
-    PatcherAgentName,
-    ContextCodeSnippet,
     CodeSnippetKey,
+    CodeSnippetRequest,
+    ContextCodeSnippet,
+    ContextRetrieverState,
+    PatcherAgentName,
+    PatcherAgentState,
+)
+from buttercup.patcher.agents.context_retriever import (
+    CUSTOM_TEST_MAP_NAME,
+    ContextRetrieverAgent,
 )
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
-from langgraph.types import Command
-from buttercup.common.challenge_task import ChallengeTask, CommandResult
-from buttercup.common.task_meta import TaskMeta
-from langchain_core.messages import AIMessage
-from langchain_core.messages.tool import ToolCall
-from redis import Redis
-from buttercup.patcher.agents.context_retriever import CUSTOM_TEST_MAP_NAME
-
 
 original_subprocess_run = subprocess.run
 
@@ -142,9 +139,11 @@ def task_dir(tmp_path: Path) -> Path:
     # Create project.yaml file
     project_yaml_path = oss_fuzz / "projects" / "example_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-    project_yaml_path.write_text("""name: example_project
+    project_yaml_path.write_text(
+        """name: example_project
 language: c
-""")
+"""
+    )
 
     # Create some mock patch files
     (diffs / "patch1.diff").write_text("mock patch 1")
@@ -642,10 +641,10 @@ def test_recursion_limit(mock_agent: ContextRetrieverAgent, mock_agent_llm: Magi
 
     mock_agent_llm.invoke.side_effect = [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -710,10 +709,10 @@ def test_recursion_limit_tmp_code_snippets(
     ]
     llm_invoke_side_effect += [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -1054,10 +1053,10 @@ def test_low_recursion_limit_empty(
     )
     mock_agent_llm.invoke.side_effect = [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -1126,10 +1125,10 @@ def test_low_recursion_limit_with_results(
     ]
     llm_invoke_side_effect += [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -1764,7 +1763,7 @@ def test_get_initial_context_handles_multiple_stackframes(
  #0 0x123456 in crash_func /src/test/crash.c:10
  #1 0x234567 in use_after_free /src/llvm-project/compiler-rt/uaf.c:20
  #2 0x345678 in free_memory /src/llvm-project/compiler-rt/memory.c:30
- 
+
  ==2==ERROR: AddressSanitizer: heap-use-after-free
  #0 0x456789 in allocate_memory /src/test/memory.c:40
  #1 0x567890 in init_data /src/test/init.c:50

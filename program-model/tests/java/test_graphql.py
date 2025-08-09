@@ -4,16 +4,17 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
+
 from ..common import (
-    common_test_get_functions,
-    common_test_get_callers,
-    common_test_get_callees,
-    common_test_get_type_definitions,
-    common_test_get_type_usages,
     TestFunctionInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
     TypeDefinitionType,
+    common_test_get_callees,
+    common_test_get_callers,
+    common_test_get_functions,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
 )
 
 
@@ -42,9 +43,7 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        graphql_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(graphql_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(

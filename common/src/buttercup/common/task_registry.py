@@ -1,11 +1,14 @@
-from functools import lru_cache
-from buttercup.common.datastructures.msg_pb2 import Task
-from redis import Redis
-from buttercup.common.queues import HashNames
-from dataclasses import dataclass
-from google.protobuf import text_format
+import builtins
 import time
-from typing import Set, Iterator
+from collections.abc import Iterator
+from dataclasses import dataclass
+from functools import lru_cache
+
+from google.protobuf import text_format
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import Task
+from buttercup.common.queues import HashNames
 
 # Redis set keys for tracking task states
 CANCELLED_TASKS_SET = "cancelled_tasks"
@@ -182,7 +185,7 @@ class TaskRegistry:
         # Decode bytes to strings if needed
         return [task_id.decode("utf-8") if isinstance(task_id, bytes) else task_id for task_id in cancelled_ids]
 
-    def should_stop_processing(self, task_or_id: str | Task, cancelled_ids: Set[str] | None = None) -> bool:
+    def should_stop_processing(self, task_or_id: str | Task, cancelled_ids: builtins.set[str] | None = None) -> bool:
         """Check if a task should no longer be processed due to cancellation or expiration.
 
         Args:
@@ -282,9 +285,10 @@ class TaskRegistry:
 
 def task_registry_cli() -> None:
     """CLI for the task registry"""
-    from pydantic_settings import BaseSettings
     from typing import Annotated
+
     from pydantic import Field
+    from pydantic_settings import BaseSettings
 
     class TaskRegistrySettings(BaseSettings):
         redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]

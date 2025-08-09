@@ -5,43 +5,42 @@ from __future__ import annotations
 import difflib
 import logging
 import re
-import uuid
-import langgraph.errors
-from langchain_core.messages import BaseMessage
-from langgraph.prebuilt import InjectedState
-from langchain_core.prompts import MessagesPlaceholder
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
 
-from langgraph.types import Command
-
-from langchain_openai.chat_models.base import BaseChatOpenAI
+import langgraph.errors
+from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
+    MessagesPlaceholder,
 )
-from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
 )
+from langchain_core.tools import tool
+from langchain_openai.chat_models.base import BaseChatOpenAI
+from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.types import Command
+from pydantic import BaseModel, Field, ValidationError
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
     CodeSnippetKey,
     CodeSnippetRequest,
     PatchAttempt,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
     PatchStatus,
     PatchStrategy,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
-from langgraph.prebuilt import create_react_agent
-from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
 
@@ -380,11 +379,11 @@ class SWEAgent(PatcherAgentBase):
             PROJECT_NAME=self.challenge.name,
             ROOT_CAUSE_ANALYSIS=str(state.root_cause),
             CODE_SNIPPETS="\n".join(map(str, state.relevant_code_snippets)),
-            REFLECTION_GUIDANCE=REFLECTION_GUIDANCE_TMPL.format(
-                REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
-            )
-            if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
-            else "",
+            REFLECTION_GUIDANCE=(
+                REFLECTION_GUIDANCE_TMPL.format(REFLECTION_GUIDANCE=state.execution_info.reflection_guidance)
+                if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
+                else ""
+            ),
             messages=state.messages,
         )
 
@@ -622,11 +621,11 @@ class SWEAgent(PatcherAgentBase):
                 "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
                 "PATCH_STRATEGY": state.patch_strategy.full,
                 "PREVIOUS_PATCH_PROMPT": previous_patch_prompt,
-                "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
-                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
-                )
-                if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
-                else "",
+                "REFLECTION_GUIDANCE": (
+                    REFLECTION_GUIDANCE_TMPL.format(REFLECTION_GUIDANCE=state.execution_info.reflection_guidance)
+                    if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
+                    else ""
+                ),
             },
             default="",  # type: ignore[call-arg]
             config=RunnableConfig(

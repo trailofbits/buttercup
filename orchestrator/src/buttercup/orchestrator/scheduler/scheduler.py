@@ -1,31 +1,32 @@
 import logging
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Union
+
 from redis import Redis
-from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.maps import HarnessWeights, BuildMap
+
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.datastructures.msg_pb2 import (
-    TaskReady,
-    Task,
-    BuildRequest,
-    BuildOutput,
-    WeightedHarness,
-    IndexRequest,
-    BuildType,
-    TracedCrash,
-    Patch,
-)
-from buttercup.common.project_yaml import ProjectYaml
-from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.orchestrator.scheduler.submissions import Submissions, CompetitionAPI
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
-from buttercup.orchestrator.api_client_factory import create_api_client
-from buttercup.common.utils import serve_loop
+from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildRequest,
+    BuildType,
+    IndexRequest,
+    Patch,
+    Task,
+    TaskReady,
+    TracedCrash,
+    WeightedHarness,
+)
+from buttercup.common.maps import BuildMap, HarnessWeights
+from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.utils import serve_loop
+from buttercup.orchestrator.api_client_factory import create_api_client
+from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
-import random
+from buttercup.orchestrator.scheduler.submissions import CompetitionAPI, Submissions
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class Scheduler:
     build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
     task_registry: TaskRegistry | None = field(init=False, default=None)
-    cached_cancelled_ids: Set[str] = field(init=False, default_factory=set)
+    cached_cancelled_ids: set[str] = field(init=False, default_factory=set)
     status_checker: StatusChecker | None = field(init=False, default=None)
     patches_queue: ReliableQueue | None = field(init=False, default=None)
     traced_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
@@ -78,7 +79,7 @@ class Scheduler:
 
         return len(self.cached_cancelled_ids) > 0
 
-    def should_stop_processing(self, task_or_id: Union[str, Task]) -> bool:
+    def should_stop_processing(self, task_or_id: str | Task) -> bool:
         """Check if a task should no longer be processed due to cancellation or expiration.
 
         Wrapper around the registry.should_stop_processing method that uses the cached

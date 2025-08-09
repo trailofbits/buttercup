@@ -1,15 +1,17 @@
+import argparse
+import logging
+import os
+import typing
+import uuid
+from dataclasses import dataclass
+
 from clusterfuzz.fuzz import get_engine
-from clusterfuzz.fuzz.engine import Engine, FuzzResult, FuzzOptions
-from buttercup.common.queues import FuzzConfiguration
+from clusterfuzz.fuzz.engine import Engine, FuzzOptions, FuzzResult
+
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
+from buttercup.common.queues import FuzzConfiguration
 from buttercup.fuzzing_infra.temp_dir import patched_temp_dir, scratch_cwd
-import typing
-import os
-from dataclasses import dataclass
-import argparse
-import uuid
-import logging
 
 logger = logging.getLogger(__name__)
 

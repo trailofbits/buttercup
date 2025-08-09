@@ -1,28 +1,28 @@
 """Tests for the RootCause agent."""
 
-from typing import Iterator
-import pytest
-from pathlib import Path
+import os
 import shutil
 import subprocess
+from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import MagicMock, patch
-from langchain_core.messages import AIMessage
-import os
+
+import pytest
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableSequence
 
-from buttercup.patcher.agents.rootcause import RootCauseAgent, get_modified_line_ranges
-from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    ContextCodeSnippet,
-    CodeSnippetKey,
-)
-from buttercup.patcher.patcher import PatchInput
-from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
-
+from buttercup.patcher.agents.common import (
+    CodeSnippetKey,
+    ContextCodeSnippet,
+    PatcherAgentName,
+    PatcherAgentState,
+)
+from buttercup.patcher.agents.rootcause import RootCauseAgent, get_modified_line_ranges
+from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 
 original_subprocess_run = subprocess.run
 
@@ -139,9 +139,11 @@ def task_dir(tmp_path: Path) -> Path:
     # Create project.yaml file
     project_yaml_path = oss_fuzz / "projects" / "example_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-    project_yaml_path.write_text("""name: example_project
+    project_yaml_path.write_text(
+        """name: example_project
 language: c
-""")
+"""
+    )
 
     # Create a mock helper.py file
     helper_path = oss_fuzz / "infra/helper.py"
@@ -449,7 +451,7 @@ index 67da216..1e338c2 100644
      scanf("%s", filename);
 
      // Open another file for writing
- 
+
 diff --git a/file2.py b/file2.py
 index 9876543..fedcba9 100644
 --- a/file2.py

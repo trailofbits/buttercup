@@ -24,11 +24,7 @@ class FunctionBody:
         """Two function bodies are equal if they have the same body and start and end lines."""
         if not isinstance(other, FunctionBody):
             return NotImplemented
-        return (
-            self.body == other.body
-            and self.start_line == other.start_line
-            and self.end_line == other.end_line
-        )
+        return self.body == other.body and self.start_line == other.start_line and self.end_line == other.end_line
 
     def __hash__(self) -> int:
         """Hash based on body and start and end lines."""
@@ -118,7 +114,8 @@ class TypeDefinition:
     """Path to the file containing the type definition."""
 
     def __eq__(self, other: Any) -> bool:
-        """Two type definitions are equal if they have the same name, type, definition, definition line, and file path."""
+        """Two type definitions are equal if they have the same name, type, definition,
+        definition line, and file path."""
         if not isinstance(other, TypeDefinition):
             return NotImplemented
         return (
@@ -159,11 +156,7 @@ class TypeUsageInfo:
         """Two type usages are equal if they have the same name, file path, and line number."""
         if not isinstance(other, TypeUsageInfo):
             return NotImplemented
-        return (
-            self.name == other.name
-            and self.file_path == other.file_path
-            and self.line_number == other.line_number
-        )
+        return self.name == other.name and self.file_path == other.file_path and self.line_number == other.line_number
 
     def __hash__(self) -> int:
         """Hash based on name, file path, and line number."""
