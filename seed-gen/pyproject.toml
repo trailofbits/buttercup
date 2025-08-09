@@ -1,11 +1,12 @@
 [project]
 name = "seed-gen"
 version = "0.1.0"
-description = "LLM seed generation and vulnerability discovery"
+description = "Intelligent test case generation for fuzzing"
 readme = "README.md"
 authors = [
     { name = "Trail of Bits", email = "opensource@trailofbits.com" },
 ]
+license = "AGPL-3.0"
 dependencies = [
     "redis ~= 5.2.1",
     "common",
@@ -30,7 +31,11 @@ packages = ["src/buttercup"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[project.optional-dependencies]
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
+
+[dependency-groups]
 dev = [
     "mypy ~= 1.15.0",
     "pytest ~= 8.3.4",
@@ -67,7 +72,7 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 include = ["src/**/*.py", "test/**/*.py", "eval/**/*.py"]
 
 [tool.ruff.lint]
