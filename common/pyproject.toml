@@ -7,14 +7,14 @@ license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
-    "pydantic-settings>=2.7.1",
-    "pymongo>=4.10.1",
-    "redis (>=5.2.1,<6.0.0)",
+    "pydantic-settings~=2.7.1",
+    "pymongo~=4.10.1",
+    "redis~=5.2.1",
     "langchain-core~=0.3.32",
     "langchain-openai~=0.3.2",
     "langfuse ~= 2.59.2",
     "langchain ~= 0.3.18",
-    "six>=1.17.0",
+    "six~=1.17.0",
     "openlit == 1.32.12",                # 1.33 currently fails to import opentelemetry.sdk._events
     "langchain-community ~= 0.3.20",     # implicit dep of openlit if you instrument langchain
     "langchain-text-splitters ~= 0.3.7", # implicit dep of openlit if you instrument langchain
