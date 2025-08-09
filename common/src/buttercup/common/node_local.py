@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 node_local_path = os.getenv("NODE_DATA_DIR")
 
 
-NodeLocalPath: TypeAlias = Path  # noqa: UP040 - PEP 695 syntax breaks runtime usage
-RemotePath: TypeAlias = Path  # noqa: UP040 - PEP 695 syntax breaks runtime usage
+NodeLocalPath: TypeAlias = Path
+RemotePath: TypeAlias = Path
 
 
 def _get_root_path() -> NodeLocalPath:

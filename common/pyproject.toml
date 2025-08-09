@@ -104,6 +104,7 @@ ignore = ["COM812", "ISC001"]  # Formatter conflicts
 "*/util_cli.py" = ["T201"]
 "*/challenge_task_cli.py" = ["T201"]
 "*/task_registry.py" = ["T201"]
+"src/buttercup/common/node_local.py" = ["UP040"]  # PEP 695 type aliases break runtime usage as constructors
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
