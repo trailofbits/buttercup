@@ -139,9 +139,11 @@ def task_dir(tmp_path: Path) -> Path:
     # Create project.yaml file
     project_yaml_path = oss_fuzz / "projects" / "example_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-    project_yaml_path.write_text("""name: example_project
+    project_yaml_path.write_text(
+        """name: example_project
 language: c
-""")
+"""
+    )
 
     # Create a mock helper.py file
     helper_path = oss_fuzz / "infra/helper.py"

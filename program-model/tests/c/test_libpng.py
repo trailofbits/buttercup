@@ -54,9 +54,7 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        libpng_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(libpng_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(

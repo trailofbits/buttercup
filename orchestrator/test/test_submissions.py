@@ -965,9 +965,7 @@ class TestSubmissions:
 
         # Mock the crash comparison functions to return non-matching data
         mock_get_crash_data, mock_get_inst_key, mock_crash_comparer_init, mock_is_similar = (
-            create_crash_comparison_mocks(
-                []  # No patterns are similar
-            )
+            create_crash_comparison_mocks([])  # No patterns are similar
         )
 
         # Apply mocks

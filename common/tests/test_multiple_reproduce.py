@@ -26,13 +26,15 @@ Running: /testcase
 DEBUG - pngrutil.c:1447:10: runtime error:
 """
 
-INVALID_STDOUT = b"""
-Unable to find image \'ghcr.io/aixcc-finals/base-runner:v1.0.0\' locally
-docker: Error response from daemon: Get "https://ghcr.io/v2/": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)
-
-Run \'docker run --help\' for more information
-ERROR:__main__:libpng_read_fuzzer does not seem to exist. Please run build_fuzzers first.
-"""
+INVALID_STDOUT = (
+    b"Unable to find image 'ghcr.io/aixcc-finals/base-runner:v1.0.0' locally\n"
+    b'docker: Error response from daemon: Get "https://ghcr.io/v2/": net/http: '
+    b"request canceled while waiting for connection "
+    b"(Client.Timeout exceeded while awaiting headers)\n"
+    b"\n"
+    b"Run 'docker run --help' for more information\n"
+    b"ERROR:__main__:libpng_read_fuzzer does not seem to exist. Please run build_fuzzers first.\n"
+)
 
 
 @pytest.fixture

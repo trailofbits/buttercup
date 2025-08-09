@@ -836,9 +836,11 @@ class Submissions:
         log_entry(
             target_entry,
             i=target_index,
-            msg=f"Consolidating {len(similar_entries)} similar submissions into this one. Adding new crash."
-            if crash is not None
-            else f"Consolidating {len(similar_entries)} similar submissions into this one.",
+            msg=(
+                f"Consolidating {len(similar_entries)} similar submissions into this one. Adding new crash."
+                if crash is not None
+                else f"Consolidating {len(similar_entries)} similar submissions into this one."
+            ),
         )
 
         # Use a Redis pipeline to ensure all operations are persisted atomically

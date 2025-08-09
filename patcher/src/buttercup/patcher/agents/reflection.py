@@ -607,9 +607,9 @@ class ReflectionAgent(PatcherAgentBase):
                         id=patch_attempt.id,
                         description=patch_attempt.description,
                         patch=patch_attempt.patch.patch if patch_attempt.patch else "",
-                        raw_patch_str=patch_attempt.patch_str
-                        if not patch_attempt.patch or not patch_attempt.patch.patch
-                        else "",
+                        raw_patch_str=(
+                            patch_attempt.patch_str if not patch_attempt.patch or not patch_attempt.patch.patch else ""
+                        ),
                         status=patch_attempt.status,
                         patch_strategy=state.patch_strategy.full if state.patch_strategy else "",
                     ),
@@ -626,9 +626,9 @@ class ReflectionAgent(PatcherAgentBase):
                                 patch=attempt.patch.patch if attempt.patch else "",
                                 status=attempt.status,
                                 failure_analysis=attempt.analysis.failure_analysis if attempt.analysis else None,
-                                resolution_component=attempt.analysis.resolution_component
-                                if attempt.analysis
-                                else None,
+                                resolution_component=(
+                                    attempt.analysis.resolution_component if attempt.analysis else None
+                                ),
                                 partial_success=attempt.analysis.partial_success if attempt.analysis else None,
                                 patch_strategy=attempt.strategy,
                             )

@@ -234,9 +234,11 @@ def task_dir(tmp_path: Path) -> Path:
     # Create project.yaml file
     project_yaml_path = oss_fuzz / "projects" / "libpng" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-    project_yaml_path.write_text("""name: libpng
+    project_yaml_path.write_text(
+        """name: libpng
 language: c
-""")
+"""
+    )
 
     # Create some mock patch files
     (diffs / "patch1.diff").write_text("mock patch 1")

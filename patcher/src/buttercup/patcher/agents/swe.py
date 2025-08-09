@@ -379,11 +379,11 @@ class SWEAgent(PatcherAgentBase):
             PROJECT_NAME=self.challenge.name,
             ROOT_CAUSE_ANALYSIS=str(state.root_cause),
             CODE_SNIPPETS="\n".join(map(str, state.relevant_code_snippets)),
-            REFLECTION_GUIDANCE=REFLECTION_GUIDANCE_TMPL.format(
-                REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
-            )
-            if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
-            else "",
+            REFLECTION_GUIDANCE=(
+                REFLECTION_GUIDANCE_TMPL.format(REFLECTION_GUIDANCE=state.execution_info.reflection_guidance)
+                if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
+                else ""
+            ),
             messages=state.messages,
         )
 
@@ -621,11 +621,11 @@ class SWEAgent(PatcherAgentBase):
                 "CODE_SNIPPETS": "\n".join(map(str, state.relevant_code_snippets)),
                 "PATCH_STRATEGY": state.patch_strategy.full,
                 "PREVIOUS_PATCH_PROMPT": previous_patch_prompt,
-                "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
-                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
-                )
-                if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
-                else "",
+                "REFLECTION_GUIDANCE": (
+                    REFLECTION_GUIDANCE_TMPL.format(REFLECTION_GUIDANCE=state.execution_info.reflection_guidance)
+                    if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
+                    else ""
+                ),
             },
             default="",  # type: ignore[call-arg]
             config=RunnableConfig(

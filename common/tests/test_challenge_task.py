@@ -1042,7 +1042,10 @@ def test_reproduce_result_methods():
         command_result=CommandResult(
             success=False,
             returncode=124,  # TIMEOUT_ERR_RESULT
-            output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow\nTimeout occurred",
+            output=(
+                b"INFO: Seed: 12345\nRunning normally\n"
+                b"==ERROR: AddressSanitizer: heap-buffer-overflow\nTimeout occurred"
+            ),
             error=None,
         )
     )
@@ -1062,42 +1065,58 @@ def test_reproduce_result_methods():
     assert result7.did_crash() is False  # Should not detect crash due to no crash token
 
     # Test case 8: Timeout with crash token in error output
-    output = b"""/out/fuzzer-postauth_nomaths -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -max_len=50000 -timeout_exitcode=0 -dict=fuzzer-postauth_nomaths.dict < /dev/null
-INFO: found LLVMFuzzerCustomMutator (0x5595fa311560). Disabling -len_control by default.
-Dictionary: 58 entries
-INFO: Running with entropic power schedule (0xFF, 100).
-INFO: Seed: 3932698478
-INFO: Loaded 1 modules   (7459 inline 8-bit counters): 7459 [0x5595fa3cec00, 0x5595fa3d0923),
-INFO: Loaded 1 PC tables (7459 PCs): 7459 [0x5595fa3d0928,0x5595fa3edb58),
-/out/fuzzer-postauth_nomaths: Running 1 inputs 100 time(s) each.
-Running: /testcase
-Dropbear fuzzer: Disabling stderr output
-fuzzer-postauth_nomaths: src/../fuzz/fuzz-wrapfd.c:216: int wrapfd_select(int, fd_set *, fd_set *, fd_set *, struct timeval *): Assertion `wrap_fds[i].mode != UNUSED' failed.
-AddressSanitizer:DEADLYSIGNAL
-=================================================================
-==18==ERROR: AddressSanitizer: ABRT on unknown address 0x000000000012 (pc 0x7f99ebd7600b bp 0x7f99ebeeb588 sp 0x7ffe363d6470 T0)
-SCARINESS: 10 (signal)
-    #0 0x7f99ebd7600b in raise (/lib/x86_64-linux-gnu/libc.so.6+0x4300b) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
-    #1 0x7f99ebd55858 in abort (/lib/x86_64-linux-gnu/libc.so.6+0x22858) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
-    #2 0x7f99ebd55728  (/lib/x86_64-linux-gnu/libc.so.6+0x22728) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
-    #3 0x7f99ebd66fd5 in __assert_fail (/lib/x86_64-linux-gnu/libc.so.6+0x33fd5) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
-    #4 0x5595fa2befa5 in wrapfd_select /src/dropbear/src/../fuzz/fuzz-wrapfd.c:216:5
-    #5 0x5595fa2c004d in session_loop /src/dropbear/src/common-session.c:210:9
-    #6 0x5595fa3064a0 in svr_session /src/dropbear/src/svr-session.c:208:2
-    #7 0x5595fa2bcff1 in fuzz_run_server /src/dropbear/src/../fuzz/fuzz-common.c:287:9
-    #8 0x5595fa156620 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:614:13
-    #9 0x5595fa141895 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:327:6
-    #10 0x5595fa14732f in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:862:9
-    #11 0x5595fa1725d2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
-    #12 0x7f99ebd57082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
-    #13 0x5595fa139a7d in _start (/out/fuzzer-postauth_nomaths+0x7ea7d)
-
-DEDUP_TOKEN: raise--abort--
-AddressSanitizer can not provide additional info.
-SUMMARY: AddressSanitizer: ABRT (/lib/x86_64-linux-gnu/libc.so.6+0x4300b) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d) in raise
-==18==ABORTING
-MS: 0 ; base unit: 0000000000000000000000000000000000000000
-subprocess command returned a non-zero exit status: 1"""
+    output = (
+        b"/out/fuzzer-postauth_nomaths -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase "
+        b"-max_len=50000 -timeout_exitcode=0 -dict=fuzzer-postauth_nomaths.dict < /dev/null\n"
+        b"INFO: found LLVMFuzzerCustomMutator (0x5595fa311560). Disabling -len_control by default.\n"
+        b"Dictionary: 58 entries\n"
+        b"INFO: Running with entropic power schedule (0xFF, 100).\n"
+        b"INFO: Seed: 3932698478\n"
+        b"INFO: Loaded 1 modules   (7459 inline 8-bit counters): 7459 [0x5595fa3cec00, 0x5595fa3d0923),\n"
+        b"INFO: Loaded 1 PC tables (7459 PCs): 7459 [0x5595fa3d0928,0x5595fa3edb58),\n"
+        b"/out/fuzzer-postauth_nomaths: Running 1 inputs 100 time(s) each.\n"
+        b"Running: /testcase\n"
+        b"Dropbear fuzzer: Disabling stderr output\n"
+        b"fuzzer-postauth_nomaths: src/../fuzz/fuzz-wrapfd.c:216: "
+        b"int wrapfd_select(int, fd_set *, fd_set *, fd_set *, struct timeval *): "
+        b"Assertion `wrap_fds[i].mode != UNUSED' failed.\n"
+        b"AddressSanitizer:DEADLYSIGNAL\n"
+        b"=================================================================\n"
+        b"==18==ERROR: AddressSanitizer: ABRT on unknown address 0x000000000012 "
+        b"(pc 0x7f99ebd7600b bp 0x7f99ebeeb588 sp 0x7ffe363d6470 T0)\n"
+        b"SCARINESS: 10 (signal)\n"
+        b"    #0 0x7f99ebd7600b in raise (/lib/x86_64-linux-gnu/libc.so.6+0x4300b) "
+        b"(BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)\n"
+        b"    #1 0x7f99ebd55858 in abort (/lib/x86_64-linux-gnu/libc.so.6+0x22858) "
+        b"(BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)\n"
+        b"    #2 0x7f99ebd55728  (/lib/x86_64-linux-gnu/libc.so.6+0x22728) "
+        b"(BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)\n"
+        b"    #3 0x7f99ebd66fd5 in __assert_fail (/lib/x86_64-linux-gnu/libc.so.6+0x33fd5) "
+        b"(BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)\n"
+        b"    #4 0x5595fa2befa5 in wrapfd_select /src/dropbear/src/../fuzz/fuzz-wrapfd.c:216:5\n"
+        b"    #5 0x5595fa2c004d in session_loop /src/dropbear/src/common-session.c:210:9\n"
+        b"    #6 0x5595fa3064a0 in svr_session /src/dropbear/src/svr-session.c:208:2\n"
+        b"    #7 0x5595fa2bcff1 in fuzz_run_server /src/dropbear/src/../fuzz/fuzz-common.c:287:9\n"
+        b"    #8 0x5595fa156620 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) "
+        b"/src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:614:13\n"
+        b"    #9 0x5595fa141895 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) "
+        b"/src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:327:6\n"
+        b"    #10 0x5595fa14732f in fuzzer::FuzzerDriver(int*, char***, "
+        b"int (*)(unsigned char const*, unsigned long)) "
+        b"/src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:862:9\n"
+        b"    #11 0x5595fa1725d2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10\n"
+        b"    #12 0x7f99ebd57082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) "
+        b"(BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)\n"
+        b"    #13 0x5595fa139a7d in _start (/out/fuzzer-postauth_nomaths+0x7ea7d)\n"
+        b"\n"
+        b"DEDUP_TOKEN: raise--abort--\n"
+        b"AddressSanitizer can not provide additional info.\n"
+        b"SUMMARY: AddressSanitizer: ABRT (/lib/x86_64-linux-gnu/libc.so.6+0x4300b) "
+        b"(BuildId: 5792732f783158c66fb4f3756458ca24e46e827d) in raise\n"
+        b"==18==ABORTING\n"
+        b"MS: 0 ; base unit: 0000000000000000000000000000000000000000\n"
+        b"subprocess command returned a non-zero exit status: 1"
+    )
     result8 = ReproduceResult(
         command_result=CommandResult(
             success=False,

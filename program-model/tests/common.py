@@ -46,9 +46,7 @@ class TestFunctionInfo:
 TestFunctionInfo.__test__ = False
 
 
-def common_test_get_functions(
-    codequery: CodeQuery, function_name, file_path, function_info
-):
+def common_test_get_functions(codequery: CodeQuery, function_name, file_path, function_info):
     """Generic function for testing get_functions() in C codebases"""
     if file_path:
         file_path = Path(file_path)
@@ -92,17 +90,13 @@ def common_test_get_callers(
     )[0]
 
     callers = codequery.get_callers(function)
-    callers = filter_project_context(
-        fuzz_task.container_src_dir(), callers, codequery._get_project_language()
-    )
+    callers = filter_project_context(fuzz_task.container_src_dir(), callers, codequery._get_project_language())
 
     # Output for debugging
     if not callers:
         logger.info(f"No callers found for {function_name} in {file_path}")
     for c in callers:
-        logger.info(
-            f"Caller: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}"
-        )
+        logger.info(f"Caller: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}")
 
     # Validate each caller
     for expected_caller in expected_callers:
@@ -111,11 +105,7 @@ def common_test_get_callers(
             for c in callers
             if c.name == expected_caller.name
             and c.file_path == Path(expected_caller.file_path)
-            and any(
-                True
-                for b in c.bodies
-                if b.start_line <= expected_caller.start_line <= b.end_line
-            )
+            and any(True for b in c.bodies if b.start_line <= expected_caller.start_line <= b.end_line)
         ]
         if len(caller_info) == 0:
             pytest.fail(f"Couldn't find expected caller: {expected_caller}")
@@ -160,17 +150,13 @@ def common_test_get_callees(
     )[0]
 
     callees = codequery.get_callees(function)
-    callees = filter_project_context(
-        fuzz_task.container_src_dir(), callees, codequery._get_project_language()
-    )
+    callees = filter_project_context(fuzz_task.container_src_dir(), callees, codequery._get_project_language())
 
     # Output for debugging
     if not callees:
         logger.info(f"No callees found for {function_name} in {file_path}")
     for c in callees:
-        logger.info(
-            f"Callee: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}"
-        )
+        logger.info(f"Callee: {c.name} {c.file_path} {[b.start_line for b in c.bodies]}")
 
     # Validate each callee
     for expected_callee in expected_callees:
@@ -179,11 +165,7 @@ def common_test_get_callees(
             for c in callees
             if c.name == expected_callee.name
             and c.file_path == Path(expected_callee.file_path)
-            and any(
-                True
-                for b in c.bodies
-                if b.start_line <= expected_callee.start_line <= b.end_line
-            )
+            and any(True for b in c.bodies if b.start_line <= expected_callee.start_line <= b.end_line)
         ]
         if len(callee_info) == 0:
             pytest.fail(f"Couldn't find expected callee: {expected_callee}")
@@ -230,9 +212,7 @@ def common_test_get_type_definitions(
 
     # Output for debugging
     for c in type_definitions:
-        logger.info(
-            f"Type definition: {c.name} {c.type} {c.file_path} {c.definition_line}"
-        )
+        logger.info(f"Type definition: {c.name} {c.type} {c.file_path} {c.definition_line}")
 
     found = [
         c
@@ -246,9 +226,7 @@ def common_test_get_type_definitions(
     if len(found) == 0:
         pytest.fail(f"Couldn't find expected type definition: {type_definition_info}")
     elif len(found) > 1:
-        pytest.fail(
-            f"Found multiple identical type definitions for: {type_definition_info}"
-        )
+        pytest.fail(f"Found multiple identical type definitions for: {type_definition_info}")
 
 
 @dataclass(frozen=True)
@@ -278,9 +256,7 @@ def common_test_get_type_usages(
     )[0]
 
     call_sites = codequery.get_type_calls(type_definition)
-    call_sites = filter_project_context(
-        fuzz_task.container_src_dir(), call_sites, codequery._get_project_language()
-    )
+    call_sites = filter_project_context(fuzz_task.container_src_dir(), call_sites, codequery._get_project_language())
 
     # Output for debugging
     for c in call_sites:

@@ -30,7 +30,7 @@ from ..common import (
                 num_bodies=1,
                 body_excerpts=[
                     (
-                        'String sentOrReceivedText = direction == Direction.SENT ? '
+                        "String sentOrReceivedText = direction == Direction.SENT ? "
                         '"sentBuffer to" : "receivedBuffer from";'
                     ),
                 ],
@@ -55,9 +55,7 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        zookeeper_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(zookeeper_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(

@@ -47,9 +47,7 @@ from ..common import (
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
-)
+@pytest.mark.skip(reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc")
 @pytest.mark.integration
 def test_get_functions(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -59,9 +57,7 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        log4j2_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(log4j2_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(
@@ -85,9 +81,7 @@ def test_get_functions(
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
-)
+@pytest.mark.skip(reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc")
 @pytest.mark.integration
 def test_get_callers(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -179,9 +173,7 @@ def test_get_callers(
         #   ),
     ],
 )
-@pytest.mark.skip(
-    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
-)
+@pytest.mark.skip(reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc")
 @pytest.mark.integration
 def test_get_callees(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -247,9 +239,7 @@ def test_get_callees(
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
-)
+@pytest.mark.skip(reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc")
 @pytest.mark.integration
 def test_get_type_definitions(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -287,9 +277,7 @@ def test_get_type_definitions(
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
-)
+@pytest.mark.skip(reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc")
 @pytest.mark.integration
 def test_get_type_usages(
     log4j2_oss_fuzz_task: ChallengeTask,
@@ -312,9 +300,7 @@ def test_get_type_usages(
     )
 
 
-@pytest.mark.skip(
-    reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc"
-)
+@pytest.mark.skip(reason="Skipping for now, as the image build routine doesn't work with oss-fuzz-aixcc")
 @pytest.mark.integration
 def test_java_resolver(log4j2_oss_fuzz_task: ChallengeTask):
     codequery = CodeQuery(log4j2_oss_fuzz_task)
@@ -323,72 +309,48 @@ def test_java_resolver(log4j2_oss_fuzz_task: ChallengeTask):
     # Simple expr with only one type (no dots)
     t = resolver.get_dotexpr_type(
         "NetUtils",
-        Path(
-            "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java"
-        ),
+        Path("/src/log4j-core/src/main/java/org/apache/logging/log4j/core/LoggerContext.java"),
     )
     assert t is not None
     assert t.name == "NetUtils"
-    assert t.file_path == Path(
-        "/src/log4j-core/src/main/java/org/apache/logging/log4j/core/util/NetUtils.java"
-    )
+    assert t.file_path == Path("/src/log4j-core/src/main/java/org/apache/logging/log4j/core/util/NetUtils.java")
 
     t = resolver.get_dotexpr_type(
         "Category.aai",
-        Path(
-            "/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"
-        ),
+        Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"),
     )
     assert t is not None
     assert t.name == "AppenderAttachableImpl"
-    assert t.file_path == Path(
-        "/src/log4j-1.2-api/src/main/java/org/apache/log4j/helpers/AppenderAttachableImpl.java"
-    )
+    assert t.file_path == Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/helpers/AppenderAttachableImpl.java")
 
     t = resolver.get_dotexpr_type(
         "Category.getDefaultHierarchy()",
-        Path(
-            "/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"
-        ),
+        Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"),
     )
     assert t is not None
     assert t.name == "LoggerRepository"
-    assert t.file_path == Path(
-        "/src/log4j-1.2-api/src/main/java/org/apache/log4j/spi/LoggerRepository.java"
-    )
+    assert t.file_path == Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/spi/LoggerRepository.java")
 
     t = resolver.get_dotexpr_type(
         "Category.getDefaultHierarchy().getLogger().getRootLogger()",
-        Path(
-            "/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"
-        ),
+        Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"),
     )
     assert t is not None
     assert t.name == "Logger"
-    assert t.file_path == Path(
-        "/src/log4j-1.2-api/src/main/java/org/apache/log4j/Logger.java"
-    )
+    assert t.file_path == Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/Logger.java")
 
     t = resolver.get_dotexpr_type(
         "Category.getDefaultHierarchy().exists('test').getRootLogger()",
-        Path(
-            "/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"
-        ),
+        Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"),
     )
     assert t is not None
     assert t.name == "Logger"
-    assert t.file_path == Path(
-        "/src/log4j-1.2-api/src/main/java/org/apache/log4j/Logger.java"
-    )
+    assert t.file_path == Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/Logger.java")
 
     t = resolver.get_dotexpr_type(
         "Category.getDefaultHierarchy().getThreshold().TRACE.toLevel(3)",
-        Path(
-            "/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"
-        ),
+        Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/bridge/LogEventAdapter.java"),
     )
     assert t is not None
     assert t.name == "Level"
-    assert t.file_path == Path(
-        "/src/log4j-1.2-api/src/main/java/org/apache/log4j/Level.java"
-    )
+    assert t.file_path == Path("/src/log4j-1.2-api/src/main/java/org/apache/log4j/Level.java")

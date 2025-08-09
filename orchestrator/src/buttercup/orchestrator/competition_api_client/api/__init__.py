@@ -9,4 +9,3 @@ from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
 from buttercup.orchestrator.competition_api_client.api.pov_api import PovApi
 from buttercup.orchestrator.competition_api_client.api.request_api import RequestApi
 from buttercup.orchestrator.competition_api_client.api.submitted_sarif_api import SubmittedSarifApi
-

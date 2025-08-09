@@ -487,7 +487,8 @@ class TestPartitionedCorpus(unittest.TestCase):
     def test_initialization_remote_file_missing(
         self, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
     ):
-        """Test that when a file is missing from corpus.path but available in corpus.remote_path, it's copied from remote."""
+        """Test that when a file is missing from corpus.path but available in corpus.remote_path,
+        it's copied from remote."""
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
@@ -516,7 +517,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Mock shutil.copy to fail for the first call to a specific file, then succeed for the second call
 
         def mock_copy(src, dst):
-            # For a specific file in remote_files, fail on first attempt (corpus.path) but succeed on second (corpus.remote_path)
+            # For a specific file in remote_files, fail on first attempt (corpus.path)
+            # but succeed on second (corpus.remote_path)
             if "missing_remote" in src:
                 if "/corpus/path/" in src:
                     raise FileNotFoundError(f"File not found in local corpus: {src}")

@@ -60,9 +60,7 @@ class ProgramModel:
     def process_task_codequery(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         try:
-            logger.info(
-                f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery"
-            )
+            logger.info(f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery")
             challenge = ChallengeTask(
                 read_only_task_dir=args.task_dir,
                 python_path=self.python,
@@ -99,9 +97,7 @@ class ProgramModel:
 
     def process_task(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
-        logger.info(
-            f"Processing task {args.package_name}/{args.task_id}/{args.task_dir}"
-        )
+        logger.info(f"Processing task {args.package_name}/{args.task_id}/{args.task_dir}")
         return self.process_task_codequery(args)
 
     def serve_item(self) -> bool:
@@ -114,9 +110,7 @@ class ProgramModel:
         task_index: IndexRequest = rq_item.deserialized
 
         # Check if task should be processed or skipped
-        if self.registry is not None and self.registry.should_stop_processing(
-            task_index.task_id
-        ):
+        if self.registry is not None and self.registry.should_stop_processing(task_index.task_id):
             logger.debug(f"Task {task_index.task_id} is cancelled or expired, skipping")
             self.task_queue.ack_item(rq_item.item_id)
             return True

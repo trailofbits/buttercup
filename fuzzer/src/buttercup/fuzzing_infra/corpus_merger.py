@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 # NOTE: The idea of using three distinct classes to represent the local, remote, and merged corpuses
 #       is to make the code more readable and easier to understand.
-#       The BaseCorpus class is used to represent the initial corpus state, before any merge operations have been performed.
+#       The BaseCorpus class is used to represent the initial corpus state,
+#       before any merge operations have been performed.
 #       The PartitionedCorpus class is used to partition the corpus into local and remote parts.
 #       The FinalCorpus class is used to represent the corpus after the merge operation has been performed.
 
@@ -260,7 +261,8 @@ class MergerBot:
                         },
                     )
 
-                    # We specify the remote_dir as the target dir as that will cause any `local_dir` files that adds coverage to be moved to remote_dir.
+                    # We specify the remote_dir as the target dir as that will cause any `local_dir`
+                    # files that adds coverage to be moved to remote_dir.
                     self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir))
                     span.set_status(Status(StatusCode.OK))
 
@@ -270,7 +272,8 @@ class MergerBot:
         Given a task/WeightedHarness, we want to merge the local corpus into the remote corpus if it adds coverage
            - acquire a lock on the merged corpus set, if not possible, return and move on to next task
            - ensure all of the remotely stored corpus files are available locally
-           - partition the the local corpus into R and L, where R is the remote corpus and L is the local corpus excluding remote files (L = local_files - remote_files)
+           - partition the the local corpus into R and L, where R is the remote corpus and L is
+             the local corpus excluding remote files (L = local_files - remote_files)
            - if L is empty the node is up to date, release the lock and move on to next task.
            - copy the local corpus into R and L directories respectively
            - run merger on R and L, moving files from L to R if they add coverage
@@ -306,12 +309,14 @@ class MergerBot:
                     # If L is empty, the node is up to date
                     if not partitioned_corpus.local_only_files:
                         logger.debug(
-                            f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because local corpus is up to date"
+                            f"Skipping merge for {task.harness_name} | {task.package_name} | "
+                            f"{task.task_id} because local corpus is up to date"
                         )
                         return False  # We did not do any work
 
                     logger.info(
-                        f"Found {len(partitioned_corpus.local_only_files)} files only in local corpus for {task.harness_name}. Will run merge operation."
+                        f"Found {len(partitioned_corpus.local_only_files)} files only in local corpus "
+                        f"for {task.harness_name}. Will run merge operation."
                     )
 
                     try:
@@ -348,7 +353,8 @@ class MergerBot:
 
         except FailedToAcquireLock:
             logger.debug(
-                f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because another worker is already merging"
+                f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} "
+                f"because another worker is already merging"
             )
         except Exception as e:
             logger.error(f"Error merging corpus: {e}")

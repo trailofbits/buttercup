@@ -14,12 +14,8 @@ class BuilderSettings(BaseModel):
 
 
 class WorkerSettings(BaseModel):
-    redis_url: Annotated[
-        str, Field(default="redis://localhost:6379", description="Redis URL")
-    ]
-    sleep_time: Annotated[
-        float, Field(default=1.0, description="Sleep time between checks in seconds")
-    ]
+    redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
+    sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     python: Annotated[str, Field(default="python", description="Python path")]
 
 
@@ -33,13 +29,9 @@ class ProcessCommand(WorkerSettings, BuilderSettings):
 
 
 class Settings(BaseSettings):
-    scratch_dir: Annotated[
-        Path, Field(default="/tmp/scratch", description="Directory for scratch space")
-    ]
+    scratch_dir: Annotated[Path, Field(default="/tmp/scratch", description="Directory for scratch space")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
-    log_max_line_length: Annotated[
-        int | None, Field(default=None, description="Log max line length")
-    ]
+    log_max_line_length: Annotated[int | None, Field(default=None, description="Log max line length")]
 
     serve: CliSubCommand[ServeCommand]
     process: CliSubCommand[ProcessCommand]
