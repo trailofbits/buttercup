@@ -66,9 +66,7 @@ class SeedInitTask(SeedBaseTask):
         )
         workflow = self._build_workflow(BaseTaskState)
         llm_callbacks = get_langfuse_callbacks()
-        chain = workflow.compile().with_config(
-            RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks)
-        )
+        chain = workflow.compile().with_config(RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks))
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span("seed_gen_init") as span:
             set_crs_attributes(

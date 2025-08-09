@@ -90,9 +90,7 @@ def test_do_task_valid_pov(
         patch("buttercup.seed_gen.vuln_base_task.stack_parsing.get_crash_token") as mock_get_token,
     ):
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
-            mock_span
-        )
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
         mock_get_token.return_value = "test_crash_token"
 
@@ -144,9 +142,7 @@ def test_do_task_valid_pov(
 
         vuln_messages = []
         for _ in range(vuln_discovery_full_task.MAX_POV_ITERATIONS):
-            vuln_messages.append(
-                AIMessage(content="This is a buffer overflow vulnerability in the strcpy function")
-            )
+            vuln_messages.append(AIMessage(content="This is a buffer overflow vulnerability in the strcpy function"))
             vuln_messages.append(
                 AIMessage(
                     content=(
@@ -161,15 +157,9 @@ def test_do_task_valid_pov(
 
         mock_llm.invoke.side_effect = context_messages + vuln_messages
 
-        vuln_discovery_full_task.codequery.get_functions = Mock(
-            return_value=mock_codequery_responses["get_functions"]
-        )
-        vuln_discovery_full_task.codequery.get_callers = Mock(
-            return_value=mock_codequery_responses["get_callers"]
-        )
-        vuln_discovery_full_task.codequery.get_types = Mock(
-            return_value=mock_codequery_responses["get_types"]
-        )
+        vuln_discovery_full_task.codequery.get_functions = Mock(return_value=mock_codequery_responses["get_functions"])
+        vuln_discovery_full_task.codequery.get_callers = Mock(return_value=mock_codequery_responses["get_callers"])
+        vuln_discovery_full_task.codequery.get_types = Mock(return_value=mock_codequery_responses["get_types"])
         vuln_discovery_full_task.challenge_task.exec_docker_cmd = Mock(
             return_value=mock_challenge_task_responses["exec_docker_cmd"]
         )
@@ -188,9 +178,9 @@ def test_do_task_valid_pov(
 
         for i in range(2):
             iter_pov_files = list(out_dir.glob(f"iter{i}_*.seed"))
-            assert (
-                len(iter_pov_files) == 2
-            ), f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            assert len(iter_pov_files) == 2, (
+                f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            )
 
             iter_pov1_file = next(f for f in iter_pov_files if "gen_seed_1" in f.name)
             iter_pov2_file = next(f for f in iter_pov_files if "gen_seed_2" in f.name)
@@ -210,6 +200,6 @@ def test_do_task_valid_pov(
         assert crash_call.stacktrace == "Stack trace for crash"
 
         iter_pov_files_skipped = list(out_dir.glob("iter2_*.seed"))
-        assert (
-            len(iter_pov_files_skipped) == 0
-        ), f"Expected skipping 3rd iter, but there are {len(iter_pov_files_skipped)} seeds"
+        assert len(iter_pov_files_skipped) == 0, (
+            f"Expected skipping 3rd iter, but there are {len(iter_pov_files_skipped)} seeds"
+        )

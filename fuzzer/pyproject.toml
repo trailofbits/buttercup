@@ -1,5 +1,5 @@
 [project]
-name = "fuzzing-infra"
+name = "fuzzer"
 version = "0.1.0"
 description = "Automated vulnerability discovery through intelligent fuzzing"
 readme = "README.md"

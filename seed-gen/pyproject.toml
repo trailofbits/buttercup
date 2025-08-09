@@ -58,7 +58,7 @@ dev = [
 ]
 
 [project.scripts]
-"seed-gen" = "buttercup.seed_gen._cli:main"
+"buttercup-seed-gen" = "buttercup.seed_gen._cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -303,16 +303,12 @@ def mock_codequery_responses():
 def mock_challenge_task_responses():
     """Create mock challenge task responses."""
     return {
-        "exec_docker_cmd": MagicMock(
-            success=True, output=b"int target_function(char* input) { /* function body */ }"
-        )
+        "exec_docker_cmd": MagicMock(success=True, output=b"int target_function(char* input) { /* function body */ }")
     }
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--runintegration", action="store_true", default=False, help="run integration tests"
-    )
+    parser.addoption("--runintegration", action="store_true", default=False, help="run integration tests")
 
 
 def pytest_configure(config):

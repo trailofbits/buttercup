@@ -52,7 +52,6 @@ buttercup-ui = "buttercup.orchestrator.ui.__cli__:main"
 
 [dependency-groups]
 dev = [
-    "flake8 ~= 7.1.1",
     "mypy ~= 1.15.0",
     "pytest ~= 8.3.4",
     "pytest-asyncio ~= 0.25.2",

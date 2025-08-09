@@ -393,7 +393,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fuzzing-infra"
+name = "fuzzer"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
