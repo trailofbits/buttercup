@@ -8,19 +8,19 @@ on:
   pull_request:
     paths:
       # Component-specific triggers
-      - 'common/**'
-      - 'orchestrator/**'
-      - 'fuzzer/**'
-      - 'program-model/**'
-      - 'seed-gen/**'
-      - 'patcher/**'
+      - "common/**"
+      - "orchestrator/**"
+      - "fuzzer/**"
+      - "program-model/**"
+      - "seed-gen/**"
+      - "patcher/**"
       # Workflow changes
-      - '.github/workflows/lint.yml'
-      - '.github/workflows/tests.yml'
+      - ".github/workflows/lint.yml"
+      - ".github/workflows/tests.yml"
       # Global configuration that affects linting
-      - 'Makefile'
-      - 'protoc.sh'
-      - '**/*.proto'
+      - "Makefile"
+      - "protoc.sh"
+      - "**/*.proto"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -74,7 +74,7 @@ jobs:
       needs.changes.outputs.seed-gen == 'true' ||
       needs.changes.outputs.patcher == 'true'
     strategy:
-      fail-fast: false  # Continue running other components even if one fails
+      fail-fast: false # Continue running other components even if one fails
       matrix:
         include:
           - component: common
@@ -87,9 +87,10 @@ jobs:
             should_run: ${{ needs.changes.outputs.seed-gen == 'true' || needs.changes.outputs.run-all == 'true' }}
           - component: patcher
             should_run: ${{ needs.changes.outputs.patcher == 'true' || needs.changes.outputs.run-all == 'true' }}
+          - component: fuzzer
+            should_run: ${{ needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true' }}
 
     runs-on: ubuntu-latest
-    if: matrix.should_run
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,52 +123,6 @@ jobs:
       - name: Run mypy on ${{ matrix.component }}
         run: uv run mypy
         working-directory: ${{ matrix.component }}
-
-  # Lint fuzzer component
-  lint-fuzzer:
-    needs: changes
-    # Only run if fuzzer changed or we need to run all
-    if: needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Setup uv cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: ${{ runner.os }}-uv-fuzzer-${{ hashFiles('fuzzer/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-fuzzer-
-            ${{ runner.os }}-uv-
-
-      - name: Setup fuzzer component
-        run: uv sync --all-extras
-        working-directory: fuzzer
-
-      - name: Run ruff on fuzzer
-        run: |
-          uv run ruff format --check --diff
-          uv run ruff check --output-format=github
-        working-directory: fuzzer
-
-      # Type checking for fuzzer has known issues due to complex dependencies
-      # and external library type stubs. This is technical debt, not instability.
-      - name: Run mypy on fuzzer
-        run: uv run mypy
-        working-directory: fuzzer
-        continue-on-error: true  # Known type checking issues - tracked for future resolution
-        
-      - name: Report mypy status
-        if: failure()
-        run: echo "::warning file=fuzzer::Fuzzer component has type checking issues that need attention"
 
   check-protobuf:
     needs: changes
