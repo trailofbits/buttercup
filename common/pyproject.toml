@@ -51,23 +51,59 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3.4",
-    "ruff>=0.12.8",
-    "mypy>=1.15.0",
+    "pytest ~= 8.3.4",
+    "ruff ~= 0.12.8",
+    "mypy ~= 1.15.0",
     "types-requests",
     "types-PyYAML",
     "types-redis",
-    "dirty-equals>=0.9.0",
+    "dirty-equals ~= 0.9.0",
+]
+
+[tool.coverage.run]
+source = ["src/buttercup"]
+omit = ["*/tests/*", "*/__cli__.py", "*/_cli.py", "*/util_cli.py", "*/challenge_task_cli.py", "*/task_registry.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
 ]
 
 [tool.ruff]
 line-length = 120
+target-version = "py312"
 exclude = [
     "./src/buttercup/common/datastructures",
     "./src/buttercup/common/clusterfuzz_env",
     "./src/buttercup/common/clusterfuzz_parser",
     "src/buttercup/common/clusterfuzz_utils.py",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["COM812", "ISC001"]  # Formatter conflicts
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"*/__cli__.py" = ["T201"]  # Allow print in CLI modules
+"*/util_cli.py" = ["T201"]
+"*/challenge_task_cli.py" = ["T201"]
+"*/task_registry.py" = ["T201"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

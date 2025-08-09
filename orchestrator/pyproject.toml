@@ -52,19 +52,19 @@ buttercup-ui = "buttercup.orchestrator.ui.__cli__:main"
 
 [dependency-groups]
 dev = [
-    "flake8>=7.1.1",
-    "mypy>=1.15.0",
-    "pytest>=8.3.4",
-    "pytest-asyncio>=0.25.2",
-    "pytest-cov>=6.0.0",
-    "pytest-xdist>=3.6.1",
-    "ruff>=0.12.8",
-    "types-python-dateutil>=2.9.0.20241206",
-    "types-requests>=2.32.0",
-    "types-redis>=4.6.0",
-    "fastapi[standard]>=0.115.6",
-    "responses>=0.25.6",
-    "httpx>=0.28.1",
+    "flake8 ~= 7.1.1",
+    "mypy ~= 1.15.0",
+    "pytest ~= 8.3.4",
+    "pytest-asyncio ~= 0.25.2",
+    "pytest-cov ~= 6.0.0",
+    "pytest-xdist ~= 3.6.1",
+    "ruff ~= 0.12.8",
+    "types-python-dateutil ~= 2.9.0.20241206",
+    "types-requests ~= 2.32.0",
+    "types-redis ~= 4.6.0",
+    "fastapi[standard] ~= 0.115.6",
+    "responses ~= 0.25.6",
+    "httpx ~= 0.28.1",
 ]
 
 [build-system]
@@ -77,8 +77,33 @@ packages = ["src/buttercup"]
 [tool.uv.sources]
 common = { path = "../common", editable = true }
 
+[tool.coverage.run]
+source = ["src/buttercup"]
+omit = ["*/tests/*", "*/__cli__.py", "*/_cli.py", "*/auth_tool.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
 [tool.ruff]
 line-length = 120
+target-version = "py312"
 exclude = [
     "src/buttercup/orchestrator/competition_api_client",
     "test/test_types_*.py",
@@ -87,6 +112,15 @@ exclude = [
     "test/test_sarif_api.py",
     "src/buttercup/orchestrator/task_server/models/",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["COM812", "ISC001"]  # Formatter conflicts
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"*/__cli__.py" = ["T201"]  # Allow print in CLI modules
+"*/auth_tool.py" = ["T201"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

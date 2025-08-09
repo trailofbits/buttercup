@@ -29,7 +29,7 @@ dependencies = [
     "rapidfuzz ~= 3.12.2",
     "langgraph ~= 0.5.2",
     "langchain ~= 0.3.20",
-    "python-dotenv~=1.0.1",
+    "python-dotenv ~= 1.0.1",
 ]
 
 [tool.uv.sources]
@@ -52,7 +52,7 @@ Documentation = "https://github.com/trailofbits/buttercup#readme"
 dev = [
     "mypy ~= 1.15.0",
     "pytest ~= 8.3.4",
-    "ruff>=0.12.8",
+    "ruff ~= 0.12.8",
     "tqdm ~= 4.67.1",
     "types-redis",
 ]
@@ -60,9 +60,29 @@ dev = [
 [project.scripts]
 "seed-gen" = "buttercup.seed_gen._cli:main"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
 [tool.coverage.run]
-# don't attempt code coverage for the CLI entrypoints
-omit = ["src/seed_gen/_cli.py"]
+source = ["src/buttercup"]
+omit = ["*/tests/*", "*/__cli__.py", "*/_cli.py", "src/seed_gen/_cli.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
@@ -86,23 +106,17 @@ warn_unused_ignores = true
 
 [tool.ruff]
 line-length = 120
-include = ["src/**/*.py", "test/**/*.py", "eval/**/*.py"]
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
-# D203 and D213 are incompatible with D211 and D212 respectively.
-# COM812 and ISC001 can cause conflicts when using ruff as a formatter.
-# See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
-ignore = ["D203", "D213", "COM812", "ISC001"]
+ignore = ["COM812", "ISC001"]  # Formatter conflicts
 
 [tool.ruff.lint.per-file-ignores]
-"src/seed_gen/_cli.py" = [
-    "T201", # allow `print` in cli module
-]
-"test/**/*.py" = [
-    "D",    # no docstrings in tests
-    "S101", # asserts are expected in tests
-]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"test/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"*/__cli__.py" = ["T201"]  # Allow print in CLI modules
+"src/seed_gen/_cli.py" = ["T201"]  # Allow print in CLI module
 [tool.interrogate]
 # don't enforce documentation coverage for packaging, testing, the virtual
 # environment, or the CLI (which is documented separately).

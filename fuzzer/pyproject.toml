@@ -2,6 +2,7 @@
 name = "fuzzing-infra"
 version = "0.1.0"
 description = "Automated vulnerability discovery through intelligent fuzzing"
+readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
@@ -52,10 +53,50 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.12.8", "mypy>=1.15.0"]
+dev = ["pytest ~= 8.3.4", "ruff ~= 0.12.8", "mypy ~= 1.15.0"]
+
+[tool.coverage.run]
+source = ["src/buttercup"]
+omit = ["*/tests/*", "*/__cli__.py", "*/_cli.py", "*/builder_bot.py", "*/fuzzer_bot.py", "*/coverage_bot.py", "*/tracer_bot.py", "*/corpus_sync.py", "*/corpus_merger.py", "*/utils_cli.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
 
 [tool.ruff]
 line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["COM812", "ISC001"]  # Formatter conflicts
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"*/__cli__.py" = ["T201"]  # Allow print in CLI modules
+"*/builder_bot.py" = ["T201"]
+"*/fuzzer_bot.py" = ["T201"]
+"*/coverage_bot.py" = ["T201"]
+"*/tracer_bot.py" = ["T201"]
+"*/corpus_sync.py" = ["T201"]
+"*/corpus_merger.py" = ["T201"]
+"*/utils_cli.py" = ["T201"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
