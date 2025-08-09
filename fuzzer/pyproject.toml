@@ -1,10 +1,9 @@
 [project]
 name = "fuzzing-infra"
 version = "0.1.0"
-description = "Automated vulnerability discovery through intelligent fuzzing"
-authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
-license = "AGPL-3.0"
-requires-python = ">=3.12,<3.13"
+description = ""
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "protobuf (>=3.20, <=3.20.3)",
     "redis (>=5.2.1,<6.0.0)",
@@ -14,10 +13,6 @@ dependencies = [
     "beautifulsoup4>=4.13.3",
     "lxml>=5.3.1",
 ]
-
-[project.urls]
-Repository = "https://github.com/trailofbits/buttercup"
-Issues = "https://github.com/trailofbits/buttercup/issues"
 
 [project.scripts]
 buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder_bot:main"

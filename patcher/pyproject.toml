@@ -1,10 +1,9 @@
 [project]
 name = "patcher"
 version = "0.1.0"
-description = "LLM-powered automated patch generation for vulnerabilities"
+description = "Buttercup patcher"
 readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
-license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "common",
@@ -19,15 +18,11 @@ dependencies = [
     "unidiff>=0.7.5",
 ]
 
-[project.urls]
-Repository = "https://github.com/trailofbits/buttercup"
-Issues = "https://github.com/trailofbits/buttercup/issues"
-
 [project.scripts]
 buttercup-patcher = "buttercup.patcher.__cli__:main"
 
-[dependency-groups]
-dev = [
+[project.optional-dependencies]
+tests = [
     "flake8>=7.1.1",
     "mypy>=1.15.0",
     "pytest>=8.3.4",
