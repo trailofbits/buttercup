@@ -372,11 +372,11 @@ class QueueFactory:
     @overload
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
-    ) -> ReliableQueue[MsgType]: ...
+    ) -> ReliableQueue[Message]: ...
 
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
-    ) -> ReliableQueue[MsgType]:
+    ) -> ReliableQueue[Message]:
         if queue_name not in self._config:
             raise ValueError(f"Invalid queue name: {queue_name}")
 
