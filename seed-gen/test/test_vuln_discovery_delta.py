@@ -66,9 +66,7 @@ def test_do_task_no_valid_povs(
     ):
         # Mock the tracer span
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
-            mock_span
-        )
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
 
         # Mock LLM responses for the workflow
@@ -141,9 +139,7 @@ def test_do_task_no_valid_povs(
             ),
         ]
         # this works because there is 1 mock_llm instance for the test
-        mock_llm.invoke.side_effect = (
-            context_messages + vuln_messages * vuln_discovery_task.MAX_POV_ITERATIONS
-        )
+        mock_llm.invoke.side_effect = context_messages + vuln_messages * vuln_discovery_task.MAX_POV_ITERATIONS
 
         # Mock codequery for tools
         vuln_discovery_task.codequery.get_functions = Mock(
@@ -151,11 +147,7 @@ def test_do_task_no_valid_povs(
                 MagicMock(
                     name="vulnerable_function",
                     file_path=Path("/src/test.c"),
-                    bodies=[
-                        MagicMock(
-                            body="int vulnerable_function(char* input) { /* function body */ }"
-                        )
-                    ],
+                    bodies=[MagicMock(body="int vulnerable_function(char* input) { /* function body */ }")],
                 )
             ]
         )
@@ -171,9 +163,7 @@ def test_do_task_no_valid_povs(
             return_value=[
                 MagicMock(
                     file_path=Path("/src/main.c"),
-                    bodies=[
-                        MagicMock(body='int main() { vulnerable_function("test"); return 0; }')
-                    ],
+                    bodies=[MagicMock(body='int main() { vulnerable_function("test"); return 0; }')],
                     name="main",
                 )
             ]
@@ -181,9 +171,7 @@ def test_do_task_no_valid_povs(
 
         # Mock challenge_task.exec_docker_cmd for cat tool
         vuln_discovery_task.challenge_task.exec_docker_cmd = Mock(
-            return_value=MagicMock(
-                success=True, output=b"int vulnerable_function(char* input) { /* function body */ }"
-            )
+            return_value=MagicMock(success=True, output=b"int vulnerable_function(char* input) { /* function body */ }")
         )
 
         vuln_discovery_task.do_task(out_dir, current_dir)
@@ -201,9 +189,9 @@ def test_do_task_no_valid_povs(
 
         for i in range(vuln_discovery_task.MAX_POV_ITERATIONS):
             iter_pov_files = list(out_dir.glob(f"iter{i}_*.seed"))
-            assert (
-                len(iter_pov_files) == 2
-            ), f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            assert len(iter_pov_files) == 2, (
+                f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            )
 
             # Check the content of the PoV files
             iter_pov1_file = next(f for f in iter_pov_files if "gen_seed_1" in f.name)
