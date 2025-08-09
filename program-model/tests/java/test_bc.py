@@ -4,19 +4,18 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
-
 from ..common import (
-    TestCalleeInfo,
-    TestCallerInfo,
+    common_test_get_functions,
+    common_test_get_callers,
+    common_test_get_callees,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
     TestFunctionInfo,
+    TestCallerInfo,
+    TestCalleeInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
     TypeDefinitionType,
-    common_test_get_callees,
-    common_test_get_callers,
-    common_test_get_functions,
-    common_test_get_type_definitions,
-    common_test_get_type_usages,
 )
 
 
@@ -114,7 +113,9 @@ def test_get_callers(
         ),
     ],
 )
-@pytest.mark.skip(reason="Skipping callee test for now. It's not working because it gets filtered out from imports.")
+@pytest.mark.skip(
+    reason="Skipping callee test for now. It's not working because it gets filtered out from imports."
+)
 @pytest.mark.integration
 def test_get_callees(
     bc_oss_fuzz_task: ChallengeTask,
@@ -194,7 +195,9 @@ def test_get_type_definitions(
         ),
     ],
 )
-@pytest.mark.skip(reason="Skipping type usage test for now. Class is directly imported and used.")
+@pytest.mark.skip(
+    reason="Skipping type usage test for now. Class is directly imported and used."
+)
 @pytest.mark.integration
 def test_get_type_usages(
     bc_oss_fuzz_task: ChallengeTask,

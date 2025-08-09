@@ -1,12 +1,11 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
-from pathlib import Path
-
+from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand, CliImplicitFlag
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, get_subcommand
-
 from buttercup.common.challenge_task import ChallengeTask, CommandResult, ReproduceResult
 from buttercup.common.logger import setup_package_logger
+from pathlib import Path
+from typing import Dict
+from contextlib import contextmanager
+from typing import Iterator
 
 
 class BuildImageCommand(BaseModel):
@@ -23,7 +22,7 @@ class BuildFuzzersCommand(BaseModel):
     architecture: str | None = None
     engine: str | None = None
     sanitizer: str | None = None
-    env: dict[str, str] | None = None
+    env: Dict[str, str] | None = None
     use_cache: bool = True
 
 
@@ -31,7 +30,7 @@ class CheckBuildCommand(BaseModel):
     architecture: str | None = None
     engine: str | None = None
     sanitizer: str | None = None
-    env: dict[str, str] | None = None
+    env: Dict[str, str] | None = None
 
 
 class ReproducePovCommand(BaseModel):
@@ -39,7 +38,7 @@ class ReproducePovCommand(BaseModel):
     crash_path: Path
     fuzzer_args: list[str] | None = None
     architecture: str | None = None
-    env: dict[str, str] | None = None
+    env: Dict[str, str] | None = None
 
 
 class Settings(BaseSettings):

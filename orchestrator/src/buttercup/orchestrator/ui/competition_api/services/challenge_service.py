@@ -8,21 +8,21 @@ import subprocess
 import tarfile
 import tempfile
 import time
-import uuid
 from pathlib import Path
-from typing import Any
+from typing import Optional, Any
+import uuid
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
-    SARIFBroadcast,
-    SARIFBroadcastDetail,
     SourceDetail,
     SourceType,
     Task,
     TaskDetail,
     TaskType,
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class ChallengeService:
         repo_url: str,
         ref: str,
         tarball_name: str,
-        exclude_dirs: list[str] | None = None,
+        exclude_dirs: Optional[list[str]] = None,
         base_ref: str | None = None,
     ) -> tuple[str, str, str | None]:
         """

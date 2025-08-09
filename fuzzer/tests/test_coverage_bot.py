@@ -1,14 +1,12 @@
+import pytest
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch, MagicMock
 from redis import Redis
-
-from buttercup.common.datastructures.msg_pb2 import FunctionCoverage
-from buttercup.common.maps import CoverageMap
 from buttercup.fuzzing_infra.coverage_bot import CoverageBot
 from buttercup.fuzzing_infra.coverage_runner import CoveredFunction
+from buttercup.common.maps import CoverageMap
+from buttercup.common.datastructures.msg_pb2 import FunctionCoverage
 
 
 @pytest.fixture

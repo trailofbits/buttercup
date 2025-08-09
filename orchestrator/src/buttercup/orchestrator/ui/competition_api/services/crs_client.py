@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-
 import requests
 
-from buttercup.orchestrator.ui.competition_api.models.crs_types import SARIFBroadcast, Task
+from buttercup.orchestrator.ui.competition_api.models.crs_types import Task, SARIFBroadcast
 
 logger = logging.getLogger(__name__)
 

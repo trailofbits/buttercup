@@ -4,38 +4,38 @@
 
 from __future__ import annotations
 
-import importlib.metadata
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID
+import importlib.metadata
 
 from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerifyMismatchError
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
-from urllib3.exceptions import MaxRetryError, NewConnectionError
 
+from buttercup.orchestrator.task_server.models.types import Status, Task, SARIFBroadcast, StatusState
+from buttercup.orchestrator.task_server.backend import (
+    delete_task,
+    new_task,
+    delete_all_tasks,
+    store_sarif_broadcast,
+    get_status_tasks_state,
+)
 from buttercup.common.logger import setup_package_logger
+from buttercup.orchestrator.task_server.dependencies import (
+    get_delete_task_queue,
+    get_task_queue,
+    get_settings,
+    get_sarif_store,
+)
+from buttercup.orchestrator.task_server.config import TaskServerSettings
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
+from urllib3.exceptions import MaxRetryError, NewConnectionError
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.orchestrator.competition_api_client.api.ping_api import PingApi
 from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
-from buttercup.orchestrator.task_server.backend import (
-    delete_all_tasks,
-    delete_task,
-    get_status_tasks_state,
-    new_task,
-    store_sarif_broadcast,
-)
-from buttercup.orchestrator.task_server.config import TaskServerSettings
-from buttercup.orchestrator.task_server.dependencies import (
-    get_delete_task_queue,
-    get_sarif_store,
-    get_settings,
-    get_task_queue,
-)
-from buttercup.orchestrator.task_server.models.types import SARIFBroadcast, Status, StatusState, Task
 
 settings = get_settings()
 logger = setup_package_logger("task-server", __name__, settings.log_level, settings.log_max_line_length)
@@ -216,7 +216,7 @@ def post_v1_task_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     body: Task,
     tasks_queue: Annotated[ReliableQueue, Depends(get_task_queue)],
-) -> str | None:
+) -> Optional[str]:
     """
     Submit Task
     """

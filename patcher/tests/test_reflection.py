@@ -1,31 +1,31 @@
 """Tests for the Reflection Agent."""
 
-import os
+import pytest
+from pathlib import Path
 import shutil
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
+import os
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableSequence
-from langgraph.constants import END
 from langgraph.types import Command
+from langgraph.constants import END
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.task_meta import TaskMeta
-from buttercup.patcher.agents.common import (
-    ExecutionInfo,
-    PatchAttempt,
-    PatcherAgentName,
-    PatcherAgentState,
-    PatchOutput,
-    PatchStatus,
-)
-from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.patcher.agents.reflection import ReflectionAgent
+from buttercup.patcher.agents.common import (
+    PatcherAgentState,
+    PatcherAgentName,
+    PatchStatus,
+    PatchAttempt,
+    PatchOutput,
+    ExecutionInfo,
+)
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.task_meta import TaskMeta
+from buttercup.patcher.agents.config import PatcherConfig
+
 
 original_subprocess_run = subprocess.run
 
@@ -108,11 +108,9 @@ def task_dir(tmp_path: Path) -> Path:
     # Create project.yaml file
     project_yaml_path = oss_fuzz / "projects" / "example_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-    project_yaml_path.write_text(
-        """name: example_project
+    project_yaml_path.write_text("""name: example_project
 language: c
-"""
-    )
+""")
 
     # Create some mock patch files
     (diffs / "patch1.diff").write_text("mock patch 1")

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, constr
 
@@ -21,19 +21,19 @@ class Assessment(Enum):
 
 
 class BundleSubmission(BaseModel):
-    broadcast_sarif_id: str | None = None
-    description: str | None = Field(
+    broadcast_sarif_id: Optional[str] = None
+    description: Optional[str] = Field(
         None,
         description="optional plaintext description of the components of the bundle, such as would be found in a pull request description or bug report",
     )
-    freeform_id: str | None = None
-    patch_id: str | None = None
-    pov_id: str | None = None
-    submitted_sarif_id: str | None = None
+    freeform_id: Optional[str] = None
+    patch_id: Optional[str] = None
+    pov_id: Optional[str] = None
+    submitted_sarif_id: Optional[str] = None
 
 
 class Error(BaseModel):
-    fields: dict[str, str] | None = None
+    fields: Optional[Dict[str, str]] = None
     message: str
 
 
@@ -49,7 +49,7 @@ class FuzzingEngine(Enum):
 
 
 class Message(BaseModel):
-    message: str | None = None
+    message: Optional[str] = None
 
 
 class POVSubmission(BaseModel):
@@ -80,18 +80,18 @@ class PingResponse(BaseModel):
 
 
 class RequestListResponse(BaseModel):
-    challenges: list[str] = Field(..., description="List of challenges that competitors may task themselves with")
+    challenges: List[str] = Field(..., description="List of challenges that competitors may task themselves with")
 
 
 class RequestSubmission(BaseModel):
-    duration_secs: int | None = Field(
+    duration_secs: Optional[int] = Field(
         None,
         description="Time in seconds until a task should expire. If not provided, defaults to 3600.",
     )
 
 
 class SARIFSubmission(BaseModel):
-    sarif: dict[str, Any] = Field(..., description="SARIF object compliant with the provided schema")
+    sarif: Dict[str, Any] = Field(..., description="SARIF object compliant with the provided schema")
 
 
 class SarifAssessmentSubmission(BaseModel):
@@ -120,17 +120,17 @@ class BundleSubmissionResponse(BaseModel):
 
 
 class BundleSubmissionResponseVerbose(BaseModel):
-    broadcast_sarif_id: str | None = None
+    broadcast_sarif_id: Optional[str] = None
     bundle_id: str
-    description: str | None = None
-    freeform_id: str | None = None
-    patch_id: str | None = None
-    pov_id: str | None = None
+    description: Optional[str] = None
+    freeform_id: Optional[str] = None
+    patch_id: Optional[str] = None
+    pov_id: Optional[str] = None
     status: SubmissionStatus = Field(
         ...,
         description="Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded",
     )
-    submitted_sarif_id: str | None = None
+    submitted_sarif_id: Optional[str] = None
 
 
 class FreeformResponse(BaseModel):
@@ -147,7 +147,7 @@ class POVSubmissionResponse(BaseModel):
 
 
 class PatchSubmissionResponse(BaseModel):
-    functionality_tests_passing: bool | None = Field(None, description="null indicates the tests have not been run")
+    functionality_tests_passing: Optional[bool] = Field(None, description="null indicates the tests have not been run")
     patch_id: str
     status: SubmissionStatus
 

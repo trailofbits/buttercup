@@ -1,8 +1,7 @@
-from pathlib import Path
-from typing import Annotated
-
-from pydantic import Field
 from pydantic_settings import BaseSettings
+from typing import Annotated
+from pydantic import Field
+from pathlib import Path
 
 
 class Settings(BaseSettings):

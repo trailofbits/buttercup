@@ -1,10 +1,8 @@
-import logging
-
-import uvicorn
-
+from buttercup.orchestrator.ui.config import Settings
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.telemetry import init_telemetry
-from buttercup.orchestrator.ui.config import Settings
+import logging
+import uvicorn
 
 # Import the generated FastAPI app
 

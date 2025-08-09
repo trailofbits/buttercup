@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from buttercup.common.clusterfuzz_utils import EXTRA_BUILD_DIR, get_fuzz_targets
+from buttercup.common.clusterfuzz_utils import get_fuzz_targets, EXTRA_BUILD_DIR
 
 
 class TestGetFuzzTargets(unittest.TestCase):

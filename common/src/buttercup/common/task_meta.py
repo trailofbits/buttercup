@@ -1,7 +1,7 @@
+from dataclasses import dataclass, asdict
 import json
-from dataclasses import asdict, dataclass
-from os import PathLike
 from pathlib import Path
+from os import PathLike
 
 
 @dataclass

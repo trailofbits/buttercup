@@ -1,20 +1,19 @@
-import argparse
-import os
-import time
-
-from redis import Redis
-
-from buttercup.common.clusterfuzz_utils import get_fuzz_targets
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.queues import (
-    GroupNames,
-    QueueFactory,
-    QueueNames,
     ReliableQueue,
     RQItem,
+    QueueFactory,
+    QueueNames,
+    GroupNames,
 )
+from buttercup.common.maps import HarnessWeights, BuildMap
+
+import argparse
+from redis import Redis
+from buttercup.common.datastructures.msg_pb2 import BuildType, BuildOutput, WeightedHarness
+import time
+from buttercup.common.clusterfuzz_utils import get_fuzz_targets
+import os
+from buttercup.common.logger import setup_package_logger
 
 logger = setup_package_logger("fuzzer-orchestrator", __name__)
 DEFAULT_WEIGHT = 1.0

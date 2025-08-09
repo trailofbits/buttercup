@@ -1,7 +1,7 @@
+from pydantic_settings import BaseSettings
 from typing import Annotated
-
 from pydantic import Field
-from pydantic_settings import BaseSettings, CliImplicitFlag
+from pydantic_settings import CliImplicitFlag
 
 
 class TaskServerSettings(BaseSettings):

@@ -11,11 +11,13 @@ import secrets
 import string
 import sys
 import uuid
+from typing import Tuple
 
 from argon2 import PasswordHasher, Type
 from rich import print as rprint
 from rich.console import Console
 from rich.table import Table
+
 
 # Create password hasher with Argon2id settings matching the server configuration
 ph = PasswordHasher(
@@ -56,7 +58,7 @@ def generate_key_id() -> str:
     return str(uuid.uuid4())
 
 
-def generate_api_key() -> tuple[str, str, str]:
+def generate_api_key() -> Tuple[str, str, str]:
     """
     Generate a complete API key (key ID and token) with hash.
 

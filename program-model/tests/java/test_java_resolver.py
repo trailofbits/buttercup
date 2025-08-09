@@ -1,5 +1,4 @@
 import pytest
-
 from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyJavaImportsResolver
 
 test_cases = [
@@ -31,4 +30,6 @@ def test_split_rightmost_component(input_expr, expected):
     """Test the split_rightmost_component function with various test cases."""
     resolver = FuzzyJavaImportsResolver(None, None)
     result = resolver.split_rightmost_dotexpr(input_expr)
-    assert result == expected, f"Failed on: {input_expr}\nExpected: {expected}\nGot: {result}"
+    assert result == expected, (
+        f"Failed on: {input_expr}\nExpected: {expected}\nGot: {result}"
+    )

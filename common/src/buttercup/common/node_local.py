@@ -1,14 +1,14 @@
 # Store the node local path for subsequent use
+from contextlib import contextmanager
 import logging
 import os
+from pathlib import Path
 import shutil
 import tarfile
-import tempfile
-from collections.abc import Iterator
-from contextlib import AbstractContextManager, contextmanager
-from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, TypeAlias
+import tempfile
+from typing import Any, Iterator, TypeAlias
+from contextlib import AbstractContextManager
 
 logger = logging.getLogger(__name__)
 

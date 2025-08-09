@@ -19,9 +19,13 @@ from buttercup.program_model.codequery import CodeQuery
     ],
 )
 @pytest.mark.integration
-def test_libpng_get_functions_fuzzy(libpng_oss_fuzz_task: ChallengeTask, search_string, match_string, threshold):
+def test_libpng_get_functions_fuzzy(
+    libpng_oss_fuzz_task: ChallengeTask, search_string, match_string, threshold
+):
     """Test that we can get functions in challenge task code"""
     codequery = CodeQuery(libpng_oss_fuzz_task)
-    functions = codequery.get_functions(search_string, fuzzy=True, fuzzy_threshold=threshold)
+    functions = codequery.get_functions(
+        search_string, fuzzy=True, fuzzy_threshold=threshold
+    )
     assert len(functions) > 0
     assert any(f.name == match_string for f in functions)

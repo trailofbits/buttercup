@@ -1,19 +1,17 @@
-import logging
-import os
-from pathlib import Path
-
-from redis import Redis
-
-import buttercup.common.node_local as node_local
-from buttercup.common import stack_parsing
-from buttercup.common.datastructures.msg_pb2 import TracedCrash
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.telemetry import init_telemetry
-from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
 from buttercup.fuzzing_infra.settings import TracerSettings
 from buttercup.fuzzing_infra.tracer_runner import TracerRunner
+from buttercup.common.logger import setup_package_logger
+import os
+import logging
+from redis import Redis
+from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
+from buttercup.common.datastructures.msg_pb2 import TracedCrash
+from buttercup.common.task_registry import TaskRegistry
+from pathlib import Path
+from buttercup.common import stack_parsing
+from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+import buttercup.common.node_local as node_local
+from buttercup.common.telemetry import init_telemetry
 
 logger = logging.getLogger(__name__)
 

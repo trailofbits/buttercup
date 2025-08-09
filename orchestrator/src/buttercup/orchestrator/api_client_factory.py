@@ -1,7 +1,6 @@
 import logging
-
-from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.configuration import Configuration
+from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 
 logger = logging.getLogger(__name__)
 

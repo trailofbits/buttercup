@@ -1,10 +1,8 @@
-from unittest.mock import MagicMock
-
 import pytest
 from redis import Redis
-
+from buttercup.common.sets import RedisSet, PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVReproduceResponse
-from buttercup.common.sets import PoVReproduceStatus, RedisSet
+from unittest.mock import MagicMock
 
 
 @pytest.fixture

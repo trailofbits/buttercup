@@ -1,22 +1,22 @@
 """Database models and operations for buttercup-ui."""
 
 import logging
-import uuid
-from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
+from typing import Iterator
+import uuid
 
 from sqlalchemy import (
     BLOB,
-    DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
     create_engine,
     func,
+    DateTime,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
+from sqlalchemy.orm import Session, relationship, sessionmaker, DeclarativeBase, Mapped, mapped_column
 
 logger = logging.getLogger(__name__)
 

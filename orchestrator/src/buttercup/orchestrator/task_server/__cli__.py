@@ -1,5 +1,4 @@
 import uvicorn
-
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 
 

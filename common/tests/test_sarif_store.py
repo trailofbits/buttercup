@@ -1,9 +1,7 @@
-import json
-
 import pytest
+import json
 from redis import Redis
-
-from buttercup.common.sarif_store import SARIFBroadcastDetail, SARIFStore
+from buttercup.common.sarif_store import SARIFStore, SARIFBroadcastDetail
 
 
 @pytest.fixture

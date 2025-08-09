@@ -3,63 +3,64 @@
 from __future__ import annotations
 
 import logging
-import operator
-import re
 import tempfile
 import time
-from concurrent.futures import TimeoutError, as_completed
-from dataclasses import dataclass, field
+import langgraph.errors
+import operator
+import re
 from itertools import groupby
 from operator import itemgetter
-from pathlib import Path
-from typing import Annotated, Any, Literal
-
-import langgraph.errors
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.output_parsers import StrOutputParser
+from langgraph.graph import END
+from langchain_openai.chat_models.base import BaseChatOpenAI
+from concurrent.futures import as_completed, TimeoutError
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from redis import Redis
+from buttercup.common.stack_parsing import parse_stacktrace
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage
+from buttercup.patcher.agents.config import PatcherConfig
+from dataclasses import dataclass, field
+from langchain_core.messages import ToolMessage
+from typing import Annotated, Any, Literal
+from pydantic import Field, ValidationError
+from pathlib import Path
+from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
+from langchain_core.tools.base import InjectedToolCallId
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.stack_parsing import CrashInfo
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from langchain_core.tools import tool
-from langchain_core.tools.base import InjectedToolCallId
-from langchain_openai.chat_models.base import BaseChatOpenAI
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph import END
-from langgraph.prebuilt import InjectedState
-from langgraph.prebuilt.chat_agent_executor import create_react_agent
-from langgraph.types import Command
-from pydantic import Field, ValidationError
-from redis import Redis
-
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.common.stack_parsing import CrashInfo, parse_stacktrace
+from buttercup.patcher.utils import truncate_output, get_challenge, TruncatePosition, find_file_in_source_dir
 from buttercup.patcher.agents.common import (
-    BaseCtxState,
+    PatcherAgentBase,
+    ContextRetrieverState,
+    ContextCodeSnippet,
     CodeSnippetKey,
     CodeSnippetRequest,
-    ContextCodeSnippet,
-    ContextRetrieverState,
-    PatcherAgentBase,
     PatcherAgentName,
     PatcherAgentState,
+    BaseCtxState,
     get_stacktraces_from_povs,
 )
-from buttercup.patcher.agents.config import PatcherConfig
+from buttercup.common.llm import ButtercupLLM, create_default_llm
+from langgraph.types import Command
+from langgraph.prebuilt.chat_agent_executor import create_react_agent
 from buttercup.patcher.agents.tools import (
-    MAX_OUTPUT_LENGTH,
+    ls,
+    grep,
     cat,
+    get_lines,
+    MAX_OUTPUT_LENGTH,
+    get_function_tool_impl,
+    get_type_tool_impl,
     get_callees,
     get_callers,
     get_function,
-    get_function_tool_impl,
-    get_lines,
     get_type,
-    get_type_tool_impl,
-    grep,
-    ls,
 )
-from buttercup.patcher.utils import TruncatePosition, find_file_in_source_dir, get_challenge, truncate_output
+
 
 logger = logging.getLogger(__name__)
 
@@ -536,9 +537,9 @@ def sh(
     command_file_path = None
     try:
         with tempfile.NamedTemporaryFile(dir=state.work_dir, delete=False) as f:
-            f.write(b"#!/bin/bash\n")
+            f.write("#!/bin/bash\n".encode("utf-8"))
             f.write(command.encode("utf-8"))
-            f.write(b"\n")
+            f.write("\n".encode("utf-8"))
             f.flush()
 
             command_file_path = Path(f.name)

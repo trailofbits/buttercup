@@ -1,26 +1,28 @@
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
-
 import pytest
+from unittest.mock import Mock, patch
 from redis import Redis
 
 from buttercup.common.datastructures.msg_pb2 import (
-    BuildOutput,
-    BuildType,
-    Patch,
-    SourceDetail,
     Task,
     TaskReady,
-    TracedCrash,
+    SourceDetail,
+    BuildOutput,
     WeightedHarness,
+    BuildType,
+    TracedCrash,
+    Patch,
 )
-from buttercup.common.maps import BuildMap
-from buttercup.common.queues import QueueFactory, RQItem
 from buttercup.common.task_meta import TaskMeta
-from buttercup.common.task_registry import TaskRegistry
+
+from buttercup.common.queues import RQItem
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.scheduler.submissions import Submissions
+from buttercup.common.queues import QueueFactory
+from buttercup.common.maps import BuildMap
+
+import tempfile
+from pathlib import Path
 
 
 @pytest.fixture

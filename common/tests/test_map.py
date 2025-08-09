@@ -1,8 +1,7 @@
 import pytest
 from redis import Redis
-
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness
 from buttercup.common.maps import RedisMap
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness
 
 
 @pytest.fixture

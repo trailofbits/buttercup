@@ -1,25 +1,17 @@
-import re
-import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
-from redis import Redis
-
+from buttercup.patcher.patcher import Patcher
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash, Task
 from buttercup.common.challenge_task import ChallengeTask, TaskMeta
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, ConfirmedVulnerability, Crash, Task, TracedCrash
+from buttercup.patcher.agents.common import CodeSnippetRequest
 from buttercup.common.queues import RQItem
 from buttercup.common.task_registry import TaskRegistry
-from buttercup.patcher.agents.common import (
-    CodeSnippetRequest,
-    PatchAttempt,
-    PatcherAgentState,
-    PatchInput,
-    PatchStatus,
-    add_or_mod_patch,
-)
-from buttercup.patcher.patcher import Patcher
+from buttercup.patcher.agents.common import PatcherAgentState, PatchInput, PatchAttempt, PatchStatus, add_or_mod_patch
 from buttercup.patcher.utils import PatchInputPoV
+import pytest
+from unittest.mock import patch, MagicMock
+import re
+import time
+from redis import Redis
 
 
 @pytest.fixture

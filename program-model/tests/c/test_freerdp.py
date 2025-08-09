@@ -2,19 +2,18 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
-
 from ..common import (
-    TestCalleeInfo,
-    TestCallerInfo,
-    TestFunctionInfo,
-    TestTypeDefinitionInfo,
-    TestTypeUsageInfo,
-    TypeDefinitionType,
-    common_test_get_callees,
     common_test_get_callers,
+    common_test_get_callees,
     common_test_get_functions,
     common_test_get_type_definitions,
     common_test_get_type_usages,
+    TestFunctionInfo,
+    TestCalleeInfo,
+    TestCallerInfo,
+    TestTypeDefinitionInfo,
+    TestTypeUsageInfo,
+    TypeDefinitionType,
 )
 
 
@@ -51,7 +50,9 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(freerdp_oss_fuzz_cq, function_name, file_path, function_info)
+    common_test_get_functions(
+        freerdp_oss_fuzz_cq, function_name, file_path, function_info
+    )
 
 
 @pytest.mark.parametrize(
@@ -238,7 +239,9 @@ def test_get_type_definitions(
         ),
     ],
 )
-@pytest.mark.skip(reason="Problem with codequery. Doesn't consider rdpAssistanceFile as being used")
+@pytest.mark.skip(
+    reason="Problem with codequery. Doesn't consider rdpAssistanceFile as being used"
+)
 @pytest.mark.integration
 def test_get_type_usages(
     freerdp_oss_fuzz_task: ChallengeTask,

@@ -1,17 +1,16 @@
-import logging
+from buttercup.orchestrator.scheduler.config import (
+    Settings,
+    ServeCommand,
+    ProcessBuildOutputCommand,
+    ProcessReadyTaskCommand,
+)
+from buttercup.orchestrator.scheduler.scheduler import Scheduler, Task, BuildOutput
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.telemetry import init_telemetry
 
 from pydantic_settings import get_subcommand
 from redis import Redis
-
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.telemetry import init_telemetry
-from buttercup.orchestrator.scheduler.config import (
-    ProcessBuildOutputCommand,
-    ProcessReadyTaskCommand,
-    ServeCommand,
-    Settings,
-)
-from buttercup.orchestrator.scheduler.scheduler import BuildOutput, Scheduler, Task
+import logging
 
 logger = logging.getLogger(__name__)
 
