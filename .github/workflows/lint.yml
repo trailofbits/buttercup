@@ -8,19 +8,19 @@ on:
   pull_request:
     paths:
       # Component-specific triggers
-      - 'common/**'
-      - 'orchestrator/**'
-      - 'fuzzer/**'
-      - 'program-model/**'
-      - 'seed-gen/**'
-      - 'patcher/**'
+      - "common/**"
+      - "orchestrator/**"
+      - "fuzzer/**"
+      - "program-model/**"
+      - "seed-gen/**"
+      - "patcher/**"
       # Workflow changes
-      - '.github/workflows/lint.yml'
-      - '.github/workflows/tests.yml'
+      - ".github/workflows/lint.yml"
+      - ".github/workflows/tests.yml"
       # Global configuration that affects linting
-      - 'Makefile'
-      - 'protoc.sh'
-      - '**/*.proto'
+      - "Makefile"
+      - "protoc.sh"
+      - "**/*.proto"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -74,7 +74,7 @@ jobs:
       needs.changes.outputs.seed-gen == 'true' ||
       needs.changes.outputs.patcher == 'true'
     strategy:
-      fail-fast: false  # Continue running other components even if one fails
+      fail-fast: false # Continue running other components even if one fails
       matrix:
         include:
           - component: common
@@ -89,7 +89,6 @@ jobs:
             should_run: ${{ needs.changes.outputs.patcher == 'true' || needs.changes.outputs.run-all == 'true' }}
 
     runs-on: ubuntu-latest
-    if: matrix.should_run
     steps:
       - uses: actions/checkout@v4
         with:
@@ -163,8 +162,8 @@ jobs:
       - name: Run mypy on fuzzer
         run: uv run mypy
         working-directory: fuzzer
-        continue-on-error: true  # Known type checking issues - tracked for future resolution
-        
+        continue-on-error: true # Known type checking issues - tracked for future resolution
+
       - name: Report mypy status
         if: failure()
         run: echo "::warning file=fuzzer::Fuzzer component has type checking issues that need attention"
