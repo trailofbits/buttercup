@@ -5,22 +5,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import openai
-from opentelemetry import trace
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
+from opentelemetry import trace
+from redis import Redis
 
+from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from buttercup.patcher.agents.common import PatcherAgentBase, PatcherAgentName, PatcherAgentState
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName, PatcherAgentBase
+from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
+from buttercup.patcher.agents.input_processing import InputProcessingAgent
 from buttercup.patcher.agents.qe import QEAgent
+from buttercup.patcher.agents.reflection import ReflectionAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
-from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
-from buttercup.patcher.agents.reflection import ReflectionAgent
-from buttercup.patcher.agents.input_processing import InputProcessingAgent
 from buttercup.patcher.utils import PatchOutput
-from buttercup.common.llm import get_langfuse_callbacks
-from redis import Redis
 
 logger = logging.getLogger(__name__)
 

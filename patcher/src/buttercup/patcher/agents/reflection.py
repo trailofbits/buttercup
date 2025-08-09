@@ -4,33 +4,35 @@ patch is not working, what can be done to fix it, etc.)"""
 from __future__ import annotations
 
 import logging
-from itertools import groupby
-from pydantic import BaseModel, Field
-from langchain_core.output_parsers import StrOutputParser
-from buttercup.patcher.utils import decode_bytes
 from dataclasses import dataclass, field
-from langgraph.constants import END
-from langgraph.types import Command
+from itertools import groupby
 from typing import Literal
+
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+)
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
 )
+from langgraph.constants import END
+from langgraph.types import Command
+from pydantic import BaseModel, Field
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
-    PatchStatus,
-    PatchAttempt,
     CodeSnippetRequest,
     PatchAnalysis,
+    PatchAttempt,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
+    PatchStatus,
     PatchStrategy,
 )
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-)
+from buttercup.patcher.utils import decode_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -605,9 +607,9 @@ class ReflectionAgent(PatcherAgentBase):
                         id=patch_attempt.id,
                         description=patch_attempt.description,
                         patch=patch_attempt.patch.patch if patch_attempt.patch else "",
-                        raw_patch_str=patch_attempt.patch_str
-                        if not patch_attempt.patch or not patch_attempt.patch.patch
-                        else "",
+                        raw_patch_str=(
+                            patch_attempt.patch_str if not patch_attempt.patch or not patch_attempt.patch.patch else ""
+                        ),
                         status=patch_attempt.status,
                         patch_strategy=state.patch_strategy.full if state.patch_strategy else "",
                     ),
@@ -624,9 +626,9 @@ class ReflectionAgent(PatcherAgentBase):
                                 patch=attempt.patch.patch if attempt.patch else "",
                                 status=attempt.status,
                                 failure_analysis=attempt.analysis.failure_analysis if attempt.analysis else None,
-                                resolution_component=attempt.analysis.resolution_component
-                                if attempt.analysis
-                                else None,
+                                resolution_component=(
+                                    attempt.analysis.resolution_component if attempt.analysis else None
+                                ),
                                 partial_success=attempt.analysis.partial_success if attempt.analysis else None,
                                 patch_strategy=attempt.strategy,
                             )

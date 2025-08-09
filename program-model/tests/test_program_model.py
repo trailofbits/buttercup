@@ -1,9 +1,11 @@
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, Mock
 from redis import Redis
-from buttercup.program_model.program_model import ProgramModel
+
 from buttercup.common.datastructures.msg_pb2 import IndexRequest
 from buttercup.common.task_registry import TaskRegistry
+from buttercup.program_model.program_model import ProgramModel
 
 
 @pytest.fixture
@@ -80,9 +82,7 @@ def test_serve_item_process_normal_task(program_model):
 
         # Verify the task was processed and acknowledged
         assert result is True
-        program_model.registry.should_stop_processing.assert_called_once_with(
-            mock_task_id
-        )
+        program_model.registry.should_stop_processing.assert_called_once_with(mock_task_id)
         program_model.process_task.assert_called_once_with(mock_request)
         program_model.task_queue.ack_item.assert_called_once_with(mock_item.item_id)
         program_model.output_queue.push.assert_called_once()

@@ -1,11 +1,129 @@
-import pytest
-from buttercup.common.stack_parsing import get_crash_data, get_inst_key, CrashSet, parse_stacktrace
-from unittest.mock import MagicMock
-from typing import Iterator
-from redis import Redis
+from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import MagicMock
 
-JAVA_TEST_INST_KEY = "JXPathFuzzer\norg.apache.commons.beanutils.DynaBean\norg.apache.commons.jxpath.CompiledExpression\norg.apache.commons.jxpath.ExpressionContext\norg.apache.commons.jxpath.Function\norg.apache.commons.jxpath.Functions\norg.apache.commons.jxpath.JXPathContext\norg.apache.commons.jxpath.JXPathContextFactory\norg.apache.commons.jxpath.JXPathContextFactoryConfigurationError\norg.apache.commons.jxpath.JXPathException\norg.apache.commons.jxpath.JXPathFunctionNotFoundException\norg.apache.commons.jxpath.JXPathInvalidAccessException\norg.apache.commons.jxpath.JXPathInvalidSyntaxException\norg.apache.commons.jxpath.JXPathNotFoundException\norg.apache.commons.jxpath.JXPathTypeConversionException\norg.apache.commons.jxpath.NodeSet\norg.apache.commons.jxpath.PackageFunctions\norg.apache.commons.jxpath.Pointer\norg.apache.commons.jxpath.Variables\norg.apache.commons.jxpath.ri.Compiler\norg.apache.commons.jxpath.ri.EvalContext\norg.apache.commons.jxpath.ri.InfoSetUtil\norg.apache.commons.jxpath.ri.JXPathContextFactoryReferenceImpl\norg.apache.commons.jxpath.ri.JXPathContextReferenceImpl\norg.apache.commons.jxpath.ri.NamespaceResolver\norg.apache.commons.jxpath.ri.Parser\norg.apache.commons.jxpath.ri.QName\norg.apache.commons.jxpath.ri.axes.AncestorContext\norg.apache.commons.jxpath.ri.axes.AttributeContext\norg.apache.commons.jxpath.ri.axes.ChildContext\norg.apache.commons.jxpath.ri.axes.DescendantContext\norg.apache.commons.jxpath.ri.axes.InitialContext\norg.apache.commons.jxpath.ri.axes.NamespaceContext\norg.apache.commons.jxpath.ri.axes.NodeSetContext\norg.apache.commons.jxpath.ri.axes.ParentContext\norg.apache.commons.jxpath.ri.axes.PrecedingOrFollowingContext\norg.apache.commons.jxpath.ri.axes.PredicateContext\norg.apache.commons.jxpath.ri.axes.RootContext\norg.apache.commons.jxpath.ri.axes.SelfContext\norg.apache.commons.jxpath.ri.axes.UnionContext\norg.apache.commons.jxpath.ri.compiler.Constant\norg.apache.commons.jxpath.ri.compiler.CoreFunction\norg.apache.commons.jxpath.ri.compiler.CoreOperation\norg.apache.commons.jxpath.ri.compiler.CoreOperationGreaterThan\norg.apache.commons.jxpath.ri.compiler.CoreOperationNegate\norg.apache.commons.jxpath.ri.compiler.CoreOperationRelationalExpression\norg.apache.commons.jxpath.ri.compiler.Expression\norg.apache.commons.jxpath.ri.compiler.ExpressionPath\norg.apache.commons.jxpath.ri.compiler.LocationPath\norg.apache.commons.jxpath.ri.compiler.NodeNameTest\norg.apache.commons.jxpath.ri.compiler.NodeTest\norg.apache.commons.jxpath.ri.compiler.NodeTypeTest\norg.apache.commons.jxpath.ri.compiler.Operation\norg.apache.commons.jxpath.ri.compiler.Path\norg.apache.commons.jxpath.ri.compiler.Step\norg.apache.commons.jxpath.ri.compiler.TreeCompiler\norg.apache.commons.jxpath.ri.model.NodeIterator\norg.apache.commons.jxpath.ri.model.NodePointer\norg.apache.commons.jxpath.ri.model.NodePointerFactory\norg.apache.commons.jxpath.ri.model.VariablePointer\norg.apache.commons.jxpath.ri.model.VariablePointerFactory\norg.apache.commons.jxpath.ri.model.beans.BeanPointer\norg.apache.commons.jxpath.ri.model.beans.BeanPointerFactory\norg.apache.commons.jxpath.ri.model.beans.CollectionPointer\norg.apache.commons.jxpath.ri.model.beans.CollectionPointerFactory\norg.apache.commons.jxpath.ri.model.beans.NullPointer\norg.apache.commons.jxpath.ri.model.beans.NullPropertyPointer\norg.apache.commons.jxpath.ri.model.beans.PropertyOwnerPointer\norg.apache.commons.jxpath.ri.model.beans.PropertyPointer\norg.apache.commons.jxpath.ri.model.container.ContainerPointer\norg.apache.commons.jxpath.ri.model.container.ContainerPointerFactory\norg.apache.commons.jxpath.ri.model.dom.DOMNodePointer\norg.apache.commons.jxpath.ri.model.dom.DOMPointerFactory\norg.apache.commons.jxpath.ri.model.dynabeans.DynaBeanPointer\norg.apache.commons.jxpath.ri.model.dynabeans.DynaBeanPointerFactory\norg.apache.commons.jxpath.ri.model.dynamic.DynamicPointer\norg.apache.commons.jxpath.ri.model.dynamic.DynamicPointerFactory\norg.apache.commons.jxpath.ri.model.jdom.JDOMNodePointer\norg.apache.commons.jxpath.ri.model.jdom.JDOMPointerFactory\norg.apache.commons.jxpath.ri.parser.ParseException\norg.apache.commons.jxpath.ri.parser.SimpleCharStream\norg.apache.commons.jxpath.ri.parser.Token\norg.apache.commons.jxpath.ri.parser.TokenMgrError\norg.apache.commons.jxpath.ri.parser.XPathParser\norg.apache.commons.jxpath.ri.parser.XPathParserConstants\norg.apache.commons.jxpath.ri.parser.XPathParserTokenManager\norg.apache.commons.jxpath.util.ClassLoaderUtil\norg.jdom.Comment\norg.jdom.Content\norg.jdom.ContentList\norg.jdom.DocType\norg.jdom.Document\norg.jdom.Element\norg.jdom.IllegalAddException\norg.jdom.Parent\norg.jdom.ProcessingInstruction\norg.w3c.dom.Document\norg.w3c.dom.DocumentType\norg.w3c.dom.Element\norg.w3c.dom.ElementTraversal\norg.w3c.dom.Node\norg.w3c.dom.NodeList\norg.w3c.dom.TypeInfo\norg.w3c.dom.events.DocumentEvent\norg.w3c.dom.events.EventTarget\norg.w3c.dom.ranges.DocumentRange\norg.w3c.dom.traversal.DocumentTraversal\norg.xml.sax.ContentHandler\norg.xml.sax.DTDHandler\norg.xml.sax.EntityResolver\norg.xml.sax.ErrorHandler\norg.xml.sax.InputSource\norg.xml.sax.SAXException\norg.xml.sax.SAXParseException\norg.xml.sax.helpers.DefaultHandler"
+import pytest
+from redis import Redis
+
+from buttercup.common.stack_parsing import CrashSet, get_crash_data, get_inst_key, parse_stacktrace
+
+JAVA_TEST_INST_KEY = "\n".join([
+    "JXPathFuzzer",
+    "org.apache.commons.beanutils.DynaBean",
+    "org.apache.commons.jxpath.CompiledExpression",
+    "org.apache.commons.jxpath.ExpressionContext",
+    "org.apache.commons.jxpath.Function",
+    "org.apache.commons.jxpath.Functions",
+    "org.apache.commons.jxpath.JXPathContext",
+    "org.apache.commons.jxpath.JXPathContextFactory",
+    "org.apache.commons.jxpath.JXPathContextFactoryConfigurationError",
+    "org.apache.commons.jxpath.JXPathException",
+    "org.apache.commons.jxpath.JXPathFunctionNotFoundException",
+    "org.apache.commons.jxpath.JXPathInvalidAccessException",
+    "org.apache.commons.jxpath.JXPathInvalidSyntaxException",
+    "org.apache.commons.jxpath.JXPathNotFoundException",
+    "org.apache.commons.jxpath.JXPathTypeConversionException",
+    "org.apache.commons.jxpath.NodeSet",
+    "org.apache.commons.jxpath.PackageFunctions",
+    "org.apache.commons.jxpath.Pointer",
+    "org.apache.commons.jxpath.Variables",
+    "org.apache.commons.jxpath.ri.Compiler",
+    "org.apache.commons.jxpath.ri.EvalContext",
+    "org.apache.commons.jxpath.ri.InfoSetUtil",
+    "org.apache.commons.jxpath.ri.JXPathContextFactoryReferenceImpl",
+    "org.apache.commons.jxpath.ri.JXPathContextReferenceImpl",
+    "org.apache.commons.jxpath.ri.NamespaceResolver",
+    "org.apache.commons.jxpath.ri.Parser",
+    "org.apache.commons.jxpath.ri.QName",
+    "org.apache.commons.jxpath.ri.axes.AncestorContext",
+    "org.apache.commons.jxpath.ri.axes.AttributeContext",
+    "org.apache.commons.jxpath.ri.axes.ChildContext",
+    "org.apache.commons.jxpath.ri.axes.DescendantContext",
+    "org.apache.commons.jxpath.ri.axes.InitialContext",
+    "org.apache.commons.jxpath.ri.axes.NamespaceContext",
+    "org.apache.commons.jxpath.ri.axes.NodeSetContext",
+    "org.apache.commons.jxpath.ri.axes.ParentContext",
+    "org.apache.commons.jxpath.ri.axes.PrecedingOrFollowingContext",
+    "org.apache.commons.jxpath.ri.axes.PredicateContext",
+    "org.apache.commons.jxpath.ri.axes.RootContext",
+    "org.apache.commons.jxpath.ri.axes.SelfContext",
+    "org.apache.commons.jxpath.ri.axes.UnionContext",
+    "org.apache.commons.jxpath.ri.compiler.Constant",
+    "org.apache.commons.jxpath.ri.compiler.CoreFunction",
+    "org.apache.commons.jxpath.ri.compiler.CoreOperation",
+    "org.apache.commons.jxpath.ri.compiler.CoreOperationGreaterThan",
+    "org.apache.commons.jxpath.ri.compiler.CoreOperationNegate",
+    "org.apache.commons.jxpath.ri.compiler.CoreOperationRelationalExpression",
+    "org.apache.commons.jxpath.ri.compiler.Expression",
+    "org.apache.commons.jxpath.ri.compiler.ExpressionPath",
+    "org.apache.commons.jxpath.ri.compiler.LocationPath",
+    "org.apache.commons.jxpath.ri.compiler.NodeNameTest",
+    "org.apache.commons.jxpath.ri.compiler.NodeTest",
+    "org.apache.commons.jxpath.ri.compiler.NodeTypeTest",
+    "org.apache.commons.jxpath.ri.compiler.Operation",
+    "org.apache.commons.jxpath.ri.compiler.Path",
+    "org.apache.commons.jxpath.ri.compiler.Step",
+    "org.apache.commons.jxpath.ri.compiler.TreeCompiler",
+    "org.apache.commons.jxpath.ri.model.NodeIterator",
+    "org.apache.commons.jxpath.ri.model.NodePointer",
+    "org.apache.commons.jxpath.ri.model.NodePointerFactory",
+    "org.apache.commons.jxpath.ri.model.VariablePointer",
+    "org.apache.commons.jxpath.ri.model.VariablePointerFactory",
+    "org.apache.commons.jxpath.ri.model.beans.BeanPointer",
+    "org.apache.commons.jxpath.ri.model.beans.BeanPointerFactory",
+    "org.apache.commons.jxpath.ri.model.beans.CollectionPointer",
+    "org.apache.commons.jxpath.ri.model.beans.CollectionPointerFactory",
+    "org.apache.commons.jxpath.ri.model.beans.NullPointer",
+    "org.apache.commons.jxpath.ri.model.beans.NullPropertyPointer",
+    "org.apache.commons.jxpath.ri.model.beans.PropertyOwnerPointer",
+    "org.apache.commons.jxpath.ri.model.beans.PropertyPointer",
+    "org.apache.commons.jxpath.ri.model.container.ContainerPointer",
+    "org.apache.commons.jxpath.ri.model.container.ContainerPointerFactory",
+    "org.apache.commons.jxpath.ri.model.dom.DOMNodePointer",
+    "org.apache.commons.jxpath.ri.model.dom.DOMPointerFactory",
+    "org.apache.commons.jxpath.ri.model.dynabeans.DynaBeanPointer",
+    "org.apache.commons.jxpath.ri.model.dynabeans.DynaBeanPointerFactory",
+    "org.apache.commons.jxpath.ri.model.dynamic.DynamicPointer",
+    "org.apache.commons.jxpath.ri.model.dynamic.DynamicPointerFactory",
+    "org.apache.commons.jxpath.ri.model.jdom.JDOMNodePointer",
+    "org.apache.commons.jxpath.ri.model.jdom.JDOMPointerFactory",
+    "org.apache.commons.jxpath.ri.parser.ParseException",
+    "org.apache.commons.jxpath.ri.parser.SimpleCharStream",
+    "org.apache.commons.jxpath.ri.parser.Token",
+    "org.apache.commons.jxpath.ri.parser.TokenMgrError",
+    "org.apache.commons.jxpath.ri.parser.XPathParser",
+    "org.apache.commons.jxpath.ri.parser.XPathParserConstants",
+    "org.apache.commons.jxpath.ri.parser.XPathParserTokenManager",
+    "org.apache.commons.jxpath.util.ClassLoaderUtil",
+    "org.jdom.Comment",
+    "org.jdom.Content",
+    "org.jdom.ContentList",
+    "org.jdom.DocType",
+    "org.jdom.Document",
+    "org.jdom.Element",
+    "org.jdom.IllegalAddException",
+    "org.jdom.Parent",
+    "org.jdom.ProcessingInstruction",
+    "org.w3c.dom.Document",
+    "org.w3c.dom.DocumentType",
+    "org.w3c.dom.Element",
+    "org.w3c.dom.ElementTraversal",
+    "org.w3c.dom.Node",
+    "org.w3c.dom.NodeList",
+    "org.w3c.dom.TypeInfo",
+    "org.w3c.dom.events.DocumentEvent",
+    "org.w3c.dom.events.EventTarget",
+    "org.w3c.dom.ranges.DocumentRange",
+    "org.w3c.dom.traversal.DocumentTraversal",
+    "org.xml.sax.ContentHandler",
+    "org.xml.sax.DTDHandler",
+    "org.xml.sax.EntityResolver",
+    "org.xml.sax.ErrorHandler",
+    "org.xml.sax.InputSource",
+    "org.xml.sax.SAXException",
+    "org.xml.sax.SAXParseException",
+    "org.xml.sax.helpers.DefaultHandler",
+])
 
 
 def get_tc_file(name: str) -> Path:
@@ -90,16 +208,20 @@ def test_get_crash_data_invalid():
 
 
 def test_java_stacktrace(java_crash_testcase: Path):
-    with open(java_crash_testcase, "r") as f:
+    with open(java_crash_testcase) as f:
         trace = f.read()
 
     crash_state = get_crash_data(trace)
-    expected = "org.apache.commons.jxpath.ri.compiler.CoreOperation.parenthesize\norg.apache.commons.jxpath.ri.compiler.CoreOperation.toString\norg.apache.commons.jxpath.ri.compiler.CoreOperation.parenthesize\n"
+    expected = (
+        "org.apache.commons.jxpath.ri.compiler.CoreOperation.parenthesize\n"
+        "org.apache.commons.jxpath.ri.compiler.CoreOperation.toString\n"
+        "org.apache.commons.jxpath.ri.compiler.CoreOperation.parenthesize\n"
+    )
     assert crash_state == expected
 
 
 def test_c_stacktrace(c_crash_testcase: Path):
-    with open(c_crash_testcase, "r") as f:
+    with open(c_crash_testcase) as f:
         trace = f.read()
 
     crash_state = get_crash_data(trace)
@@ -111,7 +233,7 @@ def test_c_stacktrace(c_crash_testcase: Path):
 
 
 def test_c_instrumentation_key(c_crash_testcase: Path):
-    with open(c_crash_testcase, "r") as f:
+    with open(c_crash_testcase) as f:
         trace = f.read()
 
     inst_key = get_inst_key(trace)
@@ -120,7 +242,7 @@ def test_c_instrumentation_key(c_crash_testcase: Path):
 
 
 def test_java_instrumentation_key(java_crash_testcase: Path):
-    with open(java_crash_testcase, "r") as f:
+    with open(java_crash_testcase) as f:
         trace = f.read()
 
     inst_key = get_inst_key(trace)

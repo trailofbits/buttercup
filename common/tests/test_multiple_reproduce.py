@@ -1,9 +1,11 @@
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
-from buttercup.common.reproduce_multiple import ReproduceMultiple
+
+from buttercup.common.challenge_task import CommandResult, ReproduceResult
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
-from buttercup.common.challenge_task import ReproduceResult, CommandResult
+from buttercup.common.reproduce_multiple import ReproduceMultiple
 
 
 @pytest.fixture
@@ -17,20 +19,22 @@ def build_outputs():
 VALID_STDOUT = b"""
 INFO: Running with entropic power schedule (0xFF, 100).
 INFO: Seed: 954068278
-INFO: Loaded 1 modules   (6849 inline 8-bit counters): 6849 [0x561a974abfe8, 0x561a974adaa9), 
-INFO: Loaded 1 PC tables (6849 PCs): 6849 [0x561a974adab0,0x561a974c86c0), 
+INFO: Loaded 1 modules   (6849 inline 8-bit counters): 6849 [0x561a974abfe8, 0x561a974adaa9),
+INFO: Loaded 1 PC tables (6849 PCs): 6849 [0x561a974adab0,0x561a974c86c0),
 /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
 Running: /testcase
-DEBUG - pngrutil.c:1447:10: runtime error: 
+DEBUG - pngrutil.c:1447:10: runtime error:
 """
 
-INVALID_STDOUT = b"""
-Unable to find image \'ghcr.io/aixcc-finals/base-runner:v1.0.0\' locally
-docker: Error response from daemon: Get "https://ghcr.io/v2/": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)
-
-Run \'docker run --help\' for more information
-ERROR:__main__:libpng_read_fuzzer does not seem to exist. Please run build_fuzzers first.
-"""
+INVALID_STDOUT = (
+    b"Unable to find image 'ghcr.io/aixcc-finals/base-runner:v1.0.0' locally\n"
+    b'docker: Error response from daemon: Get "https://ghcr.io/v2/": net/http: '
+    b"request canceled while waiting for connection "
+    b"(Client.Timeout exceeded while awaiting headers)\n"
+    b"\n"
+    b"Run 'docker run --help' for more information\n"
+    b"ERROR:__main__:libpng_read_fuzzer does not seem to exist. Please run build_fuzzers first.\n"
+)
 
 
 @pytest.fixture

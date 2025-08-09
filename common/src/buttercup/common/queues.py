@@ -1,31 +1,32 @@
 from __future__ import annotations
 
+import logging
+import os
+import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from redis import Redis, RedisError
-from google.protobuf.message import Message
+from enum import Enum
 from functools import wraps
+from typing import Any, Literal, TypeVar, cast, overload
+
+from google.protobuf.message import Message
+from redis import Redis, RedisError
+
 from buttercup.common.datastructures.msg_pb2 import (
-    BuildRequest,
     BuildOutput,
-    Crash,
-    TaskDownload,
-    TaskReady,
-    TaskDelete,
-    Patch,
+    BuildRequest,
     ConfirmedVulnerability,
-    IndexRequest,
+    Crash,
     IndexOutput,
-    TracedCrash,
+    IndexRequest,
+    Patch,
     POVReproduceRequest,
     POVReproduceResponse,
+    TaskDelete,
+    TaskDownload,
+    TaskReady,
+    TracedCrash,
 )
-import logging
-from typing import Type, Generic, TypeVar, Literal, overload, Callable, cast
-import uuid
-import os
-from enum import Enum
-from typing import Any
-
 
 TIMES_DELIVERED_FIELD = "times_delivered"
 
@@ -79,13 +80,8 @@ POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS = int(os.getenv("POV_REPRODUCER_RESPONS
 logger = logging.getLogger(__name__)
 
 
-# Type variable for protobuf Message subclasses
-# Used for type-hinting of reliable queue items
-MsgType = TypeVar("MsgType", bound=Message)
-
-
 @dataclass
-class RQItem(Generic[MsgType]):
+class RQItem[MsgType: Message]:
     """
     A single item in a reliable queue.
     """
@@ -95,14 +91,14 @@ class RQItem(Generic[MsgType]):
 
 
 @dataclass
-class ReliableQueue(Generic[MsgType]):
+class ReliableQueue[MsgType: Message]:
     """
     A queue that is reliable and can be used to process tasks in a distributed environment.
     """
 
     redis: Redis
     queue_name: str
-    msg_builder: Type[MsgType]
+    msg_builder: type[MsgType]
     group_name: str | None = None
     task_timeout_ms: int = 180000
     reader_name: str | None = None
@@ -139,7 +135,9 @@ class ReliableQueue(Generic[MsgType]):
     @staticmethod
     def _ensure_group_name(func: F) -> F:
         @wraps(func)
-        def wrapper(self: ReliableQueue[MsgType], *args: Any, **kwargs: Any) -> Any:
+        # Note: Must use Message instead of MsgType here since MsgType is a class-level
+        # type parameter that's not in scope within this static method decorator
+        def wrapper(self: ReliableQueue[Message], *args: Any, **kwargs: Any) -> Any:
             if self.group_name is None:
                 raise ValueError("group_name must be set for this operation")
 
@@ -215,7 +213,7 @@ class ReliableQueue(Generic[MsgType]):
 @dataclass
 class QueueConfig:
     queue_name: QueueNames
-    msg_builder: Type
+    msg_builder: type
     task_timeout_ms: int
     group_names: list[GroupNames] = field(default_factory=list)
 
@@ -376,11 +374,11 @@ class QueueFactory:
     @overload
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
-    ) -> ReliableQueue[MsgType]: ...
+    ) -> ReliableQueue[Message]: ...
 
     def create(
         self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
-    ) -> ReliableQueue[MsgType]:
+    ) -> ReliableQueue[Message]:
         if queue_name not in self._config:
             raise ValueError(f"Invalid queue name: {queue_name}")
 

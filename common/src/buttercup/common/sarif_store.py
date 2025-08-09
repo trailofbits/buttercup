@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any
+
 from pydantic import BaseModel, Field
 from redis import Redis
 
@@ -8,11 +9,12 @@ from redis import Redis
 class SARIFBroadcastDetail(BaseModel):
     """Model for SARIF broadcast details, matches the model in types.py"""
 
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         ...,
-        description="String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability",
+        description="String to string map containing data that should be attached to outputs like log messages "
+        "and OpenTelemetry trace attributes for traceability",
     )
-    sarif: Dict[str, Any] = Field(..., description="SARIF Report compliant with provided schema")
+    sarif: dict[str, Any] = Field(..., description="SARIF Report compliant with provided schema")
     sarif_id: str
     task_id: str
 
@@ -73,7 +75,7 @@ class SARIFStore:
         # Add to the list for this task
         self.redis.rpush(key, sarif_json)
 
-    def get_all(self) -> List[SARIFBroadcastDetail]:
+    def get_all(self) -> list[SARIFBroadcastDetail]:
         """
         Retrieve all SARIF objects from Redis.
 
@@ -97,7 +99,7 @@ class SARIFStore:
 
         return result
 
-    def get_by_task_id(self, task_id: str) -> List[SARIFBroadcastDetail]:
+    def get_by_task_id(self, task_id: str) -> list[SARIFBroadcastDetail]:
         """
         Retrieve all SARIF objects for a specific task.
 

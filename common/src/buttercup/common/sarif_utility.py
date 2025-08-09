@@ -4,6 +4,7 @@ Utility script for SARIF storage and retrieval operations.
 
 import argparse
 import json
+
 from redis import Redis
 
 from buttercup.common.sarif_store import SARIFStore

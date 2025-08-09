@@ -1,14 +1,15 @@
-import pytest
-import subprocess
+import logging
 import os
+import shutil
+import subprocess
+from pathlib import Path
 from unittest.mock import patch
+
+import pytest
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQuery
-from pathlib import Path
-import shutil
-
-import logging
 
 logger = logging.getLogger(__name__)
 

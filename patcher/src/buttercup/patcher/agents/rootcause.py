@@ -2,34 +2,35 @@
 
 import logging
 import re
-from unidiff import PatchSet
-import langgraph.errors
-from typing import Annotated, Literal
-from langgraph.prebuilt import InjectedState
-from langchain_core.prompts import MessagesPlaceholder
-from pydantic import BaseModel, ValidationError
-from langchain_core.messages import BaseMessage
-from langgraph.prebuilt import create_react_agent
-from langchain_core.tools import tool
 from dataclasses import dataclass, field
-from buttercup.common.stack_parsing import parse_stacktrace
+from typing import Annotated, Literal
+
+import langgraph.errors
+from langchain_core.messages import BaseMessage
 from langchain_core.prompts import (
     ChatPromptTemplate,
+    MessagesPlaceholder,
 )
-from buttercup.patcher.utils import truncate_output, TruncatePosition
 from langchain_core.runnables import Runnable
+from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.types import Command
+from pydantic import BaseModel, ValidationError
+from unidiff import PatchSet
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.common.stack_parsing import parse_stacktrace
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
-    ContextCodeSnippet,
+    MAX_STACKTRACE_LENGTH,
     CodeSnippetRequest,
+    ContextCodeSnippet,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
     get_stacktraces_from_povs,
     stacktrace_to_str,
-    MAX_STACKTRACE_LENGTH,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
-from langgraph.types import Command
+from buttercup.patcher.utils import TruncatePosition, truncate_output
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ Request additional code snippets if they are *critical* to understand the root c
    - Exact failure location
    - Vulnerable control/data flow
    - Failed security checks
-   
+
    To request additional code snippets, use the following format:
    ```
    <code_snippet_request>
