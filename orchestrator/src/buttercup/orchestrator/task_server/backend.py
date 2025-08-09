@@ -1,24 +1,29 @@
+import logging
 import time
 from uuid import UUID
-from buttercup.orchestrator.task_server.models.types import (
-    Task,
-    TaskType,
-    SourceType,
-    StatusTasksState,
-    SARIFBroadcast,
+
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import (
+    SourceDetail as SourceDetailProto,
 )
 from buttercup.common.datastructures.msg_pb2 import (
     Task as TaskProto,
-    SourceDetail as SourceDetailProto,
+)
+from buttercup.common.datastructures.msg_pb2 import (
     TaskDelete,
     TaskDownload,
 )
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.task_registry import TaskRegistry
-from redis import Redis
-import logging
-
+from buttercup.orchestrator.task_server.models.types import (
+    SARIFBroadcast,
+    SourceType,
+    StatusTasksState,
+    Task,
+    TaskType,
+)
 
 logger = logging.getLogger(__name__)
 

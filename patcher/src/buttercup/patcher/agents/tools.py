@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import logging
-from buttercup.common.challenge_task import CommandResult, ChallengeTask
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.utils.common import Function, TypeDefinition
-from typing import Annotated
 from pathlib import Path
+from typing import Annotated
+
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
-from buttercup.patcher.utils import truncate_output, get_challenge, get_codequery, find_file_in_source_dir
-from buttercup.patcher.agents.common import BaseCtxState, ContextCodeSnippet, CodeSnippetKey
+
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.patcher.agents.common import BaseCtxState, CodeSnippetKey, ContextCodeSnippet
+from buttercup.patcher.utils import find_file_in_source_dir, get_challenge, get_codequery, truncate_output
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.utils.common import Function, TypeDefinition
 
 logger = logging.getLogger(__name__)
 

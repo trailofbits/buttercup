@@ -3,7 +3,6 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 from buttercup.common.stack_parsing import get_crash_data
 
@@ -32,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_stacktrace(file_path: Optional[Path] = None) -> str:
+def read_stacktrace(file_path: Path | None = None) -> str:
     """Read stacktrace from file or stdin."""
     if file_path:
         return file_path.read_text()

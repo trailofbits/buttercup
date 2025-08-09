@@ -1,20 +1,21 @@
-import pytest
 import subprocess
-import tempfile
 import tarfile
+import tempfile
+import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from buttercup.orchestrator.ui.competition_api.services import ChallengeService
+import pytest
+
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
     SourceType,
     Task,
     TaskDetail,
     TaskType,
-    SARIFBroadcast,
-    SARIFBroadcastDetail,
 )
-import time
+from buttercup.orchestrator.ui.competition_api.services import ChallengeService
 
 
 class TestChallengeService:

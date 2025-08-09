@@ -4,33 +4,35 @@ patch is not working, what can be done to fix it, etc.)"""
 from __future__ import annotations
 
 import logging
-from itertools import groupby
-from pydantic import BaseModel, Field
-from langchain_core.output_parsers import StrOutputParser
-from buttercup.patcher.utils import decode_bytes
 from dataclasses import dataclass, field
-from langgraph.constants import END
-from langgraph.types import Command
+from itertools import groupby
 from typing import Literal
+
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+)
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
 )
+from langgraph.constants import END
+from langgraph.types import Command
+from pydantic import BaseModel, Field
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
-    PatchStatus,
-    PatchAttempt,
     CodeSnippetRequest,
     PatchAnalysis,
+    PatchAttempt,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
+    PatchStatus,
     PatchStrategy,
 )
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-)
+from buttercup.patcher.utils import decode_bytes
 
 logger = logging.getLogger(__name__)
 

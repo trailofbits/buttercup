@@ -1,31 +1,31 @@
 """Tests for the Reflection Agent."""
 
-import pytest
-from pathlib import Path
+import os
 import shutil
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
-import os
+
+import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable, RunnableSequence
-from langgraph.types import Command
 from langgraph.constants import END
+from langgraph.types import Command
 
-from buttercup.patcher.agents.reflection import ReflectionAgent
-from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatchStatus,
-    PatchAttempt,
-    PatchOutput,
-    ExecutionInfo,
-)
-from buttercup.patcher.patcher import PatchInput
-from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
+from buttercup.patcher.agents.common import (
+    ExecutionInfo,
+    PatchAttempt,
+    PatcherAgentName,
+    PatcherAgentState,
+    PatchOutput,
+    PatchStatus,
+)
 from buttercup.patcher.agents.config import PatcherConfig
-
+from buttercup.patcher.agents.reflection import ReflectionAgent
+from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 
 original_subprocess_run = subprocess.run
 

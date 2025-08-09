@@ -1,26 +1,28 @@
 """Tests for the Software Engineer agent's code snippet parsing functionality."""
 
-import pytest
-from pathlib import Path
+import os
 import shutil
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
-import os
+
+import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from buttercup.patcher.agents.common import ContextCodeSnippet
-from buttercup.patcher.patcher import PatchInput
-from buttercup.patcher.utils import PatchInputPoV
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
+from buttercup.patcher.agents.common import ContextCodeSnippet
 from buttercup.patcher.agents.swe import (
     CodeSnippetChange,
     CodeSnippetChanges,
     CodeSnippetKey,
-    PatcherAgentState,
     PatcherAgentName,
+    PatcherAgentState,
     SWEAgent,
 )
+from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 
 PNGRUTIL_C_CODE = """
       return;
