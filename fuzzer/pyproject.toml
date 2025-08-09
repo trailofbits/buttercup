@@ -1,5 +1,5 @@
 [project]
-name = "fuzzer"
+name = "fuzzing-infra"
 version = "0.1.0"
 description = "Automated vulnerability discovery through intelligent fuzzing"
 readme = "README.md"
@@ -53,13 +53,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "pytest ~= 8.3.4",
-    "pytest-cov ~= 6.0.0",
-    "ruff ~= 0.12.8",
-    "mypy ~= 1.15.0",
-    "types-redis ~= 4.6.0",
-]
+dev = ["pytest ~= 8.3.4", "ruff ~= 0.12.8", "mypy ~= 1.15.0"]
 
 [tool.coverage.run]
 source = ["src/buttercup"]

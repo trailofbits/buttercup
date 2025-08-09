@@ -2,7 +2,6 @@
 name = "common"
 version = "0.1.0"
 description = "Shared utilities and components for Buttercup CRS"
-readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
@@ -53,12 +52,11 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pytest ~= 8.3.4",
-    "pytest-cov ~= 6.0.0",
     "ruff ~= 0.12.8",
     "mypy ~= 1.15.0",
-    "types-redis ~= 4.6.0",
-    "types-requests ~= 2.32.0",
+    "types-requests",
     "types-PyYAML",
+    "types-redis",
     "dirty-equals ~= 0.9.0",
 ]
 

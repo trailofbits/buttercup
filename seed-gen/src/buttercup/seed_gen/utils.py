@@ -39,7 +39,9 @@ def extract_code(msg: AIMessage) -> str:
 
     # If no complete block found, try to get partial block
     # Captures everything except the last function definition (likely incomplete)
-    partial_match = re.search(r"```([A-Za-z]*)\n(.*)(?=\n\s*def\s+[A-Za-z0-9_]+\s*\([^)]*\))", content, re.DOTALL)
+    partial_match = re.search(
+        r"```([A-Za-z]*)\n(.*)(?=\n\s*def\s+[A-Za-z0-9_]+\s*\([^)]*\))", content, re.DOTALL
+    )
     if partial_match is not None:
         logger.info("Found partial code block")
         return partial_match.group(2)
