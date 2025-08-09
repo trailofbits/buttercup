@@ -2,22 +2,18 @@
 #   filename:  openapi.json
 #   timestamp: 2025-07-08T08:15:58+00:00
 from __future__ import annotations
-
-import base64
-import json
-import logging
 import uuid
+import json
+import base64
 from datetime import datetime, timedelta
-from functools import cache
+from typing import List, Dict, Any, Optional
 from pathlib import Path
-from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from buttercup.common.telemetry import crs_instance_id
 from buttercup.orchestrator.ui.competition_api.models.types import (
     BundleSubmission,
     BundleSubmissionResponse,
@@ -41,7 +37,10 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
 )
 from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
 from buttercup.orchestrator.ui.config import Settings
-from buttercup.orchestrator.ui.database import POV, Bundle, DatabaseManager, Patch, Task
+from buttercup.orchestrator.ui.database import DatabaseManager, Task, Bundle, POV, Patch
+from buttercup.common.telemetry import crs_instance_id
+from functools import cache
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -63,19 +62,19 @@ dashboard_stats = {"activeTasks": 0, "totalPovs": 0, "totalPatches": 0, "totalBu
 # Dashboard models
 class TaskInfo(BaseModel):
     task_id: str
-    name: str | None = None
+    name: Optional[str] = None
     project_name: str
     status: str  # active, expired
     duration: int
     deadline: str
-    challenge_repo_url: str | None = None
-    challenge_repo_head_ref: str | None = None
-    challenge_repo_base_ref: str | None = None
-    fuzz_tooling_url: str | None = None
-    fuzz_tooling_ref: str | None = None
-    povs: list[dict[str, Any]] = []
-    patches: list[dict[str, Any]] = []
-    bundles: list[dict[str, Any]] = []
+    challenge_repo_url: Optional[str] = None
+    challenge_repo_head_ref: Optional[str] = None
+    challenge_repo_base_ref: Optional[str] = None
+    fuzz_tooling_url: Optional[str] = None
+    fuzz_tooling_ref: Optional[str] = None
+    povs: List[Dict[str, Any]] = []
+    patches: List[Dict[str, Any]] = []
+    bundles: List[Dict[str, Any]] = []
     created_at: str
 
 
@@ -521,8 +520,8 @@ def get_dashboard_config() -> dict:
     }
 
 
-@app.get("/v1/dashboard/tasks", response_model=list[TaskInfo], tags=["dashboard"])
-def get_dashboard_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[TaskInfo]:
+@app.get("/v1/dashboard/tasks", response_model=List[TaskInfo], tags=["dashboard"])
+def get_dashboard_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
     """
     Get list of all tasks for dashboard
     """
@@ -1036,7 +1035,7 @@ def download_bundle(
 
 # Detail view endpoints
 @app.get("/v1/dashboard/povs/{pov_id}", tags=["dashboard"])
-def get_pov_detail(pov_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> dict[str, Any]:
+def get_pov_detail(pov_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> Dict[str, Any]:
     """Get detailed information about a specific PoV"""
     with database_manager.get_pov(pov_id) as pov:
         if pov is None:
@@ -1053,7 +1052,7 @@ def get_pov_detail(pov_id: str, database_manager: DatabaseManager = Depends(get_
 @app.get("/v1/dashboard/patches/{patch_id}", tags=["dashboard"])
 def get_patch_detail(
     patch_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Get detailed information about a specific patch"""
     with database_manager.get_patch(patch_id) as patch:
         if patch is None:
@@ -1070,7 +1069,7 @@ def get_patch_detail(
 @app.get("/v1/dashboard/bundles/{bundle_id}", tags=["dashboard"])
 def get_bundle_detail(
     bundle_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Get detailed information about a specific bundle"""
     with database_manager.get_bundle(bundle_id) as bundle:
         if bundle is None:
@@ -1086,7 +1085,7 @@ def get_bundle_detail(
 
 # List all PoVs and Patches across tasks
 @app.get("/v1/dashboard/povs", tags=["dashboard"])
-def get_all_povs(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[dict[str, Any]]:
+def get_all_povs(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[Dict[str, Any]]:
     """Get all PoVs across all tasks"""
     all_povs: list[dict[str, Any]] = []
 
@@ -1106,7 +1105,7 @@ def get_all_povs(database_manager: DatabaseManager = Depends(get_database_manage
 
 
 @app.get("/v1/dashboard/patches", tags=["dashboard"])
-def get_all_patches(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[dict[str, Any]]:
+def get_all_patches(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[Dict[str, Any]]:
     """Get all patches across all tasks"""
     all_patches: list[dict[str, Any]] = []
 

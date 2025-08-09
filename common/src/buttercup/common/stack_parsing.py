@@ -1,11 +1,9 @@
-import logging
 import re
-
-from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
-from redis import Redis
-
-from buttercup.common.clusterfuzz_parser import CrashInfo, StackParser
+from buttercup.common.clusterfuzz_parser import StackParser, CrashInfo
+import logging
 from buttercup.common.sets import RedisSet
+from redis import Redis
+from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
 
 logger = logging.getLogger(__name__)
 

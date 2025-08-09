@@ -1,9 +1,7 @@
 import argparse
-
 from redis import Redis
-
-from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildType
 from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildType
 
 
 def main() -> None:

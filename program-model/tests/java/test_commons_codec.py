@@ -4,19 +4,18 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
-
 from ..common import (
-    TestCalleeInfo,
-    TestCallerInfo,
+    common_test_get_functions,
+    common_test_get_callers,
+    common_test_get_callees,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
     TestFunctionInfo,
+    TestCallerInfo,
+    TestCalleeInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
     TypeDefinitionType,
-    common_test_get_callees,
-    common_test_get_callers,
-    common_test_get_functions,
-    common_test_get_type_definitions,
-    common_test_get_type_usages,
 )
 
 
@@ -54,7 +53,9 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions"""
-    common_test_get_functions(commons_codec_oss_fuzz_cq, function_name, file_path, function_info)
+    common_test_get_functions(
+        commons_codec_oss_fuzz_cq, function_name, file_path, function_info
+    )
 
 
 # From: https://github.com/apache/commons-codec/blob/44e4c4d778c3ab87db09c00e9d1c3260fd42dad5/src/main/java/org/apache/commons/codec/language/bm/PhoneticEngine.java#L206

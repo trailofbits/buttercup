@@ -1,20 +1,18 @@
 """Various utility functions for the patching engine."""
 
-import random
 import re
-from collections.abc import Callable
-from enum import Enum
-from functools import lru_cache
-from pathlib import Path
+import random
 from typing import Any, cast
-
+from functools import lru_cache
+from enum import Enum
+from buttercup.program_model.codequery import CodeQueryPersistent
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
-from pydantic import BaseModel
-
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.program_model.codequery import CodeQueryPersistent
+from typing import Callable
+from pathlib import Path
+from pydantic import BaseModel
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 

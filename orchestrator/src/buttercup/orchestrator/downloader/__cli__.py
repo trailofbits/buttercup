@@ -1,19 +1,18 @@
-import requests
-import requests.adapters
-from pydantic_settings import get_subcommand
-from redis import Redis
-from requests_file import FileAdapter
-
-from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task
-from buttercup.common.logger import setup_package_logger
+from buttercup.orchestrator.downloader.downloader import Downloader
 from buttercup.orchestrator.downloader.config import (
-    DownloaderProcessCommand,
-    DownloaderServeCommand,
     DownloaderSettings,
+    DownloaderServeCommand,
+    DownloaderProcessCommand,
     TaskType,
 )
-from buttercup.orchestrator.downloader.downloader import Downloader
+from buttercup.common.logger import setup_package_logger
+from pydantic_settings import get_subcommand
+from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 from buttercup.orchestrator.utils import response_stream_to_file
+from redis import Redis
+import requests.adapters
+from requests_file import FileAdapter
+import requests
 
 
 def prepare_task(command: DownloaderProcessCommand, session: requests.Session) -> Task:

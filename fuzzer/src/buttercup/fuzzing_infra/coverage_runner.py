@@ -1,14 +1,12 @@
+from buttercup.common.challenge_task import ChallengeTask
 import argparse
+import subprocess
 import json
 import logging
-import subprocess
 from dataclasses import dataclass
-from typing import Any, cast
-
+from buttercup.common.project_yaml import ProjectYaml, Language
 from bs4 import BeautifulSoup, Tag
-
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.project_yaml import Language, ProjectYaml
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -107,13 +105,12 @@ class CoverageRunner:
         jacoco_path = build_dir / "dumps" / f"{harness_name}.xml"
         if not jacoco_path.exists():
             logger.error(
-                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | "
-                f"{self.tool.project_name} | in {jacoco_path}"
+                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}"
             )
             return None
 
         # parse the jacoco file
-        with open(jacoco_path) as f:
+        with open(jacoco_path, "r") as f:
             soup = BeautifulSoup(f, "xml")
             covered_functions = []
             for target_class in soup.find_all("class"):
@@ -158,8 +155,7 @@ class CoverageRunner:
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(
-                f"Failed to find profdata for {harness_name} | {corpus_dir} | "
-                f"{self.tool.project_name} | in {profdata_path}"
+                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}"
             )
             return None
 

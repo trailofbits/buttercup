@@ -1,54 +1,55 @@
 """Quality Engineer LLM agent, handling the testing of patches."""
 
-import concurrent.futures
-import importlib.resources
 import logging
-import re
-import subprocess
 import tempfile
-import time
-from dataclasses import dataclass, field
+import langgraph.errors
+import re
+import importlib.resources
+import subprocess
+from unidiff import PatchSet
 from io import StringIO
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
-
-import langgraph.errors
-from langchain_core.messages import BaseMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableConfig
-from langchain_core.runnables.config import get_executor_for_config
-from langgraph.constants import END
-from langgraph.prebuilt import create_react_agent
+from pydantic import ValidationError, Field, field_validator
+from langchain_core.runnables import Runnable
 from langgraph.types import Command
-from pydantic import Field, ValidationError, field_validator
-from unidiff import PatchSet
-
-import buttercup.common.node_local as node_local
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, CommandResult
-from buttercup.common.constants import ARCHITECTURE
+from langgraph.constants import END
 from buttercup.common.corpus import CrashDir
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.common.challenge_task import ChallengeTaskError, CommandResult
+from langchain_core.messages import BaseMessage
+import buttercup.common.node_local as node_local
+from langchain_core.runnables import RunnableConfig
 from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.challenge_task import ChallengeTask
+from langchain_core.runnables.config import get_executor_for_config
+from buttercup.patcher.utils import PatchInputPoV, get_challenge
 from buttercup.patcher.agents.common import (
-    BaseCtxState,
-    PatchAttempt,
-    PatcherAgentBase,
-    PatcherAgentName,
     PatcherAgentState,
+    PatcherAgentName,
+    PatcherAgentBase,
+    PatchAttempt,
     PatchStatus,
+    BaseCtxState,
 )
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.patcher.agents.tools import (
+    ls,
+    grep,
     cat,
+    get_lines,
+    get_function,
+    get_type,
     get_callees,
     get_callers,
-    get_function,
-    get_lines,
-    get_type,
-    grep,
-    ls,
 )
-from buttercup.patcher.utils import PatchInputPoV, get_challenge
+from buttercup.common.llm import create_default_llm_with_temperature, ButtercupLLM
+from buttercup.common.constants import ARCHITECTURE
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.prebuilt import create_react_agent
+from langchain_core.prompts import MessagesPlaceholder
+import time
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
 

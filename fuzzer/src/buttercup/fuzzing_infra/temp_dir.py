@@ -1,14 +1,12 @@
-import contextvars
-import logging
 import os
 import tempfile
-from collections.abc import Iterator
+import contextvars
+import logging
 from contextlib import contextmanager
+from typing import Iterator
 from unittest.mock import patch
-
 from clusterfuzz._internal.system import environment, shell
-
-from buttercup.common.node_local import TmpDir, scratch_dir
+from buttercup.common.node_local import scratch_dir, TmpDir
 
 logger = logging.getLogger(__name__)
 

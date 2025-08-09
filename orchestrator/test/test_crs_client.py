@@ -1,16 +1,15 @@
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import patch, MagicMock
 import requests
 
+from buttercup.orchestrator.ui.competition_api.services import CRSClient
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
-    SourceDetail,
-    SourceType,
     Task,
     TaskDetail,
+    SourceDetail,
+    SourceType,
     TaskType,
 )
-from buttercup.orchestrator.ui.competition_api.services import CRSClient
 
 
 class TestCRSClient:

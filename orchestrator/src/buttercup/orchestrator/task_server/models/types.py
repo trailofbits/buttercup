@@ -13,59 +13,69 @@ from pydantic import BaseModel, Field
 class SARIFBroadcastDetail(BaseModel):
     metadata: Dict[str, Any] = Field(
         ...,
-        description="String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability",
+        description='String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability',
     )
-    sarif: Dict[str, Any] = Field(..., description="SARIF Report compliant with provided schema")
+    sarif: Dict[str, Any] = Field(
+        ..., description='SARIF Report compliant with provided schema'
+    )
     sarif_id: str
     task_id: str
 
 
 class SourceType(Enum):
-    SourceTypeRepo = "repo"
-    SourceTypeFuzzTooling = "fuzz-tooling"
-    SourceTypeDiff = "diff"
+    SourceTypeRepo = 'repo'
+    SourceTypeFuzzTooling = 'fuzz-tooling'
+    SourceTypeDiff = 'diff'
 
 
 class StatusTasksState(BaseModel):
-    canceled: int = Field(..., description="Number of tasks that competition infrastructure has cancelled")
+    canceled: int = Field(
+        ..., description='Number of tasks that competition infrastructure has cancelled'
+    )
     errored: int = Field(
         ...,
-        description="Number of tasks that the CRS encountered an unrecoverable issue for",
+        description='Number of tasks that the CRS encountered an unrecoverable issue for',
     )
     failed: int = Field(
         ...,
-        description="Number of submissions that the competition infrastructure marked failed",
+        description='Number of submissions that the competition infrastructure marked failed',
     )
-    pending: int = Field(..., description="Number of tasks that the CRS has not started work on")
-    processing: int = Field(..., description="Number of tasks that the CRS is currently processing")
+    pending: int = Field(
+        ..., description='Number of tasks that the CRS has not started work on'
+    )
+    processing: int = Field(
+        ..., description='Number of tasks that the CRS is currently processing'
+    )
     succeeded: int = Field(
         ...,
-        description="Number of submissions that the competition infrastructure marked passed",
+        description='Number of submissions that the competition infrastructure marked passed',
     )
     waiting: int = Field(
         ...,
-        description="Number of submissions that the competition infrastructure is currently testing",
+        description='Number of submissions that the competition infrastructure is currently testing',
     )
 
 
 class TaskType(Enum):
-    TaskTypeFull = "full"
-    TaskTypeDelta = "delta"
+    TaskTypeFull = 'full'
+    TaskTypeDelta = 'delta'
 
 
 class SARIFBroadcast(BaseModel):
     broadcasts: List[SARIFBroadcastDetail]
     message_id: str = Field(
         ...,
-        description="Unique ID for this message.  The system will retry sending messages if it does not receive a 200 response code.\nUse this to determine if you have already processed a message.",
+        description='Unique ID for this message.  The system will retry sending messages if it does not receive a 200 response code.\nUse this to determine if you have already processed a message.',
     )
-    message_time: int = Field(..., description="UNIX millisecond timestamp for when the message was sent")
+    message_time: int = Field(
+        ..., description='UNIX millisecond timestamp for when the message was sent'
+    )
 
 
 class SourceDetail(BaseModel):
-    sha256: str = Field(..., description="Integrity hash of the gzipped tarball")
+    sha256: str = Field(..., description='Integrity hash of the gzipped tarball')
     type: SourceType
-    url: str = Field(..., description="URL to fetch the source gzipped tarball")
+    url: str = Field(..., description='URL to fetch the source gzipped tarball')
 
 
 class StatusState(BaseModel):
@@ -75,19 +85,21 @@ class StatusState(BaseModel):
 class TaskDetail(BaseModel):
     deadline: int = Field(
         ...,
-        description="UNIX millisecond timestamp by which any submissions for this task must be in",
+        description='UNIX millisecond timestamp by which any submissions for this task must be in',
     )
     focus: str = Field(
         ...,
-        description="The folder in the type repo source tarball containing the main project.\n\nThis is the project the CRS is meant to submit vulns, patches, and SARIF assessments against.",
+        description='The folder in the type repo source tarball containing the main project.\n\nThis is the project the CRS is meant to submit vulns, patches, and SARIF assessments against.',
     )
     harnesses_included: bool
     metadata: Dict[str, Any] = Field(
         ...,
-        description="String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability",
+        description='String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability',
     )
-    project_name: str = Field(..., description="OSS Fuzz project name")
-    source: List[SourceDetail] = Field(..., description="List of sources needed to evaluate a task")
+    project_name: str = Field(..., description='OSS Fuzz project name')
+    source: List[SourceDetail] = Field(
+        ..., description='List of sources needed to evaluate a task'
+    )
     task_id: str
     type: TaskType
 
@@ -95,27 +107,31 @@ class TaskDetail(BaseModel):
 class Status(BaseModel):
     details: Optional[Dict[str, str]] = Field(
         None,
-        description="This is optional arbitrary content that may be logged in error cases, but is mainly for interactive troubleshooting.",
+        description='This is optional arbitrary content that may be logged in error cases, but is mainly for interactive troubleshooting.',
     )
     ready: bool = Field(
         ...,
-        description="Boolean indicating if the CRS is prepared to work on tasks. Do not return true unless you have successfully tested connectivity to the Competition API via /v1/ping/",
+        description='Boolean indicating if the CRS is prepared to work on tasks. Do not return true unless you have successfully tested connectivity to the Competition API via /v1/ping/',
     )
     since: int = Field(
         ...,
-        description="Last time task and submission stats were reset.  Unix timestamp at millisecond resolution.",
+        description='Last time task and submission stats were reset.  Unix timestamp at millisecond resolution.',
     )
-    state: StatusState = Field(..., description="State of the currently running tasks and submissions")
+    state: StatusState = Field(
+        ..., description='State of the currently running tasks and submissions'
+    )
     version: str = Field(
         ...,
-        description="Version string for verification and reproducibility.\n\n- git commit\n\n- SemVer\n\n- etc",
+        description='Version string for verification and reproducibility.\n\n- git commit\n\n- SemVer\n\n- etc',
     )
 
 
 class Task(BaseModel):
     message_id: str = Field(
         ...,
-        description="Unique ID for this message.  The system will retry sending messages if it does not receive a 200 response code.\nUse this to determine if you have already processed a message.",
+        description='Unique ID for this message.  The system will retry sending messages if it does not receive a 200 response code.\nUse this to determine if you have already processed a message.',
     )
-    message_time: int = Field(..., description="UNIX millisecond timestamp for when the message was sent")
+    message_time: int = Field(
+        ..., description='UNIX millisecond timestamp for when the message was sent'
+    )
     tasks: List[TaskDetail]

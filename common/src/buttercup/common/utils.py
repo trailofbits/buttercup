@@ -1,13 +1,12 @@
+import shutil
 import errno
 import logging
 import os
-import shutil
-import threading
-import time
-from collections.abc import Callable
-from os import PathLike
+from typing import Any, Callable
 from pathlib import Path
-from typing import Any
+from os import PathLike
+import time
+import threading
 
 logger = logging.getLogger(__name__)
 

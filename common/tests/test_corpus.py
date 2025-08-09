@@ -1,12 +1,10 @@
+import pytest
 import os
 import shutil
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
-
-from buttercup.common.corpus import Corpus, InputDir
+from buttercup.common.corpus import InputDir, Corpus
 
 
 @pytest.fixture

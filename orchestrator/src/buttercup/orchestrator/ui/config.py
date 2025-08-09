@@ -1,8 +1,7 @@
-from pathlib import Path
-from typing import Annotated
-
-from pydantic import Field
 from pydantic_settings import BaseSettings
+from typing import Annotated, Optional
+from pydantic import Field
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -25,8 +24,8 @@ class Settings(BaseSettings):
 
     # CRS configuration
     crs_base_url: Annotated[str, Field(default="http://localhost:8000", description="CRS API base URL")]
-    crs_key_id: Annotated[str | None, Field(default=None, description="Key ID for CRS authentication")]
-    crs_key_token: Annotated[str | None, Field(default=None, description="Key token for CRS authentication")]
+    crs_key_id: Annotated[Optional[str], Field(default=None, description="Key ID for CRS authentication")]
+    crs_key_token: Annotated[Optional[str], Field(default=None, description="Key token for CRS authentication")]
 
     # Storage configuration
     storage_dir: Annotated[

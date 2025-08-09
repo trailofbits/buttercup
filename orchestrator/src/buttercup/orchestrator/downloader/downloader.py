@@ -1,22 +1,22 @@
 import logging
-import tarfile
-import tempfile
-import uuid
-from dataclasses import dataclass, field
-from pathlib import Path
-
 import requests
-from redis import Redis
+import tarfile
+from dataclasses import dataclass, field
+import uuid
+import tempfile
+from pathlib import Path
+from typing import Optional
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-import buttercup.common.node_local as node_local
-from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task, TaskDownload, TaskReady
-from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue
+from buttercup.common.queues import QueueFactory, ReliableQueue, QueueNames, GroupNames
+from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
+from buttercup.orchestrator.utils import response_stream_to_file
 from buttercup.common.task_meta import TaskMeta
+from redis import Redis
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
-from buttercup.orchestrator.utils import response_stream_to_file
+import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class Downloader:
         """Creates and returns the directory path for a task"""
         return self.download_dir / task_id
 
-    def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Path | None:
+    def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Optional[Path]:
         """Downloads a source file and verifies its SHA256"""
         try:
             filepath = tmp_task_dir / str(uuid.uuid4())

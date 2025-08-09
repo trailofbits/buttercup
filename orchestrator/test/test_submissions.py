@@ -1,48 +1,45 @@
+import pytest
 import base64
 import uuid
+from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
-from typing import Optional  # noqa: UP045 - Required for protobuf enum annotations
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
-
-from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
-from buttercup.common.constants import ARCHITECTURE
+from typing import Optional
+from buttercup.orchestrator.scheduler.submissions import CompetitionAPI, Submissions
 from buttercup.common.datastructures.msg_pb2 import (
+    TracedCrash,
     BuildOutput,
-    BuildType,
-    Bundle,
     Crash,
-    CrashWithId,
     Patch,
     SubmissionEntry,
-    SubmissionEntryPatch,
-    SubmissionResult,
     Task,
-    TracedCrash,
+    SubmissionEntryPatch,
+    BuildType,
+    CrashWithId,
+    SubmissionResult,
+    Bundle,
 )
 from buttercup.common.task_registry import TaskRegistry
-from buttercup.orchestrator.competition_api_client.models.types_bundle_submission_response import (
-    TypesBundleSubmissionResponse,
+from buttercup.orchestrator.competition_api_client.models.types_pov_submission_response import (
+    TypesPOVSubmissionResponse,
 )
 from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import (
     TypesPatchSubmissionResponse,
 )
-from buttercup.orchestrator.competition_api_client.models.types_pov_submission_response import (
-    TypesPOVSubmissionResponse,
+from buttercup.orchestrator.competition_api_client.models.types_bundle_submission_response import (
+    TypesBundleSubmissionResponse,
 )
 from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.common.constants import ARCHITECTURE
 from buttercup.orchestrator.scheduler.submissions import (
-    CompetitionAPI,
-    Submissions,
-    _current_patch,
-    _find_matching_build_output,
-    _get_eligible_povs_for_submission,
-    _get_first_successful_pov,
     _get_first_successful_pov_id,
-    _get_pending_patch_submissions,
+    _find_matching_build_output,
+    _get_first_successful_pov,
     _get_pending_pov_submissions,
+    _get_eligible_povs_for_submission,
+    _get_pending_patch_submissions,
+    _current_patch,
 )
+from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 
 
 def create_crash_comparison_mocks(similar_patterns=None):
@@ -85,14 +82,14 @@ class SubmissionEntryBuilder:
 
     def crash(
         self,
-        task_id: str | None = None,
-        competition_pov_id: str | None = None,
-        result: Optional[SubmissionResult] = None,  # noqa: UP045 - protobuf enum
-        crash_input_path: str | None = None,
-        harness_name: str | None = None,
-        sanitizer: str | None = None,
-        engine: str | None = None,
-        stacktrace: str | None = None,
+        task_id: Optional[str] = None,
+        competition_pov_id: Optional[str] = None,
+        result: Optional[SubmissionResult] = None,
+        crash_input_path: Optional[str] = None,
+        harness_name: Optional[str] = None,
+        sanitizer: Optional[str] = None,
+        engine: Optional[str] = None,
+        stacktrace: Optional[str] = None,
     ):
         """Add a crash to the submission entry.
 
@@ -132,10 +129,10 @@ class SubmissionEntryBuilder:
 
     def patch(
         self,
-        internal_patch_id: str | None = None,
-        patch_content: str | None = None,
-        competition_patch_id: str | None = None,
-        result: Optional[SubmissionResult] = None,  # noqa: UP045 - protobuf enum
+        internal_patch_id: Optional[str] = None,
+        patch_content: Optional[str] = None,
+        competition_patch_id: Optional[str] = None,
+        result: Optional[SubmissionResult] = None,
     ):
         """Add a patch to the submission entry.
 
@@ -156,11 +153,11 @@ class SubmissionEntryBuilder:
 
     def bundle(
         self,
-        bundle_id: str | None = None,
-        competition_pov_id: str | None = None,
-        competition_patch_id: str | None = None,
-        competition_sarif_id: str | None = None,
-        task_id: str | None = None,
+        bundle_id: Optional[str] = None,
+        competition_pov_id: Optional[str] = None,
+        competition_patch_id: Optional[str] = None,
+        competition_sarif_id: Optional[str] = None,
+        task_id: Optional[str] = None,
     ):
         """Add a bundle to the submission entry.
 
@@ -198,13 +195,13 @@ class SubmissionEntryBuilder:
 
     def build_output(
         self,
-        patch_internal_id: str | None = None,
-        sanitizer: str | None = None,
-        engine: str | None = None,
-        build_type: Optional[BuildType] = None,  # noqa: UP045 - protobuf enum
-        apply_diff: bool | None = None,
-        task_dir: str | None = None,
-        task_id: str | None = None,
+        patch_internal_id: Optional[str] = None,
+        sanitizer: Optional[str] = None,
+        engine: Optional[str] = None,
+        build_type: Optional[BuildType] = None,
+        apply_diff: Optional[bool] = None,
+        task_dir: Optional[str] = None,
+        task_id: Optional[str] = None,
     ):
         """Add a build output to the last patch.
 
@@ -965,7 +962,9 @@ class TestSubmissions:
 
         # Mock the crash comparison functions to return non-matching data
         mock_get_crash_data, mock_get_inst_key, mock_crash_comparer_init, mock_is_similar = (
-            create_crash_comparison_mocks([])  # No patterns are similar
+            create_crash_comparison_mocks(
+                []  # No patterns are similar
+            )
         )
 
         # Apply mocks
@@ -5405,8 +5404,7 @@ class TestRecordPatchedBuild:
         )
 
         # Manually add multiple build outputs with mixed completion
-        from buttercup.common.datastructures.msg_pb2 import BuildOutput as BuildOutputMsg
-        from buttercup.common.datastructures.msg_pb2 import BuildType
+        from buttercup.common.datastructures.msg_pb2 import BuildOutput as BuildOutputMsg, BuildType
 
         build_output1 = BuildOutputMsg(
             task_dir="/build/path1",  # Complete

@@ -1,10 +1,8 @@
-import logging
-
-from redis import Redis
-
-from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.pov_reproducer.config import Settings
 from buttercup.orchestrator.pov_reproducer.pov_reproducer import POVReproducer
+from buttercup.common.logger import setup_package_logger
+from redis import Redis
+import logging
 
 logger = logging.getLogger(__name__)
 

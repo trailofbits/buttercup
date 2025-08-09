@@ -1,25 +1,23 @@
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
-
+from dataclasses import dataclass, field
+from buttercup.common.queues import (
+    QueueFactory,
+    ReliableQueue,
+    QueueNames,
+    GroupNames,
+)
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.utils import serve_loop
+from pathlib import Path
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from redis import Redis
-
 import buttercup.common.node_local as node_local
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.datastructures.msg_pb2 import IndexOutput, IndexRequest
-from buttercup.common.queues import (
-    GroupNames,
-    QueueFactory,
-    QueueNames,
-    ReliableQueue,
-)
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
-from buttercup.common.utils import serve_loop
-from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +58,9 @@ class ProgramModel:
     def process_task_codequery(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
         try:
-            logger.info(f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery")
+            logger.info(
+                f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery"
+            )
             challenge = ChallengeTask(
                 read_only_task_dir=args.task_dir,
                 python_path=self.python,
@@ -97,7 +97,9 @@ class ProgramModel:
 
     def process_task(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
-        logger.info(f"Processing task {args.package_name}/{args.task_id}/{args.task_dir}")
+        logger.info(
+            f"Processing task {args.package_name}/{args.task_id}/{args.task_dir}"
+        )
         return self.process_task_codequery(args)
 
     def serve_item(self) -> bool:
@@ -110,7 +112,9 @@ class ProgramModel:
         task_index: IndexRequest = rq_item.deserialized
 
         # Check if task should be processed or skipped
-        if self.registry is not None and self.registry.should_stop_processing(task_index.task_id):
+        if self.registry is not None and self.registry.should_stop_processing(
+            task_index.task_id
+        ):
             logger.debug(f"Task {task_index.task_id} is cancelled or expired, skipping")
             self.task_queue.ack_item(rq_item.item_id)
             return True

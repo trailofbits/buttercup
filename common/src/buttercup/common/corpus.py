@@ -1,17 +1,15 @@
-import hashlib
 import logging
-import os
-import shutil
-import subprocess
-import tempfile
-from pathlib import Path
-from typing import BinaryIO
-
-from redis import Redis
-
+from typing import BinaryIO, List
 import buttercup.common.node_local as node_local
 from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
+import os
+import hashlib
+import shutil
+import subprocess
+from pathlib import Path
+from redis import Redis
 from buttercup.common.sets import MergedCorpusSet
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +97,7 @@ class InputDir:
         return len(name) == 64 and all(c in "0123456789abcdef" for c in name)
 
     @classmethod
-    def hash_corpus(cls, path: str) -> list[str]:
+    def hash_corpus(cls, path: str) -> List[str]:
         hashed_files = []
         for file in os.listdir(path):
             # If the file is already a hash, skip it

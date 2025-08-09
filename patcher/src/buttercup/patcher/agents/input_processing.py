@@ -1,14 +1,12 @@
+from buttercup.patcher.agents.common import PatcherAgentBase
 from dataclasses import dataclass
-
-from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
-
-from buttercup.patcher.agents.common import (
-    PatcherAgentBase,
-    PatcherAgentName,
-    PatcherAgentState,
-)
+from langchain_core.runnables import RunnableConfig
 from buttercup.patcher.agents.config import PatcherConfig
+from buttercup.patcher.agents.common import (
+    PatcherAgentState,
+    PatcherAgentName,
+)
 from buttercup.patcher.utils import get_codequery
 
 

@@ -1,15 +1,15 @@
-import functools
-import logging
 import os
 from enum import Enum
 from typing import Any
-
 import requests
-from langchain.callbacks.base import BaseCallbackHandler
+import functools
 from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import ConfigurableField
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.runnables import ConfigurableField
+
+import logging
 
 logger = logging.getLogger(__name__)
 

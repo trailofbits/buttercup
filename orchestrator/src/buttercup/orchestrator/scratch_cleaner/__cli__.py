@@ -1,10 +1,8 @@
-import logging
-
-from redis import Redis
-
-from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.scratch_cleaner.config import Settings
 from buttercup.orchestrator.scratch_cleaner.scratch_cleaner import ScratchCleaner
+from buttercup.common.logger import setup_package_logger
+from redis import Redis
+import logging
 
 logger = logging.getLogger(__name__)
 

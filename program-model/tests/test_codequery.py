@@ -1,15 +1,14 @@
 """CodeQuery primitives testing"""
 
+import pytest
+from unittest.mock import patch
+from pathlib import Path
 import shutil
 import subprocess
-from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
+from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.utils.common import TypeDefinitionType
 
 
@@ -40,15 +39,12 @@ def setup_c_dirs(tmp_path: Path) -> Path:
 
     # Create a mock test.txt file
     (source / "test.c").write_text("int main() { return 0; }")
-    (source / "test2.c").write_text(
-        """int function2(int a, int b) {
+    (source / "test2.c").write_text("""int function2(int a, int b) {
     int c = a + b;
     return c;
 }
-"""
-    )
-    (source / "test3.c").write_text(
-        """int function3(int a, int b) {
+""")
+    (source / "test3.c").write_text("""int function3(int a, int b) {
     int c = a + b;
     return c;
 }
@@ -57,17 +53,14 @@ int function4(char *s) {
 onftest import libjpeg_oss_fuzz_task
 from .c    return strlen(s);
 }
-"""
-    )
-    (source / "test4.c").write_text(
-        """typedef int myInt;
+""")
+    (source / "test4.c").write_text("""typedef int myInt;
 myInt function5(myInt a, myInt b) {
     typedef int myOtherInt;
     myOtherInt c = a + b;
     return a + b + c;
 }
-"""
-    )
+""")
 
     # Create task metadata
     TaskMeta(
@@ -189,7 +182,10 @@ def test_get_functions_multiple(mock_c_challenge_task: ChallengeTask):
     function3 = codequery.get_functions("function3", Path("test3.c"))
     assert len(function3) == 1
     assert function3[0].name == "function3"
-    assert function3[0].bodies[0].body == "int function3(int a, int b) {\n    int c = a + b;\n    return c;\n}"
+    assert (
+        function3[0].bodies[0].body
+        == "int function3(int a, int b) {\n    int c = a + b;\n    return c;\n}"
+    )
 
     function4 = codequery.get_functions("function4", Path("test3.c"))
     assert len(function4) == 1
@@ -233,7 +229,9 @@ def test_keep_status(
     assert mock_c_challenge_task.task_dir.exists()
     assert mock_c_challenge_task_ro.task_dir.exists()
 
-    with mock_c_challenge_task_ro.get_rw_copy(mock_c_challenge_task_ro.task_dir.parent) as nd_challenge:
+    with mock_c_challenge_task_ro.get_rw_copy(
+        mock_c_challenge_task_ro.task_dir.parent
+    ) as nd_challenge:
         with patch("subprocess.run", side_effect=mock_docker_run(nd_challenge)):
             codequery3 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery3.get_functions("main")
@@ -241,7 +239,9 @@ def test_keep_status(
         assert mock_c_challenge_task.task_dir.exists()
         assert mock_c_challenge_task_ro.task_dir.exists()
 
-    with mock_c_challenge_task.get_rw_copy(mock_c_challenge_task.task_dir.parent) as nd_challenge:
+    with mock_c_challenge_task.get_rw_copy(
+        mock_c_challenge_task.task_dir.parent
+    ) as nd_challenge:
         with patch("subprocess.run", side_effect=mock_docker_run(nd_challenge)):
             codequery4 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery4.get_functions("main")
@@ -266,7 +266,9 @@ def test_get_types(mock_c_challenge_task: ChallengeTask):
     assert types[0].definition_line == 1
     types = codequery.get_types("myInt", Path("test4.c"), function_name="function5")
     assert len(types) == 0
-    types = codequery.get_types("myOtherInt", Path("test4.c"), function_name="function5")
+    types = codequery.get_types(
+        "myOtherInt", Path("test4.c"), function_name="function5"
+    )
     assert len(types) == 1
     assert types[0].name == "myOtherInt"
     assert types[0].type == TypeDefinitionType.TYPEDEF
@@ -308,7 +310,10 @@ def test_libjpeg_indexing(libjpeg_oss_fuzz_task: ChallengeTask):
     assert parse_switches[0].file_path == Path("/src/libjpeg-turbo/cjpeg.c")
     assert parse_switches[0].file_path.name == "cjpeg.c"
     assert len(parse_switches[0].bodies) == 1
-    assert "parse_switches(j_compress_ptr cinfo, int argc, char **argv," in parse_switches[0].bodies[0].body
+    assert (
+        "parse_switches(j_compress_ptr cinfo, int argc, char **argv,"
+        in parse_switches[0].bodies[0].body
+    )
 
     assert parse_switches[1].file_path.name == "djpeg.c"
     assert parse_switches[1].name == "parse_switches"
@@ -321,14 +326,20 @@ parse_switches(j_decompress_ptr cinfo, int argc, char **argv,
 """
         in parse_switches[1].bodies[0].body
     )
-    assert '    } else if (keymatch(arg, "crop", 2)) {' in parse_switches[1].bodies[0].body
     assert (
-        "return argn;                  /* return index of next arg (file name) */" in parse_switches[1].bodies[0].body
+        '    } else if (keymatch(arg, "crop", 2)) {' in parse_switches[1].bodies[0].body
+    )
+    assert (
+        "return argn;                  /* return index of next arg (file name) */"
+        in parse_switches[1].bodies[0].body
     )
 
     assert parse_switches[2].file_path.name == "jpegtran.c"
     assert len(parse_switches[2].bodies) == 1
-    assert "parse_switches(j_compress_ptr cinfo, int argc, char **argv," in parse_switches[2].bodies[0].body
+    assert (
+        "parse_switches(j_compress_ptr cinfo, int argc, char **argv,"
+        in parse_switches[2].bodies[0].body
+    )
 
 
 @pytest.mark.integration
@@ -340,7 +351,10 @@ def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     assert functions[0].name == "mls_semantic_level_expand"
     assert functions[0].file_path == Path("/src/selinux/libsepol/src/expand.c")
     assert len(functions[0].bodies) == 1
-    assert """cat->low > 0 ? p->p_cat_val_to_name[cat->low - 1] : "Invalid",""" in functions[0].bodies[0].body
+    assert (
+        """cat->low > 0 ? p->p_cat_val_to_name[cat->low - 1] : "Invalid","""
+        in functions[0].bodies[0].body
+    )
 
 
 def setup_java_dirs(tmp_path: Path) -> Path:
@@ -369,16 +383,13 @@ def setup_java_dirs(tmp_path: Path) -> Path:
     helper_path.write_text("import sys;\nsys.exit(0)\n")
 
     # Create a mock test.txt file
-    (source / "test.java").write_text(
-        """public class Test {
+    (source / "test.java").write_text("""public class Test {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
     }
 }
-"""
-    )
-    (source / "test2.java").write_text(
-        """public class Test2 {
+""")
+    (source / "test2.java").write_text("""public class Test2 {
     public static int add(int a, int b) {
         return a + b;
     }
@@ -388,10 +399,8 @@ def setup_java_dirs(tmp_path: Path) -> Path:
         System.out.println("The sum is: " + sum);
     }
 }
-"""
-    )
-    (source / "test3.java").write_text(
-        """class MyStruct {
+""")
+    (source / "test3.java").write_text("""class MyStruct {
     public int id;
     public String name;
     public double value;
@@ -409,8 +418,7 @@ public class Test3 {
         System.out.println("MyStruct: " + data.id + ", " + data.name + ", " + data.value);
     }
 }
-"""
-    )
+""")
 
     # Create task metadata
     TaskMeta(
@@ -465,20 +473,15 @@ def test_get_functions_java(mock_java_challenge_task: ChallengeTask):
     )
     assert main_functions[1].name == "main"
     assert len(main_functions[1].bodies) == 1
-    assert main_functions[1].bodies[0].body == (
-        "    public static void main(String[] args) {\n"
-        "        int sum = add(5, 3);\n"
-        '        System.out.println("The sum is: " + sum);\n'
-        "    }"
+    assert (
+        main_functions[1].bodies[0].body
+        == '    public static void main(String[] args) {\n        int sum = add(5, 3);\n        System.out.println("The sum is: " + sum);\n    }'
     )
     assert main_functions[2].name == "main"
     assert len(main_functions[2].bodies) == 1
-    assert main_functions[2].bodies[0].body == (
-        "    public static void main(String[] args) {\n"
-        '        MyStruct data = new MyStruct(1, "Example", 3.14);\n'
-        '        System.out.println("MyStruct: " + data.id + ", " + data.name + ", " '
-        "+ data.value);\n"
-        "    }"
+    assert (
+        main_functions[2].bodies[0].body
+        == '    public static void main(String[] args) {\n        MyStruct data = new MyStruct(1, "Example", 3.14);\n        System.out.println("MyStruct: " + data.id + ", " + data.name + ", " + data.value);\n    }'
     )
 
 
@@ -492,18 +495,9 @@ def test_get_types_java(mock_java_challenge_task: ChallengeTask):
     assert len(types) == 1
     assert types[0].name == "MyStruct"
     assert types[0].type == TypeDefinitionType.CLASS
-    assert types[0].definition == (
-        "class MyStruct {\n"
-        "    public int id;\n"
-        "    public String name;\n"
-        "    public double value;\n"
-        "\n"
-        "    public MyStruct(int id, String name, double value) {\n"
-        "        this.id = id;\n"
-        "        this.name = name;\n"
-        "        this.value = value;\n"
-        "    }\n"
-        "}"
+    assert (
+        types[0].definition
+        == "class MyStruct {\n    public int id;\n    public String name;\n    public double value;\n\n    public MyStruct(int id, String name, double value) {\n        this.id = id;\n        this.name = name;\n        this.value = value;\n    }\n}"
     )
     assert types[0].definition_line == 1
 
@@ -517,6 +511,6 @@ def test_antlr4_indexing(antlr4_oss_fuzz_cq: CodeQuery):
     assert functions[0].file_path == Path("/src/GrammarFuzzer.java")
     assert len(functions[0].bodies) == 1
     assert (
-        "LexerInterpreter lexEngine = lg.createLexerInterpreter("
-        "CharStreams.fromString(data.consumeRemainingAsString()));" in functions[0].bodies[0].body
+        "LexerInterpreter lexEngine = lg.createLexerInterpreter(CharStreams.fromString(data.consumeRemainingAsString()));"
+        in functions[0].bodies[0].body
     )

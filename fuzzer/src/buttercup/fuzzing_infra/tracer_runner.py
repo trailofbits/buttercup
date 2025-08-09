@@ -1,15 +1,13 @@
-import logging
-from dataclasses import dataclass
-from pathlib import Path
-
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
+from buttercup.common.maps import BuildMap
 from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
 from buttercup.common.datastructures.msg_pb2 import BuildType
-from buttercup.common.maps import BuildMap
-from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from pathlib import Path
+from dataclasses import dataclass
+import logging
+from redis import Redis
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
 
 logger = logging.getLogger(__name__)
 

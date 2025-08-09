@@ -1,31 +1,29 @@
 """Tests for the Quality Engineer agent's patch validation functionality."""
 
-import os
-import subprocess
+import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
+import os
+from langgraph.types import Command
+from langgraph.constants import END
+from buttercup.common.constants import ARCHITECTURE
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableSequence
-from langgraph.constants import END
-from langgraph.types import Command
-
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
-from buttercup.common.constants import ARCHITECTURE
-from buttercup.common.project_yaml import Language
 from buttercup.patcher.agents.common import (
-    PatchAttempt,
-    PatcherAgentName,
     PatcherAgentState,
-    PatchOutput,
+    PatcherAgentName,
+    PatchAttempt,
     PatchStatus,
+    PatchOutput,
 )
+from buttercup.patcher.agents.qe import QEAgent, PatchValidationState
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.patcher.agents.qe import PatchValidationState, QEAgent
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
+from buttercup.common.project_yaml import Language
+import subprocess
 
 
 @pytest.fixture

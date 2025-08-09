@@ -1,12 +1,11 @@
-import logging
-import random
 from abc import ABC, abstractmethod
-
 from redis import Redis
-
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
-from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.utils import serve_loop
+from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, BuildType
+from buttercup.common.maps import HarnessWeights, BuildMap
+
+import random
+import logging
 
 logger = logging.getLogger(__name__)
 
