@@ -240,7 +240,7 @@ services:
     build:
       context: ../../
       dockerfile: ./seed-gen/Dockerfile
-    command: ["seed-gen", "server"]
+    command: ["buttercup-seed-gen", "server"]
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../node_data_storage/:/node_data

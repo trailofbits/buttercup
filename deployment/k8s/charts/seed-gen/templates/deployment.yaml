@@ -25,7 +25,7 @@ spec:
       - name: seed-gen
         image: "{{ .Values.global.seedGenImage.repository }}:{{ .Values.global.seedGenImage.tag }}"
         imagePullPolicy: {{ .Values.global.seedGenImage.pullPolicy }}
-        command: ["seed-gen", "server"]
+        command: ["buttercup-seed-gen", "server"]
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         livenessProbe:
