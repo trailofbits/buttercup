@@ -476,13 +476,24 @@ def test_get_functions_java(mock_java_challenge_task: ChallengeTask):
     assert len(main_functions[1].bodies) == 1
     assert (
         main_functions[1].bodies[0].body
-        == '    public static void main(String[] args) {\n        int sum = add(5, 3);\n        System.out.println("The sum is: " + sum);\n    }'
+        == (
+            '    public static void main(String[] args) {\n'
+            '        int sum = add(5, 3);\n'
+            '        System.out.println("The sum is: " + sum);\n'
+            '    }'
+        )
     )
     assert main_functions[2].name == "main"
     assert len(main_functions[2].bodies) == 1
     assert (
         main_functions[2].bodies[0].body
-        == '    public static void main(String[] args) {\n        MyStruct data = new MyStruct(1, "Example", 3.14);\n        System.out.println("MyStruct: " + data.id + ", " + data.name + ", " + data.value);\n    }'
+        == (
+            '    public static void main(String[] args) {\n'
+            '        MyStruct data = new MyStruct(1, "Example", 3.14);\n'
+            '        System.out.println("MyStruct: " + data.id + ", " + data.name + ", " '
+            '+ data.value);\n'
+            '    }'
+        )
     )
 
 
@@ -498,7 +509,19 @@ def test_get_types_java(mock_java_challenge_task: ChallengeTask):
     assert types[0].type == TypeDefinitionType.CLASS
     assert (
         types[0].definition
-        == "class MyStruct {\n    public int id;\n    public String name;\n    public double value;\n\n    public MyStruct(int id, String name, double value) {\n        this.id = id;\n        this.name = name;\n        this.value = value;\n    }\n}"
+        == (
+            "class MyStruct {\n"
+            "    public int id;\n"
+            "    public String name;\n"
+            "    public double value;\n"
+            "\n"
+            "    public MyStruct(int id, String name, double value) {\n"
+            "        this.id = id;\n"
+            "        this.name = name;\n"
+            "        this.value = value;\n"
+            "    }\n"
+            "}"
+        )
     )
     assert types[0].definition_line == 1
 
@@ -512,6 +535,7 @@ def test_antlr4_indexing(antlr4_oss_fuzz_cq: CodeQuery):
     assert functions[0].file_path == Path("/src/GrammarFuzzer.java")
     assert len(functions[0].bodies) == 1
     assert (
-        "LexerInterpreter lexEngine = lg.createLexerInterpreter(CharStreams.fromString(data.consumeRemainingAsString()));"
+        "LexerInterpreter lexEngine = lg.createLexerInterpreter("
+        "CharStreams.fromString(data.consumeRemainingAsString()));"
         in functions[0].bodies[0].body
     )

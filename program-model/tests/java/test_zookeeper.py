@@ -29,7 +29,10 @@ from ..common import (
             TestFunctionInfo(
                 num_bodies=1,
                 body_excerpts=[
-                    """String sentOrReceivedText = direction == Direction.SENT ? "sentBuffer to" : "receivedBuffer from";""",
+                    (
+                        'String sentOrReceivedText = direction == Direction.SENT ? '
+                        '"sentBuffer to" : "receivedBuffer from";'
+                    ),
                 ],
             ),
         ),
