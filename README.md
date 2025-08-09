@@ -1,8 +1,9 @@
 # Buttercup Cyber Reasoning System (CRS)
 
-[![Unit Tests](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml/badge.svg)](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml)
-[![Nightly Tests](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml/badge.svg?event=schedule)](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml)
-[![System Integration](https://github.com/trailofbits/buttercup/actions/workflows/integration.yml/badge.svg)](https://github.com/trailofbits/buttercup/actions/workflows/integration.yml)
+**CI/CD Status:**
+- Push/PR: [![Unit tests](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml/badge.svg)](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml)
+- Nightly: [![Unit tests](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml/badge.svg?event=schedule)](https://github.com/trailofbits/buttercup/actions/workflows/tests.yml)
+- Integration: [![Minikube Integration Tests](https://github.com/trailofbits/buttercup/actions/workflows/integration.yml/badge.svg)](https://github.com/trailofbits/buttercup/actions/workflows/integration.yml)
 
 **Buttercup** is a Cyber Reasoning System (CRS) developed by **Trail of Bits** for the **DARPA AIxCC (AI Cyber Challenge)**. Buttercup finds and patches software vulnerabilities in open-source code repositories like [example-libpng](https://github.com/tob-challenges/example-libpng). It starts by running an AI/ML-assisted fuzzing campaign (built on oss-fuzz) for the program. When vulnerabilities are found, Buttercup analyzes them and uses a multi-agent AI-driven patcher to repair the vulnerability. **Buttercup** system consists of several components:
 
