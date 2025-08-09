@@ -6,6 +6,18 @@ readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
+keywords = ["static-analysis", "codequery", "tree-sitter", "code-analysis", "semantic-analysis", "cybersecurity"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Linguistic",
+    "Operating System :: POSIX :: Linux",
+]
 dependencies = [
     "common",
     "protobuf (>=3.20, <=3.20.3)",
@@ -17,6 +29,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/trailofbits/buttercup"
 Issues = "https://github.com/trailofbits/buttercup/issues"
+Documentation = "https://github.com/trailofbits/buttercup#readme"
 
 [project.scripts]
 buttercup-program-model = "buttercup.program_model.__cli__:main"

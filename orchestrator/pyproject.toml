@@ -6,6 +6,18 @@ readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
+keywords = ["orchestration", "task-management", "scheduler", "api", "fastapi", "cybersecurity"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Distributed Computing",
+    "Operating System :: POSIX :: Linux",
+]
 dependencies = [
     "argon2-cffi~=21.0.0",
     "common",
@@ -26,6 +38,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/trailofbits/buttercup"
 Issues = "https://github.com/trailofbits/buttercup/issues"
+Documentation = "https://github.com/trailofbits/buttercup#readme"
 
 [project.scripts]
 buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"

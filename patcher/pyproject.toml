@@ -6,6 +6,18 @@ readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
+keywords = ["patching", "vulnerability-repair", "llm", "ai", "code-generation", "automated-repair", "cybersecurity"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: POSIX :: Linux",
+]
 dependencies = [
     "common",
     "langchain~=0.3.20",
@@ -22,6 +34,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/trailofbits/buttercup"
 Issues = "https://github.com/trailofbits/buttercup/issues"
+Documentation = "https://github.com/trailofbits/buttercup#readme"
 
 [project.scripts]
 buttercup-patcher = "buttercup.patcher.__cli__:main"
