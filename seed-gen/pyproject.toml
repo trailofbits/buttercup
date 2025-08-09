@@ -50,16 +50,15 @@ Documentation = "https://github.com/trailofbits/buttercup#readme"
 
 [dependency-groups]
 dev = [
-    "pytest ~= 8.3.4",
-    "pytest-cov ~= 6.0.0",
-    "ruff ~= 0.12.8",
     "mypy ~= 1.15.0",
-    "types-redis ~= 4.6.0",
+    "pytest ~= 8.3.4",
+    "ruff ~= 0.12.8",
     "tqdm ~= 4.67.1",
+    "types-redis",
 ]
 
 [project.scripts]
-"buttercup-seed-gen" = "buttercup.seed_gen._cli:main"
+"seed-gen" = "buttercup.seed_gen._cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

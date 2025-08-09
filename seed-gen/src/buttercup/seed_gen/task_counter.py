@@ -12,7 +12,9 @@ class TaskCounter:
     def __init__(self, redis: Redis):
         self.redis = redis
 
-    def _get_counter_key(self, harness_name: str, package_name: str, task_id: str, task_name: str) -> str:
+    def _get_counter_key(
+        self, harness_name: str, package_name: str, task_id: str, task_name: str
+    ) -> str:
         """Generate a unique Redis key for the counter."""
         key = [
             TASK_COUNTER_NAME,
@@ -67,5 +69,7 @@ class TaskCounter:
         """
         counts = {}
         for task_name in TaskName:
-            counts[task_name.value] = self.get_count(harness_name, package_name, task_id, task_name.value)
+            counts[task_name.value] = self.get_count(
+                harness_name, package_name, task_id, task_name.value
+            )
         return counts

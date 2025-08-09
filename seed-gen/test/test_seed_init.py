@@ -58,7 +58,9 @@ def test_do_task_success(
     ):
         # Mock the tracer span
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
+            mock_span
+        )
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
 
         # Mock LLM responses for the workflow
@@ -77,9 +79,15 @@ def test_do_task_success(
         mock_llm.invoke.side_effect = mock_llm_responses + seed_messages
 
         # Mock codequery for tools
-        seed_init_task.codequery.get_functions = Mock(return_value=mock_codequery_responses["get_functions"])
-        seed_init_task.codequery.get_callers = Mock(return_value=mock_codequery_responses["get_callers"])
-        seed_init_task.codequery.get_types = Mock(return_value=mock_codequery_responses["get_types"])
+        seed_init_task.codequery.get_functions = Mock(
+            return_value=mock_codequery_responses["get_functions"]
+        )
+        seed_init_task.codequery.get_callers = Mock(
+            return_value=mock_codequery_responses["get_callers"]
+        )
+        seed_init_task.codequery.get_types = Mock(
+            return_value=mock_codequery_responses["get_types"]
+        )
 
         # Mock challenge_task.exec_docker_cmd for cat tool
         seed_init_task.challenge_task.exec_docker_cmd = Mock(

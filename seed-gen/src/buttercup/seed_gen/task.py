@@ -204,11 +204,15 @@ class Task:
             if function_def is not None:
                 return function_def
 
-        function_def = self._do_get_function_def(function_name, [None], fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold)
+        function_def = self._do_get_function_def(
+            function_name, [None], fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
+        )
         if function_def is not None:
             return function_def
 
-        logger.warning("No function definition found for %s (paths: %s)", function_name, function_paths)
+        logger.warning(
+            "No function definition found for %s (paths: %s)", function_name, function_paths
+        )
         return None
 
     def _generate_python_funcs_base(
@@ -276,7 +280,9 @@ class Task:
         return type_defs  # type: ignore[no-any-return]
 
     @staticmethod
-    def _get_function_definition(function_name: str, state: "BaseTaskState", tool_call_id: str) -> Command:
+    def _get_function_definition(
+        function_name: str, state: "BaseTaskState", tool_call_id: str
+    ) -> Command:
         """Implementation of get_function_definition tool"""
         logger.info("Tool call: get_function_definition for %s", function_name)
         call = f'get_function_definition("{function_name}")'
@@ -293,7 +299,9 @@ class Task:
             )
         function_def = state.task.get_function_def(function_name, fuzzy=False)
         if function_def:
-            results = [CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body)]
+            results = [
+                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body)
+            ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
                 update={
@@ -341,7 +349,10 @@ class Task:
             )
         type_defs = state.task._do_get_type_defs(type_name)
         if len(type_defs) > 0:
-            results = [CodeSnippet(file_path=type_def.file_path, code=type_def.definition) for type_def in type_defs]
+            results = [
+                CodeSnippet(file_path=type_def.file_path, code=type_def.definition)
+                for type_def in type_defs
+            ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
                 update={
@@ -470,7 +481,10 @@ class Task:
             )
         callers = state.task._do_get_callers(function_name)
 
-        code_snippets = [CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body) for caller in callers]
+        code_snippets = [
+            CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body)
+            for caller in callers
+        ]
         call_result = ToolCallResult(call=call, results=code_snippets)
         return Command(
             update={
@@ -586,7 +600,11 @@ def batch_tool(
             file_path = call.arguments["file_path"]
             result = Task._cat(file_path, state, tool_call_id)
             results.append(result)
-        elif call.tool_name == "get_callers" and "function_name" in call.arguments and "file_path" in call.arguments:
+        elif (
+            call.tool_name == "get_callers"
+            and "function_name" in call.arguments
+            and "file_path" in call.arguments
+        ):
             function_name = call.arguments["function_name"]
             file_path = call.arguments["file_path"]
             result = Task._get_callers(function_name, file_path, state, tool_call_id)

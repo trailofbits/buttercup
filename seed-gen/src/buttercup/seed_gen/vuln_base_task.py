@@ -61,9 +61,13 @@ class PoVAttempt:
 
 class VulnBaseState(BaseTaskState):
     analysis: str = Field(description="The analysis of the vulnerability", default="")
-    sarifs: list[SARIFBroadcastDetail] = Field(description="SARIF broadcasts for the task", default_factory=list)
+    sarifs: list[SARIFBroadcastDetail] = Field(
+        description="SARIF broadcasts for the task", default_factory=list
+    )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
-    current_dir: Path = Field(description="Directory to store most recent seeds before they are tested")
+    current_dir: Path = Field(
+        description="Directory to store most recent seeds before they are tested"
+    )
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)
 
@@ -171,7 +175,9 @@ class VulnBaseTask(Task):
             final_path = state.output_dir / final_name
             shutil.move(pov, final_path)
             try:
-                for build, result in self.reproduce_multiple.get_crashes(final_path, self.harness_name):
+                for build, result in self.reproduce_multiple.get_crashes(
+                    final_path, self.harness_name
+                ):
                     logger.info(
                         "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
                         self.challenge_task.task_meta.task_id,
@@ -338,7 +344,9 @@ class VulnBaseTask(Task):
                 chain.invoke(state)  # type: ignore[arg-type]
 
         except Exception as err:
-            logger.exception("Failed vuln-discovery for challenge %s: %s", self.package_name, str(err))
+            logger.exception(
+                "Failed vuln-discovery for challenge %s: %s", self.package_name, str(err)
+            )
 
     def sample_sarifs(self) -> list[SARIFBroadcastDetail]:
         """Sample SARIFs for the task"""

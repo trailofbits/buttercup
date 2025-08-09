@@ -63,14 +63,21 @@ def test_extract_code_no_markdown():
 
 
 def test_extract_code_single_block():
-    message = AIMessage(content="Some text before\n```python\nprint('hello')\nprint('hello')\n```\nText after")
+    message = AIMessage(
+        content="Some text before\n```python\nprint('hello')\nprint('hello')\n```\nText after"
+    )
     result = extract_code(message)
     assert result == "print('hello')\nprint('hello')\n"
 
 
 def test_extract_code_multiple_blocks():
     message = AIMessage(
-        content=("First block:\n```python\nprint('first')\n```\nMiddle text\n```python\nprint('second')\n```")
+        content=(
+            "First block:\n"
+            "```python\nprint('first')\n```\n"
+            "Middle text\n"
+            "```python\nprint('second')\n```"
+        )
     )
     result = extract_code(message)
     assert result == "print('second')\n"
@@ -103,7 +110,7 @@ def test_extract_code_libpng_partial_codeblock():
 
 
 def test_extract_code_partial_block_with_no_functions():
-    message = AIMessage(content=("Here's some code:\n```python\nprint('hello')\nx = 1"))
+    message = AIMessage(content=("Here's some code:\n" "```python\n" "print('hello')\n" "x = 1"))
     with pytest.raises(OutputParserException):
         extract_code(message)
 
