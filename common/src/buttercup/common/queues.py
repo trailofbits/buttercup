@@ -135,7 +135,7 @@ class ReliableQueue[MsgType: Message]:
     @staticmethod
     def _ensure_group_name(func: F) -> F:
         @wraps(func)
-        def wrapper(self: ReliableQueue[MsgType], *args: Any, **kwargs: Any) -> Any:
+        def wrapper(self: ReliableQueue[Message], *args: Any, **kwargs: Any) -> Any:
             if self.group_name is None:
                 raise ValueError("group_name must be set for this operation")
 
