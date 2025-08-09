@@ -8,15 +8,15 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, TypeAlias
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 node_local_path = os.getenv("NODE_DATA_DIR")
 
 
-NodeLocalPath: TypeAlias = Path
-RemotePath: TypeAlias = Path
+type NodeLocalPath = Path
+type RemotePath = Path
 
 
 def _get_root_path() -> NodeLocalPath:

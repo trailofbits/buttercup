@@ -77,7 +77,7 @@ Request additional code snippets if they are *critical* to understand the root c
    - Exact failure location
    - Vulnerable control/data flow
    - Failed security checks
-   
+
    To request additional code snippets, use the following format:
    ```
    <code_snippet_request>

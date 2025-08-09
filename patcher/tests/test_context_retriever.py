@@ -639,10 +639,10 @@ def test_recursion_limit(mock_agent: ContextRetrieverAgent, mock_agent_llm: Magi
 
     mock_agent_llm.invoke.side_effect = [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -707,10 +707,10 @@ def test_recursion_limit_tmp_code_snippets(
     ]
     llm_invoke_side_effect += [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -1051,10 +1051,10 @@ def test_low_recursion_limit_empty(
     )
     mock_agent_llm.invoke.side_effect = [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -1123,10 +1123,10 @@ def test_low_recursion_limit_with_results(
     ]
     llm_invoke_side_effect += [
         AIMessage(
-            content="I'll list the files in the dir %s." % (i,),
+            content=f"I'll list the files in the dir {i}.",
             tool_calls=[
                 ToolCall(
-                    id="list_files_call_%s" % (i,),
+                    id=f"list_files_call_{i}",
                     name="ls",
                     args={
                         "path": str(i),
@@ -1761,7 +1761,7 @@ def test_get_initial_context_handles_multiple_stackframes(
  #0 0x123456 in crash_func /src/test/crash.c:10
  #1 0x234567 in use_after_free /src/llvm-project/compiler-rt/uaf.c:20
  #2 0x345678 in free_memory /src/llvm-project/compiler-rt/memory.c:30
- 
+
  ==2==ERROR: AddressSanitizer: heap-use-after-free
  #0 0x456789 in allocate_memory /src/test/memory.c:40
  #1 0x567890 in init_data /src/test/init.c:50

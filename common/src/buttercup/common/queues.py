@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Any, Generic, Literal, TypeVar, cast, overload
+from typing import Any, Literal, TypeVar, cast, overload
 
 from google.protobuf.message import Message
 from redis import Redis, RedisError
@@ -80,13 +80,8 @@ POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS = int(os.getenv("POV_REPRODUCER_RESPONS
 logger = logging.getLogger(__name__)
 
 
-# Type variable for protobuf Message subclasses
-# Used for type-hinting of reliable queue items
-MsgType = TypeVar("MsgType", bound=Message)
-
-
 @dataclass
-class RQItem(Generic[MsgType]):
+class RQItem[MsgType: Message]:
     """
     A single item in a reliable queue.
     """
@@ -96,7 +91,7 @@ class RQItem(Generic[MsgType]):
 
 
 @dataclass
-class ReliableQueue(Generic[MsgType]):
+class ReliableQueue[MsgType: Message]:
     """
     A queue that is reliable and can be used to process tasks in a distributed environment.
     """

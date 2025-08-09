@@ -449,7 +449,7 @@ index 67da216..1e338c2 100644
      scanf("%s", filename);
 
      // Open another file for writing
- 
+
 diff --git a/file2.py b/file2.py
 index 9876543..fedcba9 100644
 --- a/file2.py

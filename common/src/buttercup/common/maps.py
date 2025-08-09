@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from typing import Generic, TypeVar
 
 from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from google.protobuf.message import Message
@@ -8,11 +7,10 @@ from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
 from buttercup.common.sets import RedisSet
 
-MsgType = TypeVar("MsgType", bound=Message)
 MSG_FIELD_NAME = b"msg"
 
 
-class RedisMap(Generic[MsgType]):
+class RedisMap[MsgType: Message]:
     def __init__(self, redis: Redis, hash_name: str, msg_builder: type[MsgType]):
         self.redis = redis
         self.msg_builder = msg_builder

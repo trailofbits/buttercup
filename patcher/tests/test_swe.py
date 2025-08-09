@@ -480,7 +480,7 @@ def test_code_snippet_changes_parse_multiple_patches():
         return "new1"
     </new_code>
     </patch>
-    
+
     <patch>
     <identifier>old_function2</identifier>
     <file_path>test/file/path2.py</file_path>
