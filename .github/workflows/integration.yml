@@ -96,6 +96,7 @@ jobs:
           sed -i "s|LANGFUSE_HOST=.*|LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}|" env
           sed -i "s|LANGFUSE_PUBLIC_KEY=.*|LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}|" env
           sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
+          # Base64 encoding is required for Docker registry authentication (not for security, but for format)
           sed -i "s|GHCR_AUTH=.*|GHCR_AUTH=$(echo "USERNAME:${{ secrets.GH_TOKEN }}" | base64 --wrap=0)|" env
           sed -i "s|OTEL_ENDPOINT=.*|OTEL_ENDPOINT=${{ secrets.OTEL_ENDPOINT }}|" env
 
