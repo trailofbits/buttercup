@@ -39,7 +39,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.9.2", "mypy>=1.15.0"]
+dev = ["pytest>=8.3.4", "ruff>=0.12.8", "mypy>=1.15.0"]
 
 [tool.ruff]
 line-length = 120

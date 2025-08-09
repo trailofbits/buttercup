@@ -7,6 +7,7 @@ authors = [
     { name = "Trail of Bits", email = "opensource@trailofbits.com" },
 ]
 license = "AGPL-3.0"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "redis ~= 5.2.1",
     "common",
@@ -18,7 +19,6 @@ dependencies = [
     "langchain ~= 0.3.20",
     "python-dotenv>=1.0.1",
 ]
-requires-python = ">=3.12,<3.13"
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }
@@ -39,7 +39,7 @@ Issues = "https://github.com/trailofbits/buttercup/issues"
 dev = [
     "mypy ~= 1.15.0",
     "pytest ~= 8.3.4",
-    "ruff ~= 0.6.2",
+    "ruff>=0.12.8",
     "tqdm ~= 4.67.1",
     "types-redis",
 ]
