@@ -71,6 +71,11 @@ install_docker() {
     else
         print_success "Docker is already installed"
     fi
+    
+    # Install buildx plugin (required for deploy-local target)
+    print_status "Installing Docker buildx plugin..."
+    sudo apt install -y docker-buildx-plugin
+    print_success "Docker buildx plugin installed"
 }
 
 # Function to install kubectl
