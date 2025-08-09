@@ -1,9 +1,10 @@
 [project]
 name = "orchestrator"
 version = "0.5.0"
-description = "Buttercup orchestrator"
+description = "Central coordination and task management for Buttercup CRS"
 readme = "README.md"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
+license = "AGPL-3.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "argon2-cffi>=21.0.0",
@@ -22,6 +23,10 @@ dependencies = [
     "uvicorn>=0.34.0",
 ]
 
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
+
 [project.scripts]
 buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
 buttercup-task-downloader = "buttercup.orchestrator.downloader.__cli__:main"
@@ -32,8 +37,8 @@ buttercup-scratch-cleaner = "buttercup.orchestrator.scratch_cleaner.__cli__:main
 buttercup-ui = "buttercup.orchestrator.ui.__cli__:main"
 
 
-[project.optional-dependencies]
-tests = [
+[dependency-groups]
+dev = [
     "flake8>=7.1.1",
     "mypy>=1.15.0",
     "pytest>=8.3.4",
