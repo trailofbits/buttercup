@@ -1,6 +1,7 @@
-from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyCImportsResolver
 import pytest
+
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyCImportsResolver
 
 
 @pytest.mark.parametrize(

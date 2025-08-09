@@ -1,31 +1,32 @@
 from __future__ import annotations
 
+import logging
+import os
+import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from redis import Redis, RedisError
-from google.protobuf.message import Message
+from enum import Enum
 from functools import wraps
+from typing import Any, Generic, Literal, TypeVar, cast, overload
+
+from google.protobuf.message import Message
+from redis import Redis, RedisError
+
 from buttercup.common.datastructures.msg_pb2 import (
-    BuildRequest,
     BuildOutput,
-    Crash,
-    TaskDownload,
-    TaskReady,
-    TaskDelete,
-    Patch,
+    BuildRequest,
     ConfirmedVulnerability,
-    IndexRequest,
+    Crash,
     IndexOutput,
-    TracedCrash,
+    IndexRequest,
+    Patch,
     POVReproduceRequest,
     POVReproduceResponse,
+    TaskDelete,
+    TaskDownload,
+    TaskReady,
+    TracedCrash,
 )
-import logging
-from typing import Type, Generic, TypeVar, Literal, overload, Callable, cast
-import uuid
-import os
-from enum import Enum
-from typing import Any
-
 
 TIMES_DELIVERED_FIELD = "times_delivered"
 
@@ -102,7 +103,7 @@ class ReliableQueue(Generic[MsgType]):
 
     redis: Redis
     queue_name: str
-    msg_builder: Type[MsgType]
+    msg_builder: type[MsgType]
     group_name: str | None = None
     task_timeout_ms: int = 180000
     reader_name: str | None = None
@@ -215,7 +216,7 @@ class ReliableQueue(Generic[MsgType]):
 @dataclass
 class QueueConfig:
     queue_name: QueueNames
-    msg_builder: Type
+    msg_builder: type
     task_timeout_ms: int
     group_names: list[GroupNames] = field(default_factory=list)
 

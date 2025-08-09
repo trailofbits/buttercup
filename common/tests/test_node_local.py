@@ -1,24 +1,28 @@
-from pathlib import Path
-import pytest
 import os
-from unittest.mock import patch, mock_open, MagicMock
 from contextlib import contextmanager
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 
 from buttercup.common.node_local import (
-    _get_root_path,
     TmpDir,
-    temp_dir,
-    rename_atomically,
-    remote_path as remote_path_func,
-    remote_archive_path as remote_archive_path_func,
-    scratch_path,
-    scratch_dir,
-    local_scratch_file,
-    remote_scratch_file,
+    _get_root_path,
     dir_to_remote_archive,
+    local_scratch_file,
     lopen,
+    remote_scratch_file,
+    rename_atomically,
+    scratch_dir,
+    scratch_path,
+    temp_dir,
 )
-
+from buttercup.common.node_local import (
+    remote_archive_path as remote_archive_path_func,
+)
+from buttercup.common.node_local import (
+    remote_path as remote_path_func,
+)
 
 # Use this root path for all tests
 TEST_ROOT_PATH = Path("/test/node/data/dir")

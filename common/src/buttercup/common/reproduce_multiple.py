@@ -1,10 +1,11 @@
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
-from buttercup.common.challenge_task import ReproduceResult, ChallengeTask
-from pathlib import Path
-from typing import Generator
-from contextlib import contextmanager
 import contextlib
 import logging
+from collections.abc import Generator
+from contextlib import contextmanager
+from pathlib import Path
+
+from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
+from buttercup.common.datastructures.msg_pb2 import BuildOutput
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
-from typing import Iterator
+import json
+import random
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
+from functools import lru_cache
+
+from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from redis import Redis
 from redis.exceptions import ResponseError
-from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
-from contextlib import contextmanager
-import random
-import json
-from functools import lru_cache
-from typing import Generator
 
 # Import POVReproduceRequest for the refactored PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVReproduceResponse

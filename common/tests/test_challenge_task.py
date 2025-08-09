@@ -1,18 +1,20 @@
-from pathlib import Path
-import pytest
-from unittest.mock import MagicMock, patch
-from dirty_equals import IsStr
-import subprocess
-import os
 import base64
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+from dirty_equals import IsStr
+
 from buttercup.common.challenge_task import (
     ChallengeTask,
     ChallengeTaskError,
-    ReproduceResult,
     CommandResult,
+    ReproduceResult,
 )
 from buttercup.common.task_meta import TaskMeta
-import tempfile
 
 
 @pytest.fixture
@@ -1065,8 +1067,8 @@ INFO: found LLVMFuzzerCustomMutator (0x5595fa311560). Disabling -len_control by 
 Dictionary: 58 entries
 INFO: Running with entropic power schedule (0xFF, 100).
 INFO: Seed: 3932698478
-INFO: Loaded 1 modules   (7459 inline 8-bit counters): 7459 [0x5595fa3cec00, 0x5595fa3d0923), 
-INFO: Loaded 1 PC tables (7459 PCs): 7459 [0x5595fa3d0928,0x5595fa3edb58), 
+INFO: Loaded 1 modules   (7459 inline 8-bit counters): 7459 [0x5595fa3cec00, 0x5595fa3d0923),
+INFO: Loaded 1 PC tables (7459 PCs): 7459 [0x5595fa3d0928,0x5595fa3edb58),
 /out/fuzzer-postauth_nomaths: Running 1 inputs 100 time(s) each.
 Running: /testcase
 Dropbear fuzzer: Disabling stderr output

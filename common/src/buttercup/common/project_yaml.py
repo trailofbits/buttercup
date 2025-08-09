@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
-import yaml
-from buttercup.common.challenge_task import ChallengeTask
 from enum import Enum
+
+import yaml
+
+from buttercup.common.challenge_task import ChallengeTask
 
 
 class Language(str, Enum):

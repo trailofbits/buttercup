@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from redis import Redis
+
 from buttercup.common.maps import CoverageMap, FunctionCoverage, HarnessWeights
 
 # Add matplotlib import for visualization
 try:
-    import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
 
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -368,7 +369,7 @@ class CoverageMonitor:
             list_only: If True, only list the available harnesses without analyzing.
         """
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 coverage_snapshots = json.load(f)
 
             if not coverage_snapshots:
@@ -382,10 +383,9 @@ class CoverageMonitor:
 
             # List all available harnesses
             print(f"Coverage file: {file_path}")
-            print(
-                f"Time range: {datetime.fromtimestamp(coverage_snapshots[0]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')} - "
-                f"{datetime.fromtimestamp(coverage_snapshots[-1]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}"
-            )
+            start_time = datetime.fromtimestamp(coverage_snapshots[0]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            end_time = datetime.fromtimestamp(coverage_snapshots[-1]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            print(f"Time range: {start_time} - {end_time}")
             print(f"Total snapshots: {len(coverage_snapshots)}")
             print("\nAvailable harnesses:")
 

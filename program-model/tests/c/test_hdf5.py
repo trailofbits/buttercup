@@ -2,17 +2,18 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
+from buttercup.program_model.utils.common import TypeDefinitionType
+
 from ..common import (
-    common_test_get_type_definitions,
-    common_test_get_functions,
-    common_test_get_callers,
-    common_test_get_callees,
+    TestCalleeInfo,
     TestCallerInfo,
     TestFunctionInfo,
-    TestCalleeInfo,
     TestTypeDefinitionInfo,
+    common_test_get_callees,
+    common_test_get_callers,
+    common_test_get_functions,
+    common_test_get_type_definitions,
 )
-from buttercup.program_model.utils.common import TypeDefinitionType
 
 
 # Test searching for functions in codebase where we expect

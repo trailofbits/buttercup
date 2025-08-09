@@ -1,16 +1,18 @@
-from pathlib import Path
+import logging
 from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language
 from buttercup.program_model.codequery import CodeQuery
-import pytest
 from buttercup.program_model.utils.common import (
-    TypeDefinitionType,
-    TypeDefinition,
     Function,
+    TypeDefinition,
+    TypeDefinitionType,
     TypeUsageInfo,
 )
-import logging
 
 logger = logging.getLogger(__name__)
 

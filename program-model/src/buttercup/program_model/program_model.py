@@ -1,23 +1,25 @@
 import logging
-from typing import Any
 from dataclasses import dataclass, field
-from buttercup.common.queues import (
-    QueueFactory,
-    ReliableQueue,
-    QueueNames,
-    GroupNames,
-)
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.utils import serve_loop
 from pathlib import Path
+from typing import Any
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from redis import Redis
+
 import buttercup.common.node_local as node_local
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.datastructures.msg_pb2 import IndexOutput, IndexRequest
+from buttercup.common.queues import (
+    GroupNames,
+    QueueFactory,
+    QueueNames,
+    ReliableQueue,
+)
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from buttercup.common.utils import serve_loop
+from buttercup.program_model.codequery import CodeQueryPersistent
 
 logger = logging.getLogger(__name__)
 
