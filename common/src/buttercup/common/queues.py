@@ -135,6 +135,8 @@ class ReliableQueue[MsgType: Message]:
     @staticmethod
     def _ensure_group_name(func: F) -> F:
         @wraps(func)
+        # Note: Must use Message instead of MsgType here since MsgType is a class-level
+        # type parameter that's not in scope within this static method decorator
         def wrapper(self: ReliableQueue[Message], *args: Any, **kwargs: Any) -> Any:
             if self.group_name is None:
                 raise ValueError("group_name must be set for this operation")
