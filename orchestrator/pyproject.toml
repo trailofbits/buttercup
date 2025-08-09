@@ -19,20 +19,20 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "argon2-cffi~=21.0.0",
+    "argon2-cffi ~= 21.3.0",
     "common",
-    "fastapi~=0.115.6",
-    "pydantic~=2.10.5",
-    "pydantic-settings~=2.7.1",
-    "python-dateutil~=2.9.0",
-    "pyyaml~=6.0.1",
-    "requests~=2.32.3",
-    "requests-file~=2.1.0",
-    "rich>=13.9.4",
-    "sqlalchemy~=2.0.0",
-    "typing-extensions>=4.12.2",
-    "urllib3~=2.3.0",
-    "uvicorn~=0.34.0",
+    "fastapi ~= 0.115.6",
+    "pydantic ~= 2.10.5",
+    "pydantic-settings ~= 2.7.1",
+    "python-dateutil ~= 2.9.0",
+    "pyyaml ~= 6.0.1",
+    "requests ~= 2.32.3",
+    "requests-file ~= 2.1.0",
+    "rich >= 13.9.4",
+    "sqlalchemy ~= 2.0.0",
+    "typing-extensions >= 4.12.2",
+    "urllib3 ~= 2.3.0",
+    "uvicorn ~= 0.34.0",
 ]
 
 [project.urls]
