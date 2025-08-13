@@ -11,7 +11,7 @@ Indexes a program's source code to be queried by `seed-gen` and `patcher`.
 ## Quick Test
 
 ```shell
-./test-docker.sh quick
+uv run pytest -svv
 ```
 
 ## Development
@@ -19,7 +19,5 @@ Indexes a program's source code to be queried by `seed-gen` and `patcher`.
 Before committing changes to this directory: reformat, lint, and ensure all tests pass.
 
 ```shell
-make sync reformat lint
-
-./test-docker.sh full
+make all
 ```
