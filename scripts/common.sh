@@ -487,12 +487,14 @@ configure_local_api_keys() {
     print_linebreak
     print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
     print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
+    print_status "Generate your API key at: https://platform.openai.com/settings/organization/api-keys"
     configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
     
     # Anthropic API Key (Optional)
     print_linebreak
     print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
     print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
+    print_status "Generate your API key at: https://console.anthropic.com/settings/keys"
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
     # GitHub Personal Access Token (Optional)
