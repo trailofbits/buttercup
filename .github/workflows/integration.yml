@@ -81,7 +81,7 @@ jobs:
           echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE}" >> $GITHUB_ENV
 
       - name: Set BUTTERCUP_NAMESPACE for branch
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         run: |
           export BUTTERCUP_NAMESPACE=${GITHUB_REF_NAME/\//-}-${{ github.run_number }}
           echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE}" >> $GITHUB_ENV
