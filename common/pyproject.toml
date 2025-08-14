@@ -45,7 +45,7 @@ dev = [
     "dirty-equals ~=0.9.0",
     # Linting and type checking
     "ruff ~=0.12.8",
-    "mypy ~=1.15.0",
+    "mypy ~=1.17.1",
     # Type stubs
     "types-requests ~=2.32.0",
     "types-PyYAML",

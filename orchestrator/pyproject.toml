@@ -45,7 +45,7 @@ dev = [
     "httpx ~=0.28.1",
     # Linting and type checking
     "ruff ~=0.12.8",
-    "mypy ~=1.15.0",
+    "mypy ~=1.17.1",
     # Type stubs
     "types-python-dateutil ~=2.9.0.20241206",
     "types-requests ~=2.32.0",

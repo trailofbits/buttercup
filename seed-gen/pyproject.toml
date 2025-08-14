@@ -39,7 +39,7 @@ dev = [
     "pytest-asyncio ~=0.25.2",
     # Linting and type checking
     "ruff ~=0.12.8",
-    "mypy ~=1.15.0",
+    "mypy ~=1.17.1",
     # Type stubs
     "types-redis ~=4.6.0",
     # Additional tools
