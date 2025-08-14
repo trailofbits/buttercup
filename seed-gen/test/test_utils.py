@@ -110,7 +110,7 @@ def test_extract_code_libpng_partial_codeblock():
 
 
 def test_extract_code_partial_block_with_no_functions():
-    message = AIMessage(content=("Here's some code:\n" "```python\n" "print('hello')\n" "x = 1"))
+    message = AIMessage(content=("Here's some code:\n```python\nprint('hello')\nx = 1"))
     with pytest.raises(OutputParserException):
         extract_code(message)
 
