@@ -43,6 +43,15 @@ const elements = {
 
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', function() {
+    // Preserve button widths to prevent size changes during refresh
+    const buttons = ['refresh-btn', 'submit-task-btn', 'submit-example-btn'];
+    buttons.forEach(id => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.style.width = button.offsetWidth + 'px';
+        }
+    });
+    
     setupEventListeners();
     loadDashboard();
     
