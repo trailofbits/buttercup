@@ -23,6 +23,10 @@ dependencies = [
     "uvicorn ~=0.34.0",
 ]
 
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
+
 [project.scripts]
 buttercup-task-server = "buttercup.orchestrator.task_server.__cli__:main"
 buttercup-task-downloader = "buttercup.orchestrator.downloader.__cli__:main"

@@ -28,6 +28,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
+
 [dependency-groups]
 dev = [
     # Testing tools
@@ -36,7 +40,31 @@ dev = [
     # Linting and type checking
     "ruff ~=0.12.8",
     "mypy ~=1.17.1",
+    # Type stubs
+    "types-redis ~=4.6.0",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "COM812", "ISC001",  # Formatter conflicts
+    # Temporarily disabled for standardization PR - re-enable after refactoring:
+    "I001",   # Import block is un-sorted or un-formatted
+    "E501",   # Line too long
+    "W291",   # Trailing whitespace  
+    "UP006",  # Use built-in collection types for type annotations
+    "UP015",  # Unnecessary mode argument
+    "UP035",  # Import from modern locations instead of deprecated typing
+    "UP045",  # Use X | None for type annotations
+    "UP046",  # Use modern generic class syntax
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

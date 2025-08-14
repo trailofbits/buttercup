@@ -46,6 +46,8 @@ dev = [
     # Linting and type checking
     "ruff ~=0.12.8",
     "mypy ~=1.17.1",
+    # Type stubs
+    "types-redis ~=4.6.0",
 ]
 
 [tool.ruff]
