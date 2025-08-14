@@ -5,10 +5,6 @@ description = "Shared utilities and components for Buttercup CRS"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
-
-[project.urls]
-Repository = "https://github.com/trailofbits/buttercup"
-Issues = "https://github.com/trailofbits/buttercup/issues"
 dependencies = [
     "protobuf ==3.20.3",                 # Pin exactly for stability
     "pydantic-settings ~=2.7.1",
@@ -23,6 +19,10 @@ dependencies = [
     "langchain-community ~=0.3.20",      # implicit dep of openlit if you instrument langchain
     "langchain-text-splitters ~=0.3.7",  # implicit dep of openlit if you instrument langchain
 ]
+
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
 
 [project.scripts]
 buttercup-util = "buttercup.common.util_cli:main"
