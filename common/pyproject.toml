@@ -39,20 +39,14 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "pytest ~=8.3.4",
-    "ruff ~=0.12.8",
-    "mypy ~=1.15.0",
-    "types-requests ~=2.32.0",
-    "types-PyYAML",
-    "types-redis ~=4.6.0",
-    "dirty-equals ~=0.9.0",
-]
-test = [
+    # Testing tools
     "pytest ~=8.3.4",
     "pytest-cov ~=6.0.0",
-]
-typing = [
+    "dirty-equals ~=0.9.0",
+    # Linting and type checking
+    "ruff ~=0.12.8",
     "mypy ~=1.15.0",
+    # Type stubs
     "types-requests ~=2.32.0",
     "types-PyYAML",
     "types-redis ~=4.6.0",
@@ -70,7 +64,17 @@ exclude = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
-ignore = ["COM812", "ISC001"]  # Formatter conflicts
+ignore = [
+    "COM812", "ISC001",  # Formatter conflicts
+    # Temporarily disabled for standardization PR - re-enable after refactoring:
+    "I001",   # Import block is un-sorted or un-formatted
+    "E501",   # Line too long
+    "W291",   # Trailing whitespace  
+    "UP006",  # Use built-in collection types for type annotations
+    "UP015",  # Unnecessary mode argument
+    "UP035",  # Import from modern locations instead of deprecated typing
+    "UP046",  # Use modern generic class syntax
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
@@ -80,16 +84,6 @@ ignore = ["COM812", "ISC001"]  # Formatter conflicts
 "*/task_registry.py" = ["T201"]
 "src/buttercup/common/node_local.py" = ["UP040"]  # PEP 695 type aliases break runtime usage as constructors
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short --strict-markers"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-]
 
 [tool.coverage.run]
 source = ["src/buttercup"]

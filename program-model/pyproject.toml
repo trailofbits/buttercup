@@ -30,13 +30,12 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "pytest ~=8.3.4",
-    "ruff ~=0.12.8",
-    "mypy ~=1.15.0",
-]
-test = [
+    # Testing tools
     "pytest ~=8.3.4",
     "pytest-cov ~=6.0.0",
+    # Linting and type checking
+    "ruff ~=0.12.8",
+    "mypy ~=1.15.0",
 ]
 
 [tool.mypy]
