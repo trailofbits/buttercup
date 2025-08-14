@@ -228,9 +228,7 @@ class CodeTS:
 
     def __post_init__(self) -> None:
         """Initialize the CodeTS object."""
-        self.project_yaml = ProjectYaml(
-            self.challenge_task, self.challenge_task.task_meta.project_name
-        )
+        self.project_yaml = ProjectYaml(self.challenge_task, self.challenge_task.task_meta.project_name)
         if self.project_yaml.unified_language == Language.C:
             self.parser = get_parser("c")
             self.language = get_language("c")
@@ -252,18 +250,12 @@ class CodeTS:
         try:
             self.query = self.language.query(query_str)
             self.query_types = self.language.query(types_query_str)
-            self.query_class_members = (
-                self.language.query(query_class_members)
-                if query_class_members
-                else None
-            )
+            self.query_class_members = self.language.query(query_class_members) if query_class_members else None
         except Exception:
             raise ValueError("Query string is invalid")
 
         self.preprocess_keywords = ["ifdef", "ifndef", "if", "else", "elif", "endif"]
-        self.preprocess_regex = [
-            r"^#\s*{kw}\s*".format(kw=kw) for kw in self.preprocess_keywords
-        ]
+        self.preprocess_regex = [r"^#\s*{kw}\s*".format(kw=kw) for kw in self.preprocess_keywords]
 
     def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
@@ -274,18 +266,12 @@ class CodeTS:
         """Remove preprocessor directives from the code"""
         return (b"\n").join(
             [
-                x
-                if not any(
-                    re.match(pattern, x.decode()) for pattern in self.preprocess_regex
-                )
-                else b"/" * len(x)
+                x if not any(re.match(pattern, x.decode()) for pattern in self.preprocess_regex) else b"/" * len(x)
                 for x in code.splitlines()
             ]
         )
 
-    def get_functions_in_code(
-        self, code: bytes, file_path: Path
-    ) -> dict[str, Function]:
+    def get_functions_in_code(self, code: bytes, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a piece of code and return a dictionary of function names/body"""
         if self.project_yaml.unified_language == Language.C:
             code_no_preproc = self._get_code_no_preproc(code)
@@ -314,16 +300,11 @@ class CodeTS:
             function_name = code[name_node.start_byte : name_node.end_byte]
             function_definition = definition_node
             start_body = function_definition
-            if (
-                start_body.prev_named_sibling
-                and start_body.prev_named_sibling.type == "comment"
-            ):
+            if start_body.prev_named_sibling and start_body.prev_named_sibling.type == "comment":
                 start_body = start_body.prev_named_sibling
 
             function_body_start = start_body.start_byte
-            while function_body_start > 0 and code[function_body_start - 1] != ord(
-                "\n"
-            ):
+            while function_body_start > 0 and code[function_body_start - 1] != ord("\n"):
                 function_body_start -= 1
 
             function_body_end = function_definition.end_byte
@@ -331,9 +312,7 @@ class CodeTS:
                 function_body_end = body_node.end_byte
 
             # find the end of the line for the function body
-            while function_body_end < len(code) and code[function_body_end] != ord(
-                "\n"
-            ):
+            while function_body_end < len(code) and code[function_body_end] != ord("\n"):
                 function_body_end += 1
 
             # Convert start and end points to 1-based line numbers.
@@ -443,9 +422,7 @@ class CodeTS:
             elif definition_node.type == "interface_declaration":
                 type_def_type = TypeDefinitionType.CLASS
             else:
-                logger.debug(
-                    f"Unknown type definition node type: {definition_node.type}"
-                )
+                logger.debug(f"Unknown type definition node type: {definition_node.type}")
                 continue  # Skip this define as it doesn't look like a type
 
             res[name] = TypeDefinition(
@@ -496,9 +473,7 @@ class CodeTS:
                     # Print grandparent's siblings
                     siblings = grandparent.parent.children
                     for sibling in siblings:
-                        logger.debug(
-                            "Sibling    : %s - %s", sibling.type, sibling.text.decode()
-                        )
+                        logger.debug("Sibling    : %s - %s", sibling.type, sibling.text.decode())
                         # Print sibling's children
                         for child in sibling.children:
                             logger.debug(
@@ -539,9 +514,7 @@ class CodeTS:
 
         walk(root_node)
 
-    def get_field_type_name(
-        self, type_definition: bytes, field_name: str
-    ) -> str | None:
+    def get_field_type_name(self, type_definition: bytes, field_name: str) -> str | None:
         """
         Get the type of a field of a type definition
         """
@@ -561,9 +534,7 @@ class CodeTS:
                 continue
         return None
 
-    def get_method_return_type_name(
-        self, type_definition: bytes, method_name: str
-    ) -> str | None:
+    def get_method_return_type_name(self, type_definition: bytes, method_name: str) -> str | None:
         """
         Get the return type of a method of a type definition
         """
