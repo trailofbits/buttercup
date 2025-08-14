@@ -22,7 +22,7 @@ dependencies = [
 [project.scripts]
 buttercup-patcher = "buttercup.patcher.__cli__:main"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest ~=8.3.4",
     "ruff ~=0.12.8",

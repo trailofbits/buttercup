@@ -33,7 +33,7 @@ buttercup-scratch-cleaner = "buttercup.orchestrator.scratch_cleaner.__cli__:main
 buttercup-ui = "buttercup.orchestrator.ui.__cli__:main"
 
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest ~=8.3.4",
     "ruff ~=0.12.8",
