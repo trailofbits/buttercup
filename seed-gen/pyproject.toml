@@ -82,7 +82,11 @@ select = ["E", "F", "I", "W", "UP"]
 # D203 and D213 are incompatible with D211 and D212 respectively.
 # COM812 and ISC001 can cause conflicts when using ruff as a formatter.
 # See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
-ignore = ["D203", "D213", "COM812", "ISC001"]
+ignore = [
+    "D203", "D213", "COM812", "ISC001",
+    # Temporarily disabled for standardization PR - re-enable after refactoring:
+    "UP045",  # Use X | None for type annotations
+]
 
 [tool.ruff.lint.per-file-ignores]
 "src/seed_gen/_cli.py" = [

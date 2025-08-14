@@ -73,6 +73,7 @@ ignore = [
     "UP006",  # Use built-in collection types for type annotations
     "UP015",  # Unnecessary mode argument
     "UP035",  # Import from modern locations instead of deprecated typing
+    "UP045",  # Use X | None for type annotations
     "UP046",  # Use modern generic class syntax
 ]
 
