@@ -49,7 +49,8 @@ class FuzzingEngine(Enum):
 
 
 class Message(BaseModel):
-    message: Optional[str] = None
+    message: str
+    color: Optional[str] = "default"  # "default", "success", "warning", "error"
 
 
 class POVSubmission(BaseModel):
