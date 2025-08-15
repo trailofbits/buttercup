@@ -51,7 +51,7 @@ validate:
 # Deployment targets
 deploy:
 	@echo "Deploying to current environment..."
-	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
 		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
@@ -102,7 +102,7 @@ deploy-local:
 		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
 		exit 1; \
 	fi
-	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
 		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
@@ -116,7 +116,7 @@ deploy-azure:
 		echo "Error: Configuration file not found. Run 'make setup-azure' first."; \
 		exit 1; \
 	fi
-	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
 		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
@@ -212,7 +212,7 @@ clean-local:
 
 # Additional targets migrated from justfile
 install-cscope:
-	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
+	cd external/buttercup-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
 signoz-ui:
 	@echo "Opening SigNoz UI..."
