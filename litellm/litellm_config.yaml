@@ -109,5 +109,7 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
       tpm: 400000
 
+  # TODO(boyan): Add gemini here too
+
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY

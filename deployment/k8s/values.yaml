@@ -375,6 +375,13 @@ litellm-helm:
           api_key: os.environ/ANTHROPIC_API_KEY
           tpm: 1775000
 
+      # TODO(boyan): set this correctly
+      - model_name: google-gemini
+        litellm_params:
+          model: ??
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 1775000
+
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
       database_url: "postgresql://litellm_user:litellm_password11@buttercup-postgresql:5432/litellm"
