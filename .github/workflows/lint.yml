@@ -39,7 +39,7 @@ jobs:
       patcher: ${{ steps.filter.outputs.patcher }}
       run-all: ${{ steps.filter.outputs.workflow || steps.filter.outputs.global }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -92,7 +92,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -130,7 +130,7 @@ jobs:
     if: needs.changes.outputs.run-all == 'true' || contains(github.event.head_commit.modified, '.proto') || contains(github.event.head_commit.modified, 'protoc.sh')
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
 
