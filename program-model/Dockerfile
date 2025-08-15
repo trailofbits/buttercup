@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM base AS cscope-builder
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
-COPY external/aixcc-cscope /cscope
+COPY external/buttercup-cscope /cscope
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM base AS runtime
