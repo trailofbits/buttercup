@@ -28,7 +28,6 @@ const elements = {
     taskForm: document.getElementById('task-form'),
     cancelBtn: document.getElementById('cancel-btn'),
     tasksContainer: document.getElementById('tasks-container'),
-    failedTasksContainer: document.getElementById('failed-tasks-container'),
     povsContainer: document.getElementById('povs-container'),
     patchesContainer: document.getElementById('patches-container'),
     statusFilter: document.getElementById('status-filter'),
@@ -40,7 +39,8 @@ const elements = {
     detailTitle: document.getElementById('detail-title'),
     detailContent: document.getElementById('detail-content'),
     tabButtons: document.querySelectorAll('.tab-button'),
-    tabPanes: document.querySelectorAll('.tab-pane')
+    tabPanes: document.querySelectorAll('.tab-pane'),
+    notifications: document.getElementById('notifications')
 };
 
 // Initialize the dashboard
@@ -340,146 +340,23 @@ async function loadAndRenderPatches() {
 
 // Force refresh failed tasks tab
 async function forceRefreshFailedTasks() {
-    console.log('Force refreshing failed tasks...');
-    console.log('Current tab:', currentTab);
-    console.log('API_BASE:', API_BASE);
-    
-    try {
-        console.log('Calling loadAndRenderFailedTasks...');
-        await loadAndRenderFailedTasks();
-        console.log('loadAndRenderFailedTasks completed');
-        
-        // Also refresh the main tasks list to show failed tasks there
-        if (currentTab === 'tasks') {
-            console.log('Refreshing main tasks list as well...');
-            renderTasks();
-        }
-        
-        console.log('Force refresh completed successfully');
-    } catch (error) {
-        console.error('Error in forceRefreshFailedTasks:', error);
-        console.error('Error stack:', error.stack);
+    // This function is no longer needed since we removed the failed tasks tab
+    // Just refresh the main tasks list
+    if (currentTab === 'tasks') {
+        renderTasks();
     }
 }
 
 // Load and render failed tasks
 async function loadAndRenderFailedTasks() {
-    try {
-        console.log('Loading failed tasks from API...');
-        console.log('API_BASE:', API_BASE);
-        const url = `${API_BASE}/v1/dashboard/tasks/failed?t=${Date.now()}`;
-        console.log('Fetching from URL:', url);
-        
-        // Add timestamp to prevent caching
-        const response = await fetch(url);
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-        
-        if (response.ok) {
-            const failedTasks = await response.json();
-            console.log('Failed tasks loaded:', failedTasks);
-            console.log('Number of failed tasks:', failedTasks.length);
-            
-            if (failedTasks.length > 0) {
-                console.log('First failed task:', failedTasks[0]);
-                console.log('First failed task CRS status:', failedTasks[0].crs_submission_status);
-                console.log('First failed task CRS error:', failedTasks[0].crs_submission_error);
-            }
-            
-            renderFailedTasks(failedTasks);
-        } else {
-            console.warn('Failed to load failed tasks, status:', response.status);
-            const errorText = await response.text();
-            console.warn('Error response text:', errorText);
-            elements.failedTasksContainer.innerHTML = `
-                <div class="no-data">
-                    <div class="no-data-icon">❌</div>
-                    <p>Failed to load failed tasks (Status: ${response.status})</p>
-                    <p class="no-data-subtitle">${errorText}</p>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading failed tasks:', error);
-        elements.failedTasksContainer.innerHTML = `
-            <div class="no-data">
-                <div class="no-data-icon">❌</div>
-                <p>Error loading failed tasks</p>
-                <p class="no-data-subtitle">${error.message}</p>
-            </div>
-        `;
-    }
+    // This function is no longer needed since we removed the failed tasks tab
+    console.log('Failed tasks tab removed - function no longer needed');
 }
 
 // Render failed tasks list
 function renderFailedTasks(failedTasks) {
-    console.log('Rendering failed tasks:', failedTasks);
-    console.log('failedTasksContainer element:', elements.failedTasksContainer);
-    
-    if (!elements.failedTasksContainer) {
-        console.error('failedTasksContainer element not found!');
-        return;
-    }
-    
-    if (failedTasks.length === 0) {
-        console.log('No failed tasks found, showing empty state');
-        elements.failedTasksContainer.innerHTML = `
-            <div class="no-data">
-                <div class="no-data-icon">✅</div>
-                <p>No failed tasks found</p>
-                <p class="no-data-subtitle">All tasks are successfully submitted to CRS</p>
-            </div>
-        `;
-        return;
-    }
-    
-    console.log(`Rendering ${failedTasks.length} failed tasks`);
-    const html = failedTasks.map(task => `
-        <div class="task-item task-failed" onclick="showTaskDetail('${task.task_id}')">
-            <div class="task-info">
-                <div class="task-name">${task.name || task.project_name}</div>
-                <div class="task-id">ID: ${task.task_id}</div>
-                <div class="task-meta">
-                    <span>Project: ${task.project_name}</span>
-                    <span>Duration: ${formatDuration(task.duration)}</span>
-                    <span>Created: ${formatTimestamp(task.created_at)}</span>
-                    <span>Deadline: ${formatTimestamp(task.deadline)}</span>
-                </div>
-                <div class="crs-error-info">
-                    <span class="crs-error-icon">⚠️</span>
-                    <span class="crs-error-text">CRS Submission Failed</span>
-                </div>
-                ${task.crs_submission_error ? `
-                    <div class="crs-error-details">
-                        <strong>Error:</strong> ${task.crs_submission_error}
-                    </div>
-                ` : ''}
-            </div>
-            <div class="task-status">
-                <span class="status-badge status-failed">Failed</span>
-            </div>
-            <div class="task-stats">
-                <div class="stat-item">
-                    <span>🐛</span>
-                    <span>${(task.povs || []).length}</span>
-                </div>
-                <div class="stat-item">
-                    <span>🔧</span>
-                    <span>${(task.patches || []).length}</span>
-                </div>
-                <div class="stat-item">
-                    <span>📦</span>
-                    <span>${(task.bundles || []).length}</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
-    
-    console.log('Generated HTML length:', html.length);
-    console.log('Setting innerHTML on failedTasksContainer');
-    elements.failedTasksContainer.innerHTML = html;
-    
-    console.log('Failed tasks rendered successfully');
+    // This function is no longer needed since we removed the failed tasks tab
+    console.log('Failed tasks tab removed - function no longer needed');
 }
 
 // Render PoVs list
@@ -543,88 +420,60 @@ function renderPatches() {
 
 // Render tasks list
 function renderTasks() {
-    const filteredTasks = filterTasksByStatus();
+    if (!elements.tasksContainer) {
+        console.error('Tasks container not found!');
+        return;
+    }
+    
+    const filteredTasks = filterTasksByStatus(tasks);
     
     if (filteredTasks.length === 0) {
         elements.tasksContainer.innerHTML = `
             <div class="no-data">
-                <div class="no-data-icon">📋</div>
+                <div class="no-data-icon">📝</div>
                 <p>No tasks found</p>
+                <p class="no-data-subtitle">Create a new task to get started</p>
             </div>
         `;
         return;
     }
     
-    elements.tasksContainer.innerHTML = filteredTasks.map(task => {
-        // Determine the display status and any CRS error information
-        let displayStatus = task.status;
-        let crsStatusInfo = '';
-        let statusClass = `status-${task.status}`;
-        
-        // Check for CRS submission failures
-        if (task.crs_submission_status === 'failed') {
-            displayStatus = 'failed';
-            statusClass = 'status-failed';
-            crsStatusInfo = `
-                <div class="crs-error-info">
-                    <span class="crs-error-icon">⚠️</span>
-                    <span class="crs-error-text">CRS Submission Failed</span>
+    elements.tasksContainer.innerHTML = filteredTasks.map(task => `
+        <div class="task-item ${task.crs_submission_status === 'failed' ? 'task-failed' : ''}" onclick="showTaskDetail('${task.task_id}')">
+            <div class="task-info">
+                <div class="task-name">${task.name || task.project_name}</div>
+                <div class="task-id">ID: ${task.task_id}</div>
+                <div class="task-meta">
+                    <span>Project: ${task.project_name}</span>
+                    <span>Duration: ${formatDuration(task.duration)}</span>
+                    <span>Created: ${formatTimestamp(task.created_at)}</span>
+                    <span>Deadline: ${formatTimestamp(task.deadline)}</span>
                 </div>
-            `;
-        } else if (task.crs_submission_status === 'success') {
-            crsStatusInfo = `
-                <div class="crs-success-info">
-                    <span class="crs-success-icon">✅</span>
-                    <span class="crs-success-text">CRS Submitted</span>
-                </div>
-            `;
-        } else if (task.crs_submission_status === 'pending') {
-            crsStatusInfo = `
-                <div class="crs-pending-info">
-                    <span class="crs-pending-icon">⏳</span>
-                    <span class="crs-pending-text">CRS Pending</span>
-                </div>
-            `;
-        }
-        
-        return `
-            <div class="task-item ${task.crs_submission_status === 'failed' ? 'task-failed' : ''}" onclick="showTaskDetail('${task.task_id}')">
-                <div class="task-info">
-                    <div class="task-name">${task.name || task.project_name}</div>
-                    <div class="task-id">ID: ${task.task_id}</div>
-                    <div class="task-meta">
-                        <span>Project: ${task.project_name}</span>
-                        <span>Duration: ${formatDuration(task.duration)}</span>
-                        <span>Created: ${formatTimestamp(task.created_at)}</span>
-                        <span>Deadline: ${formatTimestamp(task.deadline)}</span>
+                ${task.crs_submission_error ? `
+                    <div class="crs-error-details">
+                        <strong>Error:</strong> ${task.crs_submission_error}
                     </div>
-                    ${crsStatusInfo}
-                    ${task.crs_submission_error ? `
-                        <div class="crs-error-details">
-                            <strong>Error:</strong> ${task.crs_submission_error}
-                        </div>
-                    ` : ''}
+                ` : ''}
+            </div>
+            <div class="task-status">
+                <span class="status-badge status-${task.status}">${task.status}</span>
+            </div>
+            <div class="task-stats">
+                <div class="stat-item">
+                    <span>🐛</span>
+                    <span>${(task.povs || []).length}</span>
                 </div>
-                <div class="task-status">
-                    <span class="status-badge ${statusClass}">${displayStatus}</span>
+                <div class="stat-item">
+                    <span>🔧</span>
+                    <span>${(task.patches || []).length}</span>
                 </div>
-                <div class="task-stats">
-                    <div class="stat-item">
-                        <span>🐛</span>
-                        <span>${(task.povs || []).length}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span>🔧</span>
-                        <span>${(task.patches || []).length}</span>
-                    </div>
-                    <div class="stat-item">
-                        <span>📦</span>
-                        <span>${(task.bundles || []).length}</span>
-                    </div>
+                <div class="stat-item">
+                    <span>📦</span>
+                    <span>${(task.bundles || []).length}</span>
                 </div>
             </div>
-        `;
-    }).join('');
+        </div>
+    `).join('');
 }
 
 // Filter tasks by status
@@ -680,31 +529,6 @@ async function handleExampleTaskSubmission() {
                 console.log('Example task creation/submission failed, showing error notification');
                 // Task was created but failed - show notification with proper color
                 showNotification(result.message, null, result.color);
-                
-                // Show detailed error message in a more prominent way if it's an error color
-                if (result.color === 'error') {
-                    // Create a prominent error display
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'error-message-modal';
-                    errorDiv.innerHTML = `
-                        <div class="error-content">
-                            <button class="close-button" onclick="this.parentElement.parentElement.remove()">×</button>
-                            <div class="error-message">
-                                <span>⚠</span>
-                                <span>${result.message}</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    document.body.appendChild(errorDiv);
-                    
-                    // Auto-remove after 10 seconds
-                    setTimeout(() => {
-                        if (errorDiv.parentNode) {
-                            errorDiv.remove();
-                        }
-                    }, 10000);
-                }
                 
                 // Force refresh failed tasks and main tasks list
                 setTimeout(async () => {
@@ -770,36 +594,9 @@ async function handleTaskSubmission(event) {
                 elements.taskModal.style.display = 'none';
                 elements.taskForm.reset();
                 
-                // Show detailed error message in a more prominent way if it's an error color
-                if (result.color === 'error') {
-                    // Create a prominent error display
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'error-message-modal';
-                    errorDiv.innerHTML = `
-                        <div class="error-content">
-                            <button class="close-button" onclick="this.parentElement.parentElement.remove()">×</button>
-                            <div class="error-message">
-                                <span>⚠</span>
-                                <span>${result.message}</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    document.body.appendChild(errorDiv);
-                    
-                    // Auto-remove after 10 seconds
-                    setTimeout(() => {
-                        if (errorDiv.parentNode) {
-                            errorDiv.remove();
-                        }
-                    }, 10000);
-                }
-                
                 // Force refresh failed tasks and main tasks list
-                console.log('Task failed to submit to CRS, force refreshing...');
                 setTimeout(async () => {
                     await forceRefreshFailedTasks();
-                    console.log('Force refresh completed');
                 }, 1000);
             } else {
                 // Complete success
@@ -849,97 +646,27 @@ async function showTaskDetail(taskId) {
 
 // Render task detail content
 function renderTaskDetail(task) {
-    // Build CRS status section
-    let crsStatusSection = '';
-    if (task.crs_submission_status) {
-        let crsStatusClass = '';
-        let crsStatusIcon = '';
-        let crsStatusText = '';
-        
-        switch (task.crs_submission_status) {
-            case 'success':
-                crsStatusClass = 'crs-success';
-                crsStatusIcon = '✅';
-                crsStatusText = 'Successfully submitted to CRS';
-                break;
-            case 'failed':
-                crsStatusClass = 'crs-failed';
-                crsStatusIcon = '❌';
-                crsStatusText = 'Failed to submit to CRS';
-                break;
-            case 'pending':
-                crsStatusClass = 'crs-pending';
-                crsStatusIcon = '⏳';
-                crsStatusText = 'Pending CRS submission';
-                break;
-            default:
-                crsStatusClass = 'crs-unknown';
-                crsStatusIcon = '❓';
-                crsStatusText = 'Unknown CRS status';
-        }
-        
-        crsStatusSection = `
-            <div class="detail-section">
-                <h3>CRS Submission Status</h3>
-                <div class="detail-grid">
-                    <div class="detail-label">Status:</div>
-                    <div class="detail-value">
-                        <span class="crs-status-badge ${crsStatusClass}">
-                            ${crsStatusIcon} ${crsStatusText}
-                        </span>
-                    </div>
-                    ${task.crs_submission_timestamp ? `
-                        <div class="detail-label">Submitted:</div>
-                        <div class="detail-value">${formatTimestamp(task.crs_submission_timestamp)}</div>
-                    ` : ''}
-                </div>
-                ${task.crs_submission_error ? `
-                    <div class="crs-error-section">
-                        <h4>Error Details</h4>
-                        <div class="crs-error-message">${task.crs_submission_error}</div>
-                        ${task.crs_error_details ? `
-                            <div class="crs-error-json">
-                                <h5>Technical Details:</h5>
-                                <pre>${JSON.stringify(JSON.parse(task.crs_error_details), null, 2)}</pre>
-                            </div>
-                        ` : ''}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
-    
     return `
         <div style="padding: 1.5rem;">
             <div class="detail-section">
                 <h3>Task Information</h3>
                 <div class="detail-grid">
-                    <div class="detail-label">Task ID:</div>
-                    <div class="detail-value">${task.task_id}</div>
                     <div class="detail-label">Name:</div>
-                    <div class="detail-value">${task.name || 'N/A'}</div>
+                    <div class="detail-value">${task.name || task.project_name}</div>
+                    <div class="detail-label">ID:</div>
+                    <div class="detail-value">${task.task_id}</div>
                     <div class="detail-label">Project:</div>
                     <div class="detail-value">${task.project_name}</div>
                     <div class="detail-label">Status:</div>
                     <div class="detail-value">
                         <span class="status-badge status-${task.status}">${task.status}</span>
                     </div>
-                    <div class="detail-label">Duration:</div>
-                    <div class="detail-value">${formatDuration(task.duration)}</div>
                     <div class="detail-label">Created:</div>
                     <div class="detail-value">${formatTimestamp(task.created_at)}</div>
                     <div class="detail-label">Deadline:</div>
                     <div class="detail-value">${formatTimestamp(task.deadline)}</div>
-                    <div class="detail-label">Repository:</div>
-                    <div class="detail-value">${task.challenge_repo_url || 'N/A'}</div>
-                    <div class="detail-label">Head Ref:</div>
-                    <div class="detail-value">${task.challenge_repo_head_ref || 'N/A'}</div>
-                    <div class="detail-label">Base Ref:</div>
-                    <div class="detail-value">${task.challenge_repo_base_ref || 'N/A'}</div>
                 </div>
             </div>
-            
-            ${crsStatusSection}
             
             ${renderArtifacts('PoVs (Vulnerabilities)', task.povs || [], 'pov')}
             ${renderArtifacts('Patches', task.patches || [], 'patch')}
