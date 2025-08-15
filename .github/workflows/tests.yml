@@ -184,3 +184,173 @@ jobs:
           files: '*/coverage.xml,**/coverage.xml'
           fail_ci_if_error: false
           verbose: true
+
+  # Integration tests - run on schedule, manual trigger, or labeled PRs
+  test-integration:
+    # Run if:
+    # - Scheduled run
+    # - Manual dispatch with run_integration=true
+    # - PR with 'integration-tests' label
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration == 'true') ||
+      contains(github.event.pull_request.labels.*.name, 'integration-tests')
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: common
+            coverage_module: buttercup.common
+            python: "3.12"
+          - component: patcher
+            coverage_module: buttercup.patcher
+            python: "3.12"
+          - component: program-model
+            coverage_module: buttercup.program_model
+            python: "3.12"
+          - component: seed-gen
+            coverage_module: buttercup.seed_gen
+            python: "3.12"
+
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: true
+
+      - name: Check if component should be tested
+        id: should_test
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          components="${{ github.event.inputs.components }}"
+          if [[ -z "$components" ]] || [[ "$components" == *"${{ matrix.component }}"* ]]; then
+            echo "test=true" >> $GITHUB_OUTPUT
+          else
+            echo "test=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install uv
+        if: steps.should_test.outputs.test != 'false'
+        uses: astral-sh/setup-uv@v6
+
+      - name: Setup uv cache
+        if: steps.should_test.outputs.test != 'false'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: ${{ runner.os }}-uv-integration-${{ matrix.component }}-${{ hashFiles(format('{0}/uv.lock', matrix.component)) }}
+          restore-keys: |
+            ${{ runner.os }}-uv-integration-${{ matrix.component }}-
+            ${{ runner.os }}-uv-
+
+      - name: Download Wasm runtime
+        if: matrix.component == 'seed-gen' && steps.should_test.outputs.test != 'false'
+        run: wget https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
+        working-directory: seed-gen
+
+      - name: Install integration test dependencies
+        if: steps.should_test.outputs.test != 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y codequery ripgrep
+          make install-cscope
+
+      - name: Prepare environment
+        if: steps.should_test.outputs.test != 'false'
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo mkdir -p /crs_scratch
+          sudo chmod -R 777 /crs_scratch
+
+      - name: Setup ${{ matrix.component }} component
+        if: steps.should_test.outputs.test != 'false'
+        run: |
+          uv sync --all-extras --frozen
+          uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
+        working-directory: ${{ matrix.component }}
+
+      - name: Run program-model libpng integration test
+        if: matrix.component == 'program-model' && steps.should_test.outputs.test != 'false'
+        run: |
+          uv run --frozen pytest -svv --runintegration tests/c/test_libpng.py \
+            --junit-xml=integration-test-results.xml \
+            --html=integration-test-report.html \
+            --self-contained-html \
+            --cov=${{ matrix.coverage_module }} \
+            --cov-report=xml:integration-coverage.xml \
+            --cov-report=html:integration-htmlcov \
+            --cov-report=term
+        env:
+          PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
+        working-directory: ${{ matrix.component }}
+        timeout-minutes: 30
+
+      - name: Run integration tests on ${{ matrix.component }}
+        if: matrix.component != 'program-model' && steps.should_test.outputs.test != 'false'
+        run: |
+          uv run --frozen pytest -svv --runintegration \
+            --junit-xml=integration-test-results.xml \
+            --html=integration-test-report.html \
+            --self-contained-html \
+            --cov=${{ matrix.coverage_module }} \
+            --cov-report=xml:integration-coverage.xml \
+            --cov-report=html:integration-htmlcov \
+            --cov-report=term
+        env:
+          PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
+        working-directory: ${{ matrix.component }}
+        timeout-minutes: 30
+
+      - name: Generate integration test summary
+        if: always() && steps.should_test.outputs.test != 'false'
+        run: |
+          echo "### Integration Test Results: ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f ${{ matrix.component }}/integration-test-results.xml ]; then
+            python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('${{ matrix.component }}/integration-test-results.xml')
+          root = tree.getroot()
+          tests = root.get('tests', '0')
+          failures = root.get('failures', '0')
+          errors = root.get('errors', '0')
+          skipped = root.get('skipped', '0')
+          time = root.get('time', '0')
+          print(f'- **Total Tests**: {tests}')
+          print(f'- **Passed**: {int(tests) - int(failures) - int(errors) - int(skipped)}')
+          print(f'- **Failed**: {failures}')
+          print(f'- **Errors**: {errors}')
+          print(f'- **Skipped**: {skipped}')
+          print(f'- **Duration**: {float(time):.2f}s')
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No integration test results found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload integration test results
+        if: always() && steps.should_test.outputs.test != 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ matrix.component }}-py${{ matrix.python }}
+          path: |
+            ${{ matrix.component }}/integration-test-results.xml
+            ${{ matrix.component }}/integration-test-report.html
+            ${{ matrix.component }}/integration-coverage.xml
+            ${{ matrix.component }}/integration-htmlcov/
+          retention-days: 30
