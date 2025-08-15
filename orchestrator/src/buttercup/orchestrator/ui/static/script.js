@@ -28,10 +28,12 @@ const elements = {
     taskForm: document.getElementById('task-form'),
     cancelBtn: document.getElementById('cancel-btn'),
     tasksContainer: document.getElementById('tasks-container'),
+    failedTasksContainer: document.getElementById('failed-tasks-container'),
     povsContainer: document.getElementById('povs-container'),
     patchesContainer: document.getElementById('patches-container'),
     statusFilter: document.getElementById('status-filter'),
     activeTasks: document.getElementById('active-tasks'),
+    failedTasks: document.getElementById('failed-tasks'),
     totalPovs: document.getElementById('total-povs'),
     totalPatches: document.getElementById('total-patches'),
     totalBundles: document.getElementById('total-bundles'),
@@ -205,7 +207,8 @@ async function loadDashboard() {
 // Load tasks from API
 async function loadTasks() {
     try {
-        const response = await fetch(`${API_BASE}/v1/dashboard/tasks`);
+        // Add timestamp to prevent caching
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks?t=${Date.now()}`);
         if (response.ok) {
             tasks = await response.json();
         } else {
@@ -308,6 +311,7 @@ function calculateStatsFromTasks() {
 function updateDashboard() {
     // Update stats
     elements.activeTasks.textContent = dashboardStats.activeTasks;
+    elements.failedTasks.textContent = dashboardStats.failedTasks || 0;
     elements.totalPovs.textContent = dashboardStats.totalPovs;
     elements.totalPatches.textContent = dashboardStats.totalPatches;
     elements.totalBundles.textContent = dashboardStats.totalBundles;
@@ -332,6 +336,150 @@ async function loadAndRenderPovs() {
 async function loadAndRenderPatches() {
     await loadAllPatches();
     renderPatches();
+}
+
+// Force refresh failed tasks tab
+async function forceRefreshFailedTasks() {
+    console.log('Force refreshing failed tasks...');
+    console.log('Current tab:', currentTab);
+    console.log('API_BASE:', API_BASE);
+    
+    try {
+        console.log('Calling loadAndRenderFailedTasks...');
+        await loadAndRenderFailedTasks();
+        console.log('loadAndRenderFailedTasks completed');
+        
+        // Also refresh the main tasks list to show failed tasks there
+        if (currentTab === 'tasks') {
+            console.log('Refreshing main tasks list as well...');
+            renderTasks();
+        }
+        
+        console.log('Force refresh completed successfully');
+    } catch (error) {
+        console.error('Error in forceRefreshFailedTasks:', error);
+        console.error('Error stack:', error.stack);
+    }
+}
+
+// Load and render failed tasks
+async function loadAndRenderFailedTasks() {
+    try {
+        console.log('Loading failed tasks from API...');
+        console.log('API_BASE:', API_BASE);
+        const url = `${API_BASE}/v1/dashboard/tasks/failed?t=${Date.now()}`;
+        console.log('Fetching from URL:', url);
+        
+        // Add timestamp to prevent caching
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        if (response.ok) {
+            const failedTasks = await response.json();
+            console.log('Failed tasks loaded:', failedTasks);
+            console.log('Number of failed tasks:', failedTasks.length);
+            
+            if (failedTasks.length > 0) {
+                console.log('First failed task:', failedTasks[0]);
+                console.log('First failed task CRS status:', failedTasks[0].crs_submission_status);
+                console.log('First failed task CRS error:', failedTasks[0].crs_submission_error);
+            }
+            
+            renderFailedTasks(failedTasks);
+        } else {
+            console.warn('Failed to load failed tasks, status:', response.status);
+            const errorText = await response.text();
+            console.warn('Error response text:', errorText);
+            elements.failedTasksContainer.innerHTML = `
+                <div class="no-data">
+                    <div class="no-data-icon">❌</div>
+                    <p>Failed to load failed tasks (Status: ${response.status})</p>
+                    <p class="no-data-subtitle">${errorText}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading failed tasks:', error);
+        elements.failedTasksContainer.innerHTML = `
+            <div class="no-data">
+                <div class="no-data-icon">❌</div>
+                <p>Error loading failed tasks</p>
+                <p class="no-data-subtitle">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Render failed tasks list
+function renderFailedTasks(failedTasks) {
+    console.log('Rendering failed tasks:', failedTasks);
+    console.log('failedTasksContainer element:', elements.failedTasksContainer);
+    
+    if (!elements.failedTasksContainer) {
+        console.error('failedTasksContainer element not found!');
+        return;
+    }
+    
+    if (failedTasks.length === 0) {
+        console.log('No failed tasks found, showing empty state');
+        elements.failedTasksContainer.innerHTML = `
+            <div class="no-data">
+                <div class="no-data-icon">✅</div>
+                <p>No failed tasks found</p>
+                <p class="no-data-subtitle">All tasks are successfully submitted to CRS</p>
+            </div>
+        `;
+        return;
+    }
+    
+    console.log(`Rendering ${failedTasks.length} failed tasks`);
+    const html = failedTasks.map(task => `
+        <div class="task-item task-failed" onclick="showTaskDetail('${task.task_id}')">
+            <div class="task-info">
+                <div class="task-name">${task.name || task.project_name}</div>
+                <div class="task-id">ID: ${task.task_id}</div>
+                <div class="task-meta">
+                    <span>Project: ${task.project_name}</span>
+                    <span>Duration: ${formatDuration(task.duration)}</span>
+                    <span>Created: ${formatTimestamp(task.created_at)}</span>
+                    <span>Deadline: ${formatTimestamp(task.deadline)}</span>
+                </div>
+                <div class="crs-error-info">
+                    <span class="crs-error-icon">⚠️</span>
+                    <span class="crs-error-text">CRS Submission Failed</span>
+                </div>
+                ${task.crs_submission_error ? `
+                    <div class="crs-error-details">
+                        <strong>Error:</strong> ${task.crs_submission_error}
+                    </div>
+                ` : ''}
+            </div>
+            <div class="task-status">
+                <span class="status-badge status-failed">Failed</span>
+            </div>
+            <div class="task-stats">
+                <div class="stat-item">
+                    <span>🐛</span>
+                    <span>${(task.povs || []).length}</span>
+                </div>
+                <div class="stat-item">
+                    <span>🔧</span>
+                    <span>${(task.patches || []).length}</span>
+                </div>
+                <div class="stat-item">
+                    <span>📦</span>
+                    <span>${(task.bundles || []).length}</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    console.log('Generated HTML length:', html.length);
+    console.log('Setting innerHTML on failedTasksContainer');
+    elements.failedTasksContainer.innerHTML = html;
+    
+    console.log('Failed tasks rendered successfully');
 }
 
 // Render PoVs list
@@ -407,37 +555,76 @@ function renderTasks() {
         return;
     }
     
-    elements.tasksContainer.innerHTML = filteredTasks.map(task => `
-        <div class="task-item" onclick="showTaskDetail('${task.task_id}')">
-            <div class="task-info">
-                <div class="task-name">${task.name || task.project_name}</div>
-                <div class="task-id">ID: ${task.task_id}</div>
-                <div class="task-meta">
-                    <span>Project: ${task.project_name}</span>
-                    <span>Duration: ${formatDuration(task.duration)}</span>
-                    <span>Created: ${formatTimestamp(task.created_at)}</span>
-                    <span>Deadline: ${formatTimestamp(task.deadline)}</span>
+    elements.tasksContainer.innerHTML = filteredTasks.map(task => {
+        // Determine the display status and any CRS error information
+        let displayStatus = task.status;
+        let crsStatusInfo = '';
+        let statusClass = `status-${task.status}`;
+        
+        // Check for CRS submission failures
+        if (task.crs_submission_status === 'failed') {
+            displayStatus = 'failed';
+            statusClass = 'status-failed';
+            crsStatusInfo = `
+                <div class="crs-error-info">
+                    <span class="crs-error-icon">⚠️</span>
+                    <span class="crs-error-text">CRS Submission Failed</span>
+                </div>
+            `;
+        } else if (task.crs_submission_status === 'success') {
+            crsStatusInfo = `
+                <div class="crs-success-info">
+                    <span class="crs-success-icon">✅</span>
+                    <span class="crs-success-text">CRS Submitted</span>
+                </div>
+            `;
+        } else if (task.crs_submission_status === 'pending') {
+            crsStatusInfo = `
+                <div class="crs-pending-info">
+                    <span class="crs-pending-icon">⏳</span>
+                    <span class="crs-pending-text">CRS Pending</span>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="task-item ${task.crs_submission_status === 'failed' ? 'task-failed' : ''}" onclick="showTaskDetail('${task.task_id}')">
+                <div class="task-info">
+                    <div class="task-name">${task.name || task.project_name}</div>
+                    <div class="task-id">ID: ${task.task_id}</div>
+                    <div class="task-meta">
+                        <span>Project: ${task.project_name}</span>
+                        <span>Duration: ${formatDuration(task.duration)}</span>
+                        <span>Created: ${formatTimestamp(task.created_at)}</span>
+                        <span>Deadline: ${formatTimestamp(task.deadline)}</span>
+                    </div>
+                    ${crsStatusInfo}
+                    ${task.crs_submission_error ? `
+                        <div class="crs-error-details">
+                            <strong>Error:</strong> ${task.crs_submission_error}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="task-status">
+                    <span class="status-badge ${statusClass}">${displayStatus}</span>
+                </div>
+                <div class="task-stats">
+                    <div class="stat-item">
+                        <span>🐛</span>
+                        <span>${(task.povs || []).length}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>🔧</span>
+                        <span>${(task.patches || []).length}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>📦</span>
+                        <span>${(task.bundles || []).length}</span>
+                    </div>
                 </div>
             </div>
-            <div class="task-status">
-                <span class="status-badge status-${task.status}">${task.status}</span>
-            </div>
-            <div class="task-stats">
-                <div class="stat-item">
-                    <span>🐛</span>
-                    <span>${(task.povs || []).length}</span>
-                </div>
-                <div class="stat-item">
-                    <span>🔧</span>
-                    <span>${(task.patches || []).length}</span>
-                </div>
-                <div class="stat-item">
-                    <span>📦</span>
-                    <span>${(task.bundles || []).length}</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Filter tasks by status
@@ -482,12 +669,54 @@ async function handleExampleTaskSubmission() {
             body: JSON.stringify(exampleTaskData)
         });
         
+        const result = await response.json();
+        console.log('Example task submission response:', result);
+        console.log('Response message:', result.message);
+        console.log('Response color:', result.color);
+        
         if (response.ok) {
-            const result = await response.json();
-            showNotification('Example libpng task submitted successfully!', 'success');
-            
-            // Refresh dashboard after a short delay
-            setTimeout(loadDashboard, 1000);
+            // Check if the response indicates a CRS submission failure or setup failure
+            if (result.message && (result.message.includes('failed to submit to CRS') || result.message.includes('failed during setup'))) {
+                console.log('Example task creation/submission failed, showing error notification');
+                // Task was created but failed - show notification with proper color
+                showNotification(result.message, null, result.color);
+                
+                // Show detailed error message in a more prominent way if it's an error color
+                if (result.color === 'error') {
+                    // Create a prominent error display
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message-modal';
+                    errorDiv.innerHTML = `
+                        <div class="error-content">
+                            <button class="close-button" onclick="this.parentElement.parentElement.remove()">×</button>
+                            <div class="error-message">
+                                <span>⚠</span>
+                                <span>${result.message}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(errorDiv);
+                    
+                    // Auto-remove after 10 seconds
+                    setTimeout(() => {
+                        if (errorDiv.parentNode) {
+                            errorDiv.remove();
+                        }
+                    }, 10000);
+                }
+                
+                // Force refresh failed tasks and main tasks list
+                setTimeout(async () => {
+                    await forceRefreshFailedTasks();
+                }, 1000);
+            } else {
+                // Complete success
+                showNotification(result.message || 'Example libpng task submitted successfully!', 'success');
+                
+                // Refresh dashboard after a short delay
+                setTimeout(loadDashboard, 1000);
+            }
         } else {
             const error = await response.json();
             showNotification(`Error: ${error.message || 'Failed to submit example task'}`, 'error');
@@ -527,17 +756,64 @@ async function handleTaskSubmission(event) {
             body: JSON.stringify(taskData)
         });
         
+        const result = await response.json();
+        console.log('Task submission response:', result);
+        console.log('Response message:', result.message);
+        console.log('Response color:', result.color);
+        
         if (response.ok) {
-            const result = await response.json();
-            showNotification('Task submitted successfully!', 'success');
-            elements.taskModal.style.display = 'none';
-            elements.taskForm.reset();
-            
-            // Refresh dashboard after a short delay
-            setTimeout(loadDashboard, 1000);
+            // Check if the response indicates a CRS submission failure or setup failure
+            if (result.message && (result.message.includes('failed to submit to CRS') || result.message.includes('failed during setup'))) {
+                console.log('Task creation/submission failed, showing error notification');
+                // Task was created but failed - show notification with proper color
+                showNotification(result.message, null, result.color);
+                elements.taskModal.style.display = 'none';
+                elements.taskForm.reset();
+                
+                // Show detailed error message in a more prominent way if it's an error color
+                if (result.color === 'error') {
+                    // Create a prominent error display
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message-modal';
+                    errorDiv.innerHTML = `
+                        <div class="error-content">
+                            <button class="close-button" onclick="this.parentElement.parentElement.remove()">×</button>
+                            <div class="error-message">
+                                <span>⚠</span>
+                                <span>${result.message}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(errorDiv);
+                    
+                    // Auto-remove after 10 seconds
+                    setTimeout(() => {
+                        if (errorDiv.parentNode) {
+                            errorDiv.remove();
+                        }
+                    }, 10000);
+                }
+                
+                // Force refresh failed tasks and main tasks list
+                console.log('Task failed to submit to CRS, force refreshing...');
+                setTimeout(async () => {
+                    await forceRefreshFailedTasks();
+                    console.log('Force refresh completed');
+                }, 1000);
+            } else {
+                // Complete success
+                showNotification(result.message || 'Task submitted successfully!', 'success');
+                elements.taskModal.style.display = 'none';
+                elements.taskForm.reset();
+                
+                // Refresh dashboard after a short delay
+                setTimeout(loadDashboard, 1000);
+            }
         } else {
-            const error = await response.json();
-            showNotification(`Error: ${error.message || 'Failed to submit task'}`, 'error');
+            // HTTP error - show error message
+            const errorMessage = result.message || result.detail || 'Failed to submit task';
+            showNotification(`Error: ${errorMessage}`, 'error');
         }
     } catch (error) {
         console.error('Error submitting task:', error);
@@ -573,6 +849,66 @@ async function showTaskDetail(taskId) {
 
 // Render task detail content
 function renderTaskDetail(task) {
+    // Build CRS status section
+    let crsStatusSection = '';
+    if (task.crs_submission_status) {
+        let crsStatusClass = '';
+        let crsStatusIcon = '';
+        let crsStatusText = '';
+        
+        switch (task.crs_submission_status) {
+            case 'success':
+                crsStatusClass = 'crs-success';
+                crsStatusIcon = '✅';
+                crsStatusText = 'Successfully submitted to CRS';
+                break;
+            case 'failed':
+                crsStatusClass = 'crs-failed';
+                crsStatusIcon = '❌';
+                crsStatusText = 'Failed to submit to CRS';
+                break;
+            case 'pending':
+                crsStatusClass = 'crs-pending';
+                crsStatusIcon = '⏳';
+                crsStatusText = 'Pending CRS submission';
+                break;
+            default:
+                crsStatusClass = 'crs-unknown';
+                crsStatusIcon = '❓';
+                crsStatusText = 'Unknown CRS status';
+        }
+        
+        crsStatusSection = `
+            <div class="detail-section">
+                <h3>CRS Submission Status</h3>
+                <div class="detail-grid">
+                    <div class="detail-label">Status:</div>
+                    <div class="detail-value">
+                        <span class="crs-status-badge ${crsStatusClass}">
+                            ${crsStatusIcon} ${crsStatusText}
+                        </span>
+                    </div>
+                    ${task.crs_submission_timestamp ? `
+                        <div class="detail-label">Submitted:</div>
+                        <div class="detail-value">${formatTimestamp(task.crs_submission_timestamp)}</div>
+                    ` : ''}
+                </div>
+                ${task.crs_submission_error ? `
+                    <div class="crs-error-section">
+                        <h4>Error Details</h4>
+                        <div class="crs-error-message">${task.crs_submission_error}</div>
+                        ${task.crs_error_details ? `
+                            <div class="crs-error-json">
+                                <h5>Technical Details:</h5>
+                                <pre>${JSON.stringify(JSON.parse(task.crs_error_details), null, 2)}</pre>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
     return `
         <div style="padding: 1.5rem;">
             <div class="detail-section">
@@ -602,6 +938,8 @@ function renderTaskDetail(task) {
                     <div class="detail-value">${task.challenge_repo_base_ref || 'N/A'}</div>
                 </div>
             </div>
+            
+            ${crsStatusSection}
             
             ${renderArtifacts('PoVs (Vulnerabilities)', task.povs || [], 'pov')}
             ${renderArtifacts('Patches', task.patches || [], 'patch')}
@@ -825,6 +1163,9 @@ function renderArtifactDetail(detailData, type) {
                     // Not base64, use as is
                 }
             }
+            const patchPreview = patchContent.length > 300 
+                ? patchContent.substring(0, 300) + '...' 
+                : patchContent;
             specificContent = `
                 <div class="detail-label">Patch Size:</div>
                 <div class="detail-value">${originalSize} characters (${patchContent.length} decoded)</div>
@@ -879,44 +1220,29 @@ function formatTimestamp(timestamp) {
     return new Date(timestamp).toLocaleString();
 }
 
-function showNotification(message, type = 'info') {
-    // Create a simple notification system
+function showNotification(message, type = 'info', color = null) {
+    // If color is provided from backend Message, use it to override type
+    if (color === 'error') {
+        type = 'error';
+    } else if (color === 'warning') {
+        type = 'warning';
+    } else if (color === 'success') {
+        type = 'success';
+    }
+    
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
     
-    // Add notification styles if not already added
-    if (!document.querySelector('style[data-notifications]')) {
-        const style = document.createElement('style');
-        style.setAttribute('data-notifications', 'true');
-        style.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 1rem 1.5rem;
-                border-radius: 4px;
-                color: white;
-                font-weight: 500;
-                z-index: 2000;
-                animation: slideIn 0.3s ease;
-            }
-            .notification-success { background-color: #4caf50; }
-            .notification-error { background-color: #f44336; }
-            .notification-info { background-color: #2196f3; }
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    // Add to notifications container
+    const container = document.getElementById('notifications') || document.body;
+    container.appendChild(notification);
     
-    document.body.appendChild(notification);
-    
-    // Remove notification after 5 seconds
+    // Auto-remove after 5 seconds
     setTimeout(() => {
-        notification.remove();
+        if (notification.parentNode) {
+            notification.remove();
+        }
     }, 5000);
 }
 

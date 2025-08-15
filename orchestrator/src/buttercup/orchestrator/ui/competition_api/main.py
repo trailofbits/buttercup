@@ -56,7 +56,7 @@ _settings: Settings | None = None
 _database_manager: DatabaseManager | None = None
 
 # Compatibility - keeping dashboard_stats as backup/cache
-dashboard_stats = {"activeTasks": 0, "totalPovs": 0, "totalPatches": 0, "totalBundles": 0}
+dashboard_stats = {"activeTasks": 0, "totalPovs": 0, "totalPatches": 0, "totalBundles": 0, "failedTasks": 0}
 
 
 # Dashboard models
@@ -76,6 +76,12 @@ class TaskInfo(BaseModel):
     patches: List[Dict[str, Any]] = []
     bundles: List[Dict[str, Any]] = []
     created_at: str
+    
+    # CRS submission status and error information
+    crs_submission_status: Optional[str] = None  # 'pending', 'success', 'failed'
+    crs_submission_error: Optional[str] = None
+    crs_error_details: Optional[str] = None  # JSON string
+    crs_submission_timestamp: Optional[str] = None
 
 
 class DashboardStats(BaseModel):
@@ -83,6 +89,7 @@ class DashboardStats(BaseModel):
     totalPovs: int
     totalPatches: int
     totalBundles: int
+    failedTasks: int  # New field for failed tasks
 
 
 class Challenge(BaseModel):
@@ -291,12 +298,23 @@ if static_dir.exists():
 
 
 # Utility functions for task management
-def calculate_task_status(deadline: datetime) -> str:
-    """Calculate task status based on deadline."""
+def calculate_task_status(task: Task) -> str:
+    """Calculate task status based on deadline and CRS submission status."""
     try:
-        now = datetime.now(deadline.tzinfo)
+        # First check if the task failed to submit to CRS
+        crs_status = getattr(task, 'crs_submission_status', None)
+        if crs_status == "failed":
+            return "failed"
+        
+        # Then check deadline
+        deadline = getattr(task, 'deadline', None)
+        if deadline is None:
+            return "active"  # Default to active if no deadline
+        
+        now = datetime.now(deadline.tzinfo) if deadline.tzinfo else datetime.now()
         if now > deadline:
             return "expired"
+        
         return "active"
     except Exception:
         return "active"  # Default to active if parsing fails
@@ -310,10 +328,14 @@ def update_dashboard_stats(database_manager: DatabaseManager) -> None:
     total_povs = 0
     total_patches = 0
     total_bundles = 0
+    failed_tasks_count = 0
     with database_manager.get_all_tasks() as tasks:
         for task in tasks:
-            if calculate_task_status(task.deadline) == "active":
+            task_status = calculate_task_status(task)
+            if task_status == "active":
                 active_count += 1
+            if task_status == "failed":
+                failed_tasks_count += 1
 
             total_povs += len(task.povs)
             total_patches += len(task.patches)
@@ -325,76 +347,99 @@ def update_dashboard_stats(database_manager: DatabaseManager) -> None:
             "totalPovs": total_povs,
             "totalPatches": total_patches,
             "totalBundles": total_bundles,
+            "failedTasks": failed_tasks_count,
         }
     )
 
 
 def pov_to_pov_info(pov: POV) -> dict[str, Any]:
-    return {
-        "pov_id": pov.pov_id,
-        "timestamp": pov.created_at,
-        "architecture": pov.architecture,
-        "engine": pov.engine,
-        "fuzzer_name": pov.fuzzer_name,
-        "sanitizer": pov.sanitizer,
-        "testcase": base64.b64encode(pov.testcase),
-    }
+    try:
+        return {
+            "pov_id": getattr(pov, 'pov_id', 'unknown'),
+            "timestamp": getattr(pov, 'created_at', datetime.now()),
+            "architecture": getattr(pov, 'architecture', 'unknown'),
+            "engine": getattr(pov, 'engine', 'unknown'),
+            "fuzzer_name": getattr(pov, 'fuzzer_name', 'unknown'),
+            "sanitizer": getattr(pov, 'sanitizer', 'unknown'),
+            "testcase": base64.b64encode(getattr(pov, 'testcase', b'')),
+        }
+    except Exception as e:
+        logger.error(f"Error converting POV to info: {e}")
+        return {"pov_id": "error", "error": str(e)}
 
 
 def patch_to_patch_info(patch: Patch) -> dict[str, Any]:
-    return {
-        "patch_id": patch.patch_id,
-        "timestamp": patch.created_at,
-        "patch": base64.b64encode(patch.patch.encode("utf-8", errors="ignore")),
-    }
+    try:
+        return {
+            "patch_id": getattr(patch, 'patch_id', 'unknown'),
+            "timestamp": getattr(patch, 'created_at', datetime.now()),
+            "patch": base64.b64encode(getattr(patch, 'patch', '').encode("utf-8", errors="ignore")),
+        }
+    except Exception as e:
+        logger.error(f"Error converting patch to info: {e}")
+        return {"patch_id": "error", "error": str(e)}
 
 
 def bundle_to_bundle_info(bundle: Bundle) -> dict[str, Any]:
-    return {
-        "bundle_id": bundle.bundle_id,
-        "timestamp": bundle.created_at,
-        "description": bundle.description,
-        "broadcast_sarif_id": bundle.broadcast_sarif_id,
-        "freeform_id": bundle.freeform_id,
-        "patch_id": bundle.patch_id,
-        "pov_id": bundle.pov_id,
-        "submitted_sarif_id": bundle.submitted_sarif_id,
-    }
+    try:
+        return {
+            "bundle_id": getattr(bundle, 'bundle_id', 'unknown'),
+            "timestamp": getattr(bundle, 'created_at', datetime.now()),
+            "description": getattr(bundle, 'description', ''),
+            "broadcast_sarif_id": getattr(bundle, 'broadcast_sarif_id', None),
+            "freeform_id": getattr(bundle, 'freeform_id', None),
+            "patch_id": getattr(bundle, 'patch_id', None),
+            "pov_id": getattr(bundle, 'pov_id', None),
+            "submitted_sarif_id": getattr(bundle, 'submitted_sarif_id', None),
+        }
+    except Exception as e:
+        logger.error(f"Error converting bundle to info: {e}")
+        return {"bundle_id": "error", "error": str(e)}
 
 
 def task_to_task_info(task: Task) -> TaskInfo:
     """Convert a task to a TaskInfo object."""
-    povs = []
-    for pov in task.povs:
-        povs.append(pov_to_pov_info(pov))
+    try:
+        povs = []
+        for pov in task.povs:
+            povs.append(pov_to_pov_info(pov))
 
-    patches = []
-    for patch in task.patches:
-        patches.append(patch_to_patch_info(patch))
+        patches = []
+        for patch in task.patches:
+            patches.append(patch_to_patch_info(patch))
 
-    bundles = []
-    for bundle in task.bundles:
-        bundles.append(bundle_to_bundle_info(bundle))
+        bundles = []
+        for bundle in task.bundles:
+            bundles.append(bundle_to_bundle_info(bundle))
 
-    task_data = {
-        "task_id": task.task_id,
-        "name": task.name,
-        "project_name": task.project_name,
-        "status": calculate_task_status(task.deadline),
-        "duration": task.duration,
-        "deadline": datetime.isoformat(task.deadline),
-        "challenge_repo_url": task.challenge_repo_url,
-        "challenge_repo_head_ref": task.challenge_repo_head_ref,
-        "challenge_repo_base_ref": task.challenge_repo_base_ref,
-        "fuzz_tooling_url": task.fuzz_tooling_url,
-        "fuzz_tooling_ref": task.fuzz_tooling_ref,
-        "created_at": datetime.isoformat(task.created_at),
-        "povs": povs,
-        "patches": patches,
-        "bundles": bundles,
-    }
+        task_data = {
+            "task_id": task.task_id,
+            "name": getattr(task, 'name', None),
+            "project_name": getattr(task, 'project_name', 'Unknown'),
+            "status": calculate_task_status(task),
+            "duration": getattr(task, 'duration', 0),
+            "deadline": getattr(task, 'deadline', datetime.now()).isoformat() if getattr(task, 'deadline', None) else None,
+            "challenge_repo_url": getattr(task, 'challenge_repo_url', None),
+            "challenge_repo_head_ref": getattr(task, 'challenge_repo_head_ref', None),
+            "challenge_repo_base_ref": getattr(task, 'challenge_repo_base_ref', None),
+            "fuzz_tooling_url": getattr(task, 'fuzz_tooling_url', None),
+            "fuzz_tooling_ref": getattr(task, 'fuzz_tooling_ref', None),
+            "created_at": getattr(task, 'created_at', datetime.now()).isoformat() if getattr(task, 'created_at', None) else None,
+            "povs": povs,
+            "patches": patches,
+            "bundles": bundles,
+            
+            # CRS submission status and error information
+            "crs_submission_status": getattr(task, 'crs_submission_status', None),
+            "crs_submission_error": getattr(task, 'crs_submission_error', None),
+            "crs_error_details": getattr(task, 'crs_error_details', None),
+            "crs_submission_timestamp": getattr(task, 'crs_submission_timestamp', None).isoformat() if getattr(task, 'crs_submission_timestamp', None) else None,
+        }
 
-    return TaskInfo(**task_data)
+        return TaskInfo(**task_data)
+    except Exception as e:
+        logger.error(f"Error in task_to_task_info for task {getattr(task, 'task_id', 'unknown')}: {e}", exc_info=True)
+        raise
 
 
 def _create_task(
@@ -418,6 +463,8 @@ def _create_task(
         now = datetime.now()
         deadline = now + timedelta(seconds=challenge.duration)
 
+        # Always create the task in the database first
+        logger.info(f"Creating task {task_id} in database for challenge {challenge.name}")
         database_manager.create_task(
             task_id=task_id,
             name=name,
@@ -431,18 +478,105 @@ def _create_task(
             fuzz_tooling_url=challenge.fuzz_tooling_url,
             fuzz_tooling_ref=challenge.fuzz_tooling_ref,
         )
+        logger.info(f"Task {task_id} created successfully in database")
 
         # Send task to CRS via POST /v1/task endpoint
-        if crs_client.submit_task(task):
+        logger.info(f"Submitting task {task_id} to CRS...")
+        crs_response = crs_client.submit_task(task)
+        
+        # Update the task with CRS submission results
+        if crs_response.success:
             logger.info(f"Task {task_id} submitted successfully to CRS")
-            return Message(message=f"Task {task_id} created and submitted to CRS for challenge {challenge.name}")
+            database_manager.update_task_crs_status(
+                task_id=task_id,
+                crs_submission_status="success"
+            )
+            logger.info(f"Task {task_id} CRS status updated to 'success'")
+            return Message(message=f"Task {task_id} created and submitted successfully to CRS for challenge {challenge.name}")
         else:
             logger.error(f"Failed to submit task {task_id} to CRS")
-            return Error(message="Failed to submit task to CRS")
+            
+            # Generate user-friendly error message
+            error_message = crs_response.get_user_friendly_error_message("Failed to submit task to CRS")
+            logger.error(f"Task {task_id} error message: {error_message}")
+            
+            # Update the task with error information
+            logger.info(f"Updating task {task_id} CRS status to 'failed' with error details")
+            database_manager.update_task_crs_status(
+                task_id=task_id,
+                crs_submission_status="failed",
+                crs_submission_error=error_message,
+                crs_error_details=crs_response.error_details
+            )
+            logger.info(f"Task {task_id} CRS status updated to 'failed' with error details")
+            
+            # Verify the task was updated correctly
+            with database_manager.get_task(task_id) as updated_task:
+                if updated_task:
+                    logger.info(f"Verified task {task_id} in database:")
+                    logger.info(f"  - CRS status: {getattr(updated_task, 'crs_submission_status', 'N/A')}")
+                    logger.info(f"  - CRS error: {getattr(updated_task, 'crs_submission_error', 'N/A')}")
+                    logger.info(f"  - CRS error details: {getattr(updated_task, 'crs_error_details', 'N/A')}")
+                else:
+                    logger.error(f"Task {task_id} not found in database after update!")
+            
+            # Return success message since the task was created, but include the CRS error
+            return Message(
+                message=f"Task {task_id} created but failed to submit to CRS. "
+                f"Task is visible in the dashboard with error details. "
+                f"Error: {error_message}",
+                color="error"
+            )
 
     except Exception as e:
         logger.error(f"Error creating task for challenge {challenge.name}: {e}")
-        return Error(message=f"Failed to create task: {str(e)}")
+        
+        # Create a failed task in the database even when the challenge service fails
+        try:
+            # Generate a unique task ID for the failed task
+            failed_task_id = str(uuid.uuid4())
+            name = challenge.name or f"failed-{failed_task_id[:8]}"
+            now = datetime.now()
+            deadline = now + timedelta(seconds=challenge.duration)
+            
+            logger.info(f"Creating failed task {failed_task_id} in database for challenge {challenge.name}")
+            database_manager.create_task(
+                task_id=failed_task_id,
+                name=name,
+                project_name=challenge.fuzz_tooling_project_name,
+                status="failed",
+                duration=challenge.duration,
+                deadline=deadline,
+                challenge_repo_url=challenge.challenge_repo_url,
+                challenge_repo_head_ref=challenge.challenge_repo_head_ref,
+                challenge_repo_base_ref=challenge.challenge_repo_base_ref,
+                fuzz_tooling_url=challenge.fuzz_tooling_url,
+                fuzz_tooling_ref=challenge.fuzz_tooling_ref,
+            )
+            
+            # Mark it as failed with the error details
+            error_message = f"Failed to create task: {str(e)}"
+            database_manager.update_task_crs_status(
+                task_id=failed_task_id,
+                crs_submission_status="failed",
+                crs_submission_error=error_message,
+                crs_error_details={"exception": str(e), "error_type": "challenge_service_failure"}
+            )
+            
+            logger.info(f"Failed task {failed_task_id} created in database with error details")
+            
+            # Return a message indicating the task was created but failed
+            return Message(
+                message=f"Task {failed_task_id} created but failed during setup. "
+                f"Task is visible in the dashboard with error details. "
+                f"Error: {error_message}",
+                color="error"
+            )
+            
+        except Exception as db_error:
+            logger.error(f"Failed to create failed task in database: {db_error}")
+            # If we can't even create the failed task, return the original error
+            return Error(message=f"Failed to create task: {str(e)}")
 
 
 def _create_sarif_broadcast(
@@ -460,10 +594,21 @@ def _create_sarif_broadcast(
 
     sarif = body["sarif"]
     broadcast = challenge_service.create_sarif_broadcast(task_id, sarif)
-    if crs_client.submit_sarif_broadcast(broadcast):
+    
+    crs_response = crs_client.submit_sarif_broadcast(broadcast)
+    
+    if crs_response.success:
         return Message(message=f"SARIF Broadcast for Task {task_id} created and submitted to CRS")
     else:
-        return Error(message=f"Failed to submit SARIF Broadcast for Task {task_id} to CRS")
+        # Use the helper method to generate user-friendly error message
+        error_message = crs_response.get_user_friendly_error_message(f"Failed to submit SARIF Broadcast for Task {task_id} to CRS")
+        
+        # Return a message with the error details for better user experience
+        return Message(
+            message=f"SARIF Broadcast for Task {task_id} created but failed to submit to CRS. "
+            f"Error: {error_message}",
+            color="error"
+        )
 
 
 @app.get("/v1/ping/", response_model=PingResponse, tags=["ping"])
@@ -536,6 +681,74 @@ def get_dashboard_tasks(database_manager: DatabaseManager = Depends(get_database
     return tasks_list
 
 
+@app.get("/v1/dashboard/tasks/failed", response_model=List[TaskInfo], tags=["dashboard"])
+def get_failed_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
+    """
+    Get list of failed tasks for debugging
+    """
+    logger.info("get_failed_tasks endpoint called")
+    
+    try:
+        failed_tasks = database_manager.get_tasks_by_crs_status("failed")
+        logger.info(f"Found {len(failed_tasks)} failed tasks in database")
+        
+        if failed_tasks:
+            logger.info(f"First failed task ID: {failed_tasks[0].task_id}")
+            logger.info(f"First failed task CRS status: {getattr(failed_tasks[0], 'crs_submission_status', 'N/A')}")
+            logger.info(f"First failed task CRS error: {getattr(failed_tasks[0], 'crs_submission_error', 'N/A')}")
+        
+        tasks_list = []
+        for task in failed_tasks:
+            try:
+                task_info = task_to_task_info(task)
+                tasks_list.append(task_info)
+                logger.info(f"Converted task {task.task_id} to TaskInfo with status: {task_info.status}")
+            except Exception as task_error:
+                logger.error(f"Error converting task {task.task_id} to TaskInfo: {task_error}", exc_info=True)
+                # Skip this task and continue with others
+                continue
+
+        # Sort by created_at descending (newest first)
+        tasks_list.sort(key=lambda x: x.created_at, reverse=True)
+        logger.info(f"Returning {len(tasks_list)} failed tasks")
+        
+        return tasks_list
+        
+    except Exception as e:
+        logger.error(f"Error in get_failed_tasks: {e}", exc_info=True)
+        raise
+
+
+@app.get("/v1/dashboard/tasks/active", response_model=List[TaskInfo], tags=["dashboard"])
+def get_active_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
+    """
+    Get list of active tasks
+    """
+    active_tasks = database_manager.get_tasks_by_status("active")
+    tasks_list = []
+    for task in active_tasks:
+        tasks_list.append(task_to_task_info(task))
+
+    # Sort by created_at descending (newest first)
+    tasks_list.sort(key=lambda x: x.created_at, reverse=True)
+    return tasks_list
+
+
+@app.get("/v1/dashboard/tasks/expired", response_model=List[TaskInfo], tags=["dashboard"])
+def get_expired_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
+    """
+    Get list of expired tasks
+    """
+    expired_tasks = database_manager.get_tasks_by_status("expired")
+    tasks_list = []
+    for task in expired_tasks:
+        tasks_list.append(task_to_task_info(task))
+
+    # Sort by created_at descending (newest first)
+    tasks_list.sort(key=lambda x: x.created_at, reverse=True)
+    return tasks_list
+
+
 @app.get("/v1/dashboard/tasks/{task_id}", response_model=TaskInfo, tags=["dashboard"])
 def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> TaskInfo:
     """
@@ -546,6 +759,34 @@ def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends
             raise HTTPException(status_code=404, detail="Task not found")
 
         return task_to_task_info(task)
+
+
+@app.get("/v1/dashboard/tasks/{task_id}/crs-status", tags=["dashboard"])
+def get_task_crs_status(task_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> dict:
+    """
+    Get detailed CRS submission status and error information for a specific task
+    """
+    with database_manager.get_task(task_id) as task:
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        import json
+        
+        # Parse error details if present
+        error_details = None
+        if hasattr(task, 'crs_error_details') and task.crs_error_details:
+            try:
+                error_details = json.loads(task.crs_error_details)
+            except json.JSONDecodeError:
+                error_details = {"raw": task.crs_error_details}
+
+        return {
+            "task_id": task_id,
+            "crs_submission_status": getattr(task, 'crs_submission_status', None),
+            "crs_submission_error": getattr(task, 'crs_submission_error', None),
+            "crs_error_details": error_details,
+            "crs_submission_timestamp": getattr(task, 'crs_submission_timestamp', None).isoformat() if getattr(task, 'crs_submission_timestamp', None) else None,
+        }
 
 
 @app.get(
@@ -1123,3 +1364,55 @@ def get_all_patches(database_manager: DatabaseManager = Depends(get_database_man
     # Sort by timestamp descending
     all_patches.sort(key=lambda x: x["patch"].get("timestamp", ""), reverse=True)
     return all_patches
+
+
+@app.get("/v1/dashboard/test-db", tags=["dashboard"])
+def test_database(database_manager: DatabaseManager = Depends(get_database_manager)) -> dict:
+    """
+    Test database connectivity and basic operations
+    """
+    logger.info("Testing database connectivity...")
+    
+    try:
+        # Test basic database operations
+        with database_manager.get_session() as session:
+            # Count total tasks
+            total_tasks = session.query(Task).count()
+            logger.info(f"Total tasks in database: {total_tasks}")
+            
+            # Count tasks by CRS status
+            failed_tasks = session.query(Task).filter(Task.crs_submission_status == "failed").count()
+            success_tasks = session.query(Task).filter(Task.crs_submission_status == "success").count()
+            pending_tasks = session.query(Task).filter(Task.crs_submission_status == "pending").count()
+            null_status_tasks = session.query(Task).filter(Task.crs_submission_status.is_(None)).count()
+            
+            logger.info(f"Tasks by CRS status - Failed: {failed_tasks}, Success: {success_tasks}, Pending: {pending_tasks}, Null: {null_status_tasks}")
+            
+            # Get sample task details
+            sample_task = session.query(Task).first()
+            sample_task_info = None
+            if sample_task:
+                sample_task_info = {
+                    "task_id": sample_task.task_id,
+                    "name": sample_task.name,
+                    "crs_submission_status": getattr(sample_task, 'crs_submission_status', 'N/A'),
+                    "crs_submission_error": getattr(sample_task, 'crs_submission_error', 'N/A'),
+                }
+                logger.info(f"Sample task: {sample_task_info}")
+            
+            return {
+                "status": "success",
+                "total_tasks": total_tasks,
+                "failed_tasks": failed_tasks,
+                "success_tasks": success_tasks,
+                "pending_tasks": pending_tasks,
+                "null_status_tasks": null_status_tasks,
+                "sample_task": sample_task_info
+            }
+            
+    except Exception as e:
+        logger.error(f"Database test failed: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e)
+        }
