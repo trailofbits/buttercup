@@ -361,6 +361,11 @@ function renderFailedTasks(failedTasks) {
 
 // Render PoVs list
 function renderPovs() {
+    if (!elements.povsContainer) {
+        console.error('PoVs container not found!');
+        return;
+    }
+    
     if (allPovs.length === 0) {
         elements.povsContainer.innerHTML = `
             <div class="no-data">
