@@ -1,4 +1,4 @@
-name: Minikube Integration Tests
+name: System Integration Tests
 
 on:
   # Daily schedule - 3 AM UTC
