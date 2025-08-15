@@ -65,9 +65,7 @@ from buttercup.program_model.utils.common import TypeDefinitionType
     ],
 )
 @pytest.mark.integration
-def test_hdf5_get_functions(
-    hdf5_oss_fuzz_cq: CodeQuery, function_name, file_path, function_info
-):
+def test_hdf5_get_functions(hdf5_oss_fuzz_cq: CodeQuery, function_name, file_path, function_info):
     """Test that we can get functions in challenge task code"""
     common_test_get_functions(hdf5_oss_fuzz_cq, function_name, file_path, function_info)
 

@@ -37,9 +37,7 @@ from .common import (
             "/src/libpng/png.c",
             TestFunctionInfo(
                 num_bodies=1,
-                body_excerpts=[
-                    """info_ptr = png_voidcast(png_inforp, png_malloc_base(png_ptr,"""
-                ],
+                body_excerpts=["""info_ptr = png_voidcast(png_inforp, png_malloc_base(png_ptr,"""],
             ),
         ),
     ],
@@ -53,9 +51,7 @@ def test_libpng_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        libpng_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(libpng_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(
