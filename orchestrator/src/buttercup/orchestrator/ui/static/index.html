@@ -26,7 +26,7 @@
                 <div class="stat-number" id="active-tasks">-</div>
                 <div class="stat-label">Currently running</div>
             </div>
-            <div class="card failed-tasks">
+            <div class="card failed-tasks" disabled>
                 <h3>Failed Tasks</h3>
                 <div class="stat-number" id="failed-tasks">-</div>
                 <div class="stat-label">CRS submission failed</div>
@@ -72,20 +72,6 @@
                 </div>
                 <div class="tasks-container" id="tasks-container">
                     <!-- Tasks will be populated dynamically -->
-                </div>
-            </section>
-
-            <!-- Failed Tasks Tab -->
-            <section id="failed-tasks-tab" class="tab-pane">
-                <div class="section-header">
-                    <h2>Failed Tasks</h2>
-                    <p class="section-description">Tasks that failed to submit to CRS with detailed error information</p>
-                    <div style="margin-top: 10px;">
-                        <button id="force-refresh" class="btn btn-secondary">Force Refresh</button>
-                    </div>
-                </div>
-                <div class="tasks-container" id="failed-tasks-container">
-                    <!-- Failed tasks will be populated dynamically -->
                 </div>
             </section>
 
