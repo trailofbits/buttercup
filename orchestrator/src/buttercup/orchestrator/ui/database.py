@@ -42,6 +42,12 @@ class Task(Base):
     fuzz_tooling_url: Mapped[str] = mapped_column(String)
     fuzz_tooling_ref: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    
+    # Error tracking fields
+    crs_submission_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    crs_error_details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string for detailed error info
+    crs_submission_status: Mapped[str | None] = mapped_column(String, nullable=True)  # 'pending', 'success', 'failed'
+    crs_submission_timestamp: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     povs: Mapped[list["POV"]] = relationship("POV", back_populates="task", cascade="all, delete-orphan")
@@ -132,6 +138,34 @@ class DatabaseManager:
             task = session.query(Task).filter(Task.task_id == task_id).first()
             yield task
             session.commit()
+
+    def get_tasks_by_crs_status(self, crs_status: str) -> list[Task]:
+        """Get all tasks with a specific CRS submission status."""
+        with self.get_session() as session:
+            tasks = session.query(Task).filter(Task.crs_submission_status == crs_status).all()
+            session.commit()
+            return tasks
+
+    def get_tasks_by_status(self, status: str) -> list[Task]:
+        """Get all tasks with a specific overall status (active, expired, failed)."""
+        with self.get_session() as session:
+            if status == "failed":
+                # For failed status, check CRS submission status
+                tasks = session.query(Task).filter(Task.crs_submission_status == "failed").all()
+            else:
+                # For other statuses, we need to calculate based on deadline
+                from datetime import datetime
+                now = datetime.now()
+                
+                if status == "active":
+                    tasks = session.query(Task).filter(Task.deadline > now).all()
+                elif status == "expired":
+                    tasks = session.query(Task).filter(Task.deadline <= now).all()
+                else:
+                    tasks = []
+            
+            session.commit()
+            return tasks
 
     @contextmanager
     def get_povs_for_task(self, task_id: str) -> Iterator[list[POV]]:
@@ -249,6 +283,32 @@ class DatabaseManager:
             session.commit()
             logger.info(f"Created task: {task.task_id}")
             return task
+
+    def update_task_crs_status(
+        self,
+        *,
+        task_id: str,
+        crs_submission_status: str,
+        crs_submission_error: str | None = None,
+        crs_error_details: dict | None = None,
+    ) -> None:
+        """Update the CRS submission status and error information for a task."""
+        import json
+        
+        with self.get_session() as session:
+            task = session.query(Task).filter(Task.task_id == task_id).first()
+            if task:
+                task.crs_submission_status = crs_submission_status
+                task.crs_submission_error = crs_submission_error
+                task.crs_submission_timestamp = datetime.now()
+                
+                if crs_error_details:
+                    task.crs_error_details = json.dumps(crs_error_details, indent=2)
+                
+                session.commit()
+                logger.info(f"Updated CRS status for task {task_id}: {crs_submission_status}")
+            else:
+                logger.warning(f"Task {task_id} not found for CRS status update")
 
     # POV operations
     def create_pov(

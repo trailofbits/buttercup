@@ -55,15 +55,26 @@ body {
 
 .card {
     background: white;
-    padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     text-align: center;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
 .card:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card.failed-tasks {
+    border-left: 4px solid #f44336;
+    background: linear-gradient(135deg, #fff 0%, #ffebee 100%);
+}
+
+.card.failed-tasks:hover {
+    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
 }
 
 .card h3 {
@@ -148,13 +159,22 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #eee;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 .section-header h2 {
+    margin: 0;
     color: #333;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
+}
+
+.section-description {
+    margin: 0.5rem 0 0 0;
+    color: #666;
+    font-size: 0.9rem;
+    font-style: italic;
 }
 
 .filter-controls select {
@@ -215,29 +235,160 @@ body {
     gap: 0.5rem;
 }
 
+/* Task status badges */
 .status-badge {
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.75rem;
     border-radius: 12px;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .status-active {
-    background-color: #e3f2fd;
-    color: #1976d2;
-}
-
-.status-completed {
-    background-color: #e8f5e8;
-    color: #2e7d32;
+    background-color: #4caf50;
+    color: white;
 }
 
 .status-expired {
-    background-color: #fce4ec;
-    color: #c2185b;
+    background-color: #ff9800;
+    color: white;
 }
 
+.status-failed {
+    background-color: #f44336;
+    color: white;
+}
+
+/* CRS status indicators */
+.crs-error-info,
+.crs-success-info,
+.crs-pending-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.crs-error-info {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.crs-success-info {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.crs-pending-info {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc02;
+}
+
+.crs-error-icon,
+.crs-success-icon,
+.crs-pending-icon {
+    font-size: 1rem;
+}
+
+/* Failed task styling */
+.task-failed {
+    border-left: 4px solid #f44336;
+    background-color: #ffebee;
+}
+
+.task-failed:hover {
+    background-color: #ffcdd2;
+}
+
+/* CRS error details */
+.crs-error-details {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #fff3e0;
+    border: 1px solid #ffcc02;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #e65100;
+}
+
+.crs-error-details strong {
+    color: #bf360c;
+}
+
+/* Notification system */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    color: white;
+    font-weight: 500;
+    z-index: 2000;
+    animation: slideIn 0.3s ease;
+    max-width: 400px;
+    word-wrap: break-word;
+}
+
+.notification-success { 
+    background-color: #4caf50; 
+}
+
+.notification-error { 
+    background-color: #f44336; 
+}
+
+.notification-warning { 
+    background-color: #ff9800; 
+}
+
+.notification-info { 
+    background-color: #2196f3; 
+}
+
+@keyframes slideIn {
+    from { 
+        transform: translateX(100%); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translateX(0); 
+        opacity: 1; 
+    }
+}
+
+/* Error message styling for backend errors */
+.error-message {
+    color: #D8000C !important;
+    background-color: #FFBABA !important;
+    border: 1px solid #D8000C !important;
+    padding: 10px !important;
+    margin: 10px 0 !important;
+    border-radius: 5px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    box-shadow: 0 2px 8px rgba(216, 0, 12, 0.15) !important;
+}
+
+.error-message::before {
+    content: '⚠' !important;
+    font-size: 20px !important;
+    margin-right: 10px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Make dashboard stats clickable */
 .task-stats {
     display: flex;
     gap: 1rem;
@@ -483,14 +634,20 @@ form {
 /* No data states */
 .no-data {
     text-align: center;
-    padding: 2rem;
+    padding: 3rem 2rem;
     color: #666;
 }
 
 .no-data-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
-    opacity: 0.3;
+    opacity: 0.6;
+}
+
+.no-data-subtitle {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #888;
 }
 
 /* Artifacts container */
@@ -609,15 +766,4 @@ form {
     border-radius: 4px;
     max-height: 200px;
     overflow-y: auto;
-}
-
-/* Make dashboard stats clickable */
-.status-card {
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.status-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
