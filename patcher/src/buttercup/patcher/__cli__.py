@@ -45,7 +45,8 @@ def main() -> None:
                     harness_name=command.harness_name,
                     engine=command.engine,
                     sanitizer=command.sanitizer,
-                    pov=Path(command.crash_input_path).read_bytes(),
+                    pov=Path(command.crash_input_path),
+                    pov_token=f"token-{Path(command.crash_input_path).name}",
                     sanitizer_output=Path(command.stacktrace_path).read_bytes(),
                 )
             ],
