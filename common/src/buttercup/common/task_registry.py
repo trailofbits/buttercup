@@ -221,10 +221,7 @@ class TaskRegistry:
             return True
 
         # Check if expired based on deadline - pass the task object directly when available
-        if self.is_expired(task_or_id):
-            return True
-
-        return False
+        return bool(self.is_expired(task_or_id))
 
     def mark_successful(self, task_or_id: str | Task) -> None:
         """Add the task ID to the successful tasks set

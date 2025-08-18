@@ -27,7 +27,7 @@ def test_exec_seed_funcs(mocked_load_module):
         exec_seed_funcs(dummy_path, tempdir_path)
         seed_file1 = tempdir_path / "create_seed1.seed"
         seed_file2 = tempdir_path / "create_seed2.seed"
-        seed_files = [file for file in tempdir_path.iterdir()]
+        seed_files = list(tempdir_path.iterdir())
         assert len(seed_files) == 2
         assert seed_file1.exists()
         assert seed_file2.exists()

@@ -352,11 +352,11 @@ class CodeQuery:
 
     def _get_all_functions(self) -> list[CQSearchResult]:
         """Get all functions in the codebase."""
-        return [f for f in self._run_cqsearch("-s", self.CODEQUERY_DB, "-p", "2", "-t", "*", "-u")]
+        return list(self._run_cqsearch("-s", self.CODEQUERY_DB, "-p", "2", "-t", "*", "-u"))
 
     def _get_all_types(self) -> list[CQSearchResult]:
         """Get all symbols in the codebase."""
-        return [t for t in self._run_cqsearch("-s", self.CODEQUERY_DB, "-p", "1", "-t", "*", "-u")]
+        return list(self._run_cqsearch("-s", self.CODEQUERY_DB, "-p", "1", "-t", "*", "-u"))
 
     def get_functions(
         self,

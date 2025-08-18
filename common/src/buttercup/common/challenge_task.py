@@ -133,10 +133,7 @@ class ReproduceResult:
             return False
 
         crash_token = get_crash_token(stacktrace)
-        if not crash_token:
-            return False
-
-        return True
+        return bool(crash_token)
 
 
 F = TypeVar("F", bound=Callable[..., Any])

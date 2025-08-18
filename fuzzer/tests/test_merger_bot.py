@@ -548,8 +548,8 @@ class TestPartitionedCorpus(unittest.TestCase):
                 if "/corpus/path/" in src:
                     raise FileNotFoundError(f"File not found in local corpus: {src}")
                 # Second call with corpus.remote_path should succeed
-                return None
-            return None
+                return
+            return
 
         shutil_copy_mock.side_effect = mock_copy
 
