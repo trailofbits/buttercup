@@ -49,7 +49,7 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP", "RET505", "PIE790", "B905", "SIM114"]
+select = ["E", "F", "I", "W", "UP", "RET501", "RET505", "PIE790", "B905", "C416", "SIM103", "SIM114"]
 ignore = [
     "ISC001", # Formatter conflicts
     # Still need work:
