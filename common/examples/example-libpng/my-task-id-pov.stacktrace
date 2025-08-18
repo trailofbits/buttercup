@@ -15,8 +15,8 @@ vm.mmap_rnd_bits = 28
 Dictionary: 28 entries
 INFO: Running with entropic power schedule (0xFF, 100).
 INFO: Seed: 4117878429
-INFO: Loaded 1 modules   (5641 inline 8-bit counters): 5641 [0x561561195928, 0x561561196f31), 
-INFO: Loaded 1 PC tables (5641 PCs): 5641 [0x561561196f38,0x5615611acfc8), 
+INFO: Loaded 1 modules   (5641 inline 8-bit counters): 5641 [0x561561195928, 0x561561196f31),
+INFO: Loaded 1 PC tables (5641 PCs): 5641 [0x561561196f38,0x5615611acfc8),
 /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
 Running: /testcase
 =================================================================
@@ -50,7 +50,7 @@ Shadow bytes around the buggy address:
   0x7ffce0754680: f2 f2 f2 f2 00 00 00 00 00 f2 f2 f2 f2 f2 f8 f2
 Shadow byte legend (one shadow byte represents 8 application bytes):
   Addressable:           00
-  Partially addressable: 01 02 03 04 05 06 07 
+  Partially addressable: 01 02 03 04 05 06 07
   Heap left redzone:       fa
   Freed heap region:       fd
   Stack left redzone:      f1

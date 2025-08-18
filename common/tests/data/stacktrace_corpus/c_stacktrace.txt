@@ -625,7 +625,7 @@ HEAD is now at 897bce861 [selinux] add James Carter's email (#4934)
 #6 12.68 debconf: delaying package configuration, since apt-utils is not installed
 #6 12.72 Fetched 422 MB in 7s (63.0 MB/s)
 #6 12.75 Selecting previously unselected package libpython3.8-minimal:amd64.
-#6 12.75 (Reading database ... 
+#6 12.75 (Reading database ...
 (Reading database ... 5%
 (Reading database ... 10%
 (Reading database ... 15%
@@ -655,7 +655,7 @@ HEAD is now at 897bce861 [selinux] add James Carter's email (#4934)
 #6 13.21 Setting up libpython3.8-minimal:amd64 (3.8.10-0ubuntu1~20.04.14) ...
 #6 13.22 Setting up python3.8-minimal (3.8.10-0ubuntu1~20.04.14) ...
 #6 13.79 Selecting previously unselected package python3-minimal.
-#6 13.79 (Reading database ... 
+#6 13.79 (Reading database ...
 (Reading database ... 5%
 (Reading database ... 10%
 (Reading database ... 15%
@@ -696,7 +696,7 @@ HEAD is now at 897bce861 [selinux] add James Carter's email (#4934)
 #6 14.14 Unpacking libpython3-stdlib:amd64 (3.8.2-0ubuntu2) ...
 #6 14.18 Setting up python3-minimal (3.8.2-0ubuntu2) ...
 #6 14.36 Selecting previously unselected package python3.
-#6 14.36 (Reading database ... 
+#6 14.36 (Reading database ...
 (Reading database ... 5%
 (Reading database ... 10%
 (Reading database ... 15%
@@ -737,7 +737,7 @@ HEAD is now at 897bce861 [selinux] add James Carter's email (#4934)
 #6 14.77 Unpacking fonts-lato (2.0-2) ...
 #6 15.09 Setting up libsigsegv2:amd64 (2.12-2) ...
 #6 15.14 Selecting previously unselected package gawk.
-#6 15.14 (Reading database ... 
+#6 15.14 (Reading database ...
 (Reading database ... 5%
 (Reading database ... 10%
 (Reading database ... 15%
@@ -1888,7 +1888,7 @@ HEAD is now at 897bce861 [selinux] add James Carter's email (#4934)
 #6 66.22 Setting up libgs9-common (9.50~dfsg-5ubuntu4.14) ...
 #6 66.23 Setting up libblkid-dev:amd64 (2.34-0.1ubuntu9.6) ...
 #6 66.24 Setting up libpaper1:amd64 (1.1.28) ...
-#6 66.38 
+#6 66.38
 #6 66.38 Creating config file /etc/papersize with new version
 #6 66.41 Setting up libice6:amd64 (2:1.0.10-0ubuntu1) ...
 #6 66.42 Setting up libhttp-date-perl (6.05-1) ...
@@ -2382,7 +2382,7 @@ sed -e 's/@VERSION@/3.2-rc1/; s:@prefix@:/usr:; s:@libdir@:/usr/lib:; s:@include
 clang -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=enum-constexpr-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -I. -I../include -D_GNU_SOURCE -I../cil/include -fPIC -c -o ../cil/src/cil_lexer.o ../cil/src/cil_lexer.c
 1 warning generated.
 clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -I. -I../include -D_GNU_SOURCE -I../cil/include  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -shared -o libsepol.so.2 assertion.lo avrule_block.lo avtab.lo boolean_record.lo booleans.lo conditional.lo constraint.lo context.lo context_record.lo debug.lo ebitmap.lo expand.lo handle.lo hashtab.lo hierarchy.lo ibendport_record.lo ibendports.lo ibpkey_record.lo ibpkeys.lo iface_record.lo interfaces.lo kernel_to_cil.lo kernel_to_common.lo kernel_to_conf.lo link.lo mls.lo module.lo module_to_cil.lo node_record.lo nodes.lo optimize.lo polcaps.lo policydb.lo policydb_convert.lo policydb_public.lo port_record.lo ports.lo roles.lo services.lo sidtab.lo symtab.lo user_record.lo users.lo util.lo write.lo ../cil/src/cil.lo ../cil/src/cil_binary.lo ../cil/src/cil_build_ast.lo ../cil/src/cil_copy_ast.lo ../cil/src/cil_find.lo ../cil/src/cil_fqn.lo ../cil/src/cil_lexer.lo ../cil/src/cil_list.lo ../cil/src/cil_log.lo ../cil/src/cil_mem.lo ../cil/src/cil_parser.lo ../cil/src/cil_policy.lo ../cil/src/cil_post.lo ../cil/src/cil_reset_ast.lo ../cil/src/cil_resolve_ast.lo ../cil/src/cil_stack.lo ../cil/src/cil_strpool.lo ../cil/src/cil_symtab.lo ../cil/src/cil_tree.lo ../cil/src/cil_verify.lo -Wl,-soname,libsepol.so.2,--version-script=libsepol.map
-ln -sf libsepol.so.2 libsepol.so 
+ln -sf libsepol.so.2 libsepol.so
 ar rcs libsepol.a assertion.o avrule_block.o avtab.o boolean_record.o booleans.o conditional.o constraint.o context.o context_record.o debug.o ebitmap.o expand.o handle.o hashtab.o hierarchy.o ibendport_record.o ibendports.o ibpkey_record.o ibpkeys.o iface_record.o interfaces.o kernel_to_cil.o kernel_to_common.o kernel_to_conf.o link.o mls.o module.o module_to_cil.o node_record.o nodes.o optimize.o polcaps.o policydb.o policydb_convert.o policydb_public.o port_record.o ports.o roles.o services.o sidtab.o symtab.o user_record.o users.o util.o write.o ../cil/src/cil.o ../cil/src/cil_binary.o ../cil/src/cil_build_ast.o ../cil/src/cil_copy_ast.o ../cil/src/cil_find.o ../cil/src/cil_fqn.o ../cil/src/cil_lexer.o ../cil/src/cil_list.o ../cil/src/cil_log.o ../cil/src/cil_mem.o ../cil/src/cil_parser.o ../cil/src/cil_policy.o ../cil/src/cil_post.o ../cil/src/cil_reset_ast.o ../cil/src/cil_resolve_ast.o ../cil/src/cil_stack.o ../cil/src/cil_strpool.o ../cil/src/cil_symtab.o ../cil/src/cil_tree.o ../cil/src/cil_verify.o
 ranlib libsepol.a
 test -d /src/selinux/DESTDIR/usr/lib || install -m 755 -d /src/selinux/DESTDIR/usr/lib
@@ -2806,18 +2806,18 @@ clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-const
 clang -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=enum-constexpr-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -o y.tab.o -c y.tab.c
 flex policy_scan.l
 clang -O1 -fno-omit-frame-pointer -gline-tables-only -Wno-error=enum-constexpr-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion -Wno-error=deprecated-declarations -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=vla-cxx-extension -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -o lex.yy.o -c lex.yy.c
-clang -o checkpolicy y.tab.o lex.yy.o queue.o module_compiler.o parse_util.o policy_define.o checkpolicy.o /src/selinux/DESTDIR/usr/lib/libsepol.a  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib 
-clang -o checkmodule y.tab.o lex.yy.o queue.o module_compiler.o parse_util.o policy_define.o checkmodule.o /src/selinux/DESTDIR/usr/lib/libsepol.a  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib 
+clang -o checkpolicy y.tab.o lex.yy.o queue.o module_compiler.o parse_util.o policy_define.o checkpolicy.o /src/selinux/DESTDIR/usr/lib/libsepol.a  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib
+clang -o checkmodule y.tab.o lex.yy.o queue.o module_compiler.o parse_util.o policy_define.o checkmodule.o /src/selinux/DESTDIR/usr/lib/libsepol.a  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib
 make -C test
 make[2]: Entering directory '/src/selinux/checkpolicy/test'
 clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include   -c -o dispol.o dispol.c
 clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include   -c -o dismod.o dismod.c
-clang  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -o dispol dispol.o /src/selinux/DESTDIR/usr/lib/libsepol.a 
-clang  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -o dismod dismod.o /src/selinux/DESTDIR/usr/lib/libsepol.a 
+clang  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -o dispol dispol.o /src/selinux/DESTDIR/usr/lib/libsepol.a
+clang  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -o dismod dismod.o /src/selinux/DESTDIR/usr/lib/libsepol.a
 make[2]: Leaving directory '/src/selinux/checkpolicy/test'
 mkdir -p /src/selinux/DESTDIR/usr/bin
 mkdir -p /src/selinux/DESTDIR/usr/share/man/man8
-install -m 755 checkpolicy checkmodule /src/selinux/DESTDIR/usr/bin	
+install -m 755 checkpolicy checkmodule /src/selinux/DESTDIR/usr/bin
 install -m 644 checkpolicy.8 /src/selinux/DESTDIR/usr/share/man/man8
 install -m 644 checkmodule.8 /src/selinux/DESTDIR/usr/share/man/man8
 for lang in ru ; do \
@@ -3274,7 +3274,7 @@ clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-const
 clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -fPIE -c -o mcscolor.o mcscolor.c
 clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -fPIE -c -o mcstransd.o mcstransd.c
 clang -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -I/src/selinux/DESTDIR/usr/include -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -fPIE -c -o mls_level.o mls_level.c
-clang  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -pie -o mcstransd mcstrans.o mcscolor.o mcstransd.o mls_level.o /src/selinux/DESTDIR/usr/lib/libsepol.a -lselinux -lcap -lpcre 
+clang  -O1   -fno-omit-frame-pointer   -gline-tables-only   -Wno-error=enum-constexpr-conversion   -Wno-error=incompatible-function-pointer-types   -Wno-error=int-conversion   -Wno-error=deprecated-declarations   -Wno-error=implicit-function-declaration   -Wno-error=implicit-int   -Wno-error=vla-cxx-extension   -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -fsanitize=address -fsanitize-address-use-after-scope -fsanitize=fuzzer-no-link -L/src/selinux/DESTDIR/usr/lib -L/src/selinux/DESTDIR/usr/lib -pie -o mcstransd mcstrans.o mcscolor.o mcstransd.o mls_level.o /src/selinux/DESTDIR/usr/lib/libsepol.a -lselinux -lcap -lpcre
 test -d /src/selinux/DESTDIR/sbin || install -m 755 -d /src/selinux/DESTDIR/sbin
 install -m 755 mcstransd /src/selinux/DESTDIR/sbin
 test -d /src/selinux/DESTDIR/etc/rc.d/init.d || install -m 755 -d /src/selinux/DESTDIR/etc/rc.d/init.d
@@ -3302,7 +3302,7 @@ make[2]: Leaving directory '/src/selinux/mcstrans/man'
 make[1]: Leaving directory '/src/selinux/mcstrans'
 make[1]: Entering directory '/src/selinux/python'
 make[2]: Entering directory '/src/selinux/python/sepolicy'
-python3 setup.py install --prefix=/usr `test -n "/src/selinux/DESTDIR" && echo --root /src/selinux/DESTDIR` 
+python3 setup.py install --prefix=/usr `test -n "/src/selinux/DESTDIR" && echo --root /src/selinux/DESTDIR`
 /usr/local/lib/python3.10/site-packages/setuptools/dist.py:530: UserWarning: Normalizing '3.2-rc1' to '3.2rc1'
   warnings.warn(tmpl.format(**locals()))
 running install
@@ -3784,8 +3784,8 @@ vm.mmap_rnd_bits = 28
 /out/secilc-fuzzer -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase < /dev/null
 INFO: Running with entropic power schedule (0xFF, 100).
 INFO: Seed: 2374174406
-INFO: Loaded 1 modules   (17391 inline 8-bit counters): 17391 [0x561fc6b4ea88, 0x561fc6b52e77), 
-INFO: Loaded 1 PC tables (17391 PCs): 17391 [0x561fc6b52e78,0x561fc6b96d68), 
+INFO: Loaded 1 modules   (17391 inline 8-bit counters): 17391 [0x561fc6b4ea88, 0x561fc6b52e77),
+INFO: Loaded 1 PC tables (17391 PCs): 17391 [0x561fc6b52e78,0x561fc6b96d68),
 /out/secilc-fuzzer: Running 1 inputs 100 time(s) each.
 Running: /testcase
 Recursive blockinherit found:
@@ -3865,7 +3865,7 @@ Shadow bytes around the buggy address:
   0x506000000900: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
 Shadow byte legend (one shadow byte represents 8 application bytes):
   Addressable:           [1m[0m00[1m[0m
-  Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m 
+  Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m
   Heap left redzone:       [1m[31mfa[1m[0m
   Freed heap region:       [1m[35mfd[1m[0m
   Stack left redzone:      [1m[31mf1[1m[0m

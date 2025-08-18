@@ -15,7 +15,7 @@ def address_to_integer(address):
     return int(address, 16)
   except:
     return 0
-  
+
 
 def is_null_dereference(int_address):
   """Check to see if this is a null dereference crash address."""

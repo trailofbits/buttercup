@@ -23,8 +23,8 @@ vm.mmap_rnd_bits = 28
 /out/secilc-fuzzer -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase < /dev/null
 INFO: Running with entropic power schedule (0xFF, 100).
 INFO: Seed: 2374174406
-INFO: Loaded 1 modules   (17391 inline 8-bit counters): 17391 [0x561fc6b4ea88, 0x561fc6b52e77), 
-INFO: Loaded 1 PC tables (17391 PCs): 17391 [0x561fc6b52e78,0x561fc6b96d68), 
+INFO: Loaded 1 modules   (17391 inline 8-bit counters): 17391 [0x561fc6b4ea88, 0x561fc6b52e77),
+INFO: Loaded 1 PC tables (17391 PCs): 17391 [0x561fc6b52e78,0x561fc6b96d68),
 /out/secilc-fuzzer: Running 1 inputs 100 time(s) each.
 Running: /testcase
 Recursive blockinherit found:
@@ -104,7 +104,7 @@ Shadow bytes around the buggy address:
   0x506000000900: [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m [1m[31mfa[1m[0m
 Shadow byte legend (one shadow byte represents 8 application bytes):
   Addressable:           [1m[0m00[1m[0m
-  Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m 
+  Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m
   Heap left redzone:       [1m[31mfa[1m[0m
   Freed heap region:       [1m[35mfd[1m[0m
   Stack left redzone:      [1m[31mf1[1m[0m

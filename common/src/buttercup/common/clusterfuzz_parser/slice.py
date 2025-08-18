@@ -910,7 +910,7 @@ class StackFrameSpec(StackFrameStructure):
         frame_field = frame_match.group(ind)
         if frame_field is not None and frame_field:
           setattr(frame, name, frame_field.strip())
-          break 
+          break
 
     return frame
 

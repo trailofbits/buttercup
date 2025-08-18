@@ -4,7 +4,7 @@ import os
 import re
 import stat
 import tempfile
-import logging 
+import logging
 from buttercup.common.clusterfuzz_parser import utils
 from buttercup.common.clusterfuzz_env import environment
 

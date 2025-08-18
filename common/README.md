@@ -32,7 +32,7 @@ subcommands:
 ### Send messages to a specific queue
 
 ```bash
-$ buttercup-util send_queue orchestrator_download_tasks_queue ./examples/task_download.txt 
+$ buttercup-util send_queue orchestrator_download_tasks_queue ./examples/task_download.txt
 2025-03-12 10:49:46,342 - buttercup.common.util_cli - INFO - Reading TaskDownload message from file 'examples/task_download.txt'
 2025-03-12 10:49:46,342 - buttercup.common.util_cli - INFO - Pushing message to queue 'orchestrator_download_tasks_queue': task {
   message_time: 1739917788000
@@ -90,7 +90,7 @@ task_id: "my-task-id"
 ### Add a build to the build map
 
 ```bash
-$ buttercup-util add_build ./examples/build.txt 
+$ buttercup-util add_build ./examples/build.txt
 2025-03-12 10:55:07,273 - buttercup.common.util_cli - INFO - Added build for my-task-id | fuzzer | address
 ```
 
