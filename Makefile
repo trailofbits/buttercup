@@ -200,6 +200,13 @@ reformat-component:
 	@echo "Reformatting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format && uv run ruff check --fix
 
+# Lint changed files (for pre-commit integration)
+lint-changed:
+	@scripts/lint-changed-files.sh check $(FILES)
+
+fix-changed:
+	@scripts/lint-changed-files.sh fix $(FILES)
+
 # Cleanup targets
 undeploy:
 	@echo "Cleaning up deployment..."

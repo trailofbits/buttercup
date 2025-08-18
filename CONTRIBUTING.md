@@ -35,9 +35,9 @@ make deploy-local
 
 ### Pre-commit Hooks
 
-This project uses pre-commit hooks to ensure code consistency. The hooks integrate with the project's existing linting infrastructure, using `uv run` to execute ruff with each component's specific configuration.
+This project uses pre-commit hooks to ensure code consistency. The hooks delegate all Python linting to the project's Makefile, ensuring a single source of truth for code quality checks.
 
-The hooks will run automatically on `git commit`. To run manually:
+The hooks will run automatically on `git commit` and will auto-fix issues when possible. To run manually:
 
 ```bash
 # Run on staged files
@@ -45,13 +45,24 @@ pre-commit run
 
 # Run on all files
 pre-commit run --all-files
+
+# Run specific linting via Makefile
+make lint-changed FILES="path/to/file.py"  # Check only
+make fix-changed FILES="path/to/file.py"   # Fix issues
 ```
 
-**Key Features:**
-- Uses the same ruff version and configuration as CI (via `uv run`)
-- Automatically detects which component a file belongs to
-- Only includes non-redundant checks (YAML, TOML, JSON validation)
-- Excludes protobuf and other generated files automatically
+**Architecture:**
+- Single source of truth: All linting goes through `scripts/lint-changed-files.sh`
+- Component-aware: Automatically detects which component a file belongs to
+- Uses each component's specific ruff configuration and version
+- Non-Python checks: YAML, TOML, JSON validation via pre-commit-hooks
+- Excludes generated files (protobuf, etc.) automatically
+
+**Benefits:**
+- Consistency: Pre-commit, local development, and CI all use the same linting logic
+- Reliability: No version drift between different linting paths
+- Performance: Only lints files in their proper component context
+- Simplicity: One script to maintain instead of complex hook configurations
 
 ## Development Workflow
 

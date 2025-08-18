@@ -1,14 +1,15 @@
 # Pre-commit hooks for Buttercup CRS
 # See https://pre-commit.com for more information
 #
-# This configuration integrates with the project's existing linting infrastructure
-# to ensure consistency between pre-commit, local development, and CI.
+# This configuration delegates all Python linting to the project's Makefile,
+# ensuring complete consistency between pre-commit, local development, and CI.
 
+minimum_pre_commit_version: '2.20.0'
 default_language_version:
   python: python3
 
 repos:
-  # Only include checks that ruff doesn't handle
+  # Non-Python file validation (ruff doesn't handle these)
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
@@ -21,24 +22,16 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=1000]
 
-  # Use local hooks that leverage the project's existing infrastructure
+  # Python linting via project script
   - repo: local
     hooks:
-      # Format check using project's ruff via uv
-      - id: ruff-format
-        name: ruff format
-        entry: bash -c 'for file in "$@"; do abs_file="$(pwd)/$file"; dir=$(dirname "$abs_file"); while [[ "$dir" != "/" ]]; do if [[ -f "$dir/pyproject.toml" ]] && [[ "$(basename "$dir")" =~ ^(common|orchestrator|fuzzer|patcher|program-model|seed-gen)$ ]]; then (cd "$dir" && uv run ruff format "$abs_file") || exit 1; break; fi; dir=$(dirname "$dir"); done; done' --
+      - id: lint-python
+        name: Lint Python files
+        entry: scripts/lint-changed-files.sh fix
         language: system
         types: [python]
-        require_serial: false
-
-      # Lint check using project's ruff via uv
-      - id: ruff-check
-        name: ruff check
-        entry: bash -c 'for file in "$@"; do abs_file="$(pwd)/$file"; dir=$(dirname "$abs_file"); while [[ "$dir" != "/" ]]; do if [[ -f "$dir/pyproject.toml" ]] && [[ "$(basename "$dir")" =~ ^(common|orchestrator|fuzzer|patcher|program-model|seed-gen)$ ]]; then (cd "$dir" && uv run ruff check --fix "$abs_file") || exit 1; break; fi; dir=$(dirname "$dir"); done; done' --
-        language: system
-        types: [python]
-        require_serial: false
+        pass_filenames: true
+        require_serial: true
 
 # Global exclusions for files that should never be checked
 exclude: |
@@ -50,8 +43,12 @@ exclude: |
     .*/\.venv/.*|
     .*/\.mypy_cache/.*|
     .*/\.ruff_cache/.*|
-    .*/\.pytest_cache/.*
+    .*/\.pytest_cache/.*|
+    __pycache__/.*
   )$
 
-# Don't fail fast - show all issues
+# Configuration
 fail_fast: false
+ci:
+  autofix_prs: true
+  autoupdate_schedule: weekly
