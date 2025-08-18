@@ -2,7 +2,7 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled]
+    types: [labeled, synchronize]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
