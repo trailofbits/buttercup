@@ -81,9 +81,8 @@ exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
 ignore = [
-    "COM812", "ISC001",  # Formatter conflicts
-    # Temporarily disabled for standardization PR - re-enable after refactoring:
-    "I001",   # Import block is un-sorted or un-formatted
+    "ISC001",  # Formatter conflicts
+    # Still need work:
     "E501",   # Line too long
     "UP006",  # Use built-in collection types for type annotations
     "UP007",  # Use X | Y for type annotations

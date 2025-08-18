@@ -87,11 +87,10 @@ select = ["E", "F", "I", "W", "UP"]
 # COM812 and ISC001 can cause conflicts when using ruff as a formatter.
 # See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
 ignore = [
-    "D203", "D213", "COM812", "ISC001",
-    # Temporarily disabled for standardization PR - re-enable after refactoring:
-    "I001",   # Import block is un-sorted or un-formatted
+    "D203", "D213",  # Docstring formatting (conflicts with D212)
+    "ISC001",  # Formatter conflicts
+    # Still need work:
     "E501",   # Line too long
-    "W291",   # Trailing whitespace  
     "UP006",  # Use built-in collection types for type annotations
     "UP015",  # Unnecessary mode argument
     "UP035",  # Import from modern locations instead of deprecated typing
