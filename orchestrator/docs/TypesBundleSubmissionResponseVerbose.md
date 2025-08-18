@@ -5,14 +5,14 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**broadcast_sarif_id** | **str** |  | [optional] 
-**bundle_id** | **str** |  | 
-**description** | **str** |  | [optional] 
-**freeform_id** | **str** |  | [optional] 
-**patch_id** | **str** |  | [optional] 
-**pov_id** | **str** |  | [optional] 
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded | 
-**submitted_sarif_id** | **str** |  | [optional] 
+**broadcast_sarif_id** | **str** |  | [optional]
+**bundle_id** | **str** |  |
+**description** | **str** |  | [optional]
+**freeform_id** | **str** |  | [optional]
+**patch_id** | **str** |  | [optional]
+**pov_id** | **str** |  | [optional]
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded |
+**submitted_sarif_id** | **str** |  | [optional]
 
 ## Example
 
@@ -32,5 +32,3 @@ types_bundle_submission_response_verbose_dict = types_bundle_submission_response
 types_bundle_submission_response_verbose_from_dict = TypesBundleSubmissionResponseVerbose.from_dict(types_bundle_submission_response_verbose_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

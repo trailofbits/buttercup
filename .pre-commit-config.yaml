@@ -1,0 +1,58 @@
+# Pre-commit hooks for Buttercup CRS
+# See https://pre-commit.com for more information
+
+default_language_version:
+  python: python3.11
+
+repos:
+  # Standard file fixes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.proto$'
+      - id: end-of-file-fixer
+        exclude: '\.proto$'
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: 'deployment/k8s/.*\.(yaml|yml)$'
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-toml
+      - id: check-json
+      - id: debug-statements
+        exclude: '^external/'
+
+  # Ruff - Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      # Run the formatter first
+      - id: ruff-format
+        types_or: [python, pyi]
+        exclude: '^external/'
+
+      # Then run the linter with auto-fix
+      - id: ruff
+        types_or: [python, pyi]
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: '^external/'
+
+# Configuration for specific hooks
+exclude: |
+  (?x)^(
+    external/.*|
+    .*\.pb\.py|
+    .*_pb2\.py|
+    .*_pb2_grpc\.py|
+    .*/\.venv/.*|
+    .*/\.mypy_cache/.*|
+    .*/\.ruff_cache/.*|
+    .*/\.pytest_cache/.*
+  )$
+
+# Don't run on tags
+fail_fast: false

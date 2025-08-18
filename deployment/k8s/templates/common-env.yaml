@@ -395,5 +395,3 @@ Service-specific environment variables that utilize the standardized variables
       name: ghcr
       key: username
 {{- end }}
-
-

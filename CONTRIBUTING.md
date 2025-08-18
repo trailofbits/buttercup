@@ -80,7 +80,7 @@ make send-libpng-task
 #### Kubernetes Development
 
 ```bash
-# Port forward for local access  
+# Port forward for local access
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
 # View logs
@@ -201,6 +201,29 @@ cd <component> && uv add <package>
 # Update dependencies
 cd <component> && uv lock --upgrade
 ```
+
+### Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code quality before commits. To set them up:
+
+```bash
+# Install pre-commit (one-time setup)
+pip install pre-commit
+
+# Install the git hooks
+pre-commit install
+
+# Run hooks manually on all files (optional)
+pre-commit run --all-files
+```
+
+The hooks will automatically:
+- Format code with `ruff format`
+- Check for linting issues with `ruff check`
+- Fix trailing whitespace and file endings
+- Check for merge conflicts and large files
+
+To bypass hooks in an emergency: `git commit --no-verify`
 
 ## Getting Help
 

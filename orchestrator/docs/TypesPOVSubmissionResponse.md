@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**pov_id** | **str** |  | 
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  | 
+**pov_id** | **str** |  |
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  |
 
 ## Example
 
@@ -26,5 +26,3 @@ types_pov_submission_response_dict = types_pov_submission_response_instance.to_d
 types_pov_submission_response_from_dict = TypesPOVSubmissionResponse.from_dict(types_pov_submission_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

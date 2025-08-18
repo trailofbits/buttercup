@@ -36,4 +36,3 @@ RUN curl -fsSL https://get.docker.com | sh
 COPY --from=builder --chown=app:app /app/orchestrator/.venv /app/orchestrator/.venv
 WORKDIR /app/orchestrator
 ENV PATH=/app/orchestrator/.venv/bin:$PATH
-

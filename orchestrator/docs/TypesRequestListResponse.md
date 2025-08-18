@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**challenges** | **List[str]** | List of challenges that competitors may task themselves with | 
+**challenges** | **List[str]** | List of challenges that competitors may task themselves with |
 
 ## Example
 
@@ -25,5 +25,3 @@ types_request_list_response_dict = types_request_list_response_instance.to_dict(
 types_request_list_response_from_dict = TypesRequestListResponse.from_dict(types_request_list_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

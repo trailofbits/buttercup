@@ -109,7 +109,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
-      
+
       # Fuzzer only needs ripgrep, no codequery
       - name: Install fuzzer dependencies
         if: matrix.component == 'fuzzer'
@@ -216,7 +216,7 @@ jobs:
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration == 'true') ||
       contains(github.event.pull_request.labels.*.name, 'integration-tests')
-    
+
     strategy:
       fail-fast: false
       matrix:

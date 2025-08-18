@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded | 
-**submitted_sarif_id** | **str** |  | 
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded |
+**submitted_sarif_id** | **str** |  |
 
 ## Example
 
@@ -26,5 +26,3 @@ types_sarif_submission_response_dict = types_sarif_submission_response_instance.
 types_sarif_submission_response_from_dict = TypesSARIFSubmissionResponse.from_dict(types_sarif_submission_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

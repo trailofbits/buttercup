@@ -66,8 +66,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **challenge_name** | **str**| Challenge Name | 
- **payload** | [**TypesRequestSubmission**](TypesRequestSubmission.md)| Submission Body | 
+ **challenge_name** | **str**| Challenge Name |
+ **payload** | [**TypesRequestSubmission**](TypesRequestSubmission.md)| Submission Body |
 
 ### Return type
 
@@ -172,4 +172,3 @@ This endpoint does not need any parameter.
 **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

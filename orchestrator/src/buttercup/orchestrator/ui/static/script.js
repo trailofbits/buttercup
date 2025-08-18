@@ -51,10 +51,10 @@ document.addEventListener('DOMContentLoaded', function() {
             button.style.width = button.offsetWidth + 'px';
         }
     });
-    
+
     setupEventListeners();
     loadDashboard();
-    
+
     // Set up auto-refresh every 5 seconds
     setInterval(loadDashboard, 5000);
 });
@@ -64,27 +64,27 @@ function setupEventListeners() {
     elements.submitTaskBtn.addEventListener('click', () => {
         elements.taskModal.style.display = 'block';
     });
-    
+
     elements.submitExampleBtn.addEventListener('click', handleExampleTaskSubmission);
-    
+
     elements.refreshBtn.addEventListener('click', loadDashboard);
-    
+
     elements.closeModal.addEventListener('click', () => {
         elements.taskModal.style.display = 'none';
     });
-    
+
     elements.closeDetailModal.addEventListener('click', () => {
         elements.detailModal.style.display = 'none';
     });
-    
+
     elements.cancelBtn.addEventListener('click', () => {
         elements.taskModal.style.display = 'none';
     });
-    
+
     elements.taskForm.addEventListener('submit', handleTaskSubmission);
-    
+
     elements.statusFilter.addEventListener('change', filterTasks);
-    
+
     // Tab navigation
     elements.tabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -92,20 +92,20 @@ function setupEventListeners() {
             switchTab(tabName);
         });
     });
-    
+
     // Dashboard stat navigation
     elements.activeTasks.addEventListener('click', () => {
         switchTab('tasks');
     });
-    
+
     elements.totalPovs.addEventListener('click', () => {
         switchTab('povs');
     });
-    
+
     elements.totalPatches.addEventListener('click', () => {
         switchTab('patches');
     });
-    
+
     // Close modals when clicking outside
     window.addEventListener('click', (event) => {
         if (event.target === elements.taskModal) {
@@ -120,7 +120,7 @@ function setupEventListeners() {
 // Tab switching
 function switchTab(tabName) {
     currentTab = tabName;
-    
+
     // Update tab buttons
     elements.tabButtons.forEach(button => {
         if (button.getAttribute('data-tab') === tabName) {
@@ -129,7 +129,7 @@ function switchTab(tabName) {
             button.classList.remove('active');
         }
     });
-    
+
     // Update tab panes
     elements.tabPanes.forEach(pane => {
         if (pane.id === `${tabName}-tab`) {
@@ -138,7 +138,7 @@ function switchTab(tabName) {
             pane.classList.remove('active');
         }
     });
-    
+
     // Load content for the active tab
     if (tabName === 'povs') {
         loadAndRenderPovs();
@@ -167,7 +167,7 @@ function updatePageTitle() {
     const baseTitle = 'Buttercup CRS Dashboard';
     const navTitle = document.querySelector('.nav-title');
     const pageTitle = document.querySelector('title');
-    
+
     if (dashboardConfig.crs_instance_id) {
         const newTitle = `${baseTitle} (${dashboardConfig.crs_instance_id})`;
         if (navTitle) navTitle.textContent = newTitle;
@@ -182,7 +182,7 @@ function updatePageTitle() {
 async function loadDashboard() {
     try {
         elements.refreshBtn.innerHTML = '<span class="spinner"></span>';
-        
+
         // Load tasks, stats, and config in parallel
         await Promise.all([
             loadTasks(),
@@ -191,9 +191,9 @@ async function loadDashboard() {
             loadAllPatches(),
             loadConfig()
         ]);
-        
+
         updateDashboard();
-        
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
         showNotification('Error loading dashboard data', 'error');
@@ -311,7 +311,7 @@ function updateDashboard() {
     elements.totalPovs.textContent = dashboardStats.totalPovs;
     elements.totalPatches.textContent = dashboardStats.totalPatches;
     elements.totalBundles.textContent = dashboardStats.totalBundles;
-    
+
     // Update current tab content
     if (currentTab === 'tasks') {
         renderTasks();
@@ -345,7 +345,7 @@ function renderPovs() {
         `;
         return;
     }
-    
+
     elements.povsContainer.innerHTML = allPovs.map(item => `
         <div class="artifact-list-item" onclick="showArtifactDetail('pov', '${item.pov.pov_id}')">
             <div class="artifact-info">
@@ -375,7 +375,7 @@ function renderPatches() {
         `;
         return;
     }
-    
+
     elements.patchesContainer.innerHTML = allPatches.map(item => `
         <div class="artifact-list-item" onclick="showArtifactDetail('patch', '${item.patch.patch_id}')">
             <div class="artifact-info">
@@ -396,7 +396,7 @@ function renderPatches() {
 // Render tasks list
 function renderTasks() {
     const filteredTasks = filterTasksByStatus();
-    
+
     if (filteredTasks.length === 0) {
         elements.tasksContainer.innerHTML = `
             <div class="no-data">
@@ -406,7 +406,7 @@ function renderTasks() {
         `;
         return;
     }
-    
+
     elements.tasksContainer.innerHTML = filteredTasks.map(task => `
         <div class="task-item" onclick="showTaskDetail('${task.task_id}')">
             <div class="task-info">
@@ -466,13 +466,13 @@ async function handleExampleTaskSubmission() {
         fuzz_tooling_project_name: "libpng",
         duration: 1800
     };
-    
+
     // Get submit button and show loading state
     const submitBtn = elements.submitExampleBtn;
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
-    
+
     try {
         const response = await fetch(`${API_BASE}/webhook/trigger_task`, {
             method: 'POST',
@@ -481,11 +481,11 @@ async function handleExampleTaskSubmission() {
             },
             body: JSON.stringify(exampleTaskData)
         });
-        
+
         if (response.ok) {
             const result = await response.json();
             showNotification('Example libpng task submitted successfully!', 'success');
-            
+
             // Refresh dashboard after a short delay
             setTimeout(loadDashboard, 1000);
         } else {
@@ -504,20 +504,20 @@ async function handleExampleTaskSubmission() {
 
 async function handleTaskSubmission(event) {
     event.preventDefault();
-    
+
     const formData = new FormData(elements.taskForm);
     const taskData = Object.fromEntries(formData.entries());
-    
+
     // Convert checkbox and number values
     taskData.harnesses_included = formData.has('harnesses_included');
     taskData.duration = parseInt(taskData.duration);
-    
+
     // Get submit button and show loading state
     const submitBtn = elements.taskForm.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
-    
+
     try {
         const response = await fetch(`${API_BASE}/webhook/trigger_task`, {
             method: 'POST',
@@ -526,13 +526,13 @@ async function handleTaskSubmission(event) {
             },
             body: JSON.stringify(taskData)
         });
-        
+
         if (response.ok) {
             const result = await response.json();
             showNotification('Task submitted successfully!', 'success');
             elements.taskModal.style.display = 'none';
             elements.taskForm.reset();
-            
+
             // Refresh dashboard after a short delay
             setTimeout(loadDashboard, 1000);
         } else {
@@ -553,9 +553,9 @@ async function handleTaskSubmission(event) {
 async function showTaskDetail(taskId) {
     const task = tasks.find(t => t.task_id === taskId);
     if (!task) return;
-    
+
     elements.detailTitle.textContent = `Task: ${task.name || task.project_name}`;
-    
+
     // Try to load detailed data from API
     let detailData = task;
     try {
@@ -566,7 +566,7 @@ async function showTaskDetail(taskId) {
     } catch (error) {
         console.warn('Detail API not available, using cached data');
     }
-    
+
     elements.detailContent.innerHTML = renderTaskDetail(detailData);
     elements.detailModal.style.display = 'block';
 }
@@ -602,7 +602,7 @@ function renderTaskDetail(task) {
                     <div class="detail-value">${task.challenge_repo_base_ref || 'N/A'}</div>
                 </div>
             </div>
-            
+
             ${renderArtifacts('PoVs (Vulnerabilities)', task.povs || [], 'pov')}
             ${renderArtifacts('Patches', task.patches || [], 'patch')}
             ${renderArtifacts('Bundles', task.bundles || [], 'bundle')}
@@ -622,7 +622,7 @@ function renderArtifacts(title, artifacts, type) {
             </div>
         `;
     }
-    
+
     return `
         <div class="detail-section">
             <h3>${title} (${artifacts.length})</h3>
@@ -638,9 +638,9 @@ function renderArtifact(artifact, type) {
     let content = '';
     let artifactId = artifact.id || artifact.bundle_id || artifact.pov_id || artifact.patch_id;
     let taskId = ''; // We'll need to find this from the current task context
-    
+
     // Find task ID for download button
-    const currentTask = tasks.find(t => 
+    const currentTask = tasks.find(t =>
         (t.povs && t.povs.some(p => p.pov_id === artifactId)) ||
         (t.patches && t.patches.some(p => p.patch_id === artifactId)) ||
         (t.bundles && t.bundles.some(b => b.bundle_id === artifactId))
@@ -648,7 +648,7 @@ function renderArtifact(artifact, type) {
     if (currentTask) {
         taskId = currentTask.task_id;
     }
-    
+
     switch (type) {
         case 'pov':
             // Handle binary PoV data safely - show hexdump preview
@@ -661,8 +661,8 @@ function renderArtifact(artifact, type) {
                         content = `<div class="artifact-content">Type: Binary Data\nSize: ${decoded.length} bytes\nHex Preview:\n<pre class="hex-preview">${hexPreview}</pre></div>`;
                     } catch (e) {
                         // Not base64, show as text preview
-                        const preview = artifact.testcase.length > 200 
-                            ? artifact.testcase.substring(0, 200) + '...' 
+                        const preview = artifact.testcase.length > 200
+                            ? artifact.testcase.substring(0, 200) + '...'
                             : artifact.testcase;
                         content = `<div class="artifact-content">Type: Text Data\nSize: ${artifact.testcase.length} bytes\nPreview: ${preview}</div>`;
                     }
@@ -684,8 +684,8 @@ function renderArtifact(artifact, type) {
                     // Not base64, use as is
                 }
             }
-            const patchPreview = patchContent.length > 300 
-                ? patchContent.substring(0, 300) + '...' 
+            const patchPreview = patchContent.length > 300
+                ? patchContent.substring(0, 300) + '...'
                 : patchContent;
             content = `<div class="artifact-content"><pre class="patch-preview">${patchPreview}</pre></div>`;
             break;
@@ -693,7 +693,7 @@ function renderArtifact(artifact, type) {
             content = `<div class="artifact-content">${JSON.stringify(artifact, null, 2)}</div>`;
             break;
     }
-    
+
     return `
         <div class="artifact-item" onclick="showArtifactDetail('${type}', '${artifactId}')">
             <div class="artifact-header">
@@ -717,7 +717,7 @@ async function downloadArtifact(type, taskId, artifactId) {
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            
+
             // Get filename from Content-Disposition header
             const contentDisposition = response.headers.get('Content-Disposition');
             let filename = `${type}_${artifactId}`;
@@ -727,13 +727,13 @@ async function downloadArtifact(type, taskId, artifactId) {
                     filename = match[1];
                 }
             }
-            
+
             a.download = filename;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            
+
             showNotification('Download started', 'success');
         } else {
             showNotification('Download failed', 'error');
@@ -749,7 +749,7 @@ async function showArtifactDetail(type, artifactId) {
     try {
         const response = await fetch(`${API_BASE}/v1/dashboard/${type}s/${artifactId}`);
         let detailData;
-        
+
         if (response.ok) {
             detailData = await response.json();
         } else {
@@ -760,7 +760,7 @@ async function showArtifactDetail(type, artifactId) {
                 detailData = allPatches.find(p => p.patch.patch_id === artifactId);
             }
         }
-        
+
         if (detailData) {
             elements.detailTitle.textContent = `${type.toUpperCase()}: ${artifactId}`;
             elements.detailContent.innerHTML = renderArtifactDetail(detailData, type);
@@ -778,9 +778,9 @@ async function showArtifactDetail(type, artifactId) {
 function renderArtifactDetail(detailData, type) {
     const artifact = detailData.pov || detailData.patch || detailData.bundle || detailData;
     const artifactId = artifact.id || artifact.bundle_id || artifact.pov_id || artifact.patch_id;
-    
+
     let specificContent = '';
-    
+
     switch (type) {
         case 'pov':
             // Show hexdump preview for PoV
@@ -839,7 +839,7 @@ function renderArtifactDetail(detailData, type) {
             `;
             break;
     }
-    
+
     return `
         <div style="padding: 1.5rem;">
             <div class="detail-section">
@@ -884,7 +884,7 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
-    
+
     // Add notification styles if not already added
     if (!document.querySelector('style[data-notifications]')) {
         const style = document.createElement('style');
@@ -911,9 +911,9 @@ function showNotification(message, type = 'info') {
         `;
         document.head.appendChild(style);
     }
-    
+
     document.body.appendChild(notification);
-    
+
     // Remove notification after 5 seconds
     setTimeout(() => {
         notification.remove();
@@ -927,13 +927,13 @@ function createHexdumpPreview(data, maxBytes = 128) {
     for (let i = 0; i < Math.min(data.length, maxBytes); i++) {
         bytes.push(data.charCodeAt(i) & 0xFF);
     }
-    
+
     let result = '';
     for (let i = 0; i < bytes.length; i += 16) {
         // Address
         const addr = i.toString(16).padStart(8, '0');
         result += addr + '  ';
-        
+
         // Hex bytes
         const lineBytes = bytes.slice(i, i + 16);
         for (let j = 0; j < 16; j++) {
@@ -944,7 +944,7 @@ function createHexdumpPreview(data, maxBytes = 128) {
             }
             if (j === 7) result += ' ';
         }
-        
+
         // ASCII representation
         result += ' |';
         for (let j = 0; j < lineBytes.length; j++) {
@@ -957,11 +957,11 @@ function createHexdumpPreview(data, maxBytes = 128) {
         }
         result += '|\n';
     }
-    
+
     if (data.length > maxBytes) {
         result += `\n... (${data.length - maxBytes} more bytes)`;
     }
-    
+
     return result;
 }
 
@@ -969,7 +969,7 @@ function getMockTasks() {
     const now = new Date();
     const deadline1 = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
     const deadline2 = new Date(now.getTime() - 1 * 60 * 60 * 1000); // 1 hour ago
-    
+
     return [
         {
             task_id: "12345678-1234-1234-1234-123456789abc",

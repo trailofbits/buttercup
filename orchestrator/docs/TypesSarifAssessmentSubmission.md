@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**assessment** | [**TypesAssessment**](TypesAssessment.md) |  | 
-**description** | **str** | Plain text reasoning for the assessment.  Must be nonempty.  128KiB max size | 
+**assessment** | [**TypesAssessment**](TypesAssessment.md) |  |
+**description** | **str** | Plain text reasoning for the assessment.  Must be nonempty.  128KiB max size |
 
 ## Example
 
@@ -26,5 +26,3 @@ types_sarif_assessment_submission_dict = types_sarif_assessment_submission_insta
 types_sarif_assessment_submission_from_dict = TypesSarifAssessmentSubmission.from_dict(types_sarif_assessment_submission_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

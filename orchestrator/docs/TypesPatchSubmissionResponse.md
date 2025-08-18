@@ -5,9 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**functionality_tests_passing** | **bool** | null indicates the tests have not been run | [optional] 
-**patch_id** | **str** |  | 
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  | 
+**functionality_tests_passing** | **bool** | null indicates the tests have not been run | [optional]
+**patch_id** | **str** |  |
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  |
 
 ## Example
 
@@ -27,5 +27,3 @@ types_patch_submission_response_dict = types_patch_submission_response_instance.
 types_patch_submission_response_from_dict = TypesPatchSubmissionResponse.from_dict(types_patch_submission_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

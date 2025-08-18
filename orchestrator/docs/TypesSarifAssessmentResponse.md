@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  | 
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) |  |
 
 ## Example
 
@@ -25,5 +25,3 @@ types_sarif_assessment_response_dict = types_sarif_assessment_response_instance.
 types_sarif_assessment_response_from_dict = TypesSarifAssessmentResponse.from_dict(types_sarif_assessment_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

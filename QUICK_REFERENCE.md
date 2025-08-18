@@ -198,4 +198,4 @@ kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
 - Check logs: `kubectl logs -n crs <pod-name>`
 - View events: `kubectl get events -n crs`
 - Debug pods: `kubectl exec -it -n crs <pod-name> -- /bin/bash`
-- Monitor resources: `kubectl top pods -A` 
+- Monitor resources: `kubectl top pods -A`

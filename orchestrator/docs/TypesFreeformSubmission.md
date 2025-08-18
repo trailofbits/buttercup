@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**submission** | **str** | Base64 encoded arbitrary data  2MiB max size before Base64 encoding | 
+**submission** | **str** | Base64 encoded arbitrary data  2MiB max size before Base64 encoding |
 
 ## Example
 
@@ -25,5 +25,3 @@ types_freeform_submission_dict = types_freeform_submission_instance.to_dict()
 types_freeform_submission_from_dict = TypesFreeformSubmission.from_dict(types_freeform_submission_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

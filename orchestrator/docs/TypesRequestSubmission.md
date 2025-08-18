@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**duration_secs** | **int** | Time in seconds until a task should expire. If not provided, defaults to 3600. | [optional] 
+**duration_secs** | **int** | Time in seconds until a task should expire. If not provided, defaults to 3600. | [optional]
 
 ## Example
 
@@ -25,5 +25,3 @@ types_request_submission_dict = types_request_submission_instance.to_dict()
 types_request_submission_from_dict = TypesRequestSubmission.from_dict(types_request_submission_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

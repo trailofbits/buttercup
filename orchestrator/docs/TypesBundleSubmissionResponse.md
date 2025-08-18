@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**bundle_id** | **str** |  | 
-**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded | 
+**bundle_id** | **str** |  |
+**status** | [**TypesSubmissionStatus**](TypesSubmissionStatus.md) | Schema-compliant submissions will only ever receive the statuses accepted or deadline_exceeded |
 
 ## Example
 
@@ -26,5 +26,3 @@ types_bundle_submission_response_dict = types_bundle_submission_response_instanc
 types_bundle_submission_response_from_dict = TypesBundleSubmissionResponse.from_dict(types_bundle_submission_response_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

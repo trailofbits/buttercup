@@ -65,8 +65,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **payload** | [**TypesSARIFSubmission**](TypesSARIFSubmission.md)| Submission body | 
+ **task_id** | **str**| Task ID |
+ **payload** | [**TypesSARIFSubmission**](TypesSARIFSubmission.md)| Submission body |
 
 ### Return type
 
@@ -92,4 +92,3 @@ Name | Type | Description  | Notes
 **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

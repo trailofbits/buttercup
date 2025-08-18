@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**sarif** | **object** | SARIF object compliant with the provided schema | 
+**sarif** | **object** | SARIF object compliant with the provided schema |
 
 ## Example
 
@@ -25,5 +25,3 @@ types_sarif_submission_dict = types_sarif_submission_instance.to_dict()
 types_sarif_submission_from_dict = TypesSARIFSubmission.from_dict(types_sarif_submission_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

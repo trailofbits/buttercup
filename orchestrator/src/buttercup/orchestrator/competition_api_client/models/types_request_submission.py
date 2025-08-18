@@ -83,5 +83,3 @@ class TypesRequestSubmission(BaseModel):
             "duration_secs": obj.get("duration_secs")
         })
         return _obj
-
-

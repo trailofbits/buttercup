@@ -66,8 +66,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **payload** | [**TypesPOVSubmission**](TypesPOVSubmission.md)| Submission body | 
+ **task_id** | **str**| Task ID |
+ **payload** | [**TypesPOVSubmission**](TypesPOVSubmission.md)| Submission body |
 
 ### Return type
 
@@ -151,8 +151,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **pov_id** | **str**| POV ID | 
+ **task_id** | **str**| Task ID |
+ **pov_id** | **str**| POV ID |
 
 ### Return type
 
@@ -178,4 +178,3 @@ Name | Type | Description  | Notes
 **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

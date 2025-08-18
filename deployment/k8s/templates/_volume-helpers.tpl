@@ -1,4 +1,4 @@
-{{/* 
+{{/*
 Define reusable volume specifications for our persistent volumes
 */}}
 
@@ -20,7 +20,7 @@ Define reusable volume specifications for our persistent volumes
     claimName: {{ .Release.Name }}-ui-db
 {{- end -}}
 
-{{/* 
+{{/*
 Define reusable volume mount specifications for our persistent volumes
 */}}
 

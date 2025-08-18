@@ -1,12 +1,12 @@
 # Demo fuzzer.
 
-General idea here is we have a set of builders and a fuzzer bot managed through redis queues. 
+General idea here is we have a set of builders and a fuzzer bot managed through redis queues.
 
 All commands are suggestions based on vibes at the moment and not really tested...
 
 ## Building:
-... have a linux box 
-Install poetry  
+... have a linux box
+Install poetry
 ```
 curl -sSL https://install.python-poetry.org | python3 -
 ```

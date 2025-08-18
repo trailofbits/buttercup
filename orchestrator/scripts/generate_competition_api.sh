@@ -90,4 +90,4 @@ echo "2. Add authentication middleware if needed"
 echo "3. Implement file serving for challenges"
 echo "4. Add database integration for storing submissions"
 
-rm -rf "$TEMPDIR" 
+rm -rf "$TEMPDIR"

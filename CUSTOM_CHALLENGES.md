@@ -172,7 +172,7 @@ primary_contact: "maintainer@example.com"
 # Fuzzing configuration
 fuzzing_engines:
   - libfuzzer
-  
+
 sanitizers:
   - address      # detects memory corruption
   - undefined    # detects undefined behavior

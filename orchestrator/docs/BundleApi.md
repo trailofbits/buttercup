@@ -66,8 +66,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **bundle_id** | **str**| Bundle ID | 
+ **task_id** | **str**| Task ID |
+ **bundle_id** | **str**| Bundle ID |
 
 ### Return type
 
@@ -151,8 +151,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **bundle_id** | **str**| Bundle ID | 
+ **task_id** | **str**| Task ID |
+ **bundle_id** | **str**| Bundle ID |
 
 ### Return type
 
@@ -238,9 +238,9 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **bundle_id** | **str**| Bundle ID | 
- **payload** | [**TypesBundleSubmission**](TypesBundleSubmission.md)| Submission Body | 
+ **task_id** | **str**| Task ID |
+ **bundle_id** | **str**| Bundle ID |
+ **payload** | [**TypesBundleSubmission**](TypesBundleSubmission.md)| Submission Body |
 
 ### Return type
 
@@ -325,8 +325,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **payload** | [**TypesBundleSubmission**](TypesBundleSubmission.md)| Submission Body | 
+ **task_id** | **str**| Task ID |
+ **payload** | [**TypesBundleSubmission**](TypesBundleSubmission.md)| Submission Body |
 
 ### Return type
 
@@ -352,4 +352,3 @@ Name | Type | Description  | Notes
 **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

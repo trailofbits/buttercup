@@ -93,5 +93,3 @@ class TypesBundleSubmission(BaseModel):
             "submitted_sarif_id": obj.get("submitted_sarif_id")
         })
         return _obj
-
-

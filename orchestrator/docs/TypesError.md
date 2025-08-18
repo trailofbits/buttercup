@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**fields** | **Dict[str, str]** |  | [optional] 
-**message** | **str** |  | 
+**fields** | **Dict[str, str]** |  | [optional]
+**message** | **str** |  |
 
 ## Example
 
@@ -26,5 +26,3 @@ types_error_dict = types_error_instance.to_dict()
 types_error_from_dict = TypesError.from_dict(types_error_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

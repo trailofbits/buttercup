@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**patch** | **str** | Base64 encoded patch in unified diff format  100KiB max size before Base64 encoding | 
+**patch** | **str** | Base64 encoded patch in unified diff format  100KiB max size before Base64 encoding |
 
 ## Example
 
@@ -25,5 +25,3 @@ types_patch_submission_dict = types_patch_submission_instance.to_dict()
 types_patch_submission_from_dict = TypesPatchSubmission.from_dict(types_patch_submission_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

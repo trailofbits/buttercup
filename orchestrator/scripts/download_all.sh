@@ -25,12 +25,12 @@ input_dir=$(realpath "$input_dir")
 find "$input_dir" -type d -name "*-delta-1" | while read -r dir; do
     # Get absolute path of the directory
     full_path=$(realpath "$dir")
-    
+
     # Extract the base name of the directory
     dir_name=$(basename "$dir")
-    
+
     echo "Processing directory: $dir_name"
-    
+
     # Find the source tarball
     src_tar=$(find "$full_path" -name "*.tar.gz" -not -name "oss-fuzz.tar.gz" -not -name "diff-*.tar.gz")
     fuzz_tar="$full_path/oss-fuzz.tar.gz"
@@ -42,17 +42,17 @@ find "$input_dir" -type d -name "*-delta-1" | while read -r dir; do
     focus=$(tar -tf "$src_tar" | head -n 1)
     # remove any trailing slashes
     focus=$(echo "$focus" | sed 's:/*$::')
-    
+
     if [ -z "$src_tar" ] || [ ! -f "$fuzz_tar" ] || [ -z "$diff_tar" ]; then
         echo "Error: Missing required files in $dir_name"
         continue
     fi
-    
+
     # Convert to file:// URLs
     src_url="file://$src_tar"
     fuzz_url="file://$fuzz_tar"
     diff_url="file://$diff_tar"
-    
+
     echo "Running buttercup-task-downloader for $dir_name"
     uv run buttercup-task-downloader --download_dir ../tasks_storage/ process \
         --task_type delta \

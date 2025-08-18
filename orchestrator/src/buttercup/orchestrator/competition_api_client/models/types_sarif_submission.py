@@ -83,5 +83,3 @@ class TypesSARIFSubmission(BaseModel):
             "sarif": obj.get("sarif")
         })
         return _obj
-
-

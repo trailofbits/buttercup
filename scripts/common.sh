@@ -71,7 +71,7 @@ install_docker() {
     else
         print_success "Docker is already installed"
     fi
-    
+
     # Install buildx plugin (required for deploy-local target)
     print_status "Installing Docker buildx plugin..."
     sudo apt install -y docker-buildx-plugin
@@ -213,9 +213,9 @@ check_terraform() {
 # Function to setup configuration file
 setup_config_file() {
     local overwrite_existing=${1:-false}
-    
+
     print_status "Setting up configuration..."
-    
+
     if [ ! -f "deployment/env" ]; then
         cp deployment/env.template deployment/env
         print_success "Configuration file created from template"
@@ -236,21 +236,21 @@ setup_config_file() {
 configure_langfuse() {
     print_linebreak
     print_status "Configuring LangFuse (optional monitoring)..."
-    
+
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
-    
+
     print_status "LangFuse: Optional LLM monitoring and observability platform."
     print_status "Tracks AI model usage, costs, and performance metrics for debugging and optimization."
-    
+
     # Use a meaningful current value for the check
     local current_langfuse_config=""
     if [ "$LANGFUSE_ENABLED" = "true" ] && [ -n "$LANGFUSE_HOST" ] && [ -n "$LANGFUSE_PUBLIC_KEY" ]; then
         current_langfuse_config="$LANGFUSE_HOST"
     fi
-    
+
     configure_service "LANGFUSE" "LangFuse configuration" "$current_langfuse_config" "" false "configure_langfuse_wrapper"
 }
 
@@ -261,7 +261,7 @@ prompt_for_update() {
     local current_value="$3"
     local default_value="$4"
     local is_secret="${5:-false}"
-    
+
     if [ -n "$current_value" ] && [ "$current_value" != "$default_value" ]; then
         echo -n "$display_name is already configured. Set a new value? (y/N): "
         read -r response
@@ -282,14 +282,14 @@ read_and_set_config() {
     local prompt_text="$3"
     local is_secret="${4:-false}"
     local value
-    
+
     if [ "$is_secret" = true ]; then
         read -s -p "$prompt_text" value
         echo
     else
         read -p "$prompt_text" value
     fi
-    
+
     # Only update if value is not empty
     if [ -n "$value" ]; then
         portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
@@ -303,7 +303,7 @@ configure_ghcr_optional() {
     if [ -n "$ghcr_username" ]; then
         read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
         echo
-        
+
         # Compute GHCR_AUTH
         ghcr_auth=$(echo -n "$ghcr_username:$ghcr_pat" | base64 --wrap=0)
         portable_sed "s|.*export GHCR_AUTH=.*|export GHCR_AUTH=\"$ghcr_auth\"|" deployment/env
@@ -321,7 +321,7 @@ configure_docker_hub() {
     if [ -n "$docker_username" ]; then
         read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
         echo
-        
+
         # Set Docker credentials (handles both commented and uncommented lines)
         portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
         portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
@@ -338,12 +338,12 @@ configure_service() {
     local default_value="$4"
     local is_required="${5:-false}"
     local config_function="$6"
-    
+
     # Check if already configured and user wants to keep it
     if ! prompt_for_update "$var_name" "$display_name" "$current_value" "$default_value"; then
         return 0  # User chose to keep existing value, exit early
     fi
-    
+
     # At this point, we need to configure (either new or updating existing)
     if [ "$is_required" = true ]; then
         # Required - always prompt (no skip option)
@@ -376,14 +376,14 @@ configure_simple_api_key() {
     local prompt_text="$2"
     local is_secret="${3:-true}"
     local value
-    
+
     if [ "$is_secret" = true ]; then
         read -s -p "$prompt_text" value
         echo
     else
         read -p "$prompt_text" value
     fi
-    
+
     if [ -n "$value" ]; then
         portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
         return 0
@@ -402,7 +402,7 @@ configure_docker_hub_optional() {
     if [ -n "$docker_username" ]; then
         read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
         echo
-        
+
         # Set Docker credentials
         portable_sed "s|.*export DOCKER_USERNAME=.*|export DOCKER_USERNAME=\"$docker_username\"|" deployment/env
         portable_sed "s|.*export DOCKER_PAT=.*|export DOCKER_PAT=\"$docker_pat\"|" deployment/env
@@ -421,11 +421,11 @@ configure_otel_wrapper() {
         read -p "Enter OTEL protocol (http/grpc): " otel_protocol
         read -s -p "Enter OTEL token (including Basic or Bearer, optional, press Enter to skip): " otel_token
         echo
-        
+
         # Update the env file
         portable_sed "s|.*export OTEL_ENDPOINT=.*|export OTEL_ENDPOINT=\"$otel_endpoint\"|" deployment/env
         portable_sed "s|.*export OTEL_PROTOCOL=.*|export OTEL_PROTOCOL=\"$otel_protocol\"|" deployment/env
-        
+
         if [ -n "$otel_token" ]; then
             portable_sed "s|.*export OTEL_TOKEN=.*|export OTEL_TOKEN=\"$otel_token\"|" deployment/env
         fi
@@ -445,7 +445,7 @@ configure_langfuse_wrapper() {
         read -p "Enter LangFuse public key: " langfuse_public_key
         read -s -p "Enter LangFuse secret key: " langfuse_secret_key
         echo
-        
+
         # Update the env file
         portable_sed "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=true|" deployment/env
         portable_sed "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"$langfuse_host\"|" deployment/env
@@ -477,61 +477,61 @@ configure_llm_budget_wrapper() {
 # Function to configure required API keys for local development
 configure_local_api_keys() {
     print_status "Configuring required API keys for local development..."
-    
+
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
-    
+
     # OpenAI API Key (Optional)
     print_linebreak
     print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
     print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
     print_status "Generate your API key at: https://platform.openai.com/settings/organization/api-keys"
     configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
-    
+
     # Anthropic API Key (Optional)
     print_linebreak
     print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
     print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
     print_status "Generate your API key at: https://console.anthropic.com/settings/keys"
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
-    
+
     # GitHub Personal Access Token (Optional)
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
     print_status "Only needed if Buttercup will access private repositories or packages."
     configure_service "GHCR_AUTH" "GitHub authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" false "configure_ghcr_optional"
-    
+
     # Docker Hub credentials (optional)
     print_linebreak
     print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
     print_status "Recommended for reliable builds, but not strictly required for operation."
     configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
-    
+
     # Validate that at least one LLM API key is configured
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
-    
+
     if [ -z "$OPENAI_API_KEY" ] || [ "$OPENAI_API_KEY" = "<your-openai-api-key>" ]; then
         openai_configured=false
     else
         openai_configured=true
     fi
-    
+
     if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "<your-anthropic-api-key>" ]; then
         anthropic_configured=false
     else
         anthropic_configured=true
     fi
-    
+
     if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ]; then
         print_error "At least one LLM API key (OpenAI or Anthropic) must be configured."
         print_error "Rerun the setup and set at least one LLM API key."
         return 1
     fi
-    
+
     print_success "API keys configured successfully"
 }
 
@@ -555,12 +555,12 @@ configure_llm_budget() {
 configure_otel() {
     print_linebreak
     print_status "Configuring SigNoz for local observability..."
-    
+
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
-    
+
     print_status "SigNoz: Local observability platform for distributed tracing and metrics."
     print_status "Provides detailed performance monitoring and system observability for debugging."
 
@@ -584,12 +584,12 @@ check_config() {
         print_status "Run: cp deployment/env.template deployment/env"
         return 1
     fi
-    
+
     print_success "Configuration file exists"
-    
+
     # Source the env file to check variables
     source deployment/env
-    
+
     # Check cluster type
     if [ -n "$CLUSTER_TYPE" ]; then
         print_success "CLUSTER_TYPE is set to: $CLUSTER_TYPE"
@@ -597,7 +597,7 @@ check_config() {
         print_error "CLUSTER_TYPE is not set"
         return 1
     fi
-    
+
     # Check template
     if [ -n "$BUTTERCUP_K8S_VALUES_TEMPLATE" ]; then
         print_success "BUTTERCUP_K8S_VALUES_TEMPLATE is set to: $BUTTERCUP_K8S_VALUES_TEMPLATE"
@@ -610,9 +610,9 @@ check_config() {
 # Function to check AKS configuration
 check_aks_config() {
     print_status "Checking AKS configuration..."
-    
+
     local errors=0
-    
+
     # Check Terraform variables
     local terraform_vars=(
         "TF_VAR_ARM_CLIENT_ID"
@@ -620,14 +620,14 @@ check_aks_config() {
         "TF_VAR_ARM_TENANT_ID"
         "TF_VAR_ARM_SUBSCRIPTION_ID"
     )
-    
+
     for var in "${terraform_vars[@]}"; do
         if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
             print_error "Required Terraform variable $var is not set or has placeholder value"
             errors=$((errors + 1))
         fi
     done
-    
+
     # Check API keys
     local api_vars=(
         "OPENAI_API_KEY"
@@ -638,14 +638,14 @@ check_aks_config() {
         "COMPETITION_API_KEY_ID"
         "COMPETITION_API_KEY_TOKEN"
     )
-    
+
     for var in "${api_vars[@]}"; do
         if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
             print_error "Required API variable $var is not set or has placeholder value"
             errors=$((errors + 1))
         fi
     done
-    
+
     # Check Tailscale (optional but recommended)
     if [ "$TAILSCALE_ENABLED" = "true" ]; then
         local tailscale_vars=(
@@ -653,7 +653,7 @@ check_aks_config() {
             "TS_CLIENT_SECRET"
             "TS_OP_TAG"
         )
-        
+
         for var in "${tailscale_vars[@]}"; do
             if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
                 print_error "Tailscale variable $var is not set or has placeholder value"
@@ -661,7 +661,7 @@ check_aks_config() {
             fi
         done
     fi
-    
+
     # Check optional LangFuse configuration
     if [ "$LANGFUSE_ENABLED" = "true" ]; then
         local langfuse_vars=(
@@ -669,7 +669,7 @@ check_aks_config() {
             "LANGFUSE_PUBLIC_KEY"
             "LANGFUSE_SECRET_KEY"
         )
-        
+
         for var in "${langfuse_vars[@]}"; do
             if [ -z "${!var}" ] || [ "${!var}" = "<your-*>" ]; then
                 print_error "LangFuse variable $var is not set or has placeholder value"
@@ -677,7 +677,7 @@ check_aks_config() {
             fi
         done
     fi
-    
+
     # Check optional SigNoz/OTEL configuration
     if [ "$DEPLOY_SIGNOZ" = "true" ]; then
         print_status "SigNoz local deployment is enabled"
@@ -687,7 +687,7 @@ check_aks_config() {
             errors=$((errors + 1))
         fi
     fi
-    
+
     if [ $errors -eq 0 ]; then
         print_success "AKS configuration is valid"
     else

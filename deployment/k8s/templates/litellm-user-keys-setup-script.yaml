@@ -14,7 +14,7 @@ data:
     def wait_for_litellm_ready(litellm_url, max_retries=30, retry_interval=10):
         """Wait for LiteLLM to be ready by checking its health endpoint"""
         print(f"Waiting for LiteLLM to be ready at {litellm_url}...")
-        
+
         for attempt in range(max_retries):
             try:
                 # Try to connect to the health endpoint
@@ -23,14 +23,14 @@ data:
                     if response.getcode() == 200:
                         print("LiteLLM is ready!")
                         return True
-                
+
                 time.sleep(retry_interval)
             except (urllib.error.URLError, urllib.error.HTTPError, Exception) as e:
                 print(f"Attempt {attempt + 1}/{max_retries}: LiteLLM not ready yet ({e})")
                 if attempt < max_retries - 1:
                     print(f"Retrying in {retry_interval} seconds...")
                     time.sleep(retry_interval)
-        
+
         raise RuntimeError(f"LiteLLM did not become ready after {max_retries} attempts")
 
     def main():

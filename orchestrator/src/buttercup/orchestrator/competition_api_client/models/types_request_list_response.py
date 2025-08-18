@@ -83,5 +83,3 @@ class TypesRequestListResponse(BaseModel):
             "challenges": obj.get("challenges")
         })
         return _obj
-
-

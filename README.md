@@ -129,7 +129,7 @@ make signoz-ui
 
 Then navigate to `http://localhost:33301` in your web browser to view:
 - Distributed traces
-- Application metrics 
+- Application metrics
 - Error monitoring
 - Performance insights
 

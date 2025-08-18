@@ -30,7 +30,7 @@ spec:
           periodSeconds: {{ .Values.healthCheck.periodSeconds | default 300 }}
           timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 10 }}
           failureThreshold: {{ .Values.healthCheck.failureThreshold | default 2 }}
-        env: 
+        env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
         {{- include "buttercup.fuzzerBotEnv" . | nindent 8 }}

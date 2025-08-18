@@ -26,15 +26,15 @@ spec:
           - "-c"
           - |
             echo "Starting Docker image preloader..."
-            
+
             # Wait for Docker daemon to be ready
             until docker info > /dev/null 2>&1; do
               echo "Waiting for Docker daemon to be ready..."
               sleep 2
             done
-            
+
             echo "Docker daemon ready, starting to pull images..."
-            
+
             # Pull all configured images
             {{- range $version := .Values.versions }}
             {{- range $image := $.Values.baseImages }}
@@ -46,12 +46,12 @@ spec:
             fi
             {{- end }}
             {{- end }}
-            
+
             echo "All images pulled successfully. Running system prune..."
-            
+
             # Clean up unused images, volumes, etc.
             docker system prune -f
-            
+
             echo "Image preloading and cleanup complete!"
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
@@ -63,4 +63,4 @@ spec:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.dockerSocketVolume" . | nindent 6 }}
       {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
-{{- end }} 
+{{- end }}

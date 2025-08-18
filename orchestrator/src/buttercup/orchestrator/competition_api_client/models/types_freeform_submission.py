@@ -83,5 +83,3 @@ class TypesFreeformSubmission(BaseModel):
             "submission": obj.get("submission")
         })
         return _obj
-
-

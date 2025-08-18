@@ -65,8 +65,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **patch_id** | **str**| Patch ID | 
+ **task_id** | **str**| Task ID |
+ **patch_id** | **str**| Patch ID |
 
 ### Return type
 
@@ -151,8 +151,8 @@ with competition_api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **task_id** | **str**| Task ID | 
- **payload** | [**TypesPatchSubmission**](TypesPatchSubmission.md)| Payload | 
+ **task_id** | **str**| Task ID |
+ **payload** | [**TypesPatchSubmission**](TypesPatchSubmission.md)| Payload |
 
 ### Return type
 
@@ -178,4 +178,3 @@ Name | Type | Description  | Notes
 **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-

@@ -54,8 +54,8 @@ A service principal account (SPA) is required to automate the creation of resour
 az ad sp create-for-rbac --name "ExampleSPA" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
 ```
 
-> Replace "ExampleSPA" with the name of the SPA you wish to create.  
-> Replace `<YOUR-SUBSCRIPTION-ID>` with your Azure subscription ID.  
+> Replace "ExampleSPA" with the name of the SPA you wish to create.
+> Replace `<YOUR-SUBSCRIPTION-ID>` with your Azure subscription ID.
 > If using resource group locks, additional configuration may be necessary which is out of scope of this example; e.g. adding the role `Microsoft.Authorization/locks/` for write, read and delete to the SPA.
 
 On successful SPA creation, you will receive output similar to the following:
@@ -85,7 +85,7 @@ Based on the environment variables specified, you can do different kind of deplo
 
 ### CRS HTTP basic auth
 
-_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_  
+_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_
 The crs-webapp image expects the following environment variables to be passed to it for HTTP basic authentication:
 
 - `CRS_KEY_ID` - The CRS's username/ID
@@ -105,7 +105,7 @@ python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_up
 
 ### GitHub personal access token
 
-_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_  
+_WIP (Current example is using the `jmalloc/echo-server` image as a PoC)_
 You will need to have a GitHub personal access token (PAT) scoped to at least `read:packages`.
 
 To create the PAT, go to your account, `Settings` > `Developer settings` > `Personal access tokens`, and generate a Token (classic) with the scopes needed for your use case.
@@ -124,12 +124,12 @@ Add your base64 encoded credentials to `GHCR_AUTH`
 
 ## Remote Terraform State Storage
 
-By default, terraform stores its state locally. It is best practice to store terraform state in a remote location.  
+By default, terraform stores its state locally. It is best practice to store terraform state in a remote location.
 This can help with collaboration, security, recovery and scalability. To do this within Azure, you need to create resources to do so.
 
 ### Azure CLI
 
-The following is an example of how to create the resources needed for remote state configuration.  
+The following is an example of how to create the resources needed for remote state configuration.
 These resources will be used in the `backend.tf` configuration file.
 
 - Create remote state resource group.

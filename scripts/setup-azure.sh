@@ -17,25 +17,25 @@ check_not_root
 # Function to setup service principal
 setup_service_principal() {
     print_status "Setting up Azure Service Principal..."
-    
+
     # Get current subscription
     local subscription_id=$(az account show --query id -o tsv)
     local subscription_name=$(az account show --query name -o tsv)
-    
+
     print_status "Current subscription: $subscription_name ($subscription_id)"
-    
+
     read -p "Do you want to create a new service principal? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         local sp_name="ButtercupCRS-$(date +%Y%m%d-%H%M%S)"
         print_status "Creating service principal: $sp_name"
-        
+
         local sp_output=$(az ad sp create-for-rbac --name "$sp_name" --role Contributor --scopes "/subscriptions/$subscription_id" --output json)
-        
+
         local app_id=$(echo "$sp_output" | jq -r '.appId')
         local password=$(echo "$sp_output" | jq -r '.password')
         local tenant_id=$(echo "$sp_output" | jq -r '.tenant')
-        
+
         print_success "Service principal created successfully"
         echo
         print_status "Service Principal Details:"
@@ -46,13 +46,13 @@ setup_service_principal() {
         echo
         print_warning "Save these credentials securely!"
         echo
-        
+
         # Export environment variables
         export TF_ARM_TENANT_ID="$tenant_id"
         export TF_ARM_CLIENT_ID="$app_id"
         export TF_ARM_CLIENT_SECRET="$password"
         export TF_ARM_SUBSCRIPTION_ID="$subscription_id"
-        
+
         print_status "Environment variables exported for current session"
     else
         print_status "Using existing service principal"
@@ -67,18 +67,18 @@ setup_service_principal() {
 # Function to setup configuration
 setup_config() {
     print_status "Setting up production configuration..."
-    
+
     setup_config_file "true"
-    
+
     # Configure required API keys
     configure_local_api_keys
 
     # Configure LLM Budget
     configure_llm_budget
-    
+
     # Configure LangFuse (optional)
     configure_langfuse
-    
+
     # Configure SigNoz deployment (optional)
     # TODO: reenable signoz configuration once it is fixed
     # configure_otel
@@ -87,7 +87,7 @@ setup_config() {
 # Function to validate configuration
 validate_config() {
     print_status "Validating configuration..."
-    
+
     # Use the main Makefile validation target
     if make validate >/dev/null 2>&1; then
         print_success "Configuration validation passed!"
@@ -100,28 +100,28 @@ validate_config() {
 # Function to setup remote state (optional)
 setup_remote_state() {
     print_status "Setting up Terraform remote state..."
-    
+
     read -p "Do you want to configure remote state storage? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "This will create Azure resources for remote state storage"
-        
+
         # Get resource group name
         read -p "Enter resource group name for state storage (e.g., buttercup-tfstate-rg): " state_rg
         read -p "Enter storage account name (e.g., buttercuptfstate): " storage_account
-        
+
         # Create resource group
         print_status "Creating resource group: $state_rg"
         az group create --name "$state_rg" --location eastus
-        
+
         # Create storage account
         print_status "Creating storage account: $storage_account"
         az storage account create --resource-group "$state_rg" --name "$storage_account" --sku Standard_LRS --encryption-services blob
-        
+
         # Create container
         print_status "Creating storage container"
         az storage container create --name tfstate --account-name "$storage_account" --auth-mode login
-        
+
         # Update backend.tf
         print_status "Updating backend.tf"
         cat > deployment/backend.tf << EOF
@@ -134,7 +134,7 @@ terraform {
   }
 }
 EOF
-        
+
         print_success "Remote state storage configured"
     else
         print_status "Skipping remote state setup (using local state)"
@@ -160,13 +160,13 @@ deployment_instructions() {
 # Main execution
 main() {
     print_status "Starting production setup..."
-    
+
     check_azure_cli
     check_terraform
     setup_service_principal
     setup_config
     setup_remote_state
-    
+
     print_status "Configuration validation..."
     if validate_config; then
         deployment_instructions
@@ -177,4 +177,4 @@ main() {
 }
 
 # Run main function
-main "$@" 
+main "$@"

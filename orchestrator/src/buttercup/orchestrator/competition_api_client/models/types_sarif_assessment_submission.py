@@ -87,5 +87,3 @@ class TypesSarifAssessmentSubmission(BaseModel):
             "description": obj.get("description")
         })
         return _obj
-
-

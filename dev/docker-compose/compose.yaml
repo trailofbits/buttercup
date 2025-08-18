@@ -58,7 +58,7 @@ services:
         condition: service_started
       coverage-bot:
         condition: service_started
-      
+
 
   orchestrator-sim:
     build:

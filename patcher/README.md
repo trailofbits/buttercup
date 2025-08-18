@@ -25,12 +25,12 @@ graph TB
         PQ[Patch Queue]
         TR[Task Registry]
     end
-    
+
     subgraph "Patcher Service"
         PS[Patcher Service]
         PL[Patcher Leader Agent]
     end
-    
+
     subgraph "Agent Team"
         IP[Input Processing Agent]
         CR[Context Retriever Agent]
@@ -40,13 +40,13 @@ graph TB
         QE[Quality Engineer Agent]
         REF[Reflection Agent]
     end
-    
+
     subgraph "Infrastructure"
         CT[Challenge Tasks]
         CS[Code Snippets]
         PM[Program Model]
     end
-    
+
     VQ --> PS
     PS --> PL
     PL --> IP
@@ -57,11 +57,11 @@ graph TB
     SWE --> QE
     QE --> REF
     REF --> PL
-    
+
     CR --> CS
     CS --> PM
     QE --> CT
-    
+
     PL --> PQ
     PS --> TR
 ```
@@ -79,17 +79,17 @@ flowchart TD
     E --> F[Software Engineer Agent]
     F --> G[Quality Engineer Agent]
     G --> H{Reflection Agent}
-    
+
     H -->|Success| I[Patch Output]
     H -->|Failure| J{Retry Logic}
-    
+
     J -->|Retry Same Agent| K[Same Agent with Guidance]
     J -->|Try Different Agent| L[Different Agent]
     J -->|Max Retries| M[Terminate]
-    
+
     K --> H
     L --> H
-    
+
     subgraph "Agent Responsibilities"
         B1[Process vulnerability input<br/>Extract key information]
         C1[Retrieve relevant code snippets<br/>Find test files]
@@ -99,7 +99,7 @@ flowchart TD
         G1[Build and test patches<br/>Validate fixes]
         H1[Analyze failures<br/>Guide next steps]
     end
-    
+
     B -.-> B1
     C -.-> C1
     D -.-> D1
@@ -119,38 +119,38 @@ stateDiagram-v2
     InputProcessing --> FindTests
     FindTests --> InitialContextRequests
     InitialContextRequests --> RootCauseAnalysis
-    
+
     RootCauseAnalysis --> PatchStrategy
     RootCauseAnalysis --> Reflection : Failure/Need Info
-    
+
     PatchStrategy --> CreatePatch
     PatchStrategy --> Reflection : Failure/Need Info
-    
+
     CreatePatch --> BuildPatch
     CreatePatch --> Reflection : Creation Failed
-    
+
     BuildPatch --> RunPOV
     BuildPatch --> Reflection : Build Failed
-    
+
     RunPOV --> RunTests
     RunPOV --> Reflection : POV Still Crashes
-    
+
     RunTests --> PatchValidation
     RunTests --> Reflection : Tests Failed
-    
+
     PatchValidation --> [*] : Success
     PatchValidation --> Reflection : Validation Failed
-    
+
     Reflection --> RootCauseAnalysis : Retry Analysis
     Reflection --> ContextRetriever : Need More Info
     Reflection --> PatchStrategy : Retry Strategy
     Reflection --> CreatePatch : Retry Creation
     Reflection --> [*] : Max Retries
-    
+
     ContextRetriever --> RootCauseAnalysis : Info Retrieved
     ContextRetriever --> PatchStrategy : Info Retrieved
     ContextRetriever --> CreatePatch : Info Retrieved
-    
+
     note right of Reflection
         Reflection Agent analyzes failures
         and decides next action based on:
@@ -214,17 +214,17 @@ sequenceDiagram
     participant Agents as Agent Team
     participant CT as Challenge Tasks
     participant PQ as Patch Queue
-    
+
     VQ->>PS: ConfirmedVulnerability
     PS->>PL: Create PatchInput
     PL->>Agents: Initialize workflow
-    
+
     loop Agent Workflow
         Agents->>CT: Retrieve code/build/test
         CT->>Agents: Results
         Agents->>PL: Update state
     end
-    
+
     alt Success
         PL->>PS: PatchOutput
         PS->>PQ: Patch message

@@ -5,11 +5,11 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**architecture** | [**TypesArchitecture**](TypesArchitecture.md) |  | 
-**engine** | [**TypesFuzzingEngine**](TypesFuzzingEngine.md) |  | 
-**fuzzer_name** | **str** | Fuzz Tooling fuzzer that exercises this vuln  4KiB max size | 
-**sanitizer** | **str** | Fuzz Tooling Sanitizer that exercises this vuln  4KiB max size | 
-**testcase** | **str** | Base64 encoded vuln trigger  2MiB max size before Base64 encoding | 
+**architecture** | [**TypesArchitecture**](TypesArchitecture.md) |  |
+**engine** | [**TypesFuzzingEngine**](TypesFuzzingEngine.md) |  |
+**fuzzer_name** | **str** | Fuzz Tooling fuzzer that exercises this vuln  4KiB max size |
+**sanitizer** | **str** | Fuzz Tooling Sanitizer that exercises this vuln  4KiB max size |
+**testcase** | **str** | Base64 encoded vuln trigger  2MiB max size before Base64 encoding |
 
 ## Example
 
@@ -29,5 +29,3 @@ types_pov_submission_dict = types_pov_submission_instance.to_dict()
 types_pov_submission_from_dict = TypesPOVSubmission.from_dict(types_pov_submission_dict)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
-
-

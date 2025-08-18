@@ -31,4 +31,4 @@ spec:
         ports:
         - containerPort: {{ .Values.port }}
         volumeMounts:
-          {{- include "buttercup.nodeLocalVolumeMount" . | nindent 10 }} 
+          {{- include "buttercup.nodeLocalVolumeMount" . | nindent 10 }}

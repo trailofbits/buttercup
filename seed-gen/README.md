@@ -19,49 +19,49 @@ graph TB
         CodeQuery[(CodeQuery Database)]
         ChallengeTask[(Challenge Task)]
     end
-    
+
     subgraph "Seed Generation Bot"
         SGB[SeedGenBot]
         TC[Task Counter]
         FS[Function Selector]
     end
-    
+
     subgraph "Task Types"
         SI[Seed Init Task]
         SE[Seed Explore Task]
         VD[Vulnerability Discovery Task]
     end
-    
+
     subgraph "Core Components"
         Task[Base Task]
         State[Task State]
         Tools[Code Analysis Tools]
         LLM[Language Model]
     end
-    
+
     subgraph "Execution Pipeline"
         Context[Context Retrieval]
         Generation[Seed Generation]
         Execution[Sandbox Execution]
         Output[Seed Output]
     end
-    
+
     Redis --> SGB
     CodeQuery --> Task
     ChallengeTask --> Task
-    
+
     SGB --> SI
     SGB --> SE
     SGB --> VD
-    
+
     SI --> Task
     SE --> Task
     VD --> Task
-    
+
     Task --> State
     Task --> Tools
     Task --> LLM
-    
+
     State --> Context
     Context --> Generation
     Generation --> Execution
@@ -86,7 +86,7 @@ flowchart TD
     I --> J[Execute in Sandbox]
     J --> K[Save Seeds]
     K --> L[End]
-    
+
     subgraph "Tool Calls"
         F1[get_function_definition]
         F2[get_type_definition]
@@ -94,7 +94,7 @@ flowchart TD
         F4[get_callers]
         F5[batch_tool]
     end
-    
+
     F --> F1
     F --> F2
     F --> F3
@@ -118,13 +118,13 @@ flowchart TD
     I --> J[Execute in Sandbox]
     J --> K[Save Seeds]
     K --> L[End]
-    
+
     subgraph "Target Function Analysis"
         TF[Function Definition]
         TC[Function Callers]
         TT[Type Definitions]
     end
-    
+
     B --> TF
     B --> TC
     B --> TT
@@ -146,13 +146,13 @@ flowchart TD
     J --> E
     I -->|Yes| K[Submit PoV]
     K --> L[End]
-    
+
     subgraph "Bug Analysis"
         BA[Crash Analysis]
         BC[Code Context]
         BV[Vulnerability Classification]
     end
-    
+
     E --> BA
     E --> BC
     E --> BV
@@ -184,14 +184,14 @@ graph LR
         GCA[get_callers]
         BT[batch_tool]
     end
-    
+
     subgraph "Tool Capabilities"
         CQ[CodeQuery Integration]
         FS[File System Access]
         FU[Fuzzy Matching]
         BA[Batch Operations]
     end
-    
+
     GF --> CQ
     GT --> CQ
     GC --> FS
@@ -207,14 +207,14 @@ graph TD
     C --> D[Seed Generation]
     D --> E[File Output]
     E --> F[Validation]
-    
+
     subgraph "Sandbox Features"
         SF[WASI Environment]
         SI[Isolated Execution]
         SM[Memory Safety]
         SR[Resource Limits]
     end
-    
+
     B --> SF
     B --> SI
     B --> SM

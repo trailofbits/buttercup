@@ -94,5 +94,3 @@ class TypesPOVSubmission(BaseModel):
             "testcase": obj.get("testcase")
         })
         return _obj
-
-

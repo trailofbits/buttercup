@@ -17,7 +17,7 @@ check_not_root
 # Function to setup configuration
 setup_config() {
     setup_config_file
-    
+
     # Configure required API keys
     configure_local_api_keys
 
@@ -26,7 +26,7 @@ setup_config() {
 
     # Configure LangFuse (optional)
     configure_langfuse
-    
+
     # Configure SigNoz deployment (optional)
     # TODO: reenable signoz configuration once it is fixed
     # configure_otel
@@ -35,7 +35,7 @@ setup_config() {
 # Function to verify setup
 verify_setup() {
     print_status "Verifying setup..."
-    
+
     # Use the main Makefile validation target
     if make validate >/dev/null 2>&1; then
         print_success "Setup verification completed successfully!"
@@ -132,11 +132,11 @@ main() {
     esac
 
     setup_config
-    
+
     verify_setup
-    
+
     print_success "Local development setup completed!"
 }
 
 # Run main function
-main "$@" 
+main "$@"

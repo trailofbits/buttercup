@@ -415,11 +415,11 @@ def test_weird_libfuzzer_harnesses(codequery: CodeQuery):
 #include <stddef.h>
 #include <stdint.h>
 
-extern "C" int 
+extern "C" int
     LLVMFuzzerTestOneInput(
-        const uint8_t* 
+        const uint8_t*
             data,
-        size_t 
+        size_t
             size
     ) {
     // Test code here
@@ -493,9 +493,9 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 
 public class SplitAnnotationFuzzer {
     @FuzzTest
-    public void 
+    public void
         fuzzerTestOneInput(
-            FuzzedDataProvider 
+            FuzzedDataProvider
                 data
         ) {
         // Test code here

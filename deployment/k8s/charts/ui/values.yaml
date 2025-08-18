@@ -12,4 +12,4 @@ resources:
     memory: 2048Mi
   requests:
     cpu: 100m
-    memory: 256Mi 
+    memory: 256Mi

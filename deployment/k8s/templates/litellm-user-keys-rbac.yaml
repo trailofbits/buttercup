@@ -37,4 +37,4 @@ subjects:
 roleRef:
   kind: Role
   name: litellm-user-keys-setup
-  apiGroup: rbac.authorization.k8s.io 
+  apiGroup: rbac.authorization.k8s.io

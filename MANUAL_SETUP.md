@@ -13,7 +13,7 @@ Before starting manual setup, ensure you have the following dependencies install
 sudo apt-get update
 sudo apt-get install -y make curl git
 
-# RHEL/CentOS/Fedora  
+# RHEL/CentOS/Fedora
 sudo yum install -y make curl git
 # or
 sudo dnf install -y make curl git

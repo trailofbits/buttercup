@@ -35,4 +35,4 @@ spec:
           volumeMounts:
             {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" true) | nindent 12 }}
             {{- include "buttercup.nodeLocalVolumeMount" . | nindent 12 }}
-            {{- include "buttercup.dockerSocketVolumeMount" . | nindent 12 }} 
+            {{- include "buttercup.dockerSocketVolumeMount" . | nindent 12 }}

@@ -83,5 +83,3 @@ class TypesPatchSubmission(BaseModel):
             "patch": obj.get("patch")
         })
         return _obj
-
-

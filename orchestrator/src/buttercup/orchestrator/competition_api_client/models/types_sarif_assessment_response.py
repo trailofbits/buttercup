@@ -84,5 +84,3 @@ class TypesSarifAssessmentResponse(BaseModel):
             "status": obj.get("status")
         })
         return _obj
-
-

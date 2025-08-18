@@ -41,7 +41,7 @@ This is controlled via the `global.environment` setting in the values.yaml or va
        apiKey: "your-azure-api-key"
      openai:
        apiKey: "your-openai-api-key"
-     anthropic: 
+     anthropic:
        apiKey: "your-anthropic-api-key"
 
    crs:

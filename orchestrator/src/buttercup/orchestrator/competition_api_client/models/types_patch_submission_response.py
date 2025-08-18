@@ -88,5 +88,3 @@ class TypesPatchSubmissionResponse(BaseModel):
             "status": obj.get("status")
         })
         return _obj
-
-

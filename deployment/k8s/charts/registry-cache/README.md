@@ -22,4 +22,4 @@ or with release name:
 <release-name>-registry-cache/trailofbits/buttercup/buttercup-orchestrator:main
 ```
 
-The registry uses HTTP on port 80. 
+The registry uses HTTP on port 80.

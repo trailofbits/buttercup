@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # delete_task.sh - Script to delete tasks from the task-server
-# Usage: 
+# Usage:
 #   ./delete_task.sh <task_id> [task_server_url]  - Delete a specific task
 #   ./delete_task.sh --all [task_server_url]      - Delete all tasks
 
@@ -16,19 +16,19 @@ make_delete_request() {
     local endpoint=$1
     local server_url=$2
     local description=$3
-    
+
     echo "Deleting $description from server: $server_url"
-    
+
     # Make API call
     response=$(curl -s -w "\n%{http_code}" \
         -X DELETE \
         -u "$API_KEY_ID:$API_KEY_TOKEN" \
         "$server_url$endpoint")
-    
+
     # Extract HTTP status code and response body
     http_code=$(echo "$response" | tail -n1)
     response_body=$(echo "$response" | sed '$d')
-    
+
     # Check if the request was successful
     if [[ "$http_code" == 2* ]]; then
         echo "Delete operation successful"
