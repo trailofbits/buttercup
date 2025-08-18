@@ -23,6 +23,8 @@ const elements = {
     refreshBtn: document.getElementById('refresh-btn'),
     taskModal: document.getElementById('task-modal'),
     detailModal: document.getElementById('detail-modal'),
+    taskModalContent: document.querySelector('#task-modal .modal-content'),
+    detailModalContent: document.querySelector('#detail-modal .modal-content'),
     closeModal: document.getElementById('close-modal'),
     closeDetailModal: document.getElementById('close-detail-modal'),
     taskForm: document.getElementById('task-form'),
@@ -109,11 +111,21 @@ function setupEventListeners() {
     });
     
     // Close modals when clicking outside
-    window.addEventListener('click', (event) => {
-        if (event.target === elements.taskModal) {
-            elements.taskModal.style.display = 'none';
+    let mousePressedOutside = false;
+    
+    window.addEventListener('mousedown', (event) => {
+        // Check if mouse was pressed outside both modal contents
+        if (!elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+            mousePressedOutside = true;
+        } else {
+            mousePressedOutside = false;
         }
-        if (event.target === elements.detailModal) {
+    });
+
+    window.addEventListener('mouseup', (event) => {
+        // Only close if mouse was pressed outside and released outside
+        if (mousePressedOutside && !elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+            elements.taskModal.style.display = 'none';
             elements.detailModal.style.display = 'none';
         }
     });
