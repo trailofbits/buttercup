@@ -1,9 +1,10 @@
 ARG BASE_IMAGE=ubuntu:24.04
 
 FROM $BASE_IMAGE AS base
-RUN apt-get update && apt-get install -y software-properties-common
-RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update && apt-get install -y python3.10 curl
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y python3.12 curl \
+    && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://get.docker.com | sh
 
 FROM base AS builder
@@ -12,7 +13,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
-    UV_PYTHON=python3.10
+    UV_PYTHON=python3.12
 
 WORKDIR /app
 
@@ -32,7 +33,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
 
 FROM base AS cscope-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev \
+    && rm -rf /var/lib/apt/lists/*
 COPY external/buttercup-cscope /cscope
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
