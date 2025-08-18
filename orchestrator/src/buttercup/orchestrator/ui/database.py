@@ -42,7 +42,7 @@ class Task(Base):
     fuzz_tooling_url: Mapped[str] = mapped_column(String)
     fuzz_tooling_ref: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    
+
     # Error tracking fields
     crs_submission_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     crs_error_details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string for detailed error info
@@ -155,15 +155,16 @@ class DatabaseManager:
             else:
                 # For other statuses, we need to calculate based on deadline
                 from datetime import datetime
+
                 now = datetime.now()
-                
+
                 if status == "active":
                     tasks = session.query(Task).filter(Task.deadline > now).all()
                 elif status == "expired":
                     tasks = session.query(Task).filter(Task.deadline <= now).all()
                 else:
                     tasks = []
-            
+
             session.commit()
             return tasks
 
@@ -294,17 +295,17 @@ class DatabaseManager:
     ) -> None:
         """Update the CRS submission status and error information for a task."""
         import json
-        
+
         with self.get_session() as session:
             task = session.query(Task).filter(Task.task_id == task_id).first()
             if task:
                 task.crs_submission_status = crs_submission_status
                 task.crs_submission_error = crs_submission_error
                 task.crs_submission_timestamp = datetime.now()
-                
+
                 if crs_error_details:
                     task.crs_error_details = json.dumps(crs_error_details, indent=2)
-                
+
                 session.commit()
                 logger.info(f"Updated CRS status for task {task_id}: {crs_submission_status}")
             else:

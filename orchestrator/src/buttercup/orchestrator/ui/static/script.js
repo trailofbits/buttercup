@@ -338,27 +338,6 @@ async function loadAndRenderPatches() {
     renderPatches();
 }
 
-// Force refresh failed tasks tab
-async function forceRefreshFailedTasks() {
-    // This function is no longer needed since we removed the failed tasks tab
-    // Just refresh the main tasks list
-    if (currentTab === 'tasks') {
-        renderTasks();
-    }
-}
-
-// Load and render failed tasks
-async function loadAndRenderFailedTasks() {
-    // This function is no longer needed since we removed the failed tasks tab
-    console.log('Failed tasks tab removed - function no longer needed');
-}
-
-// Render failed tasks list
-function renderFailedTasks(failedTasks) {
-    // This function is no longer needed since we removed the failed tasks tab
-    console.log('Failed tasks tab removed - function no longer needed');
-}
-
 // Render PoVs list
 function renderPovs() {
     if (!elements.povsContainer) {
