@@ -35,7 +35,9 @@ make deploy-local
 
 ### Pre-commit Hooks
 
-This project uses pre-commit hooks to ensure code consistency. The hooks will run automatically on `git commit`. To run manually:
+This project uses pre-commit hooks to ensure code consistency. The hooks integrate with the project's existing linting infrastructure, using `uv run` to execute ruff with each component's specific configuration.
+
+The hooks will run automatically on `git commit`. To run manually:
 
 ```bash
 # Run on staged files
@@ -45,7 +47,11 @@ pre-commit run
 pre-commit run --all-files
 ```
 
-**Note:** Pre-commit requires Python 3.12 to match the project's Python version. If you encounter Python version issues, ensure Python 3.12 is available in your PATH or use `uv` to manage Python versions.
+**Key Features:**
+- Uses the same ruff version and configuration as CI (via `uv run`)
+- Automatically detects which component a file belongs to
+- Only includes non-redundant checks (YAML, TOML, JSON validation)
+- Excludes protobuf and other generated files automatically
 
 ## Development Workflow
 

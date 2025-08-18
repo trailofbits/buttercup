@@ -1,51 +1,46 @@
 # Pre-commit hooks for Buttercup CRS
 # See https://pre-commit.com for more information
 #
-# Note: The project requires Python 3.12+ for development.
-# Pre-commit will use the system Python to run hooks, but the
-# actual code checks will use the project's Python version.
+# This configuration integrates with the project's existing linting infrastructure
+# to ensure consistency between pre-commit, local development, and CI.
 
 default_language_version:
   python: python3
 
 repos:
-  # Standard file fixes
+  # Only include checks that ruff doesn't handle
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-      - id: trailing-whitespace
-        exclude: '\.proto$'
-      - id: end-of-file-fixer
-        exclude: '\.proto$'
       - id: check-yaml
         args: [--allow-multiple-documents]
         exclude: 'deployment/k8s/.*\.(yaml|yml)$'
-      - id: check-added-large-files
-        args: [--maxkb=1000]
-      - id: check-merge-conflict
-      - id: mixed-line-ending
-        args: [--fix=lf]
       - id: check-toml
       - id: check-json
-      - id: debug-statements
-        exclude: '^external/'
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
 
-  # Ruff - Python linting and formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.9
+  # Use local hooks that leverage the project's existing infrastructure
+  - repo: local
     hooks:
-      # Run the formatter first
+      # Format check using project's ruff via uv
       - id: ruff-format
-        types_or: [python, pyi]
-        exclude: '^external/'
+        name: ruff format
+        entry: bash -c 'for file in "$@"; do abs_file="$(pwd)/$file"; dir=$(dirname "$abs_file"); while [[ "$dir" != "/" ]]; do if [[ -f "$dir/pyproject.toml" ]] && [[ "$(basename "$dir")" =~ ^(common|orchestrator|fuzzer|patcher|program-model|seed-gen)$ ]]; then (cd "$dir" && uv run ruff format "$abs_file") || exit 1; break; fi; dir=$(dirname "$dir"); done; done' --
+        language: system
+        types: [python]
+        require_serial: false
 
-      # Then run the linter with auto-fix
-      - id: ruff
-        types_or: [python, pyi]
-        args: [--fix, --exit-non-zero-on-fix]
-        exclude: '^external/'
+      # Lint check using project's ruff via uv
+      - id: ruff-check
+        name: ruff check
+        entry: bash -c 'for file in "$@"; do abs_file="$(pwd)/$file"; dir=$(dirname "$abs_file"); while [[ "$dir" != "/" ]]; do if [[ -f "$dir/pyproject.toml" ]] && [[ "$(basename "$dir")" =~ ^(common|orchestrator|fuzzer|patcher|program-model|seed-gen)$ ]]; then (cd "$dir" && uv run ruff check --fix "$abs_file") || exit 1; break; fi; dir=$(dirname "$dir"); done; done' --
+        language: system
+        types: [python]
+        require_serial: false
 
-# Configuration for specific hooks
+# Global exclusions for files that should never be checked
 exclude: |
   (?x)^(
     external/.*|
@@ -58,5 +53,5 @@ exclude: |
     .*/\.pytest_cache/.*
   )$
 
-# Don't run on tags
+# Don't fail fast - show all issues
 fail_fast: false
