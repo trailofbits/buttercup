@@ -10,7 +10,7 @@ dependencies = [
     "common",
     "protobuf ==3.20.3",                 # Pin exactly for stability
     "tree-sitter ~=0.24.0",
-    "tree-sitter-language-pack ~=0.4.0",
+    "tree-sitter-language-pack ~=0.9.0",
     "rapidfuzz ~=3.12.2",
 ]
 
@@ -51,21 +51,22 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
 ignore = [
-    "COM812", "ISC001",  # Formatter conflicts
+    "COM812",
+    "ISC001", # Formatter conflicts
     # Temporarily disabled for standardization PR - re-enable after refactoring:
-    "I001",   # Import block is un-sorted or un-formatted
-    "E501",   # Line too long
-    "W291",   # Trailing whitespace  
-    "UP006",  # Use built-in collection types for type annotations
-    "UP015",  # Unnecessary mode argument
-    "UP032",  # Use f-string instead of format call
-    "UP035",  # Import from modern locations instead of deprecated typing
-    "UP045",  # Use X | None for type annotations
-    "UP046",  # Use modern generic class syntax
+    "I001",  # Import block is un-sorted or un-formatted
+    "E501",  # Line too long
+    "W291",  # Trailing whitespace  
+    "UP006", # Use built-in collection types for type annotations
+    "UP015", # Unnecessary mode argument
+    "UP032", # Use f-string instead of format call
+    "UP035", # Import from modern locations instead of deprecated typing
+    "UP045", # Use X | None for type annotations
+    "UP046", # Use modern generic class syntax
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+"tests/**/*.py" = ["S101", "D"] # Allow asserts, no docstrings in tests
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
