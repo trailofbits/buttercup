@@ -11,7 +11,7 @@ default_language_version:
 repos:
   # Non-Python file validation (ruff doesn't handle these)
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
         args: [--allow-multiple-documents]
