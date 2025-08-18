@@ -7,8 +7,6 @@ on:
     # Always run full test suite on main branch
   pull_request:
 
-
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
