@@ -153,7 +153,7 @@ class Downloader:
             # need to change the Task while downloading/extracting it.
             if "Directory not empty" in str(e):
                 logger.warning(
-                    f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it..."
+                    f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it...",
                 )
                 return True
             else:
@@ -248,6 +248,9 @@ class Downloader:
         return self
 
     def __exit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
     ) -> None:
         self.cleanup()

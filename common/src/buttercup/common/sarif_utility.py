@@ -1,6 +1,4 @@
-"""
-Utility script for SARIF storage and retrieval operations.
-"""
+"""Utility script for SARIF storage and retrieval operations."""
 
 import argparse
 import json
@@ -11,12 +9,12 @@ from buttercup.common.sarif_store import SARIFStore
 
 
 def list_all_sarifs(redis_url: str, verbose: bool = False) -> None:
-    """
-    List all SARIF objects in the database.
+    """List all SARIF objects in the database.
 
     Args:
         redis_url: Redis URL
         verbose: Whether to print the full SARIF object
+
     """
     redis_client = Redis.from_url(redis_url)
     sarif_store = SARIFStore(redis_client)
@@ -33,13 +31,13 @@ def list_all_sarifs(redis_url: str, verbose: bool = False) -> None:
 
 
 def list_task_sarifs(redis_url: str, task_id: str, verbose: bool = False) -> None:
-    """
-    List all SARIF objects for a specific task.
+    """List all SARIF objects for a specific task.
 
     Args:
         redis_url: Redis URL
         task_id: Task ID
         verbose: Whether to print the full SARIF object
+
     """
     redis_client = Redis.from_url(redis_url)
     sarif_store = SARIFStore(redis_client)
@@ -56,12 +54,12 @@ def list_task_sarifs(redis_url: str, task_id: str, verbose: bool = False) -> Non
 
 
 def delete_task_sarifs(redis_url: str, task_id: str) -> None:
-    """
-    Delete all SARIF objects for a specific task.
+    """Delete all SARIF objects for a specific task.
 
     Args:
         redis_url: Redis URL
         task_id: Task ID
+
     """
     redis_client = Redis.from_url(redis_url)
     sarif_store = SARIFStore(redis_client)

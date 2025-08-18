@@ -43,13 +43,13 @@ class BuilderBot:
     def _apply_challenge_diff(self, task: ChallengeTask, msg: BuildRequest) -> bool:
         if msg.apply_diff and task.is_delta_mode():
             logger.info(
-                f"Applying diff for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                f"Applying diff for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
             )
             try:
                 res = task.apply_patch_diff()
                 if not res:
                     logger.warning(
-                        f"No diffs for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                        f"No diffs for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
                     )
                     return False
             except ChallengeTaskError:
@@ -73,13 +73,13 @@ class BuilderBot:
                 logger.debug("Patch written to %s", patch_file.name)
 
                 logger.info(
-                    f"Applying patch for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                    f"Applying patch for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
                 )
                 try:
                     res = task.apply_patch_diff(Path(patch_file.name))
                     if not res:
                         logger.info(
-                            f"Failed to apply patch for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                            f"Failed to apply patch for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
                         )
                         return False
                 except ChallengeTaskError:
@@ -102,7 +102,7 @@ class BuilderBot:
 
         msg = rqit.deserialized
         logger.info(
-            f"Received build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+            f"Received build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
         )
 
         # Check if task should not be processed (expired or cancelled)
@@ -128,7 +128,7 @@ class BuilderBot:
             if not self._apply_challenge_diff(task, msg):
                 if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
                     logger.error(
-                        f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                        f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
                     )
                     self._build_requests_queue.ack_item(rqit.item_id)
 
@@ -137,7 +137,7 @@ class BuilderBot:
             if not self._apply_patch(task, msg):
                 if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
                     logger.error(
-                        f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff} | patch {msg.internal_patch_id}"
+                        f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff} | patch {msg.internal_patch_id}",
                     )
                     self._build_requests_queue.ack_item(rqit.item_id)
 
@@ -153,12 +153,14 @@ class BuilderBot:
                     task_metadata=dict(origin_task.task_meta.metadata),
                 )
                 res = task.build_fuzzers_with_cache(
-                    engine=msg.engine, sanitizer=msg.sanitizer, pull_latest_base_image=self.allow_pull
+                    engine=msg.engine,
+                    sanitizer=msg.sanitizer,
+                    pull_latest_base_image=self.allow_pull,
                 )
 
                 if not res.success:
                     logger.error(
-                        f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                        f"Could not build fuzzer {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
                     )
                     span.set_status(Status(StatusCode.ERROR))
                     return True
@@ -167,7 +169,7 @@ class BuilderBot:
 
             task.commit()
             logger.info(
-                f"Pushing build output for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                f"Pushing build output for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
             )
             node_local.dir_to_remote_archive(task.task_dir)
             self._build_outputs_queue.push(
@@ -179,10 +181,10 @@ class BuilderBot:
                     build_type=msg.build_type,
                     apply_diff=msg.apply_diff,
                     internal_patch_id=msg.internal_patch_id,
-                )
+                ),
             )
             logger.info(
-                f"Acked build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}"
+                f"Acked build request for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff}",
             )
             self._build_requests_queue.ack_item(rqit.item_id)
             return True

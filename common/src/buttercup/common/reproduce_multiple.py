@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 
 class ReproduceMultiple:
     def __init__(
-        self, wdir: Path, build_outputs: list[BuildOutput], build_cache: list[ChallengeTask] | None = None
+        self,
+        wdir: Path,
+        build_outputs: list[BuildOutput],
+        build_cache: list[ChallengeTask] | None = None,
     ) -> None:
         self.build_outputs = build_outputs
         self.wdir = wdir
@@ -33,7 +36,9 @@ class ReproduceMultiple:
                 pass
 
     def attempt_reproduce(
-        self, pov: Path, harness_name: str
+        self,
+        pov: Path,
+        harness_name: str,
     ) -> Generator[tuple[BuildOutput, ReproduceResult], None, None]:
         if self.builds_cache is None:
             raise RuntimeError("Build cache is not populated")

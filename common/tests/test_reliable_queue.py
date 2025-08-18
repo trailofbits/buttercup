@@ -212,7 +212,7 @@ def test_queue_factory(redis_client):
             sanitizer="test_sanitizer",
             task_dir="test_task_dir",
             task_id="test_task_id",
-        )
+        ),
     )
 
     item = queue.pop()

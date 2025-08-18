@@ -29,7 +29,7 @@ from .common import (
 #else
    return png_create_read_struct_2(user_png_ver, error_ptr, error_fn,
         warn_fn, NULL, NULL, NULL);
-"""
+""",
                 ],
             ),
         ),

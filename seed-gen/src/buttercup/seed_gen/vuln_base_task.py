@@ -62,11 +62,12 @@ class PoVAttempt:
 class VulnBaseState(BaseTaskState):
     analysis: str = Field(description="The analysis of the vulnerability", default="")
     sarifs: list[SARIFBroadcastDetail] = Field(
-        description="SARIF broadcasts for the task", default_factory=list
+        description="SARIF broadcasts for the task",
+        default_factory=list,
     )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
     current_dir: Path = Field(
-        description="Directory to store most recent seeds before they are tested"
+        description="Directory to store most recent seeds before they are tested",
     )
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)
@@ -128,7 +129,7 @@ class VulnBaseTask(Task):
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | StrOutputParser()
         analysis = chain.invoke(prompt_vars)
@@ -150,7 +151,7 @@ class VulnBaseTask(Task):
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | extract_code
         pov_funcs = chain.invoke(prompt_vars)
@@ -176,7 +177,8 @@ class VulnBaseTask(Task):
             shutil.move(pov, final_path)
             try:
                 for build, result in self.reproduce_multiple.get_crashes(
-                    final_path, self.harness_name
+                    final_path,
+                    self.harness_name,
                 ):
                     logger.info(
                         "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
@@ -200,7 +202,7 @@ class VulnBaseTask(Task):
                 "analysis": "",
                 "generated_functions": "",
                 "pov_iteration": state.pov_iteration + 1,
-            }
+            },
         )
 
     def submit_valid_pov(
@@ -328,7 +330,7 @@ class VulnBaseTask(Task):
                     tags=["vuln-discovery"],
                     callbacks=llm_callbacks,
                     recursion_limit=self.recursion_limit(),
-                )
+                ),
             )
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("seed_gen_vuln_discovery") as span:
@@ -345,7 +347,9 @@ class VulnBaseTask(Task):
 
         except Exception as err:
             logger.exception(
-                "Failed vuln-discovery for challenge %s: %s", self.package_name, str(err)
+                "Failed vuln-discovery for challenge %s: %s",
+                self.package_name,
+                str(err),
             )
 
     def sample_sarifs(self) -> list[SARIFBroadcastDetail]:

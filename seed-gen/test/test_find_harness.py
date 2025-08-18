@@ -663,7 +663,9 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     ],
 )
 def test_get_harness_source_candidates_curl(
-    curl_oss_fuzz_cq: CodeQuery, harness_name: str, expected_first_match: str
+    curl_oss_fuzz_cq: CodeQuery,
+    harness_name: str,
+    expected_first_match: str,
 ):
     harnesses = get_harness_source_candidates(curl_oss_fuzz_cq, harness_name)
     assert expected_first_match == harnesses[0].name
@@ -770,7 +772,7 @@ def test_get_harness_source(
             FunctionCoverage(
                 function_name="random_name",
                 function_paths=coverage_map_function_paths,
-            )
+            ),
         ]
         coverage_map.return_value = coverage_map_mock
 

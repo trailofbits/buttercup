@@ -166,7 +166,10 @@ def test_iter_tasks_with_different_types(task_registry, redis_client):
     # Create and add two different tasks
     full_task = Task(task_id="full123", task_type=Task.TaskType.TASK_TYPE_FULL, message_id="msg_full", cancelled=False)
     delta_task = Task(
-        task_id="delta456", task_type=Task.TaskType.TASK_TYPE_DELTA, message_id="msg_delta", cancelled=True
+        task_id="delta456",
+        task_type=Task.TaskType.TASK_TYPE_DELTA,
+        message_id="msg_delta",
+        cancelled=True,
     )
 
     # Setup Redis mock

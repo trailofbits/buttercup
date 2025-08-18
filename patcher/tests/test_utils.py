@@ -72,7 +72,8 @@ def tika_challenge_task_path(tmp_path: Path) -> Path:
     source_dir.mkdir(parents=True)
 
     subprocess.run(
-        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/tob-challenges/oss-fuzz-aixcc.git"], check=True
+        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/tob-challenges/oss-fuzz-aixcc.git"],
+        check=True,
     )
     subprocess.run(
         [
@@ -135,11 +136,11 @@ def test_tika_find_file_in_source_dir(tika_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(
         tika_challenge_task,
         Path(
-            "/src/project-parent/tika/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java"
+            "/src/project-parent/tika/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java",
         ),
     )
     assert res == Path(
-        "tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java"
+        "tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java",
     )
     res = find_file_in_source_dir(
         tika_challenge_task,
@@ -159,7 +160,7 @@ def test_tika_find_file_in_source_dir(tika_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(
         tika_challenge_task,
         Path(
-            "/src/project-parent/tika/tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverterNotFound.java"
+            "/src/project-parent/tika/tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverterNotFound.java",
         ),
     )
     assert res is None
@@ -208,7 +209,7 @@ def test_config_from_env():
         configurable={
             "work_dir": Path("/tmp/work"),
             "tasks_storage": Path("/tmp/tasks"),
-        }
+        },
     )
     config = PatcherConfig.from_configurable(runnable_config)
     assert config.ctx_retriever_recursion_limit == 80

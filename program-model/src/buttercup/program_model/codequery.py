@@ -839,7 +839,7 @@ class CodeQuery:
                     name=type_definition.name,
                     file_path=result.file,
                     line_number=result.line,
-                )
+                ),
             )
 
         return self._rebase_type_usages_file_paths(list(calls))

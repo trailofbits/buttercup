@@ -186,7 +186,7 @@ def root_cause_agent(mock_challenge: ChallengeTask, mock_llm: MagicMock, tmp_pat
                 sanitizer_output="sanitizer-output-mock",
                 engine="libfuzzer",
                 harness_name="mock-harness",
-            )
+            ),
         ],
     )
     agent = RootCauseAgent(
@@ -210,7 +210,9 @@ def mock_runnable_config(tmp_path: Path) -> dict:
 
 
 def test_analyze_vulnerability_no_root_cause(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
+    root_cause_agent: RootCauseAgent,
+    mock_llm: MagicMock,
+    mock_runnable_config: dict,
 ) -> None:
     """Test vulnerability analysis when no root cause is found."""
     state = PatcherAgentState(
@@ -252,8 +254,8 @@ def test_rootcause_requests(root_cause_agent: RootCauseAgent, mock_llm: MagicMoc
     root_cause_agent.root_cause_chain.invoke.return_value = state
     state.messages = [
         AIMessage(
-            content="<code_snippet_requests><code_snippet_request>Request 1</code_snippet_request><code_snippet_request>Request 2</code_snippet_request></code_snippet_requests>"
-        )
+            content="<code_snippet_requests><code_snippet_request>Request 1</code_snippet_request><code_snippet_request>Request 2</code_snippet_request></code_snippet_requests>",
+        ),
     ]
 
     root_cause_agent.analyze_vulnerability(state)
@@ -289,7 +291,9 @@ def test_rootcause_success(root_cause_agent: RootCauseAgent, mock_llm: MagicMock
 
 
 def test_rootcause_multiple_povs(
-    root_cause_agent: RootCauseAgent, mock_llm: MagicMock, mock_runnable_config: dict
+    root_cause_agent: RootCauseAgent,
+    mock_llm: MagicMock,
+    mock_runnable_config: dict,
 ) -> None:
     """Test vulnerability analysis with multiple POVs."""
     # Create a state with multiple POVs and their corresponding code snippets
@@ -350,8 +354,8 @@ def test_rootcause_multiple_povs(
             content="""Root cause analysis:
 1. Both POVs crash in crash_func() which is called by process_data()
 2. The heap buffer overflow and use-after-free suggest memory management issues
-3. The common path through process_data() indicates a shared vulnerability"""
-        )
+3. The common path through process_data() indicates a shared vulnerability""",
+        ),
     ]
 
     # Test the analyze_vulnerability method

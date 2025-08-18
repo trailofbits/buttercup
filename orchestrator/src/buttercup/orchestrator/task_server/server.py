@@ -89,8 +89,7 @@ def check_auth(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     settings: Annotated[TaskServerSettings, Depends(get_settings)],
 ) -> str:
-    """
-    Authenticate user with Argon2id-hashed token.
+    """Authenticate user with Argon2id-hashed token.
 
     Args:
         credentials: HTTP Basic authentication credentials
@@ -101,6 +100,7 @@ def check_auth(
 
     Raises:
         HTTPException: If authentication fails
+
     """
     # Get expected key ID and token hash from settings
     expected_key_id = settings.api_key_id
@@ -110,7 +110,7 @@ def check_auth(
     if not expected_key_id or not token_hash:
         logger.error(
             "Authentication configuration is missing. Configure BUTTERCUP_TASK_SERVER_API_KEY_ID and "
-            "BUTTERCUP_TASK_SERVER_API_TOKEN_HASH environment variables."
+            "BUTTERCUP_TASK_SERVER_API_TOKEN_HASH environment variables.",
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -148,9 +148,7 @@ def check_auth(
 def get_status_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
 ) -> Status:
-    """
-    CRS Status
-    """
+    """CRS Status"""
 
     def is_competition_api_ready() -> bool:
         is_ready = False
@@ -186,9 +184,7 @@ def get_status_(
 def delete_status_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
 ) -> str:
-    """
-    Reset status stats
-    """
+    """Reset status stats"""
     logger.info("Resetting status")
     return ""
 
@@ -199,9 +195,7 @@ def post_v1_sarif_(
     body: SARIFBroadcast,
     sarif_store: Annotated[SARIFStore, Depends(get_sarif_store)],
 ) -> str:
-    """
-    Submit Sarif Broadcast
-    """
+    """Submit Sarif Broadcast"""
     logger.info("Accepting Sarif Broadcast: %s", body)
     return store_sarif_broadcast(body, sarif_store)
 
@@ -217,9 +211,7 @@ def post_v1_task_(
     body: Task,
     tasks_queue: Annotated[ReliableQueue, Depends(get_task_queue)],
 ) -> str | None:
-    """
-    Submit Task
-    """
+    """Submit Task"""
     logger.debug("Accepting Task: %s", body)
     return new_task(body, tasks_queue)
 
@@ -229,8 +221,7 @@ def delete_v1_task_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     delete_task_queue: Annotated[ReliableQueue, Depends(get_delete_task_queue)],
 ) -> str:
-    """
-    Cancel All Tasks
+    """Cancel All Tasks
 
     This endpoint allows canceling all existing tasks in the system. All tasks will be marked for deletion.
 
@@ -243,6 +234,7 @@ def delete_v1_task_(
 
     Raises:
         HTTPException: If authentication fails
+
     """
     logger.info("Deleting all tasks")
     return delete_all_tasks(delete_task_queue)
@@ -254,8 +246,7 @@ def delete_v1_task_task_id_(
     task_id: UUID,
     delete_task_queue: Annotated[ReliableQueue, Depends(get_delete_task_queue)],
 ) -> str:
-    """
-    Cancel a task by its ID.
+    """Cancel a task by its ID.
 
     This endpoint allows canceling an existing task by its unique identifier. The task will be marked for deletion
     and removed from the system.
@@ -270,6 +261,7 @@ def delete_v1_task_task_id_(
 
     Raises:
         HTTPException: If authentication fails
+
     """
     logger.info("Deleting task: %s", task_id)
     return delete_task(task_id, delete_task_queue)

@@ -65,7 +65,7 @@ def test_get_functions(
                     name="generate",
                     file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
                     start_line=117,
-                )
+                ),
             ],
             5,
         ),
@@ -108,7 +108,7 @@ def test_get_callers(
                     name="getAttributes",
                     file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
                     start_line=55,
-                )
+                ),
             ],
             2,
         ),

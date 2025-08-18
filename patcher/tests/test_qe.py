@@ -84,7 +84,7 @@ def mock_patch_input(tmp_path: Path) -> PatchInput:
                 sanitizer_output="test-sanitizer-output",
                 engine="libfuzzer",
                 harness_name="test-harness",
-            )
+            ),
         ],
     )
 
@@ -114,13 +114,16 @@ def mock_runnable_config(tmp_path: Path) -> dict:
     """Create a mock runnable config."""
     return {
         "configurable": PatcherConfig(
-            work_dir=tmp_path / "work_dir", tasks_storage=tmp_path / "tasks_storage"
+            work_dir=tmp_path / "work_dir",
+            tasks_storage=tmp_path / "tasks_storage",
         ).model_dump(),
     }
 
 
 def test_validate_patch_node_no_patch(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test validate_patch_node when there is no patch to validate."""
     with pytest.raises(RuntimeError, match="No patch to validate"):
@@ -128,7 +131,9 @@ def test_validate_patch_node_no_patch(
 
 
 def test_validate_patch_node_invalid_patched_code(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test validate_patch_node when the patched code is invalid."""
     patch_attempt = PatchAttempt(
@@ -165,7 +170,9 @@ def test_validate_patch_node_invalid_patched_code(
 
 
 def test_validate_patch_node_invalid_patched_language(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test validate_patch_node when the patched language is invalid."""
     patch_attempt = PatchAttempt(
@@ -205,7 +212,9 @@ def test_validate_patch_node_invalid_patched_language(
 
 
 def test_validate_patch_node_success(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test validate_patch_node when validation succeeds."""
     patch_attempt = PatchAttempt(
@@ -243,7 +252,9 @@ def test_validate_patch_node_success(
 
 
 def test_validate_patch_node_missing_is_valid_tag(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test validate_patch_node when the LLM response doesn't contain the is_valid tag."""
     patch_attempt = PatchAttempt(
@@ -280,7 +291,9 @@ def test_validate_patch_node_missing_is_valid_tag(
 
 
 def test_validate_patch_node_invalid_is_valid_value(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test validate_patch_node when the LLM returns an invalid value in the is_valid tag."""
     patch_attempt = PatchAttempt(
@@ -317,7 +330,9 @@ def test_validate_patch_node_invalid_is_valid_value(
 
 
 def test_is_valid_patched_language_success(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test _is_valid_patched_language when all files are in the correct language."""
     patch_attempt = PatchAttempt(
@@ -376,7 +391,9 @@ def test_is_valid_patched_language_success(
 
 
 def test_is_valid_patched_language_wrong_language(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test _is_valid_patched_language when a file is in the wrong language."""
     patch_attempt = PatchAttempt(
@@ -432,7 +449,9 @@ def test_is_valid_patched_language_wrong_language(
 
 
 def test_is_valid_patched_language_missing_binary(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test _is_valid_patched_language when the language identifier binary is missing."""
     patch_attempt = PatchAttempt(
@@ -481,7 +500,9 @@ def test_is_valid_patched_language_missing_binary(
 
 
 def test_is_valid_patched_language_missing_file(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test _is_valid_patched_language when a modified file doesn't exist."""
     patch_attempt = PatchAttempt(
@@ -530,7 +551,9 @@ def test_is_valid_patched_language_missing_file(
 
 
 def test_is_valid_patched_language_subprocess_error(
-    qe_agent: QEAgent, patcher_agent_state: PatcherAgentState, mock_runnable_config: dict
+    qe_agent: QEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_runnable_config: dict,
 ):
     """Test _is_valid_patched_language when subprocess.run raises an error."""
     patch_attempt = PatchAttempt(
@@ -592,7 +615,9 @@ def test_run_pov_node_various_outcomes(qe_agent, patcher_agent_state, mock_runna
     def get_clean_patch_attempt():
         return PatchAttempt(
             patch=PatchOutput(
-                patch="diff --git a/a b/a\n", task_id="test-task-id", internal_patch_id="test-submission"
+                patch="diff --git a/a b/a\n",
+                task_id="test-task-id",
+                internal_patch_id="test-submission",
             ),
             status=PatchStatus.SUCCESS,
             build_succeeded=True,

@@ -7,7 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 def create_api_client(
-    competition_api_url: str, competition_api_username: str, competition_api_password: str
+    competition_api_url: str,
+    competition_api_username: str,
+    competition_api_password: str,
 ) -> ApiClient:
     """Initialize the competition API client with common configuration.
 
@@ -16,6 +18,7 @@ def create_api_client(
 
     Returns:
         ApiClient: Configured API client instance
+
     """
     configuration = Configuration(
         host=competition_api_url,

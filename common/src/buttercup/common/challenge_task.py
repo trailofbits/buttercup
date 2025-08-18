@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def create_tmp_dir(
-    challenge: ChallengeTask, work_dir: Path | None, delete: bool = True, prefix: str | None = None
+    challenge: ChallengeTask,
+    work_dir: Path | None,
+    delete: bool = True,
+    prefix: str | None = None,
 ) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
     delete it after use."""
@@ -107,7 +110,7 @@ class ReproduceResult:
         """Determine if the fuzzer at least ran"""
         return bool(
             (self.command_result.output and b"INFO: Seed: " in self.command_result.output)
-            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error)
+            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error),
         )
 
     # This is intended to encapsulate heuristics for determining if a run caused a crash
@@ -229,7 +232,9 @@ class ChallengeTask:
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
     def _task_dir_compose_path(
-        self, subpath_method: Callable[[], Path | None], raise_on_none: bool = False
+        self,
+        subpath_method: Callable[[], Path | None],
+        raise_on_none: bool = False,
     ) -> Path | None:
         subpath = subpath_method()
         if subpath is None:
@@ -367,7 +372,11 @@ class ChallengeTask:
         return current_line
 
     def _run_cmd(
-        self, cmd: list[str], cwd: Path | None = None, log: bool = True, env_helper: dict[str, str] | None = None
+        self,
+        cmd: list[str],
+        cwd: Path | None = None,
+        log: bool = True,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         try:
             if env_helper:
@@ -485,8 +494,7 @@ class ChallengeTask:
         return f"{self.oss_fuzz_container_org}/{self.project_name}"
 
     def container_src_dir(self) -> str:
-        """
-        Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
+        """Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
         This assumes that the src directory is the same as the workdir.
         """
         return self.workdir_from_dockerfile().parts[-1]
@@ -862,6 +870,7 @@ class ChallengeTask:
         Example:
             with task.get_rw_copy(work_dir) as local_task:
                 local_task.build_fuzzers()
+
         """
         work_dir = Path(work_dir) if work_dir else Path(node_local.scratch_path())
         work_dir = work_dir / self.task_meta.task_id
@@ -909,7 +918,7 @@ class ChallengeTask:
                     raise ChallengeTaskError("Failed to commit task") from e
 
                 logger.error(
-                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix..."
+                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix...",
                 )
                 suffix = None
 

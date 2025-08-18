@@ -132,7 +132,7 @@ class InputDir:
                 "--exclude=*",
                 str(src_path) + "/",
                 str(dst_path) + "/",
-            ]
+            ],
         )
 
     def sync_to_remote(self) -> None:
@@ -141,11 +141,11 @@ class InputDir:
         self._do_sync(self.path, self.remote_path)
 
     def sync_specific_files_to_remote(self, files: list[str]) -> None:
-        """
-        Sync only specific files to remote storage.
+        """Sync only specific files to remote storage.
 
         Args:
             files: List of filenames (basename only, not full path) to sync to remote
+
         """
         self.hash_new_corpus()
         os.makedirs(self.remote_path, exist_ok=True)
@@ -168,7 +168,7 @@ class InputDir:
                     f"--files-from={file_list.name}",
                     str(self.path) + "/",
                     str(self.remote_path) + "/",
-                ]
+                ],
             )
 
     def sync_from_remote(self) -> None:

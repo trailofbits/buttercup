@@ -150,7 +150,9 @@ def pick_temperature() -> float:
 
 
 def truncate_output(
-    output: str | None, max_length: int, truncate_position: TruncatePosition = TruncatePosition.MIDDLE
+    output: str | None,
+    max_length: int,
+    truncate_position: TruncatePosition = TruncatePosition.MIDDLE,
 ) -> str:
     """Truncate the output to the maximum length.
     If the output is longer than the maximum length, truncate it in the middle and add

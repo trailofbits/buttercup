@@ -229,15 +229,24 @@ def test_update_expired_task_weights(scheduler):
 
     # Set up mock harnesses in the harness map
     live_harness = WeightedHarness(
-        weight=1.0, harness_name="live-harness", package_name="test-package", task_id="live-task-123"
+        weight=1.0,
+        harness_name="live-harness",
+        package_name="test-package",
+        task_id="live-task-123",
     )
 
     expired_harness = WeightedHarness(
-        weight=1.0, harness_name="expired-harness", package_name="test-package", task_id="expired-task-456"
+        weight=1.0,
+        harness_name="expired-harness",
+        package_name="test-package",
+        task_id="expired-task-456",
     )
 
     cancelled_harness = WeightedHarness(
-        weight=1.0, harness_name="cancelled-harness", package_name="test-package", task_id="cancelled-task-789"
+        weight=1.0,
+        harness_name="cancelled-harness",
+        package_name="test-package",
+        task_id="cancelled-task-789",
     )
 
     # Set up the mock harness map
@@ -293,15 +302,24 @@ def test_update_expired_task_weights_none_updated(scheduler):
 
     # Set up mock harnesses in the harness map - one live, two at zero weight
     live_harness = WeightedHarness(
-        weight=1.0, harness_name="live-harness", package_name="test-package", task_id="live-task-123"
+        weight=1.0,
+        harness_name="live-harness",
+        package_name="test-package",
+        task_id="live-task-123",
     )
 
     zero_expired_harness = WeightedHarness(
-        weight=0.0, harness_name="zero-expired-harness", package_name="test-package", task_id="expired-task-456"
+        weight=0.0,
+        harness_name="zero-expired-harness",
+        package_name="test-package",
+        task_id="expired-task-456",
     )
 
     zero_cancelled_harness = WeightedHarness(
-        weight=0.0, harness_name="zero-cancelled-harness", package_name="test-package", task_id="cancelled-task-789"
+        weight=0.0,
+        harness_name="zero-cancelled-harness",
+        package_name="test-package",
+        task_id="cancelled-task-789",
     )
 
     # Set up the mock harness map
@@ -812,7 +830,10 @@ def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redi
     assert non_existent is None
 
     non_existent_patch = real_build_map.get_build_from_san(
-        "test-task-1", BuildType.PATCH, "address", "non-existent-patch"
+        "test-task-1",
+        BuildType.PATCH,
+        "address",
+        "non-existent-patch",
     )
     assert non_existent_patch is None
 

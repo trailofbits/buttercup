@@ -230,7 +230,9 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
 
                 if task_id not in result:
                     result[task_id] = TaskResult(
-                        task_id=task_id, project_name=task.project_name, mode=str(task.task_type)
+                        task_id=task_id,
+                        project_name=task.project_name,
+                        mode=str(task.task_type),
                     )
                 c = next((c for c in submission.crashes if c.result == SubmissionResult.PASSED), None)
                 if c:

@@ -136,6 +136,7 @@ class Task:
 
         Returns:
             The cleaned function name
+
         """
         cleaned_func_name = func_name
         if func_name.startswith("OSS_FUZZ_"):
@@ -163,7 +164,10 @@ class Task:
         for function_path in function_paths:
             # functions returned in descending order of similarity
             function_defs = self.codequery.get_functions(
-                function_name, function_path, fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
+                function_name,
+                function_path,
+                fuzzy=fuzzy,
+                fuzzy_threshold=fuzzy_threshold,
             )
             if len(function_defs) > 0:
                 logger.info(
@@ -205,13 +209,18 @@ class Task:
                 return function_def
 
         function_def = self._do_get_function_def(
-            function_name, [None], fuzzy=fuzzy, fuzzy_threshold=fuzzy_threshold
+            function_name,
+            [None],
+            fuzzy=fuzzy,
+            fuzzy_threshold=fuzzy_threshold,
         )
         if function_def is not None:
             return function_def
 
         logger.warning(
-            "No function definition found for %s (paths: %s)", function_name, function_paths
+            "No function definition found for %s (paths: %s)",
+            function_name,
+            function_paths,
         )
         return None
 
@@ -226,7 +235,7 @@ class Task:
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | extract_code
         generated_functions = chain.invoke(prompt_vars)
@@ -250,7 +259,7 @@ class Task:
             update={
                 "messages": [res],
                 "context_iteration": state.context_iteration + 1,
-            }
+            },
         )
         return cmd
 
@@ -281,7 +290,9 @@ class Task:
 
     @staticmethod
     def _get_function_definition(
-        function_name: str, state: "BaseTaskState", tool_call_id: str
+        function_name: str,
+        state: "BaseTaskState",
+        tool_call_id: str,
     ) -> Command:
         """Implementation of get_function_definition tool"""
         logger.info("Tool call: get_function_definition for %s", function_name)
@@ -293,14 +304,14 @@ class Task:
                         ToolMessage(
                             f"Definition for {function_name} already retrieved",
                             tool_call_id=tool_call_id,
-                        )
+                        ),
                     ],
-                }
+                },
             )
         function_def = state.task.get_function_def(function_name, fuzzy=False)
         if function_def:
             results = [
-                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body)
+                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body),
             ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
@@ -309,12 +320,12 @@ class Task:
                         ToolMessage(
                             f"Found definition for function {function_name}",
                             tool_call_id=tool_call_id,
-                        )
+                        ),
                     ],
                     "retrieved_context": {
                         call: call_result,
                     },
-                }
+                },
             )
         return Command(
             update={
@@ -322,9 +333,9 @@ class Task:
                     ToolMessage(
                         f"Could not find definition for function {function_name}",
                         tool_call_id=tool_call_id,
-                    )
-                ]
-            }
+                    ),
+                ],
+            },
         )
 
     @staticmethod
@@ -343,9 +354,9 @@ class Task:
                         ToolMessage(
                             f"Definition for {type_name} already retrieved",
                             tool_call_id=tool_call_id,
-                        )
+                        ),
                     ],
-                }
+                },
             )
         type_defs = state.task._do_get_type_defs(type_name)
         if len(type_defs) > 0:
@@ -360,12 +371,12 @@ class Task:
                         ToolMessage(
                             f"Found {len(type_defs)} definitions for type {type_name}",
                             tool_call_id=tool_call_id,
-                        )
+                        ),
                     ],
                     "retrieved_context": {
                         call: call_result,
                     },
-                }
+                },
             )
         return Command(
             update={
@@ -373,9 +384,9 @@ class Task:
                     ToolMessage(
                         f"Could not find definition for type {type_name}",
                         tool_call_id=tool_call_id,
-                    )
-                ]
-            }
+                    ),
+                ],
+            },
         )
 
     @staticmethod
@@ -396,9 +407,9 @@ class Task:
                         ToolMessage(
                             f"Contents of {file_path} already retrieved",
                             tool_call_id=tool_call_id,
-                        )
-                    ]
-                }
+                        ),
+                    ],
+                },
             )
         cat_cmd_res = state.task.challenge_task.exec_docker_cmd(["cat", str(path)])
         if not cat_cmd_res.success:
@@ -408,9 +419,9 @@ class Task:
                         ToolMessage(
                             f"Could not read contents of {path}",
                             tool_call_id=tool_call_id,
-                        )
-                    ]
-                }
+                        ),
+                    ],
+                },
             )
         cat_output = cat_cmd_res.output.decode("utf-8")
         results = [CodeSnippet(file_path=path, code=cat_output)]
@@ -421,12 +432,12 @@ class Task:
                     ToolMessage(
                         f"Retrieved contents of {path}",
                         tool_call_id=tool_call_id,
-                    )
+                    ),
                 ],
                 "retrieved_context": {
                     call: call_result,
                 },
-            }
+            },
         )
 
     def _do_get_callers(
@@ -462,9 +473,9 @@ class Task:
                         ToolMessage(
                             f"Callers for {function_name} in {file_path} already retrieved",
                             tool_call_id=tool_call_id,
-                        )
-                    ]
-                }
+                        ),
+                    ],
+                },
             )
         path = Path(file_path)
         function = state.task.get_function_def(function_name, function_paths=[path], fuzzy=False)
@@ -475,9 +486,9 @@ class Task:
                         ToolMessage(
                             f"Could not look up function {function_name} in {path}",
                             tool_call_id=tool_call_id,
-                        )
-                    ]
-                }
+                        ),
+                    ],
+                },
             )
         callers = state.task._do_get_callers(function_name)
 
@@ -492,12 +503,12 @@ class Task:
                     ToolMessage(
                         f"Found {len(code_snippets)} callers of function {function_name}",
                         tool_call_id=tool_call_id,
-                    )
+                    ),
                 ],
                 "retrieved_context": {
                     call: call_result,
                 },
-            }
+            },
         )
 
 
@@ -507,7 +518,8 @@ class BaseTaskState(BaseModel):
     harness: HarnessInfo = Field(description="Harness info")
     messages: Annotated[Sequence[BaseMessage], add_messages] = Field(default_factory=list)
     retrieved_context: Annotated[dict[str, ToolCallResult], operator.or_] = Field(
-        description="Context retrieved by tools, keyed by tool call", default_factory=dict
+        description="Context retrieved by tools, keyed by tool call",
+        default_factory=dict,
     )
     generated_functions: str = Field(description="The generated seed functions", default="")
     context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
@@ -540,6 +552,7 @@ def get_function_definition(
     Notes:
     - If looking up a method in a Java program, only specify the method name.
         For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+
     """
     assert isinstance(state, BaseTaskState)
     return Task._get_function_definition(function_name, state, tool_call_id)
@@ -560,6 +573,7 @@ def get_type_definition(
     Notes:
         - It will return multiple type definitions if there are multiple matches.
         - This tool cannot look up functions.
+
     """
     assert isinstance(state, BaseTaskState)
     return Task._get_type_definition(type_name, state, tool_call_id)
@@ -582,6 +596,7 @@ def batch_tool(
     Notes:
         - The tool_calls argument must be a dictionary that exactly follows the tool_calls schema
         - Do not include '</invoke>' in your tool_calls argument.
+
     """  # noqa: E501
     assert isinstance(state, BaseTaskState)
     logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
@@ -634,10 +649,10 @@ def batch_tool(
                 ToolMessage(
                     combined_message,
                     tool_call_id=tool_call_id,
-                )
+                ),
             ],
             "retrieved_context": combined_context,
-        }
+        },
     )
 
 
@@ -656,6 +671,7 @@ def cat(
     Notes:
         - Specify the absolute path to the file.
         - Prefer other tools when possible since this tool could return a large amount of text.
+
     """  # noqa: E501
     assert isinstance(state, BaseTaskState)
     return Task._cat(file_path, state, tool_call_id)
@@ -674,6 +690,7 @@ def get_callers(
     Args:
         function_name: The name of the function to get callers for
         file_path: The path to the file containing the function
+
     """
     assert isinstance(state, BaseTaskState)
     return Task._get_callers(function_name, file_path, state, tool_call_id)

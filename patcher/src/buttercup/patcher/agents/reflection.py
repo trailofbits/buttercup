@@ -245,7 +245,7 @@ PROMPT = ChatPromptTemplate.from_messages(
         ("system", SYSTEM_MSG),
         ("user", REFLECTION_PROMPT),
         ("ai", "<analysis_breakdown>"),
-    ]
+    ],
 )
 
 CREATION_FAILED_FAILURE_DATA = """The patch generation component could not generate a \
@@ -379,7 +379,8 @@ class ReflectionResult(BaseModel):
     )
     pattern_identified: str | None = Field(description="Any pattern seen across multiple failures", default=None)
     next_component: PatcherAgentName = Field(
-        description="One of available components", default=PatcherAgentName.ROOT_CAUSE_ANALYSIS
+        description="One of available components",
+        default=PatcherAgentName.ROOT_CAUSE_ANALYSIS,
     )
     component_guidance: str | None = Field(
         description="Specific guidance for the selected component. This should be a concrete suggestion for the next step. Be specific and detailed.",
@@ -527,7 +528,10 @@ class ReflectionAgent(PatcherAgentBase):
             return "Unknown failure"
 
     def _get_extra_information(
-        self, state: PatcherAgentState, configuration: PatcherConfig, last_group_status: tuple[PatchStatus, int] | None
+        self,
+        state: PatcherAgentState,
+        configuration: PatcherConfig,
+        last_group_status: tuple[PatchStatus, int] | None,
     ) -> str:
         """Get extra information about the failure."""
         if last_group_status is None or last_group_status[1] < configuration.max_last_failure_retries:
@@ -552,7 +556,10 @@ class ReflectionAgent(PatcherAgentBase):
                 return ""
 
     def _analyze_failure(
-        self, state: PatcherAgentState, configuration: PatcherConfig, patch_attempt: PatchAttempt
+        self,
+        state: PatcherAgentState,
+        configuration: PatcherConfig,
+        patch_attempt: PatchAttempt,
     ) -> Command:
         """Analyze the failure of the patch."""
         if patch_attempt.status == PatchStatus.SUCCESS:
@@ -633,16 +640,16 @@ class ReflectionAgent(PatcherAgentBase):
                                 patch_strategy=attempt.strategy,
                             )
                             for attempt in state.patch_attempts[:-1]
-                        ]
+                        ],
                     ),
                     "AVAILABLE_COMPONENTS": "\n".join(
                         [
                             AVAILABLE_COMPONENT_TMPL.format(name=component_name, description=component_description)
                             for component_name, component_description in self.components
-                        ]
+                        ],
                     ),
                     "EXTRA_INFORMATION": extra_information,
-                }
+                },
             )
         except Exception as e:
             logger.error(
@@ -672,7 +679,7 @@ class ReflectionAgent(PatcherAgentBase):
                     "code_snippet_requests": [
                         CodeSnippetRequest(
                             request=result.component_guidance,
-                        )
+                        ),
                     ],
                 },
                 goto=PatcherAgentName.CONTEXT_RETRIEVER.value,

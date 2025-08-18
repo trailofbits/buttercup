@@ -50,7 +50,7 @@ def main() -> None:
                     pov=Path(command.crash_input_path),
                     pov_token=f"token-{Path(command.crash_input_path).name}",
                     sanitizer_output=Path(command.stacktrace_path).read_bytes(),
-                )
+                ),
             ],
         )
         patcher = Patcher(

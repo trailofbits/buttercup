@@ -14,7 +14,8 @@ def parse_args() -> argparse.Namespace:
 
     # get_crash_data subcommand
     get_crash_data_parser = subparsers.add_parser(
-        "get_crash_data", help="Extract crash state from a stacktrace file or stdin"
+        "get_crash_data",
+        help="Extract crash state from a stacktrace file or stdin",
     )
     get_crash_data_parser.add_argument(
         "stacktrace_file",

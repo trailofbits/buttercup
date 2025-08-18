@@ -270,7 +270,7 @@ class CodeTS:
             [
                 x if not any(re.match(pattern, x.decode()) for pattern in self.preprocess_regex) else b"/" * len(x)
                 for x in code.splitlines()
-            ]
+            ],
         )
 
     def get_functions_in_code(self, code: bytes, file_path: Path) -> dict[str, Function]:
@@ -351,7 +351,10 @@ class CodeTS:
         return functions.get(function_name)
 
     def parse_types_in_code(
-        self, file_path: Path, typename: str | None = None, fuzzy: bool | None = False
+        self,
+        file_path: Path,
+        typename: str | None = None,
+        fuzzy: bool | None = False,
     ) -> dict[str, TypeDefinition]:
         """Parse the definition of a type in a piece of code."""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
@@ -441,14 +444,14 @@ class CodeTS:
         return res
 
     def find_node_and_ancestors(self, code: bytes, target_name: str) -> None:
-        """
-        Used for debugging.
+        """Used for debugging.
 
         Recursively walk the tree to find a node and print its ancestors.
 
         Args:
             code: The code to parse
             target_name: The name of the node to find
+
         """
         tree = self.parser.parse(code)
         root_node = tree.root_node
@@ -517,9 +520,7 @@ class CodeTS:
         walk(root_node)
 
     def get_field_type_name(self, type_definition: bytes, field_name: str) -> str | None:
-        """
-        Get the type of a field of a type definition
-        """
+        """Get the type of a field of a type definition"""
         if self.query_class_members is None:
             return None
         self.parser.parse(type_definition)
@@ -537,9 +538,7 @@ class CodeTS:
         return None
 
     def get_method_return_type_name(self, type_definition: bytes, method_name: str) -> str | None:
-        """
-        Get the return type of a method of a type definition
-        """
+        """Get the return type of a method of a type definition"""
         if self.query_class_members is None:
             return None
         self.parser.parse(type_definition)

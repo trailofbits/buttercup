@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     log_level: Annotated[str, Field(default="debug", description="Log level")]
     sleep_time: Annotated[float, Field(default=60.0, description="Sleep time between checks in seconds")]
     delete_old_tasks_scratch_delta_seconds: Annotated[
-        int, Field(default=1800, description="Time in seconds after which to delete old task directories")
+        int,
+        Field(default=1800, description="Time in seconds after which to delete old task directories"),
     ]
     scratch_dir: Annotated[Path, Field(default=Path("/node-local/scratch"), description="Scratch directory")]
 

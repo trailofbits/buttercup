@@ -159,15 +159,15 @@ class Patcher:
                 self.patches_queue.push(patch_msg)
                 self.vulnerability_queue.ack_item(rq_item.item_id)
                 logger.info(
-                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}"
+                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}",
                 )
             else:
                 logger.error(
-                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}"
+                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}",
                 )
         except Exception as e:
             logger.exception(
-                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}: {e}"
+                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}: {e}",
             )
 
     @_check_redis

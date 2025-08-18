@@ -221,13 +221,15 @@ class TestNodeLocal:
                 mock_scratch_context.__enter__.return_value = mock_scratch_file
 
                 with patch(
-                    "buttercup.common.node_local.local_scratch_file", return_value=mock_scratch_context
+                    "buttercup.common.node_local.local_scratch_file",
+                    return_value=mock_scratch_context,
                 ) as mock_local_scratch:
                     # Mock copyfileobj to avoid actual copying
                     with patch("shutil.copyfileobj") as mock_copy:
                         # Mock rename_atomically
                         with patch(
-                            "buttercup.common.node_local.rename_atomically", return_value=local_path
+                            "buttercup.common.node_local.rename_atomically",
+                            return_value=local_path,
                         ) as mock_rename:
                             # Mock path operations
                             with patch.object(Path, "mkdir"):
@@ -269,7 +271,8 @@ class TestNodeLocal:
 
         # Mock the archive path
         with patch(
-            "buttercup.common.node_local.remote_archive_path", return_value=remote_archive_path_val
+            "buttercup.common.node_local.remote_archive_path",
+            return_value=remote_archive_path_val,
         ) as mock_rpath:
             # Mock file operations
             with patch("builtins.open", mock_open(read_data=b"test data")) as mocked_open:
@@ -280,7 +283,8 @@ class TestNodeLocal:
                 mock_scratch_context.__enter__.return_value = mock_scratch_file
 
                 with patch(
-                    "buttercup.common.node_local.local_scratch_file", return_value=mock_scratch_context
+                    "buttercup.common.node_local.local_scratch_file",
+                    return_value=mock_scratch_context,
                 ) as mock_local_scratch:
                     # Mock copyfileobj to avoid actual copying
                     with patch("shutil.copyfileobj") as mock_copy:
@@ -298,11 +302,13 @@ class TestNodeLocal:
                             mock_tmp_dir_context.__enter__.return_value = mock_tmp_dir
 
                             with patch(
-                                "buttercup.common.node_local.scratch_dir", return_value=mock_tmp_dir_context
+                                "buttercup.common.node_local.scratch_dir",
+                                return_value=mock_tmp_dir_context,
                             ) as mock_scratch_dir:
                                 # Mock rename_atomically
                                 with patch(
-                                    "buttercup.common.node_local.rename_atomically", return_value=local_path
+                                    "buttercup.common.node_local.rename_atomically",
+                                    return_value=local_path,
                                 ) as mock_rename:
                                     # Mock path.exists
                                     with patch.object(Path, "exists", return_value=False):

@@ -42,7 +42,7 @@ class TestCRSClient:
                     project_name="test-project",
                     source=[SourceDetail(sha256="a" * 64, type=SourceType.repo, url="/files/test-repo.tar.gz")],
                     type=TaskType.full,
-                )
+                ),
             ],
         )
 

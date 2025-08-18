@@ -28,8 +28,7 @@ class CoverageRunner:
 
     @staticmethod
     def _process_function_coverage(coverage_data: dict[str, Any]) -> list[CoveredFunction]:
-        """
-        Process the LLVM coverage data to extract function-level line coverage.
+        """Process the LLVM coverage data to extract function-level line coverage.
 
         Returns a dictionary mapping function names to their line coverage metrics.
 
@@ -80,7 +79,7 @@ class CoverageRunner:
                             total_line_count,
                             covered_line_count,
                             function.get("filenames", []),
-                        )
+                        ),
                     )
 
         return function_coverage
@@ -107,7 +106,7 @@ class CoverageRunner:
         jacoco_path = build_dir / "dumps" / f"{harness_name}.xml"
         if not jacoco_path.exists():
             logger.error(
-                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}"
+                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}",
             )
             return None
 
@@ -140,8 +139,11 @@ class CoverageRunner:
                             if covered_lines > 0:
                                 covered_functions.append(
                                     CoveredFunction(
-                                        method_name, total_lines, covered_lines, [str(f) for f in file_paths]
-                                    )
+                                        method_name,
+                                        total_lines,
+                                        covered_lines,
+                                        [str(f) for f in file_paths],
+                                    ),
                                 )
 
         return covered_functions
@@ -157,7 +159,7 @@ class CoverageRunner:
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(
-                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}"
+                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}",
             )
             return None
 

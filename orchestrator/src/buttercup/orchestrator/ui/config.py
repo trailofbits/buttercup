@@ -13,14 +13,16 @@ class Settings(BaseSettings):
 
     # Competition API configuration
     external_host: Annotated[
-        str, Field(default="localhost", description="External host, used to construct the files URLs")
+        str,
+        Field(default="localhost", description="External host, used to construct the files URLs"),
     ]
     host: Annotated[str, Field(default="127.0.0.1", description="Host to bind the server to")]
     port: Annotated[int, Field(default=1323, description="Port to bind the server to")]
 
     # File server configuration
     challenges_dir: Annotated[
-        Path, Field(default=Path("./challenges"), description="Directory containing challenge files")
+        Path,
+        Field(default=Path("./challenges"), description="Directory containing challenge files"),
     ]
 
     # CRS configuration
@@ -30,15 +32,18 @@ class Settings(BaseSettings):
 
     # Storage configuration
     storage_dir: Annotated[
-        Path, Field(default=Path("/tmp/buttercup-storage"), description="Directory for storing tarballs")
+        Path,
+        Field(default=Path("/tmp/buttercup-storage"), description="Directory for storing tarballs"),
     ]
     run_data_dir: Annotated[
-        Path, Field(default=Path("/tmp/buttercup-run-data"), description="Directory for storing run data artifacts")
+        Path,
+        Field(default=Path("/tmp/buttercup-run-data"), description="Directory for storing run data artifacts"),
     ]
 
     # Database configuration
     database_url: Annotated[
-        str, Field(default="sqlite:///buttercup_ui.db", description="Database URL for storing submissions")
+        str,
+        Field(default="sqlite:///buttercup_ui.db", description="Database URL for storing submissions"),
     ]
 
     class Config:

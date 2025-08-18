@@ -42,8 +42,7 @@ class ChallengeService:
         exclude_dirs: list[str] | None = None,
         base_ref: str | None = None,
     ) -> tuple[str, str, str | None]:
-        """
-        Clone a git repository, checkout the specified ref, and create a tarball.
+        """Clone a git repository, checkout the specified ref, and create a tarball.
 
         Args:
             repo_url: Git repository URL
@@ -53,6 +52,7 @@ class ChallengeService:
 
         Returns:
             Tuple of (focus_dir, sha256_hash, diff_sha256_hash)
+
         """
         if exclude_dirs is None:
             exclude_dirs = [".git", ".aixcc"]
@@ -77,7 +77,8 @@ class ChallengeService:
                 if repo_url.startswith("https://github.com/"):
                     # Convert https://github.com/owner/repo.git to https://username:pat@github.com/owner/repo.git
                     auth_url = repo_url.replace(
-                        "https://github.com/", f"https://{github_username}:{github_pat}@github.com/"
+                        "https://github.com/",
+                        f"https://{github_username}:{github_pat}@github.com/",
                     )
                     logger.info("Using authenticated URL for private repository")
                     clone_url = auth_url
@@ -210,8 +211,7 @@ class ChallengeService:
         fuzz_tooling_project_name: str,
         duration_secs: int,
     ) -> Task:
-        """
-        Create a task for a challenge by processing repositories and creating tarballs.
+        """Create a task for a challenge by processing repositories and creating tarballs.
 
         Args:
             challenge_repo_url: URL of the challenge repository
@@ -224,6 +224,7 @@ class ChallengeService:
 
         Returns:
             Task object ready to be sent to CRS
+
         """
         task_id = str(uuid.uuid4())
         message_id = str(uuid.uuid4())
@@ -271,7 +272,7 @@ class ChallengeService:
                     sha256=diff_sha256,
                     type=SourceType.diff,
                     url=f"{self.base_url}/files/{diff_sha256}.tar.gz",
-                )
+                ),
             )
 
         # Create task detail
@@ -303,9 +304,7 @@ class ChallengeService:
         return task
 
     def create_sarif_broadcast(self, task_id: str, sarif: dict[str, Any]) -> SARIFBroadcast:
-        """
-        Create a SARIF Broadcast for a task
-        """
+        """Create a SARIF Broadcast for a task"""
         sarif_id = str(uuid.uuid4())
         message_id = str(uuid.uuid4())
         message_time = int(time.time() * 1000)
@@ -316,7 +315,7 @@ class ChallengeService:
                     sarif=sarif,
                     sarif_id=sarif_id,
                     task_id=task_id,
-                )
+                ),
             ],
             message_id=message_id,
             message_time=message_time,

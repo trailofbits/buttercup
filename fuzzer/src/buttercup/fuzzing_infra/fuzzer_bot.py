@@ -86,7 +86,10 @@ class FuzzerBot(TaskLoop):
 
                     crash_set = CrashSet(self.redis)
                     crash_dir = CrashDir(
-                        self.crs_scratch_dir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
+                        self.crs_scratch_dir,
+                        task.task_id,
+                        task.harness_name,
+                        count_limit=self.crash_dir_count_limit,
                     )
                     for crash_ in result.crashes:
                         crash: engine.Crash = crash_
@@ -111,7 +114,7 @@ class FuzzerBot(TaskLoop):
                             crash.stacktrace,
                         ):
                             logger.info(
-                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set"
+                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set",
                             )
                             logger.debug(f"Crash stacktrace: {crash.stacktrace}")
                             continue

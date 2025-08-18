@@ -10,6 +10,7 @@ def draw_state_machine(output_path: Path | None = None) -> None:
 
     Args:
         output_path: Optional path where to save the PNG file. If None, saves in current directory.
+
     """
     # Create a new directed graph
     dot = graphviz.Digraph(comment="Patcher Agent State Machine")

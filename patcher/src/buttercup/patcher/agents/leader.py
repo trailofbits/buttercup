@@ -41,19 +41,26 @@ class PatcherLeaderAgent(PatcherAgentBase):
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
         context_retriever_agent = ContextRetrieverAgent(
-            self.challenge, self.input, chain_call=self.chain_call, redis=self.redis
+            self.challenge,
+            self.input,
+            chain_call=self.chain_call,
+            redis=self.redis,
         )
         reflection_agent = ReflectionAgent(self.challenge, self.input, chain_call=self.chain_call)
         input_processing_agent = InputProcessingAgent(self.challenge, self.input, chain_call=self.chain_call)
         self.model_name = swe_agent.default_llm.model_name
 
         workflow = StateGraph(
-            PatcherAgentState, PatcherConfig, input_schema=PatcherAgentState, output_schema=PatcherAgentState
+            PatcherAgentState,
+            PatcherConfig,
+            input_schema=PatcherAgentState,
+            output_schema=PatcherAgentState,
         )
         workflow.add_node(PatcherAgentName.FIND_TESTS.value, context_retriever_agent.find_tests_node)
         workflow.add_node(PatcherAgentName.INPUT_PROCESSING.value, input_processing_agent.process_input)
         workflow.add_node(
-            PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value, context_retriever_agent.get_initial_context
+            PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value,
+            context_retriever_agent.get_initial_context,
         )
         workflow.add_node(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, rootcause_agent.analyze_vulnerability)
         workflow.add_node(PatcherAgentName.PATCH_STRATEGY.value, swe_agent.select_patch_strategy)
@@ -86,7 +93,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
                     "work_dir": self.work_dir,
                     "tasks_storage": self.tasks_storage,
                 },
-            )
+            ),
         )
 
         state = PatcherAgentState(messages=[], context=self.input)

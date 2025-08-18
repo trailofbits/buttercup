@@ -71,7 +71,7 @@ def test_get_functions(
                     name="printJavaAndJavadocTree",
                     file_path="/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/AstTreeStringPrinter.java",
                     start_line=88,
-                )
+                ),
             ],
             2,
         ),
@@ -115,7 +115,7 @@ def test_get_callers(
                     name="parseJavadocAsDetailNode",
                     file_path="/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/DetailNodeTreeStringPrinter.java",
                     start_line=66,
-                )
+                ),
             ],
             2,
         ),

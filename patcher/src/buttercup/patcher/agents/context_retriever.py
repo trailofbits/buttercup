@@ -151,7 +151,7 @@ DUPLICATE_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("user", DUPLICATE_CODE_SNIPPET_USER_MSG),
         ("ai", "<analysis>"),
-    ]
+    ],
 )
 
 INITIAL_CODE_SNIPPET_REQUESTS_USER_MSG = """You are an AI assistant tasked with identifying additional code snippets needed to understand a security vulnerability.
@@ -221,7 +221,7 @@ If you do not have any code snippets to request, do not output any <request> tag
 INITIAL_CODE_SNIPPET_REQUESTS_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("user", INITIAL_CODE_SNIPPET_REQUESTS_USER_MSG),
-    ]
+    ],
 )
 
 FILTER_CODE_SNIPPETS_USER_MSG = """You are an AI assistant. Your job is to evaluate whether a code snippet is relevant to one of the requests.
@@ -246,7 +246,7 @@ Return:
 FILTER_CODE_SNIPPETS_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("user", FILTER_CODE_SNIPPETS_USER_MSG),
-    ]
+    ],
 )
 
 FIND_TESTS_SYSTEM_TMPL = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
@@ -365,7 +365,7 @@ ARE_VALID_TEST_INSTRUCTIONS_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("user", ARE_VALID_TEST_INSTRUCTIONS_USER_MSG),
         ("ai", "<reasoning>"),
-    ]
+    ],
 )
 
 
@@ -403,7 +403,9 @@ with the newly discovered information?"""
 
 
 def _return_command_tool_message(
-    tool_call_id: str, message: str, new_code_snippets: list[ContextCodeSnippet] | None = None
+    tool_call_id: str,
+    message: str,
+    new_code_snippets: list[ContextCodeSnippet] | None = None,
 ) -> Command:
     update_state: dict[str, Any] = {
         "messages": [ToolMessage(content=message, tool_call_id=tool_call_id)],
@@ -426,8 +428,7 @@ def track_snippet(
     state: Annotated[CodeSnippetManagerState, InjectedState],
     tool_call_id: Annotated[str, InjectedToolCallId],
 ) -> Command:
-    """
-    Track a range of lines from a file as a code snippet.
+    """Track a range of lines from a file as a code snippet.
 
     This function records a code snippet from the given file, either by specifying
     a line range or by identifying a function or type name. If `function_name` or
@@ -471,6 +472,7 @@ def track_snippet(
         ...     type_name=None,
         ...     code_snippet_description="Implementation of function foo",
         ... )
+
     """
     if start_line is None and end_line is None and function_name is None and type_name is None:
         raise ValueError("Either (start_line and end_line) or function_name or type_name must be provided")
@@ -509,7 +511,7 @@ def track_snippet(
 
     if not code_snippets:
         raise ValueError(
-            f"No code snippets found for {code_snippet_description} (function_name={function_name}, type_name={type_name}, start_line={start_line}, end_line={end_line}). Make sure the snippet exists before trying to track it."
+            f"No code snippets found for {code_snippet_description} (function_name={function_name}, type_name={type_name}, start_line={start_line}, end_line={end_line}). Make sure the snippet exists before trying to track it.",
         )
 
     return _return_command_tool_message(
@@ -570,7 +572,7 @@ Remember to call the `test_instructions` tool to log and validate any test comma
         return Command(
             update={
                 "messages": [ToolMessage(message, tool_call_id=tool_call_id)],
-            }
+            },
         )
     except Exception as e:
         logger.exception("Error running command: %s", command)
@@ -589,7 +591,7 @@ def _are_test_instructions_valid(instructions: str, output: bytes, error: bytes)
             "TEST_INSTRUCTIONS": instructions,
             "OUTPUT": truncate_output(output.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START),
             "ERROR": truncate_output(error.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START),
-        }
+        },
     )
     match = re.search(r"<are_valid>(.*?)</are_valid>", res)
     if match:
@@ -811,11 +813,11 @@ class ContextRetrieverAgent(PatcherAgentBase):
                                 END_LINE=code_snippet.end_line,
                             )
                             for code_snippet in state.code_snippets
-                        ]
+                        ],
                     ),
                     LS_CWD=ls_cwd,
                     CWD=challenge.workdir_from_dockerfile(),
-                )
+                ),
             ),
             *state.messages,  # type: ignore[list-item]
         ]
@@ -847,19 +849,19 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     PROJECT_NAME=challenge.project_name,
                     CWD=challenge.workdir_from_dockerfile(),
                     DOCKERFILE=dockerfile,
-                )
+                ),
             ),
             AIMessage(
                 content=f"""`ls` / `ls {challenge.workdir_from_dockerfile()}`:
 <ls_cwd>
 {truncate_output(ls_cwd, MAX_OUTPUT_LENGTH)}
-</ls_cwd>"""
+</ls_cwd>""",
             ),
             AIMessage(
                 content=f"""`ls /src`:
 <ls_src>
 {truncate_output(ls_src, MAX_OUTPUT_LENGTH)}
-</ls_src>"""
+</ls_src>""",
             ),
             *state.messages,  # type: ignore[list-item]
             AIMessage(content="""<project_analysis>"""),
@@ -897,18 +899,24 @@ class ContextRetrieverAgent(PatcherAgentBase):
             return False
 
     def _filter_code_snippet(
-        self, requests: list[CodeSnippetRequest], code_snippet: ContextCodeSnippet, config: RunnableConfig
+        self,
+        requests: list[CodeSnippetRequest],
+        code_snippet: ContextCodeSnippet,
+        config: RunnableConfig,
     ) -> bool:
         """Filter a code snippet based on the request."""
         return self.filter_code_snippets_chain.invoke(
             {
                 "REQUESTS": "\n".join(request.request for request in requests),
                 "CODE_SNIPPET": code_snippet,
-            }
+            },
         )
 
     def _filter_code_snippets(
-        self, requests: list[CodeSnippetRequest], code_snippets: list[ContextCodeSnippet], config: RunnableConfig
+        self,
+        requests: list[CodeSnippetRequest],
+        code_snippets: list[ContextCodeSnippet],
+        config: RunnableConfig,
     ) -> list[ContextCodeSnippet]:
         """Filter a list of code snippets based on the request."""
         configuration = PatcherConfig.from_configurable(config)
@@ -930,7 +938,9 @@ class ContextRetrieverAgent(PatcherAgentBase):
         return res
 
     def is_code_snippet_already_retrieved(
-        self, existing_code_snippets: set[ContextCodeSnippet], snippet_request: CodeSnippetRequest
+        self,
+        existing_code_snippets: set[ContextCodeSnippet],
+        snippet_request: CodeSnippetRequest,
     ) -> bool:
         if not existing_code_snippets:
             return False
@@ -948,7 +958,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     )
                     for code_snippet in existing_code_snippets
                 ),
-            }
+            },
         )
         return res
 
@@ -1034,7 +1044,9 @@ class ContextRetrieverAgent(PatcherAgentBase):
         )
 
     def _get_code_requests_from_stacktrace(
-        self, stacktraces: list[CrashInfo], configuration: PatcherConfig
+        self,
+        stacktraces: list[CrashInfo],
+        configuration: PatcherConfig,
     ) -> list[CodeSnippetRequest]:
         """Return a list of code snippet requests based on the stacktraces,
         grouping them together by function name and filename.
@@ -1091,14 +1103,16 @@ class ContextRetrieverAgent(PatcherAgentBase):
             filelines = sorted(set(line for _, _, line in group))
             requests.append(
                 CodeSnippetRequest(
-                    request=f"Implementation of `{func_name}` in `{filename}` (around lines {', '.join(map(str, filelines))})"
-                )
+                    request=f"Implementation of `{func_name}` in `{filename}` (around lines {', '.join(map(str, filelines))})",
+                ),
             )
 
         return requests
 
     def get_initial_context(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Get the initial context for the diff analysis."""
         configuration = PatcherConfig.from_configurable(config)
@@ -1154,7 +1168,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 {
                     "STACKTRACES": "\n".join(get_stacktraces_from_povs(state.context.povs)),
                     "CODE_SNIPPETS": "\n".join(code_snippet.commented_code(stacktraces) for code_snippet in res),
-                }
+                },
             )
             with get_executor_for_config(RunnableConfig(max_concurrency=configuration.max_concurrency)) as executor:
                 futures = [
@@ -1179,7 +1193,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         return Command(
             update={
                 "relevant_code_snippets": set(
-                    self._filter_code_snippets(requests + initial_code_snippet_requests, res, config)
+                    self._filter_code_snippets(requests + initial_code_snippet_requests, res, config),
                 ),
             },
             goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
@@ -1197,7 +1211,9 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self.redis.hset(CUSTOM_TEST_MAP_NAME, self.challenge.task_meta.task_id, instructions)
 
     def find_tests_node(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
         """Determine instructions to run tests in the challenge task."""
         configuration = PatcherConfig.from_configurable(config)
@@ -1250,7 +1266,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
                             ),
                         )
                         agent_state_dict = self.find_tests_agent.get_state(  # type: ignore[attr-defined]
-                            RunnableConfig(configurable=configuration.model_dump())
+                            RunnableConfig(configurable=configuration.model_dump()),
                         ).values
                         try:
                             agent_state = FindTestsState.model_validate(agent_state_dict)

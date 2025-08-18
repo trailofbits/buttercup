@@ -71,7 +71,9 @@ def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path
 
 
 def _find_source_files(
-    codequery: CodeQuery, file_patterns: list[str], grep_pattern: str
+    codequery: CodeQuery,
+    file_patterns: list[str],
+    grep_pattern: str,
 ) -> list[Path]:
     """Find source files that match file patterns and contain a search string
 
@@ -177,7 +179,9 @@ def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> li
 
 
 def get_harness_source(
-    redis: Redis | None, codequery: CodeQuery, harness_name: str
+    redis: Redis | None,
+    codequery: CodeQuery,
+    harness_name: str,
 ) -> HarnessInfo | None:
     task_id = codequery.challenge.task_meta.task_id
     logger.info("Getting harness source for %s | %s", task_id, harness_name)

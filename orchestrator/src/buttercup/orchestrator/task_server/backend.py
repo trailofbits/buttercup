@@ -82,8 +82,7 @@ def new_task(task: Task, tasks_queue: ReliableQueue) -> str:
 
 
 def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
-    """
-    Delete a task by pushing a delete request to the task deletion queue.
+    """Delete a task by pushing a delete request to the task deletion queue.
 
     Args:
         task_id: The unique identifier of the task to delete
@@ -91,6 +90,7 @@ def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
 
     Returns:
         Empty string on successful deletion request
+
     """
     task_delete = TaskDelete(task_id=str(task_id).lower(), received_at=time.time())
     delete_task_queue.push(task_delete)
@@ -98,14 +98,14 @@ def delete_task(task_id: UUID, delete_task_queue: ReliableQueue) -> str:
 
 
 def delete_all_tasks(delete_task_queue: ReliableQueue) -> str:
-    """
-    Delete all tasks by pushing a delete request with the 'all' flag to the task deletion queue.
+    """Delete all tasks by pushing a delete request with the 'all' flag to the task deletion queue.
 
     Args:
         delete_task_queue: Queue for processing task deletion requests
 
     Returns:
         Empty string on successful deletion request
+
     """
     task_delete = TaskDelete(all=True, received_at=time.time())
     delete_task_queue.push(task_delete)
@@ -113,8 +113,7 @@ def delete_all_tasks(delete_task_queue: ReliableQueue) -> str:
 
 
 def store_sarif_broadcast(broadcast: SARIFBroadcast, sarif_store: SARIFStore) -> str:
-    """
-    Store SARIF broadcast details in Redis.
+    """Store SARIF broadcast details in Redis.
 
     Args:
         broadcast: The SARIFBroadcast containing a list of SARIFBroadcastDetail
@@ -122,6 +121,7 @@ def store_sarif_broadcast(broadcast: SARIFBroadcast, sarif_store: SARIFStore) ->
 
     Returns:
         Empty string on successful storage
+
     """
     for sarif_detail in broadcast.broadcasts:
         logger.info(f"Storing SARIF detail for task {sarif_detail.task_id}, SARIF ID: {sarif_detail.sarif_id}")
@@ -131,11 +131,11 @@ def store_sarif_broadcast(broadcast: SARIFBroadcast, sarif_store: SARIFStore) ->
 
 
 def get_status_tasks_state(redis_url: str) -> StatusTasksState:
-    """
-    Get the current state of tasks in the system.
+    """Get the current state of tasks in the system.
 
     Returns:
         StatusTasksState: The current state of tasks in the system
+
     """
     redis = Redis.from_url(redis_url)
     registry = TaskRegistry(redis)

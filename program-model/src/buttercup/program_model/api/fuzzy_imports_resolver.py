@@ -7,8 +7,7 @@ from buttercup.program_model.utils.common import Function, TypeDefinition
 
 
 class FuzzyCImportsResolver:
-    """
-    A resolver for C imports in a source code folder.
+    """A resolver for C imports in a source code folder.
     This class can analyze #include statements in files and build dependency trees.
 
     WARNING: The class resolves imports using very naive file parsing and is best effort, it is not
@@ -17,11 +16,11 @@ class FuzzyCImportsResolver:
     """
 
     def __init__(self, root_dir: Path):
-        """
-        Initialize the resolver with a root source code folder.
+        """Initialize the resolver with a root source code folder.
 
         Args:
             root_dir: The absolute path to the root folder containing the source code
+
         """
         # The source code directory to find imports in. This is typically the task src dir
         self.root_dir = root_dir
@@ -49,8 +48,7 @@ class FuzzyCImportsResolver:
         return path
 
     def _find_file_in_codebase(self, import_name: str, origin_file: Path) -> Path | None:
-        """
-        Find the actual file path for an imported file name.
+        """Find the actual file path for an imported file name.
         This method handles different include styles:
         - System includes like <stdio.h> (ignored as external)
         - Relative includes like "utils/helper.h"
@@ -62,6 +60,7 @@ class FuzzyCImportsResolver:
 
         Returns:
             The absolute path to the imported file or None if not found
+
         """
         # Ignore system includes (enclosed in <>)
         if import_name.startswith("<") and import_name.endswith(">"):
@@ -80,8 +79,7 @@ class FuzzyCImportsResolver:
         return None
 
     def get_direct_imports(self, file_path: Path) -> set[Path]:
-        """
-        Parse a file for import statements and try to resolve them
+        """Parse a file for import statements and try to resolve them
         to actual files present in the codebase.
 
         Args:
@@ -90,6 +88,7 @@ class FuzzyCImportsResolver:
         Returns:
             A list of paths to the imported files if they have been successfully
             found in the code directory
+
         """
         file_path = self._normalize_path(file_path)
 
@@ -131,8 +130,7 @@ class FuzzyCImportsResolver:
             return set()
 
     def get_all_imports(self, file_path: Path, depth: int | None = None) -> set[Path]:
-        """
-        Recursively get all files imported by a given file.
+        """Recursively get all files imported by a given file.
 
         Args:
             file: The path to the file (relative to root or absolute)
@@ -140,6 +138,7 @@ class FuzzyCImportsResolver:
 
         Returns:
             A list of absolute paths to all imported files
+
         """
         file_path = self._normalize_path(file_path)
         if file_path in self.all_imports_cache:
@@ -151,13 +150,13 @@ class FuzzyCImportsResolver:
         return self._tmp_imports
 
     def _get_all_imports_recursive(self, file_path: Path, depth: int | None, current_depth: int = 0) -> None:
-        """
-        Recursive helper for get_all_imports.
+        """Recursive helper for get_all_imports.
 
         Args:
             file_path: The absolute path to the file
             depth: Maximum depth to traverse, None for unlimited
             current_depth: Current recursion depth
+
         """
         # Check if we've reached the maximum depth
         if depth is not None and current_depth >= depth:
@@ -261,8 +260,7 @@ class FuzzyCImportsResolver:
 
 
 class FuzzyJavaImportsResolver:
-    """
-    A resolver for Java imports in a source code folder.
+    """A resolver for Java imports in a source code folder.
     This class can analyze import statements in files and lookup class defs to
     find out the actual methods that are called in a given caller file or function.
     It it used to deduplicate code search results for called functions and callee
@@ -293,9 +291,7 @@ class FuzzyJavaImportsResolver:
         return None
 
     def get_dotexpr_type(self, dotexpr: str, file_path: Path) -> TypeDefinition | None:
-        """
-        Get the type of a dot expression.
-        """
+        """Get the type of a dot expression."""
         # If the dotexpr has no dots, see if it is an imported class
         if "." not in dotexpr:
             # Get imports from the caller file
@@ -353,8 +349,7 @@ class FuzzyJavaImportsResolver:
                 return None
 
     def split_rightmost_dotexpr(self, expr: str) -> tuple[str, str, str | None]:
-        """
-        Splits a dot expression into two parts:
+        """Splits a dot expression into two parts:
         1. The rest of the left side of the expression unmodified
         2. The rightmost toplevel field or method name after the last dot
 
@@ -364,6 +359,7 @@ class FuzzyJavaImportsResolver:
         Returns:
             A tuple of (left_part, right_part, type), e.g. ("a.b(c)", "d", <type>)
             where type is either "field", "method", or None
+
         """
         if not expr:
             return "", "", None
@@ -395,24 +391,19 @@ class FuzzyJavaImportsResolver:
         return left_part, right_part, t
 
     def get_field_type_name(self, t: TypeDefinition, field_name: str) -> str | None:
-        """
-        Parse the type definition to find the field type name
-        """
+        """Parse the type definition to find the field type name"""
         type_body = t.definition.encode("utf-8")
         type_name = self.codequery.ts.get_field_type_name(type_body, field_name)
         return type_name  # type: ignore[no-any-return]
 
     def get_method_return_type_name(self, t: TypeDefinition, method_name: str) -> str | None:
-        """
-        Parse the type definition to find the method return type name
-        """
+        """Parse the type definition to find the method return type name"""
         type_body = t.definition.encode("utf-8")
         type_name = self.codequery.ts.get_method_return_type_name(type_body, method_name)
         return type_name  # type: ignore[no-any-return]
 
     def get_type_from_file(self, file_path: Path, type_name: str) -> TypeDefinition | None:
-        """
-        Get the type definition given a type name and a file path
+        """Get the type definition given a type name and a file path
         file_path must a container path (e.g. /src/log4j-core/...)
         """
         types = self.codequery.get_types(
@@ -534,8 +525,7 @@ class FuzzyJavaImportsResolver:
         return res
 
     def try_extract_call_expr_prefix(self, caller: Function, callee_name: str) -> list[str]:
-        """
-        Try to extract all call prefixes of a function called in the caller body.
+        """Try to extract all call prefixes of a function called in the caller body.
         If the caller is:
         public void foo() {
             a.a.b(c.d.e());

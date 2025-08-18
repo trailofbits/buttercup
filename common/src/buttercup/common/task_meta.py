@@ -27,6 +27,7 @@ class TaskMeta:
         Raises:
             FileNotFoundError: If the file doesn't exist
             JSONDecodeError: If the file contains invalid JSON
+
         """
         path = Path(directory) / cls.METADATA_FILENAME
         with path.open() as f:
@@ -38,6 +39,7 @@ class TaskMeta:
 
         Args:
             directory: Directory where to save the metadata file
+
         """
         path = Path(directory) / self.METADATA_FILENAME
         with path.open("w") as f:

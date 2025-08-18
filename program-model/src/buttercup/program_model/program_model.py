@@ -85,7 +85,7 @@ class ProgramModel:
                     )
                     cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
                     logger.info(
-                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery"
+                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery",
                     )
                     span.set_status(Status(StatusCode.OK))
                 # Push it to the remote storage
@@ -127,11 +127,11 @@ class ProgramModel:
                     sanitizer=task_index.sanitizer,
                     task_dir=task_index.task_dir,
                     task_id=task_index.task_id,
-                )
+                ),
             )
             self.task_queue.ack_item(rq_item.item_id)
             logger.info(
-                f"Successfully processed task {task_index.package_name}/{task_index.task_id}/{task_index.task_dir}"
+                f"Successfully processed task {task_index.package_name}/{task_index.task_id}/{task_index.task_dir}",
             )
         else:
             logger.error(f"Failed to process task {task_index.task_id}")

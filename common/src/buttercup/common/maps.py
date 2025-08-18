@@ -55,7 +55,8 @@ class BuildMap:
 
     def _build_output_key(self, task_id: str, build_type: BuildType, san: str, internal_patch_id: str) -> str:
         return dumps(
-            [task_id, BUILD_SAN_MAP_NAME, build_type, san, internal_patch_id], json_options=CANONICAL_JSON_OPTIONS
+            [task_id, BUILD_SAN_MAP_NAME, build_type, san, internal_patch_id],
+            json_options=CANONICAL_JSON_OPTIONS,
         )
 
     def add_build(self, build: BuildOutput) -> None:
@@ -81,7 +82,11 @@ class BuildMap:
         return builds
 
     def get_build_from_san(
-        self, task_id: str, build_type: BuildType, san: str, internal_patch_id: str = ""
+        self,
+        task_id: str,
+        build_type: BuildType,
+        san: str,
+        internal_patch_id: str = "",
     ) -> BuildOutput | None:
         if internal_patch_id != "":
             assert build_type == BuildType.PATCH, "internal_patch_id is only valid for PATCH builds"

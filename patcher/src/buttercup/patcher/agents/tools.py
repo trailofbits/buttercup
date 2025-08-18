@@ -112,7 +112,9 @@ def _get_codequery_function(codequery: CodeQueryPersistent, name: str, path: Pat
 
 
 def _add_functions_code_snippets(
-    challenge: ChallengeTask, functions: list[Function], suffix: str = ""
+    challenge: ChallengeTask,
+    functions: list[Function],
+    suffix: str = "",
 ) -> list[ContextCodeSnippet]:
     return [
         ContextCodeSnippet(
@@ -131,7 +133,8 @@ def _add_functions_code_snippets(
 
 
 def _add_type_definitions_code_snippets(
-    challenge: ChallengeTask, type_definitions: list[TypeDefinition]
+    challenge: ChallengeTask,
+    type_definitions: list[TypeDefinition],
 ) -> list[ContextCodeSnippet]:
     return [
         ContextCodeSnippet(

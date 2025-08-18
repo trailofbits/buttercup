@@ -101,7 +101,7 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
                     stacktrace="test-stacktrace-1",
                 ),
                 tracer_stacktrace="test-tracer-stacktrace-1",
-            )
+            ),
         ],
     )
 
@@ -323,7 +323,10 @@ def test_code_snippet_request_parse_with_code_requests_wrapper():
 
 @patch("buttercup.common.node_local.make_locally_available")
 def test_process_item_should_process_normal_task(
-    mock_make_locally_available, redis_client, task_dir: Path, tmp_path: Path
+    mock_make_locally_available,
+    redis_client,
+    task_dir: Path,
+    tmp_path: Path,
 ):
     """Test that a normal task is processed correctly"""
     # Mock make_locally_available to return the path unchanged
@@ -365,7 +368,7 @@ def test_process_item_should_process_normal_task(
                     stacktrace="test-stacktrace-1",
                 ),
                 tracer_stacktrace="test-tracer-stacktrace-1",
-            )
+            ),
         ],
     )
 
@@ -392,7 +395,10 @@ def test_process_item_should_process_normal_task(
 
 @patch("buttercup.common.node_local.make_locally_available")
 def test_process_item_should_skip_tasks_marked_for_stopping(
-    mock_make_locally_available, redis_client, task_dir: Path, tmp_path: Path
+    mock_make_locally_available,
+    redis_client,
+    task_dir: Path,
+    tmp_path: Path,
 ):
     """Test that tasks marked for stopping (expired or cancelled) are not processed"""
     # Mock make_locally_available to return the path unchanged
@@ -427,7 +433,7 @@ def test_process_item_should_skip_tasks_marked_for_stopping(
                     stacktrace="test-stacktrace-1",
                 ),
                 tracer_stacktrace="test-tracer-stacktrace-1",
-            )
+            ),
         ],
     )
 
@@ -467,7 +473,7 @@ def test_get_successful_patch():
                     sanitizer_output="output",
                     engine="libfuzzer",
                     harness_name="test",
-                )
+                ),
             ],
         ),
     )
@@ -502,7 +508,7 @@ def test_get_successful_patch_with_validation_failure():
                     sanitizer_output="output",
                     engine="libfuzzer",
                     harness_name="test",
-                )
+                ),
             ],
         ),
     )
@@ -537,7 +543,7 @@ def test_clean_built_challenges_on_new_patch(tmp_path: Path, task_dir: Path):
                     sanitizer_output="output",
                     engine="libfuzzer",
                     harness_name="test",
-                )
+                ),
             ],
         ),
     )

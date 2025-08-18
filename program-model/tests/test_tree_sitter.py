@@ -41,7 +41,7 @@ def task_dir(tmp_path: Path) -> Path:
         "fuzzing_engines:\n"
         "  - afl\n"
         "  - honggfuzz\n"
-        "  - libfuzzer\n"
+        "  - libfuzzer\n",
     )
 
     # Create some mock patch files

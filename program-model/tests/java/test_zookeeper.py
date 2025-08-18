@@ -68,7 +68,7 @@ def test_get_functions(
                     name="dumpToLog",
                     file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
                     start_line=95,
-                )
+                ),
             ],
             1,
         ),
@@ -111,7 +111,7 @@ def test_get_callers(
                     name="logMessages",
                     file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
                     start_line=103,
-                )
+                ),
             ],
             1,
         ),

@@ -36,7 +36,10 @@ def mock_task_registry(mock_redis: MagicMock) -> MagicMock:
 def scratch_cleaner(temp_scratch_dir: Path, mock_redis: MagicMock, mock_task_registry: MagicMock) -> ScratchCleaner:
     """Create a ScratchCleaner instance with mocked dependencies."""
     cleaner = ScratchCleaner(
-        redis=mock_redis, scratch_dir=temp_scratch_dir, sleep_time=0.1, delete_old_tasks_scratch_delta_seconds=1
+        redis=mock_redis,
+        scratch_dir=temp_scratch_dir,
+        sleep_time=0.1,
+        delete_old_tasks_scratch_delta_seconds=1,
     )
     cleaner.task_registry = mock_task_registry
     return cleaner
@@ -67,7 +70,9 @@ def test_serve_item_no_expired_tasks(scratch_cleaner: ScratchCleaner, mock_task_
 
 
 def test_serve_item_expired_task_no_dir(
-    scratch_cleaner: ScratchCleaner, mock_task_registry: MagicMock, temp_scratch_dir: Path
+    scratch_cleaner: ScratchCleaner,
+    mock_task_registry: MagicMock,
+    temp_scratch_dir: Path,
 ):
     """Test serve_item when there is an expired task but no directory."""
     task = Task(task_id="test-task")
@@ -79,7 +84,9 @@ def test_serve_item_expired_task_no_dir(
 
 
 def test_serve_item_expired_task_with_dir(
-    scratch_cleaner: ScratchCleaner, mock_task_registry: MagicMock, temp_scratch_dir: Path
+    scratch_cleaner: ScratchCleaner,
+    mock_task_registry: MagicMock,
+    temp_scratch_dir: Path,
 ):
     """Test serve_item when there is an expired task with a directory."""
     task = Task(task_id="test-task")
@@ -97,7 +104,9 @@ def test_serve_item_expired_task_with_dir(
 
 
 def test_serve_item_multiple_tasks(
-    scratch_cleaner: ScratchCleaner, mock_task_registry: MagicMock, temp_scratch_dir: Path
+    scratch_cleaner: ScratchCleaner,
+    mock_task_registry: MagicMock,
+    temp_scratch_dir: Path,
 ):
     """Test serve_item with multiple tasks, some expired and some not."""
     tasks = [Task(task_id="expired-1"), Task(task_id="not-expired"), Task(task_id="expired-2")]
@@ -122,7 +131,9 @@ def test_serve_item_multiple_tasks(
 
 
 def test_serve_item_delete_failure(
-    scratch_cleaner: ScratchCleaner, mock_task_registry: MagicMock, temp_scratch_dir: Path
+    scratch_cleaner: ScratchCleaner,
+    mock_task_registry: MagicMock,
+    temp_scratch_dir: Path,
 ):
     """Test serve_item when directory deletion fails (but it should be just ignored)."""
     task = Task(task_id="test-task")

@@ -13,6 +13,7 @@ class StatusChecker:
 
         Args:
             check_interval: How often to check statuses in seconds
+
         """
         self.last_check = 0.0
         self.check_interval = check_interval
@@ -33,6 +34,7 @@ class StatusChecker:
 
         Returns:
             bool: True if the check was executed, False otherwise
+
         """
         if not self.should_check():
             return False

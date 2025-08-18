@@ -71,7 +71,7 @@ def test_get_functions(
                     name="invoke",
                     file_path="/src/commons-codec/src/main/java/org/apache/commons/codec/language/bm/PhoneticEngine.java",
                     start_line=206,
-                )
+                ),
             ],
             1,
         ),
@@ -116,7 +116,7 @@ def test_get_callers(
                     name="apply",
                     file_path="/src/commons-codec/src/main/java/org/apache/commons/codec/language/bm/PhoneticEngine.java",
                     start_line=206,
-                )
+                ),
             ],
             5,
         ),

@@ -102,7 +102,7 @@ ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
         ("system", ROOT_CAUSE_SYSTEM_MSG),
         ("user", ROOT_CAUSE_USER_MSG),
         MessagesPlaceholder(variable_name="messages"),
-    ]
+    ],
 )
 
 REFLECTION_GUIDANCE_TMPL = """
@@ -141,7 +141,10 @@ class RootCauseAgent(PatcherAgentBase):
 
         @tool(description=self._understand_code_snippet.__doc__)
         def understand_code_snippet(
-            code_snippet_id: str, focus_area: str, *, state: Annotated[BaseModel, InjectedState]
+            code_snippet_id: str,
+            focus_area: str,
+            *,
+            state: Annotated[BaseModel, InjectedState],
         ) -> str:
             assert isinstance(state, PatcherAgentState)
             return self._understand_code_snippet(state, code_snippet_id, focus_area)
@@ -208,7 +211,10 @@ class RootCauseAgent(PatcherAgentBase):
         return ""
 
     def _comment_code_snippet(
-        self, state: PatcherAgentState, stacktrace_lines: list[tuple[str, int]], code_snippet: ContextCodeSnippet
+        self,
+        state: PatcherAgentState,
+        stacktrace_lines: list[tuple[str, int]],
+        code_snippet: ContextCodeSnippet,
     ) -> str:
         """Return the string representation of the code snippet with the line numbers."""
         code = []
@@ -281,6 +287,7 @@ class RootCauseAgent(PatcherAgentBase):
                 Returns:
                     The list of diffs that were applied to the code under analysis.
                     Actual diff content must then be retrieved using the `get_diffs` tool.
+
         """
         diff_list = []
         for diff_file_path in self.challenge.get_diffs():
@@ -298,7 +305,7 @@ class RootCauseAgent(PatcherAgentBase):
   </modified_lines_range>
 </modified_file>
 </diff_file>
-"""
+""",
                 )
         return f"<diff_files>\n{'\n'.join(diff_list)}\n</diff_files>"
 
@@ -318,6 +325,7 @@ class RootCauseAgent(PatcherAgentBase):
 
         Returns:
             A string containing the diff content for the given diff file paths.
+
         """
         diff_text = ""
         for diff_path in self.challenge.get_diffs():
@@ -326,7 +334,8 @@ class RootCauseAgent(PatcherAgentBase):
         return diff_text
 
     def analyze_vulnerability(
-        self, state: PatcherAgentState
+        self,
+        state: PatcherAgentState,
     ) -> Command[Literal[PatcherAgentName.PATCH_STRATEGY.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Analyze the diff analysis and the code to understand the
         vulnerability in the current code."""
@@ -396,14 +405,14 @@ class RootCauseAgent(PatcherAgentBase):
 
 
 def get_modified_line_ranges(diff_text: str) -> list[tuple[str, list[tuple[int, int]]]]:
-    """
-    Extract file paths and modified line ranges.
+    """Extract file paths and modified line ranges.
 
     Args:
         diff_text (str): Raw unidiff patch as a string
 
     Returns:
         List[Tuple[str, List[Tuple[int, int]]]]: List of (file_path, [(start, end), ...])
+
     """
     patch = PatchSet(diff_text)
     results: list[tuple[str, list[tuple[int, int]]]] = []

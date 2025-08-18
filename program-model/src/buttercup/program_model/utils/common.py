@@ -134,7 +134,7 @@ class TypeDefinition:
                 self.definition,
                 self.definition_line,
                 self.file_path,
-            )
+            ),
         )
 
 

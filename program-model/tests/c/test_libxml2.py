@@ -32,7 +32,7 @@ from ..common import (
     const char *cur = *str;
     const char *host;
 
-    host = cur;"""
+    host = cur;""",
                 ],
             ),
         ),

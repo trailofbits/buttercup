@@ -62,7 +62,9 @@ def langfuse_auth_check() -> bool:
 
     try:
         response = requests.post(
-            f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
+            f"{langfuse_host}/api/public/ingestion",
+            timeout=2,
+            auth=(langfuse_public_key, langfuse_secret_key),
         )
         return response.status_code == 400  # expect that we authenticate, but the request is invalid
     except requests.RequestException:

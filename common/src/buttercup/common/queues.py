@@ -87,9 +87,7 @@ MsgType = TypeVar("MsgType", bound=Message)
 
 @dataclass
 class RQItem(Generic[MsgType]):
-    """
-    A single item in a reliable queue.
-    """
+    """A single item in a reliable queue."""
 
     item_id: str
     deserialized: MsgType
@@ -97,9 +95,7 @@ class RQItem(Generic[MsgType]):
 
 @dataclass
 class ReliableQueue(Generic[MsgType]):
-    """
-    A queue that is reliable and can be used to process tasks in a distributed environment.
-    """
+    """A queue that is reliable and can be used to process tasks in a distributed environment."""
 
     redis: Redis
     queue_name: str
@@ -126,7 +122,9 @@ class ReliableQueue(Generic[MsgType]):
                     pass
                 else:
                     logger.exception(
-                        "Failed to create consumer group %s for queue %s", self.group_name, self.queue_name
+                        "Failed to create consumer group %s for queue %s",
+                        self.group_name,
+                        self.queue_name,
                     )
                     pass
 
@@ -306,81 +304,126 @@ class QueueFactory:
                 POV_REPRODUCER_RESPONSES_TASK_TIMEOUT_MS,
                 [GroupNames.ORCHESTRATOR],
             ),
-        }
+        },
     )
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.BUILD], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.BUILD],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[BuildRequest]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.BUILD_OUTPUT], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.BUILD_OUTPUT],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[BuildOutput]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.DOWNLOAD_TASKS], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.DOWNLOAD_TASKS],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[TaskDownload]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.READY_TASKS], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.READY_TASKS],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[TaskReady]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.CRASH], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.CRASH],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[Crash]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.TRACED_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.TRACED_VULNERABILITIES],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[TracedCrash]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.CONFIRMED_VULNERABILITIES], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.CONFIRMED_VULNERABILITIES],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[ConfirmedVulnerability]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.DELETE_TASK], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.DELETE_TASK],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[TaskDelete]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.PATCHES], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.PATCHES],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[Patch]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.INDEX], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.INDEX],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[IndexRequest]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.INDEX_OUTPUT], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.INDEX_OUTPUT],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[IndexOutput]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.POV_REPRODUCER_REQUESTS], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.POV_REPRODUCER_REQUESTS],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[POVReproduceRequest]: ...
 
     @overload
     def create(
-        self, queue_name: Literal[QueueNames.POV_REPRODUCER_RESPONSES], group_name: GroupNames, **kwargs: Any
+        self,
+        queue_name: Literal[QueueNames.POV_REPRODUCER_RESPONSES],
+        group_name: GroupNames,
+        **kwargs: Any,
     ) -> ReliableQueue[POVReproduceResponse]: ...
 
     @overload
     def create(
-        self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
+        self,
+        queue_name: QueueNames,
+        group_name: GroupNames | None = None,
+        **kwargs: Any,
     ) -> ReliableQueue[MsgType]: ...
 
     def create(
-        self, queue_name: QueueNames, group_name: GroupNames | None = None, **kwargs: Any
+        self,
+        queue_name: QueueNames,
+        group_name: GroupNames | None = None,
+        **kwargs: Any,
     ) -> ReliableQueue[MsgType]:
         if queue_name not in self._config:
             raise ValueError(f"Invalid queue name: {queue_name}")

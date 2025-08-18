@@ -162,7 +162,7 @@ def reflection_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> Reflectio
                 sanitizer_output="sanitizer-output-mock",
                 engine="libfuzzer",
                 harness_name="mock-harness",
-            )
+            ),
         ],
     )
     return ReflectionAgent(

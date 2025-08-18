@@ -12,16 +12,20 @@ class ServeCommand(BaseSettings):
     competition_api_key_id: Annotated[str, Field(default="api_key_id", description="Competition API username")]
     competition_api_key_token: Annotated[str, Field(default="api_key_token", description="Competition API password")]
     competition_api_cycle_time: Annotated[
-        float, Field(default=10.0, description="Min seconds between competition api interactions")
+        float,
+        Field(default=10.0, description="Min seconds between competition api interactions"),
     ]
     patch_submission_retry_limit: Annotated[
-        int, Field(default=60, description="Number of retries for errored patch submissions.")
+        int,
+        Field(default=60, description="Number of retries for errored patch submissions."),
     ]
     patch_requests_per_vulnerability: Annotated[
-        int, Field(default=1, description="Number of patch requests per vulnerability")
+        int,
+        Field(default=1, description="Number of patch requests per vulnerability"),
     ]
     concurrent_patch_requests_per_task: Annotated[
-        int, Field(default=12, description="Number of concurrent patch requests per task")
+        int,
+        Field(default=12, description="Number of concurrent patch requests per task"),
     ]
 
     class Config:

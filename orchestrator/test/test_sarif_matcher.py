@@ -131,7 +131,7 @@ class TestSarifMatcher(unittest.TestCase):
 
         # Add a logical location with the exact function name
         modified_sarif["runs"][0]["results"][0]["locations"][0]["logicalLocations"] = [
-            {"name": "OSS_FUZZ_png_handle_iCCP"}
+            {"name": "OSS_FUZZ_png_handle_iCCP"},
         ]
         sarif_broadcast.sarif = modified_sarif
 

@@ -104,7 +104,7 @@ def test_post_task_unauthorized(client: TestClient) -> None:
                 source=[SourceDetail(sha256="test_sha256", type=SourceType.SourceTypeRepo, url="test_url")],
                 task_id=str(uuid4()),
                 type=TaskType.TaskTypeFull,
-            )
+            ),
         ],
     )
     response = client.post("/v1/task/", json=jsonable_encoder(task))
@@ -138,7 +138,7 @@ def test_post_task_authorized(client: TestClient) -> None:
                 ],
                 task_id=str(uuid4()),
                 type=TaskType.TaskTypeFull,
-            )
+            ),
         ],
     )
     response = client.post("/v1/task/", json=jsonable_encoder(task), auth=(settings.api_key_id, settings.api_token))

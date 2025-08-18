@@ -21,7 +21,10 @@ DEFAULT_WEIGHT = 1.0
 
 
 def loop(
-    output_queue: ReliableQueue, target_list: HarnessWeights, build_map: BuildMap, sleep_time_seconds: int
+    output_queue: ReliableQueue,
+    target_list: HarnessWeights,
+    build_map: BuildMap,
+    sleep_time_seconds: int,
 ) -> None:
     while True:
         time.sleep(sleep_time_seconds)
@@ -48,7 +51,7 @@ def loop(
                         harness_name=os.path.basename(tgt),
                         package_name=deser_output.package_name,
                         task_id=deser_output.task_id,
-                    )
+                    ),
                 )
             output_queue.ack_item(output.item_id)
 

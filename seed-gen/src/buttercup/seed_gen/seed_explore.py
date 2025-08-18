@@ -44,7 +44,9 @@ class SeedExploreTask(SeedBaseTask):
             "retrieved_context": state.format_retrieved_context(),
         }
         generated_functions = self._generate_python_funcs_base(
-            PYTHON_SEED_EXPLORE_SYSTEM_PROMPT, PYTHON_SEED_EXPLORE_USER_PROMPT, prompt_vars
+            PYTHON_SEED_EXPLORE_SYSTEM_PROMPT,
+            PYTHON_SEED_EXPLORE_USER_PROMPT,
+            prompt_vars,
         )
         return Command(update={"generated_functions": generated_functions})
 
@@ -67,7 +69,10 @@ class SeedExploreTask(SeedBaseTask):
         return res
 
     def generate_seeds(
-        self, harness: HarnessInfo, target_function: CodeSnippet, output_dir: Path
+        self,
+        harness: HarnessInfo,
+        target_function: CodeSnippet,
+        output_dir: Path,
     ) -> None:
         """Generate seeds"""
 
@@ -80,7 +85,7 @@ class SeedExploreTask(SeedBaseTask):
         workflow = self._build_workflow(SeedExploreState)
         llm_callbacks = get_langfuse_callbacks()
         chain = workflow.compile().with_config(
-            RunnableConfig(tags=["seed-explore"], callbacks=llm_callbacks)
+            RunnableConfig(tags=["seed-explore"], callbacks=llm_callbacks),
         )
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span("seed_gen_explore") as span:
@@ -96,7 +101,10 @@ class SeedExploreTask(SeedBaseTask):
             chain.invoke(state)  # type: ignore[arg-type]
 
     def do_task(
-        self, target_function_name: str, target_function_paths: list[Path], output_dir: Path
+        self,
+        target_function_name: str,
+        target_function_paths: list[Path],
+        output_dir: Path,
     ) -> None:
         """Do seed-explore task"""
         logger.info(
@@ -115,7 +123,8 @@ class SeedExploreTask(SeedBaseTask):
             logger.error("No function definition found for %s", target_function_name)
             return
         function_snippet = CodeSnippet(
-            file_path=function_def.file_path, code=function_def.bodies[0].body
+            file_path=function_def.file_path,
+            code=function_def.bodies[0].body,
         )
 
         harness = self.get_harness_source()
@@ -131,5 +140,7 @@ class SeedExploreTask(SeedBaseTask):
             self.generate_seeds(harness, function_snippet, output_dir)
         except Exception as err:
             logger.exception(
-                "Failed seed-explore for challenge %s: %s", self.package_name, str(err)
+                "Failed seed-explore for challenge %s: %s",
+                self.package_name,
+                str(err),
             )

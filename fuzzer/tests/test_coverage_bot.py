@@ -231,7 +231,7 @@ def test_should_update_function_coverage_worse_coverage(redis_client):
 def test_submit_function_coverage(coverage_bot, redis_client):
     # Create test data
     func_coverage = [
-        CoveredFunction(names="test_function", total_lines=100, covered_lines=75, function_paths=["path1", "path2"])
+        CoveredFunction(names="test_function", total_lines=100, covered_lines=75, function_paths=["path1", "path2"]),
     ]
     harness_name = "test_harness"
     package_name = "test_package"

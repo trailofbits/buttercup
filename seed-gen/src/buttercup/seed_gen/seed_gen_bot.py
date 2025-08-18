@@ -76,10 +76,14 @@ class SeedGenBot(TaskLoop):
 
         Returns:
             The selected task name
+
         """
         # Check if seed-init has been run enough times
         seed_init_count = self.task_counter.get_count(
-            task.harness_name, task.package_name, task.task_id, TaskName.SEED_INIT.value
+            task.harness_name,
+            task.package_name,
+            task.task_id,
+            TaskName.SEED_INIT.value,
         )
 
         if seed_init_count < self.MIN_SEED_INIT_RUNS:
@@ -88,12 +92,15 @@ class SeedGenBot(TaskLoop):
 
         # Check if vuln-discovery has been run enough times
         vuln_discovery_count = self.task_counter.get_count(
-            task.harness_name, task.package_name, task.task_id, TaskName.VULN_DISCOVERY.value
+            task.harness_name,
+            task.package_name,
+            task.task_id,
+            TaskName.VULN_DISCOVERY.value,
         )
 
         if vuln_discovery_count < self.MIN_VULN_DISCOVERY_RUNS:
             logger.info(
-                f"vuln-discovery has only been run {vuln_discovery_count} times, forcing task"
+                f"vuln-discovery has only been run {vuln_discovery_count} times, forcing task",
             )
             return TaskName.VULN_DISCOVERY.value
 
@@ -116,7 +123,9 @@ class SeedGenBot(TaskLoop):
         return str(result[0]) if result else ""
 
     def run_task(
-        self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]
+        self,
+        task: WeightedHarness,
+        builds: dict[BuildTypeHint, list[BuildOutput]],
     ) -> None:
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
@@ -128,7 +137,7 @@ class SeedGenBot(TaskLoop):
             ro_challenge_task.get_rw_copy(work_dir=temp_dir_str) as challenge_task,
         ):
             logger.info(
-                f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}"
+                f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}",
             )
             temp_dir = Path(temp_dir_str)
             logger.debug(f"Temp dir: {temp_dir}")
@@ -160,7 +169,10 @@ class SeedGenBot(TaskLoop):
 
             # Increment the counter for this task run
             self.task_counter.increment(
-                task.harness_name, task.package_name, task.task_id, task_choice
+                task.harness_name,
+                task.package_name,
+                task.task_id,
+                task_choice,
             )
 
             if task_choice == TaskName.SEED_INIT.value:
@@ -242,5 +254,5 @@ class SeedGenBot(TaskLoop):
             copied_files = corp.copy_corpus(out_dir)
             logger.info("Copied %d files to corpus %s", len(copied_files), corp.corpus_dir)
             logger.info(
-                f"Seed-gen finished for {task.harness_name} | {task.package_name} | {task.task_id}"
+                f"Seed-gen finished for {task.harness_name} | {task.package_name} | {task.task_id}",
             )

@@ -116,6 +116,7 @@ class PoVReproduceStatus:
 
         Returns:
             False if mitigated (didn't crash), True if non-mitigated (did crash), None if not in final states
+
         """
         pipeline = self.redis.pipeline()
         pipeline.sismember(POV_REPRODUCE_MITIGATED_SET_NAME, key)
@@ -144,6 +145,7 @@ class PoVReproduceStatus:
 
         Returns:
             None if pending, POVReproduceResponse if completed
+
         """
         key = self._make_key(request)
 
@@ -177,6 +179,7 @@ class PoVReproduceStatus:
 
         Returns:
             True if the item was moved from pending to mitigated, False if item wasn't pending.
+
         """
         key = self._make_key(request)
         moved_count = self.redis.smove(POV_REPRODUCE_PENDING_SET_NAME, POV_REPRODUCE_MITIGATED_SET_NAME, key)
@@ -190,6 +193,7 @@ class PoVReproduceStatus:
 
         Returns:
             True if the item was moved from pending to non-mitigated, False if item wasn't pending.
+
         """
         key = self._make_key(request)
         moved_count = self.redis.smove(POV_REPRODUCE_PENDING_SET_NAME, POV_REPRODUCE_NON_MITIGATED_SET_NAME, key)
@@ -203,6 +207,7 @@ class PoVReproduceStatus:
 
         Returns:
             True if the item was moved from pending to expired, False if item wasn't pending.
+
         """
         # NOTE: This function isn't strictly needed. We could just have keys expire after a certain time.
         # However, this allows us to track which items have expired.
@@ -215,6 +220,7 @@ class PoVReproduceStatus:
 
         Returns:
             POVReproduceRequest if one is available, None otherwise
+
         """
         pending_set = self.redis.smembers(POV_REPRODUCE_PENDING_SET_NAME)
         if len(pending_set) == 0:

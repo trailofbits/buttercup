@@ -70,7 +70,7 @@ class TracerBot:
                 TracedCrash(
                     crash=item.deserialized,
                     tracer_stacktrace=ntrace,
-                )
+                ),
             )
 
         logger.info(f"Acknowledging tracer request for {item.deserialized.target.task_id}")

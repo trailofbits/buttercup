@@ -252,7 +252,14 @@ class DatabaseManager:
 
     # POV operations
     def create_pov(
-        self, *, task_id: str, architecture: str, engine: str, fuzzer_name: str, sanitizer: str, testcase: bytes
+        self,
+        *,
+        task_id: str,
+        architecture: str,
+        engine: str,
+        fuzzer_name: str,
+        sanitizer: str,
+        testcase: bytes,
     ) -> POV:
         """Create a new POV."""
         with self.get_session() as session:

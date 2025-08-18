@@ -33,7 +33,10 @@ class MaxLengthFormatter(logging.Formatter):
 
 
 def setup_package_logger(
-    application_name: str, logger_name: str, log_level: str = "info", max_line_length: int | None = None
+    application_name: str,
+    logger_name: str,
+    log_level: str = "info",
+    max_line_length: int | None = None,
 ) -> logging.Logger:
     global _is_initialized
 
@@ -50,7 +53,7 @@ def setup_package_logger(
                 "service.name": application_name,
                 "service.instance.id": service_instance_id,
                 "crs.instance.id": crs_instance_id,
-            }
+            },
         )
 
         # Initialize the LoggerProvider with the created resource.

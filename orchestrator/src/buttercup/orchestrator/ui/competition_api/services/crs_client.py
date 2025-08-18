@@ -16,14 +16,14 @@ class CRSClient:
         self.password = password
 
     def submit_task(self, task: Task) -> bool:
-        """
-        Submit a task to the CRS via POST /v1/task endpoint
+        """Submit a task to the CRS via POST /v1/task endpoint
 
         Args:
             task: Task object to submit
 
         Returns:
             True if successful, False otherwise
+
         """
         url = f"{self.crs_base_url}/v1/task/"
 
@@ -55,9 +55,7 @@ class CRSClient:
             return False
 
     def submit_sarif_broadcast(self, broadcast: SARIFBroadcast) -> bool:
-        """
-        Submit a SARIF Broadcast to the CRS via POST /v1/sarif/ endpoint
-        """
+        """Submit a SARIF Broadcast to the CRS via POST /v1/sarif/ endpoint"""
         url = f"{self.crs_base_url}/v1/sarif/"
 
         # Prepare authentication if provided
@@ -81,7 +79,7 @@ class CRSClient:
                 return True
             else:
                 logger.error(
-                    f"Failed to submit SARIF Broadcasts to CRS. Status: {response.status_code}, Response: {response.text}"
+                    f"Failed to submit SARIF Broadcasts to CRS. Status: {response.status_code}, Response: {response.text}",
                 )
                 return False
 
@@ -90,11 +88,11 @@ class CRSClient:
             return False
 
     def ping(self) -> bool:
-        """
-        Test connectivity to CRS via GET /status/ endpoint
+        """Test connectivity to CRS via GET /status/ endpoint
 
         Returns:
             True if CRS is reachable and ready, False otherwise
+
         """
         url = f"{self.crs_base_url}/status/"
 

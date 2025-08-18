@@ -58,7 +58,12 @@ class Runner:
             # Temporary directory ignores crashes
             with scratch_dir() as td:
                 engine.minimize_corpus(
-                    conf.target_path, [], [conf.corpus_dir], output_dir, str(td.path), self.conf.timeout
+                    conf.target_path,
+                    [],
+                    [conf.corpus_dir],
+                    output_dir,
+                    str(td.path),
+                    self.conf.timeout,
                 )
 
 

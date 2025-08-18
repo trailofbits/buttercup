@@ -254,7 +254,7 @@ def mock_task_registry():
             "round.id": "round-1",
             "task.id": "task-1",
             "team.id": "team-1",
-        }
+        },
     }
 
     # Configure the mock to return the mock task for any task_id
@@ -397,7 +397,8 @@ class TestCompetitionAPI:
 
         # Setup API response
         mock_response = TypesPOVSubmissionResponse(
-            status=TypesSubmissionStatus.SubmissionStatusAccepted, pov_id="test-pov-123"
+            status=TypesSubmissionStatus.SubmissionStatusAccepted,
+            pov_id="test-pov-123",
         )
 
         # Setup API client mock
@@ -455,7 +456,7 @@ class TestCompetitionAPI:
         # Setup mock
         mock_pov_api = Mock()
         mock_pov_api.v1_task_task_id_pov_pov_id_get.return_value = Mock(
-            status=TypesSubmissionStatus.SubmissionStatusPassed
+            status=TypesSubmissionStatus.SubmissionStatusPassed,
         )
 
         # Patch the PovApi constructor
@@ -475,7 +476,8 @@ class TestCompetitionAPI:
 
         # Setup mock response
         mock_response = TypesPatchSubmissionResponse(
-            status=TypesSubmissionStatus.SubmissionStatusAccepted, patch_id="patch-123"
+            status=TypesSubmissionStatus.SubmissionStatusAccepted,
+            patch_id="patch-123",
         )
 
         # Setup patch API mock
@@ -501,7 +503,7 @@ class TestCompetitionAPI:
         # Setup mock
         mock_patch_api = Mock()
         mock_patch_api.v1_task_task_id_patch_patch_id_get.return_value = Mock(
-            status=TypesSubmissionStatus.SubmissionStatusPassed
+            status=TypesSubmissionStatus.SubmissionStatusPassed,
         )
 
         # Patch the PatchApi constructor
@@ -511,7 +513,8 @@ class TestCompetitionAPI:
 
             # Verify call and result
             mock_patch_api.v1_task_task_id_patch_patch_id_get.assert_called_once_with(
-                task_id="task-123", patch_id="patch-456"
+                task_id="task-123",
+                patch_id="patch-456",
             )
             assert status == SubmissionResult.PASSED
 
@@ -523,7 +526,8 @@ class TestCompetitionAPI:
 
         # Setup mock response
         mock_response = TypesBundleSubmissionResponse(
-            status=TypesSubmissionStatus.SubmissionStatusAccepted, bundle_id="bundle-123"
+            status=TypesSubmissionStatus.SubmissionStatusAccepted,
+            bundle_id="bundle-123",
         )
 
         # Setup bundle API mock
@@ -561,7 +565,8 @@ class TestCompetitionAPI:
 
         # Patch the BroadcastSarifAssessmentApi constructor
         with patch(
-            "buttercup.orchestrator.scheduler.submissions.BroadcastSarifAssessmentApi", return_value=mock_sarif_api
+            "buttercup.orchestrator.scheduler.submissions.BroadcastSarifAssessmentApi",
+            return_value=mock_sarif_api,
         ):
             # Call method
             result = competition_api.submit_matching_sarif(task_id, sarif_id)
@@ -954,7 +959,7 @@ class TestSubmissions:
                 stacktrace="unique_pattern_crash1",
                 harness_name="harness1",
             )
-            .build()
+            .build(),
         ]
 
         # Create a new crash with different pattern
@@ -966,7 +971,7 @@ class TestSubmissions:
         # Mock the crash comparison functions to return non-matching data
         mock_get_crash_data, mock_get_inst_key, mock_crash_comparer_init, mock_is_similar = (
             create_crash_comparison_mocks(
-                []  # No patterns are similar
+                [],  # No patterns are similar
             )
         )
 
@@ -1049,7 +1054,7 @@ class TestSubmissions:
             SubmissionEntryBuilder()
             .crash(task_id="task-1")
             .patch(internal_patch_id="patch-1", patch_content="patch content 1")
-            .build()
+            .build(),
         ]
 
         # Test finding non-existent patch
@@ -1274,7 +1279,13 @@ class TestSubmissions:
         ],
     )
     def test_find_matching_build_output_parametrized_no_match(
-        self, submissions, engine, sanitizer, build_type, apply_diff, description
+        self,
+        submissions,
+        engine,
+        sanitizer,
+        build_type,
+        apply_diff,
+        description,
     ):
         """Test that _find_matching_build_output requires exact match on all fields (parametrized)."""
 
@@ -1822,7 +1833,9 @@ class TestSubmissions:
                 result=SubmissionResult.FAILED,
             )  # FAILED - ineligible
             .crash(
-                task_id="test-task", crash_input_path="/path/to/empty_pov_id.bin", competition_pov_id=""
+                task_id="test-task",
+                crash_input_path="/path/to/empty_pov_id.bin",
+                competition_pov_id="",
             )  # Empty string - eligible
             .crash(
                 task_id="test-task",
@@ -2000,7 +2013,7 @@ class TestSubmissions:
             SubmissionEntryBuilder()
             .crash(task_id="cancelled-task")
             .patch(internal_patch_id="patch-in-cancelled", patch_content="patch content in cancelled")
-            .build()
+            .build(),
         ]
 
         # Mock task registry to indicate task should stop processing
@@ -3074,13 +3087,14 @@ class TestSubmissions:
         entry.patches.extend(
             [
                 SubmissionEntryPatch(
-                    internal_patch_id="patch-1", patch="content-1"
+                    internal_patch_id="patch-1",
+                    patch="content-1",
                 ),  # Already processed (before patch_idx)
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding (at patch_idx)
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch="content-3"),  # Completed (after patch_idx)
                 SubmissionEntryPatch(internal_patch_id="patch-4", patch=""),  # Outstanding (after patch_idx)
                 SubmissionEntryPatch(internal_patch_id="patch-5", patch="content-5"),  # Completed (after patch_idx)
-            ]
+            ],
         )
         entry.patch_idx = 1  # Start reordering from index 1
 
@@ -3114,7 +3128,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding 2
                 SubmissionEntryPatch(internal_patch_id="patch-4", patch="content-4"),  # Completed 2
                 SubmissionEntryPatch(internal_patch_id="patch-5", patch=""),  # Outstanding 3
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3153,7 +3167,7 @@ class TestSubmissions:
             [
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),
-            ]
+            ],
         )
         entry.patch_idx = 5  # Beyond patches list
 
@@ -3174,7 +3188,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),  # Completed
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Completed
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch="content-3"),  # Completed
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3195,7 +3209,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3216,7 +3230,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch="content-1"),  # Processed
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Processed
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Current (outstanding)
-            ]
+            ],
         )
         entry.patch_idx = 2
 
@@ -3239,7 +3253,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding (will receive content)
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch="content-3"),  # Already completed
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3274,7 +3288,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding (will receive content)
                 SubmissionEntryPatch(internal_patch_id="patch-4", patch=""),  # Outstanding
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3304,7 +3318,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Processed (no content)
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Current (will receive content)
                 SubmissionEntryPatch(internal_patch_id="patch-4", patch=""),  # Outstanding
-            ]
+            ],
         )
         entry.patch_idx = 2  # Start from patch-3
 
@@ -3334,7 +3348,7 @@ class TestSubmissions:
             [
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch="existing-content"),  # Already has content
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch=""),  # Outstanding
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3378,7 +3392,7 @@ class TestSubmissions:
                 SubmissionEntryPatch(internal_patch_id="patch-1", patch=""),  # Outstanding
                 SubmissionEntryPatch(internal_patch_id="patch-2", patch="content-2"),  # Completed (should be processed)
                 SubmissionEntryPatch(internal_patch_id="patch-3", patch=""),  # Outstanding
-            ]
+            ],
         )
         entry.patch_idx = 0
 
@@ -3435,7 +3449,8 @@ class TestSubmissions:
                 )
                 .patch(internal_patch_id="source1-patch-1", patch_content="")  # Outstanding (will be copied)
                 .patch(
-                    internal_patch_id="source1-patch-2", patch_content="source1 content 2"
+                    internal_patch_id="source1-patch-2",
+                    patch_content="source1 content 2",
                 )  # Completed (will be copied)
                 .patch(internal_patch_id="source1-patch-3", patch_content="")  # Outstanding (will be copied)
                 .patch_idx(1)  # Start copying from index 1
@@ -3450,7 +3465,8 @@ class TestSubmissions:
                     harness_name="source2_harness",
                 )
                 .patch(
-                    internal_patch_id="source2-patch-1", patch_content="source2 content 1"
+                    internal_patch_id="source2-patch-1",
+                    patch_content="source2 content 1",
                 )  # Completed (will be copied)
                 .patch(internal_patch_id="source2-patch-2", patch_content="")  # Outstanding (will be copied)
                 .patch_idx(0)  # Start copying from index 0
@@ -3590,7 +3606,8 @@ class TestStateTransitions:
 
         # Verify status was updated
         mock_competition_api.get_pov_status.assert_called_once_with(
-            entry.crashes[0].crash.crash.target.task_id, "test-pov-123"
+            entry.crashes[0].crash.crash.target.task_id,
+            "test-pov-123",
         )
         assert entry.crashes[0].result == SubmissionResult.PASSED
 
@@ -3653,7 +3670,10 @@ class TestStateTransitions:
                 assert len(entry.patches) == 0  # No patches should be added
 
     def test_patch_request_proceeds_when_no_mitigation_wait_needed(
-        self, submissions, sample_submission_entry, mock_competition_api
+        self,
+        submissions,
+        sample_submission_entry,
+        mock_competition_api,
     ):
         """Test that patch request proceeds when _should_wait_for_patch_mitigation_merge returns False"""
         # Create entry with passed POV that needs patch using the builder
@@ -3969,7 +3989,8 @@ class TestStateTransitions:
 
             # Verify patch was submitted
             mock_competition_api.submit_patch.assert_called_once_with(
-                entry.crashes[0].crash.crash.target.task_id, "test patch content"
+                entry.crashes[0].crash.crash.target.task_id,
+                "test patch content",
             )
             assert entry.patches[0].competition_patch_id == "test-patch-456"
             assert entry.patches[0].result == SubmissionResult.ACCEPTED
@@ -4000,7 +4021,8 @@ class TestStateTransitions:
 
         # Verify status was updated
         mock_competition_api.get_patch_status.assert_called_once_with(
-            entry.crashes[0].crash.crash.target.task_id, "test-patch-456"
+            entry.crashes[0].crash.crash.target.task_id,
+            "test-patch-456",
         )
         assert entry.patches[0].result == SubmissionResult.PASSED
 
@@ -4042,7 +4064,11 @@ class TestStateTransitions:
 
     @pytest.mark.parametrize("failed_status", [SubmissionResult.FAILED, SubmissionResult.INCONCLUSIVE])
     def test_patch_submission_advancement_on_failed_or_inconclusive(
-        self, submissions, sample_submission_entry, mock_competition_api, failed_status
+        self,
+        submissions,
+        sample_submission_entry,
+        mock_competition_api,
+        failed_status,
     ):
         """Test that patch index advances when patch submission fails or is inconclusive
 
@@ -4084,7 +4110,8 @@ class TestStateTransitions:
 
             # Verify patch submission was attempted with the failed status
             mock_competition_api.submit_patch.assert_called_once_with(
-                entry.crashes[0].crash.crash.target.task_id, "test patch 1"
+                entry.crashes[0].crash.crash.target.task_id,
+                "test patch 1",
             )
 
             # Verify patch index was advanced and first patch has the failed status
@@ -4093,7 +4120,10 @@ class TestStateTransitions:
             assert entry.patch_submission_attempts == 0  # Reset for new patch
 
     def test_patch_submission_advancement_inconclusive_update_status(
-        self, submissions, sample_submission_entry, mock_competition_api
+        self,
+        submissions,
+        sample_submission_entry,
+        mock_competition_api,
     ):
         """Test that patch index advances when patch status update returns INCONCLUSIVE
 
@@ -4132,7 +4162,8 @@ class TestStateTransitions:
 
         # Verify patch status was checked
         mock_competition_api.get_patch_status.assert_called_once_with(
-            entry.crashes[0].crash.crash.target.task_id, "test-patch-456"
+            entry.crashes[0].crash.crash.target.task_id,
+            "test-patch-456",
         )
 
         # Verify patch index was advanced and first patch has INCONCLUSIVE status
@@ -4176,7 +4207,8 @@ class TestStateTransitions:
 
             # Verify patch submission was attempted
             mock_competition_api.submit_patch.assert_called_once_with(
-                entry.crashes[0].crash.crash.target.task_id, "test patch 1"
+                entry.crashes[0].crash.crash.target.task_id,
+                "test patch 1",
             )
 
             # Verify the else branch behavior: status recorded, no index advancement
@@ -4186,7 +4218,11 @@ class TestStateTransitions:
 
     @pytest.mark.parametrize("unknown_status", [SubmissionResult.NONE])
     def test_patch_submission_else_branch_edge_cases(
-        self, submissions, sample_submission_entry, mock_competition_api, unknown_status
+        self,
+        submissions,
+        sample_submission_entry,
+        mock_competition_api,
+        unknown_status,
     ):
         """Test the else branch with edge case statuses like NONE
 
@@ -4252,7 +4288,10 @@ class TestStateTransitions:
 
         # Verify bundle was created
         mock_competition_api.submit_bundle.assert_called_once_with(
-            entry.crashes[0].crash.crash.target.task_id, "test-pov-123", "test-patch-456", ""
+            entry.crashes[0].crash.crash.target.task_id,
+            "test-pov-123",
+            "test-patch-456",
+            "",
         )
         assert len(entry.bundles) == 1
         assert entry.bundles[0].bundle_id == "test-bundle-789"
@@ -4417,7 +4456,9 @@ class TestRecordPatchedBuild:
 
         # Verify persistence was called
         submissions.redis.lset.assert_called_once_with(
-            submissions.SUBMISSIONS, 0, submissions.entries[0].SerializeToString()
+            submissions.SUBMISSIONS,
+            0,
+            submissions.entries[0].SerializeToString(),
         )
 
     def test_record_patched_build_multiple_outputs(self, submissions, sample_submission_entry):
@@ -5855,11 +5896,15 @@ class TestFailedPOVFiltering:
             # Submission 1: Mix of statuses
             SubmissionEntryBuilder()
             .crash(
-                task_id="task-1", crash_input_path="/path/to/crash1.bin", result=SubmissionResult.PASSED
+                task_id="task-1",
+                crash_input_path="/path/to/crash1.bin",
+                result=SubmissionResult.PASSED,
             )  # Active - will be mitigated
             .crash(task_id="task-1", crash_input_path="/path/to/crash2.bin", result=SubmissionResult.FAILED)  # Ignored
             .crash(
-                task_id="task-1", crash_input_path="/path/to/crash3.bin", result=SubmissionResult.ACCEPTED
+                task_id="task-1",
+                crash_input_path="/path/to/crash3.bin",
+                result=SubmissionResult.ACCEPTED,
             )  # Active - will not be mitigated
             .build(),
             # Submission 2: Only failed POVs
@@ -5870,13 +5915,19 @@ class TestFailedPOVFiltering:
             # Submission 3: Mix with different active POV behavior
             SubmissionEntryBuilder()
             .crash(
-                task_id="task-1", crash_input_path="/path/to/crash6.bin", result=SubmissionResult.PASSED
+                task_id="task-1",
+                crash_input_path="/path/to/crash6.bin",
+                result=SubmissionResult.PASSED,
             )  # Active - will not be mitigated
             .crash(
-                task_id="task-1", crash_input_path="/path/to/crash7.bin", result=SubmissionResult.DEADLINE_EXCEEDED
+                task_id="task-1",
+                crash_input_path="/path/to/crash7.bin",
+                result=SubmissionResult.DEADLINE_EXCEEDED,
             )  # Ignored
             .crash(
-                task_id="task-1", crash_input_path="/path/to/crash8.bin", result=SubmissionResult.ACCEPTED
+                task_id="task-1",
+                crash_input_path="/path/to/crash8.bin",
+                result=SubmissionResult.ACCEPTED,
             )  # Active - will be mitigated
             .build(),
         ]

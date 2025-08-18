@@ -64,7 +64,8 @@ def add_or_mod_patch(patches: list[PatchAttempt], patch: PatchAttempt | list[Pat
 
 
 def add_code_snippet(
-    existing_code_snippets: set[ContextCodeSnippet], new_code_snippets: set[ContextCodeSnippet]
+    existing_code_snippets: set[ContextCodeSnippet],
+    new_code_snippets: set[ContextCodeSnippet],
 ) -> set[ContextCodeSnippet]:
     """Add a code snippet to the list."""
     res = list(existing_code_snippets)
@@ -422,7 +423,7 @@ UNDERSTAND_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", UNDERSTAND_CODE_SNIPPET_SYSTEM_MSG),
         ("user", UNDERSTAND_CODE_SNIPPET_USER_MSG),
-    ]
+    ],
 )
 
 
@@ -470,6 +471,7 @@ class PatcherAgentBase:
 
         Raises:
             ValueError: If the code snippet with the given identifier is not found
+
         """
         code_snippet = next((cs for cs in state.relevant_code_snippets if cs.key.identifier == code_snippet_id), None)
         if not code_snippet:
@@ -479,7 +481,7 @@ class PatcherAgentBase:
             {
                 "CODE": code_snippet.code,
                 "FOCUS_AREA": focus_area,
-            }
+            },
         )
         # Extract description from response
         match = re.search(r"<description>(.*?)</description>", res, re.DOTALL | re.IGNORECASE)

@@ -326,7 +326,7 @@ def update_dashboard_stats(database_manager: DatabaseManager) -> None:
             "totalPovs": total_povs,
             "totalPatches": total_patches,
             "totalBundles": total_bundles,
-        }
+        },
     )
 
 
@@ -399,7 +399,10 @@ def task_to_task_info(task: Task) -> TaskInfo:
 
 
 def _create_task(
-    challenge: Challenge, challenge_service: ChallengeService, crs_client: CRSClient, database_manager: DatabaseManager
+    challenge: Challenge,
+    challenge_service: ChallengeService,
+    crs_client: CRSClient,
+    database_manager: DatabaseManager,
 ) -> Message | Error:
     try:
         # Create task for the challenge
@@ -447,11 +450,11 @@ def _create_task(
 
 
 def _create_sarif_broadcast(
-    body: dict[str, Any], challenge_service: ChallengeService, crs_client: CRSClient
+    body: dict[str, Any],
+    challenge_service: ChallengeService,
+    crs_client: CRSClient,
 ) -> Message | Error:
-    """
-    Create a SARIF Broadcast
-    """
+    """Create a SARIF Broadcast"""
     if "task_id" not in body:
         return Error(message="Task ID is required")
     task_id = body["task_id"]
@@ -469,17 +472,13 @@ def _create_sarif_broadcast(
 
 @app.get("/v1/ping/", response_model=PingResponse, tags=["ping"])
 def get_v1_ping_() -> PingResponse:
-    """
-    Test authentication creds and network connectivity
-    """
+    """Test authentication creds and network connectivity"""
     return PingResponse(status="pong")
 
 
 @app.get("/v1/crs-ping/", tags=["ping"])
 def get_v1_crs_ping_(crs_client: CRSClient = Depends(get_crs_client)) -> dict:
-    """
-    Test connectivity to CRS
-    """
+    """Test connectivity to CRS"""
     crs_ready = crs_client.ping()
     return {
         "crs_ready": crs_ready,
@@ -490,9 +489,7 @@ def get_v1_crs_ping_(crs_client: CRSClient = Depends(get_crs_client)) -> dict:
 # Dashboard endpoints
 @app.get("/", response_class=HTMLResponse, tags=["dashboard"])
 def get_dashboard() -> HTMLResponse:
-    """
-    Serve the main dashboard HTML page
-    """
+    """Serve the main dashboard HTML page"""
     static_dir = Path(__file__).parent.parent / "static"
     html_file = static_dir / "index.html"
 
@@ -504,18 +501,14 @@ def get_dashboard() -> HTMLResponse:
 
 @app.get("/v1/dashboard/stats", response_model=DashboardStats, tags=["dashboard"])
 def get_dashboard_stats(database_manager: DatabaseManager = Depends(get_database_manager)) -> DashboardStats:
-    """
-    Get dashboard statistics
-    """
+    """Get dashboard statistics"""
     update_dashboard_stats(database_manager)
     return DashboardStats(**dashboard_stats)
 
 
 @app.get("/v1/dashboard/config", tags=["dashboard"])
 def get_dashboard_config() -> dict:
-    """
-    Get dashboard configuration including instance ID
-    """
+    """Get dashboard configuration including instance ID"""
     return {
         "crs_instance_id": crs_instance_id,
     }
@@ -523,9 +516,7 @@ def get_dashboard_config() -> dict:
 
 @app.get("/v1/dashboard/tasks", response_model=list[TaskInfo], tags=["dashboard"])
 def get_dashboard_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[TaskInfo]:
-    """
-    Get list of all tasks for dashboard
-    """
+    """Get list of all tasks for dashboard"""
     update_dashboard_stats(database_manager)
     with database_manager.get_all_tasks() as tasks:
         tasks_list = []
@@ -539,9 +530,7 @@ def get_dashboard_tasks(database_manager: DatabaseManager = Depends(get_database
 
 @app.get("/v1/dashboard/tasks/{task_id}", response_model=TaskInfo, tags=["dashboard"])
 def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> TaskInfo:
-    """
-    Get detailed information about a specific task
-    """
+    """Get detailed information about a specific task"""
     with database_manager.get_task(task_id) as task:
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -561,9 +550,7 @@ def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends
     tags=["request"],
 )
 def get_v1_request_list_() -> RequestListResponse | Error:
-    """
-    Get a list of available challenges to task
-    """
+    """Get a list of available challenges to task"""
     return RequestListResponse(challenges=[c.name for c in challenges if c.name is not None])
 
 
@@ -585,9 +572,7 @@ def post_v1_request_challenge_name(
     crs_client: CRSClient = Depends(get_crs_client),
     database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> Message | Error:
-    """
-    Send a task to the source of this request
-    """
+    """Send a task to the source of this request"""
     if challenge_name not in [c.name for c in challenges]:
         return Error(message=f"Challenge {challenge_name} not found")
 
@@ -614,13 +599,13 @@ def post_v1_request_challenge_name(
     tags=["broadcast-sarif-assessment"],
 )
 def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
-    task_id: str, broadcast_sarif_id: str, body: SarifAssessmentSubmission
+    task_id: str,
+    broadcast_sarif_id: str,
+    body: SarifAssessmentSubmission,
 ) -> SarifAssessmentResponse | Error:
-    """
-    Submit a SARIF Assessment
-    """
+    """Submit a SARIF Assessment"""
     logger.info(
-        f"SARIF Assessment submission - Task: {task_id}, Broadcast SARIF ID: {broadcast_sarif_id}, Assessment: {body.assessment}, Description: {body.description[:100]}..."
+        f"SARIF Assessment submission - Task: {task_id}, Broadcast SARIF ID: {broadcast_sarif_id}, Assessment: {body.assessment}, Description: {body.description[:100]}...",
     )
     return SarifAssessmentResponse(status=SubmissionStatus.SubmissionStatusAccepted)
 
@@ -637,11 +622,11 @@ def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
     tags=["bundle"],
 )
 def post_v1_task_task_id_bundle_(
-    task_id: str, body: BundleSubmission, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    body: BundleSubmission,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> BundleSubmissionResponse | Error:
-    """
-    Submit Bundle
-    """
+    """Submit Bundle"""
     logger.info(f"Bundle submission - Task: {task_id}")
     logger.debug(f"Bundle details: {json.dumps(body.model_dump(), indent=2)}")
 
@@ -672,11 +657,11 @@ def post_v1_task_task_id_bundle_(
     tags=["bundle"],
 )
 def get_v1_task_task_id_bundle_bundle_id_(
-    task_id: str, bundle_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    bundle_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> BundleSubmissionResponseVerbose | Error:
-    """
-    Get Bundle
-    """
+    """Get Bundle"""
     logger.info(f"Bundle retrieval - Task: {task_id}, Bundle ID: {bundle_id}")
     with database_manager.get_bundle(bundle_id, task_id) as bundle:
         if bundle is None:
@@ -706,11 +691,11 @@ def get_v1_task_task_id_bundle_bundle_id_(
     tags=["bundle"],
 )
 def delete_v1_task_task_id_bundle_bundle_id_(
-    task_id: str, bundle_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    bundle_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> str | Error | None:
-    """
-    Delete Bundle
-    """
+    """Delete Bundle"""
     logger.info(f"Bundle deletion - Task: {task_id}, Bundle ID: {bundle_id}")
     with database_manager.get_bundle(bundle_id, task_id) as bundle:
         if bundle is None:
@@ -739,9 +724,7 @@ def patch_v1_task_task_id_bundle_bundle_id_(
     body: BundleSubmission,
     database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> BundleSubmissionResponseVerbose | Error:
-    """
-    Update Bundle
-    """
+    """Update Bundle"""
     logger.info(f"Bundle update - Task: {task_id}, Bundle ID: {bundle_id}")
     logger.info(f"Updated bundle details: {json.dumps(body.model_dump(), indent=2)}")
 
@@ -783,9 +766,7 @@ def patch_v1_task_task_id_bundle_bundle_id_(
     tags=["freeform"],
 )
 def post_v1_task_task_id_freeform_(task_id: str, body: FreeformSubmission) -> FreeformResponse | Error:
-    """
-    Submit Freeform
-    """
+    """Submit Freeform"""
     freeform_id = str(uuid.uuid4())
     logger.info(f"Freeform submission - Task: {task_id}, Freeform ID: {freeform_id}")
     logger.info(f"Freeform submission size: {len(body.submission)} bytes")
@@ -804,11 +785,11 @@ def post_v1_task_task_id_freeform_(task_id: str, body: FreeformSubmission) -> Fr
     tags=["patch"],
 )
 def post_v1_task_task_id_patch_(
-    task_id: str, body: PatchSubmission, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    body: PatchSubmission,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> PatchSubmissionResponse | Error:
-    """
-    Submit Patch
-    """
+    """Submit Patch"""
     logger.info(f"Patch submission - Task: {task_id}")
     logger.debug(f"Patch details: {json.dumps(body.model_dump(), indent=2)}")
 
@@ -819,7 +800,9 @@ def post_v1_task_task_id_patch_(
     save_patch(task_id, patch.patch_id, body.patch)
 
     return PatchSubmissionResponse(
-        patch_id=patch.patch_id, status=SubmissionStatus.SubmissionStatusAccepted, functionality_tests_passing=None
+        patch_id=patch.patch_id,
+        status=SubmissionStatus.SubmissionStatusAccepted,
+        functionality_tests_passing=None,
     )
 
 
@@ -835,18 +818,20 @@ def post_v1_task_task_id_patch_(
     tags=["patch"],
 )
 def get_v1_task_task_id_patch_patch_id_(
-    task_id: str, patch_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    patch_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> PatchSubmissionResponse | Error:
-    """
-    Patch Status
-    """
+    """Patch Status"""
     logger.info(f"Patch status check - Task: {task_id}, Patch ID: {patch_id}")
     with database_manager.get_patch(patch_id, task_id) as patch:
         if patch is None:
             return Error(message=f"Patch {patch_id} not found")
 
     return PatchSubmissionResponse(
-        patch_id=patch_id, status=SubmissionStatus.SubmissionStatusPassed, functionality_tests_passing=True
+        patch_id=patch_id,
+        status=SubmissionStatus.SubmissionStatusPassed,
+        functionality_tests_passing=True,
     )
 
 
@@ -862,14 +847,14 @@ def get_v1_task_task_id_patch_patch_id_(
     tags=["pov"],
 )
 def post_v1_task_task_id_pov_(
-    task_id: str, body: POVSubmission, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    body: POVSubmission,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> POVSubmissionResponse | Error:
-    """
-    Submit Vulnerability
-    """
+    """Submit Vulnerability"""
     logger.info(f"POV submission - Task: {task_id}")
     logger.debug(
-        f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}"
+        f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}",
     )
 
     with database_manager.get_task(task_id) as task:
@@ -901,11 +886,11 @@ def post_v1_task_task_id_pov_(
     tags=["pov"],
 )
 def get_v1_task_task_id_pov_pov_id_(
-    task_id: str, pov_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    pov_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> POVSubmissionResponse | Error:
-    """
-    Vulnerability Status
-    """
+    """Vulnerability Status"""
     logger.info(f"POV status check - Task: {task_id}, POV ID: {pov_id}")
     with database_manager.get_pov(pov_id, task_id) as pov:
         if pov is None:
@@ -926,9 +911,7 @@ def get_v1_task_task_id_pov_pov_id_(
     tags=["submitted-sarif"],
 )
 def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission) -> SARIFSubmissionResponse | Error:
-    """
-    Submit a CRS generated SARIF
-    """
+    """Submit a CRS generated SARIF"""
     submitted_sarif_id = str(uuid.uuid4())
     logger.info(f"SARIF submission - Task: {task_id}, Submitted SARIF ID: {submitted_sarif_id}")
     logger.info(f"SARIF content: {json.dumps(body.sarif, indent=2)}")
@@ -936,17 +919,17 @@ def post_v1_task_task_id_submitted_sarif_(task_id: str, body: SARIFSubmission) -
     save_sarif(task_id, submitted_sarif_id, body.sarif)
 
     return SARIFSubmissionResponse(
-        submitted_sarif_id=submitted_sarif_id, status=SubmissionStatus.SubmissionStatusPassed
+        submitted_sarif_id=submitted_sarif_id,
+        status=SubmissionStatus.SubmissionStatusPassed,
     )
 
 
 @app.get("/files/{tarball_name}.tar.gz", tags=["files"])
 def get_tarball(
-    tarball_name: str, challenge_service: ChallengeService = Depends(get_challenge_service)
+    tarball_name: str,
+    challenge_service: ChallengeService = Depends(get_challenge_service),
 ) -> FileResponse:
-    """
-    Serve tarball files for CRS download
-    """
+    """Serve tarball files for CRS download"""
     try:
         return challenge_service.serve_tarball(tarball_name)
     except Exception as e:
@@ -961,9 +944,7 @@ def trigger_task(
     crs_client: CRSClient = Depends(get_crs_client),
     database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> Message | Error:
-    """
-    Trigger a task
-    """
+    """Trigger a task"""
     logger.info(f"Triggering task: {body.model_dump()}")
     return _create_task(body, challenge_service, crs_client, database_manager)
 
@@ -974,9 +955,7 @@ def trigger_sarif(
     challenge_service: ChallengeService = Depends(get_challenge_service),
     crs_client: CRSClient = Depends(get_crs_client),
 ) -> Message | Error:
-    """
-    Trigger a SARIF Broadcast
-    """
+    """Trigger a SARIF Broadcast"""
     logger.info(f"Triggering SARIF Broadcast: {json.dumps(body, indent=2)}")
     return _create_sarif_broadcast(body, challenge_service, crs_client)
 
@@ -984,7 +963,9 @@ def trigger_sarif(
 # Download endpoints for PoVs, Patches, and Bundles
 @app.get("/v1/dashboard/tasks/{task_id}/povs/{pov_id}/download", tags=["dashboard"])
 def download_pov(
-    task_id: str, pov_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    pov_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> Response:
     """Download a PoV testcase"""
     with database_manager.get_pov(pov_id, task_id) as pov:
@@ -1000,7 +981,9 @@ def download_pov(
 
 @app.get("/v1/dashboard/tasks/{task_id}/patches/{patch_id}/download", tags=["dashboard"])
 def download_patch(
-    task_id: str, patch_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    patch_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> Response:
     """Download a patch"""
     with database_manager.get_patch(patch_id, task_id) as patch:
@@ -1016,7 +999,9 @@ def download_patch(
 
 @app.get("/v1/dashboard/tasks/{task_id}/bundles/{bundle_id}/download", tags=["dashboard"])
 def download_bundle(
-    task_id: str, bundle_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    task_id: str,
+    bundle_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> Response:
     """Download a bundle as JSON"""
     with database_manager.get_bundle(bundle_id, task_id) as bundle:
@@ -1052,7 +1037,8 @@ def get_pov_detail(pov_id: str, database_manager: DatabaseManager = Depends(get_
 
 @app.get("/v1/dashboard/patches/{patch_id}", tags=["dashboard"])
 def get_patch_detail(
-    patch_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    patch_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> dict[str, Any]:
     """Get detailed information about a specific patch"""
     with database_manager.get_patch(patch_id) as patch:
@@ -1069,7 +1055,8 @@ def get_patch_detail(
 
 @app.get("/v1/dashboard/bundles/{bundle_id}", tags=["dashboard"])
 def get_bundle_detail(
-    bundle_id: str, database_manager: DatabaseManager = Depends(get_database_manager)
+    bundle_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
 ) -> dict[str, Any]:
     """Get detailed information about a specific bundle"""
     with database_manager.get_bundle(bundle_id) as bundle:
@@ -1098,7 +1085,7 @@ def get_all_povs(database_manager: DatabaseManager = Depends(get_database_manage
                     "task_id": pov.task_id,
                     "task_name": pov.task.name or pov.task.project_name,
                     "pov": pov_dict,
-                }
+                },
             )
 
     all_povs.sort(key=lambda x: x["pov"].get("timestamp", ""), reverse=True)
@@ -1118,7 +1105,7 @@ def get_all_patches(database_manager: DatabaseManager = Depends(get_database_man
                     "task_id": patch.task_id,
                     "task_name": patch.task.name or patch.task.project_name,
                     "patch": patch_dict,
-                }
+                },
             )
 
     # Sort by timestamp descending

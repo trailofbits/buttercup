@@ -24,11 +24,11 @@ def get_redis() -> Redis:
 
 @lru_cache
 def get_task_queue() -> ReliableQueue:
-    """
-    Get a ReliableQueue instance for task messages.
+    """Get a ReliableQueue instance for task messages.
 
     Returns:
         ReliableQueue: Queue for task messages
+
     """
     logger.debug(f"Connecting to task queue at {QueueNames.DOWNLOAD_TASKS}")
     return QueueFactory(get_redis()).create(QueueNames.DOWNLOAD_TASKS)
@@ -36,21 +36,21 @@ def get_task_queue() -> ReliableQueue:
 
 @lru_cache
 def get_delete_task_queue() -> ReliableQueue:
-    """
-    Get a ReliableQueue instance for task deletion messages.
+    """Get a ReliableQueue instance for task deletion messages.
 
     Returns:
         ReliableQueue: Queue for task deletion messages
+
     """
     logger.debug(f"Connecting to delete task queue at {QueueNames.DELETE_TASK}")
     return QueueFactory(get_redis()).create(QueueNames.DELETE_TASK)
 
 
 def get_sarif_store() -> SARIFStore:
-    """
-    Get a SARIFStore instance for SARIF storage and retrieval.
+    """Get a SARIFStore instance for SARIF storage and retrieval.
 
     Returns:
         SARIFStore: Store for SARIF objects
+
     """
     return SARIFStore(get_redis())
