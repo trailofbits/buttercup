@@ -67,7 +67,7 @@ def task_dir(tmp_path: Path) -> Path:
         metadata={"task_id": "test-task-id-1", "round_id": "testing", "team_id": "tob"},
     ).save(task_dir)
 
-    yield task_dir
+    return task_dir
 
 
 @patch("buttercup.common.node_local.make_locally_available")

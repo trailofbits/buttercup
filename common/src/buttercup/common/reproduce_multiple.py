@@ -1,8 +1,8 @@
 import contextlib
 import logging
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
 from buttercup.common.datastructures.msg_pb2 import BuildOutput

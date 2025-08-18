@@ -1,6 +1,6 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Iterator
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, get_subcommand
@@ -23,7 +23,7 @@ class BuildFuzzersCommand(BaseModel):
     architecture: str | None = None
     engine: str | None = None
     sanitizer: str | None = None
-    env: Dict[str, str] | None = None
+    env: dict[str, str] | None = None
     use_cache: bool = True
 
 
@@ -31,7 +31,7 @@ class CheckBuildCommand(BaseModel):
     architecture: str | None = None
     engine: str | None = None
     sanitizer: str | None = None
-    env: Dict[str, str] | None = None
+    env: dict[str, str] | None = None
 
 
 class ReproducePovCommand(BaseModel):
@@ -39,7 +39,7 @@ class ReproducePovCommand(BaseModel):
     crash_path: Path
     fuzzer_args: list[str] | None = None
     architecture: str | None = None
-    env: Dict[str, str] | None = None
+    env: dict[str, str] | None = None
 
 
 class Settings(BaseSettings):

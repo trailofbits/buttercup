@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from redis import Redis
 
@@ -32,7 +31,7 @@ class POVReproducer:
         self.registry = TaskRegistry(self.redis)
 
     def serve_item(self) -> bool:
-        entry: Optional[POVReproduceRequest] = self.pov_status.get_one_pending()
+        entry: POVReproduceRequest | None = self.pov_status.get_one_pending()
         if entry is None:
             return False
 
@@ -55,7 +54,7 @@ class POVReproducer:
         logger.info(f"Reproducing POV for {task_id} | {harness_name} | {pov_path}")
 
         builds = BuildMap(self.redis)
-        build_output_with_patch: Optional[BuildOutput] = builds.get_build_from_san(
+        build_output_with_patch: BuildOutput | None = builds.get_build_from_san(
             task_id,
             BuildType.PATCH,
             sanitizer,

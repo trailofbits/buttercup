@@ -112,7 +112,7 @@ class CoverageRunner:
             return None
 
         # parse the jacoco file
-        with open(jacoco_path, "r") as f:
+        with open(jacoco_path) as f:
             soup = BeautifulSoup(f, "xml")
             covered_functions = []
             for target_class in soup.find_all("class"):

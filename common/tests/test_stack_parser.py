@@ -1,5 +1,5 @@
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 from unittest.mock import MagicMock
 
 import pytest
@@ -92,7 +92,7 @@ def test_get_crash_data_invalid():
 
 
 def test_java_stacktrace(java_crash_testcase: Path):
-    with open(java_crash_testcase, "r") as f:
+    with open(java_crash_testcase) as f:
         trace = f.read()
 
     crash_state = get_crash_data(trace)
@@ -101,7 +101,7 @@ def test_java_stacktrace(java_crash_testcase: Path):
 
 
 def test_c_stacktrace(c_crash_testcase: Path):
-    with open(c_crash_testcase, "r") as f:
+    with open(c_crash_testcase) as f:
         trace = f.read()
 
     crash_state = get_crash_data(trace)
@@ -113,7 +113,7 @@ def test_c_stacktrace(c_crash_testcase: Path):
 
 
 def test_c_instrumentation_key(c_crash_testcase: Path):
-    with open(c_crash_testcase, "r") as f:
+    with open(c_crash_testcase) as f:
         trace = f.read()
 
     inst_key = get_inst_key(trace)
@@ -122,7 +122,7 @@ def test_c_instrumentation_key(c_crash_testcase: Path):
 
 
 def test_java_instrumentation_key(java_crash_testcase: Path):
-    with open(java_crash_testcase, "r") as f:
+    with open(java_crash_testcase) as f:
         trace = f.read()
 
     inst_key = get_inst_key(trace)

@@ -10,7 +10,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
@@ -39,7 +39,7 @@ class ChallengeService:
         repo_url: str,
         ref: str,
         tarball_name: str,
-        exclude_dirs: Optional[list[str]] = None,
+        exclude_dirs: list[str] | None = None,
         base_ref: str | None = None,
     ) -> tuple[str, str, str | None]:
         """

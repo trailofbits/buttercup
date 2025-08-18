@@ -1,10 +1,10 @@
 import base64
 import logging
 import uuid
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Callable, Iterator, List, Set, Tuple
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -250,7 +250,7 @@ class CompetitionAPI:
         """
         return dict(self.task_registry.get(task_id).metadata)
 
-    def submit_pov(self, crash: TracedCrash) -> Tuple[str | None, SubmissionResult]:
+    def submit_pov(self, crash: TracedCrash) -> tuple[str | None, SubmissionResult]:
         """
         Submit a vulnerability (POV) to the competition API.
 
@@ -333,7 +333,7 @@ class CompetitionAPI:
         response = PovApi(api_client=self.api_client).v1_task_task_id_pov_pov_id_get(task_id=task_id, pov_id=pov_id)
         return _map_submission_status_to_result(response.status)
 
-    def submit_patch(self, task_id: str, patch: str) -> Tuple[str | None, SubmissionResult]:
+    def submit_patch(self, task_id: str, patch: str) -> tuple[str | None, SubmissionResult]:
         """
         Submit a patch to the competition API.
 
@@ -407,7 +407,7 @@ class CompetitionAPI:
 
     def submit_bundle(
         self, task_id: str, pov_id: str, patch_id: str, sarif_id: str
-    ) -> Tuple[str | None, SubmissionResult]:
+    ) -> tuple[str | None, SubmissionResult]:
         """
         Submit a bundle (vulnerability + patch).
 
@@ -462,7 +462,7 @@ class CompetitionAPI:
 
     def patch_bundle(
         self, task_id: str, bundle_id: str, pov_id: str, patch_id: str, sarif_id: str
-    ) -> Tuple[bool, SubmissionResult]:
+    ) -> tuple[bool, SubmissionResult]:
         """
         Submit a bundle patch with SARIF association.
 
@@ -553,7 +553,7 @@ class CompetitionAPI:
                 span.set_status(Status(StatusCode.ERROR))
                 return False
 
-    def submit_matching_sarif(self, task_id: str, sarif_id: str) -> Tuple[bool, SubmissionResult]:
+    def submit_matching_sarif(self, task_id: str, sarif_id: str) -> tuple[bool, SubmissionResult]:
         """
         Submit a matching assessment for a SARIF report.
 
@@ -684,9 +684,9 @@ class Submissions:
     patch_submission_retry_limit: int = 60
     patch_requests_per_vulnerability: int = 1
     concurrent_patch_requests_per_task: int = 12
-    entries: List[SubmissionEntry] = field(init=False)
+    entries: list[SubmissionEntry] = field(init=False)
     sarif_store: SARIFStore = field(init=False)
-    matched_sarifs: Set[str] = field(default_factory=set)
+    matched_sarifs: set[str] = field(default_factory=set)
     build_requests_queue: ReliableQueue[BuildRequest] = field(init=False)
     pov_reproduce_status: PoVReproduceStatus = field(init=False)
 
@@ -706,12 +706,12 @@ class Submissions:
         self.matched_sarifs.add(sarif_id)
         redis.sadd(self.MATCHED_SARIFS, sarif_id)
 
-    def _get_matched_sarifs(self, redis: Redis) -> Set[str]:
+    def _get_matched_sarifs(self, redis: Redis) -> set[str]:
         """Get all matched SARIF IDs from Redis."""
         matched_sarifs = redis.smembers(self.MATCHED_SARIFS)
         return set(matched_sarifs)
 
-    def _get_stored_submissions(self) -> List[SubmissionEntry]:
+    def _get_stored_submissions(self) -> list[SubmissionEntry]:
         """Get all stored submissions from Redis."""
         submissions_data = self.redis.lrange(self.SUBMISSIONS, 0, -1)
         return [SubmissionEntry.FromString(raw) for raw in submissions_data]
@@ -741,7 +741,7 @@ class Submissions:
                 continue
             yield i, e
 
-    def _find_patch(self, internal_patch_id: str) -> Tuple[int, SubmissionEntry, SubmissionEntryPatch] | None:
+    def _find_patch(self, internal_patch_id: str) -> tuple[int, SubmissionEntry, SubmissionEntryPatch] | None:
         """Find a patch by its internal patch id."""
         for i, e in self._enumerate_submissions():
             for patch in e.patches:
@@ -1385,7 +1385,7 @@ class Submissions:
             i, e, redis, competition_pov_id, competition_patch_id=current_patch.competition_patch_id
         )
 
-    def _get_available_sarifs_for_matching(self, task_id: str) -> List[SARIFBroadcastDetail]:
+    def _get_available_sarifs_for_matching(self, task_id: str) -> list[SARIFBroadcastDetail]:
         """Get SARIFs that are available for matching for the given task.
 
         Returns SARIFs for the task that haven't been used in any existing bundles.
@@ -1557,8 +1557,8 @@ class Submissions:
         return True
 
     def _pov_reproduce_patch_status(
-        self, patch: SubmissionEntryPatch, crashes: List[CrashWithId], task_id: str
-    ) -> List[POVReproduceResponse | None]:
+        self, patch: SubmissionEntryPatch, crashes: list[CrashWithId], task_id: str
+    ) -> list[POVReproduceResponse | None]:
         result = []
         for crash_with_id in crashes:
             if crash_with_id.result in [
@@ -1581,7 +1581,7 @@ class Submissions:
 
         return result
 
-    def _pov_reproduce_status_request(self, e: SubmissionEntry, patch_idx: int) -> List[POVReproduceResponse | None]:
+    def _pov_reproduce_status_request(self, e: SubmissionEntry, patch_idx: int) -> list[POVReproduceResponse | None]:
         patch = e.patches[patch_idx]
         task_id = _task_id(e)
         return self._pov_reproduce_patch_status(patch, e.crashes, task_id)

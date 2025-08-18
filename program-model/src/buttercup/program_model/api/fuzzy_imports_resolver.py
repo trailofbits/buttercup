@@ -1,7 +1,6 @@
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.utils.common import Function, TypeDefinition
@@ -27,10 +26,10 @@ class FuzzyCImportsResolver:
         # The source code directory to find imports in. This is typically the task src dir
         self.root_dir = root_dir
         # Cache of file imports to avoid re-parsing files
-        self.direct_imports_cache: Dict[Path, Set[Path]] = {}
-        self.all_imports_cache: Dict[Path, Set[Path]] = {}
+        self.direct_imports_cache: dict[Path, set[Path]] = {}
+        self.all_imports_cache: dict[Path, set[Path]] = {}
         # Internal variable used while resolving imports
-        self._tmp_imports: Set[Path] = set()
+        self._tmp_imports: set[Path] = set()
 
     def _normalize_path(self, path: Path | str) -> Path:
         """Normalize a path into an absolute path"""
@@ -49,7 +48,7 @@ class FuzzyCImportsResolver:
             path = (self.root_dir / path).resolve()
         return path
 
-    def _find_file_in_codebase(self, import_name: str, origin_file: Path) -> Optional[Path]:
+    def _find_file_in_codebase(self, import_name: str, origin_file: Path) -> Path | None:
         """
         Find the actual file path for an imported file name.
         This method handles different include styles:
@@ -80,7 +79,7 @@ class FuzzyCImportsResolver:
 
         return None
 
-    def get_direct_imports(self, file_path: Path) -> Set[Path]:
+    def get_direct_imports(self, file_path: Path) -> set[Path]:
         """
         Parse a file for import statements and try to resolve them
         to actual files present in the codebase.
@@ -131,7 +130,7 @@ class FuzzyCImportsResolver:
             print(f"Error parsing {file_path}: {e}")
             return set()
 
-    def get_all_imports(self, file_path: Path, depth: Optional[int] = None) -> Set[Path]:
+    def get_all_imports(self, file_path: Path, depth: int | None = None) -> set[Path]:
         """
         Recursively get all files imported by a given file.
 
@@ -151,7 +150,7 @@ class FuzzyCImportsResolver:
         self.all_imports_cache[file_path] = self._tmp_imports
         return self._tmp_imports
 
-    def _get_all_imports_recursive(self, file_path: Path, depth: Optional[int], current_depth: int = 0) -> None:
+    def _get_all_imports_recursive(self, file_path: Path, depth: int | None, current_depth: int = 0) -> None:
         """
         Recursive helper for get_all_imports.
 
@@ -287,7 +286,7 @@ class FuzzyJavaImportsResolver:
     def get_package_from_file(self, file_path: Path) -> str | None:
         """Get the package name from a file path"""
         # Parse lines to find one that starts with "package"
-        with open(self._normalize_path(file_path), "r") as f:
+        with open(self._normalize_path(file_path)) as f:
             for line in f.readlines():
                 if line.startswith("package"):
                     return line.split(" ")[1].strip()
@@ -425,7 +424,7 @@ class FuzzyJavaImportsResolver:
         # Return first type found
         return types[0]  # type: ignore[no-any-return]
 
-    def filter_callees(self, caller_function: Function, callees: List[Function]) -> List[Function]:
+    def filter_callees(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         callee_groups = defaultdict(list)
         for callee in callees:
             callee_groups[callee.name].append(callee)
@@ -473,7 +472,7 @@ class FuzzyJavaImportsResolver:
 
         return res
 
-    def filter_callees2(self, caller_function: Function, callees: List[Function]) -> List[Function]:
+    def filter_callees2(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         callee_groups = defaultdict(list)
         for callee in callees:
             callee_groups[callee.name].append(callee)
@@ -565,7 +564,7 @@ class FuzzyJavaImportsResolver:
         ['a.b.c']"""
         import_pattern = r"import\s+([\w.]+);"
         res = []
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             for line in f.readlines():
                 # Find all matches in the code
                 matches = re.findall(import_pattern, line)

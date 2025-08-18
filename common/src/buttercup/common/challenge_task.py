@@ -9,12 +9,13 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cached_property, wraps
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from packaging.version import Version
 
@@ -366,7 +367,7 @@ class ChallengeTask:
         return current_line
 
     def _run_cmd(
-        self, cmd: list[str], cwd: Path | None = None, log: bool = True, env_helper: Dict[str, str] | None = None
+        self, cmd: list[str], cwd: Path | None = None, log: bool = True, env_helper: dict[str, str] | None = None
     ) -> CommandResult:
         try:
             if env_helper:
@@ -421,7 +422,7 @@ class ChallengeTask:
             logger.exception(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
             return CommandResult(success=False, returncode=None, error=str(e).encode(), output=None)
 
-    def _run_helper_cmd(self, cmd: list[str], env_helper: Dict[str, str] | None = None) -> CommandResult:
+    def _run_helper_cmd(self, cmd: list[str], env_helper: dict[str, str] | None = None) -> CommandResult:
         oss_fuzz_subpath = self.get_oss_fuzz_subpath()
         if oss_fuzz_subpath is None:
             raise ChallengeTaskError("OSS-Fuzz path not found")
@@ -570,8 +571,8 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
-        env_helper: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
@@ -616,8 +617,8 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
-        env: Dict[str, str] | None = None,
-        env_helper: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
         if check_build_res.success:
@@ -645,7 +646,7 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         env_helper = {
             "OSS_FUZZ_SAVE_CONTAINERS_NAME": container_name,
@@ -668,7 +669,7 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Checking build for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
@@ -697,7 +698,7 @@ class ChallengeTask:
         fuzzer_args: list[str] | None = None,
         *,
         architecture: str | None = ARCHITECTURE,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> ReproduceResult:
         logger.info(
             "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
@@ -745,7 +746,7 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
@@ -780,7 +781,7 @@ class ChallengeTask:
         harness_name: str,
         corpus_dir: str,
         architecture: str | None = ARCHITECTURE,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Running coverage for project %s | harness_name=%s | corpus_dir=%s | architecture=%s | env=%s",

@@ -22,7 +22,7 @@ class TestSarifMatcher(unittest.TestCase):
 
     def load_sarif_broadcast(self) -> SARIFBroadcastDetail:
         """Test that we can load a SARIF broadcast from the file."""
-        with open(self.sarif_broadcast_path, "r") as f:
+        with open(self.sarif_broadcast_path) as f:
             sarif_json = f.read()
             sarif_broadcast = SARIFBroadcastDetail.model_validate_json(sarif_json)
 

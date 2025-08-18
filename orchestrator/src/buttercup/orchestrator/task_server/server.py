@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import importlib.metadata
-from typing import Annotated, Optional
+from typing import Annotated
 from uuid import UUID
 
 from argon2 import PasswordHasher, Type
@@ -216,7 +216,7 @@ def post_v1_task_(
     credentials: Annotated[HTTPBasicCredentials, Depends(check_auth)],
     body: Task,
     tasks_queue: Annotated[ReliableQueue, Depends(get_task_queue)],
-) -> Optional[str]:
+) -> str | None:
     """
     Submit Task
     """

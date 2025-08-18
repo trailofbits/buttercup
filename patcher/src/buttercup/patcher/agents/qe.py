@@ -763,7 +763,7 @@ class QEAgent(PatcherAgentBase):
             try:
                 result = subprocess.run(
                     [str(identifier_bin), "--language", language.value.lower(), "--path", str(abs_path)],
-                    capture_output=True,
+                    check=False, capture_output=True,
                     text=True,
                     timeout=60,
                 )

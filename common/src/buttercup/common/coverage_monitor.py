@@ -369,7 +369,7 @@ class CoverageMonitor:
             list_only: If True, only list the available harnesses without analyzing.
         """
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 coverage_snapshots = json.load(f)
 
             if not coverage_snapshots:

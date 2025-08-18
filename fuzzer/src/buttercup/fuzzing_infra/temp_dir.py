@@ -2,8 +2,8 @@ import contextvars
 import logging
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 from unittest.mock import patch
 
 from clusterfuzz._internal.system import environment, shell

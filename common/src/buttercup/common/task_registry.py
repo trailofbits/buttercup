@@ -1,7 +1,8 @@
+import builtins
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Iterator, Set
 
 from google.protobuf import text_format
 from redis import Redis
@@ -184,7 +185,7 @@ class TaskRegistry:
         # Decode bytes to strings if needed
         return [task_id.decode("utf-8") if isinstance(task_id, bytes) else task_id for task_id in cancelled_ids]
 
-    def should_stop_processing(self, task_or_id: str | Task, cancelled_ids: Set[str] | None = None) -> bool:
+    def should_stop_processing(self, task_or_id: str | Task, cancelled_ids: builtins.set[str] | None = None) -> bool:
         """Check if a task should no longer be processed due to cancellation or expiration.
 
         Args:

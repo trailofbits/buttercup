@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import BinaryIO, List
+from typing import BinaryIO
 
 from redis import Redis
 
@@ -99,7 +99,7 @@ class InputDir:
         return len(name) == 64 and all(c in "0123456789abcdef" for c in name)
 
     @classmethod
-    def hash_corpus(cls, path: str) -> List[str]:
+    def hash_corpus(cls, path: str) -> list[str]:
         hashed_files = []
         for file in os.listdir(path):
             # If the file is already a hash, skip it

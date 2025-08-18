@@ -3,9 +3,9 @@
 import os
 import shutil
 import subprocess
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -374,7 +374,7 @@ def libpng_agent(example_libpng_oss_fuzz_task: ChallengeTask, tmp_path: Path) ->
 @pytest.fixture
 def mock_patch_input(mock_challenge: ChallengeTask) -> Iterator[PatchInput]:
     """Create a mock PatchInput instance."""
-    yield PatchInput(
+    return PatchInput(
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
         internal_patch_id="1",

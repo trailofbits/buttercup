@@ -1,7 +1,6 @@
 import logging
 import random
 from pathlib import Path
-from typing import List
 
 from clusterfuzz.fuzz import engine
 from opentelemetry import trace
@@ -45,7 +44,7 @@ class FuzzerBot(TaskLoop):
         self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER]
 
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:

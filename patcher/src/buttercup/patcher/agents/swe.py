@@ -517,7 +517,7 @@ class SWEAgent(PatcherAgentBase):
             try:
                 result = subprocess.run(
                     ["git", "diff", "--no-index", "--binary", str(orig_file.name), str(new_file.name)],
-                    capture_output=True,
+                    check=False, capture_output=True,
                     text=True,
                     cwd=temp_dir_path,
                     timeout=30,

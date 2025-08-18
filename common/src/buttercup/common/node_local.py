@@ -4,10 +4,11 @@ import os
 import shutil
 import tarfile
 import tempfile
+from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Iterator, TypeAlias
+from typing import Any, TypeAlias
 
 logger = logging.getLogger(__name__)
 

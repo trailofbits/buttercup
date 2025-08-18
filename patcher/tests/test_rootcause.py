@@ -3,8 +3,8 @@
 import os
 import shutil
 import subprocess
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -195,7 +195,7 @@ def root_cause_agent(mock_challenge: ChallengeTask, mock_llm: MagicMock, tmp_pat
         chain_call=lambda _, runnable, args, config, default: runnable.invoke(args, config=config),
     )
     agent.root_cause_chain = MagicMock()
-    yield agent
+    return agent
 
 
 @pytest.fixture

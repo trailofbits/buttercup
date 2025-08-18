@@ -4,7 +4,6 @@ import tempfile
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import requests
 from redis import Redis
@@ -62,7 +61,7 @@ class Downloader:
         """Creates and returns the directory path for a task"""
         return self.download_dir / task_id
 
-    def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Optional[Path]:
+    def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Path | None:
         """Downloads a source file and verifies its SHA256"""
         try:
             filepath = tmp_task_dir / str(uuid.uuid4())

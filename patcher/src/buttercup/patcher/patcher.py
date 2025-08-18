@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import reduce
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 from langchain_community.cache import SQLiteCache
 from langchain_core.globals import set_llm_cache

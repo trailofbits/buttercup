@@ -5,7 +5,6 @@ import random
 import shutil
 from dataclasses import dataclass
 from os import PathLike
-from typing import List
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -200,7 +199,7 @@ class MergerBot:
         self.builds = BuildMap(redis)
         self.max_local_files = max_local_files
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER]
 
     def _run_merge_operation(

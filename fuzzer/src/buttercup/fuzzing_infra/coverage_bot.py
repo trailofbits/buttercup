@@ -2,9 +2,9 @@ import logging
 import os
 import random
 import shutil
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import Generator, List
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -53,7 +53,7 @@ class CoverageBot(TaskLoop):
         logger.info(f"Coverage bot initialized with sample_size: {sample_size}")
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.COVERAGE]
 
     @contextmanager

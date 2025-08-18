@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass, field
 from itertools import groupby
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import rapidfuzz
 from opentelemetry import trace
@@ -132,7 +132,7 @@ class CodeQuery:
 
     challenge: ChallengeTask
     ts: CodeTS = field(init=False)
-    imports_resolver: Optional[FuzzyCImportsResolver | FuzzyJavaImportsResolver] = field(init=False)
+    imports_resolver: FuzzyCImportsResolver | FuzzyJavaImportsResolver | None = field(init=False)
 
     CSCOPE_FILES: ClassVar[str] = "cscope.files"
     CSCOPE_OUT: ClassVar[str] = "cscope.out"

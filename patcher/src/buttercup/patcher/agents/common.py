@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
-from collections.abc import Sequence
 
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser

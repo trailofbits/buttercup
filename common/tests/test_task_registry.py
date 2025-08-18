@@ -1,5 +1,4 @@
 import time
-from typing import Set
 from unittest.mock import Mock, patch
 
 import pytest
@@ -433,7 +432,7 @@ def test_get_cancelled_task_ids(task_registry, redis_client):
 def test_should_stop_processing_with_cancelled_ids(task_registry, redis_client):
     """Test that should_stop_processing handles cancelled_ids correctly."""
     # Create a set of cancelled IDs
-    cancelled_ids: Set[str] = {"cancelled-task-1", "cancelled-task-2"}
+    cancelled_ids: set[str] = {"cancelled-task-1", "cancelled-task-2"}
 
     # Create tasks to test with
     current_time = int(time.time())

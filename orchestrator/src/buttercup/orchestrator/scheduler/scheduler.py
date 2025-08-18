@@ -2,7 +2,6 @@ import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Union
 
 from redis import Redis
 
@@ -55,7 +54,7 @@ class Scheduler:
     build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
     task_registry: TaskRegistry | None = field(init=False, default=None)
-    cached_cancelled_ids: Set[str] = field(init=False, default_factory=set)
+    cached_cancelled_ids: set[str] = field(init=False, default_factory=set)
     status_checker: StatusChecker | None = field(init=False, default=None)
     patches_queue: ReliableQueue | None = field(init=False, default=None)
     traced_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
@@ -80,7 +79,7 @@ class Scheduler:
 
         return len(self.cached_cancelled_ids) > 0
 
-    def should_stop_processing(self, task_or_id: Union[str, Task]) -> bool:
+    def should_stop_processing(self, task_or_id: str | Task) -> bool:
         """Check if a task should no longer be processed due to cancellation or expiration.
 
         Wrapper around the registry.should_stop_processing method that uses the cached

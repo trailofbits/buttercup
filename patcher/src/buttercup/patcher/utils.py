@@ -2,11 +2,11 @@
 
 import random
 import re
+from collections.abc import Callable
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
-from collections.abc import Callable
 
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
@@ -128,7 +128,7 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
 
     res = list(challenge.get_source_path().rglob(file_path.as_posix()))
     if res:
-        return cast(Path, res[0].relative_to(challenge.get_source_path()))
+        return cast("Path", res[0].relative_to(challenge.get_source_path()))
 
     # Strategy 4: Search recursively by removing the first parts of the path
     try:
@@ -137,7 +137,7 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
                 parts = file_path.parts[idx:]
                 res = list(challenge.get_source_path().rglob(Path(*parts).as_posix()))
                 if res:
-                    return cast(Path, res[0].relative_to(challenge.get_source_path()))
+                    return cast("Path", res[0].relative_to(challenge.get_source_path()))
     except Exception:
         return None
 

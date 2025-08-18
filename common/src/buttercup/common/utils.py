@@ -4,9 +4,10 @@ import os
 import shutil
 import threading
 import time
+from collections.abc import Callable
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

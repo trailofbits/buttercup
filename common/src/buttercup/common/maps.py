@@ -1,4 +1,5 @@
-from typing import Generic, Iterator, Type, TypeVar
+from collections.abc import Iterator
+from typing import Generic, TypeVar
 
 from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from google.protobuf.message import Message
@@ -12,7 +13,7 @@ MSG_FIELD_NAME = b"msg"
 
 
 class RedisMap(Generic[MsgType]):
-    def __init__(self, redis: Redis, hash_name: str, msg_builder: Type[MsgType]):
+    def __init__(self, redis: Redis, hash_name: str, msg_builder: type[MsgType]):
         self.redis = redis
         self.msg_builder = msg_builder
         self.hash_name = hash_name

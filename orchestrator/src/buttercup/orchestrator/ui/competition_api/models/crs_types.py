@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -27,9 +27,9 @@ class TaskDetail(BaseModel):
     deadline: int
     focus: str
     harnesses_included: bool
-    metadata: Dict[str, str]
+    metadata: dict[str, str]
     project_name: str
-    source: List[SourceDetail]
+    source: list[SourceDetail]
     task_id: str
     type: TaskType
 
@@ -37,17 +37,17 @@ class TaskDetail(BaseModel):
 class Task(BaseModel):
     message_id: str
     message_time: int
-    tasks: List[TaskDetail]
+    tasks: list[TaskDetail]
 
 
 class SARIFBroadcastDetail(BaseModel):
-    metadata: Dict[str, Any]
-    sarif: Dict[str, Any]
+    metadata: dict[str, Any]
+    sarif: dict[str, Any]
     sarif_id: str
     task_id: str
 
 
 class SARIFBroadcast(BaseModel):
-    broadcasts: List[SARIFBroadcastDetail]
+    broadcasts: list[SARIFBroadcastDetail]
     message_id: str
     message_time: int

@@ -3,10 +3,11 @@ from __future__ import annotations
 import logging
 import os
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Generic, Literal, Type, TypeVar, cast, overload
+from typing import Any, Generic, Literal, TypeVar, cast, overload
 
 from google.protobuf.message import Message
 from redis import Redis, RedisError
@@ -102,7 +103,7 @@ class ReliableQueue(Generic[MsgType]):
 
     redis: Redis
     queue_name: str
-    msg_builder: Type[MsgType]
+    msg_builder: type[MsgType]
     group_name: str | None = None
     task_timeout_ms: int = 180000
     reader_name: str | None = None
@@ -215,7 +216,7 @@ class ReliableQueue(Generic[MsgType]):
 @dataclass
 class QueueConfig:
     queue_name: QueueNames
-    msg_builder: Type
+    msg_builder: type
     task_timeout_ms: int
     group_names: list[GroupNames] = field(default_factory=list)
 

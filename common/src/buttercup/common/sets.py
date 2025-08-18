@@ -1,8 +1,8 @@
 import json
 import random
+from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import Generator, Iterator
 
 from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from redis import Redis

@@ -257,7 +257,7 @@ class CodeTS:
             raise ValueError("Query string is invalid")
 
         self.preprocess_keywords = ["ifdef", "ifndef", "if", "else", "elif", "endif"]
-        self.preprocess_regex = [r"^#\s*{kw}\s*".format(kw=kw) for kw in self.preprocess_keywords]
+        self.preprocess_regex = [rf"^#\s*{kw}\s*" for kw in self.preprocess_keywords]
 
     def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
