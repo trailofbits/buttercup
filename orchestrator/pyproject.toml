@@ -86,8 +86,6 @@ ignore = [
     "E501",   # Line too long
     "UP006",  # Use built-in collection types for type annotations
     "UP007",  # Use X | Y for type annotations
-    "UP009",  # UTF-8 encoding declaration is unnecessary
-    "UP015",  # Unnecessary mode argument
     "UP035",  # Import from modern locations instead of deprecated typing
     "UP045",  # Use X | None for type annotations
 ]
