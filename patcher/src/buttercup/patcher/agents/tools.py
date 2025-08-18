@@ -65,7 +65,8 @@ def grep(
     """Grep for a string and return a 5-line context around the match, together \
     with line numbers. If no file_path is provided, search the entire project. \
     Prefer using this tool over cat. If you need to search several files, just \
-    call call this tool without any file_path."""
+    call call this tool without any file_path.
+    """
     path = Path(file_path) if file_path else None
     logger.info("Searching for %s in %s", pattern, path)
     args = ["grep", "-C", "5", "-nHrE", pattern]
@@ -184,7 +185,8 @@ def get_function(function_name: str, file_path: str | None, *, state: Annotated[
     otherwise pass None. Use this when you want to get information about a \
     function. If not sure about the file path, pass None. Prefer using this \
     tool over any other and rely on others only if this tool fails or does \
-    not work."""
+    not work.
+    """
     code_snippets = get_function_tool_impl(function_name, file_path, state)
     output_str = "\n".join(str(code_snippet) for code_snippet in code_snippets)
     return output_str
@@ -254,7 +256,8 @@ def get_type(type_name: str, file_path: str | None, *, state: Annotated[BaseCtxS
     """Get a type/class/typedef/struct/enum/macro's definition. If available, pass a file_path, \
     otherwise pass None. Use this when you want to get information about a type. \
     If not sure about the file path, pass None. Prefer using this tool over any \
-    other and rely on others only if this tool fails or does not work."""
+    other and rely on others only if this tool fails or does not work.
+    """
     code_snippets = get_type_tool_impl(type_name, file_path, state)
     output_str = "\n".join(str(code_snippet) for code_snippet in code_snippets)
     return output_str

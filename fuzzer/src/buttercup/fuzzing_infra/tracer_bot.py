@@ -4,8 +4,7 @@ from pathlib import Path
 
 from redis import Redis
 
-import buttercup.common.node_local as node_local
-from buttercup.common import stack_parsing
+from buttercup.common import node_local, stack_parsing
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames

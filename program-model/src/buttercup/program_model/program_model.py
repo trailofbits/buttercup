@@ -7,7 +7,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from redis import Redis
 
-import buttercup.common.node_local as node_local
+from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import IndexOutput, IndexRequest
 from buttercup.common.queues import (

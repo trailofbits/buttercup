@@ -31,11 +31,11 @@ class Runner:
         job_name = f"{conf.engine}_{conf.sanitizer}"
 
         with patched_temp_dir() as _td, scratch_cwd() as _cwd_temp:
-            engine = typing.cast(Engine, get_engine(conf.engine))
+            engine = typing.cast("Engine", get_engine(conf.engine))
             target = conf.target_path
             build_dir = os.path.dirname(target)
             distinguisher = uuid.uuid4()
-            repro_dir = os.path.join(build_dir, f"repro{str(distinguisher)}")
+            repro_dir = os.path.join(build_dir, f"repro{distinguisher!s}")
             os.makedirs(repro_dir, exist_ok=True)
             os.environ["JOB_NAME"] = job_name
             logger.debug(f"Calling engine.prepare with {conf.corpus_dir} | {target} | {build_dir}")
@@ -54,7 +54,7 @@ class Runner:
         job_name = f"{conf.engine}_{conf.sanitizer}"
         os.environ["JOB_NAME"] = job_name
         with patched_temp_dir() as _td, scratch_cwd() as _cwd_temp:
-            engine = typing.cast(Engine, get_engine(conf.engine))
+            engine = typing.cast("Engine", get_engine(conf.engine))
             # Temporary directory ignores crashes
             with scratch_dir() as td:
                 engine.minimize_corpus(

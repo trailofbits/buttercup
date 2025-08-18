@@ -1,5 +1,6 @@
 """Reflection LLM agent, handling the reflection on the patch (e.g. why the
-patch is not working, what can be done to fix it, etc.)"""
+patch is not working, what can be done to fix it, etc.)
+"""
 
 from __future__ import annotations
 
@@ -395,7 +396,8 @@ class ReflectionResult(BaseModel):
 @dataclass
 class ReflectionAgent(PatcherAgentBase):
     """Reflection LLM agent, handling the reflection on the patch (e.g. why the
-    patch is not working, what can be done to fix it, etc.)"""
+    patch is not working, what can be done to fix it, etc.)
+    """
 
     llm: Runnable = field(init=False)
 

@@ -188,6 +188,7 @@ def dir_to_remote_archive(local_path: NodeLocalPath) -> RemotePath:
 def lopen(local_path: NodeLocalPath, mode: str) -> Any:
     """Open a file in the node local storage
 
-    If it doesn't exist, it will be downloaded from the remote storage"""
+    If it doesn't exist, it will be downloaded from the remote storage
+    """
     make_locally_available(local_path)
     return open(local_path, mode)

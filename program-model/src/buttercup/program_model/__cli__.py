@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 def prepare_task(command: ProcessCommand) -> IndexRequest:
     """Prepares task for indexing."""
-
     return IndexRequest(
         task_dir=command.task_dir,
         task_id=command.task_id,

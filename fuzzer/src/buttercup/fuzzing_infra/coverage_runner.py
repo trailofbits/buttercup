@@ -115,20 +115,20 @@ class CoverageRunner:
             soup = BeautifulSoup(f, "xml")
             covered_functions = []
             for target_class in soup.find_all("class"):
-                target_class = cast(Tag, target_class)
+                target_class = cast("Tag", target_class)
                 file_paths = []
                 source_file_name = target_class.get("sourcefilename")
                 if source_file_name is not None:
                     file_paths.append(source_file_name)
 
                 for method in target_class.find_all("method"):
-                    method = cast(Tag, method)
+                    method = cast("Tag", method)
                     method_name = method.get("name")
                     if method_name is None:
                         continue
                     method_name = str(method_name)
                     for ctr in method.find_all("counter"):
-                        ctr = cast(Tag, ctr)
+                        ctr = cast("Tag", ctr)
                         if ctr.get("type") == "LINE":
                             covered_attr = ctr.get("covered")
                             missed_attr = ctr.get("missed")
@@ -167,7 +167,7 @@ class CoverageRunner:
         coverage_file = package_path / "dumps" / "coverage.json"
         harness_path = package_path / harness_name
         args = [self.llvm_cov_path, "export", "-format=text", f"--instr-profile={profdata_path}", harness_path]
-        ret = subprocess.run(args, stdout=subprocess.PIPE)
+        ret = subprocess.run(args, check=False, stdout=subprocess.PIPE)
         if ret.returncode != 0:
             logger.error(
                 "Failed to convert profdata to json for %s | %s | %s | in %s (return code: %s)",

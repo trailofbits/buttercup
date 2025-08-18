@@ -272,7 +272,6 @@ class MergerBot:
            - remove any files only in L from the local corpus (as we know those don't add any coverage)
            - release the lock on the merged corpus set
         """
-
         logger.debug(f"Running merge pass for {task.harness_name} | {task.package_name} | {task.task_id}")
 
         build = next(iter([b for b in builds if b.sanitizer == ADDRESS_SANITIZER]), None)

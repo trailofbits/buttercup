@@ -46,7 +46,7 @@ def wasm_run_script(root_dir: Path, script_path: Path, script_args: list[str]) -
     try:
         start(store)  # type: ignore[operator]
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
         raise e
 
 

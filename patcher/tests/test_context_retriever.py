@@ -2633,7 +2633,7 @@ def test_find_tests_redis_multiple_tasks(
     mock_redis.hget.side_effect = lambda map_name, task_id: {
         task_id_1: instructions_1,
         task_id_2: instructions_2,
-    }.get(task_id, None)
+    }.get(task_id)
 
     # Test task 1
     mock_challenge.task_meta.task_id = task_id_1

@@ -19,7 +19,7 @@ from typing import Any, TypeVar, cast
 
 from packaging.version import Version
 
-import buttercup.common.node_local as node_local
+from buttercup.common import node_local
 from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.stack_parsing import get_crash_token
 from buttercup.common.task_meta import TaskMeta
@@ -36,7 +36,8 @@ def create_tmp_dir(
     prefix: str | None = None,
 ) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
-    delete it after use."""
+    delete it after use.
+    """
     if work_dir:
         work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -190,7 +191,8 @@ class ChallengeTask:
     def _local_ro_dir(self, path: PathLike[str] | str) -> Path:
         """Return the local path to the read-only task directory.
 
-        If the path doesn't exist, it will be downloaded from the remote storage"""
+        If the path doesn't exist, it will be downloaded from the remote storage
+        """
         lp = Path(path)
         if not lp.exists():
             try:
@@ -325,7 +327,7 @@ class ChallengeTask:
                 raise ChallengeTaskError("Challenge Task is read-only, cannot perform this operation")
             return func(self, *args, **kwargs)
 
-        return cast(F, wrapper)
+        return cast("F", wrapper)
 
     def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None) -> None:
         if arg is not None:
@@ -439,7 +441,7 @@ class ChallengeTask:
         try:
             result = self._run_helper_cmd(grep_cmd)
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {str(e)}")
+            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {e!s}")
             return None
         if not result.success:
             return None
@@ -455,7 +457,7 @@ class ChallengeTask:
             base_runner_str = m.group(1).strip(":v")
             return Version(base_runner_str)
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {str(e)}")
+            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {e!s}")
             return None
 
     @cached_property
@@ -476,7 +478,7 @@ class ChallengeTask:
                             if image.startswith("gcr.io/oss-fuzz"):
                                 logger.info(f"Using oss-fuzz container org: {result}")
                                 break
-                            elif image.startswith("ghcr.io/aixcc-finals"):
+                            if image.startswith("ghcr.io/aixcc-finals"):
                                 result = "aixcc-afc"
                                 logger.info(f"Using aixcc-afc container org: {result}")
                                 break
@@ -503,7 +505,8 @@ class ChallengeTask:
         always_build_image: bool = False,
     ) -> CommandResult:
         """Execute a command inside a docker container. If not specified, the
-        docker container is the oss-fuzz one."""
+        docker container is the oss-fuzz one.
+        """
         return self.exec_docker_cmd_rw(cmd, mount_dirs, container_image, always_build_image=always_build_image)
 
     def exec_docker_cmd_rw(
@@ -845,17 +848,17 @@ class ChallengeTask:
 
             return True
         except FileNotFoundError as e:
-            logger.error(f"[task {self.task_dir}] File not found: {str(e)}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {str(e)}") from e
+            logger.error(f"[task {self.task_dir}] File not found: {e!s}")
+            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {e!s}") from e
         except subprocess.CalledProcessError as e:
-            logger.error(f"[task {self.task_dir}] Error applying diff: {str(e)}")
+            logger.error(f"[task {self.task_dir}] Error applying diff: {e!s}")
             logger.debug(f"[task {self.task_dir}] Error returncode: {e.returncode}")
             logger.debug(f"[task {self.task_dir}] Error stdout: {e.stdout}")
             logger.debug(f"[task {self.task_dir}] Error stderr: {e.stderr}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error applying diff: {str(e)}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
+            logger.exception(f"[task {self.task_dir}] Error applying diff: {e!s}")
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
 
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None, delete: bool = True) -> Iterator[ChallengeTask]:
@@ -922,7 +925,8 @@ class ChallengeTask:
     @read_write_decorator
     def restore(self) -> None:
         """Restore the task from the original read-only task directory (if
-        different from the local task directory)."""
+        different from the local task directory).
+        """
         if self.read_only_task_dir == self.local_task_dir:
             raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
 

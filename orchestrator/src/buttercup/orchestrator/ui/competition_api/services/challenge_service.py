@@ -148,6 +148,7 @@ class ChallengeService:
                     # Create a git-diff file between the two directories (base_sub_path and ref_sub_path)
                     diff_result = subprocess.run(
                         ["git", "diff", "--binary", "--no-index", base_sub_path.as_posix(), ref_sub_path.as_posix()],
+                        check=False,
                         cwd=base_temp_path,
                         capture_output=True,
                     )
@@ -197,8 +198,7 @@ class ChallengeService:
     def _extract_focus_dir(self, repo_url: str) -> str:
         """Extract the focus directory from the repository URL."""
         focus_dir = repo_url.rstrip("/").split("/")[-1]
-        if focus_dir.endswith(".git"):
-            focus_dir = focus_dir[:-4]  # Remove .git suffix
+        focus_dir = focus_dir.removesuffix(".git")  # Remove .git suffix
         return focus_dir
 
     def create_task_for_challenge(

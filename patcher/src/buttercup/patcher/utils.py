@@ -86,7 +86,8 @@ def decode_bytes(b: bytes | None) -> str | None:
 
 def _map_container_path_to_local_path(challenge: ChallengeTask, file_path: Path) -> Path | None:
     """Map a container path (e.g. /src/libjpeg-turbo/jcapimin.c) to a path
-    relative to the challenge source (e.g. jcapimin.c)."""
+    relative to the challenge source (e.g. jcapimin.c).
+    """
     if not file_path.is_absolute():
         file_path = challenge.workdir_from_dockerfile().joinpath(file_path).resolve()
 

@@ -83,7 +83,7 @@ def test_local_corpus_size_with_mixed_exceptions(temp_dir, mock_node_local):
         if self.name == "test_file_2" and call_count[self.name] == 1:
             raise FileNotFoundError(f"Simulated transient error for {self.name}")
         # test_file_4 will always fail
-        elif self.name == "test_file_4":
+        if self.name == "test_file_4":
             raise PermissionError(f"Simulated permission error for {self.name}")
         # Other files work normally
         return original_lstat(self)

@@ -41,5 +41,5 @@ class StatusChecker:
         try:
             return check_fn()
         except Exception as e:
-            logger.error(f"Failed to check statuses: {str(e)}")
+            logger.error(f"Failed to check statuses: {e!s}")
             return False

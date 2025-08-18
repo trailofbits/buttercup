@@ -10,7 +10,7 @@ from redis import Redis
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-import buttercup.common.node_local as node_local
+from buttercup.common import node_local
 from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task, TaskDownload, TaskReady
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue
 from buttercup.common.task_meta import TaskMeta
@@ -78,7 +78,7 @@ class Downloader:
             logger.info(f"[task {task_id}] Successfully downloaded source type {source.source_type} to {filepath}")
             return filepath
         except Exception as e:
-            logger.error(f"Failed to download {source.url}: {str(e)}")
+            logger.error(f"Failed to download {source.url}: {e!s}")
             return None
 
     def _get_source_type_dir(self, source_type: SourceDetail.SourceType) -> str:
@@ -121,7 +121,7 @@ class Downloader:
             logger.info(f"[task {task_id}] Successfully extracted {source_file}")
             return True
         except Exception as e:
-            logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
+            logger.error(f"[task {task_id}] Failed to extract {source_file}: {e!s}")
             return False
 
     def _download_and_extract_sources(self, task_id: str, tmp_task_dir: Path, sources: list) -> bool:
@@ -155,11 +155,11 @@ class Downloader:
                     f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it...",
                 )
                 return True
-            logger.exception(f"Failed to move task directory: {str(e)}")
+            logger.exception(f"Failed to move task directory: {e!s}")
             return False
         except Exception as e:
             # Re-raise any other errors
-            logger.exception(f"Failed to move task directory: {str(e)}")
+            logger.exception(f"Failed to move task directory: {e!s}")
             return False
 
     def process_task(self, task: Task) -> bool:

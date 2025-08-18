@@ -45,7 +45,6 @@ class SeedInitTask(SeedBaseTask):
     @override
     def _get_context(self, state: BaseTaskState) -> Command:
         """Generate tool calls to retrieve context"""
-
         logger.info("Getting context")
         prompt_vars = {
             "harness": str(state.harness),

@@ -238,7 +238,6 @@ class RootCauseAgent(PatcherAgentBase):
 
     def _parse_code_snippet_requests(self, root_cause_str: str) -> list[CodeSnippetRequest]:
         """Parse the code snippet requests from the root cause string."""
-
         requests = []
         pattern = r"<code_snippet_request>(.*?)</code_snippet_request>"
         matches = re.findall(pattern, root_cause_str, re.DOTALL)
@@ -281,10 +280,10 @@ class RootCauseAgent(PatcherAgentBase):
         </diff_file>
         </diff_files>
 
-                Args:
+        Args:
                     This function takes no arguments.
 
-                Returns:
+        Returns:
                     The list of diffs that were applied to the code under analysis.
                     Actual diff content must then be retrieved using the `get_diffs` tool.
 
@@ -338,7 +337,8 @@ class RootCauseAgent(PatcherAgentBase):
         state: PatcherAgentState,
     ) -> Command[Literal[PatcherAgentName.PATCH_STRATEGY.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Analyze the diff analysis and the code to understand the
-        vulnerability in the current code."""
+        vulnerability in the current code.
+        """
         logger.info(
             "[%s / %s] Analyzing the vulnerability in Challenge Task %s",
             state.context.task_id,

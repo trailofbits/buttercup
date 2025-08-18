@@ -375,7 +375,7 @@ def libjpeg_oss_fuzz_task_dir(tmp_path: Path) -> Path:
         metadata={"task_id": "task-id-libjpeg-turbo", "round_id": "testing", "team_id": "tob"},
     ).save(tmp_path)
 
-    yield tmp_path
+    return tmp_path
 
 
 @pytest.fixture
@@ -874,7 +874,7 @@ def mock_node_local_storage(tmp_path: Path):
         metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
     ).save(local_task_path)
 
-    yield node_data_dir
+    return node_data_dir
 
 
 @pytest.mark.integration

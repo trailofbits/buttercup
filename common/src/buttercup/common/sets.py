@@ -64,7 +64,7 @@ class RedisLock:
     @contextmanager
     def acquire(self) -> Generator[None, None, None]:
         if not self.redis.set(self.key, "1", ex=self.lock_timeout_seconds, nx=True):
-            raise FailedToAcquireLock()
+            raise FailedToAcquireLock
         try:
             yield
         finally:

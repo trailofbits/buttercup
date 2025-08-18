@@ -122,7 +122,6 @@ def find_libfuzzer_harnesses(codequery: CodeQuery) -> list[Path]:
 
     Heuristic: C/C++ file that defines the LLVMFuzzerTestOneInput function.
     """
-
     grep_pattern = r"int\s+LLVMFuzzerTestOneInput\s*\([^)]*\)"
 
     return _find_source_files(

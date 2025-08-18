@@ -317,11 +317,10 @@ CHALLENGE_MAP = {
 
 def print_request(req, file=sys.stderr):
     """Print a request object."""
-
     print(f"{req.get_method()} {req.full_url}", file=file)
 
     headers = dict(req.headers)
-    max_key_len = max(len(k) for k in headers.keys()) if headers else 0
+    max_key_len = max(len(k) for k in headers) if headers else 0
     for key, value in headers.items():
         print(f"{key.ljust(max_key_len)}: {value}", file=file)
 

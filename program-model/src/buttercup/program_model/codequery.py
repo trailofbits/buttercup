@@ -244,6 +244,7 @@ class CodeQuery:
         try:
             subprocess.run(
                 ["cscope", "-bkq"],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=200,
@@ -257,6 +258,7 @@ class CodeQuery:
         try:
             subprocess.run(
                 ["ctags", "--fields=+i", "-n", "-L", self.CSCOPE_FILES],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=300,
@@ -279,6 +281,7 @@ class CodeQuery:
                     self.TAGS,
                     "-p",
                 ],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=2700,
@@ -489,7 +492,8 @@ class CodeQuery:
         file_path: Path | None = None,
     ) -> list[Function]:
         """Get the callers of a function. File paths are based on the challenge
-        task container structure (e.g. /src)."""
+        task container structure (e.g. /src).
+        """
         if isinstance(function, str):
             function_name = function
         elif isinstance(function, Function):
@@ -556,8 +560,8 @@ class CodeQuery:
         line_number: int | None = None,
     ) -> list[Function]:
         """Get the callees of a function. File paths are based on the challenge
-        task container structure (e.g. /src)."""
-
+        task container structure (e.g. /src).
+        """
         functions: list[Function] = []
         if isinstance(function, str):
             function_name = function
@@ -803,7 +807,8 @@ class CodeQuery:
 
     def get_type_calls(self, type_definition: TypeDefinition) -> list[TypeUsageInfo]:
         """Get the calls to a type definition. File paths are based on the challenge
-        task container structure (e.g. /src)."""
+        task container structure (e.g. /src).
+        """
         results: list[CQSearchResult] = []
         flags = ["1", "8"]
         for flag in flags:

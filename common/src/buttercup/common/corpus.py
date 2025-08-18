@@ -9,7 +9,7 @@ from typing import BinaryIO
 
 from redis import Redis
 
-import buttercup.common.node_local as node_local
+from buttercup.common import node_local
 from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
 from buttercup.common.sets import MergedCorpusSet
 

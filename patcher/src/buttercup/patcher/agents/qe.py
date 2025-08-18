@@ -23,7 +23,7 @@ from langgraph.types import Command
 from pydantic import Field, ValidationError, field_validator
 from unidiff import PatchSet
 
-import buttercup.common.node_local as node_local
+from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, CommandResult
 from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.corpus import CrashDir

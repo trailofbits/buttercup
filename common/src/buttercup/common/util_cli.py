@@ -243,9 +243,8 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
                     result[task_id].n_patches += 1
                     assert c is not None
                     result[task_id].patched_vulnerabilities.append(c.competition_pov_id)
-                else:
-                    if c:
-                        result[task_id].non_patched_vulnerabilities.append(c.competition_pov_id)
+                elif c:
+                    result[task_id].non_patched_vulnerabilities.append(c.competition_pov_id)
 
                 b = next((b for b in submission.bundles), None)
                 if b:

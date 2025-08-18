@@ -242,7 +242,8 @@ class PatcherAgentState(BaseModel):
 
     def get_successful_patch(self) -> PatchOutput | None:
         """Get the last successful patch.
-        This gets a patch that builds, fixes the PoV and passes the tests, even if it does not seem to be valid."""
+        This gets a patch that builds, fixes the PoV and passes the tests, even if it does not seem to be valid.
+        """
         if not self.patch_attempts:
             return None
 
@@ -309,7 +310,8 @@ class CodeSnippetRequest(BaseModel):
 
 class ContextCodeSnippet(BaseModel):
     """Code snippet from the Challenge Task. This is the base unit used by the
-    patcher to build patches. Changes are applied to this units."""
+    patcher to build patches. Changes are applied to this units.
+    """
 
     key: CodeSnippetKey
     "Key of the code snippet, used to uniquely identify the code snippet"

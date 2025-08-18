@@ -425,7 +425,7 @@ extern "C" int
     // Test code here
     return 0;
 }
-"""  # noqa: W291
+"""
     # Test case 2: Function signature with extra spaces and newlines
     extra_spaces_cpp = """
 #include <stddef.h>
@@ -501,7 +501,7 @@ public class SplitAnnotationFuzzer {
         // Test code here
     }
 }
-"""  # noqa: W291
+"""
     # Test case 2: Method with extra spaces and newlines
     extra_spaces_java = """
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
@@ -618,7 +618,7 @@ def curl_oss_fuzz_ct() -> Iterator[ChallengeTask]:
 
 @pytest.fixture(scope="module")
 def curl_oss_fuzz_cq(curl_oss_fuzz_ct: ChallengeTask) -> Iterator[CodeQuery]:
-    yield CodeQuery(challenge=curl_oss_fuzz_ct)
+    return CodeQuery(challenge=curl_oss_fuzz_ct)
 
 
 @pytest.mark.integration

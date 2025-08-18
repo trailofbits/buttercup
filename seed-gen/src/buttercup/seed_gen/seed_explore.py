@@ -53,7 +53,6 @@ class SeedExploreTask(SeedBaseTask):
     @override
     def _get_context(self, state: SeedExploreState) -> Command:  # type: ignore[override]
         """Generate tool calls to retrieve context"""
-
         logger.info("Getting context")
         prompt_vars = {
             "target_function": str(state.target_function),
@@ -75,7 +74,6 @@ class SeedExploreTask(SeedBaseTask):
         output_dir: Path,
     ) -> None:
         """Generate seeds"""
-
         state = SeedExploreState(
             target_function=target_function,
             harness=harness,

@@ -179,7 +179,8 @@ class FuzzyCImportsResolver:
 
     def is_file_imported_by(self, imported_file_path: Path, file_path: Path) -> bool:
         """Return True if imported_file_path is imported by file_path (either directly or indirectly through
-        nested imports)"""
+        nested imports)
+        """
         all_imports = self.get_all_imports(self._normalize_path(file_path))
         return self._normalize_path(imported_file_path) in all_imports
 
@@ -191,7 +192,6 @@ class FuzzyCImportsResolver:
 
         This function is best effort, it takes in a list of callees and returns a list of callees.
         """
-
         # Group callees by function name. Duplicate callees with the same
         # name end-up in the same group
         callee_groups = defaultdict(list)
@@ -285,7 +285,7 @@ class FuzzyJavaImportsResolver:
         """Get the package name from a file path"""
         # Parse lines to find one that starts with "package"
         with open(self._normalize_path(file_path)) as f:
-            for line in f.readlines():
+            for line in f:
                 if line.startswith("package"):
                     return line.split(" ")[1].strip()
         return None
@@ -549,11 +549,12 @@ class FuzzyJavaImportsResolver:
     def parse_imports_in_file(self, file_path: Path) -> list[str]:
         """Parse import statements in file and return the list of
         imported strings. E.g for 'import a.b.c;', the function returns
-        ['a.b.c']"""
+        ['a.b.c']
+        """
         import_pattern = r"import\s+([\w.]+);"
         res = []
         with open(file_path) as f:
-            for line in f.readlines():
+            for line in f:
                 # Find all matches in the code
                 matches = re.findall(import_pattern, line)
                 res += matches

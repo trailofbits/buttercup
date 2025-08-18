@@ -41,5 +41,5 @@ def test_load_module_from_path():
     module = load_module_from_path(module_path)
     assert hasattr(module, "gen_test_case_short_cookie")
     assert hasattr(module, "gen_test_case_invalid_base64")
-    assert callable(getattr(module, "gen_test_case_short_cookie"))
-    assert callable(getattr(module, "gen_test_case_invalid_base64"))
+    assert callable(module.gen_test_case_short_cookie)
+    assert callable(module.gen_test_case_invalid_base64)

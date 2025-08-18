@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 
@@ -14,7 +14,11 @@ class CRSResponse:
     """Response from CRS API calls with detailed status and error information."""
 
     def __init__(
-        self, success: bool, status_code: int, response_text: str = "", error_details: Optional[Dict[str, Any]] = None
+        self,
+        success: bool,
+        status_code: int,
+        response_text: str = "",
+        error_details: dict[str, Any] | None = None,
     ):
         self.success = success
         self.status_code = status_code
@@ -22,14 +26,14 @@ class CRSResponse:
         self.error_details = error_details or {}
 
     def get_user_friendly_error_message(self, base_message: str = "Operation failed") -> str:
-        """
-        Generate a user-friendly error message from the response details.
+        """Generate a user-friendly error message from the response details.
 
         Args:
             base_message: Base message to start with
 
         Returns:
             Formatted error message suitable for display to users
+
         """
         if self.success:
             return ""
@@ -66,12 +70,12 @@ class CRSResponse:
         return error_message
 
     def log_detailed_response(self, logger_instance: logging.Logger, operation: str = "CRS operation") -> None:
-        """
-        Log detailed response information for debugging purposes.
+        """Log detailed response information for debugging purposes.
 
         Args:
             logger_instance: Logger instance to use
             operation: Description of the operation being logged
+
         """
         if self.success:
             logger_instance.info(f"{operation} completed successfully (HTTP {self.status_code})")
@@ -186,8 +190,7 @@ class CRSClient:
         self.password = password
 
     def submit_task(self, task: Task) -> CRSResponse:
-        """
-        Submit a task to the CRS via POST /v1/task endpoint
+        """Submit a task to the CRS via POST /v1/task endpoint
 
         Args:
             task: Task object to submit
@@ -227,9 +230,7 @@ class CRSClient:
             return CRSResponse(success=False, status_code=0, response_text=str(e), error_details={"exception": str(e)})
 
     def submit_sarif_broadcast(self, broadcast: SARIFBroadcast) -> CRSResponse:
-        """
-        Submit a SARIF Broadcast to the CRS via POST /v1/sarif/ endpoint
-        """
+        """Submit a SARIF Broadcast to the CRS via POST /v1/sarif/ endpoint"""
         url = f"{self.crs_base_url}/v1/sarif/"
 
         # Prepare authentication if provided
@@ -253,7 +254,8 @@ class CRSClient:
 
             # Log detailed response information
             crs_response.log_detailed_response(
-                logger, f"SARIF Broadcast submission for {len(broadcast.broadcasts)} tasks"
+                logger,
+                f"SARIF Broadcast submission for {len(broadcast.broadcasts)} tasks",
             )
 
             return crs_response

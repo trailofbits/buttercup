@@ -212,7 +212,6 @@ def test_serve_ready_task(scheduler):
 
 def test_update_expired_task_weights(scheduler):
     """Test that expired and cancelled task weights are updated to zero."""
-
     # Set up the mock registry and cached cancelled IDs
     scheduler.task_registry = Mock()
     scheduler.cached_cancelled_ids = {"cancelled-task-789"}
@@ -286,7 +285,6 @@ def test_update_expired_task_weights(scheduler):
 
 def test_update_expired_task_weights_none_updated(scheduler):
     """Test that no weights are updated when all tasks are live or already at zero weight."""
-
     # Set up the mock registry
     scheduler.task_registry = Mock()
 

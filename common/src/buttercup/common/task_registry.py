@@ -205,7 +205,6 @@ class TaskRegistry:
                  False otherwise
 
         """
-
         # Extract task_id for cancelled IDs check
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
 

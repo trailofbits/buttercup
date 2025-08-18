@@ -47,7 +47,6 @@ def match(sarif_broadcast: SARIFBroadcastDetail, traced_crash: TracedCrash) -> S
         A SarifMatch object if a match is found between the SARIF and traced crash, None otherwise
 
     """
-
     # Extract SARIF details
     sarif_infos = _sarif_detail(sarif_broadcast)
 

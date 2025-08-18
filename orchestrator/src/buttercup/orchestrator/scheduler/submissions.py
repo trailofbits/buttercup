@@ -10,7 +10,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from redis import Redis
 
-import buttercup.common.node_local as node_local
+from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 from buttercup.common.constants import ARCHITECTURE
@@ -1000,7 +1000,6 @@ class Submissions:
         Respects concurrency limits and waits for potential cross-submission merging.
         Returns True if patch request was made and entry needs persistence.
         """
-
         # If we already have the "current patch" no need to request more.
         if _current_patch(e):
             return False
@@ -1038,7 +1037,6 @@ class Submissions:
 
     def _request_patched_builds_if_needed(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """Make sure that builds are available for the current patch, if any."""
-
         patch = _current_patch(e)
         if not patch:
             # No current patch, nothing to do.
@@ -1104,7 +1102,6 @@ class Submissions:
             True if build was recorded successfully
 
         """
-
         key = build_output.internal_patch_id
         maybe_patch = self._find_patch(key)
         if not maybe_patch:
@@ -1151,7 +1148,6 @@ class Submissions:
         Advances to next patch if current one fails testing or submission retry limit exceeded.
         Returns True if entry needs persistence.
         """
-
         # Check that at least one POV has passed validation and has a competition_pov_id
         if not _get_first_successful_pov_id(e):
             return False
@@ -1254,7 +1250,6 @@ class Submissions:
         We want to avoid that so delete one bundle to get us closer to single bundle.
         We only do one delete each iteration to prevent loosing too much data if something goes wrong.
         """
-
         if len(e.bundles) <= 1:
             # All good
             return False
@@ -1285,7 +1280,6 @@ class Submissions:
         when they are not set, for a new bundle we will set them to empty strings,
         for an existing bundle we will not change them.
         """
-
         nbundles = len(e.bundles)
         if nbundles > 1:
             # We only process when there is at most one bundle
@@ -1468,7 +1462,6 @@ class Submissions:
 
     def _confirm_matched_sarifs(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """Ensure the SARIF is submitted to the competition API"""
-
         if len(e.bundles) != 1:
             # Don't make any changes while we are fixing up bundles resulting from a merge
             return False

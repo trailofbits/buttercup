@@ -110,7 +110,7 @@ class ReliableQueue(Generic[MsgType]):
 
     def __post_init__(self) -> None:
         if self.reader_name is None:
-            self.reader_name = f"rqueue_{str(uuid.uuid4())}"
+            self.reader_name = f"rqueue_{uuid.uuid4()!s}"
 
         if self.group_name is not None:
             # Create consumer group if it doesn't exist
@@ -143,7 +143,7 @@ class ReliableQueue(Generic[MsgType]):
 
             return func(self, *args, **kwargs)
 
-        return cast(F, wrapper)
+        return cast("F", wrapper)
 
     @_ensure_group_name
     def pop(self) -> RQItem[MsgType] | None:
@@ -203,7 +203,7 @@ class ReliableQueue(Generic[MsgType]):
         if pending is None or len(pending) == 0:
             return 0
 
-        return cast(int, pending[0][TIMES_DELIVERED_FIELD])
+        return cast("int", pending[0][TIMES_DELIVERED_FIELD])
 
     @_ensure_group_name
     def claim_item(self, item_id: str, min_idle_time: int = 0) -> None:

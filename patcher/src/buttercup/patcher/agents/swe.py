@@ -243,7 +243,7 @@ class CodeSnippetChange(BaseModel):
         description="The old piece of code, as-is, with spaces, trailing/leading whitespaces, etc.",
     )
     code: str | None = Field(
-        description="The fixed piece of code snippet, as-is, with spaces, trailing/leading whitespaces, etc.",  # noqa: E501
+        description="The fixed piece of code snippet, as-is, with spaces, trailing/leading whitespaces, etc.",
     )
 
     def is_valid(self) -> bool:
@@ -401,7 +401,8 @@ class SWEAgent(PatcherAgentBase):
     def _get_file_content(self, file_path: str) -> tuple[str, Path] | None:
         """Get the content of a file, trying multiple search strategies. Returns
         the content of the file and the relative path of the file (from the
-        source path)."""
+        source path).
+        """
         file_path = file_path.strip()
         relative_file_path = find_file_in_source_dir(self.challenge, Path(file_path))
         if relative_file_path is None:
@@ -431,7 +432,7 @@ class SWEAgent(PatcherAgentBase):
             return None
 
         # Try exact identifier match with fuzzy file path
-        matches = [key for key in orig_code_snippets.keys() if key.identifier == target_key.identifier]
+        matches = [key for key in orig_code_snippets if key.identifier == target_key.identifier]
         if matches:
             # If there is only one match, just return it
             if len(matches) == 1:

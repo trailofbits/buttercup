@@ -532,7 +532,6 @@ def sh(
 
     Use this tool only for shell commands that are not supported by the more specific tools (e.g., `cat`, `ls`, `head`, `grep`).
     """
-
     logger.info("Running command: %s", command)
 
     command_file_path = None

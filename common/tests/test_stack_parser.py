@@ -50,7 +50,7 @@ def mock_crash_set() -> Iterator[CrashSet]:
         return False
 
     res.set.add = add_mock
-    yield res
+    return res
 
 
 def test_get_crash_data_basic():

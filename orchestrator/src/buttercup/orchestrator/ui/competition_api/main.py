@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timedelta
 from functools import cache
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -79,10 +79,10 @@ class TaskInfo(BaseModel):
     created_at: str
 
     # CRS submission status and error information
-    crs_submission_status: Optional[str] = None  # 'pending', 'success', 'failed'
-    crs_submission_error: Optional[str] = None
-    crs_error_details: Optional[str] = None  # JSON string
-    crs_submission_timestamp: Optional[str] = None
+    crs_submission_status: str | None = None  # 'pending', 'success', 'failed'
+    crs_submission_error: str | None = None
+    crs_error_details: str | None = None  # JSON string
+    crs_submission_timestamp: str | None = None
 
 
 class DashboardStats(BaseModel):
@@ -498,7 +498,7 @@ def _create_task(
             database_manager.update_task_crs_status(task_id=task_id, crs_submission_status="success")
             logger.info(f"Task {task_id} CRS status updated to 'success'")
             return Message(
-                message=f"Task {task_id} created and submitted successfully to CRS for challenge {challenge.name}"
+                message=f"Task {task_id} created and submitted successfully to CRS for challenge {challenge.name}",
             )
         logger.error(f"Failed to submit task {task_id} to CRS")
 
@@ -561,7 +561,7 @@ def _create_task(
             )
 
             # Mark it as failed with the error details
-            error_message = f"Failed to create task: {str(e)}"
+            error_message = f"Failed to create task: {e!s}"
             database_manager.update_task_crs_status(
                 task_id=failed_task_id,
                 crs_submission_status="failed",
@@ -582,7 +582,7 @@ def _create_task(
         except Exception as db_error:
             logger.error(f"Failed to create failed task in database: {db_error}")
             # If we can't even create the failed task, return the original error
-            return Error(message=f"Failed to create task: {str(e)}")
+            return Error(message=f"Failed to create task: {e!s}")
 
 
 def _create_sarif_broadcast(
@@ -607,7 +607,7 @@ def _create_sarif_broadcast(
         return Message(message=f"SARIF Broadcast for Task {task_id} created and submitted to CRS")
     # Use the helper method to generate user-friendly error message
     error_message = crs_response.get_user_friendly_error_message(
-        f"Failed to submit SARIF Broadcast for Task {task_id} to CRS"
+        f"Failed to submit SARIF Broadcast for Task {task_id} to CRS",
     )
 
     # Return a message with the error details for better user experience
@@ -674,11 +674,9 @@ def get_dashboard_tasks(database_manager: DatabaseManager = Depends(get_database
     return tasks_list
 
 
-@app.get("/v1/dashboard/tasks/failed", response_model=List[TaskInfo], tags=["dashboard"])
-def get_failed_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
-    """
-    Get list of failed tasks for debugging
-    """
+@app.get("/v1/dashboard/tasks/failed", response_model=list[TaskInfo], tags=["dashboard"])
+def get_failed_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[TaskInfo]:
+    """Get list of failed tasks for debugging"""
     logger.info("get_failed_tasks endpoint called")
 
     try:
@@ -712,11 +710,9 @@ def get_failed_tasks(database_manager: DatabaseManager = Depends(get_database_ma
         raise
 
 
-@app.get("/v1/dashboard/tasks/active", response_model=List[TaskInfo], tags=["dashboard"])
-def get_active_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
-    """
-    Get list of active tasks
-    """
+@app.get("/v1/dashboard/tasks/active", response_model=list[TaskInfo], tags=["dashboard"])
+def get_active_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[TaskInfo]:
+    """Get list of active tasks"""
     active_tasks = database_manager.get_tasks_by_status("active")
     tasks_list = []
     for task in active_tasks:
@@ -727,11 +723,9 @@ def get_active_tasks(database_manager: DatabaseManager = Depends(get_database_ma
     return tasks_list
 
 
-@app.get("/v1/dashboard/tasks/expired", response_model=List[TaskInfo], tags=["dashboard"])
-def get_expired_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> List[TaskInfo]:
-    """
-    Get list of expired tasks
-    """
+@app.get("/v1/dashboard/tasks/expired", response_model=list[TaskInfo], tags=["dashboard"])
+def get_expired_tasks(database_manager: DatabaseManager = Depends(get_database_manager)) -> list[TaskInfo]:
+    """Get list of expired tasks"""
     expired_tasks = database_manager.get_tasks_by_status("expired")
     tasks_list = []
     for task in expired_tasks:
@@ -754,9 +748,7 @@ def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends
 
 @app.get("/v1/dashboard/tasks/{task_id}/crs-status", tags=["dashboard"])
 def get_task_crs_status(task_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> dict:
-    """
-    Get detailed CRS submission status and error information for a specific task
-    """
+    """Get detailed CRS submission status and error information for a specific task"""
     with database_manager.get_task(task_id) as task:
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")

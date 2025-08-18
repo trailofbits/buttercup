@@ -249,7 +249,6 @@ class Task:
         prompt_vars: dict[str, Any],
     ) -> Command:
         """Base method for getting context that can be used by different tasks"""
-
         prompt = [
             ("system", system_prompt),
             ("human", user_prompt.format(**prompt_vars)),
@@ -597,7 +596,7 @@ def batch_tool(
         - The tool_calls argument must be a dictionary that exactly follows the tool_calls schema
         - Do not include '</invoke>' in your tool_calls argument.
 
-    """  # noqa: E501
+    """
     assert isinstance(state, BaseTaskState)
     logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
     max_calls_in_batch = 10
