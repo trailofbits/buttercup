@@ -621,6 +621,7 @@ def curl_oss_fuzz_cq(curl_oss_fuzz_ct: ChallengeTask) -> Iterator[CodeQuery]:
     yield CodeQuery(challenge=curl_oss_fuzz_ct)
 
 
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     harnesses = find_libfuzzer_harnesses(curl_oss_fuzz_cq)
@@ -636,7 +637,7 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     # openssl harnesses
     assert "driver.c" in {h.name for h in harnesses}
 
-
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "harness_name,expected_first_match",
@@ -668,7 +669,7 @@ def test_get_harness_source_candidates_curl(
     harnesses = get_harness_source_candidates(curl_oss_fuzz_cq, harness_name)
     assert expected_first_match == harnesses[0].name
 
-
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "harness_name,expected_harness_source_path,coverage_map_function_paths",
