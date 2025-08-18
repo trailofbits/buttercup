@@ -74,6 +74,7 @@ class Function:
         for b1, b2 in zip(
             sorted(self.bodies, key=lambda x: x.start_line),
             sorted(other.bodies, key=lambda x: x.start_line),
+            strict=False,
         ):
             # If any body differs, functions don't have the same source
             if b1.body != b2.body:

@@ -507,25 +507,24 @@ class ReflectionAgent(PatcherAgentBase):
     def _get_failure_data(self, state: PatcherAgentState, patch_attempt: PatchAttempt) -> str:
         if patch_attempt.status == PatchStatus.CREATION_FAILED:
             return CREATION_FAILED_FAILURE_DATA
-        elif patch_attempt.status == PatchStatus.DUPLICATED:
+        if patch_attempt.status == PatchStatus.DUPLICATED:
             return DUPLICATED_FAILURE_DATA
-        elif patch_attempt.status == PatchStatus.APPLY_FAILED:
+        if patch_attempt.status == PatchStatus.APPLY_FAILED:
             return APPLY_FAILED_FAILURE_DATA
-        elif patch_attempt.status == PatchStatus.BUILD_FAILED:
+        if patch_attempt.status == PatchStatus.BUILD_FAILED:
             return self._get_build_failure_data(patch_attempt)
-        elif patch_attempt.status == PatchStatus.POV_FAILED:
+        if patch_attempt.status == PatchStatus.POV_FAILED:
             return self._get_pov_failure_data(patch_attempt)
-        elif patch_attempt.status == PatchStatus.TESTS_FAILED:
+        if patch_attempt.status == PatchStatus.TESTS_FAILED:
             return self._get_tests_failure_data(patch_attempt)
-        elif patch_attempt.status == PatchStatus.VALIDATION_FAILED:
+        if patch_attempt.status == PatchStatus.VALIDATION_FAILED:
             return VALIDATION_FAILED_FAILURE_DATA
-        else:
-            logger.warning(
-                "[%s / %s] Patch is pending, we should not be here, let's move back to root cause analysis",
-                state.context.task_id,
-                state.context.internal_patch_id,
-            )
-            return "Unknown failure"
+        logger.warning(
+            "[%s / %s] Patch is pending, we should not be here, let's move back to root cause analysis",
+            state.context.task_id,
+            state.context.internal_patch_id,
+        )
+        return "Unknown failure"
 
     def _get_extra_information(
         self,
@@ -684,14 +683,13 @@ class ReflectionAgent(PatcherAgentBase):
                 },
                 goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
             )
-        else:
-            return Command(
-                update={
-                    "patch_attempts": patch_attempt,
-                    "execution_info": execution_info,
-                },
-                goto=result.next_component.value,
-            )
+        return Command(
+            update={
+                "patch_attempts": patch_attempt,
+                "execution_info": execution_info,
+            },
+            goto=result.next_component.value,
+        )
 
     def _root_cause_analysis_failed(self, state: PatcherAgentState, configuration: PatcherConfig) -> Command:
         """Root cause analysis failed, reflect on the failure."""

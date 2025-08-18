@@ -422,9 +422,7 @@ class CodeTS:
                 type_def_type = TypeDefinitionType.PREPROC_TYPE
             elif definition_node.type == "preproc_function_def":
                 type_def_type = TypeDefinitionType.PREPROC_FUNCTION
-            elif definition_node.type == "class_declaration":
-                type_def_type = TypeDefinitionType.CLASS
-            elif definition_node.type == "interface_declaration":
+            elif definition_node.type == "class_declaration" or definition_node.type == "interface_declaration":
                 type_def_type = TypeDefinitionType.CLASS
             else:
                 logger.debug(f"Unknown type definition node type: {definition_node.type}")

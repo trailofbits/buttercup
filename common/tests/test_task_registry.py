@@ -322,7 +322,7 @@ def test_is_expired(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "expired-task":
             return expired_task.SerializeToString()
-        elif key == "live-task":
+        if key == "live-task":
             return live_task.SerializeToString()
         return None
 
@@ -447,9 +447,9 @@ def test_should_stop_processing_with_cancelled_ids(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "cancelled-task-1":
             return cancelled_task1.SerializeToString()
-        elif key == "cancelled-task-2":
+        if key == "cancelled-task-2":
             return cancelled_task2.SerializeToString()
-        elif key == "active-task":
+        if key == "active-task":
             return active_task.SerializeToString()
         return None
 
@@ -482,7 +482,7 @@ def test_should_stop_processing_no_cancelled_ids(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "active-task":
             return active_task.SerializeToString()
-        elif key == "cancelled-task":
+        if key == "cancelled-task":
             return cancelled_task.SerializeToString()
         return None
 
@@ -520,7 +520,7 @@ def test_should_stop_processing_expired_task(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "expired-task":
             return expired_task.SerializeToString()
-        elif key == "active-task":
+        if key == "active-task":
             return active_task.SerializeToString()
         return None
 
@@ -662,9 +662,9 @@ def test_is_expired_with_delta(task_registry, redis_client):
         def mock_hget(hash_name, key):
             if key == "just-expired":
                 return just_expired_task.SerializeToString()
-            elif key == "soon-expired":
+            if key == "soon-expired":
                 return soon_expired_task.SerializeToString()
-            elif key == "future-task":
+            if key == "future-task":
                 return future_task.SerializeToString()
             return None
 
@@ -735,7 +735,7 @@ def test_is_expired_with_delta_edge_cases(task_registry, redis_client):
         def mock_hget(hash_name, key):
             if key == "one-second-expired":
                 return one_second_expired.SerializeToString()
-            elif key == "one-second-future":
+            if key == "one-second-future":
                 return one_second_future.SerializeToString()
             return None
 

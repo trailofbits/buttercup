@@ -266,8 +266,7 @@ class TestChallengeService:
                         (project_path / ".git" / "config").write_text("git config")
                         (project_path / "README.md").write_text("# Test Repository")
                         return MagicMock(returncode=0, stdout="", stderr="")
-                    else:
-                        return MagicMock(returncode=0, stdout="", stderr="")
+                    return MagicMock(returncode=0, stdout="", stderr="")
 
                 mock_run.side_effect = git_clone_mock
 

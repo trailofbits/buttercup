@@ -166,9 +166,9 @@ def truncate_output(
 
     if truncate_position == TruncatePosition.START:
         return "\n[...TRUNCATED...]\n" + output[-max_length:]
-    elif truncate_position == TruncatePosition.MIDDLE:
+    if truncate_position == TruncatePosition.MIDDLE:
         return output[: max_length // 2] + "\n[...TRUNCATED...]\n" + output[-max_length // 2 :]
-    elif truncate_position == TruncatePosition.END:
+    if truncate_position == TruncatePosition.END:
         return output[:max_length] + "\n[...TRUNCATED...]\n"
 
 

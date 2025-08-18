@@ -27,7 +27,6 @@ class TestSubmittedSarifApi(unittest.TestCase):
 
         Submit a CRS generated SARIF
         """
-        pass
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ class ReproduceMultiple:
     ) -> Generator[tuple[BuildOutput, ReproduceResult], None, None]:
         if self.builds_cache is None:
             raise RuntimeError("Build cache is not populated")
-        for build, task in zip(self.build_outputs, self.builds_cache):
+        for build, task in zip(self.build_outputs, self.builds_cache, strict=False):
             yield (build, task.reproduce_pov(harness_name, pov))
 
     def get_first_crash(self, pov: Path, harness_name: str) -> tuple[BuildOutput, ReproduceResult] | None:

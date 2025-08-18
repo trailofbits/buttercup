@@ -125,10 +125,9 @@ class PoVReproduceStatus:
 
         if result[0]:
             return False  # Mitigated - didn't crash
-        elif result[1]:
+        if result[1]:
             return True  # Non-mitigated - did crash
-        else:
-            return None  # Not in final states
+        return None  # Not in final states
 
     def _make_key(self, request: POVReproduceRequest) -> str:
         """Create a unique key from a POVReproduceRequest by serializing it to string."""
@@ -163,13 +162,13 @@ class PoVReproduceStatus:
 
         if result[0]:
             return None  # Pending
-        elif result[1]:
+        if result[1]:
             return POVReproduceResponse(request=request, did_crash=False)  # Completed and mitigated
-        elif result[2]:
+        if result[2]:
             return POVReproduceResponse(request=request, did_crash=True)  # Completed and not mitigated
-        else:  # First time, schedule it for testing
-            self.redis.sadd(POV_REPRODUCE_PENDING_SET_NAME, key)
-            return None
+        # First time, schedule it for testing
+        self.redis.sadd(POV_REPRODUCE_PENDING_SET_NAME, key)
+        return None
 
     def mark_mitigated(self, request: POVReproduceRequest) -> bool:
         """Mark a POV reproduction as mitigated (patch successfully prevented the crash).

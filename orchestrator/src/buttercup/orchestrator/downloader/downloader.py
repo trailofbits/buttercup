@@ -84,12 +84,11 @@ class Downloader:
     def _get_source_type_dir(self, source_type: SourceDetail.SourceType) -> str:
         if source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO:
             return "src"
-        elif source_type == SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING:
+        if source_type == SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING:
             return "fuzz-tooling"
-        elif source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
+        if source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
             return "diff"
-        else:
-            raise ValueError(f"Unknown source type: {source_type}")
+        raise ValueError(f"Unknown source type: {source_type}")
 
     def extract_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail, source_file: Path) -> bool:
         """Uncompress a source file and returns the name of the main directory it contains"""
@@ -156,9 +155,8 @@ class Downloader:
                     f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it...",
                 )
                 return True
-            else:
-                logger.exception(f"Failed to move task directory: {str(e)}")
-                return False
+            logger.exception(f"Failed to move task directory: {str(e)}")
+            return False
         except Exception as e:
             # Re-raise any other errors
             logger.exception(f"Failed to move task directory: {str(e)}")

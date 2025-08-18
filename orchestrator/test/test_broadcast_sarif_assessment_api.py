@@ -27,7 +27,6 @@ class TestBroadcastSarifAssessmentApi(unittest.TestCase):
 
         Submit a SARIF Assessment
         """
-        pass
 
 
 if __name__ == "__main__":

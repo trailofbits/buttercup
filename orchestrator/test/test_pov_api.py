@@ -27,14 +27,12 @@ class TestPovApi(unittest.TestCase):
 
         Submit Vulnerability
         """
-        pass
 
     def test_v1_task_task_id_pov_pov_id_get(self) -> None:
         """Test case for v1_task_task_id_pov_pov_id_get
 
         Vulnerability Status
         """
-        pass
 
 
 if __name__ == "__main__":

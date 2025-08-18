@@ -27,14 +27,12 @@ class TestRequestApi(unittest.TestCase):
 
         Send a task to the source of this request
         """
-        pass
 
     def test_v1_request_list_get(self) -> None:
         """Test case for v1_request_list_get
 
         Get a list of available challenges to task
         """
-        pass
 
 
 if __name__ == "__main__":

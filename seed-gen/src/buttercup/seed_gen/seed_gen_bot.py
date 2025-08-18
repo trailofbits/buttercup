@@ -118,7 +118,7 @@ class SeedGenBot(TaskLoop):
                 (TaskName.SEED_EXPLORE.value, self.TASK_SEED_EXPLORE_PROB_FULL),
             ]
 
-        tasks, weights = zip(*task_distribution)
+        tasks, weights = zip(*task_distribution, strict=False)
         result = random.choices(tasks, weights=weights, k=1)
         return str(result[0]) if result else ""
 

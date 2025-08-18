@@ -202,18 +202,17 @@ def get_artifact(task_id: str, artifact_type: str, artifact_id: str) -> Any:
         if artifact_type == "bundles":
             file_path = task_dir / f"{artifact_id}.json"
             return json.load(file_path.open("r", encoding="utf-8"))
-        elif artifact_type == "patches":
+        if artifact_type == "patches":
             file_path = task_dir / f"{artifact_id}.patch"
             return file_path.read_text()
-        elif artifact_type == "povs":
+        if artifact_type == "povs":
             file_path = task_dir / f"{artifact_id}.bin"
             return file_path.read_bytes()
-        elif artifact_type == "sarifs":
+        if artifact_type == "sarifs":
             file_path = task_dir / f"{artifact_id}.sarif"
             return json.load(file_path.open("r", encoding="utf-8"))
-        else:
-            logger.error(f"Unknown artifact type: {artifact_type}")
-            return None
+        logger.error(f"Unknown artifact type: {artifact_type}")
+        return None
     except Exception:
         logger.exception(f"Failed to get {artifact_type} artifact {artifact_id} for task {task_id}")
         return None
@@ -440,9 +439,8 @@ def _create_task(
         if crs_client.submit_task(task):
             logger.info(f"Task {task_id} submitted successfully to CRS")
             return Message(message=f"Task {task_id} created and submitted to CRS for challenge {challenge.name}")
-        else:
-            logger.error(f"Failed to submit task {task_id} to CRS")
-            return Error(message="Failed to submit task to CRS")
+        logger.error(f"Failed to submit task {task_id} to CRS")
+        return Error(message="Failed to submit task to CRS")
 
     except Exception as e:
         logger.error(f"Error creating task for challenge {challenge.name}: {e}")
@@ -466,8 +464,7 @@ def _create_sarif_broadcast(
     broadcast = challenge_service.create_sarif_broadcast(task_id, sarif)
     if crs_client.submit_sarif_broadcast(broadcast):
         return Message(message=f"SARIF Broadcast for Task {task_id} created and submitted to CRS")
-    else:
-        return Error(message=f"Failed to submit SARIF Broadcast for Task {task_id} to CRS")
+    return Error(message=f"Failed to submit SARIF Broadcast for Task {task_id} to CRS")
 
 
 @app.get("/v1/ping/", response_model=PingResponse, tags=["ping"])
@@ -495,8 +492,7 @@ def get_dashboard() -> HTMLResponse:
 
     if html_file.exists():
         return HTMLResponse(content=html_file.read_text(), status_code=200)
-    else:
-        return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
+    return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
 
 
 @app.get("/v1/dashboard/stats", response_model=DashboardStats, tags=["dashboard"])

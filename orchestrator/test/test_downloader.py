@@ -128,10 +128,9 @@ def mock_node_local(temp_download_dir):
                                     # Return the destination path to simulate success
                                     return dst
                                 # Use os.rename for files
-                                else:
-                                    os.rename(src, dst)
-                                    # Return the destination path to simulate success
-                                    return dst
+                                os.rename(src, dst)
+                                # Return the destination path to simulate success
+                                return dst
                             except Exception as e:
                                 print(f"Error in rename_atomically mock: {e}")
                                 return None

@@ -126,7 +126,6 @@ class ReliableQueue(Generic[MsgType]):
                         self.group_name,
                         self.queue_name,
                     )
-                    pass
 
     def size(self) -> int:
         return self.redis.xlen(self.queue_name)

@@ -199,7 +199,7 @@ class TestMergerBot(unittest.TestCase):
         This test is no longer applicable as the _rehash_files method no longer exists.
         The file hashing functionality is now handled by the Corpus.hash_corpus method.
         """
-        pass  # Skipping test as functionality has been moved to Corpus class
+        # Skipping test as functionality has been moved to Corpus class
 
 
 class TestBaseCorpus(unittest.TestCase):
@@ -223,14 +223,13 @@ class TestBaseCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif str(args[0]) == "/tmp/local_dir":
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif str(args[0]) == "/tmp/remote_dir":
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
-            else:
-                return "/".join(str(arg) for arg in args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -317,12 +316,11 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif str(args[0]) == "/tmp/local_dir":
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif str(args[0]) == "/tmp/remote_dir":
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
-            else:
-                return "/".join(str(arg) for arg in args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -379,14 +377,13 @@ class TestPartitionedCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif str(args[0]) == "/tmp/local_dir":
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif str(args[0]) == "/tmp/remote_dir":
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
-            else:
-                return "/".join(str(arg) for arg in args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -461,12 +458,11 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif str(args[0]) == "/tmp/local_dir":
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif str(args[0]) == "/tmp/remote_dir":
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
-            else:
-                return "/".join(str(arg) for arg in args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -534,14 +530,13 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif args[0] == "/remote/path":
+            if args[0] == "/remote/path":
                 return f"/remote/path/{args[1]}"
-            elif str(args[0]) == "/tmp/local_dir":
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif str(args[0]) == "/tmp/remote_dir":
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
-            else:
-                return "/".join(str(arg) for arg in args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -637,14 +632,13 @@ class TestPartitionedCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif str(args[0]) == "/tmp/local_dir":
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif str(args[0]) == "/tmp/remote_dir":
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
-            else:
-                return "/".join(str(arg) for arg in args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 

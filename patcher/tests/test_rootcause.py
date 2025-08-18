@@ -37,9 +37,7 @@ def mock_docker_run(challenge_task: ChallengeTask):
                 # Copy source files to container src dir
                 src_path = challenge_task.get_source_path()
                 shutil.copytree(src_path, container_dst_dir, dirs_exist_ok=True)
-            elif args[1] == "create":
-                pass
-            elif args[1] == "rm":
+            elif args[1] == "create" or args[1] == "rm":
                 pass
 
             return subprocess.CompletedProcess(args, returncode=0)

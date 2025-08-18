@@ -27,7 +27,6 @@ class TestPingApi(unittest.TestCase):
 
         Test authentication creds and network connectivity
         """
-        pass
 
 
 if __name__ == "__main__":

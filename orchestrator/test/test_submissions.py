@@ -324,8 +324,7 @@ def submissions(mock_redis, mock_competition_api, mock_task_registry):
         def queue_factory_side_effect(queue_name, **kwargs):
             if queue_name == "QueueNames.BUILD":
                 return mock_build_queue
-            else:
-                return mock_reproduce_queue
+            return mock_reproduce_queue
 
         mock_queue_factory.return_value.create.side_effect = queue_factory_side_effect
 
@@ -4774,9 +4773,8 @@ class TestRecordPatchedBuild:
             if patch.internal_patch_id == "patch-1":
                 # patch-1 mitigates POVs from other submissions
                 return [Mock(did_crash=False)] * len(crashes)  # Mitigated
-            else:
-                # Other patches don't mitigate
-                return [None] * len(crashes)  # Pending
+            # Other patches don't mitigate
+            return [None] * len(crashes)  # Pending
 
         # Mock _consolidate_similar_submissions to track calls
         mock_consolidate = Mock()
@@ -4971,7 +4969,7 @@ class TestRecordPatchedBuild:
         def mock_pov_reproduce_patch_status(patch, crashes, task_id):
             if patch.internal_patch_id == "patch-1b":
                 return [Mock(did_crash=False)] * len(crashes)  # Mitigated
-            elif patch.internal_patch_id == "patch-1a":
+            if patch.internal_patch_id == "patch-1a":
                 # This shouldn't be called since it's not the current patch
                 raise AssertionError("Should not test non-current patch")
             return [None] * len(crashes)
@@ -5117,7 +5115,7 @@ class TestRecordPatchedBuild:
             if patch.internal_patch_id == "patch-1":
                 # patch-1 mitigates POVs from submission 1 only
                 return [Mock(did_crash=False)] * len(crashes)
-            elif patch.internal_patch_id == "patch-3":
+            if patch.internal_patch_id == "patch-3":
                 # patch-3 mitigates POVs from submission 3 only
                 return [Mock(did_crash=False)] * len(crashes)
             return [None] * len(crashes)
@@ -5198,7 +5196,7 @@ class TestRecordPatchedBuild:
             if patch.internal_patch_id == "patch-1" and task_id == "task-1":
                 # patch-1 mitigates task-1 POVs
                 return [Mock(did_crash=False)] * len(crashes)
-            elif patch.internal_patch_id == "patch-4" and task_id == "task-2":
+            if patch.internal_patch_id == "patch-4" and task_id == "task-2":
                 # patch-4 mitigates task-2 POVs
                 return [Mock(did_crash=False)] * len(crashes)
             return [None] * len(crashes)
@@ -5686,7 +5684,7 @@ class TestShouldWaitForPatchMitigationMerge:
         def mock_pov_reproduce_patch_status(patch, crashes, task_id):
             if patch.internal_patch_id == "patch-1":
                 return [Mock(did_crash=True)] * len(crashes)  # Doesn't mitigate
-            elif patch.internal_patch_id == "patch-2":
+            if patch.internal_patch_id == "patch-2":
                 return [Mock(did_crash=False), Mock(did_crash=True)]  # Partially mitigates
             return []
 
@@ -5949,9 +5947,9 @@ class TestFailedPOVFiltering:
                         Mock(did_crash=False),  # crash1 (PASSED) - mitigated
                         Mock(did_crash=True),  # crash3 (ACCEPTED) - not mitigated
                     ]
-                elif call_count == 2:  # Submission 2: No active POVs (all failed)
+                if call_count == 2:  # Submission 2: No active POVs (all failed)
                     return []
-                elif call_count == 3:  # Submission 3: Returns results only for active POVs
+                if call_count == 3:  # Submission 3: Returns results only for active POVs
                     return [
                         Mock(did_crash=True),  # crash6 (PASSED) - not mitigated
                         Mock(did_crash=False),  # crash8 (ACCEPTED) - mitigated

@@ -321,32 +321,30 @@ class FuzzyJavaImportsResolver:
             return self.get_type_from_file(imported_file, dotexpr)
 
         # If the dotexpr has dots, iteratively get the type of the prefix
-        else:
-            prefix, suffix, expr_type = self.split_rightmost_dotexpr(dotexpr)
-            prefix_type = self.get_dotexpr_type(prefix, file_path)
-            if prefix_type is None:
+        prefix, suffix, expr_type = self.split_rightmost_dotexpr(dotexpr)
+        prefix_type = self.get_dotexpr_type(prefix, file_path)
+        if prefix_type is None:
+            return None
+        # Parse the type definition to find the field/method type
+        if expr_type == "field":
+            field_type_name = self.get_field_type_name(prefix_type, suffix)
+            if field_type_name is None:
                 return None
-            # Parse the type definition to find the field/method type
-            if expr_type == "field":
-                field_type_name = self.get_field_type_name(prefix_type, suffix)
-                if field_type_name is None:
-                    return None
-                # Then get the actual type definition. Do do this we resolve the
-                # type of the field within the file where the prefix type is defined.
-                # E.G for Foo.a if we now type name of field a is Bar then we
-                # look for the type Bar that is imported in /path/to/Foo.java
-                res = self.get_dotexpr_type(field_type_name, prefix_type.file_path)
-                return res
-            elif expr_type == "method":
-                # TODO(boyan): resolve class methods, here we assume it's a method
-                method_return_type_name = self.get_method_return_type_name(prefix_type, suffix)
-                if method_return_type_name is None:
-                    return None
-                res = self.get_dotexpr_type(method_return_type_name, prefix_type.file_path)
-                return res
-            else:
-                # Should not happen
+            # Then get the actual type definition. Do do this we resolve the
+            # type of the field within the file where the prefix type is defined.
+            # E.G for Foo.a if we now type name of field a is Bar then we
+            # look for the type Bar that is imported in /path/to/Foo.java
+            res = self.get_dotexpr_type(field_type_name, prefix_type.file_path)
+            return res
+        if expr_type == "method":
+            # TODO(boyan): resolve class methods, here we assume it's a method
+            method_return_type_name = self.get_method_return_type_name(prefix_type, suffix)
+            if method_return_type_name is None:
                 return None
+            res = self.get_dotexpr_type(method_return_type_name, prefix_type.file_path)
+            return res
+        # Should not happen
+        return None
 
     def split_rightmost_dotexpr(self, expr: str) -> tuple[str, str, str | None]:
         """Splits a dot expression into two parts:

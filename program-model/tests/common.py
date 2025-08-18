@@ -32,8 +32,7 @@ def filter_project_context(
     it checks whether matches belong to a file that as the proper project_name in their path."""
     if language == Language.C:
         return [x for x in results if f"/{container_src_dir}/" in str(x.file_path)]
-    else:
-        return results
+    return results
 
 
 @dataclass(frozen=True)

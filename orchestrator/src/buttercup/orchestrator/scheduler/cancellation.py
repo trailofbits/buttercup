@@ -67,7 +67,7 @@ class Cancellation:
             return any_cancelled
 
         # Handle the case where a specific task_id is provided
-        elif delete_request.HasField("task_id"):
+        if delete_request.HasField("task_id"):
             task_id = delete_request.task_id
             logger.info(f"Processing delete request for task {task_id}")
 
@@ -77,9 +77,8 @@ class Cancellation:
             return True
 
         # Neither 'all' nor 'task_id' is set
-        else:
-            logger.warning("Delete request missing both 'task_id' and 'all' fields, ignoring")
-            return False
+        logger.warning("Delete request missing both 'task_id' and 'all' fields, ignoring")
+        return False
 
     def process_cancellations(self) -> bool:
         """Process one iteration of the cancellation loop.

@@ -276,14 +276,13 @@ class QEAgent(PatcherAgentBase):
                 )
                 # Return the task directory path for later reuse
                 return True, True, cp_output, built_challenge.task_dir
-            else:
-                logger.warning(
-                    "Failed to rebuild Challenge Task %s with sanitizer %s (%s)",
-                    built_challenge.name,
-                    sanitizer,
-                    built_challenge.task_dir,
-                )
-                return True, False, cp_output, None
+            logger.warning(
+                "Failed to rebuild Challenge Task %s with sanitizer %s (%s)",
+                built_challenge.name,
+                sanitizer,
+                built_challenge.task_dir,
+            )
+            return True, False, cp_output, None
 
     def build_patch_node(
         self,

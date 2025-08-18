@@ -66,8 +66,6 @@ def create_tmp_dir(
 class ChallengeTaskError(Exception):
     """Base class for Challenge Task errors."""
 
-    pass
-
 
 FAILURE_ERR_RESULT = 201
 TIMEOUT_ERR_RESULT = 124

@@ -110,12 +110,10 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     @abstractmethod
     def _analyze_bug(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     def _analyze_bug_base(
         self,
@@ -138,7 +136,6 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _write_pov(self, state: BaseTaskState) -> Command:
         """Write PoV functions for the vulnerability"""
-        pass
 
     def _write_pov_base(
         self,
@@ -315,7 +312,6 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _init_state(self, out_dir: Path, current_dir: Path) -> BaseTaskState:
         """Set up State"""
-        pass
 
     def do_task(self, out_dir: Path, current_dir: Path) -> None:
         """Do vuln-discovery task"""
@@ -363,23 +359,19 @@ class VulnBaseTask(Task):
         """Get PoV examples for the task"""
         if self.project_yaml.unified_language == Language.JAVA:
             return VULN_JAVA_POV_EXAMPLES
-        else:
-            return VULN_C_POV_EXAMPLES
+        return VULN_C_POV_EXAMPLES
 
     def get_vuln_files(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return ".java"
-        else:
-            return ".c, .h, .cpp, or .hpp"
+        return ".c, .h, .cpp, or .hpp"
 
     def get_fuzzer_name(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return "jazzer"
-        else:
-            return "libfuzzer"
+        return "libfuzzer"
 
     def get_cwe_list(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return JAVA_CWE_LIST + "\n" + COMMON_CWE_LIST
-        else:
-            return C_CWE_LIST + "\n" + COMMON_CWE_LIST
+        return C_CWE_LIST + "\n" + COMMON_CWE_LIST

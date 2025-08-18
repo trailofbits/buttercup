@@ -1319,17 +1319,16 @@ class ContextRetrieverAgent(PatcherAgentBase):
                             },
                             goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                         )
-                    else:
-                        elapsed_time = time.time() - start_time
-                        logger.warning(
-                            "Failed to find test instructions after %.2f seconds for Challenge Task %s/%s",
-                            elapsed_time,
-                            self.challenge.task_meta.task_id,
-                            self.challenge.name,
-                        )
-                        return Command(
-                            goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-                        )
+                    elapsed_time = time.time() - start_time
+                    logger.warning(
+                        "Failed to find test instructions after %.2f seconds for Challenge Task %s/%s",
+                        elapsed_time,
+                        self.challenge.task_meta.task_id,
+                        self.challenge.name,
+                    )
+                    return Command(
+                        goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                    )
 
             except TimeoutError:
                 elapsed_time = time.time() - start_time

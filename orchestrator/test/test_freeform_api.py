@@ -27,7 +27,6 @@ class TestFreeformApi(unittest.TestCase):
 
         Submit Freeform
         """
-        pass
 
 
 if __name__ == "__main__":

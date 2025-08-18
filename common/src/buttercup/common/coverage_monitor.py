@@ -68,7 +68,7 @@ def coverage_data_equal(old_data: list[dict], new_data: list[dict]) -> bool:
     old_sorted = sorted(old_data, key=lambda x: x["function_name"])
     new_sorted = sorted(new_data, key=lambda x: x["function_name"])
 
-    for old_item, new_item in zip(old_sorted, new_sorted):
+    for old_item, new_item in zip(old_sorted, new_sorted, strict=False):
         if (
             old_item["function_name"] != new_item["function_name"]
             or old_item["total_lines"] != new_item["total_lines"]

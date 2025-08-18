@@ -55,7 +55,6 @@ class ProgramModel:
 
     def cleanup(self) -> None:
         """Cleanup resources used by the program model"""
-        pass
 
     def process_task_codequery(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""

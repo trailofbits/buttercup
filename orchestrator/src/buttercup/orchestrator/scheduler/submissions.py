@@ -69,10 +69,9 @@ def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     """Get the task_id from the SubmissionEntry or TracedCrash."""
     if isinstance(e, TracedCrash):
         return e.crash.target.task_id  # type: ignore[no-any-return]
-    elif isinstance(e, SubmissionEntry):
+    if isinstance(e, SubmissionEntry):
         return e.crashes[0].crash.crash.target.task_id  # type: ignore[no-any-return]
-    else:
-        raise ValueError(f"Unknown submission entry type: {type(e)}")
+    raise ValueError(f"Unknown submission entry type: {type(e)}")
 
 
 def log_entry(
@@ -823,9 +822,8 @@ class Submissions:
         if len(similar_entries) == 0:
             # Unique PoV
             return False
-        else:
-            # Similar submissions found - consolidate them (handles both single and multiple cases)
-            return self._consolidate_similar_submissions(crash, similar_entries)
+        # Similar submissions found - consolidate them (handles both single and multiple cases)
+        return self._consolidate_similar_submissions(crash, similar_entries)
 
     def _consolidate_similar_submissions(
         self,
@@ -967,12 +965,11 @@ class Submissions:
                 pov.result = status
                 log_entry(e, i=i, msg="Submitted POV")
                 return True
-            else:
-                logger.error(
-                    f"[{_task_id(pov.crash)}] Failed to submit vulnerability. Competition API returned {status}. Will attempt the next PoV.",
-                )
-                logger.debug(f"CrashInfo: {pov.crash}")
-                log_entry(e, i=i, msg="Failed to submit POV")
+            logger.error(
+                f"[{_task_id(pov.crash)}] Failed to submit vulnerability. Competition API returned {status}. Will attempt the next PoV.",
+            )
+            logger.debug(f"CrashInfo: {pov.crash}")
+            log_entry(e, i=i, msg="Failed to submit POV")
 
         return False
 
@@ -1318,53 +1315,51 @@ class Submissions:
                     msg=f"Submitted bundle {competition_bundle_id} for patch {competition_patch_id} and sarif {competition_sarif_id}",
                 )
                 return True
-            else:
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Failed to submit bundle, status: {status}. Will keep trying (not much else we can do).",
-                )
-                return False
-        else:
-            # We have a previous bundle, check if it is still valid
-            bundle = e.bundles[0]
-            bundle_needs_update = False
-            if competition_patch_id is not None:
-                # Want to make sure this is the value in the bundle, first check if it is already set
-                if bundle.competition_patch_id != competition_patch_id:
-                    # If it is not set, set it
-                    bundle.competition_patch_id = competition_patch_id
-                    bundle_needs_update = True
-            if competition_sarif_id is not None:
-                # Want to make sure this is the value in the bundle, first check if it is already set
-                if bundle.competition_sarif_id != competition_sarif_id:
-                    # If it is not set, set it
-                    bundle.competition_sarif_id = competition_sarif_id
-                    bundle_needs_update = True
-
-            if not bundle_needs_update:
-                # All good, no need to do anything
-                return False
-
-            log_entry(e, i=i, msg="Patching bundle")
-            # It bundles the wrong contents, patch the bundle using the correct contents.
-            success, status = self.competition_api.patch_bundle(
-                bundle.task_id,
-                bundle.bundle_id,
-                bundle.competition_pov_id,
-                bundle.competition_patch_id,
-                bundle.competition_sarif_id,
+            log_entry(
+                e,
+                i=i,
+                msg=f"Failed to submit bundle, status: {status}. Will keep trying (not much else we can do).",
             )
-            if success:
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Patched bundle {bundle.bundle_id} with patch {competition_patch_id} and sarif {competition_sarif_id}",
-                )
-                return True
-
-            log_entry(e, i=i, msg=f"Failed to patch bundle {bundle.bundle_id}. Status: {status}. Will keep trying.")
             return False
+        # We have a previous bundle, check if it is still valid
+        bundle = e.bundles[0]
+        bundle_needs_update = False
+        if competition_patch_id is not None:
+            # Want to make sure this is the value in the bundle, first check if it is already set
+            if bundle.competition_patch_id != competition_patch_id:
+                # If it is not set, set it
+                bundle.competition_patch_id = competition_patch_id
+                bundle_needs_update = True
+        if competition_sarif_id is not None:
+            # Want to make sure this is the value in the bundle, first check if it is already set
+            if bundle.competition_sarif_id != competition_sarif_id:
+                # If it is not set, set it
+                bundle.competition_sarif_id = competition_sarif_id
+                bundle_needs_update = True
+
+        if not bundle_needs_update:
+            # All good, no need to do anything
+            return False
+
+        log_entry(e, i=i, msg="Patching bundle")
+        # It bundles the wrong contents, patch the bundle using the correct contents.
+        success, status = self.competition_api.patch_bundle(
+            bundle.task_id,
+            bundle.bundle_id,
+            bundle.competition_pov_id,
+            bundle.competition_patch_id,
+            bundle.competition_sarif_id,
+        )
+        if success:
+            log_entry(
+                e,
+                i=i,
+                msg=f"Patched bundle {bundle.bundle_id} with patch {competition_patch_id} and sarif {competition_sarif_id}",
+            )
+            return True
+
+        log_entry(e, i=i, msg=f"Failed to patch bundle {bundle.bundle_id}. Status: {status}. Will keep trying.")
+        return False
 
     def _ensure_patch_is_bundled(self, i: int, e: SubmissionEntry, redis: Redis) -> bool:
         """Create or update bundle to include current passed patch with successful POV.
@@ -1488,12 +1483,11 @@ class Submissions:
             if success:
                 self._insert_matched_sarif(redis, bundle.competition_sarif_id)
                 return True
-            else:
-                log_entry(
-                    e,
-                    i=i,
-                    msg=f"Failed to confirm SARIF {bundle.competition_sarif_id}. Status: {status}. Will keep trying.",
-                )
+            log_entry(
+                e,
+                i=i,
+                msg=f"Failed to confirm SARIF {bundle.competition_sarif_id}. Status: {status}. Will keep trying.",
+            )
 
         # We have a bundle with a SARIF that has been confirmed, no need to do anything (or confirmation failed)
         return True

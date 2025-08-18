@@ -46,9 +46,8 @@ class CRSClient:
             if response.status_code in (202, 200):
                 logger.info(f"Task {task.tasks[0].task_id} submitted successfully to CRS")
                 return True
-            else:
-                logger.error(f"Failed to submit task to CRS. Status: {response.status_code}, Response: {response.text}")
-                return False
+            logger.error(f"Failed to submit task to CRS. Status: {response.status_code}, Response: {response.text}")
+            return False
 
         except Exception as e:
             logger.error(f"Error submitting task to CRS: {e}")
@@ -77,11 +76,10 @@ class CRSClient:
             if response.status_code in (202, 200):
                 logger.info("SARIF Broadcasts submitted successfully to CRS")
                 return True
-            else:
-                logger.error(
-                    f"Failed to submit SARIF Broadcasts to CRS. Status: {response.status_code}, Response: {response.text}",
-                )
-                return False
+            logger.error(
+                f"Failed to submit SARIF Broadcasts to CRS. Status: {response.status_code}, Response: {response.text}",
+            )
+            return False
 
         except Exception as e:
             logger.error(f"Error submitting SARIF Broadcasts to CRS: {e}")
@@ -115,9 +113,8 @@ class CRSClient:
                 ready = status_data.get("ready", False)
                 logger.info(f"CRS ping successful. Ready: {ready}")
                 return bool(ready)
-            else:
-                logger.error(f"CRS ping failed. Status: {response.status_code}, Response: {response.text}")
-                return False
+            logger.error(f"CRS ping failed. Status: {response.status_code}, Response: {response.text}")
+            return False
 
         except Exception as e:
             logger.error(f"Error pinging CRS: {e}")
