@@ -104,7 +104,7 @@ class CRSResponse:
                     logger_instance.error(f"Valid: {self.error_details['valid']}")
 
     @classmethod
-    def from_response(cls, response: requests.Response) -> "CRSResponse":
+    def from_response(cls, response: requests.Response) -> CRSResponse:
         """Create a CRSResponse from a requests.Response object."""
         try:
             # Try to parse JSON response for detailed error information
