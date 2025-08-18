@@ -38,7 +38,7 @@ jobs:
     if: |
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration == 'true') ||
-      contains(github.event.pull_request.labels.*.name, 'integration-tests')
+      contains(github.event.pull_request.labels.*.name, 'full-integration')
     
     strategy:
       fail-fast: false
