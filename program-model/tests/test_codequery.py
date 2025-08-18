@@ -182,10 +182,7 @@ def test_get_functions_multiple(mock_c_challenge_task: ChallengeTask):
     function3 = codequery.get_functions("function3", Path("test3.c"))
     assert len(function3) == 1
     assert function3[0].name == "function3"
-    assert (
-        function3[0].bodies[0].body
-        == "int function3(int a, int b) {\n    int c = a + b;\n    return c;\n}"
-    )
+    assert function3[0].bodies[0].body == "int function3(int a, int b) {\n    int c = a + b;\n    return c;\n}"
 
     function4 = codequery.get_functions("function4", Path("test3.c"))
     assert len(function4) == 1
@@ -229,9 +226,7 @@ def test_keep_status(
     assert mock_c_challenge_task.task_dir.exists()
     assert mock_c_challenge_task_ro.task_dir.exists()
 
-    with mock_c_challenge_task_ro.get_rw_copy(
-        mock_c_challenge_task_ro.task_dir.parent
-    ) as nd_challenge:
+    with mock_c_challenge_task_ro.get_rw_copy(mock_c_challenge_task_ro.task_dir.parent) as nd_challenge:
         with patch("subprocess.run", side_effect=mock_docker_run(nd_challenge)):
             codequery3 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery3.get_functions("main")
@@ -239,9 +234,7 @@ def test_keep_status(
         assert mock_c_challenge_task.task_dir.exists()
         assert mock_c_challenge_task_ro.task_dir.exists()
 
-    with mock_c_challenge_task.get_rw_copy(
-        mock_c_challenge_task.task_dir.parent
-    ) as nd_challenge:
+    with mock_c_challenge_task.get_rw_copy(mock_c_challenge_task.task_dir.parent) as nd_challenge:
         with patch("subprocess.run", side_effect=mock_docker_run(nd_challenge)):
             codequery4 = CodeQueryPersistent(nd_challenge, work_dir=wdir)
         assert codequery4.get_functions("main")
@@ -266,9 +259,7 @@ def test_get_types(mock_c_challenge_task: ChallengeTask):
     assert types[0].definition_line == 1
     types = codequery.get_types("myInt", Path("test4.c"), function_name="function5")
     assert len(types) == 0
-    types = codequery.get_types(
-        "myOtherInt", Path("test4.c"), function_name="function5"
-    )
+    types = codequery.get_types("myOtherInt", Path("test4.c"), function_name="function5")
     assert len(types) == 1
     assert types[0].name == "myOtherInt"
     assert types[0].type == TypeDefinitionType.TYPEDEF
@@ -310,10 +301,7 @@ def test_libjpeg_indexing(libjpeg_oss_fuzz_task: ChallengeTask):
     assert parse_switches[0].file_path == Path("/src/libjpeg-turbo/cjpeg.c")
     assert parse_switches[0].file_path.name == "cjpeg.c"
     assert len(parse_switches[0].bodies) == 1
-    assert (
-        "parse_switches(j_compress_ptr cinfo, int argc, char **argv,"
-        in parse_switches[0].bodies[0].body
-    )
+    assert "parse_switches(j_compress_ptr cinfo, int argc, char **argv," in parse_switches[0].bodies[0].body
 
     assert parse_switches[1].file_path.name == "djpeg.c"
     assert parse_switches[1].name == "parse_switches"
@@ -326,20 +314,14 @@ parse_switches(j_decompress_ptr cinfo, int argc, char **argv,
 """
         in parse_switches[1].bodies[0].body
     )
+    assert '    } else if (keymatch(arg, "crop", 2)) {' in parse_switches[1].bodies[0].body
     assert (
-        '    } else if (keymatch(arg, "crop", 2)) {' in parse_switches[1].bodies[0].body
-    )
-    assert (
-        "return argn;                  /* return index of next arg (file name) */"
-        in parse_switches[1].bodies[0].body
+        "return argn;                  /* return index of next arg (file name) */" in parse_switches[1].bodies[0].body
     )
 
     assert parse_switches[2].file_path.name == "jpegtran.c"
     assert len(parse_switches[2].bodies) == 1
-    assert (
-        "parse_switches(j_compress_ptr cinfo, int argc, char **argv,"
-        in parse_switches[2].bodies[0].body
-    )
+    assert "parse_switches(j_compress_ptr cinfo, int argc, char **argv," in parse_switches[2].bodies[0].body
 
 
 @pytest.mark.integration
@@ -351,10 +333,7 @@ def test_selinux_indexing(selinux_oss_fuzz_task: ChallengeTask):
     assert functions[0].name == "mls_semantic_level_expand"
     assert functions[0].file_path == Path("/src/selinux/libsepol/src/expand.c")
     assert len(functions[0].bodies) == 1
-    assert (
-        """cat->low > 0 ? p->p_cat_val_to_name[cat->low - 1] : "Invalid","""
-        in functions[0].bodies[0].body
-    )
+    assert """cat->low > 0 ? p->p_cat_val_to_name[cat->low - 1] : "Invalid",""" in functions[0].bodies[0].body
 
 
 def setup_java_dirs(tmp_path: Path) -> Path:

@@ -201,9 +201,9 @@ def test_do_task_no_valid_povs(
 
         for i in range(vuln_discovery_task.MAX_POV_ITERATIONS):
             iter_pov_files = list(out_dir.glob(f"iter{i}_*.seed"))
-            assert (
-                len(iter_pov_files) == 2
-            ), f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            assert len(iter_pov_files) == 2, (
+                f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            )
 
             # Check the content of the PoV files
             iter_pov1_file = next(f for f in iter_pov_files if "gen_seed_1" in f.name)
