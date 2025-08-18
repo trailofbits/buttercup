@@ -2,18 +2,22 @@
 #   filename:  openapi.json
 #   timestamp: 2025-07-08T08:15:58+00:00
 from __future__ import annotations
-import uuid
-import json
-import base64
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException
+import base64
+import json
+import logging
+import uuid
+from datetime import datetime, timedelta
+from functools import cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from buttercup.common.telemetry import crs_instance_id
 from buttercup.orchestrator.ui.competition_api.models.types import (
     BundleSubmission,
     BundleSubmissionResponse,
@@ -37,10 +41,7 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
 )
 from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
 from buttercup.orchestrator.ui.config import Settings
-from buttercup.orchestrator.ui.database import DatabaseManager, Task, Bundle, POV, Patch
-from buttercup.common.telemetry import crs_instance_id
-from functools import cache
-import logging
+from buttercup.orchestrator.ui.database import POV, Bundle, DatabaseManager, Patch, Task
 
 logger = logging.getLogger(__name__)
 

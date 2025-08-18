@@ -1,11 +1,13 @@
-from functools import lru_cache
-from buttercup.common.datastructures.msg_pb2 import Task
-from redis import Redis
-from buttercup.common.queues import HashNames
-from dataclasses import dataclass
-from google.protobuf import text_format
 import time
-from typing import Set, Iterator
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Iterator, Set
+
+from google.protobuf import text_format
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import Task
+from buttercup.common.queues import HashNames
 
 # Redis set keys for tracking task states
 CANCELLED_TASKS_SET = "cancelled_tasks"
@@ -282,9 +284,10 @@ class TaskRegistry:
 
 def task_registry_cli() -> None:
     """CLI for the task registry"""
-    from pydantic_settings import BaseSettings
     from typing import Annotated
+
     from pydantic import Field
+    from pydantic_settings import BaseSettings
 
     class TaskRegistrySettings(BaseSettings):
         redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]

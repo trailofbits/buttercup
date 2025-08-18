@@ -2,18 +2,19 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
+
 from ..common import (
-    common_test_get_callers,
-    common_test_get_callees,
-    common_test_get_functions,
-    common_test_get_type_definitions,
-    common_test_get_type_usages,
-    TestFunctionInfo,
-    TestCallerInfo,
     TestCalleeInfo,
+    TestCallerInfo,
+    TestFunctionInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
     TypeDefinitionType,
+    common_test_get_callees,
+    common_test_get_callers,
+    common_test_get_functions,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
 )
 
 
@@ -27,7 +28,7 @@ from ..common import (
                 num_bodies=1,
                 body_excerpts=[
                     """if (len > ses.readbuf->size) {
-		ses.readbuf = buf_resize(ses.readbuf, len);		
+		ses.readbuf = buf_resize(ses.readbuf, len);
 	}
 	buf_setlen(ses.readbuf, len);
 	buf_setpos(ses.readbuf, blocksize);

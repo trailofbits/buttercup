@@ -1,12 +1,14 @@
-from buttercup.common.challenge_task import ChallengeTask
 import argparse
-import subprocess
 import json
 import logging
+import subprocess
 from dataclasses import dataclass
-from buttercup.common.project_yaml import ProjectYaml, Language
-from bs4 import BeautifulSoup, Tag
 from typing import Any, cast
+
+from bs4 import BeautifulSoup, Tag
+
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import Language, ProjectYaml
 
 logger = logging.getLogger(__name__)
 

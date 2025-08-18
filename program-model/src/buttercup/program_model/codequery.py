@@ -5,27 +5,29 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from dataclasses import dataclass, field
-from pathlib import Path
-from itertools import groupby
-from typing import ClassVar, Optional
-import rapidfuzz
 import uuid
+from dataclasses import dataclass, field
+from itertools import groupby
+from pathlib import Path
+from typing import ClassVar, Optional
+
+import rapidfuzz
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
-from buttercup.program_model.api.tree_sitter import CodeTS
+from buttercup.common.project_yaml import Language, ProjectYaml
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.program_model.api.fuzzy_imports_resolver import (
-    FuzzyJavaImportsResolver,
     FuzzyCImportsResolver,
+    FuzzyJavaImportsResolver,
 )
+from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.program_model.utils.common import (
     Function,
     TypeDefinition,
     TypeUsageInfo,
 )
-from buttercup.common.project_yaml import ProjectYaml, Language
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 

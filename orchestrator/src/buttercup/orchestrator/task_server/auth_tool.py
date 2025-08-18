@@ -18,7 +18,6 @@ from rich import print as rprint
 from rich.console import Console
 from rich.table import Table
 
-
 # Create password hasher with Argon2id settings matching the server configuration
 ph = PasswordHasher(
     time_cost=3,  # Number of iterations

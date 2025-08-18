@@ -1,22 +1,25 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import reduce
-from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
-from buttercup.patcher.utils import PatchInput, PatchOutput, PatchInputPoV
-import buttercup.common.node_local as node_local
+from pathlib import Path
+from typing import Any
+from collections.abc import Callable
+
+from langchain_community.cache import SQLiteCache
+from langchain_core.globals import set_llm_cache
 from langchain_core.runnables import Runnable, RunnableConfig
 from redis import Redis
-from typing import Callable, Any
-from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames, GroupNames, RQItem
+
+import buttercup.common.node_local as node_local
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.patcher.agents.leader import PatcherLeaderAgent
-from langchain_core.globals import set_llm_cache
-from langchain_community.cache import SQLiteCache
-from buttercup.common.utils import serve_loop
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
-import logging
+from buttercup.common.utils import serve_loop
+from buttercup.patcher.agents.leader import PatcherLeaderAgent
+from buttercup.patcher.utils import PatchInput, PatchInputPoV, PatchOutput
 
 logger = logging.getLogger(__name__)
 

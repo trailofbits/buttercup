@@ -1,14 +1,15 @@
 """CodeQuery primitives testing"""
 
-import pytest
-from unittest.mock import patch
-from pathlib import Path
 import shutil
 import subprocess
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
 from buttercup.common.task_meta import TaskMeta
+from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
 from buttercup.program_model.utils.common import TypeDefinitionType
 
 

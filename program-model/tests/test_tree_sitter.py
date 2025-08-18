@@ -1,9 +1,11 @@
+from dataclasses import dataclass
+from pathlib import Path
+
 import pytest
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.api.tree_sitter import CodeTS, TypeDefinitionType
-from pathlib import Path
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

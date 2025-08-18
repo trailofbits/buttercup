@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from pydantic import BaseModel, Field
 from redis import Redis
 

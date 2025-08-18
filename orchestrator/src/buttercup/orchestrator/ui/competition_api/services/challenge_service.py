@@ -8,21 +8,21 @@ import subprocess
 import tarfile
 import tempfile
 import time
-from pathlib import Path
-from typing import Optional, Any
 import uuid
+from pathlib import Path
+from typing import Any, Optional
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
     SourceDetail,
     SourceType,
     Task,
     TaskDetail,
     TaskType,
-    SARIFBroadcast,
-    SARIFBroadcastDetail,
 )
 
 logger = logging.getLogger(__name__)

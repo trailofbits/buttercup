@@ -1,8 +1,10 @@
-from typing import Generic, TypeVar, Type, Iterator
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, FunctionCoverage, BuildType
-from redis import Redis
-from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
+from typing import Generic, Iterator, Type, TypeVar
+
+from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from google.protobuf.message import Message
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
 from buttercup.common.sets import RedisSet
 
 MsgType = TypeVar("MsgType", bound=Message)

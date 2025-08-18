@@ -1,31 +1,29 @@
-from buttercup.common import node_local
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-from dataclasses import dataclass
-import os
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.corpus import Corpus
-from buttercup.common.maps import HarnessWeights, BuildMap
-from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
-from buttercup.common.logger import setup_package_logger
-from redis import Redis
-from typing import List
-from os import PathLike
-import random
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
+import datetime
 import logging
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.fuzzing_infra.settings import FuzzerBotSettings
-from buttercup.common.sets import MergedCorpusSetLock
-from buttercup.common.constants import ADDRESS_SANITIZER
-from buttercup.common.sets import FailedToAcquireLock
-from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS
-from buttercup.common.telemetry import init_telemetry
+import os
+import random
+import shutil
+from dataclasses import dataclass
+from os import PathLike
+from typing import List
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-import datetime
-import shutil
+from redis import Redis
+
+from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.constants import ADDRESS_SANITIZER
+from buttercup.common.corpus import Corpus
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.maps import BuildMap, HarnessWeights
+from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS, FailedToAcquireLock, MergedCorpusSetLock
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
 

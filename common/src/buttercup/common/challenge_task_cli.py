@@ -1,11 +1,12 @@
-from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand, CliImplicitFlag
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Dict, Iterator
+
 from pydantic import BaseModel
+from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, get_subcommand
+
 from buttercup.common.challenge_task import ChallengeTask, CommandResult, ReproduceResult
 from buttercup.common.logger import setup_package_logger
-from pathlib import Path
-from typing import Dict
-from contextlib import contextmanager
-from typing import Iterator
 
 
 class BuildImageCommand(BaseModel):

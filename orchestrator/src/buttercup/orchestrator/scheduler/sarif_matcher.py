@@ -1,11 +1,12 @@
-from buttercup.common.datastructures.msg_pb2 import TracedCrash
-from buttercup.common.clusterfuzz_parser.slice import StackFrame
-from buttercup.common import stack_parsing
-from buttercup.orchestrator.task_server.models.types import SARIFBroadcastDetail
-from typing import List, Tuple
-from pathlib import Path
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Tuple
+
+from buttercup.common import stack_parsing
+from buttercup.common.clusterfuzz_parser.slice import StackFrame
+from buttercup.common.datastructures.msg_pb2 import TracedCrash
+from buttercup.orchestrator.task_server.models.types import SARIFBroadcastDetail
 
 logger = logging.getLogger(__name__)
 

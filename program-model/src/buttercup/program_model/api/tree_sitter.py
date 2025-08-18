@@ -1,20 +1,22 @@
 """TreeSitter based code querying module"""
 
 import logging
+import re
 from dataclasses import dataclass
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+from tree_sitter_language_pack import get_language, get_parser
+
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.utils.common import (
     Function,
     FunctionBody,
     TypeDefinition,
     TypeDefinitionType,
 )
-from tree_sitter_language_pack import get_language, get_parser
-from buttercup.common.project_yaml import ProjectYaml, Language
-import re
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +180,7 @@ QUERY_STR_TYPES_JAVA = """
 QUERY_STR_CLASS_MEMBERS_JAVA = """;; Match field declarations without explicit modifiers
 (
   (class_declaration
-    body: (class_body 
+    body: (class_body
       (field_declaration
         type: (_) @type
         declarator: (variable_declarator
@@ -192,7 +194,7 @@ QUERY_STR_CLASS_MEMBERS_JAVA = """;; Match field declarations without explicit m
 ;; Match method declarations without explicit modifiers
 (
   (class_declaration
-    body: (class_body 
+    body: (class_body
       (method_declaration
         type_parameters: (_)? @method_type_params
         type: (_) @method_return_type

@@ -1,52 +1,53 @@
-from dataclasses import field, dataclass
-from functools import lru_cache
-import logging
 import base64
+import logging
 import uuid
-from redis import Redis
+from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Callable, Iterator, List, Set, Tuple
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 import buttercup.common.node_local as node_local
-from pathlib import Path
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 from buttercup.common.constants import ARCHITECTURE
-from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames
-from buttercup.common.sets import PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import (
-    TracedCrash,
-    ConfirmedVulnerability,
-    SubmissionEntry,
-    SubmissionEntryPatch,
+    BuildOutput,
     BuildRequest,
     BuildType,
-    BuildOutput,
+    Bundle,
+    ConfirmedVulnerability,
+    CrashWithId,
+    Patch,
     POVReproduceRequest,
     POVReproduceResponse,
-    CrashWithId,
-    Bundle,
+    SubmissionEntry,
+    SubmissionEntryPatch,
     SubmissionResult,
-    Patch,
+    TracedCrash,
 )
-from buttercup.common.sarif_store import SARIFStore, SARIFBroadcastDetail
+from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.queues import QueueFactory, QueueNames, ReliableQueue
+from buttercup.common.sarif_store import SARIFBroadcastDetail, SARIFStore
+from buttercup.common.sets import PoVReproduceStatus
+from buttercup.common.stack_parsing import get_crash_data, get_inst_key
 from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-
-from buttercup.orchestrator.scheduler.sarif_matcher import match
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from buttercup.orchestrator.competition_api_client.api import BroadcastSarifAssessmentApi, BundleApi, PatchApi, PovApi
+from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture
-from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
-from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
+from buttercup.orchestrator.competition_api_client.models.types_assessment import TypesAssessment
 from buttercup.orchestrator.competition_api_client.models.types_bundle_submission import TypesBundleSubmission
-from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission import TypesPatchSubmission
+from buttercup.orchestrator.competition_api_client.models.types_pov_submission import TypesPOVSubmission
 from buttercup.orchestrator.competition_api_client.models.types_sarif_assessment_submission import (
     TypesSarifAssessmentSubmission,
 )
-from buttercup.orchestrator.competition_api_client.models.types_assessment import TypesAssessment
-from buttercup.orchestrator.competition_api_client.api_client import ApiClient
-from buttercup.orchestrator.competition_api_client.api import PovApi, PatchApi, BundleApi, BroadcastSarifAssessmentApi
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.project_yaml import ProjectYaml
-from buttercup.common.stack_parsing import get_crash_data, get_inst_key
-from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
+from buttercup.orchestrator.scheduler.sarif_matcher import match
 
 logger = logging.getLogger(__name__)
 

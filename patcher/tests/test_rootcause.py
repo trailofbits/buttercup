@@ -1,28 +1,28 @@
 """Tests for the RootCause agent."""
 
-from typing import Iterator
-import pytest
-from pathlib import Path
+import os
 import shutil
 import subprocess
+from pathlib import Path
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
-from langchain_core.messages import AIMessage
-import os
+
+import pytest
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableSequence
 
-from buttercup.patcher.agents.rootcause import RootCauseAgent, get_modified_line_ranges
-from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    ContextCodeSnippet,
-    CodeSnippetKey,
-)
-from buttercup.patcher.patcher import PatchInput
-from buttercup.patcher.utils import PatchInputPoV
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
-
+from buttercup.patcher.agents.common import (
+    CodeSnippetKey,
+    ContextCodeSnippet,
+    PatcherAgentName,
+    PatcherAgentState,
+)
+from buttercup.patcher.agents.rootcause import RootCauseAgent, get_modified_line_ranges
+from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
 
 original_subprocess_run = subprocess.run
 
@@ -449,7 +449,7 @@ index 67da216..1e338c2 100644
      scanf("%s", filename);
 
      // Open another file for writing
- 
+
 diff --git a/file2.py b/file2.py
 index 9876543..fedcba9 100644
 --- a/file2.py

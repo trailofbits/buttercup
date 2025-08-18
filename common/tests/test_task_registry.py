@@ -1,11 +1,12 @@
-import pytest
-from unittest.mock import Mock
-from buttercup.common.task_registry import TaskRegistry, CANCELLED_TASKS_SET, SUCCEEDED_TASKS_SET, ERRORED_TASKS_SET
-from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 import time
 from typing import Set
+from unittest.mock import Mock, patch
+
+import pytest
 from redis import Redis
-from unittest.mock import patch
+
+from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task
+from buttercup.common.task_registry import CANCELLED_TASKS_SET, ERRORED_TASKS_SET, SUCCEEDED_TASKS_SET, TaskRegistry
 
 
 @pytest.fixture

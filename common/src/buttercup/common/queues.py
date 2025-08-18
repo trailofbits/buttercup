@@ -1,31 +1,31 @@
 from __future__ import annotations
 
+import logging
+import os
+import uuid
 from dataclasses import dataclass, field
-from redis import Redis, RedisError
-from google.protobuf.message import Message
+from enum import Enum
 from functools import wraps
+from typing import Any, Callable, Generic, Literal, Type, TypeVar, cast, overload
+
+from google.protobuf.message import Message
+from redis import Redis, RedisError
+
 from buttercup.common.datastructures.msg_pb2 import (
-    BuildRequest,
     BuildOutput,
-    Crash,
-    TaskDownload,
-    TaskReady,
-    TaskDelete,
-    Patch,
+    BuildRequest,
     ConfirmedVulnerability,
-    IndexRequest,
+    Crash,
     IndexOutput,
-    TracedCrash,
+    IndexRequest,
+    Patch,
     POVReproduceRequest,
     POVReproduceResponse,
+    TaskDelete,
+    TaskDownload,
+    TaskReady,
+    TracedCrash,
 )
-import logging
-from typing import Type, Generic, TypeVar, Literal, overload, Callable, cast
-import uuid
-import os
-from enum import Enum
-from typing import Any
-
 
 TIMES_DELIVERED_FIELD = "times_delivered"
 

@@ -1,15 +1,17 @@
-import logging
-from typing import BinaryIO, List
-import buttercup.common.node_local as node_local
-from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
-import os
 import hashlib
+import logging
+import os
 import shutil
 import subprocess
-from pathlib import Path
-from redis import Redis
-from buttercup.common.sets import MergedCorpusSet
 import tempfile
+from pathlib import Path
+from typing import BinaryIO, List
+
+from redis import Redis
+
+import buttercup.common.node_local as node_local
+from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
+from buttercup.common.sets import MergedCorpusSet
 
 logger = logging.getLogger(__name__)
 

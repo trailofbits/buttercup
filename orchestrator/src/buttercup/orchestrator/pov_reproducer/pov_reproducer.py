@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-from buttercup.common.maps import BuildMap
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.datastructures.msg_pb2 import BuildType, BuildOutput, POVReproduceRequest
-from buttercup.common.sets import PoVReproduceStatus
-from buttercup.common.task_registry import TaskRegistry
-import buttercup.common.node_local as node_local
 
 from redis import Redis
+
+import buttercup.common.node_local as node_local
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, POVReproduceRequest
+from buttercup.common.maps import BuildMap
+from buttercup.common.sets import PoVReproduceStatus
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
 
 logger = logging.getLogger(__name__)

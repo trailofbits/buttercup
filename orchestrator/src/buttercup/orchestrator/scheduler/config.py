@@ -1,8 +1,8 @@
-from pydantic_settings import BaseSettings, CliSubCommand
-from pydantic import BaseModel
-from typing import Annotated
-from pydantic import Field
 from pathlib import Path
+from typing import Annotated
+
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, CliSubCommand
 
 
 class ServeCommand(BaseSettings):

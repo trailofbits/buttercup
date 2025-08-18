@@ -1,4 +1,5 @@
 import pytest
+
 from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyJavaImportsResolver
 
 test_cases = [

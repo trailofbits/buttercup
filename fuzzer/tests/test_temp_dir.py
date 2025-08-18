@@ -3,9 +3,9 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from buttercup.fuzzing_infra.temp_dir import get_temp_dir, patched_temp_dir, _scratch_path_var
+from buttercup.fuzzing_infra.temp_dir import _scratch_path_var, get_temp_dir, patched_temp_dir
 
 
 class TestGetTempDir(unittest.TestCase):

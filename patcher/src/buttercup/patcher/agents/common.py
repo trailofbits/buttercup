@@ -2,32 +2,35 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from pathlib import Path
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
-from typing import Annotated, Sequence
-from buttercup.common.clusterfuzz_parser import CrashInfo
-from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
-from langgraph.managed import RemainingSteps
-from dataclasses import dataclass, field
-from langchain_core.runnables import Runnable
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from pydantic import BaseModel, Field
-from buttercup.patcher.utils import (
-    PatchInput,
-    PatchOutput,
-    CHAIN_CALL_TYPE,
-    PatchInputPoV,
-    truncate_output,
-    TruncatePosition,
-)
-from buttercup.common.challenge_task import ChallengeTask
-from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
+import logging
 import re
 import uuid
-import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Annotated
+from collections.abc import Sequence
+
+from langchain_core.messages import BaseMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import Runnable
+from langgraph.graph.message import add_messages
+from langgraph.managed import RemainingSteps
+from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
+from pydantic import BaseModel, Field
+
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.clusterfuzz_parser import CrashInfo
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.patcher.utils import (
+    CHAIN_CALL_TYPE,
+    PatchInput,
+    PatchInputPoV,
+    PatchOutput,
+    TruncatePosition,
+    truncate_output,
+)
 
 MAX_STACKTRACE_LENGTH = 15000
 

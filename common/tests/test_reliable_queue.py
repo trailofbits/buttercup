@@ -1,17 +1,19 @@
-import pytest
 import time
-from redis import Redis
+
+import pytest
 from google.protobuf.struct_pb2 import Struct
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildRequest
 from buttercup.common.queues import (
-    ReliableQueue,
-    RQItem,
+    BUILD_OUTPUT_TASK_TIMEOUT_MS,
+    BUILD_TASK_TIMEOUT_MS,
+    GroupNames,
     QueueFactory,
     QueueNames,
-    GroupNames,
-    BUILD_TASK_TIMEOUT_MS,
-    BUILD_OUTPUT_TASK_TIMEOUT_MS,
+    ReliableQueue,
+    RQItem,
 )
-from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput
 
 GROUP_NAME = "test_group"
 QUEUE_NAME = "test_queue"

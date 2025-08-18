@@ -1,13 +1,15 @@
-import pytest
 import hashlib
-import responses
-import tarfile
 import io
+import tarfile
 from pathlib import Path
 from unittest.mock import patch
-from buttercup.orchestrator.downloader.downloader import Downloader
-from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
+
+import pytest
+import responses
+
+from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task
 from buttercup.common.node_local import TmpDir
+from buttercup.orchestrator.downloader.downloader import Downloader
 
 
 @pytest.fixture

@@ -1,27 +1,27 @@
-from functools import lru_cache
 import logging
 import os
 import random
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.default_task_loop import TaskLoop
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, FunctionCoverage
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.maps import CoverageMap
-from typing import List, Generator
-from redis import Redis
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
-from buttercup.common.corpus import Corpus
-from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
-from buttercup.fuzzing_infra.settings import CoverageBotSettings
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.utils import setup_periodic_zombie_reaper
 import shutil
-import buttercup.common.node_local as node_local
 from contextlib import contextmanager
-from buttercup.common.telemetry import init_telemetry
+from functools import lru_cache
+from typing import Generator, List
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+from redis import Redis
+
+import buttercup.common.node_local as node_local
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.corpus import Corpus
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
+from buttercup.common.default_task_loop import TaskLoop
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.maps import CoverageMap
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.utils import setup_periodic_zombie_reaper
+from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
+from buttercup.fuzzing_infra.settings import CoverageBotSettings
 
 logger = logging.getLogger(__name__)
 

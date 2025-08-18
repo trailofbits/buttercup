@@ -1,26 +1,27 @@
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.queues import QueueFactory, QueueNames
-from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.common import stack_parsing
-from buttercup.common.stack_parsing import CrashSet
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.utils import setup_periodic_zombie_reaper
-from redis import Redis
-from clusterfuzz.fuzz import engine
-from buttercup.common.default_task_loop import TaskLoop
-from typing import List
-import random
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.fuzzing_infra.settings import FuzzerBotSettings
-from buttercup.common.telemetry import init_telemetry, CRSActionCategory, set_crs_attributes
+import random
+from pathlib import Path
+from typing import List
+
+from clusterfuzz.fuzz import engine
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
+from redis import Redis
+
+from buttercup.common import stack_parsing
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
+from buttercup.common.default_task_loop import TaskLoop
+from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
-from pathlib import Path
+from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.stack_parsing import CrashSet
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.utils import setup_periodic_zombie_reaper
+from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
 

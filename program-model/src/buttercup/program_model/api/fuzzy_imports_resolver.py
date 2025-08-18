@@ -1,9 +1,10 @@
 import re
-from pathlib import Path
-from typing import Set, Dict, Optional, List
-from buttercup.program_model.utils.common import Function, TypeDefinition
 from collections import defaultdict
+from pathlib import Path
+from typing import Dict, List, Optional, Set
+
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.utils.common import Function, TypeDefinition
 
 
 class FuzzyCImportsResolver:

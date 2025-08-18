@@ -1,7 +1,8 @@
-from pydantic_settings import BaseSettings
-from typing import Annotated, Optional
-from pydantic import Field
 from pathlib import Path
+from typing import Annotated, Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):

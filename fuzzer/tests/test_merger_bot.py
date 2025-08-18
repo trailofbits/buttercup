@@ -1,12 +1,13 @@
 import unittest
-from unittest.mock import Mock, patch, MagicMock
-from redis import Redis
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from buttercup.fuzzing_infra.corpus_merger import MergerBot, BaseCorpus, PartitionedCorpus
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
-from buttercup.common.sets import FailedToAcquireLock
+from redis import Redis
+
 from buttercup.common.constants import ADDRESS_SANITIZER
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
+from buttercup.common.sets import FailedToAcquireLock
+from buttercup.fuzzing_infra.corpus_merger import BaseCorpus, MergerBot, PartitionedCorpus
 
 
 class TestMergerBot(unittest.TestCase):

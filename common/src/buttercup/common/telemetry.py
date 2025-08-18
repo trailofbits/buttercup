@@ -1,14 +1,14 @@
-import os
 import logging
-from enum import Enum
+import os
 import uuid
+from enum import Enum
 from typing import Any
 
 import openlit
 import opentelemetry.attributes
-from opentelemetry import trace
-from opentelemetry.trace import Span, Tracer, Status, StatusCode
 from langchain_core.prompt_values import ChatPromptValue
+from opentelemetry import trace
+from opentelemetry.trace import Span, Status, StatusCode, Tracer
 
 # Monkey patch the _clean_attribute function to handle ChatPromptValue
 _clean_attribute_orig = opentelemetry.attributes._clean_attribute

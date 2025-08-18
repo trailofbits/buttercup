@@ -1,26 +1,28 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, Any, Callable, TypeVar, cast
-from os import PathLike
-from functools import wraps, cached_property
+
 import contextlib
 import logging
-import shlex
 import os
-from contextlib import contextmanager
-import tempfile
-import shutil
-import uuid
-import subprocess
 import re
-from buttercup.common.task_meta import TaskMeta
-from buttercup.common.utils import copyanything, get_diffs
-from buttercup.common.stack_parsing import get_crash_token
-from typing import Iterator
+import shlex
+import shutil
+import subprocess
+import tempfile
+import uuid
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from functools import cached_property, wraps
+from os import PathLike
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterator, TypeVar, cast
+
+from packaging.version import Version
+
 import buttercup.common.node_local as node_local
 from buttercup.common.constants import ARCHITECTURE
-from packaging.version import Version
+from buttercup.common.stack_parsing import get_crash_token
+from buttercup.common.task_meta import TaskMeta
+from buttercup.common.utils import copyanything, get_diffs
 
 logger = logging.getLogger(__name__)
 

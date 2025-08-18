@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from redis import Redis
+
 from buttercup.common.maps import CoverageMap, FunctionCoverage, HarnessWeights
 
 # Add matplotlib import for visualization
 try:
-    import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
 
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
