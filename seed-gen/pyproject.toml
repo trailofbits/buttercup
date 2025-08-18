@@ -82,7 +82,7 @@ line-length = 100
 include = ["src/**/*.py", "test/**/*.py", "eval/**/*.py"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP"]
+select = ["E", "F", "I", "W", "UP", "RET505", "PIE790", "B905", "SIM114"]
 # D203 and D213 are incompatible with D211 and D212 respectively.
 # COM812 and ISC001 can cause conflicts when using ruff as a formatter.
 # See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
