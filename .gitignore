@@ -17,6 +17,9 @@ deployment/k8s/base/tailscale-operator/operator.yaml
 
 ## Python
 __pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 
 # Devenv
 # This is another solution for managing dev environments
@@ -33,6 +36,9 @@ env/
 pip-wheel-metadata/
 *.egg-info/
 __pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
 .coverage*
 .idea
 html/
