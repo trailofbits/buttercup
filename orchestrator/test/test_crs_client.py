@@ -56,7 +56,7 @@ class TestCRSClient:
 
         result = crs_client.submit_task(sample_task)
 
-        assert result is True
+        assert result.success is True
 
         # Verify request was made correctly
         mock_post.assert_called_once_with(
@@ -77,7 +77,7 @@ class TestCRSClient:
 
         result = crs_client_no_auth.submit_task(sample_task)
 
-        assert result is True
+        assert result.success is True
 
         # Verify request was made without auth
         mock_post.assert_called_once_with(
@@ -99,7 +99,7 @@ class TestCRSClient:
 
         result = crs_client.submit_task(sample_task)
 
-        assert result is False
+        assert result.success is False
 
     @patch("requests.post")
     def test_submit_task_exception(self, mock_post, crs_client, sample_task):
@@ -109,7 +109,7 @@ class TestCRSClient:
 
         result = crs_client.submit_task(sample_task)
 
-        assert result is False
+        assert result.success is False
 
     @patch("requests.get")
     def test_ping_success_ready(self, mock_get, crs_client):

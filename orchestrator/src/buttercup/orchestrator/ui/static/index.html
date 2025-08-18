@@ -26,6 +26,11 @@
                 <div class="stat-number" id="active-tasks">-</div>
                 <div class="stat-label">Currently running</div>
             </div>
+            <div class="card failed-tasks" disabled>
+                <h3>Failed Tasks</h3>
+                <div class="stat-number" id="failed-tasks">-</div>
+                <div class="stat-label">CRS submissions failed</div>
+            </div>
             <div class="card">
                 <h3>Total PoVs</h3>
                 <div class="stat-number" id="total-povs">-</div>
@@ -61,6 +66,7 @@
                             <option value="all">All Status</option>
                             <option value="active">Active</option>
                             <option value="expired">Expired</option>
+                            <option value="failed">Failed</option>
                         </select>
                     </div>
                 </div>

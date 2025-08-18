@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, constr
 
@@ -49,7 +49,8 @@ class FuzzingEngine(Enum):
 
 
 class Message(BaseModel):
-    message: str | None = None
+    message: str
+    color: Optional[str] = "default"  # "default", "success", "warning", "error"
 
 
 class POVSubmission(BaseModel):
