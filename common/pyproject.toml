@@ -73,6 +73,13 @@ ignore = [
     "UP035",  # Import from modern locations instead of deprecated typing
     "UP045",  # Use X | None for type annotations
     "UP046",  # Use modern generic class syntax
+    # Legacy clusterfuzz code issues:
+    "E722",   # Bare except (clusterfuzz code)
+    "E731",   # Lambda assignments (clusterfuzz code)
+    "F403",   # Star imports (clusterfuzz code)
+    "F405",   # Undefined names from star imports (clusterfuzz code)
+    "F822",   # Undefined names in __all__ (clusterfuzz inspect.py)
+    "UP031",  # Percent formatting (clusterfuzz code)
 ]
 
 [tool.ruff.lint.per-file-ignores]
