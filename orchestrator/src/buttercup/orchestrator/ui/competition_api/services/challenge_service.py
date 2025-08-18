@@ -72,7 +72,7 @@ class ChallengeService:
             github_pat = os.environ.get("GITHUB_PAT")
             github_username = os.environ.get("GITHUB_USERNAME")
 
-            if github_pat and github_username and "github.com" in repo_url:
+            if github_pat and github_username:
                 # For GitHub repositories, use the PAT for authentication
                 if repo_url.startswith("https://github.com/"):
                     # Convert https://github.com/owner/repo.git to https://username:pat@github.com/owner/repo.git
