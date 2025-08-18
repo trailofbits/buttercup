@@ -4,18 +4,48 @@ Thank you for your interest in contributing to the Buttercup Cyber Reasoning Sys
 
 ## Development Setup
 
+### Prerequisites
+
+- Python 3.12+ (project requirement)
+- Docker and Docker Compose
+- `uv` for Python dependency management
+- `pre-commit` for code quality checks
+
+### Initial Setup
+
 Before contributing, set up your local development environment:
 
 ```bash
 # Clone with submodules
 git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
 
+# Install Python 3.12 if needed (via uv)
+uv python install 3.12
+
 # Quick setup (recommended)
 make setup-local
+
+# Install pre-commit hooks
+pip install pre-commit
+pre-commit install
 
 # Start development environment
 make deploy-local
 ```
+
+### Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code consistency. The hooks will run automatically on `git commit`. To run manually:
+
+```bash
+# Run on staged files
+pre-commit run
+
+# Run on all files
+pre-commit run --all-files
+```
+
+**Note:** Pre-commit requires Python 3.12 to match the project's Python version. If you encounter Python version issues, ensure Python 3.12 is available in your PATH or use `uv` to manage Python versions.
 
 ## Development Workflow
 

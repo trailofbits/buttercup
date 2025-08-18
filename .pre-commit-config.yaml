@@ -1,8 +1,12 @@
 # Pre-commit hooks for Buttercup CRS
 # See https://pre-commit.com for more information
+#
+# Note: The project requires Python 3.12+ for development.
+# Pre-commit will use the system Python to run hooks, but the
+# actual code checks will use the project's Python version.
 
 default_language_version:
-  python: python3.11
+  python: python3
 
 repos:
   # Standard file fixes
