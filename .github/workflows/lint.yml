@@ -63,32 +63,37 @@ jobs:
               - 'protoc.sh'
               - '**/*.proto'
 
-  lint:
+  matrix-generator:
+    runs-on: ubuntu-latest
     needs: changes
-    # Run if any component changed OR if we need to run all
-    if: |
-      needs.changes.outputs.run-all == 'true' ||
-      needs.changes.outputs.common == 'true' ||
-      needs.changes.outputs.orchestrator == 'true' ||
-      needs.changes.outputs.program-model == 'true' ||
-      needs.changes.outputs.seed-gen == 'true' ||
-      needs.changes.outputs.patcher == 'true'
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          components=()
+          if [[ "${{ needs.changes.outputs.run-all }}" == "true" ]]; then
+            components=("common" "orchestrator" "fuzzer" "program-model" "seed-gen" "patcher")
+          else
+            [[ "${{ needs.changes.outputs.common }}" == "true" ]] && components+=("common")
+            [[ "${{ needs.changes.outputs.orchestrator }}" == "true" ]] && components+=("orchestrator")
+            [[ "${{ needs.changes.outputs.fuzzer }}" == "true" ]] && components+=("fuzzer")
+            [[ "${{ needs.changes.outputs.program-model }}" == "true" ]] && components+=("program-model")
+            [[ "${{ needs.changes.outputs.seed-gen }}" == "true" ]] && components+=("seed-gen")
+            [[ "${{ needs.changes.outputs.patcher }}" == "true" ]] && components+=("patcher")
+          fi
+          if [[ ${#components[@]} -eq 0 ]]; then
+            echo 'matrix={"component":[]}' >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"component\":[$(printf '"%s",' "${components[@]}" | sed 's/,$//')]}" >> $GITHUB_OUTPUT
+          fi
+
+  lint:
+    needs: [changes, matrix-generator]
     strategy:
       fail-fast: false # Continue running other components even if one fails
-      matrix:
-        include:
-          - component: common
-            should_run: ${{ needs.changes.outputs.common == 'true' || needs.changes.outputs.run-all == 'true' }}
-          - component: orchestrator
-            should_run: ${{ needs.changes.outputs.orchestrator == 'true' || needs.changes.outputs.run-all == 'true' }}
-          - component: program-model
-            should_run: ${{ needs.changes.outputs.program-model == 'true' || needs.changes.outputs.run-all == 'true' }}
-          - component: seed-gen
-            should_run: ${{ needs.changes.outputs.seed-gen == 'true' || needs.changes.outputs.run-all == 'true' }}
-          - component: patcher
-            should_run: ${{ needs.changes.outputs.patcher == 'true' || needs.changes.outputs.run-all == 'true' }}
-          - component: fuzzer
-            should_run: ${{ needs.changes.outputs.fuzzer == 'true' || needs.changes.outputs.run-all == 'true' }}
+      matrix: ${{ fromJSON(needs.matrix-generator.outputs.matrix) }}
 
     runs-on: ubuntu-latest
     steps:
