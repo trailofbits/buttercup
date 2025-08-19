@@ -195,7 +195,7 @@ def example_libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
             "-C",
             str(oss_fuzz_dir),
             "clone",
-            "git@github.com:tob-challenges/oss-fuzz-aixcc.git",
+            "https://github.com/tob-challenges/oss-fuzz-aixcc.git",
         ],
         check=True,
     )
@@ -212,8 +212,8 @@ def example_libpng_oss_fuzz_task(tmp_path: Path) -> ChallengeTask:
         check=True,
     )
 
-    # Download selinux source code
-    url = "git@github.com:tob-challenges/example-libpng.git"
+    # Download libpng source code
+    url = "https://github.com/tob-challenges/example-libpng.git"
     subprocess.run(["git", "-C", str(source_dir), "clone", url], check=True)
     subprocess.run(
         [
