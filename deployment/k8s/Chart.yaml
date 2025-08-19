@@ -62,3 +62,6 @@ dependencies:
     version: "0.71.0"
     repository: "https://charts.signoz.io"
     condition: signoz.enabled
+  - name: ollama
+    version: "1.27.0"
+    repository: "https://helm.otwld.com/"

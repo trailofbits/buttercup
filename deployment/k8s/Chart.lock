@@ -56,5 +56,8 @@ dependencies:
 - name: signoz
   repository: https://charts.signoz.io
   version: 0.71.0
-digest: sha256:7175e733201e2be1f90820b1515a650edc4afefe4c57cc6fb9978a03bbdf6920
-generated: "2025-08-04T14:19:11.272734+02:00"
+- name: ollama
+  repository: https://helm.otwld.com/
+  version: 1.27.0
+digest: sha256:4f7d264f294e211429c555d725c1ac501b417626f68fb1e8af0e9d2d835404a8
+generated: "2025-08-19T20:21:39.737721+02:00"
