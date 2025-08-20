@@ -426,6 +426,7 @@ UNDERSTAND_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
 def _create_understand_code_snippet_chain() -> Runnable:
     return (  # type: ignore[no-any-return]
         UNDERSTAND_CODE_SNIPPET_PROMPT
+        # TODO(boyan): set this to gemini if openAI not available?
         | create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
         | StrOutputParser()
     )

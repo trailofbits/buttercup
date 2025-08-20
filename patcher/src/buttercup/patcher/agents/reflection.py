@@ -402,7 +402,9 @@ class ReflectionAgent(PatcherAgentBase):
         fallback_llms: list[Runnable] = []
         for fb_model in [
             ButtercupLLM.CLAUDE_3_7_SONNET,
+            ButtercupLLM.GEMINI_PRO
         ]:
+            # TODO(boyan): check this fallbak mecanism,
             fallback_llms.append(create_default_llm(model_name=fb_model.value))
 
         self.llm = default_llm.with_fallbacks(fallback_llms)

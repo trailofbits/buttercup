@@ -376,11 +376,22 @@ litellm-helm:
           tpm: 1775000
 
       # TODO(boyan): set this correctly
-      - model_name: google-gemini
+      - model_name: gemini-pro	
         litellm_params:
-          model: ??
+          model: gemini/gemini-pro	
           api_key: os.environ/GEMINI_API_KEY
-          tpm: 1775000
+        
+      - model_name: gemini-2.0-flash-exp
+        litellm_params:
+          model: gemini/gemini-2.0-flash-exp
+          api_key: os.environ/GEMINI_API_KEY
+
+      - model_name: gemini-2.0-flash
+        litellm_params:
+          model: gemini/gemini-2.0-flash
+          api_key: os.environ/GEMINI_API_KEY
+        # tpm and rpm??
+
 
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY

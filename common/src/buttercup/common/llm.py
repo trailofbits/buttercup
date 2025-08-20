@@ -32,6 +32,9 @@ class ButtercupLLM(Enum):
     CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
     CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
     CLAUDE_4_SONNET = "claude-4-sonnet"
+    GEMINI_PRO = "gemini-pro"
+    GEMINI_2_FLASH = "gemini-2.0-flash"
+    GEMINI_2_FLASH_EXP = "gemini-2.0-flash-exp"
 
 
 @functools.cache
