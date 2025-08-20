@@ -261,13 +261,18 @@ down-k8s() {
 		esac
 	fi
 	echo -e "${BLU}Deleting Kubernetes resource${NC}"
+	set -x
 	kubectl delete -k k8s/base/tailscale-connections/
 	helm uninstall --wait --namespace "$BUTTERCUP_NAMESPACE" buttercup
+	# Remove finalizers from clickhouse installation as stated in https://signoz.io/docs/operate/kubernetes/#uninstall-signoz
+	# Without this, the namespace would not be deleted
+	kubectl -n "$BUTTERCUP_NAMESPACE" patch clickhouseinstallations.clickhouse.altinity.com/buttercup-clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge
 	kubectl delete -k k8s/base/tailscale-coredns/
 	kubectl delete -k k8s/base/tailscale-dns/
 	kubectl delete -k k8s/base/tailscale-operator/
 	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE"
 	kubectl delete namespace "$BUTTERCUP_NAMESPACE"
+	set +x
 	set -e
 }
 
