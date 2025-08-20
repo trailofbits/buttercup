@@ -52,9 +52,7 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        commons_compress_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(commons_compress_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(
@@ -76,9 +74,7 @@ def test_get_functions(
         ),
     ],
 )
-@pytest.mark.skip(
-    reason="Issue with codequery thinking the caller is bsGetBit on line 778"
-)
+@pytest.mark.skip(reason="Issue with codequery thinking the caller is bsGetBit on line 778")
 @pytest.mark.integration
 def test_get_callers(
     commons_compress_oss_fuzz_task: ChallengeTask,

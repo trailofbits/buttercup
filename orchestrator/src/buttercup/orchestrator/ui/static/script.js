@@ -23,6 +23,8 @@ const elements = {
     refreshBtn: document.getElementById('refresh-btn'),
     taskModal: document.getElementById('task-modal'),
     detailModal: document.getElementById('detail-modal'),
+    taskModalContent: document.querySelector('#task-modal .modal-content'),
+    detailModalContent: document.querySelector('#detail-modal .modal-content'),
     closeModal: document.getElementById('close-modal'),
     closeDetailModal: document.getElementById('close-detail-modal'),
     taskForm: document.getElementById('task-form'),
@@ -32,17 +34,28 @@ const elements = {
     patchesContainer: document.getElementById('patches-container'),
     statusFilter: document.getElementById('status-filter'),
     activeTasks: document.getElementById('active-tasks'),
+    failedTasks: document.getElementById('failed-tasks'),
     totalPovs: document.getElementById('total-povs'),
     totalPatches: document.getElementById('total-patches'),
     totalBundles: document.getElementById('total-bundles'),
     detailTitle: document.getElementById('detail-title'),
     detailContent: document.getElementById('detail-content'),
     tabButtons: document.querySelectorAll('.tab-button'),
-    tabPanes: document.querySelectorAll('.tab-pane')
+    tabPanes: document.querySelectorAll('.tab-pane'),
+    notifications: document.getElementById('notifications')
 };
 
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', function() {
+    // Preserve button widths to prevent size changes during refresh
+    const buttons = ['refresh-btn', 'submit-task-btn', 'submit-example-btn'];
+    buttons.forEach(id => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.style.width = button.offsetWidth + 'px';
+        }
+    });
+    
     setupEventListeners();
     loadDashboard();
     
@@ -98,11 +111,21 @@ function setupEventListeners() {
     });
     
     // Close modals when clicking outside
-    window.addEventListener('click', (event) => {
-        if (event.target === elements.taskModal) {
-            elements.taskModal.style.display = 'none';
+    let mousePressedOutside = false;
+    
+    window.addEventListener('mousedown', (event) => {
+        // Check if mouse was pressed outside both modal contents
+        if (!elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+            mousePressedOutside = true;
+        } else {
+            mousePressedOutside = false;
         }
-        if (event.target === elements.detailModal) {
+    });
+
+    window.addEventListener('mouseup', (event) => {
+        // Only close if mouse was pressed outside and released outside
+        if (mousePressedOutside && !elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+            elements.taskModal.style.display = 'none';
             elements.detailModal.style.display = 'none';
         }
     });
@@ -196,7 +219,8 @@ async function loadDashboard() {
 // Load tasks from API
 async function loadTasks() {
     try {
-        const response = await fetch(`${API_BASE}/v1/dashboard/tasks`);
+        // Add timestamp to prevent caching
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks?t=${Date.now()}`);
         if (response.ok) {
             tasks = await response.json();
         } else {
@@ -299,6 +323,7 @@ function calculateStatsFromTasks() {
 function updateDashboard() {
     // Update stats
     elements.activeTasks.textContent = dashboardStats.activeTasks;
+    elements.failedTasks.textContent = dashboardStats.failedTasks || 0;
     elements.totalPovs.textContent = dashboardStats.totalPovs;
     elements.totalPatches.textContent = dashboardStats.totalPatches;
     elements.totalBundles.textContent = dashboardStats.totalBundles;
@@ -327,6 +352,11 @@ async function loadAndRenderPatches() {
 
 // Render PoVs list
 function renderPovs() {
+    if (!elements.povsContainer) {
+        console.error('PoVs container not found!');
+        return;
+    }
+    
     if (allPovs.length === 0) {
         elements.povsContainer.innerHTML = `
             <div class="no-data">
@@ -386,20 +416,26 @@ function renderPatches() {
 
 // Render tasks list
 function renderTasks() {
-    const filteredTasks = filterTasksByStatus();
+    if (!elements.tasksContainer) {
+        console.error('Tasks container not found!');
+        return;
+    }
+    
+    const filteredTasks = filterTasksByStatus(tasks);
     
     if (filteredTasks.length === 0) {
         elements.tasksContainer.innerHTML = `
             <div class="no-data">
-                <div class="no-data-icon">📋</div>
+                <div class="no-data-icon">📝</div>
                 <p>No tasks found</p>
+                <p class="no-data-subtitle">Create a new task to get started</p>
             </div>
         `;
         return;
     }
     
     elements.tasksContainer.innerHTML = filteredTasks.map(task => `
-        <div class="task-item" onclick="showTaskDetail('${task.task_id}')">
+        <div class="task-item ${task.crs_submission_status === 'failed' ? 'task-failed' : ''}" onclick="showTaskDetail('${task.task_id}')">
             <div class="task-info">
                 <div class="task-name">${task.name || task.project_name}</div>
                 <div class="task-id">ID: ${task.task_id}</div>
@@ -409,6 +445,11 @@ function renderTasks() {
                     <span>Created: ${formatTimestamp(task.created_at)}</span>
                     <span>Deadline: ${formatTimestamp(task.deadline)}</span>
                 </div>
+                ${task.crs_submission_error ? `
+                    <div class="crs-error-details">
+                        <strong>Error:</strong> ${task.crs_submission_error}
+                    </div>
+                ` : ''}
             </div>
             <div class="task-status">
                 <span class="status-badge status-${task.status}">${task.status}</span>
@@ -473,12 +514,29 @@ async function handleExampleTaskSubmission() {
             body: JSON.stringify(exampleTaskData)
         });
         
+        const result = await response.json();
+        console.log('Example task submission response:', result);
+        console.log('Response message:', result.message);
+        console.log('Response color:', result.color);
+        
         if (response.ok) {
-            const result = await response.json();
-            showNotification('Example libpng task submitted successfully!', 'success');
-            
-            // Refresh dashboard after a short delay
-            setTimeout(loadDashboard, 1000);
+            // Check if the response indicates a CRS submission failure or setup failure
+            if (result.message && (result.message.includes('failed to submit to CRS') || result.message.includes('failed during setup'))) {
+                console.log('Example task creation/submission failed, showing error notification');
+                // Task was created but failed - show notification with proper color
+                showNotification(result.message, null, result.color);
+                
+                // Force refresh failed tasks and main tasks list
+                setTimeout(async () => {
+                    await forceRefreshFailedTasks();
+                }, 1000);
+            } else {
+                // Complete success
+                showNotification(result.message || 'Example libpng task submitted successfully!', 'success');
+                
+                // Refresh dashboard after a short delay
+                setTimeout(loadDashboard, 1000);
+            }
         } else {
             const error = await response.json();
             showNotification(`Error: ${error.message || 'Failed to submit example task'}`, 'error');
@@ -518,17 +576,37 @@ async function handleTaskSubmission(event) {
             body: JSON.stringify(taskData)
         });
         
+        const result = await response.json();
+        console.log('Task submission response:', result);
+        console.log('Response message:', result.message);
+        console.log('Response color:', result.color);
+        
         if (response.ok) {
-            const result = await response.json();
-            showNotification('Task submitted successfully!', 'success');
-            elements.taskModal.style.display = 'none';
-            elements.taskForm.reset();
-            
-            // Refresh dashboard after a short delay
-            setTimeout(loadDashboard, 1000);
+            // Check if the response indicates a CRS submission failure or setup failure
+            if (result.message && (result.message.includes('failed to submit to CRS') || result.message.includes('failed during setup'))) {
+                console.log('Task creation/submission failed, showing error notification');
+                // Task was created but failed - show notification with proper color
+                showNotification(result.message, null, result.color);
+                elements.taskModal.style.display = 'none';
+                elements.taskForm.reset();
+                
+                // Force refresh failed tasks and main tasks list
+                setTimeout(async () => {
+                    await forceRefreshFailedTasks();
+                }, 1000);
+            } else {
+                // Complete success
+                showNotification(result.message || 'Task submitted successfully!', 'success');
+                elements.taskModal.style.display = 'none';
+                elements.taskForm.reset();
+                
+                // Refresh dashboard after a short delay
+                setTimeout(loadDashboard, 1000);
+            }
         } else {
-            const error = await response.json();
-            showNotification(`Error: ${error.message || 'Failed to submit task'}`, 'error');
+            // HTTP error - show error message
+            const errorMessage = result.message || result.detail || 'Failed to submit task';
+            showNotification(`Error: ${errorMessage}`, 'error');
         }
     } catch (error) {
         console.error('Error submitting task:', error);
@@ -569,28 +647,20 @@ function renderTaskDetail(task) {
             <div class="detail-section">
                 <h3>Task Information</h3>
                 <div class="detail-grid">
-                    <div class="detail-label">Task ID:</div>
-                    <div class="detail-value">${task.task_id}</div>
                     <div class="detail-label">Name:</div>
-                    <div class="detail-value">${task.name || 'N/A'}</div>
+                    <div class="detail-value">${task.name || task.project_name}</div>
+                    <div class="detail-label">ID:</div>
+                    <div class="detail-value">${task.task_id}</div>
                     <div class="detail-label">Project:</div>
                     <div class="detail-value">${task.project_name}</div>
                     <div class="detail-label">Status:</div>
                     <div class="detail-value">
                         <span class="status-badge status-${task.status}">${task.status}</span>
                     </div>
-                    <div class="detail-label">Duration:</div>
-                    <div class="detail-value">${formatDuration(task.duration)}</div>
                     <div class="detail-label">Created:</div>
                     <div class="detail-value">${formatTimestamp(task.created_at)}</div>
                     <div class="detail-label">Deadline:</div>
                     <div class="detail-value">${formatTimestamp(task.deadline)}</div>
-                    <div class="detail-label">Repository:</div>
-                    <div class="detail-value">${task.challenge_repo_url || 'N/A'}</div>
-                    <div class="detail-label">Head Ref:</div>
-                    <div class="detail-value">${task.challenge_repo_head_ref || 'N/A'}</div>
-                    <div class="detail-label">Base Ref:</div>
-                    <div class="detail-value">${task.challenge_repo_base_ref || 'N/A'}</div>
                 </div>
             </div>
             
@@ -816,6 +886,9 @@ function renderArtifactDetail(detailData, type) {
                     // Not base64, use as is
                 }
             }
+            const patchPreview = patchContent.length > 300 
+                ? patchContent.substring(0, 300) + '...' 
+                : patchContent;
             specificContent = `
                 <div class="detail-label">Patch Size:</div>
                 <div class="detail-value">${originalSize} characters (${patchContent.length} decoded)</div>
@@ -870,44 +943,29 @@ function formatTimestamp(timestamp) {
     return new Date(timestamp).toLocaleString();
 }
 
-function showNotification(message, type = 'info') {
-    // Create a simple notification system
+function showNotification(message, type = 'info', color = null) {
+    // If color is provided from backend Message, use it to override type
+    if (color === 'error') {
+        type = 'error';
+    } else if (color === 'warning') {
+        type = 'warning';
+    } else if (color === 'success') {
+        type = 'success';
+    }
+    
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
     
-    // Add notification styles if not already added
-    if (!document.querySelector('style[data-notifications]')) {
-        const style = document.createElement('style');
-        style.setAttribute('data-notifications', 'true');
-        style.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 1rem 1.5rem;
-                border-radius: 4px;
-                color: white;
-                font-weight: 500;
-                z-index: 2000;
-                animation: slideIn 0.3s ease;
-            }
-            .notification-success { background-color: #4caf50; }
-            .notification-error { background-color: #f44336; }
-            .notification-info { background-color: #2196f3; }
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    // Add to notifications container
+    const container = document.getElementById('notifications') || document.body;
+    container.appendChild(notification);
     
-    document.body.appendChild(notification);
-    
-    // Remove notification after 5 seconds
+    // Auto-remove after 5 seconds
     setTimeout(() => {
-        notification.remove();
+        if (notification.parentNode) {
+            notification.remove();
+        }
     }, 5000);
 }
 

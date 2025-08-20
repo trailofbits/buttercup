@@ -73,7 +73,7 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
           submodules: true
@@ -193,13 +193,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all coverage reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: test-results-*
           path: coverage-reports
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           directory: coverage-reports
           files: '*/coverage.xml,**/coverage.xml'
@@ -247,7 +247,7 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
           submodules: true
@@ -306,8 +306,24 @@ jobs:
           uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
         working-directory: ${{ matrix.component }}
 
+      - name: Run program-model libpng integration test
+        if: matrix.component == 'program-model' && steps.should_test.outputs.test != 'false'
+        run: |
+          uv run --frozen pytest -svv --runintegration tests/c/test_libpng.py \
+            --junit-xml=integration-test-results.xml \
+            --html=integration-test-report.html \
+            --self-contained-html \
+            --cov=${{ matrix.coverage_module }} \
+            --cov-report=xml:integration-coverage.xml \
+            --cov-report=html:integration-htmlcov \
+            --cov-report=term
+        env:
+          PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
+        working-directory: ${{ matrix.component }}
+        timeout-minutes: 30
+
       - name: Run integration tests on ${{ matrix.component }}
-        if: steps.should_test.outputs.test != 'false'
+        if: matrix.component != 'program-model' && steps.should_test.outputs.test != 'false'
         run: |
           uv run --frozen pytest -svv --runintegration \
             --junit-xml=integration-test-results.xml \

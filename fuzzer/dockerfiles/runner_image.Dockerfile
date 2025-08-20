@@ -8,7 +8,7 @@ ENV UV_LINK_MODE=copy
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_PYTHON_DOWNLOADS=manual
 
-RUN uv python install python3.10
+RUN uv python install python3.12
 
 FROM base-image AS runner-base
 RUN apt-get update

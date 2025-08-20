@@ -188,9 +188,9 @@ def test_do_task_valid_pov(
 
         for i in range(2):
             iter_pov_files = list(out_dir.glob(f"iter{i}_*.seed"))
-            assert (
-                len(iter_pov_files) == 2
-            ), f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            assert len(iter_pov_files) == 2, (
+                f"Expected 2 seeds for iter{i}, found {len(iter_pov_files)}: {iter_pov_files}"
+            )
 
             iter_pov1_file = next(f for f in iter_pov_files if "gen_seed_1" in f.name)
             iter_pov2_file = next(f for f in iter_pov_files if "gen_seed_2" in f.name)
@@ -210,6 +210,6 @@ def test_do_task_valid_pov(
         assert crash_call.stacktrace == "Stack trace for crash"
 
         iter_pov_files_skipped = list(out_dir.glob("iter2_*.seed"))
-        assert (
-            len(iter_pov_files_skipped) == 0
-        ), f"Expected skipping 3rd iter, but there are {len(iter_pov_files_skipped)} seeds"
+        assert len(iter_pov_files_skipped) == 0, (
+            f"Expected skipping 3rd iter, but there are {len(iter_pov_files_skipped)} seeds"
+        )

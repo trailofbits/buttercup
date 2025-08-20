@@ -1,18 +1,23 @@
 [project]
 name = "fuzzing-infra"
 version = "0.1.0"
-description = ""
-authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
-requires-python = ">=3.10,<3.13"
+description = "Automated vulnerability discovery and fuzzing infrastructure"
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
+license = "AGPL-3.0-only"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "protobuf (>=3.20, <=3.20.3)",
-    "redis (>=5.2.1,<6.0.0)",
-    "clusterfuzz==2.6.0",
+    "protobuf ==3.20.3",                 # Pin exactly for stability
+    "redis ~=5.2.1",
+    "clusterfuzz ==2.6.0",               # Pin exactly for stability
     "common",
-    "pydantic-settings>=2.7.1",
-    "beautifulsoup4>=4.13.3",
-    "lxml>=5.3.1",
+    "pydantic-settings ~=2.7.1",
+    "beautifulsoup4 ~=4.13.3",
+    "lxml ~=5.3.1",
 ]
+
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
 
 [project.scripts]
 buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder_bot:main"
@@ -34,10 +39,38 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.9.2", "mypy>=1.15.0"]
+dev = [
+    # Testing tools
+    "pytest ~=8.3.4",
+    "pytest-cov ~=6.0.0",
+    # Linting and type checking
+    "ruff ~=0.12.8",
+    "mypy ~=1.17.1",
+    # Type stubs
+    "types-redis ~=4.6.0",
+]
 
 [tool.ruff]
 line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "COM812", "ISC001",  # Formatter conflicts
+    # Temporarily disabled for standardization PR - re-enable after refactoring:
+    "I001",   # Import block is un-sorted or un-formatted
+    "E501",   # Line too long
+    "W291",   # Trailing whitespace  
+    "UP006",  # Use built-in collection types for type annotations
+    "UP015",  # Unnecessary mode argument
+    "UP035",  # Import from modern locations instead of deprecated typing
+    "UP045",  # Use X | None for type annotations
+    "UP046",  # Use modern generic class syntax
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

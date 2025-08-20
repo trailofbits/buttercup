@@ -453,6 +453,10 @@ class ChallengeTask:
 
     @cached_property
     def oss_fuzz_container_org(self) -> str:
+        # Check environment variable first
+        if env_org := os.environ.get("OSS_FUZZ_CONTAINER_ORG"):
+            return env_org
+
         # Read the helper_path file and grep for the BASE_RUNNER_IMAGE line.
         result = "gcr.io/oss-fuzz"
         try:
