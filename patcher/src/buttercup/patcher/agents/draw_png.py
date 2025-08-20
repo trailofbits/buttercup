@@ -1,16 +1,16 @@
 """Module to visualize the patcher agent state machine."""
 
 from pathlib import Path
-from typing import Optional
 
 import graphviz
 
 
-def draw_state_machine(output_path: Optional[Path] = None) -> None:
+def draw_state_machine(output_path: Path | None = None) -> None:
     """Draw the patcher agent state machine and save it as a PNG file.
 
     Args:
         output_path: Optional path where to save the PNG file. If None, saves in current directory.
+
     """
     # Create a new directed graph
     dot = graphviz.Digraph(comment="Patcher Agent State Machine")

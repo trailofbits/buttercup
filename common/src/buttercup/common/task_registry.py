@@ -1,11 +1,14 @@
-from functools import lru_cache
-from buttercup.common.datastructures.msg_pb2 import Task
-from redis import Redis
-from buttercup.common.queues import HashNames
-from dataclasses import dataclass
-from google.protobuf import text_format
+import builtins
 import time
-from typing import Set, Iterator
+from collections.abc import Iterator
+from dataclasses import dataclass
+from functools import lru_cache
+
+from google.protobuf import text_format
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import Task
+from buttercup.common.queues import HashNames
 
 # Redis set keys for tracking task states
 CANCELLED_TASKS_SET = "cancelled_tasks"
@@ -68,6 +71,7 @@ class TaskRegistry:
 
         Returns:
             Task object if found, None otherwise
+
         """
         prepared_key = self._prepare_key(task_id)
         task_bytes = self.redis.hget(self.hash_name, prepared_key)
@@ -87,6 +91,7 @@ class TaskRegistry:
 
         Args:
             task_id: The ID of the task to delete
+
         """
         prepared_key = self._prepare_key(task_id)
 
@@ -104,6 +109,7 @@ class TaskRegistry:
 
         Args:
             task_or_id: Either a Task object or a task ID string to be added to the cancelled set
+
         """
         # Extract task_id based on the type of input
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
@@ -119,6 +125,7 @@ class TaskRegistry:
 
         Returns:
             True if the task is in the cancelled tasks set, False otherwise
+
         """
         # Get task_id
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
@@ -140,6 +147,7 @@ class TaskRegistry:
         Returns:
             True if the task is expired (deadline has passed), False otherwise.
             Returns False if the task doesn't exist.
+
         """
 
         @lru_cache(maxsize=1000)
@@ -166,6 +174,7 @@ class TaskRegistry:
 
         Returns:
             list[Task]: List of active tasks
+
         """
         # Iterate through all tasks, filtering out cancelled and expired ones
         # The cancelled flag is already set correctly by the __iter__ method
@@ -176,13 +185,14 @@ class TaskRegistry:
 
         Returns:
             list[str]: List of task IDs that are in the cancelled tasks set
+
         """
         # Get all cancelled task IDs from the Redis set
         cancelled_ids = self.redis.smembers(CANCELLED_TASKS_SET)
         # Decode bytes to strings if needed
         return [task_id.decode("utf-8") if isinstance(task_id, bytes) else task_id for task_id in cancelled_ids]
 
-    def should_stop_processing(self, task_or_id: str | Task, cancelled_ids: Set[str] | None = None) -> bool:
+    def should_stop_processing(self, task_or_id: str | Task, cancelled_ids: builtins.set[str] | None = None) -> bool:
         """Check if a task should no longer be processed due to cancellation or expiration.
 
         Args:
@@ -193,8 +203,8 @@ class TaskRegistry:
         Returns:
             bool: True if the task should not be processed (is cancelled or expired),
                  False otherwise
-        """
 
+        """
         # Extract task_id for cancelled IDs check
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
 
@@ -223,6 +233,7 @@ class TaskRegistry:
 
         Args:
             task_or_id: Either a Task object or a task ID string to be added to the successful set
+
         """
         # Extract task_id based on the type of input
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
@@ -238,6 +249,7 @@ class TaskRegistry:
 
         Returns:
             True if the task is in the successful tasks set, False otherwise
+
         """
         # Get task_id
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
@@ -255,6 +267,7 @@ class TaskRegistry:
 
         Args:
             task_or_id: Either a Task object or a task ID string to be added to the errored set
+
         """
         # Extract task_id based on the type of input
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
@@ -270,6 +283,7 @@ class TaskRegistry:
 
         Returns:
             True if the task is in the errored tasks set, False otherwise
+
         """
         # Get task_id
         task_id = task_or_id.task_id if isinstance(task_or_id, Task) else task_or_id
@@ -282,9 +296,10 @@ class TaskRegistry:
 
 def task_registry_cli() -> None:
     """CLI for the task registry"""
-    from pydantic_settings import BaseSettings
     from typing import Annotated
+
     from pydantic import Field
+    from pydantic_settings import BaseSettings
 
     class TaskRegistrySettings(BaseSettings):
         redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]

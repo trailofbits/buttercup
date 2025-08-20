@@ -1,17 +1,25 @@
-from pathlib import Path
-from buttercup.patcher.patcher import Patcher
-from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Crash, BuildOutput, TracedCrash, Task
-from buttercup.common.challenge_task import ChallengeTask, TaskMeta
-from buttercup.patcher.agents.common import CodeSnippetRequest
-from buttercup.common.queues import RQItem
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.patcher.agents.common import PatcherAgentState, PatchInput, PatchAttempt, PatchStatus, add_or_mod_patch
-from buttercup.patcher.utils import PatchInputPoV
-import pytest
-from unittest.mock import patch, MagicMock
 import re
 import time
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 from redis import Redis
+
+from buttercup.common.challenge_task import ChallengeTask, TaskMeta
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, ConfirmedVulnerability, Crash, Task, TracedCrash
+from buttercup.common.queues import RQItem
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.patcher.agents.common import (
+    CodeSnippetRequest,
+    PatchAttempt,
+    PatcherAgentState,
+    PatchInput,
+    PatchStatus,
+    add_or_mod_patch,
+)
+from buttercup.patcher.patcher import Patcher
+from buttercup.patcher.utils import PatchInputPoV
 
 
 @pytest.fixture
@@ -59,7 +67,7 @@ def task_dir(tmp_path: Path) -> Path:
         metadata={"task_id": "test-task-id-1", "round_id": "testing", "team_id": "tob"},
     ).save(task_dir)
 
-    yield task_dir
+    return task_dir
 
 
 @patch("buttercup.common.node_local.make_locally_available")
@@ -93,7 +101,7 @@ def test_vuln_to_patch_input(mock_make_locally_available, task_dir: Path, tmp_pa
                     stacktrace="test-stacktrace-1",
                 ),
                 tracer_stacktrace="test-tracer-stacktrace-1",
-            )
+            ),
         ],
     )
 
@@ -315,7 +323,10 @@ def test_code_snippet_request_parse_with_code_requests_wrapper():
 
 @patch("buttercup.common.node_local.make_locally_available")
 def test_process_item_should_process_normal_task(
-    mock_make_locally_available, redis_client, task_dir: Path, tmp_path: Path
+    mock_make_locally_available,
+    redis_client,
+    task_dir: Path,
+    tmp_path: Path,
 ):
     """Test that a normal task is processed correctly"""
     # Mock make_locally_available to return the path unchanged
@@ -357,7 +368,7 @@ def test_process_item_should_process_normal_task(
                     stacktrace="test-stacktrace-1",
                 ),
                 tracer_stacktrace="test-tracer-stacktrace-1",
-            )
+            ),
         ],
     )
 
@@ -384,7 +395,10 @@ def test_process_item_should_process_normal_task(
 
 @patch("buttercup.common.node_local.make_locally_available")
 def test_process_item_should_skip_tasks_marked_for_stopping(
-    mock_make_locally_available, redis_client, task_dir: Path, tmp_path: Path
+    mock_make_locally_available,
+    redis_client,
+    task_dir: Path,
+    tmp_path: Path,
 ):
     """Test that tasks marked for stopping (expired or cancelled) are not processed"""
     # Mock make_locally_available to return the path unchanged
@@ -419,7 +433,7 @@ def test_process_item_should_skip_tasks_marked_for_stopping(
                     stacktrace="test-stacktrace-1",
                 ),
                 tracer_stacktrace="test-tracer-stacktrace-1",
-            )
+            ),
         ],
     )
 
@@ -459,7 +473,7 @@ def test_get_successful_patch():
                     sanitizer_output="output",
                     engine="libfuzzer",
                     harness_name="test",
-                )
+                ),
             ],
         ),
     )
@@ -494,7 +508,7 @@ def test_get_successful_patch_with_validation_failure():
                     sanitizer_output="output",
                     engine="libfuzzer",
                     harness_name="test",
-                )
+                ),
             ],
         ),
     )
@@ -529,7 +543,7 @@ def test_clean_built_challenges_on_new_patch(tmp_path: Path, task_dir: Path):
                     sanitizer_output="output",
                     engine="libfuzzer",
                     harness_name="test",
-                )
+                ),
             ],
         ),
     )

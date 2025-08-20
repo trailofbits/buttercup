@@ -1,11 +1,11 @@
-import pytest
-from unittest.mock import Mock
-from buttercup.common.task_registry import TaskRegistry, CANCELLED_TASKS_SET, SUCCEEDED_TASKS_SET, ERRORED_TASKS_SET
-from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail
 import time
-from typing import Set
+from unittest.mock import Mock, patch
+
+import pytest
 from redis import Redis
-from unittest.mock import patch
+
+from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task
+from buttercup.common.task_registry import CANCELLED_TASKS_SET, ERRORED_TASKS_SET, SUCCEEDED_TASKS_SET, TaskRegistry
 
 
 @pytest.fixture
@@ -166,7 +166,10 @@ def test_iter_tasks_with_different_types(task_registry, redis_client):
     # Create and add two different tasks
     full_task = Task(task_id="full123", task_type=Task.TaskType.TASK_TYPE_FULL, message_id="msg_full", cancelled=False)
     delta_task = Task(
-        task_id="delta456", task_type=Task.TaskType.TASK_TYPE_DELTA, message_id="msg_delta", cancelled=True
+        task_id="delta456",
+        task_type=Task.TaskType.TASK_TYPE_DELTA,
+        message_id="msg_delta",
+        cancelled=True,
     )
 
     # Setup Redis mock
@@ -319,7 +322,7 @@ def test_is_expired(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "expired-task":
             return expired_task.SerializeToString()
-        elif key == "live-task":
+        if key == "live-task":
             return live_task.SerializeToString()
         return None
 
@@ -432,7 +435,7 @@ def test_get_cancelled_task_ids(task_registry, redis_client):
 def test_should_stop_processing_with_cancelled_ids(task_registry, redis_client):
     """Test that should_stop_processing handles cancelled_ids correctly."""
     # Create a set of cancelled IDs
-    cancelled_ids: Set[str] = {"cancelled-task-1", "cancelled-task-2"}
+    cancelled_ids: set[str] = {"cancelled-task-1", "cancelled-task-2"}
 
     # Create tasks to test with
     current_time = int(time.time())
@@ -444,9 +447,9 @@ def test_should_stop_processing_with_cancelled_ids(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "cancelled-task-1":
             return cancelled_task1.SerializeToString()
-        elif key == "cancelled-task-2":
+        if key == "cancelled-task-2":
             return cancelled_task2.SerializeToString()
-        elif key == "active-task":
+        if key == "active-task":
             return active_task.SerializeToString()
         return None
 
@@ -479,7 +482,7 @@ def test_should_stop_processing_no_cancelled_ids(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "active-task":
             return active_task.SerializeToString()
-        elif key == "cancelled-task":
+        if key == "cancelled-task":
             return cancelled_task.SerializeToString()
         return None
 
@@ -517,7 +520,7 @@ def test_should_stop_processing_expired_task(task_registry, redis_client):
     def mock_hget(hash_name, key):
         if key == "expired-task":
             return expired_task.SerializeToString()
-        elif key == "active-task":
+        if key == "active-task":
             return active_task.SerializeToString()
         return None
 
@@ -659,9 +662,9 @@ def test_is_expired_with_delta(task_registry, redis_client):
         def mock_hget(hash_name, key):
             if key == "just-expired":
                 return just_expired_task.SerializeToString()
-            elif key == "soon-expired":
+            if key == "soon-expired":
                 return soon_expired_task.SerializeToString()
-            elif key == "future-task":
+            if key == "future-task":
                 return future_task.SerializeToString()
             return None
 
@@ -732,7 +735,7 @@ def test_is_expired_with_delta_edge_cases(task_registry, redis_client):
         def mock_hget(hash_name, key):
             if key == "one-second-expired":
                 return one_second_expired.SerializeToString()
-            elif key == "one-second-future":
+            if key == "one-second-future":
                 return one_second_future.SerializeToString()
             return None
 

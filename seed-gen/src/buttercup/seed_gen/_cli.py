@@ -85,7 +85,7 @@ def command_process(settings: Settings) -> None:
         elif command.task_type == TaskName.SEED_EXPLORE.value:
             if not command.target_function or not command.target_function_paths:
                 raise ValueError(
-                    "target_function and target_function_paths required for seed-explore"
+                    "target_function and target_function_paths required for seed-explore",
                 )
             task = SeedExploreTask(
                 command.package_name,
@@ -145,7 +145,10 @@ def command_process(settings: Settings) -> None:
 def main() -> None:
     settings = Settings()
     setup_package_logger(
-        "seed-gen", __name__, settings.log_level.upper(), settings.log_max_line_length
+        "seed-gen",
+        __name__,
+        settings.log_level.upper(),
+        settings.log_max_line_length,
     )
     command = get_subcommand(settings)
     if isinstance(command, ProcessCommand):

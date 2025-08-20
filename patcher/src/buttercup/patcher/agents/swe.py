@@ -5,43 +5,42 @@ from __future__ import annotations
 import difflib
 import logging
 import re
-import uuid
-import langgraph.errors
-from langchain_core.messages import BaseMessage
-from langgraph.prebuilt import InjectedState
-from langchain_core.prompts import MessagesPlaceholder
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
 
-from langgraph.types import Command
-
-from langchain_openai.chat_models.base import BaseChatOpenAI
+import langgraph.errors
+from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
+    MessagesPlaceholder,
 )
-from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
 )
+from langchain_core.tools import tool
+from langchain_openai.chat_models.base import BaseChatOpenAI
+from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.types import Command
+from pydantic import BaseModel, Field, ValidationError
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
     CodeSnippetKey,
     CodeSnippetRequest,
     PatchAttempt,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
     PatchStatus,
     PatchStrategy,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
-from langgraph.prebuilt import create_react_agent
-from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +121,7 @@ PROMPT = ChatPromptTemplate.from_messages(
         ("system", SYSTEM_MSG),
         ("user", USER_MSG),
         ("ai", "<patch_planning>"),
-    ]
+    ],
 )
 
 PATCH_STRATEGY_SYSTEM_MSG = """You are PatchGen-LLM, an autonomous component in an end-to-end security-patching pipeline.
@@ -194,7 +193,7 @@ PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(
         ("user", PATCH_STRATEGY_USER_MSG),
         MessagesPlaceholder(variable_name="messages"),
         ("ai", "<patch_development_process>"),
-    ]
+    ],
 )
 
 REFLECTION_GUIDANCE_TMPL = """
@@ -232,7 +231,7 @@ SUMMARIZE_PATCH_STRATEGY_PROMPT = ChatPromptTemplate.from_messages(
 </patch_strategy>
 """,
         ),
-    ]
+    ],
 )
 
 
@@ -241,10 +240,10 @@ class CodeSnippetChange(BaseModel):
 
     key: CodeSnippetKey = Field(description="The key of the code snippet")
     old_code: str | None = Field(
-        description="The old piece of code, as-is, with spaces, trailing/leading whitespaces, etc."
+        description="The old piece of code, as-is, with spaces, trailing/leading whitespaces, etc.",
     )
     code: str | None = Field(
-        description="The fixed piece of code snippet, as-is, with spaces, trailing/leading whitespaces, etc."  # noqa: E501
+        description="The fixed piece of code snippet, as-is, with spaces, trailing/leading whitespaces, etc.",
     )
 
     def is_valid(self) -> bool:
@@ -278,7 +277,7 @@ class CodeSnippetChange(BaseModel):
                     key=CodeSnippetKey(file_path=file_path, identifier=identifier),
                     old_code=old_code.strip("\n"),
                     code=new_code.strip("\n"),
-                )
+                ),
             )
 
         return result
@@ -332,7 +331,10 @@ class SWEAgent(PatcherAgentBase):
 
         @tool(description=self._understand_code_snippet.__doc__)
         def understand_code_snippet(
-            code_snippet_id: str, focus_area: str, *, state: Annotated[BaseModel, InjectedState]
+            code_snippet_id: str,
+            focus_area: str,
+            *,
+            state: Annotated[BaseModel, InjectedState],
         ) -> str:
             assert isinstance(state, PatcherAgentState)
             return self._understand_code_snippet(state, code_snippet_id, focus_area)
@@ -381,7 +383,7 @@ class SWEAgent(PatcherAgentBase):
             ROOT_CAUSE_ANALYSIS=str(state.root_cause),
             CODE_SNIPPETS="\n".join(map(str, state.relevant_code_snippets)),
             REFLECTION_GUIDANCE=REFLECTION_GUIDANCE_TMPL.format(
-                REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
+                REFLECTION_GUIDANCE=state.execution_info.reflection_guidance,
             )
             if state.execution_info.reflection_decision == PatcherAgentName.PATCH_STRATEGY
             else "",
@@ -399,7 +401,8 @@ class SWEAgent(PatcherAgentBase):
     def _get_file_content(self, file_path: str) -> tuple[str, Path] | None:
         """Get the content of a file, trying multiple search strategies. Returns
         the content of the file and the relative path of the file (from the
-        source path)."""
+        source path).
+        """
         file_path = file_path.strip()
         relative_file_path = find_file_in_source_dir(self.challenge, Path(file_path))
         if relative_file_path is None:
@@ -416,7 +419,9 @@ class SWEAgent(PatcherAgentBase):
             return None
 
     def _find_closest_match(
-        self, orig_code_snippets: dict[CodeSnippetKey, str], target_key: CodeSnippetKey
+        self,
+        orig_code_snippets: dict[CodeSnippetKey, str],
+        target_key: CodeSnippetKey,
     ) -> CodeSnippetKey | None:
         """Find the closest matching CodeSnippetKey in orig_code_snippets."""
 
@@ -427,7 +432,7 @@ class SWEAgent(PatcherAgentBase):
             return None
 
         # Try exact identifier match with fuzzy file path
-        matches = [key for key in orig_code_snippets.keys() if key.identifier == target_key.identifier]
+        matches = [key for key in orig_code_snippets if key.identifier == target_key.identifier]
         if matches:
             # If there is only one match, just return it
             if len(matches) == 1:
@@ -444,7 +449,9 @@ class SWEAgent(PatcherAgentBase):
         return None
 
     def _get_code_snippet_key(
-        self, code_snippet: CodeSnippetChange, orig_code_snippets: dict[CodeSnippetKey, str]
+        self,
+        code_snippet: CodeSnippetChange,
+        orig_code_snippets: dict[CodeSnippetKey, str],
     ) -> CodeSnippetKey | None:
         code_snippet_key = code_snippet.key
         if code_snippet_key not in orig_code_snippets:
@@ -462,7 +469,10 @@ class SWEAgent(PatcherAgentBase):
         return code_snippet_key
 
     def _get_snippets_patch(
-        self, code_snippet: CodeSnippetChange, idx: int, orig_code_snippets: dict[CodeSnippetKey, str]
+        self,
+        code_snippet: CodeSnippetChange,
+        idx: int,
+        orig_code_snippets: dict[CodeSnippetKey, str],
     ) -> PatchOutput | None:
         if not code_snippet.is_valid():
             logger.warning("Invalid code snippet: %s (%d)", code_snippet.key, idx)
@@ -518,6 +528,7 @@ class SWEAgent(PatcherAgentBase):
             try:
                 result = subprocess.run(
                     ["git", "diff", "--no-index", "--binary", str(orig_file.name), str(new_file.name)],
+                    check=False,
                     capture_output=True,
                     text=True,
                     cwd=temp_dir_path,
@@ -547,7 +558,9 @@ class SWEAgent(PatcherAgentBase):
         )
 
     def _get_snippets_patches(
-        self, code_snippets: CodeSnippetChanges, orig_code_snippets: dict[CodeSnippetKey, str]
+        self,
+        code_snippets: CodeSnippetChanges,
+        orig_code_snippets: dict[CodeSnippetKey, str],
     ) -> list[PatchOutput]:
         patches: list[PatchOutput] = []
         for code_snippet_idx, code_snippet in enumerate(code_snippets.items or []):
@@ -582,7 +595,9 @@ class SWEAgent(PatcherAgentBase):
         return final_patch
 
     def create_patch_node(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[  # type: ignore[name-defined]
         Literal[
             PatcherAgentName.BUILD_PATCH.value,
@@ -623,7 +638,7 @@ class SWEAgent(PatcherAgentBase):
                 "PATCH_STRATEGY": state.patch_strategy.full,
                 "PREVIOUS_PATCH_PROMPT": previous_patch_prompt,
                 "REFLECTION_GUIDANCE": REFLECTION_GUIDANCE_TMPL.format(
-                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance
+                    REFLECTION_GUIDANCE=state.execution_info.reflection_guidance,
                 )
                 if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
                 else "",
@@ -663,7 +678,9 @@ class SWEAgent(PatcherAgentBase):
         logger.debug("Patch attempt: %s", new_patch_attempt.patch.patch)
         if new_patch_attempt.patch.patch in [p.patch.patch for p in state.patch_attempts if p.patch]:
             logger.warning(
-                "[%s / %s] Generated patch already exists", state.context.task_id, state.context.internal_patch_id
+                "[%s / %s] Generated patch already exists",
+                state.context.task_id,
+                state.context.internal_patch_id,
             )
             new_patch_attempt.status = PatchStatus.DUPLICATED
             return Command(
@@ -685,7 +702,9 @@ class SWEAgent(PatcherAgentBase):
         """Parse the code snippet requests from the patch strategy string."""
         requests = []
         for request in re.findall(
-            r"<request_information>(.*?)</request_information>", patch_strategy_str, re.DOTALL | re.IGNORECASE
+            r"<request_information>(.*?)</request_information>",
+            patch_strategy_str,
+            re.DOTALL | re.IGNORECASE,
         ):
             requests.append(CodeSnippetRequest(request=request))
         return requests
@@ -719,7 +738,9 @@ class SWEAgent(PatcherAgentBase):
         return res
 
     def select_patch_strategy(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[  # type: ignore[name-defined]
         Literal[
             PatcherAgentName.CREATE_PATCH.value,
@@ -784,7 +805,9 @@ class SWEAgent(PatcherAgentBase):
             new_code_snippet_requests = self._parse_code_snippet_requests(patch_strategy_str)
             execution_info.code_snippet_requests = new_code_snippet_requests
             logger.info(
-                "[%s / %s] Requesting additional information", state.context.task_id, state.context.internal_patch_id
+                "[%s / %s] Requesting additional information",
+                state.context.task_id,
+                state.context.internal_patch_id,
             )
             return Command(
                 update={
@@ -798,7 +821,7 @@ class SWEAgent(PatcherAgentBase):
             new_summary = self.patch_strategy_summary_chain.invoke(
                 {
                     "patch_strategy": patch_strategy.full,
-                }
+                },
             )
             if new_summary:
                 patch_strategy.summary = new_summary

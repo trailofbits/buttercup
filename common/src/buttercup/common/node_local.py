@@ -1,14 +1,14 @@
 # Store the node local path for subsequent use
-from contextlib import contextmanager
 import logging
 import os
-from pathlib import Path
 import shutil
 import tarfile
-from tempfile import NamedTemporaryFile
 import tempfile
-from typing import Any, Iterator, TypeAlias
-from contextlib import AbstractContextManager
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any, TypeAlias
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +188,7 @@ def dir_to_remote_archive(local_path: NodeLocalPath) -> RemotePath:
 def lopen(local_path: NodeLocalPath, mode: str) -> Any:
     """Open a file in the node local storage
 
-    If it doesn't exist, it will be downloaded from the remote storage"""
+    If it doesn't exist, it will be downloaded from the remote storage
+    """
     make_locally_available(local_path)
     return open(local_path, mode)

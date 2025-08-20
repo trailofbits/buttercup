@@ -62,11 +62,12 @@ class PoVAttempt:
 class VulnBaseState(BaseTaskState):
     analysis: str = Field(description="The analysis of the vulnerability", default="")
     sarifs: list[SARIFBroadcastDetail] = Field(
-        description="SARIF broadcasts for the task", default_factory=list
+        description="SARIF broadcasts for the task",
+        default_factory=list,
     )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
     current_dir: Path = Field(
-        description="Directory to store most recent seeds before they are tested"
+        description="Directory to store most recent seeds before they are tested",
     )
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)
@@ -109,12 +110,10 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     @abstractmethod
     def _analyze_bug(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     def _analyze_bug_base(
         self,
@@ -128,7 +127,7 @@ class VulnBaseTask(Task):
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | StrOutputParser()
         analysis = chain.invoke(prompt_vars)
@@ -137,7 +136,6 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _write_pov(self, state: BaseTaskState) -> Command:
         """Write PoV functions for the vulnerability"""
-        pass
 
     def _write_pov_base(
         self,
@@ -150,7 +148,7 @@ class VulnBaseTask(Task):
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | extract_code
         pov_funcs = chain.invoke(prompt_vars)
@@ -176,7 +174,8 @@ class VulnBaseTask(Task):
             shutil.move(pov, final_path)
             try:
                 for build, result in self.reproduce_multiple.get_crashes(
-                    final_path, self.harness_name
+                    final_path,
+                    self.harness_name,
                 ):
                     logger.info(
                         "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
@@ -200,7 +199,7 @@ class VulnBaseTask(Task):
                 "analysis": "",
                 "generated_functions": "",
                 "pov_iteration": state.pov_iteration + 1,
-            }
+            },
         )
 
     def submit_valid_pov(
@@ -313,7 +312,6 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _init_state(self, out_dir: Path, current_dir: Path) -> BaseTaskState:
         """Set up State"""
-        pass
 
     def do_task(self, out_dir: Path, current_dir: Path) -> None:
         """Do vuln-discovery task"""
@@ -328,7 +326,7 @@ class VulnBaseTask(Task):
                     tags=["vuln-discovery"],
                     callbacks=llm_callbacks,
                     recursion_limit=self.recursion_limit(),
-                )
+                ),
             )
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("seed_gen_vuln_discovery") as span:
@@ -345,7 +343,9 @@ class VulnBaseTask(Task):
 
         except Exception as err:
             logger.exception(
-                "Failed vuln-discovery for challenge %s: %s", self.package_name, str(err)
+                "Failed vuln-discovery for challenge %s: %s",
+                self.package_name,
+                str(err),
             )
 
     def sample_sarifs(self) -> list[SARIFBroadcastDetail]:
@@ -359,23 +359,19 @@ class VulnBaseTask(Task):
         """Get PoV examples for the task"""
         if self.project_yaml.unified_language == Language.JAVA:
             return VULN_JAVA_POV_EXAMPLES
-        else:
-            return VULN_C_POV_EXAMPLES
+        return VULN_C_POV_EXAMPLES
 
     def get_vuln_files(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return ".java"
-        else:
-            return ".c, .h, .cpp, or .hpp"
+        return ".c, .h, .cpp, or .hpp"
 
     def get_fuzzer_name(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return "jazzer"
-        else:
-            return "libfuzzer"
+        return "libfuzzer"
 
     def get_cwe_list(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return JAVA_CWE_LIST + "\n" + COMMON_CWE_LIST
-        else:
-            return C_CWE_LIST + "\n" + COMMON_CWE_LIST
+        return C_CWE_LIST + "\n" + COMMON_CWE_LIST
