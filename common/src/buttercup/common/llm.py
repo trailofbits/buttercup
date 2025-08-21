@@ -3,11 +3,10 @@ from enum import Enum
 from typing import Any
 import requests
 import functools
-from langchain_core.language_models import BaseChatModel
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain_core.runnables import ConfigurableField
+from langchain_core.runnables import ConfigurableField, Runnable
 
 import logging
 
@@ -95,7 +94,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     return []
 
 
-def create_default_llm(**kwargs: Any) -> BaseChatModel:
+def create_default_llm(**kwargs: Any) -> Runnable:
     """Create an LLM object with the default configuration."""
     fallback_models = kwargs.pop("fallback_models", [])
     fallback_models = [create_default_llm(**{**kwargs, "model_name": m}) for m in fallback_models]
@@ -109,7 +108,7 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
     )
 
 
-def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
+def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
     """Create an LLM object with the default configuration and temperature."""
     fallback_models = kwargs.pop("fallback_models", [])
     fallback_models = [create_default_llm_with_temperature(**{**kwargs, "model_name": m}) for m in fallback_models]
@@ -129,10 +128,10 @@ def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
     )
 
 
-def create_llm(fallback_models: list[BaseChatModel], **kwargs: Any) -> BaseChatModel:
+def create_llm(fallback_models: list[Runnable], **kwargs: Any) -> Runnable:
     """Create an LLM object with the given configuration."""
     return ChatOpenAI(
         openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
         openai_api_key=os.environ["BUTTERCUP_LITELLM_KEY"],
         **kwargs,
-    ).with_fallbacks([create_default_llm(m.value) for m in fallback_models])
+    ).with_fallbacks(fallback_models)
