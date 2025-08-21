@@ -98,7 +98,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
 def create_default_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration."""
     fallback_models = kwargs.pop("fallback_models", [])
-    fallback_models = [create_default_llm({**kwargs, "model_name": m}) for m in fallback_models]
+    fallback_models = [create_default_llm(**{**kwargs, "model_name": m}) for m in fallback_models]
     return create_llm(
         fallback_models,
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
@@ -112,7 +112,7 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
 def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration and temperature."""
     fallback_models = kwargs.pop("fallback_models", [])
-    fallback_models = [create_default_llm_with_temperature({**kwargs, "model_name": m}) for m in fallback_models]
+    fallback_models = [create_default_llm_with_temperature(**{**kwargs, "model_name": m}) for m in fallback_models]
     return create_llm(  # type: ignore
         fallback_models,
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
