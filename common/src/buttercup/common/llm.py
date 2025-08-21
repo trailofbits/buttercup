@@ -33,8 +33,8 @@ class ButtercupLLM(Enum):
     CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
     CLAUDE_4_SONNET = "claude-4-sonnet"
     GEMINI_PRO = "gemini-pro"
-    GEMINI_2_FLASH = "gemini-2.0-flash"
-    GEMINI_2_FLASH_EXP = "gemini-2.0-flash-exp"
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GEMINI_2_5_FLASH_EXP = "gemini-2.5-flash-exp"
 
 
 @functools.cache
@@ -97,7 +97,13 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
 
 def create_default_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration."""
+    fallback_models = kwargs.pop("fallback_models", [])
+    falback_models = [
+        create_default_llm({**kwargs, "model_name": m})
+        for m in fallback_models
+    ]
     return create_llm(
+        fallback_models,
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
@@ -108,7 +114,13 @@ def create_default_llm(**kwargs: Any) -> BaseChatModel:
 
 def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the default configuration and temperature."""
+    fallback_models = kwargs.pop("fallback_models", [])
+    falback_models = [
+        create_default_llm_with_temperature({**kwargs, "model_name": m})
+        for m in fallback_models
+    ]
     return create_llm(  # type: ignore
+        fallback_models,
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
@@ -123,10 +135,10 @@ def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
     )
 
 
-def create_llm(**kwargs: Any) -> BaseChatModel:
+def create_llm(fallback_models: list[BaseChatModel], **kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the given configuration."""
     return ChatOpenAI(
         openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
         openai_api_key=os.environ["BUTTERCUP_LITELLM_KEY"],
         **kwargs,
-    )
+    ).with_fallbacks([create_default_llm(m.value) for m in fallback_models])
