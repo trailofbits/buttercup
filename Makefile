@@ -106,6 +106,13 @@ deploy-local:
 		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
 	fi
+	@if ! docker version >/dev/null 2>&1; then \
+		echo "Error: Docker is not accessible. This could be due to:"; \
+		echo "  1. Docker not installed - run: make setup-local"; \
+		echo "  2. Docker group not active - run: newgrp docker && make deploy-local"; \
+		echo "  3. Need to logout/login after setup - exit and re-enter your session"; \
+		exit 1; \
+	fi
 	cd deployment && make up
 	make crs-instance-id
 	make wait-crs
