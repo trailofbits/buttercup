@@ -147,18 +147,24 @@ up() {
 
 	# Set secrets
 	echo -e "${BLU}Creating ghcr secret${NC}"
-	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE" || true
+	# Always recreate the ghcr secret to ensure it has the latest values
+	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE" >/dev/null 2>&1 || true
 	kubectl create secret generic ghcr \
 		--namespace "$BUTTERCUP_NAMESPACE" \
 		--from-literal=pat="$GHCR_PAT" \
 		--from-literal=username="$GHCR_USERNAME" \
-		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT" || echo -e "${GRN}ghcr secret already exists${NC}"
+		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT"
 
 	echo -e "${BLU}Creating CRS_INSTANCE_ID${NC}"
-	CRS_INSTANCE_ID=$(echo $RANDOM | md5sum | head -c 20)
-	kubectl create configmap crs-instance-id \
-		--namespace "$BUTTERCUP_NAMESPACE" \
-		--from-literal=crs-instance-id="$CRS_INSTANCE_ID" || echo -e "${GRN}crs-instance-id configmap already exists${NC}"
+	# Check if configmap already exists
+	if kubectl get configmap crs-instance-id --namespace "$BUTTERCUP_NAMESPACE" >/dev/null 2>&1; then
+		echo -e "${GRN}crs-instance-id configmap already exists${NC}"
+	else
+		CRS_INSTANCE_ID=$(echo $RANDOM | md5sum | head -c 20)
+		kubectl create configmap crs-instance-id \
+			--namespace "$BUTTERCUP_NAMESPACE" \
+			--from-literal=crs-instance-id="$CRS_INSTANCE_ID"
+	fi
 
 	CRS_INSTANCE_ID=$(kubectl get configmap crs-instance-id \
 		--namespace "$BUTTERCUP_NAMESPACE" \
@@ -166,29 +172,39 @@ up() {
 	echo -e "${GRN}CRS_INSTANCE_ID is $CRS_INSTANCE_ID${NC}"
 
 if [[ -n "${DOCKER_USERNAME}" ]] && [[ -n "${DOCKER_PAT}" ]]; then
-	kubectl create secret docker-registry docker-auth \
-		--namespace "$BUTTERCUP_NAMESPACE" \
-		--docker-server=docker.io \
-		--docker-username="$DOCKER_USERNAME" \
-		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
+	# Check if docker-auth secret already exists
+	if kubectl get secret docker-auth --namespace "$BUTTERCUP_NAMESPACE" >/dev/null 2>&1; then
+		echo -e "${GRN}docker-registry secret already exists${NC}"
+	else
+		kubectl create secret docker-registry docker-auth \
+			--namespace "$BUTTERCUP_NAMESPACE" \
+			--docker-server=docker.io \
+			--docker-username="$DOCKER_USERNAME" \
+			--docker-password="$DOCKER_PAT"
+	fi
 else
 	echo -e "${GRN}Docker credentials have not been configured. Skipping creating optional docker-registry secret${NC}"
 fi
 
 	# Create TLS certificate for registry cache
 	echo -e "${BLU}Creating TLS certificate for registry cache${NC}"
-	REGISTRY_CACHE_HOST="registry-cache.${BUTTERCUP_NAMESPACE}.svc.cluster.local"
-	openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-		-keyout /tmp/registry-cache.key \
-		-out /tmp/registry-cache.crt \
-		-subj "/CN=${REGISTRY_CACHE_HOST}" \
-		-addext "subjectAltName=DNS:${REGISTRY_CACHE_HOST},DNS:registry-cache,DNS:registry-cache.${BUTTERCUP_NAMESPACE},DNS:ghcr.io"
+	# Check if secret already exists
+	if kubectl get secret registry-cache-tls --namespace "$BUTTERCUP_NAMESPACE" >/dev/null 2>&1; then
+		echo -e "${GRN}registry-cache-tls secret already exists${NC}"
+	else
+		REGISTRY_CACHE_HOST="registry-cache.${BUTTERCUP_NAMESPACE}.svc.cluster.local"
+		openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+			-keyout /tmp/registry-cache.key \
+			-out /tmp/registry-cache.crt \
+			-subj "/CN=${REGISTRY_CACHE_HOST}" \
+			-addext "subjectAltName=DNS:${REGISTRY_CACHE_HOST},DNS:registry-cache,DNS:registry-cache.${BUTTERCUP_NAMESPACE},DNS:ghcr.io"
 
-	kubectl create secret tls registry-cache-tls \
-		--namespace "$BUTTERCUP_NAMESPACE" \
-		--key=/tmp/registry-cache.key \
-		--cert=/tmp/registry-cache.crt || echo -e "${GRN}registry-cache-tls secret already exists${NC}"
-	rm -f /tmp/registry-cache.key /tmp/registry-cache.crt
+		kubectl create secret tls registry-cache-tls \
+			--namespace "$BUTTERCUP_NAMESPACE" \
+			--key=/tmp/registry-cache.key \
+			--cert=/tmp/registry-cache.crt
+		rm -f /tmp/registry-cache.key /tmp/registry-cache.crt
+	fi
 
 	#deploy kubernetes resources in AKS cluster
 	if [ "$TAILSCALE_ENABLED" = "true" ]; then
