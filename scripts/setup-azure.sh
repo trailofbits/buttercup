@@ -80,8 +80,7 @@ setup_config() {
     configure_langfuse
     
     # Configure SigNoz deployment (optional)
-    # TODO: reenable signoz configuration once it is fixed
-    # configure_otel
+    configure_otel
 }
 
 # Function to validate configuration
