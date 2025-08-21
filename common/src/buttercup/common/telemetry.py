@@ -3,29 +3,36 @@ import logging
 from enum import Enum
 import uuid
 from typing import Any
-
-import openlit
-import opentelemetry.attributes
-from opentelemetry import trace
-from opentelemetry.trace import Span, Tracer, Status, StatusCode
 from langchain_core.prompt_values import ChatPromptValue
 
-# Monkey patch the _clean_attribute function to handle ChatPromptValue
-_clean_attribute_orig = opentelemetry.attributes._clean_attribute
-
-
-def _clean_attribute_wrapper(key: str, value: Any, max_len: int | None = None) -> Any:
-    """Wrapper around _clean_attribute to add custom behavior"""
-    if isinstance(value, ChatPromptValue):
-        value = value.to_string()
-
-    return _clean_attribute_orig(key, value, max_len)
-
-
-opentelemetry.attributes._clean_attribute = _clean_attribute_wrapper
-
-
 logger = logging.getLogger(__name__)
+
+try:
+    import openlit
+    import opentelemetry.attributes
+    from opentelemetry import trace
+    from opentelemetry.trace import Span, Tracer, Status, StatusCode
+
+    # Monkey patch the _clean_attribute function to handle ChatPromptValue
+    _clean_attribute_orig = opentelemetry.attributes._clean_attribute
+
+    def _clean_attribute_wrapper(key: str, value: Any, max_len: int | None = None) -> Any:
+        """Wrapper around _clean_attribute to add custom behavior"""
+        if isinstance(value, ChatPromptValue):
+            value = value.to_string()
+
+        return _clean_attribute_orig(key, value, max_len)
+
+    opentelemetry.attributes._clean_attribute = _clean_attribute_wrapper
+    _opentelemetry_enabled = True
+except ImportError:
+    logger.warning("OpenTelemetry is not installed, skipping telemetry")
+
+    Span: type = Any  # type: ignore[no-redef]
+    Tracer: type = Any  # type: ignore[no-redef]
+
+    _opentelemetry_enabled = False
+
 crs_instance_id = os.getenv("CRS_INSTANCE_ID", str(uuid.uuid4()))
 service_instance_id = str(uuid.uuid4())
 
@@ -47,6 +54,9 @@ class CRSActionCategory(Enum):
 
 def init_telemetry(application_name: str) -> None:
     """Initialize the telemetry for the application."""
+    if not _opentelemetry_enabled:
+        return
+
     logger.info("Initializing telemetry for %s", application_name)
     if not os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
         logger.error("OTEL_EXPORTER_OTLP_ENDPOINT not set, disabling telemetry")
@@ -75,6 +85,9 @@ def set_crs_attributes(
     task_metadata: dict,
     extra_attributes: dict | None = None,
 ) -> None:
+    if not _opentelemetry_enabled:
+        return
+
     extra_attributes = extra_attributes or {}
     span.set_attribute("crs.action.category", crs_action_category.value)
     span.set_attribute("crs.action.name", crs_action_name)
@@ -95,6 +108,9 @@ def log_crs_action_ok(
     task_metadata: dict,
     extra_attributes: dict | None = None,
 ) -> None:
+    if not _opentelemetry_enabled:
+        return
+
     extra_attributes = extra_attributes or {}
     with tracer.start_as_current_span(crs_action_name) as span:
         span.set_attribute("crs.action.category", crs_action_category.value)

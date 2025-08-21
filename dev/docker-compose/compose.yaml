@@ -40,7 +40,7 @@ services:
   stimulate-fuzzer-test:
     build:
       context: ../../
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --build_type fuzzer --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE} --task_id 123e4567-e89b-12d3-a456-426614174000
     profiles:
       - fuzzer-test
@@ -63,7 +63,7 @@ services:
   orchestrator-sim:
     build:
       context: ../../
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/Dockerfile
     command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
     profiles:
       - fuzzer-test
@@ -140,7 +140,7 @@ services:
     command: ["buttercup-coverage-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ../../
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/Dockerfile
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -156,7 +156,7 @@ services:
     command: ["buttercup-fuzzer-builder", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timer", "5000"]
     build:
       context: ../../
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/Dockerfile
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -172,7 +172,7 @@ services:
     command: ["buttercup-tracer-bot", "--wdir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379"]
     build:
       context: ../../
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/Dockerfile
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -184,10 +184,20 @@ services:
       dind:
         condition: service_started
 
+  fuzzer-runner:
+    build:
+      context: ../../
+      dockerfile: ./fuzzer_runner/Dockerfile
+    command: ["buttercup-fuzzer-server"]
+    env_file: env.dev.compose
+    volumes:
+      - ../../crs_scratch:/crs_scratch
+      - ../../node_data_storage/:/node_data
+
   fuzzer-bot:
     build:
       context: ../../
-      dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+      dockerfile: ./fuzzer/Dockerfile
     command: ["buttercup-fuzzer", "--crs_scratch_dir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_count_limit", "100"]
     env_file: env.dev.compose
     volumes:

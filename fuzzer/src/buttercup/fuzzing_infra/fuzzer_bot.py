@@ -1,4 +1,4 @@
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
+from buttercup.fuzzing_infra.runner_proxy import RunnerProxy, Conf, FuzzConfiguration
 from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.queues import QueueFactory, QueueNames
@@ -8,9 +8,8 @@ from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.utils import setup_periodic_zombie_reaper
 from redis import Redis
-from clusterfuzz.fuzz import engine
 from buttercup.common.default_task_loop import TaskLoop
-from typing import List
+from typing import List, TYPE_CHECKING
 import random
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
@@ -21,6 +20,9 @@ from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 from buttercup.common.node_local import scratch_dir
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from clusterfuzz.fuzz import engine
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +37,9 @@ class FuzzerBot(TaskLoop):
         crs_scratch_dir: str,
         crash_dir_count_limit: int | None,
         max_pov_size: int,
+        runner_url: str,
     ):
-        self.runner = Runner(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds, runner_url))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
@@ -148,6 +151,7 @@ def main() -> None:
         args.crs_scratch_dir,
         crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),
         max_pov_size=args.max_pov_size,
+        runner_url=args.runner_url,
     )
     fuzzer.run()
 

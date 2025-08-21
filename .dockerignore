@@ -16,7 +16,8 @@
 **/.pdm-build/
 **/.pdm-python
 **/pdm.lock
-fuzzer/dockerfiles/runner_image.Dockerfile
+fuzzer/Dockerfile
+fuzzer_runner/Dockerfile
 orchestrator/Dockerfile
 patcher/Dockerfile
 seed-gen/Dockerfile

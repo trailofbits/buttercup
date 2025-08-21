@@ -36,7 +36,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
     tasks_storage: Path
     model_name: str | None = None
 
-    def _init_patch_team(self) -> StateGraph[PatcherAgentState, PatcherAgentState, PatcherAgentState]:
+    def _init_patch_team(self) -> StateGraph[PatcherAgentState, PatcherConfig, PatcherAgentState, PatcherAgentState]:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
@@ -62,7 +62,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
         workflow.add_node(PatcherAgentName.RUN_POV.value, qe_agent.run_pov_node)
         workflow.add_node(PatcherAgentName.RUN_TESTS.value, qe_agent.run_tests_node)
         workflow.add_node(PatcherAgentName.REFLECTION.value, reflection_agent.reflect_on_patch)
-        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)  # type: ignore[call-overload]
+        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)
         workflow.add_node(PatcherAgentName.PATCH_VALIDATION.value, qe_agent.validate_patch_node)
 
         workflow.set_entry_point(PatcherAgentName.INPUT_PROCESSING.value)

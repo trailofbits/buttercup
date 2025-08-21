@@ -5,7 +5,7 @@ import time
 import unittest
 from unittest.mock import patch, MagicMock
 
-from buttercup.fuzzing_infra.temp_dir import get_temp_dir, patched_temp_dir, _scratch_path_var
+from buttercup.fuzzer_runner.temp_dir import get_temp_dir, patched_temp_dir, _scratch_path_var
 
 
 class TestGetTempDir(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestGetTempDir(unittest.TestCase):
         """Test get_temp_dir uses scratch path when available."""
         test_scratch_path = "/test/scratch/path"
 
-        with patch("buttercup.fuzzing_infra.temp_dir.shell.create_directory") as mock_create_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.shell.create_directory") as mock_create_dir:
             # Set the context variable
             token = _scratch_path_var.set(test_scratch_path)
 
@@ -39,8 +39,8 @@ class TestGetTempDir(unittest.TestCase):
         test_fuzz_inputs_path = "/test/fuzz/inputs"
 
         with (
-            patch("buttercup.fuzzing_infra.temp_dir.environment.get_value") as mock_get_value,
-            patch("buttercup.fuzzing_infra.temp_dir.shell.create_directory") as mock_create_dir,
+            patch("buttercup.fuzzer_runner.temp_dir.environment.get_value") as mock_get_value,
+            patch("buttercup.fuzzer_runner.temp_dir.shell.create_directory") as mock_create_dir,
         ):
             mock_get_value.return_value = test_fuzz_inputs_path
 
@@ -53,7 +53,7 @@ class TestGetTempDir(unittest.TestCase):
 
     def test_get_temp_dir_fallback_without_fuzz_inputs_disk(self):
         """Test get_temp_dir falls back to system temp when use_fuzz_inputs_disk=False."""
-        with patch("buttercup.fuzzing_infra.temp_dir.shell.create_directory") as mock_create_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.shell.create_directory") as mock_create_dir:
             result = get_temp_dir(use_fuzz_inputs_disk=False)
 
             expected_path = os.path.join(tempfile.gettempdir(), f"temp-{os.getpid()}")
@@ -63,8 +63,8 @@ class TestGetTempDir(unittest.TestCase):
     def test_get_temp_dir_fallback_to_system_temp(self):
         """Test get_temp_dir falls back to system temp when FUZZ_INPUTS_DISK not set."""
         with (
-            patch("buttercup.fuzzing_infra.temp_dir.environment.get_value") as mock_get_value,
-            patch("buttercup.fuzzing_infra.temp_dir.shell.create_directory") as mock_create_dir,
+            patch("buttercup.fuzzer_runner.temp_dir.environment.get_value") as mock_get_value,
+            patch("buttercup.fuzzer_runner.temp_dir.shell.create_directory") as mock_create_dir,
         ):
             # Return system temp dir when FUZZ_INPUTS_DISK is not set
             mock_get_value.return_value = tempfile.gettempdir()
@@ -81,7 +81,7 @@ class TestPatchedTempDir(unittest.TestCase):
 
     def test_patched_temp_dir_basic_functionality(self):
         """Test basic functionality of patched_temp_dir context manager."""
-        with patch("buttercup.fuzzing_infra.temp_dir.scratch_dir") as mock_scratch_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.scratch_dir") as mock_scratch_dir:
             # Mock scratch_dir context manager
             mock_scratch = MagicMock()
             mock_scratch.path = "/mock/scratch/path"
@@ -97,7 +97,7 @@ class TestPatchedTempDir(unittest.TestCase):
 
     def test_patched_temp_dir_patches_clusterfuzz_function(self):
         """Test that patched_temp_dir properly patches the clusterfuzz function."""
-        with patch("buttercup.fuzzing_infra.temp_dir.scratch_dir") as mock_scratch_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.scratch_dir") as mock_scratch_dir:
             # Mock scratch_dir context manager
             mock_scratch = MagicMock()
             mock_scratch.path = "/mock/scratch/path"
@@ -106,7 +106,7 @@ class TestPatchedTempDir(unittest.TestCase):
 
             # Test that the patching works by calling the function directly
             with patched_temp_dir():
-                with patch("buttercup.fuzzing_infra.temp_dir.shell.create_directory") as mock_create_dir:
+                with patch("buttercup.fuzzer_runner.temp_dir.shell.create_directory") as mock_create_dir:
                     # Import and call the clusterfuzz function - it should be patched to use our implementation
                     import clusterfuzz._internal.bot.fuzzers.utils as utils
 
@@ -119,7 +119,7 @@ class TestPatchedTempDir(unittest.TestCase):
 
     def test_patched_temp_dir_context_variable_cleanup(self):
         """Test that context variable is properly cleaned up after context exit."""
-        with patch("buttercup.fuzzing_infra.temp_dir.scratch_dir") as mock_scratch_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.scratch_dir") as mock_scratch_dir:
             # Mock scratch_dir context manager
             mock_scratch = MagicMock()
             mock_scratch.path = "/mock/scratch/path"
@@ -138,7 +138,7 @@ class TestPatchedTempDir(unittest.TestCase):
 
     def test_patched_temp_dir_nested_contexts(self):
         """Test that nested patched_temp_dir contexts work correctly."""
-        with patch("buttercup.fuzzing_infra.temp_dir.scratch_dir") as mock_scratch_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.scratch_dir") as mock_scratch_dir:
             # Mock different scratch directories for nested contexts
             mock_scratch1 = MagicMock()
             mock_scratch1.path = "/mock/scratch/path1"
@@ -162,7 +162,7 @@ class TestPatchedTempDir(unittest.TestCase):
 
     def test_patched_temp_dir_exception_handling(self):
         """Test that context variable is cleaned up even when exceptions occur."""
-        with patch("buttercup.fuzzing_infra.temp_dir.scratch_dir") as mock_scratch_dir:
+        with patch("buttercup.fuzzer_runner.temp_dir.scratch_dir") as mock_scratch_dir:
             mock_scratch = MagicMock()
             mock_scratch.path = "/mock/scratch/path"
             mock_scratch_dir.return_value.__enter__.return_value = mock_scratch
@@ -189,7 +189,7 @@ class TestThreadSafety(unittest.TestCase):
 
         def thread_worker(thread_id: int):
             try:
-                with patch("buttercup.fuzzing_infra.temp_dir.scratch_dir") as mock_scratch_dir:
+                with patch("buttercup.fuzzer_runner.temp_dir.scratch_dir") as mock_scratch_dir:
                     mock_scratch = MagicMock()
                     mock_scratch.path = f"/mock/scratch/thread{thread_id}"
                     mock_scratch_dir.return_value.__enter__.return_value = mock_scratch

@@ -31,7 +31,9 @@ jobs:
           - component: orchestrator
             dockerfile: ./orchestrator/Dockerfile
           - component: fuzzer
-            dockerfile: ./fuzzer/dockerfiles/runner_image.Dockerfile
+            dockerfile: ./fuzzer/Dockerfile
+          - component: fuzzer_runner
+            dockerfile: ./fuzzer_runner/Dockerfile
           - component: patcher
             dockerfile: ./patcher/Dockerfile
           - component: seed-gen

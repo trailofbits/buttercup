@@ -6,13 +6,12 @@ authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "protobuf ==3.20.3",                 # Pin exactly for stability
+    "common[full]",
     "redis ~=5.2.1",
-    "clusterfuzz ==2.6.0",               # Pin exactly for stability
-    "common",
     "pydantic-settings ~=2.7.1",
     "beautifulsoup4 ~=4.13.3",
     "lxml ~=5.3.1",
+    "httpx ~=0.27.0",
 ]
 
 [project.urls]

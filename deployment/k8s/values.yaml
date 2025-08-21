@@ -13,6 +13,11 @@ global:
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
+  fuzzerRunnerImage:
+    repository: ghcr.io/trailofbits/buttercup/buttercup-fuzzer-runner
+    tag: "main"
+    pullPolicy: Always
+    pullSecrets: ["ghcr-auth"]
   seedGenImage:
     repository: ghcr.io/trailofbits/buttercup/buttercup-seed-gen
     tag: "main"

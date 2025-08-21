@@ -278,8 +278,8 @@ class VulnBaseTask(Task):
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_bug", self._analyze_bug)
         workflow.add_node("write_pov", self._write_pov)
-        workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)  # type: ignore[call-overload]
-        workflow.add_node("test_povs", self._test_povs)  # type: ignore[call-overload]
+        workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)
+        workflow.add_node("test_povs", self._test_povs)
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")

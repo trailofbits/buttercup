@@ -40,7 +40,29 @@ spec:
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+      {{- if .Values.fuzzerRunner.enabled }}
+      - name: fuzzer-runner
+        image: "{{ .Values.global.fuzzerRunnerImage.repository }}:{{ .Values.global.fuzzerRunnerImage.tag }}"
+        imagePullPolicy: {{ .Values.global.fuzzerRunnerImage.pullPolicy }}
+        command: ["buttercup-fuzzer-server"]
+        ports:
+        - containerPort: {{ .Values.fuzzerRunner.port }}
+          name: runner-http
+        env:
+        {{- include "buttercup.commonEnv" . | nindent 8 }}
+        {{- include "buttercup.env.nodeData" . | nindent 8 }}
+        {{- include "buttercup.env.telemetry" . | nindent 8 }}
+        - name: BUTTERCUP_FUZZER_RUNNER_HOST
+          value: "0.0.0.0"
+        - name: BUTTERCUP_FUZZER_RUNNER_PORT
+          value: "{{ .Values.fuzzerRunner.port }}"
+        resources:
+          {{- toYaml .Values.fuzzerRunner.resources | nindent 10 }}
+        volumeMounts:
+        {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
+        {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+      {{- end }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
-{{- end }}
+{{- end }} 

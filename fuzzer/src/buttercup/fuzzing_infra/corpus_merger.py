@@ -1,5 +1,5 @@
 from buttercup.common import node_local
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
+from buttercup.fuzzing_infra.runner_proxy import RunnerProxy, Conf, FuzzConfiguration
 from dataclasses import dataclass
 import os
 from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness
@@ -195,7 +195,7 @@ class MergerBot:
         self, redis: Redis, timeout_seconds: int, python: str, crs_scratch_dir: str, max_local_files: int = 500
     ):
         self.redis = redis
-        self.runner = Runner(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.harness_weights = HarnessWeights(redis)

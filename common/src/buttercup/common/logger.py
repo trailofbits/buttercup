@@ -1,14 +1,21 @@
-from opentelemetry._logs import set_logger_provider
 import os
 
-if os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL") == "grpc":
-    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-else:
-    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter  # type: ignore
+try:
+    from opentelemetry._logs import set_logger_provider
 
-from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-from opentelemetry.sdk.resources import Resource
+    if os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL") == "grpc":
+        from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+    else:
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter  # type: ignore
+
+    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+    from opentelemetry.sdk.resources import Resource
+
+    _opentelemetry_enabled = True
+except ImportError:
+    _opentelemetry_enabled = False
+
 from buttercup.common.telemetry import crs_instance_id, service_instance_id
 import logging
 import tempfile
@@ -42,26 +49,27 @@ def setup_package_logger(
                 root.removeHandler(handler)
 
         # Create resource with service and environment information
-        resource = Resource.create(
-            attributes={
-                "service.name": application_name,
-                "service.instance.id": service_instance_id,
-                "crs.instance.id": crs_instance_id,
-            }
-        )
-
-        # Initialize the LoggerProvider with the created resource.
-        logger_provider = LoggerProvider(resource=resource)
-
-        # Configure the span exporter and processor based on whether the endpoint is effectively set.
         otlp_handler = None
-        if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
-            set_logger_provider(logger_provider)
-            exporter = OTLPLogExporter()
+        if _opentelemetry_enabled:
+            resource = Resource.create(
+                attributes={
+                    "service.name": application_name,
+                    "service.instance.id": service_instance_id,
+                    "crs.instance.id": crs_instance_id,
+                }
+            )
 
-            # add the batch processors to the trace provider
-            logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
-            otlp_handler = LoggingHandler(level=logging.DEBUG, logger_provider=logger_provider)
+            # Initialize the LoggerProvider with the created resource.
+            logger_provider = LoggerProvider(resource=resource)
+
+            # Configure the span exporter and processor based on whether the endpoint is effectively set.
+            if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+                set_logger_provider(logger_provider)
+                exporter = OTLPLogExporter()
+
+                # add the batch processors to the trace provider
+                logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
+                otlp_handler = LoggingHandler(level=logging.DEBUG, logger_provider=logger_provider)
 
         persistent_log_dir = os.getenv("PERSISTENT_LOG_DIR", None)
 
