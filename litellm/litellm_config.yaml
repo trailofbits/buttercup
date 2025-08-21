@@ -109,7 +109,26 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
       tpm: 400000
 
-  # TODO(boyan): Add gemini here too
+  - model_name: gemini-pro	
+    litellm_params:
+      model: gemini/gemini-pro	
+      api_key: os.environ/GEMINI_API_KEY
+      tpm: 2000000
+      rpm: 150
+    
+  - model_name: gemini-2.0-flash-exp
+    litellm_params:
+      model: gemini/gemini-2.0-flash-exp
+      api_key: os.environ/GEMINI_API_KEY
+      tpm: 4000000
+      rpm: 2000
+
+  - model_name: gemini-2.0-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GEMINI_API_KEY
+      tpm: 4000000
+      rpm: 2000
 
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY

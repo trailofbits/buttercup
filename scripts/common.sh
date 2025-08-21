@@ -501,7 +501,7 @@ configure_local_api_keys() {
     print_linebreak
     print_status "Google Gemini API Key (Optional): Fallback model."
     print_status "Use this model as a fallback if other models are not configured or not available."
-    print_status "Generate your API key at: TODO(boyan)"
+    print_status "Generate your API key at: https://aistudio.google.com/apikey"
     configure_service "GEMINI_API_KEY" "Gemini API key" "$GEMINI_API_KEY" "<your-gemini-api-key>" false
 
     # GitHub Personal Access Token (Optional)
