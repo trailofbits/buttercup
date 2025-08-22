@@ -32,6 +32,8 @@ from buttercup.patcher.agents.common import (
 )
 from buttercup.patcher.utils import TruncatePosition, truncate_output
 
+# ruff: noqa: E501,W293
+
 logger = logging.getLogger(__name__)
 
 MAX_DIFF_LENGTH = MAX_STACKTRACE_LENGTH

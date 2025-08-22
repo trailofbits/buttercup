@@ -35,7 +35,7 @@ from buttercup.patcher.agents.context_retriever import (
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
 
-# ruff: noqa: W293
+# ruff: noqa: W293, UP031
 
 original_subprocess_run = subprocess.run
 

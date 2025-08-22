@@ -24,7 +24,7 @@ from buttercup.patcher.agents.swe import (
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
 
-# ruff: noqa: E501
+# ruff: noqa: E501, W293
 
 PNGRUTIL_C_CODE = """
       return;
