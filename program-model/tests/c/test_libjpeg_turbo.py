@@ -17,6 +17,8 @@ from ..common import (
     common_test_get_type_definitions,
 )
 
+# ruff: noqa: E501
+
 
 # Test searching for functions in codebase where we expect
 # only 1 function to be returned. To support multiple matches

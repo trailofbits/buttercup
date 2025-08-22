@@ -42,6 +42,8 @@ from buttercup.patcher.agents.common import (
 )
 from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
 
+# ruff: noqa: E501
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_MSG = (

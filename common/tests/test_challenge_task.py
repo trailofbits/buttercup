@@ -16,6 +16,7 @@ from buttercup.common.challenge_task import (
 )
 from buttercup.common.task_meta import TaskMeta
 
+# ruff: noqa: E501, W291
 
 @pytest.fixture
 def task_dir(tmp_path: Path) -> Path:

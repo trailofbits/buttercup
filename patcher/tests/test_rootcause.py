@@ -24,6 +24,8 @@ from buttercup.patcher.agents.rootcause import RootCauseAgent, get_modified_line
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
 
+# ruff: noqa: E501
+
 original_subprocess_run = subprocess.run
 
 
