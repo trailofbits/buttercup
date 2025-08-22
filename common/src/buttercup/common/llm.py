@@ -1,15 +1,15 @@
+import functools
+import logging
 import os
 from enum import Enum
 from typing import Any
+
 import requests
-import functools
+from langchain.callbacks.base import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import ConfigurableField
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain_core.runnables import ConfigurableField
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,9 @@ def langfuse_auth_check() -> bool:
 
     try:
         response = requests.post(
-            f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
+            f"{langfuse_host}/api/public/ingestion",
+            timeout=2,
+            auth=(langfuse_public_key, langfuse_secret_key),
         )
         return response.status_code == 400  # expect that we authenticate, but the request is invalid
     except requests.RequestException:

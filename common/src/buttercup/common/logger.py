@@ -1,17 +1,20 @@
-from opentelemetry._logs import set_logger_provider
 import os
+
+from opentelemetry._logs import set_logger_provider
 
 if os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL") == "grpc":
     from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 else:
     from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter  # type: ignore
 
+import logging
+import tempfile
+
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
+
 from buttercup.common.telemetry import crs_instance_id, service_instance_id
-import logging
-import tempfile
 
 _is_initialized = False
 PACKAGE_LOGGER_NAME = "buttercup"
@@ -30,7 +33,10 @@ class MaxLengthFormatter(logging.Formatter):
 
 
 def setup_package_logger(
-    application_name: str, logger_name: str, log_level: str = "info", max_line_length: int | None = None
+    application_name: str,
+    logger_name: str,
+    log_level: str = "info",
+    max_line_length: int | None = None,
 ) -> logging.Logger:
     global _is_initialized
 
@@ -47,7 +53,7 @@ def setup_package_logger(
                 "service.name": application_name,
                 "service.instance.id": service_instance_id,
                 "crs.instance.id": crs_instance_id,
-            }
+            },
         )
 
         # Initialize the LoggerProvider with the created resource.

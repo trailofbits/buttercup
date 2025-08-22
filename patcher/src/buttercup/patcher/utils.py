@@ -1,18 +1,20 @@
 """Various utility functions for the patching engine."""
 
-import re
 import random
-from typing import Any, cast
-from functools import lru_cache
+import re
+from collections.abc import Callable
 from enum import Enum
-from buttercup.program_model.codequery import CodeQueryPersistent
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, cast
+
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
-from buttercup.common.challenge_task import ChallengeTask
-from typing import Callable
-from pathlib import Path
 from pydantic import BaseModel
+
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQueryPersistent
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 
@@ -84,7 +86,8 @@ def decode_bytes(b: bytes | None) -> str | None:
 
 def _map_container_path_to_local_path(challenge: ChallengeTask, file_path: Path) -> Path | None:
     """Map a container path (e.g. /src/libjpeg-turbo/jcapimin.c) to a path
-    relative to the challenge source (e.g. jcapimin.c)."""
+    relative to the challenge source (e.g. jcapimin.c).
+    """
     if not file_path.is_absolute():
         file_path = challenge.workdir_from_dockerfile().joinpath(file_path).resolve()
 
@@ -126,7 +129,7 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
 
     res = list(challenge.get_source_path().rglob(file_path.as_posix()))
     if res:
-        return cast(Path, res[0].relative_to(challenge.get_source_path()))
+        return cast("Path", res[0].relative_to(challenge.get_source_path()))
 
     # Strategy 4: Search recursively by removing the first parts of the path
     try:
@@ -135,7 +138,7 @@ def find_file_in_source_dir(challenge: ChallengeTask, file_path: Path) -> Path |
                 parts = file_path.parts[idx:]
                 res = list(challenge.get_source_path().rglob(Path(*parts).as_posix()))
                 if res:
-                    return cast(Path, res[0].relative_to(challenge.get_source_path()))
+                    return cast("Path", res[0].relative_to(challenge.get_source_path()))
     except Exception:
         return None
 
@@ -148,7 +151,9 @@ def pick_temperature() -> float:
 
 
 def truncate_output(
-    output: str | None, max_length: int, truncate_position: TruncatePosition = TruncatePosition.MIDDLE
+    output: str | None,
+    max_length: int,
+    truncate_position: TruncatePosition = TruncatePosition.MIDDLE,
 ) -> str:
     """Truncate the output to the maximum length.
     If the output is longer than the maximum length, truncate it in the middle and add
@@ -162,9 +167,9 @@ def truncate_output(
 
     if truncate_position == TruncatePosition.START:
         return "\n[...TRUNCATED...]\n" + output[-max_length:]
-    elif truncate_position == TruncatePosition.MIDDLE:
+    if truncate_position == TruncatePosition.MIDDLE:
         return output[: max_length // 2] + "\n[...TRUNCATED...]\n" + output[-max_length // 2 :]
-    elif truncate_position == TruncatePosition.END:
+    if truncate_position == TruncatePosition.END:
         return output[:max_length] + "\n[...TRUNCATED...]\n"
 
 

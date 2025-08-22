@@ -1,9 +1,11 @@
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
-from buttercup.common.reproduce_multiple import ReproduceMultiple
+
+from buttercup.common.challenge_task import CommandResult, ReproduceResult
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
-from buttercup.common.challenge_task import ReproduceResult, CommandResult
+from buttercup.common.reproduce_multiple import ReproduceMultiple
 
 
 @pytest.fixture

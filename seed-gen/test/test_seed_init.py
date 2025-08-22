@@ -80,18 +80,18 @@ def test_do_task_success(
 
         # Mock codequery for tools
         seed_init_task.codequery.get_functions = Mock(
-            return_value=mock_codequery_responses["get_functions"]
+            return_value=mock_codequery_responses["get_functions"],
         )
         seed_init_task.codequery.get_callers = Mock(
-            return_value=mock_codequery_responses["get_callers"]
+            return_value=mock_codequery_responses["get_callers"],
         )
         seed_init_task.codequery.get_types = Mock(
-            return_value=mock_codequery_responses["get_types"]
+            return_value=mock_codequery_responses["get_types"],
         )
 
         # Mock challenge_task.exec_docker_cmd for cat tool
         seed_init_task.challenge_task.exec_docker_cmd = Mock(
-            return_value=mock_challenge_task_responses["exec_docker_cmd"]
+            return_value=mock_challenge_task_responses["exec_docker_cmd"],
         )
 
         seed_init_task.do_task(out_dir)

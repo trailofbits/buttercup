@@ -1,15 +1,17 @@
+import argparse
+import logging
+import os
+import typing
+import uuid
+from dataclasses import dataclass
+
 from clusterfuzz.fuzz import get_engine
-from clusterfuzz.fuzz.engine import Engine, FuzzResult, FuzzOptions
-from buttercup.common.queues import FuzzConfiguration
+from clusterfuzz.fuzz.engine import Engine, FuzzOptions, FuzzResult
+
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
+from buttercup.common.queues import FuzzConfiguration
 from buttercup.fuzzing_infra.temp_dir import patched_temp_dir, scratch_cwd
-import typing
-import os
-from dataclasses import dataclass
-import argparse
-import uuid
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +31,11 @@ class Runner:
         job_name = f"{conf.engine}_{conf.sanitizer}"
 
         with patched_temp_dir() as _td, scratch_cwd() as _cwd_temp:
-            engine = typing.cast(Engine, get_engine(conf.engine))
+            engine = typing.cast("Engine", get_engine(conf.engine))
             target = conf.target_path
             build_dir = os.path.dirname(target)
             distinguisher = uuid.uuid4()
-            repro_dir = os.path.join(build_dir, f"repro{str(distinguisher)}")
+            repro_dir = os.path.join(build_dir, f"repro{distinguisher!s}")
             os.makedirs(repro_dir, exist_ok=True)
             os.environ["JOB_NAME"] = job_name
             logger.debug(f"Calling engine.prepare with {conf.corpus_dir} | {target} | {build_dir}")
@@ -52,11 +54,16 @@ class Runner:
         job_name = f"{conf.engine}_{conf.sanitizer}"
         os.environ["JOB_NAME"] = job_name
         with patched_temp_dir() as _td, scratch_cwd() as _cwd_temp:
-            engine = typing.cast(Engine, get_engine(conf.engine))
+            engine = typing.cast("Engine", get_engine(conf.engine))
             # Temporary directory ignores crashes
             with scratch_dir() as td:
                 engine.minimize_corpus(
-                    conf.target_path, [], [conf.corpus_dir], output_dir, str(td.path), self.conf.timeout
+                    conf.target_path,
+                    [],
+                    [conf.corpus_dir],
+                    output_dir,
+                    str(td.path),
+                    self.conf.timeout,
                 )
 
 

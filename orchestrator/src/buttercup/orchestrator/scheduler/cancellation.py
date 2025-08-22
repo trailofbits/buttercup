@@ -1,8 +1,10 @@
 import logging
 from dataclasses import dataclass, field
+
 from redis import Redis
-from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
+
 from buttercup.common.datastructures.msg_pb2 import TaskDelete
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,7 @@ class Cancellation:
         redis (Redis): Redis connection
         delete_queue (ReliableQueue): Queue for processing deletion requests
         registry (TaskRegistry): Registry for tracking task state
+
     """
 
     redis: Redis
@@ -32,7 +35,9 @@ class Cancellation:
     def __post_init__(self) -> None:
         """Initialize Redis connection, deletion queue and task registry."""
         self.delete_queue = QueueFactory(self.redis).create(
-            QueueNames.DELETE_TASK, GroupNames.ORCHESTRATOR, block_time=None
+            QueueNames.DELETE_TASK,
+            GroupNames.ORCHESTRATOR,
+            block_time=None,
         )
         self.registry = TaskRegistry(self.redis)
 
@@ -45,6 +50,7 @@ class Cancellation:
 
         Returns:
             bool: True if any task was successfully marked as cancelled, False otherwise
+
         """
         # Handle the case where 'all' is set to True
         if delete_request.HasField("all") and delete_request.all:
@@ -61,7 +67,7 @@ class Cancellation:
             return any_cancelled
 
         # Handle the case where a specific task_id is provided
-        elif delete_request.HasField("task_id"):
+        if delete_request.HasField("task_id"):
             task_id = delete_request.task_id
             logger.info(f"Processing delete request for task {task_id}")
 
@@ -71,9 +77,8 @@ class Cancellation:
             return True
 
         # Neither 'all' nor 'task_id' is set
-        else:
-            logger.warning("Delete request missing both 'task_id' and 'all' fields, ignoring")
-            return False
+        logger.warning("Delete request missing both 'task_id' and 'all' fields, ignoring")
+        return False
 
     def process_cancellations(self) -> bool:
         """Process one iteration of the cancellation loop.
@@ -83,6 +88,7 @@ class Cancellation:
 
         Returns:
             bool: True if any task was cancelled via delete request, False otherwise
+
         """
         any_cancellation = False
 

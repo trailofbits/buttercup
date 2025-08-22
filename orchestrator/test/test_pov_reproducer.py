@@ -1,13 +1,14 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from redis import Redis
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, POVReproduceRequest
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.maps import BuildMap
+import pytest
+from redis import Redis
+
 from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, POVReproduceRequest
+from buttercup.common.maps import BuildMap
 from buttercup.common.sets import PoVReproduceStatus
+from buttercup.common.task_registry import TaskRegistry
 from buttercup.orchestrator.pov_reproducer.pov_reproducer import POVReproducer
 
 
