@@ -76,9 +76,9 @@ class ChallengeService:
                 # For GitHub repositories, use the PAT for authentication
                 # Convert https://github.com/owner/repo.git to https://username:pat@github.com/owner/repo.git
                 auth_url = repo_url.replace(
-                        "https://github.com/",
-                        f"https://{github_username}:{github_pat}@github.com/",
-                    )
+                    "https://github.com/",
+                    f"https://{github_username}:{github_pat}@github.com/",
+                )
                 logger.info("Using authenticated URL for private repository")
                 clone_url = auth_url
             else:
