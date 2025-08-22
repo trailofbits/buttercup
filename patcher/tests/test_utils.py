@@ -1,13 +1,15 @@
+import os
+import subprocess
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from langchain_core.runnables import RunnableConfig
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
-from buttercup.patcher.utils import find_file_in_source_dir
 from buttercup.patcher.agents.config import PatcherConfig
-from langchain_core.runnables import RunnableConfig
-from unittest.mock import patch
-import subprocess
-import pytest
-import os
+from buttercup.patcher.utils import find_file_in_source_dir
 
 
 @pytest.fixture
@@ -54,7 +56,7 @@ def task_dir(tmp_path: Path) -> Path:
         metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
     ).save(task_dir)
 
-    yield task_dir
+    return task_dir
 
 
 @pytest.fixture
@@ -70,7 +72,8 @@ def tika_challenge_task_path(tmp_path: Path) -> Path:
     source_dir.mkdir(parents=True)
 
     subprocess.run(
-        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/tob-challenges/oss-fuzz-aixcc.git"], check=True
+        ["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/tob-challenges/oss-fuzz-aixcc.git"],
+        check=True,
     )
     subprocess.run(
         [
@@ -98,7 +101,7 @@ def tika_challenge_task_path(tmp_path: Path) -> Path:
         metadata={"task_id": "task-id-tika", "round_id": "testing", "team_id": "tob"},
     ).save(tmp_path)
 
-    yield tmp_path
+    return tmp_path
 
 
 @pytest.fixture
@@ -133,11 +136,11 @@ def test_tika_find_file_in_source_dir(tika_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(
         tika_challenge_task,
         Path(
-            "/src/project-parent/tika/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java"
+            "/src/project-parent/tika/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java",
         ),
     )
     assert res == Path(
-        "tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java"
+        "tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-text-module/src/main/java/org/apache/tika/parser/csv/TextAndCSVParser.java",
     )
     res = find_file_in_source_dir(
         tika_challenge_task,
@@ -157,7 +160,7 @@ def test_tika_find_file_in_source_dir(tika_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(
         tika_challenge_task,
         Path(
-            "/src/project-parent/tika/tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverterNotFound.java"
+            "/src/project-parent/tika/tika-xmp/src/main/java/org/apache/tika/xmp/convert/GenericConverterNotFound.java",
         ),
     )
     assert res is None
@@ -206,7 +209,7 @@ def test_config_from_env():
         configurable={
             "work_dir": Path("/tmp/work"),
             "tasks_storage": Path("/tmp/tasks"),
-        }
+        },
     )
     config = PatcherConfig.from_configurable(runnable_config)
     assert config.ctx_retriever_recursion_limit == 80

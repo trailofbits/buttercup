@@ -1,36 +1,43 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, Any, Callable, TypeVar, cast
-from os import PathLike
-from functools import wraps, cached_property
+
 import contextlib
 import logging
-import shlex
 import os
-from contextlib import contextmanager
-import tempfile
-import shutil
-import uuid
-import subprocess
 import re
+import shlex
+import shutil
+import subprocess
+import tempfile
+import uuid
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from functools import cached_property, wraps
+from os import PathLike
+from pathlib import Path
+from typing import Any, TypeVar, cast
+
+from packaging.version import Version
+
+from buttercup.common import node_local
+from buttercup.common.constants import ARCHITECTURE
+from buttercup.common.stack_parsing import get_crash_token
 from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import copyanything, get_diffs
-from buttercup.common.stack_parsing import get_crash_token
-from typing import Iterator
-import buttercup.common.node_local as node_local
-from buttercup.common.constants import ARCHITECTURE
-from packaging.version import Version
 
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
 def create_tmp_dir(
-    challenge: ChallengeTask, work_dir: Path | None, delete: bool = True, prefix: str | None = None
+    challenge: ChallengeTask,
+    work_dir: Path | None,
+    delete: bool = True,
+    prefix: str | None = None,
 ) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
-    delete it after use."""
+    delete it after use.
+    """
     if work_dir:
         work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -59,8 +66,6 @@ def create_tmp_dir(
 
 class ChallengeTaskError(Exception):
     """Base class for Challenge Task errors."""
-
-    pass
 
 
 FAILURE_ERR_RESULT = 201
@@ -104,7 +109,7 @@ class ReproduceResult:
         """Determine if the fuzzer at least ran"""
         return bool(
             (self.command_result.output and b"INFO: Seed: " in self.command_result.output)
-            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error)
+            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error),
         )
 
     # This is intended to encapsulate heuristics for determining if a run caused a crash
@@ -189,7 +194,8 @@ class ChallengeTask:
     def _local_ro_dir(self, path: PathLike[str] | str) -> Path:
         """Return the local path to the read-only task directory.
 
-        If the path doesn't exist, it will be downloaded from the remote storage"""
+        If the path doesn't exist, it will be downloaded from the remote storage
+        """
         lp = Path(path)
         if not lp.exists():
             try:
@@ -226,7 +232,9 @@ class ChallengeTask:
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
     def _task_dir_compose_path(
-        self, subpath_method: Callable[[], Path | None], raise_on_none: bool = False
+        self,
+        subpath_method: Callable[[], Path | None],
+        raise_on_none: bool = False,
     ) -> Path | None:
         subpath = subpath_method()
         if subpath is None:
@@ -322,7 +330,7 @@ class ChallengeTask:
                 raise ChallengeTaskError("Challenge Task is read-only, cannot perform this operation")
             return func(self, *args, **kwargs)
 
-        return cast(F, wrapper)
+        return cast("F", wrapper)
 
     def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None) -> None:
         if arg is not None:
@@ -364,7 +372,11 @@ class ChallengeTask:
         return current_line
 
     def _run_cmd(
-        self, cmd: list[str], cwd: Path | None = None, log: bool = True, env_helper: Dict[str, str] | None = None
+        self,
+        cmd: list[str],
+        cwd: Path | None = None,
+        log: bool = True,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         try:
             if env_helper:
@@ -419,7 +431,7 @@ class ChallengeTask:
             logger.exception(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
             return CommandResult(success=False, returncode=None, error=str(e).encode(), output=None)
 
-    def _run_helper_cmd(self, cmd: list[str], env_helper: Dict[str, str] | None = None) -> CommandResult:
+    def _run_helper_cmd(self, cmd: list[str], env_helper: dict[str, str] | None = None) -> CommandResult:
         oss_fuzz_subpath = self.get_oss_fuzz_subpath()
         if oss_fuzz_subpath is None:
             raise ChallengeTaskError("OSS-Fuzz path not found")
@@ -432,7 +444,7 @@ class ChallengeTask:
         try:
             result = self._run_helper_cmd(grep_cmd)
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {str(e)}")
+            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {e!s}")
             return None
         if not result.success:
             return None
@@ -448,7 +460,7 @@ class ChallengeTask:
             base_runner_str = m.group(1).strip(":v")
             return Version(base_runner_str)
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {str(e)}")
+            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {e!s}")
             return None
 
     @cached_property
@@ -469,7 +481,7 @@ class ChallengeTask:
                             if image.startswith("gcr.io/oss-fuzz"):
                                 logger.info(f"Using oss-fuzz container org: {result}")
                                 break
-                            elif image.startswith("ghcr.io/aixcc-finals"):
+                            if image.startswith("ghcr.io/aixcc-finals"):
                                 result = "aixcc-afc"
                                 logger.info(f"Using aixcc-afc container org: {result}")
                                 break
@@ -482,8 +494,7 @@ class ChallengeTask:
         return f"{self.oss_fuzz_container_org}/{self.project_name}"
 
     def container_src_dir(self) -> str:
-        """
-        Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
+        """Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
         This assumes that the src directory is the same as the workdir.
         """
         return self.workdir_from_dockerfile().parts[-1]
@@ -497,7 +508,8 @@ class ChallengeTask:
         always_build_image: bool = False,
     ) -> CommandResult:
         """Execute a command inside a docker container. If not specified, the
-        docker container is the oss-fuzz one."""
+        docker container is the oss-fuzz one.
+        """
         return self.exec_docker_cmd_rw(cmd, mount_dirs, container_image, always_build_image=always_build_image)
 
     def exec_docker_cmd_rw(
@@ -568,8 +580,8 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
-        env_helper: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
@@ -614,8 +626,8 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
-        env: Dict[str, str] | None = None,
-        env_helper: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
         if check_build_res.success:
@@ -643,7 +655,7 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         env_helper = {
             "OSS_FUZZ_SAVE_CONTAINERS_NAME": container_name,
@@ -666,7 +678,7 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Checking build for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
@@ -695,7 +707,7 @@ class ChallengeTask:
         fuzzer_args: list[str] | None = None,
         *,
         architecture: str | None = ARCHITECTURE,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> ReproduceResult:
         logger.info(
             "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
@@ -743,7 +755,7 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
@@ -778,7 +790,7 @@ class ChallengeTask:
         harness_name: str,
         corpus_dir: str,
         architecture: str | None = ARCHITECTURE,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Running coverage for project %s | harness_name=%s | corpus_dir=%s | architecture=%s | env=%s",
@@ -839,17 +851,17 @@ class ChallengeTask:
 
             return True
         except FileNotFoundError as e:
-            logger.error(f"[task {self.task_dir}] File not found: {str(e)}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {str(e)}") from e
+            logger.error(f"[task {self.task_dir}] File not found: {e!s}")
+            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {e!s}") from e
         except subprocess.CalledProcessError as e:
-            logger.error(f"[task {self.task_dir}] Error applying diff: {str(e)}")
+            logger.error(f"[task {self.task_dir}] Error applying diff: {e!s}")
             logger.debug(f"[task {self.task_dir}] Error returncode: {e.returncode}")
             logger.debug(f"[task {self.task_dir}] Error stdout: {e.stdout}")
             logger.debug(f"[task {self.task_dir}] Error stderr: {e.stderr}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error applying diff: {str(e)}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
+            logger.exception(f"[task {self.task_dir}] Error applying diff: {e!s}")
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
 
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None, delete: bool = True) -> Iterator[ChallengeTask]:
@@ -859,6 +871,7 @@ class ChallengeTask:
         Example:
             with task.get_rw_copy(work_dir) as local_task:
                 local_task.build_fuzzers()
+
         """
         work_dir = Path(work_dir) if work_dir else Path(node_local.scratch_path())
         work_dir = work_dir / self.task_meta.task_id
@@ -906,7 +919,7 @@ class ChallengeTask:
                     raise ChallengeTaskError("Failed to commit task") from e
 
                 logger.error(
-                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix..."
+                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix...",
                 )
                 suffix = None
 
@@ -915,7 +928,8 @@ class ChallengeTask:
     @read_write_decorator
     def restore(self) -> None:
         """Restore the task from the original read-only task directory (if
-        different from the local task directory)."""
+        different from the local task directory).
+        """
         if self.read_only_task_dir == self.local_task_dir:
             raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
 

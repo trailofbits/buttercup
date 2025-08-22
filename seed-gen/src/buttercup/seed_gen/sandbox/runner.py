@@ -37,7 +37,7 @@ def exec_seed_funcs(seed_func_path: Path, output_dir: Path) -> None:
             with open(path, "wb") as f:
                 f.write(seed)
         except Exception as e:
-            logging.error(f"Error occurred: {e}")
+            logging.exception(f"Error occurred: {e}")
 
 
 def main() -> None:

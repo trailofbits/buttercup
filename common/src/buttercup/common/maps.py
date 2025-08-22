@@ -1,8 +1,11 @@
-from typing import Generic, TypeVar, Type, Iterator
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput, FunctionCoverage, BuildType
-from redis import Redis
-from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
+from collections.abc import Iterator
+from typing import Generic, TypeVar
+
+from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from google.protobuf.message import Message
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
 from buttercup.common.sets import RedisSet
 
 MsgType = TypeVar("MsgType", bound=Message)
@@ -10,7 +13,7 @@ MSG_FIELD_NAME = b"msg"
 
 
 class RedisMap(Generic[MsgType]):
-    def __init__(self, redis: Redis, hash_name: str, msg_builder: Type[MsgType]):
+    def __init__(self, redis: Redis, hash_name: str, msg_builder: type[MsgType]):
         self.redis = redis
         self.msg_builder = msg_builder
         self.hash_name = hash_name
@@ -52,7 +55,8 @@ class BuildMap:
 
     def _build_output_key(self, task_id: str, build_type: BuildType, san: str, internal_patch_id: str) -> str:
         return dumps(
-            [task_id, BUILD_SAN_MAP_NAME, build_type, san, internal_patch_id], json_options=CANONICAL_JSON_OPTIONS
+            [task_id, BUILD_SAN_MAP_NAME, build_type, san, internal_patch_id],
+            json_options=CANONICAL_JSON_OPTIONS,
         )
 
     def add_build(self, build: BuildOutput) -> None:
@@ -78,7 +82,11 @@ class BuildMap:
         return builds
 
     def get_build_from_san(
-        self, task_id: str, build_type: BuildType, san: str, internal_patch_id: str = ""
+        self,
+        task_id: str,
+        build_type: BuildType,
+        san: str,
+        internal_patch_id: str = "",
     ) -> BuildOutput | None:
         if internal_patch_id != "":
             assert build_type == BuildType.PATCH, "internal_patch_id is only valid for PATCH builds"

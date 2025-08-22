@@ -1,12 +1,14 @@
-from buttercup.common.challenge_task import ChallengeTask
 import argparse
-import subprocess
 import json
 import logging
+import subprocess
 from dataclasses import dataclass
-from buttercup.common.project_yaml import ProjectYaml, Language
-from bs4 import BeautifulSoup, Tag
 from typing import Any, cast
+
+from bs4 import BeautifulSoup, Tag
+
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import Language, ProjectYaml
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +28,7 @@ class CoverageRunner:
 
     @staticmethod
     def _process_function_coverage(coverage_data: dict[str, Any]) -> list[CoveredFunction]:
-        """
-        Process the LLVM coverage data to extract function-level line coverage.
+        """Process the LLVM coverage data to extract function-level line coverage.
 
         Returns a dictionary mapping function names to their line coverage metrics.
 
@@ -78,7 +79,7 @@ class CoverageRunner:
                             total_line_count,
                             covered_line_count,
                             function.get("filenames", []),
-                        )
+                        ),
                     )
 
         return function_coverage
@@ -105,29 +106,29 @@ class CoverageRunner:
         jacoco_path = build_dir / "dumps" / f"{harness_name}.xml"
         if not jacoco_path.exists():
             logger.error(
-                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}"
+                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}",
             )
             return None
 
         # parse the jacoco file
-        with open(jacoco_path, "r") as f:
+        with open(jacoco_path) as f:
             soup = BeautifulSoup(f, "xml")
             covered_functions = []
             for target_class in soup.find_all("class"):
-                target_class = cast(Tag, target_class)
+                target_class = cast("Tag", target_class)
                 file_paths = []
                 source_file_name = target_class.get("sourcefilename")
                 if source_file_name is not None:
                     file_paths.append(source_file_name)
 
                 for method in target_class.find_all("method"):
-                    method = cast(Tag, method)
+                    method = cast("Tag", method)
                     method_name = method.get("name")
                     if method_name is None:
                         continue
                     method_name = str(method_name)
                     for ctr in method.find_all("counter"):
-                        ctr = cast(Tag, ctr)
+                        ctr = cast("Tag", ctr)
                         if ctr.get("type") == "LINE":
                             covered_attr = ctr.get("covered")
                             missed_attr = ctr.get("missed")
@@ -138,8 +139,11 @@ class CoverageRunner:
                             if covered_lines > 0:
                                 covered_functions.append(
                                     CoveredFunction(
-                                        method_name, total_lines, covered_lines, [str(f) for f in file_paths]
-                                    )
+                                        method_name,
+                                        total_lines,
+                                        covered_lines,
+                                        [str(f) for f in file_paths],
+                                    ),
                                 )
 
         return covered_functions
@@ -155,7 +159,7 @@ class CoverageRunner:
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(
-                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}"
+                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}",
             )
             return None
 
@@ -163,7 +167,7 @@ class CoverageRunner:
         coverage_file = package_path / "dumps" / "coverage.json"
         harness_path = package_path / harness_name
         args = [self.llvm_cov_path, "export", "-format=text", f"--instr-profile={profdata_path}", harness_path]
-        ret = subprocess.run(args, stdout=subprocess.PIPE)
+        ret = subprocess.run(args, check=False, stdout=subprocess.PIPE)
         if ret.returncode != 0:
             logger.error(
                 "Failed to convert profdata to json for %s | %s | %s | in %s (return code: %s)",

@@ -1,20 +1,22 @@
 """TreeSitter based code querying module"""
 
 import logging
+import re
 from dataclasses import dataclass
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
+from tree_sitter_language_pack import get_language, get_parser
+
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.utils.common import (
     Function,
     FunctionBody,
     TypeDefinition,
     TypeDefinitionType,
 )
-from tree_sitter_language_pack import get_language, get_parser
-from buttercup.common.project_yaml import ProjectYaml, Language
-import re
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +257,7 @@ class CodeTS:
             raise ValueError("Query string is invalid")
 
         self.preprocess_keywords = ["ifdef", "ifndef", "if", "else", "elif", "endif"]
-        self.preprocess_regex = [r"^#\s*{kw}\s*".format(kw=kw) for kw in self.preprocess_keywords]
+        self.preprocess_regex = [rf"^#\s*{kw}\s*" for kw in self.preprocess_keywords]
 
     def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
@@ -268,7 +270,7 @@ class CodeTS:
             [
                 x if not any(re.match(pattern, x.decode()) for pattern in self.preprocess_regex) else b"/" * len(x)
                 for x in code.splitlines()
-            ]
+            ],
         )
 
     def get_functions_in_code(self, code: bytes, file_path: Path) -> dict[str, Function]:
@@ -349,7 +351,10 @@ class CodeTS:
         return functions.get(function_name)
 
     def parse_types_in_code(
-        self, file_path: Path, typename: str | None = None, fuzzy: bool | None = False
+        self,
+        file_path: Path,
+        typename: str | None = None,
+        fuzzy: bool | None = False,
     ) -> dict[str, TypeDefinition]:
         """Parse the definition of a type in a piece of code."""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
@@ -417,9 +422,7 @@ class CodeTS:
                 type_def_type = TypeDefinitionType.PREPROC_TYPE
             elif definition_node.type == "preproc_function_def":
                 type_def_type = TypeDefinitionType.PREPROC_FUNCTION
-            elif definition_node.type == "class_declaration":
-                type_def_type = TypeDefinitionType.CLASS
-            elif definition_node.type == "interface_declaration":
+            elif definition_node.type == "class_declaration" or definition_node.type == "interface_declaration":
                 type_def_type = TypeDefinitionType.CLASS
             else:
                 logger.debug(f"Unknown type definition node type: {definition_node.type}")
@@ -439,14 +442,14 @@ class CodeTS:
         return res
 
     def find_node_and_ancestors(self, code: bytes, target_name: str) -> None:
-        """
-        Used for debugging.
+        """Used for debugging.
 
         Recursively walk the tree to find a node and print its ancestors.
 
         Args:
             code: The code to parse
             target_name: The name of the node to find
+
         """
         tree = self.parser.parse(code)
         root_node = tree.root_node
@@ -515,9 +518,7 @@ class CodeTS:
         walk(root_node)
 
     def get_field_type_name(self, type_definition: bytes, field_name: str) -> str | None:
-        """
-        Get the type of a field of a type definition
-        """
+        """Get the type of a field of a type definition"""
         if self.query_class_members is None:
             return None
         self.parser.parse(type_definition)
@@ -535,9 +536,7 @@ class CodeTS:
         return None
 
     def get_method_return_type_name(self, type_definition: bytes, method_name: str) -> str | None:
-        """
-        Get the return type of a method of a type definition
-        """
+        """Get the return type of a method of a type definition"""
         if self.query_class_members is None:
             return None
         self.parser.parse(type_definition)

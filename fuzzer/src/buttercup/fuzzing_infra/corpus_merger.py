@@ -1,31 +1,28 @@
-from buttercup.common import node_local
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-from dataclasses import dataclass
-import os
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.corpus import Corpus
-from buttercup.common.maps import HarnessWeights, BuildMap
-from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
-from buttercup.common.logger import setup_package_logger
-from redis import Redis
-from typing import List
-from os import PathLike
-import random
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
+import datetime
 import logging
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.fuzzing_infra.settings import FuzzerBotSettings
-from buttercup.common.sets import MergedCorpusSetLock
-from buttercup.common.constants import ADDRESS_SANITIZER
-from buttercup.common.sets import FailedToAcquireLock
-from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS
-from buttercup.common.telemetry import init_telemetry
+import os
+import random
+import shutil
+from dataclasses import dataclass
+from os import PathLike
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-import datetime
-import shutil
+from redis import Redis
+
+from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.constants import ADDRESS_SANITIZER
+from buttercup.common.corpus import Corpus
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.maps import BuildMap, HarnessWeights
+from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS, FailedToAcquireLock, MergedCorpusSetLock
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +35,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FinalCorpus:
-    """
-    Represents the corpus after the merge operation has been performed.
-    """
+    """Represents the corpus after the merge operation has been performed."""
 
     def __init__(self, corpus: Corpus, push_remotely: set[str], delete_locally: set[str]):
         self._corpus = corpus
@@ -48,9 +43,7 @@ class FinalCorpus:
         self._delete_locally = delete_locally
 
     def push_remotely(self) -> int:
-        """
-        Push the files to remote storage.
-        """
+        """Push the files to remote storage."""
         n = 0
         if self._push_remotely:
             n = len(self._push_remotely)
@@ -59,9 +52,7 @@ class FinalCorpus:
         return n
 
     def delete_locally(self) -> int:
-        """
-        Delete the files from local storage.
-        """
+        """Delete the files from local storage."""
         n = 0
         for file in self._delete_locally:
             try:
@@ -76,9 +67,7 @@ class FinalCorpus:
 
 @dataclass
 class PartitionedCorpus:
-    """
-    Represents the corpus split into local and remote parts.
-    """
+    """Represents the corpus split into local and remote parts."""
 
     corpus: Corpus
     local_dir: PathLike[str]
@@ -118,8 +107,7 @@ class PartitionedCorpus:
                 logger.debug(f"Error copying file {file} to remote directory: {e}. Copied from remote storage instead.")
 
     def to_final(self) -> FinalCorpus:
-        """
-        Returns a FinalCorpus object that represents the corpus after the merge operation has been performed.
+        """Returns a FinalCorpus object that represents the corpus after the merge operation has been performed.
         NOTE: This should be called after the merge operation has been performed.
 
         Will rehash any files in the remote_directory as the merge operation may have changed the file names.
@@ -148,8 +136,7 @@ class PartitionedCorpus:
 
 @dataclass
 class BaseCorpus:
-    """
-    Represents the initial corpus state, before any merge operations have been performed.
+    """Represents the initial corpus state, before any merge operations have been performed.
     - local_dir: PathLike directory for the local corpus
     - remote_dir: PathLike directory for the remote corpus
 
@@ -163,8 +150,7 @@ class BaseCorpus:
     max_local_files: int = 500
 
     def partition_corpus(self) -> PartitionedCorpus:
-        """
-        1. Collect the remote corpus files
+        """1. Collect the remote corpus files
         2. Collect the list of files only available remotely
         3. Partition the corpus into two sets,
             - files that are in the remote corpus,
@@ -192,7 +178,12 @@ class BaseCorpus:
 
 class MergerBot:
     def __init__(
-        self, redis: Redis, timeout_seconds: int, python: str, crs_scratch_dir: str, max_local_files: int = 500
+        self,
+        redis: Redis,
+        timeout_seconds: int,
+        python: str,
+        crs_scratch_dir: str,
+        max_local_files: int = 500,
     ):
         self.redis = redis
         self.runner = Runner(Conf(timeout_seconds))
@@ -202,7 +193,7 @@ class MergerBot:
         self.builds = BuildMap(redis)
         self.max_local_files = max_local_files
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER]
 
     def _run_merge_operation(
@@ -215,8 +206,7 @@ class MergerBot:
         remote_files: set[str],
         corp: Corpus,
     ) -> None:
-        """
-        Run the merge operation to find which local files add coverage.
+        """Run the merge operation to find which local files add coverage.
 
         Args:
             task: The WeightedHarness object
@@ -229,6 +219,7 @@ class MergerBot:
 
         Returns:
             No return value - files that add coverage will be moved to remote_dir
+
         """
         with node_local.scratch_dir() as td:
             tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
@@ -268,8 +259,7 @@ class MergerBot:
                     span.set_status(Status(StatusCode.OK))
 
     def run_task(self, task: WeightedHarness, builds: list[BuildOutput]) -> bool:
-        """
-        Strategy:
+        """Strategy:
         Given a task/WeightedHarness, we want to merge the local corpus into the remote corpus if it adds coverage
            - acquire a lock on the merged corpus set, if not possible, return and move on to next task
            - ensure all of the remotely stored corpus files are available locally
@@ -282,7 +272,6 @@ class MergerBot:
            - remove any files only in L from the local corpus (as we know those don't add any coverage)
            - release the lock on the merged corpus set
         """
-
         logger.debug(f"Running merge pass for {task.harness_name} | {task.package_name} | {task.task_id}")
 
         build = next(iter([b for b in builds if b.sanitizer == ADDRESS_SANITIZER]), None)
@@ -298,7 +287,10 @@ class MergerBot:
         # We need to acquire a lock to ensure that we dont double remove a conflict
         try:
             with MergedCorpusSetLock(
-                self.redis, task.task_id, task.harness_name, MERGING_LOCK_TIMEOUT_SECONDS
+                self.redis,
+                task.task_id,
+                task.harness_name,
+                MERGING_LOCK_TIMEOUT_SECONDS,
             ).acquire():
                 # Create scratch directories for remote (R) and local-only (L) corpus parts, and copy files
                 with node_local.scratch_dir() as remote_dir, node_local.scratch_dir() as local_dir:
@@ -309,12 +301,12 @@ class MergerBot:
                     # If L is empty, the node is up to date
                     if not partitioned_corpus.local_only_files:
                         logger.debug(
-                            f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because local corpus is up to date"
+                            f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because local corpus is up to date",
                         )
                         return False  # We did not do any work
 
                     logger.info(
-                        f"Found {len(partitioned_corpus.local_only_files)} files only in local corpus for {task.harness_name}. Will run merge operation."
+                        f"Found {len(partitioned_corpus.local_only_files)} files only in local corpus for {task.harness_name}. Will run merge operation.",
                     )
 
                     try:
@@ -344,14 +336,14 @@ class MergerBot:
                     remove_count = final_corpus.delete_locally()
                     if remove_count > 0:
                         logger.info(
-                            f"Removed {remove_count} files from local corpus {corp.path} that don't add coverage"
+                            f"Removed {remove_count} files from local corpus {corp.path} that don't add coverage",
                         )
 
                     return True  # We did work
 
         except FailedToAcquireLock:
             logger.debug(
-                f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because another worker is already merging"
+                f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because another worker is already merging",
             )
         except Exception as e:
             logger.error(f"Error merging corpus: {e}")
@@ -402,7 +394,11 @@ def main() -> None:
     logger.info(f"Starting merger (crs_scratch_dir: {args.crs_scratch_dir})")
 
     merger = MergerBot(
-        Redis.from_url(args.redis_url), args.timeout, args.python, args.crs_scratch_dir, args.max_local_files
+        Redis.from_url(args.redis_url),
+        args.timeout,
+        args.python,
+        args.crs_scratch_dir,
+        args.max_local_files,
     )
     merger.run()
 

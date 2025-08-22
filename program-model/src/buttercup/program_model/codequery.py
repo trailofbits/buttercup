@@ -5,27 +5,29 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from dataclasses import dataclass, field
-from pathlib import Path
-from itertools import groupby
-from typing import ClassVar, Optional
-import rapidfuzz
 import uuid
+from dataclasses import dataclass, field
+from itertools import groupby
+from pathlib import Path
+from typing import ClassVar
+
+import rapidfuzz
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
-from buttercup.program_model.api.tree_sitter import CodeTS
+from buttercup.common.project_yaml import Language, ProjectYaml
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.program_model.api.fuzzy_imports_resolver import (
-    FuzzyJavaImportsResolver,
     FuzzyCImportsResolver,
+    FuzzyJavaImportsResolver,
 )
+from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.program_model.utils.common import (
     Function,
     TypeDefinition,
     TypeUsageInfo,
 )
-from buttercup.common.project_yaml import ProjectYaml, Language
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +132,7 @@ class CodeQuery:
 
     challenge: ChallengeTask
     ts: CodeTS = field(init=False)
-    imports_resolver: Optional[FuzzyCImportsResolver | FuzzyJavaImportsResolver] = field(init=False)
+    imports_resolver: FuzzyCImportsResolver | FuzzyJavaImportsResolver | None = field(init=False)
 
     CSCOPE_FILES: ClassVar[str] = "cscope.files"
     CSCOPE_OUT: ClassVar[str] = "cscope.out"
@@ -242,6 +244,7 @@ class CodeQuery:
         try:
             subprocess.run(
                 ["cscope", "-bkq"],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=200,
@@ -255,6 +258,7 @@ class CodeQuery:
         try:
             subprocess.run(
                 ["ctags", "--fields=+i", "-n", "-L", self.CSCOPE_FILES],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=300,
@@ -277,6 +281,7 @@ class CodeQuery:
                     self.TAGS,
                     "-p",
                 ],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=2700,
@@ -487,7 +492,8 @@ class CodeQuery:
         file_path: Path | None = None,
     ) -> list[Function]:
         """Get the callers of a function. File paths are based on the challenge
-        task container structure (e.g. /src)."""
+        task container structure (e.g. /src).
+        """
         if isinstance(function, str):
             function_name = function
         elif isinstance(function, Function):
@@ -554,8 +560,8 @@ class CodeQuery:
         line_number: int | None = None,
     ) -> list[Function]:
         """Get the callees of a function. File paths are based on the challenge
-        task container structure (e.g. /src)."""
-
+        task container structure (e.g. /src).
+        """
         functions: list[Function] = []
         if isinstance(function, str):
             function_name = function
@@ -801,7 +807,8 @@ class CodeQuery:
 
     def get_type_calls(self, type_definition: TypeDefinition) -> list[TypeUsageInfo]:
         """Get the calls to a type definition. File paths are based on the challenge
-        task container structure (e.g. /src)."""
+        task container structure (e.g. /src).
+        """
         results: list[CQSearchResult] = []
         flags = ["1", "8"]
         for flag in flags:
@@ -837,7 +844,7 @@ class CodeQuery:
                     name=type_definition.name,
                     file_path=result.file,
                     line_number=result.line,
-                )
+                ),
             )
 
         return self._rebase_type_usages_file_paths(list(calls))

@@ -2,34 +2,35 @@
 
 import logging
 import re
-from unidiff import PatchSet
-import langgraph.errors
-from typing import Annotated, Literal
-from langgraph.prebuilt import InjectedState
-from langchain_core.prompts import MessagesPlaceholder
-from pydantic import BaseModel, ValidationError
-from langchain_core.messages import BaseMessage
-from langgraph.prebuilt import create_react_agent
-from langchain_core.tools import tool
 from dataclasses import dataclass, field
-from buttercup.common.stack_parsing import parse_stacktrace
+from typing import Annotated, Literal
+
+import langgraph.errors
+from langchain_core.messages import BaseMessage
 from langchain_core.prompts import (
     ChatPromptTemplate,
+    MessagesPlaceholder,
 )
-from buttercup.patcher.utils import truncate_output, TruncatePosition
 from langchain_core.runnables import Runnable
+from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState, create_react_agent
+from langgraph.types import Command
+from pydantic import BaseModel, ValidationError
+from unidiff import PatchSet
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.common.stack_parsing import parse_stacktrace
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
-    ContextCodeSnippet,
+    MAX_STACKTRACE_LENGTH,
     CodeSnippetRequest,
+    ContextCodeSnippet,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
     get_stacktraces_from_povs,
     stacktrace_to_str,
-    MAX_STACKTRACE_LENGTH,
 )
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
-from langgraph.types import Command
+from buttercup.patcher.utils import TruncatePosition, truncate_output
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ ROOT_CAUSE_PROMPT = ChatPromptTemplate.from_messages(
         ("system", ROOT_CAUSE_SYSTEM_MSG),
         ("user", ROOT_CAUSE_USER_MSG),
         MessagesPlaceholder(variable_name="messages"),
-    ]
+    ],
 )
 
 REFLECTION_GUIDANCE_TMPL = """
@@ -141,7 +142,10 @@ class RootCauseAgent(PatcherAgentBase):
 
         @tool(description=self._understand_code_snippet.__doc__)
         def understand_code_snippet(
-            code_snippet_id: str, focus_area: str, *, state: Annotated[BaseModel, InjectedState]
+            code_snippet_id: str,
+            focus_area: str,
+            *,
+            state: Annotated[BaseModel, InjectedState],
         ) -> str:
             assert isinstance(state, PatcherAgentState)
             return self._understand_code_snippet(state, code_snippet_id, focus_area)
@@ -208,7 +212,10 @@ class RootCauseAgent(PatcherAgentBase):
         return ""
 
     def _comment_code_snippet(
-        self, state: PatcherAgentState, stacktrace_lines: list[tuple[str, int]], code_snippet: ContextCodeSnippet
+        self,
+        state: PatcherAgentState,
+        stacktrace_lines: list[tuple[str, int]],
+        code_snippet: ContextCodeSnippet,
     ) -> str:
         """Return the string representation of the code snippet with the line numbers."""
         code = []
@@ -232,7 +239,6 @@ class RootCauseAgent(PatcherAgentBase):
 
     def _parse_code_snippet_requests(self, root_cause_str: str) -> list[CodeSnippetRequest]:
         """Parse the code snippet requests from the root cause string."""
-
         requests = []
         pattern = r"<code_snippet_request>(.*?)</code_snippet_request>"
         matches = re.findall(pattern, root_cause_str, re.DOTALL)
@@ -275,12 +281,13 @@ class RootCauseAgent(PatcherAgentBase):
         </diff_file>
         </diff_files>
 
-                Args:
+        Args:
                     This function takes no arguments.
 
-                Returns:
+        Returns:
                     The list of diffs that were applied to the code under analysis.
                     Actual diff content must then be retrieved using the `get_diffs` tool.
+
         """
         diff_list = []
         for diff_file_path in self.challenge.get_diffs():
@@ -298,7 +305,7 @@ class RootCauseAgent(PatcherAgentBase):
   </modified_lines_range>
 </modified_file>
 </diff_file>
-"""
+""",
                 )
         return f"<diff_files>\n{'\n'.join(diff_list)}\n</diff_files>"
 
@@ -318,6 +325,7 @@ class RootCauseAgent(PatcherAgentBase):
 
         Returns:
             A string containing the diff content for the given diff file paths.
+
         """
         diff_text = ""
         for diff_path in self.challenge.get_diffs():
@@ -326,10 +334,12 @@ class RootCauseAgent(PatcherAgentBase):
         return diff_text
 
     def analyze_vulnerability(
-        self, state: PatcherAgentState
+        self,
+        state: PatcherAgentState,
     ) -> Command[Literal[PatcherAgentName.PATCH_STRATEGY.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Analyze the diff analysis and the code to understand the
-        vulnerability in the current code."""
+        vulnerability in the current code.
+        """
         logger.info(
             "[%s / %s] Analyzing the vulnerability in Challenge Task %s",
             state.context.task_id,
@@ -396,14 +406,14 @@ class RootCauseAgent(PatcherAgentBase):
 
 
 def get_modified_line_ranges(diff_text: str) -> list[tuple[str, list[tuple[int, int]]]]:
-    """
-    Extract file paths and modified line ranges.
+    """Extract file paths and modified line ranges.
 
     Args:
         diff_text (str): Raw unidiff patch as a string
 
     Returns:
         List[Tuple[str, List[Tuple[int, int]]]]: List of (file_path, [(start, end), ...])
+
     """
     patch = PatchSet(diff_text)
     results: list[tuple[str, list[tuple[int, int]]]] = []

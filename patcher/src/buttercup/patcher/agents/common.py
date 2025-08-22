@@ -2,32 +2,35 @@
 
 from __future__ import annotations
 
-from enum import Enum
-from pathlib import Path
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
-from typing import Annotated, Sequence
-from buttercup.common.clusterfuzz_parser import CrashInfo
-from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
-from langgraph.managed import RemainingSteps
-from dataclasses import dataclass, field
-from langchain_core.runnables import Runnable
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from pydantic import BaseModel, Field
-from buttercup.patcher.utils import (
-    PatchInput,
-    PatchOutput,
-    CHAIN_CALL_TYPE,
-    PatchInputPoV,
-    truncate_output,
-    TruncatePosition,
-)
-from buttercup.common.challenge_task import ChallengeTask
-from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
+import logging
 import re
 import uuid
-import logging
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Annotated
+
+from langchain_core.messages import BaseMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import Runnable
+from langgraph.graph.message import add_messages
+from langgraph.managed import RemainingSteps
+from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
+from pydantic import BaseModel, Field
+
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.clusterfuzz_parser import CrashInfo
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.patcher.utils import (
+    CHAIN_CALL_TYPE,
+    PatchInput,
+    PatchInputPoV,
+    PatchOutput,
+    TruncatePosition,
+    truncate_output,
+)
 
 MAX_STACKTRACE_LENGTH = 15000
 
@@ -61,7 +64,8 @@ def add_or_mod_patch(patches: list[PatchAttempt], patch: PatchAttempt | list[Pat
 
 
 def add_code_snippet(
-    existing_code_snippets: set[ContextCodeSnippet], new_code_snippets: set[ContextCodeSnippet]
+    existing_code_snippets: set[ContextCodeSnippet],
+    new_code_snippets: set[ContextCodeSnippet],
 ) -> set[ContextCodeSnippet]:
     """Add a code snippet to the list."""
     res = list(existing_code_snippets)
@@ -238,7 +242,8 @@ class PatcherAgentState(BaseModel):
 
     def get_successful_patch(self) -> PatchOutput | None:
         """Get the last successful patch.
-        This gets a patch that builds, fixes the PoV and passes the tests, even if it does not seem to be valid."""
+        This gets a patch that builds, fixes the PoV and passes the tests, even if it does not seem to be valid.
+        """
         if not self.patch_attempts:
             return None
 
@@ -305,7 +310,8 @@ class CodeSnippetRequest(BaseModel):
 
 class ContextCodeSnippet(BaseModel):
     """Code snippet from the Challenge Task. This is the base unit used by the
-    patcher to build patches. Changes are applied to this units."""
+    patcher to build patches. Changes are applied to this units.
+    """
 
     key: CodeSnippetKey
     "Key of the code snippet, used to uniquely identify the code snippet"
@@ -419,7 +425,7 @@ UNDERSTAND_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", UNDERSTAND_CODE_SNIPPET_SYSTEM_MSG),
         ("user", UNDERSTAND_CODE_SNIPPET_USER_MSG),
-    ]
+    ],
 )
 
 
@@ -470,6 +476,7 @@ class PatcherAgentBase:
 
         Raises:
             ValueError: If the code snippet with the given identifier is not found
+
         """
         code_snippet = next((cs for cs in state.relevant_code_snippets if cs.key.identifier == code_snippet_id), None)
         if not code_snippet:
@@ -479,7 +486,7 @@ class PatcherAgentBase:
             {
                 "CODE": code_snippet.code,
                 "FOCUS_AREA": focus_area,
-            }
+            },
         )
         # Extract description from response
         match = re.search(r"<description>(.*?)</description>", res, re.DOTALL | re.IGNORECASE)

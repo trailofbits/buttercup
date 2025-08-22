@@ -1,11 +1,12 @@
-from pydantic_settings import BaseSettings, CliSubCommand, get_subcommand, CliImplicitFlag
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
 from pydantic import BaseModel
+from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, get_subcommand
+
 from buttercup.common.challenge_task import ChallengeTask, CommandResult, ReproduceResult
 from buttercup.common.logger import setup_package_logger
-from pathlib import Path
-from typing import Dict
-from contextlib import contextmanager
-from typing import Iterator
 
 
 class BuildImageCommand(BaseModel):
@@ -22,7 +23,7 @@ class BuildFuzzersCommand(BaseModel):
     architecture: str | None = None
     engine: str | None = None
     sanitizer: str | None = None
-    env: Dict[str, str] | None = None
+    env: dict[str, str] | None = None
     use_cache: bool = True
 
 
@@ -30,7 +31,7 @@ class CheckBuildCommand(BaseModel):
     architecture: str | None = None
     engine: str | None = None
     sanitizer: str | None = None
-    env: Dict[str, str] | None = None
+    env: dict[str, str] | None = None
 
 
 class ReproducePovCommand(BaseModel):
@@ -38,7 +39,7 @@ class ReproducePovCommand(BaseModel):
     crash_path: Path
     fuzzer_args: list[str] | None = None
     architecture: str | None = None
-    env: Dict[str, str] | None = None
+    env: dict[str, str] | None = None
 
 
 class Settings(BaseSettings):
@@ -68,7 +69,7 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel | None) -> Comm
             cache=subcommand.cache,
             architecture=subcommand.architecture,
         )
-    elif isinstance(subcommand, BuildFuzzersCommand):
+    if isinstance(subcommand, BuildFuzzersCommand):
         if subcommand.use_cache:
             return task.build_fuzzers_with_cache(
                 architecture=subcommand.architecture,
@@ -76,21 +77,20 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel | None) -> Comm
                 sanitizer=subcommand.sanitizer,
                 env=subcommand.env,
             )
-        else:
-            return task.build_fuzzers(
-                architecture=subcommand.architecture,
-                engine=subcommand.engine,
-                sanitizer=subcommand.sanitizer,
-                env=subcommand.env,
-            )
-    elif isinstance(subcommand, CheckBuildCommand):
+        return task.build_fuzzers(
+            architecture=subcommand.architecture,
+            engine=subcommand.engine,
+            sanitizer=subcommand.sanitizer,
+            env=subcommand.env,
+        )
+    if isinstance(subcommand, CheckBuildCommand):
         return task.check_build(
             architecture=subcommand.architecture,
             engine=subcommand.engine,
             sanitizer=subcommand.sanitizer,
             env=subcommand.env,
         )
-    elif isinstance(subcommand, ReproducePovCommand):
+    if isinstance(subcommand, ReproducePovCommand):
         return task.reproduce_pov(
             fuzzer_name=subcommand.fuzzer_name,
             crash_path=subcommand.crash_path,
@@ -98,10 +98,9 @@ def handle_subcommand(task: ChallengeTask, subcommand: BaseModel | None) -> Comm
             architecture=subcommand.architecture,
             env=subcommand.env,
         ).command_result
-    elif isinstance(subcommand, ApplyPatchCommand):
+    if isinstance(subcommand, ApplyPatchCommand):
         return CommandResult(success=task.apply_patch_diff(diff_file=subcommand.diff_file))
-    else:
-        raise ValueError(f"Unknown subcommand: {subcommand}")
+    raise ValueError(f"Unknown subcommand: {subcommand}")
 
 
 @contextmanager

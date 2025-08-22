@@ -1,26 +1,27 @@
+import logging
+from pathlib import Path
+from typing import Annotated
+from uuid import uuid4
+
+from google.protobuf.text_format import Parse
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, CliPositionalArg, CliSubCommand, get_subcommand
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildType,
+    SubmissionEntry,
+    SubmissionResult,
+    WeightedHarness,
+)
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.maps import (
     BuildMap,
     HarnessWeights,
 )
-from buttercup.common.datastructures.msg_pb2 import (
-    BuildOutput,
-    BuildType,
-    WeightedHarness,
-    SubmissionEntry,
-    SubmissionResult,
-)
 from buttercup.common.queues import QueueFactory, QueueNames, ReliableQueue
 from buttercup.common.task_registry import TaskRegistry
-from uuid import uuid4
-from redis import Redis
-from pydantic_settings import BaseSettings, CliSubCommand, CliPositionalArg, get_subcommand
-from pydantic import BaseModel
-from typing import Annotated
-from pydantic import Field
-from pathlib import Path
-from google.protobuf.text_format import Parse
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +230,9 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
 
                 if task_id not in result:
                     result[task_id] = TaskResult(
-                        task_id=task_id, project_name=task.project_name, mode=str(task.task_type)
+                        task_id=task_id,
+                        project_name=task.project_name,
+                        mode=str(task.task_type),
                     )
                 c = next((c for c in submission.crashes if c.result == SubmissionResult.PASSED), None)
                 if c:
@@ -240,9 +243,8 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
                     result[task_id].n_patches += 1
                     assert c is not None
                     result[task_id].patched_vulnerabilities.append(c.competition_pov_id)
-                else:
-                    if c:
-                        result[task_id].non_patched_vulnerabilities.append(c.competition_pov_id)
+                elif c:
+                    result[task_id].non_patched_vulnerabilities.append(c.competition_pov_id)
 
                 b = next((b for b in submission.bundles), None)
                 if b:

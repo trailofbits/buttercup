@@ -11,41 +11,42 @@ logger = logging.getLogger(__name__)
 
 
 class FunctionSelector:
-    """
-    Class for selecting functions based on coverage data.
-    """
+    """Class for selecting functions based on coverage data."""
 
     def __init__(self, redis: Redis):
-        """
-        Initialize the FunctionSelector with a Redis connection.
+        """Initialize the FunctionSelector with a Redis connection.
 
         Args:
             redis: Redis connection
+
         """
         self.redis = redis
 
     def get_function_coverage(self, harness: WeightedHarness) -> list[FunctionCoverage]:
-        """
-        Get function coverage data for a given harness.
+        """Get function coverage data for a given harness.
 
         Args:
             harness: The WeightedHarness to get coverage for
 
         Returns:
             List of FunctionCoverage objects
+
         """
         coverage_map = CoverageMap(
-            self.redis, harness.harness_name, harness.package_name, harness.task_id
+            self.redis,
+            harness.harness_name,
+            harness.package_name,
+            harness.task_id,
         )
 
         return coverage_map.list_function_coverage()  # type: ignore[no-any-return]
 
     @staticmethod
     def calculate_function_probabilities(
-        function_coverage: list[FunctionCoverage], temperature: float = 1.0
+        function_coverage: list[FunctionCoverage],
+        temperature: float = 1.0,
     ) -> tuple[list[FunctionCoverage], list[float]]:
-        """
-        Calculate function probabilities, where lower coverage = higher probability.
+        """Calculate function probabilities, where lower coverage = higher probability.
         Uses softmax with temperature to convert inverse coverage ratios to probabilities.
 
         Will filter out functions with no lines.
@@ -58,6 +59,7 @@ class FunctionSelector:
 
         Returns:
             Tuple of (list of FunctionCoverage, list of probabilities)
+
         """
         # Filter out functions with no lines
         valid_functions = [fc for fc in function_coverage if fc.total_lines > 0]
@@ -84,14 +86,14 @@ class FunctionSelector:
         return (valid_functions, probabilities.tolist())
 
     def sample_function(self, harness: WeightedHarness) -> FunctionCoverage | None:
-        """
-        Sample a function based on coverage probabilities.
+        """Sample a function based on coverage probabilities.
 
         Args:
             harness: The WeightedHarness to sample a function for
 
         Returns:
             FunctionCoverage or None if no functions available
+
         """
         function_coverage = self.get_function_coverage(harness)
 
@@ -104,7 +106,7 @@ class FunctionSelector:
             return None
 
         sample_functions, sample_probs = FunctionSelector.calculate_function_probabilities(
-            function_coverage
+            function_coverage,
         )
 
         if not sample_functions:
