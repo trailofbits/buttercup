@@ -13,6 +13,10 @@ git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
 # Quick setup (recommended)
 make setup-local
 
+# Install pre-commit hooks (recommended)
+pip install pre-commit
+pre-commit install
+
 # Start development environment
 make deploy-local
 ```
@@ -59,6 +63,24 @@ All Python components use consistent formatting and linting standards:
 - **Formatter:** `ruff format`
 - **Linter:** `ruff check`
 - **Type Checker:** `mypy` (for common, patcher, and program-model components)
+
+#### Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code quality before commits:
+
+- **Automatic checks:** YAML/JSON/TOML validation, merge conflict detection
+- **Python formatting:** Automatically runs `ruff format` and `ruff check`
+- **Line endings:** Enforces LF line endings (Unix-style)
+- **File size:** Prevents large files (>1MB) from being committed
+
+To run pre-commit manually:
+```bash
+# Run on all files
+pre-commit run --all-files
+
+# Run on staged files only
+pre-commit run
+```
 
 ### Running Tests
 
@@ -180,8 +202,9 @@ Add labels to your PR:
 1. **Create a feature branch** from the main branch
 2. **Make your changes** following the code style guidelines
 3. **Test your changes** using the appropriate test commands
-4. **Lint your code** using `make lint` or component-specific linting
-5. **Create a pull request** with a clear description of your changes
+4. **Run pre-commit checks** - These will run automatically on commit if installed
+5. **Lint your code** using `make lint` or component-specific linting
+6. **Create a pull request** with a clear description of your changes
 
 
 ### Python Package Management
