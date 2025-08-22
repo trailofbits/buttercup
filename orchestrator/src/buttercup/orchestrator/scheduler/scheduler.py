@@ -196,7 +196,9 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"[{build_output.task_id}] Processing build output for type {BuildType.Name(build_output.build_type)} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}",
+            f"[{build_output.task_id}] Processing build output for type "
+            f"{BuildType.Name(build_output.build_type)} | {build_output.engine} | "
+            f"{build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}",
         )
 
         if build_output.build_type != BuildType.FUZZER:
@@ -252,7 +254,9 @@ class Scheduler:
                 for build_req in self.process_ready_task(task_ready.task):
                     self.build_requests_queue.push(build_req)
                     logger.info(
-                        f"[{task_ready.task.task_id}] Pushed build request of type {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff}",
+                        f"[{task_ready.task.task_id}] Pushed build request of type "
+                        f"{BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | "
+                        f"{build_req.engine} | {build_req.apply_diff}",
                     )
                 self.ready_queue.ack_item(task_ready_item.item_id)
                 return True
@@ -279,12 +283,14 @@ class Scheduler:
             for target in targets:
                 self.harness_map.push_harness(target)
             logger.info(
-                f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}",
+                f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | "
+                f"{build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}",
             )
             return True
         except Exception as e:
             logger.error(
-                f"Failed to process build output for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}",
+                f"Failed to process build output for {build_output.task_id} | {build_output.engine} | "
+                f"{build_output.sanitizer} | {build_output.task_dir}: {e}",
             )
             return False
 
@@ -314,7 +320,8 @@ class Scheduler:
 
         if res:
             logger.info(
-                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.internal_patch_id}",
+                f"Acked build output {build_output.task_id} | {build_output.engine} | "
+                f"{build_output.sanitizer} | {build_output.task_dir} | {build_output.internal_patch_id}",
             )
             self.build_output_queue.ack_item(build_output_item.item_id)
             return True
@@ -375,7 +382,8 @@ class Scheduler:
                 self.harness_map.push_harness(zero_weight_harness)
 
                 logger.info(
-                    f"Updated weight to -1.0 for cancelled/expired task {harness.task_id}, harness {harness.harness_name}",
+                    f"Updated weight to -1.0 for cancelled/expired task {harness.task_id}, "
+                    f"harness {harness.harness_name}",
                 )
                 any_updated = True
 

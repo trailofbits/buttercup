@@ -9,6 +9,7 @@ from buttercup.common.reproduce_multiple import ReproduceMultiple
 
 # ruff: noqa: E501, W291
 
+
 @pytest.fixture
 def build_outputs():
     return [
