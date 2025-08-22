@@ -1,24 +1,28 @@
-from pathlib import Path
-import pytest
 import os
-from unittest.mock import patch, mock_open, MagicMock
 from contextlib import contextmanager
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 
 from buttercup.common.node_local import (
-    _get_root_path,
     TmpDir,
-    temp_dir,
-    rename_atomically,
-    remote_path as remote_path_func,
-    remote_archive_path as remote_archive_path_func,
-    scratch_path,
-    scratch_dir,
-    local_scratch_file,
-    remote_scratch_file,
+    _get_root_path,
     dir_to_remote_archive,
+    local_scratch_file,
     lopen,
+    remote_scratch_file,
+    rename_atomically,
+    scratch_dir,
+    scratch_path,
+    temp_dir,
 )
-
+from buttercup.common.node_local import (
+    remote_archive_path as remote_archive_path_func,
+)
+from buttercup.common.node_local import (
+    remote_path as remote_path_func,
+)
 
 # Use this root path for all tests
 TEST_ROOT_PATH = Path("/test/node/data/dir")
@@ -217,13 +221,15 @@ class TestNodeLocal:
                 mock_scratch_context.__enter__.return_value = mock_scratch_file
 
                 with patch(
-                    "buttercup.common.node_local.local_scratch_file", return_value=mock_scratch_context
+                    "buttercup.common.node_local.local_scratch_file",
+                    return_value=mock_scratch_context,
                 ) as mock_local_scratch:
                     # Mock copyfileobj to avoid actual copying
                     with patch("shutil.copyfileobj") as mock_copy:
                         # Mock rename_atomically
                         with patch(
-                            "buttercup.common.node_local.rename_atomically", return_value=local_path
+                            "buttercup.common.node_local.rename_atomically",
+                            return_value=local_path,
                         ) as mock_rename:
                             # Mock path operations
                             with patch.object(Path, "mkdir"):
@@ -265,7 +271,8 @@ class TestNodeLocal:
 
         # Mock the archive path
         with patch(
-            "buttercup.common.node_local.remote_archive_path", return_value=remote_archive_path_val
+            "buttercup.common.node_local.remote_archive_path",
+            return_value=remote_archive_path_val,
         ) as mock_rpath:
             # Mock file operations
             with patch("builtins.open", mock_open(read_data=b"test data")) as mocked_open:
@@ -276,7 +283,8 @@ class TestNodeLocal:
                 mock_scratch_context.__enter__.return_value = mock_scratch_file
 
                 with patch(
-                    "buttercup.common.node_local.local_scratch_file", return_value=mock_scratch_context
+                    "buttercup.common.node_local.local_scratch_file",
+                    return_value=mock_scratch_context,
                 ) as mock_local_scratch:
                     # Mock copyfileobj to avoid actual copying
                     with patch("shutil.copyfileobj") as mock_copy:
@@ -294,11 +302,13 @@ class TestNodeLocal:
                             mock_tmp_dir_context.__enter__.return_value = mock_tmp_dir
 
                             with patch(
-                                "buttercup.common.node_local.scratch_dir", return_value=mock_tmp_dir_context
+                                "buttercup.common.node_local.scratch_dir",
+                                return_value=mock_tmp_dir_context,
                             ) as mock_scratch_dir:
                                 # Mock rename_atomically
                                 with patch(
-                                    "buttercup.common.node_local.rename_atomically", return_value=local_path
+                                    "buttercup.common.node_local.rename_atomically",
+                                    return_value=local_path,
                                 ) as mock_rename:
                                     # Mock path.exists
                                     with patch.object(Path, "exists", return_value=False):

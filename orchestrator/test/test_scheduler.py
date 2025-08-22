@@ -1,28 +1,26 @@
-import pytest
+import tempfile
+from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 from redis import Redis
 
 from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildType,
+    Patch,
+    SourceDetail,
     Task,
     TaskReady,
-    SourceDetail,
-    BuildOutput,
-    WeightedHarness,
-    BuildType,
     TracedCrash,
-    Patch,
+    WeightedHarness,
 )
-from buttercup.common.task_meta import TaskMeta
-
-from buttercup.common.queues import RQItem
-from buttercup.orchestrator.scheduler.scheduler import Scheduler
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.orchestrator.scheduler.submissions import Submissions
-from buttercup.common.queues import QueueFactory
 from buttercup.common.maps import BuildMap
-
-import tempfile
-from pathlib import Path
+from buttercup.common.queues import QueueFactory, RQItem
+from buttercup.common.task_meta import TaskMeta
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.orchestrator.scheduler.scheduler import Scheduler
+from buttercup.orchestrator.scheduler.submissions import Submissions
 
 
 @pytest.fixture
@@ -214,7 +212,6 @@ def test_serve_ready_task(scheduler):
 
 def test_update_expired_task_weights(scheduler):
     """Test that expired and cancelled task weights are updated to zero."""
-
     # Set up the mock registry and cached cancelled IDs
     scheduler.task_registry = Mock()
     scheduler.cached_cancelled_ids = {"cancelled-task-789"}
@@ -231,15 +228,24 @@ def test_update_expired_task_weights(scheduler):
 
     # Set up mock harnesses in the harness map
     live_harness = WeightedHarness(
-        weight=1.0, harness_name="live-harness", package_name="test-package", task_id="live-task-123"
+        weight=1.0,
+        harness_name="live-harness",
+        package_name="test-package",
+        task_id="live-task-123",
     )
 
     expired_harness = WeightedHarness(
-        weight=1.0, harness_name="expired-harness", package_name="test-package", task_id="expired-task-456"
+        weight=1.0,
+        harness_name="expired-harness",
+        package_name="test-package",
+        task_id="expired-task-456",
     )
 
     cancelled_harness = WeightedHarness(
-        weight=1.0, harness_name="cancelled-harness", package_name="test-package", task_id="cancelled-task-789"
+        weight=1.0,
+        harness_name="cancelled-harness",
+        package_name="test-package",
+        task_id="cancelled-task-789",
     )
 
     # Set up the mock harness map
@@ -279,7 +285,6 @@ def test_update_expired_task_weights(scheduler):
 
 def test_update_expired_task_weights_none_updated(scheduler):
     """Test that no weights are updated when all tasks are live or already at zero weight."""
-
     # Set up the mock registry
     scheduler.task_registry = Mock()
 
@@ -295,15 +300,24 @@ def test_update_expired_task_weights_none_updated(scheduler):
 
     # Set up mock harnesses in the harness map - one live, two at zero weight
     live_harness = WeightedHarness(
-        weight=1.0, harness_name="live-harness", package_name="test-package", task_id="live-task-123"
+        weight=1.0,
+        harness_name="live-harness",
+        package_name="test-package",
+        task_id="live-task-123",
     )
 
     zero_expired_harness = WeightedHarness(
-        weight=0.0, harness_name="zero-expired-harness", package_name="test-package", task_id="expired-task-456"
+        weight=0.0,
+        harness_name="zero-expired-harness",
+        package_name="test-package",
+        task_id="expired-task-456",
     )
 
     zero_cancelled_harness = WeightedHarness(
-        weight=0.0, harness_name="zero-cancelled-harness", package_name="test-package", task_id="cancelled-task-789"
+        weight=0.0,
+        harness_name="zero-cancelled-harness",
+        package_name="test-package",
+        task_id="cancelled-task-789",
     )
 
     # Set up the mock harness map
@@ -814,7 +828,10 @@ def test_serve_build_output_stores_patched_and_nonpatched_builds(scheduler, redi
     assert non_existent is None
 
     non_existent_patch = real_build_map.get_build_from_san(
-        "test-task-1", BuildType.PATCH, "address", "non-existent-patch"
+        "test-task-1",
+        BuildType.PATCH,
+        "address",
+        "non-existent-patch",
     )
     assert non_existent_patch is None
 

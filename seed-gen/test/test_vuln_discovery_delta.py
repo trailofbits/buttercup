@@ -81,7 +81,7 @@ def test_do_task_no_valid_povs(
                         id="context_call_1",
                         name="get_function_definition",
                         args={"function_name": "vulnerable_function"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(
@@ -91,7 +91,7 @@ def test_do_task_no_valid_povs(
                         id="context_call_2",
                         name="get_type_definition",
                         args={"type_name": "buffer_t"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(
@@ -101,7 +101,7 @@ def test_do_task_no_valid_povs(
                         id="context_call_3",
                         name="cat",
                         args={"file_path": "/src/test.c"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(
@@ -111,7 +111,7 @@ def test_do_task_no_valid_povs(
                         id="context_call_4",
                         name="get_callers",
                         args={"function_name": "vulnerable_function", "file_path": "/src/test.c"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(content="Making no tool calls for this context iteration"),
@@ -122,7 +122,7 @@ def test_do_task_no_valid_povs(
                         id="context_call_5",
                         name="batch_tool",
                         args={"tool_calls": {"calls": []}},
-                    )
+                    ),
                 ],
             ),
         ]
@@ -153,37 +153,38 @@ def test_do_task_no_valid_povs(
                     file_path=Path("/src/test.c"),
                     bodies=[
                         MagicMock(
-                            body="int vulnerable_function(char* input) { /* function body */ }"
-                        )
+                            body="int vulnerable_function(char* input) { /* function body */ }",
+                        ),
                     ],
-                )
-            ]
+                ),
+            ],
         )
         vuln_discovery_task.codequery.get_types = Mock(
             return_value=[
                 MagicMock(
                     file_path=Path("/src/test.c"),
                     definition="typedef struct { int size; char* data; } buffer_t;",
-                )
-            ]
+                ),
+            ],
         )
         vuln_discovery_task.codequery.get_callers = Mock(
             return_value=[
                 MagicMock(
                     file_path=Path("/src/main.c"),
                     bodies=[
-                        MagicMock(body='int main() { vulnerable_function("test"); return 0; }')
+                        MagicMock(body='int main() { vulnerable_function("test"); return 0; }'),
                     ],
                     name="main",
-                )
-            ]
+                ),
+            ],
         )
 
         # Mock challenge_task.exec_docker_cmd for cat tool
         vuln_discovery_task.challenge_task.exec_docker_cmd = Mock(
             return_value=MagicMock(
-                success=True, output=b"int vulnerable_function(char* input) { /* function body */ }"
-            )
+                success=True,
+                output=b"int vulnerable_function(char* input) { /* function body */ }",
+            ),
         )
 
         vuln_discovery_task.do_task(out_dir, current_dir)

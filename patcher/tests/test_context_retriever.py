@@ -1,42 +1,39 @@
 """Tests for the ContextRetrieverAgent."""
 
-import pytest
 import os
-from unittest.mock import patch
-from pydantic import BaseModel
-from contextlib import contextmanager
-from langchain_core.tools import tool
-from pathlib import Path
 import shutil
 import subprocess
-from langchain_core.tools import StructuredTool
-from langchain_core.runnables import Runnable, RunnableSequence
-from unittest.mock import MagicMock
-from typing import Iterator
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import pytest
 from langchain_core.language_models import BaseChatModel
-from buttercup.patcher.agents.context_retriever import (
-    ContextRetrieverAgent,
-)
+from langchain_core.messages import AIMessage
+from langchain_core.messages.tool import ToolCall
+from langchain_core.runnables import Runnable, RunnableSequence
+from langchain_core.tools import StructuredTool, tool
+from langgraph.types import Command
+from pydantic import BaseModel
+from redis import Redis
 
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.common.task_meta import TaskMeta
 from buttercup.patcher.agents.common import (
-    ContextRetrieverState,
-    CodeSnippetRequest,
-    PatcherAgentState,
-    PatcherAgentName,
-    ContextCodeSnippet,
     CodeSnippetKey,
+    CodeSnippetRequest,
+    ContextCodeSnippet,
+    ContextRetrieverState,
+    PatcherAgentName,
+    PatcherAgentState,
+)
+from buttercup.patcher.agents.context_retriever import (
+    CUSTOM_TEST_MAP_NAME,
+    ContextRetrieverAgent,
 )
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
-from langgraph.types import Command
-from buttercup.common.challenge_task import ChallengeTask, CommandResult
-from buttercup.common.task_meta import TaskMeta
-from langchain_core.messages import AIMessage
-from langchain_core.messages.tool import ToolCall
-from redis import Redis
-from buttercup.patcher.agents.context_retriever import CUSTOM_TEST_MAP_NAME
-
 
 original_subprocess_run = subprocess.run
 
@@ -51,9 +48,7 @@ def mock_docker_run(challenge_task: ChallengeTask):
                 # Copy source files to container src dir
                 src_path = challenge_task.get_source_path()
                 shutil.copytree(src_path, container_dst_dir, dirs_exist_ok=True)
-            elif args[1] == "create":
-                pass
-            elif args[1] == "rm":
+            elif args[1] == "create" or args[1] == "rm":
                 pass
 
             return subprocess.CompletedProcess(args, returncode=0)
@@ -321,7 +316,7 @@ def selinux_agent(selinux_oss_fuzz_task: ChallengeTask, tmp_path: Path) -> Conte
                 sanitizer_output="sanitizer-output-selinux",
                 engine="libfuzzer",
                 harness_name="secilc-fuzzer",
-            )
+            ),
         ],
     )
     wdir = tmp_path / "work_dir"
@@ -349,7 +344,7 @@ def libpng_agent(example_libpng_oss_fuzz_task: ChallengeTask, tmp_path: Path) ->
                 sanitizer_output="sanitizer-output-libpng",
                 engine="libfuzzer",
                 harness_name="libpng_read_fuzzer",
-            )
+            ),
         ],
     )
     wdir = tmp_path / "work_dir"
@@ -377,7 +372,7 @@ def libpng_agent(example_libpng_oss_fuzz_task: ChallengeTask, tmp_path: Path) ->
 @pytest.fixture
 def mock_patch_input(mock_challenge: ChallengeTask) -> Iterator[PatchInput]:
     """Create a mock PatchInput instance."""
-    yield PatchInput(
+    return PatchInput(
         challenge_task_dir=mock_challenge.task_dir,
         task_id=mock_challenge.task_meta.task_id,
         internal_patch_id="1",
@@ -390,14 +385,16 @@ def mock_patch_input(mock_challenge: ChallengeTask) -> Iterator[PatchInput]:
                 sanitizer_output="sanitizer-output-mock",
                 engine="libfuzzer",
                 harness_name="mock-harness",
-            )
+            ),
         ],
     )
 
 
 @pytest.fixture
 def mock_agent(
-    mock_challenge: ChallengeTask, mock_patch_input: PatchInput, tmp_path: Path
+    mock_challenge: ChallengeTask,
+    mock_patch_input: PatchInput,
+    tmp_path: Path,
 ) -> Iterator[ContextRetrieverAgent]:
     """Create a ContextRetrieverAgent instance."""
     wdir = tmp_path / "work_dir"
@@ -426,7 +423,10 @@ def mock_tools() -> dict[str, MagicMock]:
 
 @pytest.fixture
 def mock_agent_tools(
-    mock_challenge: ChallengeTask, mock_patch_input: PatchInput, tmp_path: Path, mock_tools: dict[str, MagicMock]
+    mock_challenge: ChallengeTask,
+    mock_patch_input: PatchInput,
+    tmp_path: Path,
+    mock_tools: dict[str, MagicMock],
 ) -> Iterator[ContextRetrieverAgent]:
     """Create a ContextRetrieverAgent instance."""
 
@@ -474,7 +474,9 @@ def mock_runnable_config(tmp_path: Path) -> dict:
 
 @pytest.mark.integration
 def test_retrieve_context_basic(
-    selinux_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    selinux_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test basic context retrieval functionality."""
     # Create a test state with a simple request
@@ -482,7 +484,7 @@ def test_retrieve_context_basic(
         code_snippet_requests=[
             CodeSnippetRequest(
                 request="Find function ebitmap_match_any",
-            )
+            ),
         ],
         prev_node="test_node",
     )
@@ -499,7 +501,7 @@ def test_retrieve_context_basic(
                     args={
                         "pattern": "ebitmap_match_any",
                     },
-                )
+                ),
             ],
         ),
         # Agent decides to get the function definition
@@ -510,7 +512,7 @@ def test_retrieve_context_basic(
                     id="get_function_call_1",
                     name="get_function",
                     args={"function_name": "ebitmap_match_any", "file_path": "libsepol/src/ebitmap.c"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -527,7 +529,7 @@ def test_retrieve_context_basic(
                         "function_name": "ebitmap_match_any",
                         "code_snippet_description": "ebitmap_match_any function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -549,7 +551,9 @@ def test_retrieve_context_basic(
 
 
 def test_missing_arg_tool_call(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test basic context retrieval functionality."""
     # Create a test state with a simple request
@@ -557,7 +561,7 @@ def test_missing_arg_tool_call(
         code_snippet_requests=[
             CodeSnippetRequest(
                 request="Find function main",
-            )
+            ),
         ],
         prev_node="test_node",
     )
@@ -571,7 +575,7 @@ def test_missing_arg_tool_call(
                     id="list_files_call_1",
                     name="ls",
                     args={},  # no args for list_files
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -583,7 +587,7 @@ def test_missing_arg_tool_call(
                     args={
                         "path": ".",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -596,7 +600,7 @@ def test_missing_arg_tool_call(
                         "function_name": "main",
                         "file_path": "test.c",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -613,7 +617,7 @@ def test_missing_arg_tool_call(
                         "function_name": "main",
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -635,7 +639,7 @@ def test_recursion_limit(mock_agent: ContextRetrieverAgent, mock_agent_llm: Magi
         code_snippet_requests=[
             CodeSnippetRequest(
                 request="Find function main",
-            )
+            ),
         ],
         prev_node="test_node",
     )
@@ -650,7 +654,7 @@ def test_recursion_limit(mock_agent: ContextRetrieverAgent, mock_agent_llm: Magi
                     args={
                         "path": str(i),
                     },
-                )
+                ),
             ],
         )
         for i in range(1, 1000)
@@ -667,7 +671,9 @@ def test_recursion_limit(mock_agent: ContextRetrieverAgent, mock_agent_llm: Magi
 
 
 def test_recursion_limit_tmp_code_snippets(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test hitting the context request limit but getting some partial results."""
     state = ContextRetrieverState(
@@ -687,7 +693,7 @@ def test_recursion_limit_tmp_code_snippets(
                         "function_name": "main",
                         "file_path": "test.c",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -704,7 +710,7 @@ def test_recursion_limit_tmp_code_snippets(
                         "function_name": "main",
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
     ]
@@ -718,7 +724,7 @@ def test_recursion_limit_tmp_code_snippets(
                     args={
                         "path": str(i),
                     },
-                )
+                ),
             ],
         )
         for i in range(1, 1000)
@@ -735,7 +741,9 @@ def test_recursion_limit_tmp_code_snippets(
 
 
 def test_dupped_code_snippets(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we don't return duplicate code snippets."""
     state = ContextRetrieverState(
@@ -752,7 +760,7 @@ def test_dupped_code_snippets(
                     id="get_function_call",
                     name="get_function",
                     args={"function_name": "main", "file_path": "test.c"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -769,7 +777,7 @@ def test_dupped_code_snippets(
                         "function_name": "main",
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -792,7 +800,7 @@ def test_dupped_code_snippets(
                     id="get_function_call",
                     name="get_function",
                     args={"function_name": "main", "file_path": "test.c"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -809,7 +817,7 @@ def test_dupped_code_snippets(
                         "function_name": "main",
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -826,7 +834,7 @@ def test_dupped_code_snippets(
                         "function_name": "main",
                         "code_snippet_description": "main function definition 2",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -843,7 +851,10 @@ def test_dupped_code_snippets(
 
 
 def test_get_type(
-    mock_agent: ContextRetrieverAgent, mock_cheap_llm: MagicMock, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_cheap_llm: MagicMock,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we can get the type definition."""
     state = ContextRetrieverState(
@@ -860,7 +871,7 @@ def test_get_type(
                     id="get_type_call",
                     name="get_type",
                     args={"type_name": "ebitmap_t", "file_path": "test.h"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -877,7 +888,7 @@ def test_get_type(
                         "type_name": "ebitmap_t",
                         "code_snippet_description": "ebitmap_t type definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -894,7 +905,9 @@ def test_get_type(
 
 
 def test_get_definitions_no_paths(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we can get the type definition even if the file path is not provided."""
     state = ContextRetrieverState(
@@ -912,7 +925,7 @@ def test_get_definitions_no_paths(
                     id="get_function_call",
                     name="get_function",
                     args={"function_name": "main", "file_path": None},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -922,7 +935,7 @@ def test_get_definitions_no_paths(
                     id="get_type_call",
                     name="get_type",
                     args={"type_name": "ebitmap_t", "file_path": None},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -939,7 +952,7 @@ def test_get_definitions_no_paths(
                         "type_name": None,
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -956,7 +969,7 @@ def test_get_definitions_no_paths(
                         "type_name": "ebitmap_t",
                         "code_snippet_description": "ebitmap_t type definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -981,7 +994,10 @@ def test_get_definitions_no_paths(
 
 
 def test_get_callers(
-    mock_agent_tools: ContextRetrieverAgent, mock_tools, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent_tools: ContextRetrieverAgent,
+    mock_tools,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we can get the callers of a function."""
     state = ContextRetrieverState(
@@ -998,7 +1014,7 @@ def test_get_callers(
                     id="get_callers_call",
                     name="get_callers",
                     args={"function_name": "foo", "file_path": "test.c"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1012,7 +1028,10 @@ def test_get_callers(
 
 
 def test_get_callees(
-    mock_agent_tools: ContextRetrieverAgent, mock_tools, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent_tools: ContextRetrieverAgent,
+    mock_tools,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that we can get the callees of a function."""
     state = ContextRetrieverState(
@@ -1029,7 +1048,7 @@ def test_get_callees(
                     id="get_callees_call",
                     name="get_callees",
                     args={"function_name": "main", "file_path": "test.c"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1043,7 +1062,9 @@ def test_get_callees(
 
 
 def test_low_recursion_limit_empty(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that hitting a low recursion limit returns an empty set when no results were found."""
     state = ContextRetrieverState(
@@ -1062,7 +1083,7 @@ def test_low_recursion_limit_empty(
                     args={
                         "path": str(i),
                     },
-                )
+                ),
             ],
         )
         for i in range(1, 10)  # Small number to hit recursion limit quickly
@@ -1080,7 +1101,9 @@ def test_low_recursion_limit_empty(
 
 
 def test_low_recursion_limit_with_results(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test that hitting a low recursion limit after getting some results still returns those results."""
     state = ContextRetrieverState(
@@ -1100,7 +1123,7 @@ def test_low_recursion_limit_with_results(
                         "function_name": "main",
                         "file_path": "test.c",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1117,7 +1140,7 @@ def test_low_recursion_limit_with_results(
                         "function_name": "main",
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1134,7 +1157,7 @@ def test_low_recursion_limit_with_results(
                     args={
                         "path": str(i),
                     },
-                )
+                ),
             ],
         )
         for i in range(1, 10)  # Small number to hit recursion limit quickly
@@ -1153,7 +1176,9 @@ def test_low_recursion_limit_with_results(
 
 
 def test_multiple_code_snippet_requests(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test handling multiple code snippet requests in a single state."""
     state = ContextRetrieverState(
@@ -1175,7 +1200,7 @@ def test_multiple_code_snippet_requests(
                         "function_name": "main",
                         "file_path": "test.c",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1192,7 +1217,7 @@ def test_multiple_code_snippet_requests(
                         "function_name": "main",
                         "code_snippet_description": "main function definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1207,7 +1232,7 @@ def test_multiple_code_snippet_requests(
                         "type_name": "ebitmap_t",
                         "file_path": "test.h",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1224,7 +1249,7 @@ def test_multiple_code_snippet_requests(
                         "type_name": "ebitmap_t",
                         "code_snippet_description": "ebitmap_t type definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1248,7 +1273,9 @@ def test_multiple_code_snippet_requests(
 
 
 def test_process_request_error_handling(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test error handling in process_request with different types of errors."""
     state = ContextRetrieverState(
@@ -1269,7 +1296,7 @@ def test_process_request_error_handling(
                         "function_name": "nonexistent",
                         "file_path": "test.c",
                     },
-                )
+                ),
             ],
         ),
     ]
@@ -1298,7 +1325,7 @@ def test_invalid_tool_call(mock_agent: ContextRetrieverAgent, mock_agent_llm: Ma
                     id="get_function_call_1",
                     name="get_function",
                     args={},  # Missing required args
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1311,7 +1338,9 @@ def test_invalid_tool_call(mock_agent: ContextRetrieverAgent, mock_agent_llm: Ma
 
 
 def test_nonexistent_tool_call(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test handling of calls to non-existent tools."""
     state = ContextRetrieverState(
@@ -1329,7 +1358,7 @@ def test_nonexistent_tool_call(
                     id="nonexistent_tool_call",
                     name="nonexistent_tool",
                     args={"arg1": "value1"},
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1342,7 +1371,9 @@ def test_nonexistent_tool_call(
 
 
 def test_malformed_llm_response(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test handling of malformed LLM responses."""
     state = ContextRetrieverState(
@@ -1364,7 +1395,9 @@ def test_malformed_llm_response(
 
 
 def test_invalid_argument_types(
-    mock_agent: ContextRetrieverAgent, mock_agent_llm: MagicMock, mock_runnable_config
+    mock_agent: ContextRetrieverAgent,
+    mock_agent_llm: MagicMock,
+    mock_runnable_config,
 ) -> None:
     """Test handling of invalid argument types in tool calls."""
     state = ContextRetrieverState(
@@ -1385,7 +1418,7 @@ def test_invalid_argument_types(
                         "function_name": 123,  # Should be string
                         "file_path": ["test.c"],  # Should be string
                     },
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1416,7 +1449,7 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
                     id="get_function_call_1",
                     name="get_function",
                     args={},  # Missing required args
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1429,7 +1462,7 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
                         "file_path": "test.c",
                         # Missing required args
                     },
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1444,7 +1477,7 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
                         "type_name": "ebitmap_t",
                         "file_path": "test.h",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -1461,7 +1494,7 @@ def test_llm_error_recovery(mock_agent: ContextRetrieverAgent, mock_agent_llm: M
                         "type_name": "ebitmap_t",
                         "code_snippet_description": "ebitmap_t type definition",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(content="I'm done <END>"),
@@ -1502,7 +1535,7 @@ def test_get_initial_context_filters_llvm_frames(
  #2 0x345678 in another_func /src/test/another.c:30""",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -1520,7 +1553,7 @@ def test_get_initial_context_filters_llvm_frames(
                     key=CodeSnippetKey(file_path="/src/test/file.c", function_name="test_func"),
                     start_line=10,
                     end_line=10,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1528,9 +1561,9 @@ def test_get_initial_context_filters_llvm_frames(
                     key=CodeSnippetKey(file_path="/src/test/another.c", function_name="another_func"),
                     start_line=30,
                     end_line=30,
-                )
+                ),
             ],
-        ]
+        ],
     )
     result = mock_agent.get_initial_context(state, mock_runnable_config)
 
@@ -1576,7 +1609,7 @@ def test_get_initial_context_includes_llvm_frames(
  #2 0x345678 in another_func /src/llvm-project/another.c:30""",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -1595,7 +1628,7 @@ def test_get_initial_context_includes_llvm_frames(
                     key=CodeSnippetKey(file_path="/src/test/file.c", function_name="test_func"),
                     start_line=10,
                     end_line=10,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1603,7 +1636,7 @@ def test_get_initial_context_includes_llvm_frames(
                     key=CodeSnippetKey(file_path="/src/llvm-project/compiler-rt/test.c", function_name="llvm_func"),
                     start_line=20,
                     end_line=20,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1611,9 +1644,9 @@ def test_get_initial_context_includes_llvm_frames(
                     key=CodeSnippetKey(file_path="/src/test/another.c", function_name="another_func"),
                     start_line=30,
                     end_line=30,
-                )
+                ),
             ],
-        ]
+        ],
     )
 
     result = mock_agent.get_initial_context(state, mock_runnable_config)
@@ -1666,7 +1699,7 @@ def test_get_initial_context_respects_n_initial_stackframes(
  #3 0x456789 in test_func4 /src/test/file4.c:40""",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -1688,7 +1721,7 @@ def test_get_initial_context_respects_n_initial_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/file1.c", function_name="test_func1"),
                     start_line=10,
                     end_line=10,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1696,7 +1729,7 @@ def test_get_initial_context_respects_n_initial_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/file2.c", function_name="test_func2"),
                     start_line=20,
                     end_line=20,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1704,7 +1737,7 @@ def test_get_initial_context_respects_n_initial_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/file3.c", function_name="test_func3"),
                     start_line=30,
                     end_line=30,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1712,9 +1745,9 @@ def test_get_initial_context_respects_n_initial_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/file4.c", function_name="test_func4"),
                     start_line=40,
                     end_line=40,
-                )
+                ),
             ],
-        ]
+        ],
     )
 
     result = mock_agent.get_initial_context(state, mock_runnable_config)
@@ -1773,7 +1806,7 @@ def test_get_initial_context_handles_multiple_stackframes(
  #4 0x890123 in __libc_start_main /src/glibc/libc-start.c:308""",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -1796,7 +1829,7 @@ def test_get_initial_context_handles_multiple_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/crash.c", function_name="crash_func"),
                     start_line=10,
                     end_line=10,
-                )
+                ),
             ],
             # Second stackframe (allocation)
             [
@@ -1805,7 +1838,7 @@ def test_get_initial_context_handles_multiple_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/memory.c", function_name="allocate_memory"),
                     start_line=40,
                     end_line=40,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1813,7 +1846,7 @@ def test_get_initial_context_handles_multiple_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/init.c", function_name="init_data"),
                     start_line=50,
                     end_line=50,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1821,7 +1854,7 @@ def test_get_initial_context_handles_multiple_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/setup.c", function_name="setup_test"),
                     start_line=60,
                     end_line=60,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1829,7 +1862,7 @@ def test_get_initial_context_handles_multiple_stackframes(
                     key=CodeSnippetKey(file_path="/src/test/main.c", function_name="main"),
                     start_line=70,
                     end_line=70,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1837,9 +1870,9 @@ def test_get_initial_context_handles_multiple_stackframes(
                     key=CodeSnippetKey(file_path="/src/glibc/libc-start.c", function_name="__libc_start_main"),
                     start_line=308,
                     end_line=308,
-                )
+                ),
             ],
-        ]
+        ],
     )
 
     result = mock_agent.get_initial_context(state, mock_runnable_config)
@@ -1934,7 +1967,7 @@ def test_get_initial_context_multiple_povs(
                     key=CodeSnippetKey(file_path="/src/test/overflow.c", function_name="overflow_func"),
                     start_line=10,
                     end_line=10,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1942,7 +1975,7 @@ def test_get_initial_context_multiple_povs(
                     key=CodeSnippetKey(file_path="/src/test/process.c", function_name="process_data"),
                     start_line=20,
                     end_line=20,
-                )
+                ),
             ],
             # Second POV stackframes
             [
@@ -1951,7 +1984,7 @@ def test_get_initial_context_multiple_povs(
                     key=CodeSnippetKey(file_path="/src/test/uaf.c", function_name="uaf_func"),
                     start_line=40,
                     end_line=40,
-                )
+                ),
             ],
             [
                 ContextCodeSnippet(
@@ -1959,9 +1992,9 @@ def test_get_initial_context_multiple_povs(
                     key=CodeSnippetKey(file_path="/src/test/memory.c", function_name="free_memory"),
                     start_line=50,
                     end_line=50,
-                )
+                ),
             ],
-        ]
+        ],
     )
 
     result = mock_agent.get_initial_context(state, mock_runnable_config)
@@ -2058,7 +2091,7 @@ def test_get_initial_context_multiple_povs_deduplication(
                     key=CodeSnippetKey(file_path="/src/test/crash.c", function_name="crash_func"),
                     start_line=10,
                     end_line=10,
-                )
+                ),
             ],
             # Second unique function from first POV
             [
@@ -2067,7 +2100,7 @@ def test_get_initial_context_multiple_povs_deduplication(
                     key=CodeSnippetKey(file_path="/src/test/process.c", function_name="process_data"),
                     start_line=20,
                     end_line=20,
-                )
+                ),
             ],
             # Third unique function from first POV
             [
@@ -2076,7 +2109,7 @@ def test_get_initial_context_multiple_povs_deduplication(
                     key=CodeSnippetKey(file_path="/src/test/input.c", function_name="handle_input"),
                     start_line=60,
                     end_line=60,
-                )
+                ),
             ],
             # Unique function from second POV
             [
@@ -2085,9 +2118,9 @@ def test_get_initial_context_multiple_povs_deduplication(
                     key=CodeSnippetKey(file_path="/src/test/cleanup.c", function_name="cleanup"),
                     start_line=60,
                     end_line=60,
-                )
+                ),
             ],
-        ]
+        ],
     )
 
     result = mock_agent.get_initial_context(state, mock_runnable_config)
@@ -2132,7 +2165,9 @@ def test_get_initial_context_multiple_povs_deduplication(
 
 
 def test_find_tests_agent_success(
-    mock_agent: ContextRetrieverAgent, mock_runnable_config: dict, mock_challenge: ChallengeTask
+    mock_agent: ContextRetrieverAgent,
+    mock_runnable_config: dict,
+    mock_challenge: ChallengeTask,
 ) -> None:
     """Test that the find tests agent successfully discovers and validates test instructions."""
     state = PatcherAgentState(
@@ -2149,7 +2184,7 @@ def test_find_tests_agent_success(
                     sanitizer_output="test output",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -2170,7 +2205,7 @@ def test_find_tests_agent_success(
                         "make test",
                     ],
                 },
-            )
+            ),
         ],
     )
     # Mock the state with all required fields
@@ -2225,7 +2260,7 @@ def test_find_tests_agent_uses_existing_test_sh(mock_agent: ContextRetrieverAgen
                     sanitizer_output="test output",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -2249,7 +2284,7 @@ def test_grep_libpng(libpng_agent: ContextRetrieverAgent, mock_agent_llm: MagicM
         code_snippet_requests=[
             CodeSnippetRequest(
                 request="Grep 'check' in Makefile",
-            )
+            ),
         ],
         prev_node="test_node",
     )
@@ -2267,7 +2302,7 @@ def test_grep_libpng(libpng_agent: ContextRetrieverAgent, mock_agent_llm: MagicM
                         "pattern": "check",
                         "file_path": "Makefile",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -2308,7 +2343,7 @@ def test_find_tests_parallel(
                     sanitizer_output="test output",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -2336,7 +2371,7 @@ def test_find_tests_parallel(
                     "instructions": [
                         "cd /src2",
                         "make test2",
-                    ]
+                    ],
                 },
             ),
         ],
@@ -2348,7 +2383,7 @@ def test_find_tests_parallel(
         patch("buttercup.common.challenge_task.ChallengeTask.get_clean_task") as mock_clean_task,
         patch("buttercup.common.challenge_task.ChallengeTask.apply_patch_diff") as mock_apply_patch_diff,
         patch(
-            "buttercup.patcher.agents.context_retriever._are_test_instructions_valid"
+            "buttercup.patcher.agents.context_retriever._are_test_instructions_valid",
         ) as mock_are_test_instructions_valid,
     ):
 
@@ -2374,13 +2409,12 @@ def test_find_tests_parallel(
                         output=b"Tests passed",
                         error=b"",
                     )
-                else:
-                    return CommandResult(
-                        success=True,
-                        returncode=1,
-                        output=b"Tests failed",
-                        error=b"",
-                    )
+                return CommandResult(
+                    success=True,
+                    returncode=1,
+                    output=b"Tests failed",
+                    error=b"",
+                )
 
             return CommandResult(success=True, returncode=0, output=b"", error=b"")
 
@@ -2429,7 +2463,7 @@ def test_find_tests_redis_save_and_retrieve(
                     sanitizer_output="test output",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -2451,7 +2485,7 @@ def test_find_tests_redis_save_and_retrieve(
                         "make test",
                     ],
                 },
-            )
+            ),
         ],
     )
     # Mock the state with all required fields
@@ -2470,7 +2504,7 @@ def test_find_tests_redis_save_and_retrieve(
         patch("buttercup.common.challenge_task.ChallengeTask.apply_patch_diff") as mock_apply_patch_diff,
         patch("buttercup.common.challenge_task.ChallengeTask.get_oss_fuzz_path") as mock_get_oss_fuzz_path,
         patch(
-            "buttercup.patcher.agents.context_retriever._are_test_instructions_valid"
+            "buttercup.patcher.agents.context_retriever._are_test_instructions_valid",
         ) as mock_are_test_instructions_valid,
     ):
 
@@ -2599,7 +2633,7 @@ def test_find_tests_redis_multiple_tasks(
     mock_redis.hget.side_effect = lambda map_name, task_id: {
         task_id_1: instructions_1,
         task_id_2: instructions_2,
-    }.get(task_id, None)
+    }.get(task_id)
 
     # Test task 1
     mock_challenge.task_meta.task_id = task_id_1
@@ -2617,7 +2651,7 @@ def test_find_tests_redis_multiple_tasks(
                     sanitizer_output="test output",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
@@ -2648,7 +2682,7 @@ def test_find_tests_redis_multiple_tasks(
                     sanitizer_output="test output",
                     engine="libfuzzer",
                     harness_name="test-harness",
-                )
+                ),
             ],
         ),
         relevant_code_snippets=set(),
