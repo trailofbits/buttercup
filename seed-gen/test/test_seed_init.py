@@ -58,9 +58,7 @@ def test_do_task_success(
     ):
         # Mock the tracer span
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
-            mock_span
-        )
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
 
         # Mock LLM responses for the workflow

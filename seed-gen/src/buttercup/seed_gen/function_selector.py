@@ -123,9 +123,7 @@ class FunctionSelector:
         function_name = selected_function.function_name
         function_paths = len(selected_function.function_paths)
         coverage_fraction = round(
-            selected_function.covered_lines / selected_function.total_lines
-            if selected_function.total_lines > 0
-            else 0,
+            selected_function.covered_lines / selected_function.total_lines if selected_function.total_lines > 0 else 0,
         )
         function_prob = round(sample_probs[sample_functions.index(selected_function)], 5)
 

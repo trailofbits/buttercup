@@ -90,9 +90,7 @@ def test_do_task_valid_pov(
         patch("buttercup.seed_gen.vuln_base_task.stack_parsing.get_crash_token") as mock_get_token,
     ):
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
-            mock_span
-        )
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
         mock_get_token.return_value = "test_crash_token"
 
