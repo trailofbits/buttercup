@@ -545,7 +545,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Mock shutil.copy to fail for the first call to a specific file, then succeed for the second call
 
         def mock_copy(src, dst):
-            # For a specific file in remote_files, fail on first attempt (corpus.path) but succeed on second (corpus.remote_path)
+            # For a specific file in remote_files, fail on first attempt (corpus.path) but succeed on
+            # second (corpus.remote_path)
             if "missing_remote" in src:
                 if "/corpus/path/" in src:
                     raise FileNotFoundError(f"File not found in local corpus: {src}")

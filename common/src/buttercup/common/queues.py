@@ -28,6 +28,8 @@ from buttercup.common.datastructures.msg_pb2 import (
     TracedCrash,
 )
 
+# ruff: noqa: UP046
+
 TIMES_DELIVERED_FIELD = "times_delivered"
 
 F = TypeVar("F", bound=Callable[..., Any])

@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 # NOTE: The idea of using three distinct classes to represent the local, remote, and merged corpuses
 #       is to make the code more readable and easier to understand.
-#       The BaseCorpus class is used to represent the initial corpus state, before any merge operations have been performed.
+#       The BaseCorpus class is used to represent the initial corpus state, before any merge operations
+#         have been performed.
 #       The PartitionedCorpus class is used to partition the corpus into local and remote parts.
 #       The FinalCorpus class is used to represent the corpus after the merge operation has been performed.
 
@@ -263,7 +264,8 @@ class MergerBot:
         Given a task/WeightedHarness, we want to merge the local corpus into the remote corpus if it adds coverage
            - acquire a lock on the merged corpus set, if not possible, return and move on to next task
            - ensure all of the remotely stored corpus files are available locally
-           - partition the the local corpus into R and L, where R is the remote corpus and L is the local corpus excluding remote files (L = local_files - remote_files)
+           - partition the the local corpus into R and L, where R is the remote corpus and L is the local corpus
+             excluding remote files (L = local_files - remote_files)
            - if L is empty the node is up to date, release the lock and move on to next task.
            - copy the local corpus into R and L directories respectively
            - run merger on R and L, moving files from L to R if they add coverage

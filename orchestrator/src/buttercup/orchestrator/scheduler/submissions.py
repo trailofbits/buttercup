@@ -1064,7 +1064,7 @@ class Submissions:
             build_output = BuildOutput(
                 engine=engine,
                 sanitizer=san,
-                task_dir="",  # Use a placeholder for the task dir, it will be updated when the build request is processed
+                task_dir="",  # placeholder,  will be updated when the build request is processed
                 task_id=task_id,
                 build_type=BuildType.PATCH,
                 apply_diff=True,
@@ -1175,7 +1175,8 @@ class Submissions:
         # Check if the patch has already been submitted.
         if patch.competition_patch_id:
             # This patch has already been submitted, we don't need to submit it again.
-            # It is either that the current patch is good, or, we advanced to the next patch (which was previously merged from a different SubmissionEntry)
+            # It is either that the current patch is good, or, we advanced to the next patch (which was
+            # previously merged from a different SubmissionEntry)
             return False
 
         # Check if this submission's POVs are mitigated by patches from other submissions
@@ -1184,9 +1185,10 @@ class Submissions:
 
         # If we have tried submitting the patch too many times, we will move on to the next patch.
         if e.patch_submission_attempts >= self.patch_submission_retry_limit:
-            # Hopefully, it was something wrong with our previous patch that made the submission fail and not the competition-API side.
-            # If it is the competition-API that is the issue, we will end up in a loop requesting new patches and submitting them. This
-            # is not ideal, however the alternative scenario is that we are stuck submitting the same patch over and over again.
+            # Hopefully, it was something wrong with our previous patch that made the submission fail and not the
+            # competition-API side. If it is the competition-API that is the issue, we will end up in a loop
+            # requesting new patches and submitting them. This is not ideal, however the alternative scenario is that
+            # we are stuck submitting the same patch over and over again.
             _advance_patch_idx(e)
             return True
 
@@ -1209,8 +1211,8 @@ class Submissions:
                 msg=f"Patch submission failed, advancing to next patch. Attempts={e.patch_submission_attempts}",
             )
         else:
-            # This is a status we won't do anything about, just record it. If it is a timeout, next iteration will probably
-            # filter the SubmissionEntry so we won't try this patch again.
+            # This is a status we won't do anything about, just record it. If it is a timeout, next iteration
+            # will probably filter the SubmissionEntry so we won't try this patch again.
             log_entry(e, i=i, msg=f"Patch submission returned unknown status {status}")
 
         return True
@@ -1274,7 +1276,8 @@ class Submissions:
         competition_patch_id: str | None = None,
         competition_sarif_id: str | None = None,
     ) -> bool:
-        """ "Ensures there is a single bundle with the given competition_pov_id, competition_patch_id and competition_sarif_id
+        """ "Ensures there is a single bundle with the given competition_pov_id, competition_patch_id and
+        competition_sarif_id
         NOTE: Only called when bundles < 2
         NOTE: competition_patch_id and competition_sarif_id can be None if we are not submitting a patch or sarif
         when they are not set, for a new bundle we will set them to empty strings,
@@ -1793,13 +1796,14 @@ class Submissions:
 
             except Exception:
                 logger.exception(f"[{i}:{_task_id(e)}] Error processing submission")
-                # NOTE: The question is if we should raise at some point. Worst case we are stuck in a error-condition
-                # that can only be fixed by a restart of the scheduler. However, we don't know that. If we raise, we risk
-                # the scheduler only attempting the first vulnerability and the rest of the cycle being skipped. This could
-                # lead to a situation where we don't attempt any submissions. For now, we will just log the error and continue.
+                # NOTE: The question is if we should raise at some point. Worst case we are stuck in a
+                # error-condition that can only be fixed by a restart of the scheduler. However, we don't know that.
+                # If we raise, we risk the scheduler only attempting the first vulnerability and the rest of the
+                # cycle being skipped. This could lead to a situation where we don't attempt any submissions.
+                # For now, we will just log the error and continue.
 
-        # As a final phase we will check if active patches fixes vulnerabilities in other SubmissionEntries and for those we will
-        # consolidate the SubmissionEntries.
+        # As a final phase we will check if active patches fixes vulnerabilities in other SubmissionEntries and for
+        # those we will consolidate the SubmissionEntries.
         try:
             self._merge_entries_by_patch_mitigation()
         except Exception as err:
