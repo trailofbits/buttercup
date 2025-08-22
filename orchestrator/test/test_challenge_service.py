@@ -1,20 +1,21 @@
-import pytest
 import subprocess
-import tempfile
 import tarfile
+import tempfile
+import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from buttercup.orchestrator.ui.competition_api.services import ChallengeService
+import pytest
+
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
+    SARIFBroadcast,
+    SARIFBroadcastDetail,
     SourceType,
     Task,
     TaskDetail,
     TaskType,
-    SARIFBroadcast,
-    SARIFBroadcastDetail,
 )
-import time
+from buttercup.orchestrator.ui.competition_api.services import ChallengeService
 
 
 class TestChallengeService:
@@ -65,7 +66,9 @@ class TestChallengeService:
             mock_tarfile.return_value.__enter__.return_value = mock_tar
 
             _, sha256_hash, _ = challenge_service.create_challenge_tarball(
-                repo_url="https://github.com/octocat/Hello-World", ref="main", tarball_name="test-repo"
+                repo_url="https://github.com/octocat/Hello-World",
+                ref="main",
+                tarball_name="test-repo",
             )
 
         # Verify git clone was called
@@ -102,7 +105,9 @@ class TestChallengeService:
 
         with pytest.raises(subprocess.CalledProcessError):
             challenge_service.create_challenge_tarball(
-                repo_url="https://github.com/invalid/repo", ref="main", tarball_name="test-repo"
+                repo_url="https://github.com/invalid/repo",
+                ref="main",
+                tarball_name="test-repo",
             )
 
     def test_serve_tarball_success(self, challenge_service):
@@ -261,8 +266,7 @@ class TestChallengeService:
                         (project_path / ".git" / "config").write_text("git config")
                         (project_path / "README.md").write_text("# Test Repository")
                         return MagicMock(returncode=0, stdout="", stderr="")
-                    else:
-                        return MagicMock(returncode=0, stdout="", stderr="")
+                    return MagicMock(returncode=0, stdout="", stderr="")
 
                 mock_run.side_effect = git_clone_mock
 
@@ -330,12 +334,12 @@ class TestChallengeService:
                                     "physicalLocation": {
                                         "artifactLocation": {"uri": "src/main.c"},
                                         "region": {"startLine": 10, "startColumn": 5},
-                                    }
-                                }
+                                    },
+                                },
                             ],
-                        }
+                        },
                     ],
-                }
+                },
             ],
         }
 
@@ -394,7 +398,7 @@ class TestChallengeService:
                             "name": "complex-tool",
                             "version": "2.0.0",
                             "informationUri": "https://example.com/tool",
-                        }
+                        },
                     },
                     "results": [
                         {
@@ -409,14 +413,14 @@ class TestChallengeService:
                                     "physicalLocation": {
                                         "artifactLocation": {"uri": "src/vulnerable.c", "uriBaseId": "SRCROOT"},
                                         "region": {"startLine": 25, "startColumn": 10, "endLine": 25, "endColumn": 15},
-                                    }
-                                }
+                                    },
+                                },
                             ],
                             "properties": {"security-severity": "HIGH", "tags": ["buffer-overflow", "memory-safety"]},
-                        }
+                        },
                     ],
                     "invocations": [{"executionSuccessful": True, "commandLine": "fuzzer --target vulnerable.c"}],
-                }
+                },
             ],
         }
 

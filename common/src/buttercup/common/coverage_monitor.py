@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from redis import Redis
+
 from buttercup.common.maps import CoverageMap, FunctionCoverage, HarnessWeights
 
 # Add matplotlib import for visualization
 try:
-    import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
 
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -22,12 +23,12 @@ except ImportError:
 
 # Move _print_coverage_metrics to be a free function
 def print_coverage_metrics(func_coverage_list: list[FunctionCoverage], snapshot_count: int) -> None:
-    """
-    Print coverage metrics for the given list of function coverage objects.
+    """Print coverage metrics for the given list of function coverage objects.
 
     Args:
         func_coverage_list: List of FunctionCoverage objects
         snapshot_count: The current snapshot count
+
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     total_functions = len(func_coverage_list)
@@ -50,8 +51,7 @@ def print_coverage_metrics(func_coverage_list: list[FunctionCoverage], snapshot_
 
 
 def coverage_data_equal(old_data: list[dict], new_data: list[dict]) -> bool:
-    """
-    Compare two coverage data lists to check if they are equal.
+    """Compare two coverage data lists to check if they are equal.
 
     Args:
         old_data: Previous coverage data
@@ -59,6 +59,7 @@ def coverage_data_equal(old_data: list[dict], new_data: list[dict]) -> bool:
 
     Returns:
         True if coverage data is the same, False otherwise
+
     """
     if len(old_data) != len(new_data):
         return False
@@ -67,7 +68,7 @@ def coverage_data_equal(old_data: list[dict], new_data: list[dict]) -> bool:
     old_sorted = sorted(old_data, key=lambda x: x["function_name"])
     new_sorted = sorted(new_data, key=lambda x: x["function_name"])
 
-    for old_item, new_item in zip(old_sorted, new_sorted):
+    for old_item, new_item in zip(old_sorted, new_sorted, strict=False):
         if (
             old_item["function_name"] != new_item["function_name"]
             or old_item["total_lines"] != new_item["total_lines"]
@@ -106,14 +107,14 @@ class CoverageMonitor:
         }
 
     def monitor_coverage(self, duration_seconds: int | None = None) -> str:
-        """
-        Monitor function coverage over time and save results to a file for all packages and harnesses.
+        """Monitor function coverage over time and save results to a file for all packages and harnesses.
 
         Args:
             duration_seconds: How long to run the monitor. If None, run indefinitely.
 
         Returns:
             Path to the output file.
+
         """
         coverage_snapshots = []
         start_time = time.time()
@@ -243,8 +244,7 @@ class CoverageMonitor:
     def _extract_metrics(
         coverage_snapshots: list[dict],
     ) -> tuple[list[datetime], list[int], list[int], list[int], list[float]]:
-        """
-        Extract metrics from coverage snapshots for analysis and visualization.
+        """Extract metrics from coverage snapshots for analysis and visualization.
 
         Returns:
             Tuple containing:
@@ -253,6 +253,7 @@ class CoverageMonitor:
             - total_lines: List of total line counts for each snapshot
             - covered_lines: List of covered line counts for each snapshot
             - coverage_percentages: List of coverage percentages for each snapshot
+
         """
         timestamps = []
         function_counts = []
@@ -286,11 +287,11 @@ class CoverageMonitor:
         covered_lines: list[int],
         coverage_percentages: list[float],
     ) -> str | None:
-        """
-        Create a visualization of coverage metrics over time.
+        """Create a visualization of coverage metrics over time.
 
         Returns:
             Path to the generated image file, or None if visualization failed.
+
         """
         if not MATPLOTLIB_AVAILABLE:
             print("Matplotlib is not available. Install with 'pip install matplotlib' to enable visualization.")
@@ -355,10 +356,12 @@ class CoverageMonitor:
 
     @staticmethod
     def analyze_coverage_file(
-        file_path: str, harness_key: str | None = None, visualize: bool = False, list_only: bool = False
+        file_path: str,
+        harness_key: str | None = None,
+        visualize: bool = False,
+        list_only: bool = False,
     ) -> None:
-        """
-        Analyze a previously recorded coverage file and print summary statistics.
+        """Analyze a previously recorded coverage file and print summary statistics.
 
         Args:
             file_path: Path to the coverage data file.
@@ -366,9 +369,10 @@ class CoverageMonitor:
                          If None, analyze all harnesses in the file.
             visualize: Whether to generate a visualization of the data.
             list_only: If True, only list the available harnesses without analyzing.
+
         """
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 coverage_snapshots = json.load(f)
 
             if not coverage_snapshots:
@@ -382,10 +386,9 @@ class CoverageMonitor:
 
             # List all available harnesses
             print(f"Coverage file: {file_path}")
-            print(
-                f"Time range: {datetime.fromtimestamp(coverage_snapshots[0]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')} - "
-                f"{datetime.fromtimestamp(coverage_snapshots[-1]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}"
-            )
+            start_time = datetime.fromtimestamp(coverage_snapshots[0]["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            end_time = datetime.fromtimestamp(coverage_snapshots[-1]["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            print(f"Time range: {start_time} - {end_time}")
             print(f"Total snapshots: {len(coverage_snapshots)}")
             print("\nAvailable harnesses:")
 
@@ -527,7 +530,9 @@ def main() -> None:
     monitor_parser.add_argument("--task-id", help="Task ID to filter harnesses (optional)")
     monitor_parser.add_argument("--interval", type=int, default=10, help="Interval between snapshots in seconds")
     monitor_parser.add_argument(
-        "--duration", type=int, help="Duration to run the monitor in seconds (default: run indefinitely)"
+        "--duration",
+        type=int,
+        help="Duration to run the monitor in seconds (default: run indefinitely)",
     )
 
     # Analyze command
@@ -535,7 +540,10 @@ def main() -> None:
     analyze_parser.add_argument("file_path", help="Path to the coverage data file")
     analyze_parser.add_argument("--harness-key", help="Harness key to analyze in format 'package_name-harness_name'")
     analyze_parser.add_argument(
-        "--visualize", "-v", action="store_true", help="Generate visualization of coverage metrics"
+        "--visualize",
+        "-v",
+        action="store_true",
+        help="Generate visualization of coverage metrics",
     )
     analyze_parser.add_argument("--list", "-l", action="store_true", help="List available harnesses in the file")
 
@@ -553,7 +561,10 @@ def main() -> None:
 
     elif args.command == "analyze":
         CoverageMonitor.analyze_coverage_file(
-            args.file_path, harness_key=args.harness_key, visualize=args.visualize, list_only=args.list
+            args.file_path,
+            harness_key=args.harness_key,
+            visualize=args.visualize,
+            list_only=args.list,
         )
 
     else:

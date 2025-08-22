@@ -1,36 +1,34 @@
-from functools import lru_cache
 import logging
 import os
 import random
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.default_task_loop import TaskLoop
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, FunctionCoverage
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.maps import CoverageMap
-from typing import List, Generator
-from redis import Redis
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
-from buttercup.common.corpus import Corpus
-from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
-from buttercup.fuzzing_infra.settings import CoverageBotSettings
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.utils import setup_periodic_zombie_reaper
 import shutil
-import buttercup.common.node_local as node_local
+from collections.abc import Generator
 from contextlib import contextmanager
-from buttercup.common.telemetry import init_telemetry
+from functools import lru_cache
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+from redis import Redis
+
+from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.corpus import Corpus
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
+from buttercup.common.default_task_loop import TaskLoop
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.maps import CoverageMap
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.utils import setup_periodic_zombie_reaper
+from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
+from buttercup.fuzzing_infra.settings import CoverageBotSettings
 
 logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=10)
 def get_processed_coverage(corpus_path: str) -> set[str]:
-    """
-    Get the set of processed coverage files in the corpus.
-    """
+    """Get the set of processed coverage files in the corpus."""
     return set()
 
 
@@ -53,7 +51,7 @@ class CoverageBot(TaskLoop):
         logger.info(f"Coverage bot initialized with sample_size: {sample_size}")
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.COVERAGE]
 
     @contextmanager
@@ -67,6 +65,7 @@ class CoverageBot(TaskLoop):
         Returns:
             A context manager yielding a temporary directory containing symlinks
             to the sampled corpus files, or the original corpus path if sample_size is 0.
+
         """
         # Get list of input files from corpus
         input_files = os.listdir(corpus.path)
@@ -78,7 +77,7 @@ class CoverageBot(TaskLoop):
         # If sample_size is 0, use the entire corpus directly without sampling
         if self.sample_size == 0:
             logger.info(
-                f"Using entire non-processed corpus ({len(input_files)} files) in {corpus.path} (sample_size=0)"
+                f"Using entire non-processed corpus ({len(input_files)} files) in {corpus.path} (sample_size=0)",
             )
             yield (corpus.path, input_files)
             return
@@ -128,7 +127,7 @@ class CoverageBot(TaskLoop):
             with self._sample_corpus(corpus) as (sampled_corpus_path, remaining_files):
                 if len(remaining_files) == 0:
                     logger.info(
-                        f"No files to process for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"
+                        f"No files to process for {task.harness_name} | {corpus.path} | {local_tsk.project_name}",
                     )
                     return
 
@@ -154,7 +153,7 @@ class CoverageBot(TaskLoop):
 
                     if func_coverage is None:
                         logger.error(
-                            f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}"
+                            f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}",  # noqa: E501
                         )
                         span.set_status(Status(StatusCode.ERROR))
                         return
@@ -162,7 +161,7 @@ class CoverageBot(TaskLoop):
 
             get_processed_coverage(corpus.path).update(remaining_files)
             logger.info(
-                f"Coverage for {task.harness_name} | {corpus.path} | {local_tsk.project_name} | processed {len(func_coverage)} functions"
+                f"Coverage for {task.harness_name} | {corpus.path} | {local_tsk.project_name} | processed {len(func_coverage)} functions",  # noqa: E501
             )
             self._submit_function_coverage(func_coverage, task.harness_name, task.package_name, task.task_id)
 
@@ -179,16 +178,20 @@ class CoverageBot(TaskLoop):
         return function_coverage.covered_lines > old_function_coverage.covered_lines  # type: ignore[no-any-return]
 
     def _submit_function_coverage(
-        self, func_coverage: list[CoveredFunction], harness_name: str, package_name: str, task_id: str
+        self,
+        func_coverage: list[CoveredFunction],
+        harness_name: str,
+        package_name: str,
+        task_id: str,
     ) -> None:
-        """
-        Store function coverage in Redis.
+        """Store function coverage in Redis.
 
         Args:
             func_coverage: List of dictionaries containing function coverage metrics
             harness_name: Name of the harness
             package_name: Name of the package
             task_id: Task ID
+
         """
         coverage_map = CoverageMap(self.redis, harness_name, package_name, task_id)
 

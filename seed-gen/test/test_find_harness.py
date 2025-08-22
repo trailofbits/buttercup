@@ -254,9 +254,7 @@ def test_find_harnesses_in_oss_fuzz_project(codequery: CodeQuery):
 def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
     """Test getting harness source candidates for C++ project."""
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,9 +286,7 @@ def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
 def test_get_harness_source_cpp(codequery: CodeQuery):
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -374,9 +370,7 @@ def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
 def test_get_harness_source_candidates_java(codequery: CodeQuery):
     """Test getting harness source candidates for Java project."""
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -618,7 +612,7 @@ def curl_oss_fuzz_ct() -> Iterator[ChallengeTask]:
 
 @pytest.fixture(scope="module")
 def curl_oss_fuzz_cq(curl_oss_fuzz_ct: ChallengeTask) -> Iterator[CodeQuery]:
-    yield CodeQuery(challenge=curl_oss_fuzz_ct)
+    return CodeQuery(challenge=curl_oss_fuzz_ct)
 
 
 @pytest.mark.integration
@@ -663,7 +657,9 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     ],
 )
 def test_get_harness_source_candidates_curl(
-    curl_oss_fuzz_cq: CodeQuery, harness_name: str, expected_first_match: str
+    curl_oss_fuzz_cq: CodeQuery,
+    harness_name: str,
+    expected_first_match: str,
 ):
     harnesses = get_harness_source_candidates(curl_oss_fuzz_cq, harness_name)
     assert expected_first_match == harnesses[0].name
@@ -770,7 +766,7 @@ def test_get_harness_source(
             FunctionCoverage(
                 function_name="random_name",
                 function_paths=coverage_map_function_paths,
-            )
+            ),
         ]
         coverage_map.return_value = coverage_map_mock
 

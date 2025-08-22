@@ -1,16 +1,18 @@
-from pathlib import Path
+import logging
 from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language
 from buttercup.program_model.codequery import CodeQuery
-import pytest
 from buttercup.program_model.utils.common import (
-    TypeDefinitionType,
-    TypeDefinition,
     Function,
+    TypeDefinition,
+    TypeDefinitionType,
     TypeUsageInfo,
 )
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +32,7 @@ def filter_project_context(
     it checks whether matches belong to a file that as the proper project_name in their path."""
     if language == Language.C:
         return [x for x in results if f"/{container_src_dir}/" in str(x.file_path)]
-    else:
-        return results
+    return results
 
 
 @dataclass(frozen=True)

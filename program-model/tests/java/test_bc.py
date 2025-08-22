@@ -4,18 +4,19 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
+
 from ..common import (
-    common_test_get_functions,
-    common_test_get_callers,
-    common_test_get_callees,
-    common_test_get_type_definitions,
-    common_test_get_type_usages,
-    TestFunctionInfo,
-    TestCallerInfo,
     TestCalleeInfo,
+    TestCallerInfo,
+    TestFunctionInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
     TypeDefinitionType,
+    common_test_get_callees,
+    common_test_get_callers,
+    common_test_get_functions,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
 )
 
 
@@ -64,7 +65,7 @@ def test_get_functions(
                     name="generate",
                     file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
                     start_line=117,
-                )
+                ),
             ],
             5,
         ),
@@ -107,7 +108,7 @@ def test_get_callers(
                     name="getAttributes",
                     file_path="/src/bc-java/pkix/src/main/java/org/bouncycastle/cms/CMSAuthEnvelopedDataGenerator.java",
                     start_line=55,
-                )
+                ),
             ],
             2,
         ),

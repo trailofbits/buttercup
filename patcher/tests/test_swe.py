@@ -1,26 +1,30 @@
 """Tests for the Software Engineer agent's code snippet parsing functionality."""
 
-import pytest
-from pathlib import Path
+import os
 import shutil
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
-import os
+
+import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from buttercup.patcher.agents.common import ContextCodeSnippet
-from buttercup.patcher.patcher import PatchInput
-from buttercup.patcher.utils import PatchInputPoV
+
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
+from buttercup.patcher.agents.common import ContextCodeSnippet
 from buttercup.patcher.agents.swe import (
     CodeSnippetChange,
     CodeSnippetChanges,
     CodeSnippetKey,
-    PatcherAgentState,
     PatcherAgentName,
+    PatcherAgentState,
     SWEAgent,
 )
+from buttercup.patcher.patcher import PatchInput
+from buttercup.patcher.utils import PatchInputPoV
+
+# ruff: noqa: E501, W293
 
 PNGRUTIL_C_CODE = """
       return;
@@ -183,9 +187,7 @@ def mock_docker_run(challenge_task: ChallengeTask):
                 # Copy source files to container src dir
                 src_path = challenge_task.get_source_path()
                 shutil.copytree(src_path, container_dst_dir, dirs_exist_ok=True)
-            elif args[1] == "create":
-                pass
-            elif args[1] == "rm":
+            elif args[1] == "create" or args[1] == "rm":
                 pass
 
             return subprocess.CompletedProcess(args, returncode=0)
@@ -284,7 +286,7 @@ def swe_agent(mock_challenge: ChallengeTask, tmp_path: Path) -> SWEAgent:
                 sanitizer_output="sanitizer-output-challenge-task",
                 engine="libfuzzer",
                 harness_name="my-harness",
-            )
+            ),
         ],
     )
     return SWEAgent(
@@ -694,7 +696,9 @@ def test_select_patch_strategy_basic(swe_agent: SWEAgent, patcher_agent_state: P
 
 
 def test_select_patch_strategy_summary_error(
-    swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock
+    swe_agent: SWEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_llm: MagicMock,
 ):
     """Test the select_patch_strategy method for errors in summary generation."""
     patch_strategy_str = (
@@ -721,7 +725,9 @@ def test_select_patch_strategy_summary_error(
 
 
 def test_select_patch_strategy_no_full(
-    swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock
+    swe_agent: SWEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_llm: MagicMock,
 ):
     """Test the select_patch_strategy method for incorrect output"""
     patch_strategy_str = "This is a detailed patch strategy."
@@ -746,7 +752,9 @@ def test_select_patch_strategy_no_full(
 
 
 def test_select_patch_strategy_no_full_correct_summary(
-    swe_agent: SWEAgent, patcher_agent_state: PatcherAgentState, mock_llm: MagicMock
+    swe_agent: SWEAgent,
+    patcher_agent_state: PatcherAgentState,
+    mock_llm: MagicMock,
 ):
     """Test that the summary generation is done on the correct full description"""
     patch_strategy_str = "This is a detailed patch strategy."

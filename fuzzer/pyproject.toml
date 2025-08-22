@@ -58,15 +58,6 @@ target-version = "py312"
 select = ["E", "F", "I", "W", "UP"]
 ignore = [
     "COM812", "ISC001",  # Formatter conflicts
-    # Temporarily disabled for standardization PR - re-enable after refactoring:
-    "I001",   # Import block is un-sorted or un-formatted
-    "E501",   # Line too long
-    "W291",   # Trailing whitespace  
-    "UP006",  # Use built-in collection types for type annotations
-    "UP015",  # Unnecessary mode argument
-    "UP035",  # Import from modern locations instead of deprecated typing
-    "UP045",  # Use X | None for type annotations
-    "UP046",  # Use modern generic class syntax
 ]
 
 [tool.ruff.lint.per-file-ignores]

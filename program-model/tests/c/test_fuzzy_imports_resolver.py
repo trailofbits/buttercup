@@ -1,6 +1,7 @@
-from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyCImportsResolver
 import pytest
+
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.api.fuzzy_imports_resolver import FuzzyCImportsResolver
 
 
 @pytest.mark.parametrize("file_path,expected_imports", [("src/md5/md5.c", {"src/md5/md5.h"})])
