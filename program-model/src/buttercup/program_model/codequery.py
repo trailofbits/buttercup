@@ -384,7 +384,8 @@ class CodeQuery:
                 file_path,
             )
 
-        # FIXME(Evan): Sometimes cscope doesn't identify a function (option 2). They can be found by looking for symbols (option 1).
+        # FIXME(Evan): Sometimes cscope doesn't identify a function (option 2).
+        # They can be found by looking for symbols (option 1).
         results: list[CQSearchResult] = []
         flags = ["1", "2"]
         for flag in flags:

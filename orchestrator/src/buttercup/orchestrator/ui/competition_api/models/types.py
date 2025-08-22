@@ -2,6 +2,8 @@
 #   filename:  /var/folders/ck/j9600dhj1t3f1901qw9vs2bh0000gn/T/tmp.YsQ74ZHmdF/openapi.json
 #   timestamp: 2025-07-30T12:54:58+00:00
 
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 from enum import Enum

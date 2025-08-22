@@ -515,7 +515,9 @@ class TestPartitionedCorpus(unittest.TestCase):
         scratch_dir_mock,
         corpus_mock,
     ):
-        """Test that when a file is missing from corpus.path but available in corpus.remote_path, it's copied from remote."""
+        """Test that when a file is missing from corpus.path but available in corpus.remote_path,
+        it's copied from remote.
+        """
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"

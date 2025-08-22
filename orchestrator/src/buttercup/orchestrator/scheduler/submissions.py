@@ -585,7 +585,6 @@ class CompetitionAPI:
         assert task_id
         assert sarif_id
 
-        # TODO: The description is the most basic I could think of. I don't know if we wanted to do something more fancy.
         submission = TypesSarifAssessmentSubmission(
             assessment=TypesAssessment.AssessmentCorrect,
             description="Overlapping with our POV/patch",
@@ -1004,7 +1003,8 @@ class Submissions:
         if _current_patch(e):
             return False
 
-        # Do not request a patch until we know if the PoV is already mitigated by an already submitted patch from another submission
+        # Do not request a patch until we know if the PoV is already mitigated by an already submitted patch from
+        # another submission
         # If this returns False, this will later be merged.
         if self._should_wait_for_patch_mitigation_merge(i, e):
             return False
