@@ -8,6 +8,8 @@ from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
 from buttercup.common.sets import RedisSet
 
+# ruff: noqa: UP046
+
 MsgType = TypeVar("MsgType", bound=Message)
 MSG_FIELD_NAME = b"msg"
 

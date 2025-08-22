@@ -152,7 +152,8 @@ class Downloader:
             # need to change the Task while downloading/extracting it.
             if "Directory not empty" in str(e):
                 logger.warning(
-                    f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it...",
+                    f"Directory {final_task_dir} already exists, "
+                    "another process downloaded the task first, ignore it...",
                 )
                 return True
             logger.exception(f"Failed to move task directory: {e!s}")

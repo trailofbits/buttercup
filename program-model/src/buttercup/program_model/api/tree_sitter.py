@@ -18,6 +18,8 @@ from buttercup.program_model.utils.common import (
     TypeDefinitionType,
 )
 
+# ruff: noqa: W291
+
 logger = logging.getLogger(__name__)
 
 QUERY_STR_C = """

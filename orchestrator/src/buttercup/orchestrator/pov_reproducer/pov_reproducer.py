@@ -46,7 +46,8 @@ class POVReproducer:
             was_marked = self.pov_status.mark_expired(entry)
             if not was_marked:
                 logger.debug(
-                    "Failed to mark POV as expired for task %s - item was not in pending state (another worker might have marked it)",
+                    "Failed to mark POV as expired for task %s - item was not in pending state "
+                    "(another worker might have marked it)",
                     task_id,
                 )
             return False
@@ -90,14 +91,16 @@ class POVReproducer:
                 was_marked = self.pov_status.mark_non_mitigated(entry)
                 if not was_marked:
                     logger.debug(
-                        "Failed to mark POV as non-mitigated for task %s - item was not in pending state (another worker might have marked it)",
+                        "Failed to mark POV as non-mitigated for task %s - item was not in pending state "
+                        "(another worker might have marked it)",
                         task_id,
                     )
             else:
                 was_marked = self.pov_status.mark_mitigated(entry)
                 if not was_marked:
                     logger.debug(
-                        "Failed to mark POV as mitigated for task %s - item was not in pending state (another worker might have marked it)",
+                        "Failed to mark POV as mitigated for task %s - item was not in pending state "
+                        "(another worker might have marked it)",
                         task_id,
                     )
 

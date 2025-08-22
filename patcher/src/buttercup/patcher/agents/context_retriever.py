@@ -61,6 +61,8 @@ from buttercup.patcher.agents.tools import (
 )
 from buttercup.patcher.utils import TruncatePosition, find_file_in_source_dir, get_challenge, truncate_output
 
+# ruff: noqa: E501
+
 logger = logging.getLogger(__name__)
 
 CUSTOM_TEST_MAP_NAME = "custom_test_map"

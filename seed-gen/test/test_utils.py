@@ -72,12 +72,7 @@ def test_extract_code_single_block():
 
 def test_extract_code_multiple_blocks():
     message = AIMessage(
-        content=(
-            "First block:\n"
-            "```python\nprint('first')\n```\n"
-            "Middle text\n"
-            "```python\nprint('second')\n```"
-        ),
+        content=("First block:\n```python\nprint('first')\n```\nMiddle text\n```python\nprint('second')\n```"),
     )
     result = extract_code(message)
     assert result == "print('second')\n"

@@ -32,6 +32,8 @@ from buttercup.patcher.utils import (
     truncate_output,
 )
 
+# ruff: noqa: E501
+
 MAX_STACKTRACE_LENGTH = 15000
 
 logger = logging.getLogger(__name__)

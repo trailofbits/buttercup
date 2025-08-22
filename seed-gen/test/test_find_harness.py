@@ -254,9 +254,7 @@ def test_find_harnesses_in_oss_fuzz_project(codequery: CodeQuery):
 def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
     """Test getting harness source candidates for C++ project."""
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,9 +286,7 @@ def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
 def test_get_harness_source_cpp(codequery: CodeQuery):
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -374,9 +370,7 @@ def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
 def test_get_harness_source_candidates_java(codequery: CodeQuery):
     """Test getting harness source candidates for Java project."""
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)

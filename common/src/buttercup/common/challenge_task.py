@@ -710,7 +710,8 @@ class ChallengeTask:
         env: dict[str, str] | None = None,
     ) -> ReproduceResult:
         logger.info(
-            "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
+            "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | "
+            "fuzzer_args=%s | architecture=%s | env=%s",
             self.project_name,
             fuzzer_name,
             crash_path,
@@ -758,7 +759,8 @@ class ChallengeTask:
         env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
-            "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
+            "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | "
+            "corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
             self.project_name,
             harness_name,
             fuzzer_args,

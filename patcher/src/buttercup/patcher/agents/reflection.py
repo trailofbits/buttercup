@@ -35,6 +35,8 @@ from buttercup.patcher.agents.common import (
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.patcher.utils import decode_bytes
 
+# ruff: noqa: E501
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_MSG = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.

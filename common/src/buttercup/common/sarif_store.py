@@ -11,7 +11,8 @@ class SARIFBroadcastDetail(BaseModel):
 
     metadata: dict[str, Any] = Field(
         ...,
-        description="String to string map containing data that should be attached to outputs like log messages and OpenTelemetry trace attributes for traceability",
+        description="String to string map containing data that should be attached to outputs "
+        "like log messages and OpenTelemetry trace attributes for traceability",
     )
     sarif: dict[str, Any] = Field(..., description="SARIF Report compliant with provided schema")
     sarif_id: str

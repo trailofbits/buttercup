@@ -35,6 +35,8 @@ from buttercup.patcher.agents.context_retriever import (
 from buttercup.patcher.patcher import PatchInput
 from buttercup.patcher.utils import PatchInputPoV
 
+# ruff: noqa: W293, UP031
+
 original_subprocess_run = subprocess.run
 
 
@@ -2034,7 +2036,9 @@ def test_get_initial_context_multiple_povs_deduplication(
     mock_agent_llm: MagicMock,
     mock_runnable_config: dict,
 ) -> None:
-    """Test that get_initial_context deduplicates code snippet requests when the same functions appear in multiple POVs."""
+    """Test that get_initial_context deduplicates code snippet requests when the same functions appear in multiple
+    POVs.
+    """
     # Create a test state with multiple POVs that share some functions in their stacktraces
     state = PatcherAgentState(
         context=PatchInput(

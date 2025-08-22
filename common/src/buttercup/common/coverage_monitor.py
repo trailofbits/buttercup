@@ -386,10 +386,9 @@ class CoverageMonitor:
 
             # List all available harnesses
             print(f"Coverage file: {file_path}")
-            print(
-                f"Time range: {datetime.fromtimestamp(coverage_snapshots[0]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')} - "
-                f"{datetime.fromtimestamp(coverage_snapshots[-1]['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}",
-            )
+            start_time = datetime.fromtimestamp(coverage_snapshots[0]["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            end_time = datetime.fromtimestamp(coverage_snapshots[-1]["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            print(f"Time range: {start_time} - {end_time}")
             print(f"Total snapshots: {len(coverage_snapshots)}")
             print("\nAvailable harnesses:")
 

@@ -12,6 +12,8 @@ from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQuery, CodeQueryPersistent
 from buttercup.program_model.utils.common import TypeDefinitionType
 
+# ruff: noqa: E501
+
 
 def setup_c_dirs(tmp_path: Path) -> Path:
     """Create a mock c challenge task directory structure."""

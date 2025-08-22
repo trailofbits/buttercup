@@ -359,10 +359,7 @@ class Task:
             )
         type_defs = state.task._do_get_type_defs(type_name)
         if len(type_defs) > 0:
-            results = [
-                CodeSnippet(file_path=type_def.file_path, code=type_def.definition)
-                for type_def in type_defs
-            ]
+            results = [CodeSnippet(file_path=type_def.file_path, code=type_def.definition) for type_def in type_defs]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
                 update={
@@ -491,10 +488,7 @@ class Task:
             )
         callers = state.task._do_get_callers(function_name)
 
-        code_snippets = [
-            CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body)
-            for caller in callers
-        ]
+        code_snippets = [CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body) for caller in callers]
         call_result = ToolCallResult(call=call, results=code_snippets)
         return Command(
             update={
@@ -614,11 +608,7 @@ def batch_tool(
             file_path = call.arguments["file_path"]
             result = Task._cat(file_path, state, tool_call_id)
             results.append(result)
-        elif (
-            call.tool_name == "get_callers"
-            and "function_name" in call.arguments
-            and "file_path" in call.arguments
-        ):
+        elif call.tool_name == "get_callers" and "function_name" in call.arguments and "file_path" in call.arguments:
             function_name = call.arguments["function_name"]
             file_path = call.arguments["file_path"]
             result = Task._get_callers(function_name, file_path, state, tool_call_id)
