@@ -115,7 +115,9 @@ class TypeDefinition:
     """Path to the file containing the type definition."""
 
     def __eq__(self, other: object) -> bool:
-        """Two type definitions are equal if they have the same name, type, definition, definition line, and file path."""
+        """Two type definitions are equal if they have the same
+        name, type, definition, definition line, and file path.
+        """
         if not isinstance(other, TypeDefinition):
             return NotImplemented
         return (

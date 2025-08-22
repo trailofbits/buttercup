@@ -153,7 +153,7 @@ class CoverageBot(TaskLoop):
 
                     if func_coverage is None:
                         logger.error(
-                            f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}",
+                            f"No function coverage found for {task.harness_name} | {corpus.path} | {local_tsk.project_name}",  # noqa: E501
                         )
                         span.set_status(Status(StatusCode.ERROR))
                         return
@@ -161,7 +161,7 @@ class CoverageBot(TaskLoop):
 
             get_processed_coverage(corpus.path).update(remaining_files)
             logger.info(
-                f"Coverage for {task.harness_name} | {corpus.path} | {local_tsk.project_name} | processed {len(func_coverage)} functions",
+                f"Coverage for {task.harness_name} | {corpus.path} | {local_tsk.project_name} | processed {len(func_coverage)} functions",  # noqa: E501
             )
             self._submit_function_coverage(func_coverage, task.harness_name, task.package_name, task.task_id)
 

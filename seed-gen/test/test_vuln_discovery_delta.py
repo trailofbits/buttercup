@@ -66,9 +66,7 @@ def test_do_task_no_valid_povs(
     ):
         # Mock the tracer span
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
-            mock_span
-        )
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
 
         # Mock LLM responses for the workflow
@@ -141,9 +139,7 @@ def test_do_task_no_valid_povs(
             ),
         ]
         # this works because there is 1 mock_llm instance for the test
-        mock_llm.invoke.side_effect = (
-            context_messages + vuln_messages * vuln_discovery_task.MAX_POV_ITERATIONS
-        )
+        mock_llm.invoke.side_effect = context_messages + vuln_messages * vuln_discovery_task.MAX_POV_ITERATIONS
 
         # Mock codequery for tools
         vuln_discovery_task.codequery.get_functions = Mock(

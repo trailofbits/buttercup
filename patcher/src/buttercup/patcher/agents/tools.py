@@ -79,7 +79,9 @@ def grep(
 
 @tool
 def cat(file_path: str, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
+    """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might
+    return a large amount of text.
+    """
     path = Path(file_path)
     logger.info("Reading contents of %s", path)
     challenge = get_challenge(state.challenge_task_dir)

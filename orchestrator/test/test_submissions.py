@@ -2490,7 +2490,9 @@ class TestSubmissions:
         assert "sarif-2" in sarif_ids
 
     def test_get_available_sarifs_for_matching_stopped_submissions_release_sarifs(self, submissions):
-        """Test _get_available_sarifs_for_matching excludes SARIFs from stopped submissions (makes them available again)."""
+        """Test _get_available_sarifs_for_matching excludes SARIFs from stopped submissions
+        (makes them available again).
+        """
         # Mock the sarif_store to return some SARIFs
         mock_sarif1 = Mock()
         mock_sarif1.sarif_id = "sarif-1"
@@ -2573,7 +2575,8 @@ class TestSubmissions:
         # Call the method
         result = submissions._get_available_sarifs_for_matching("test-task")
 
-        # Should return sarif-2, sarif-3, and sarif-4 (sarif-1 and sarif-5 are used by active submissions, sarif-3 is released by stopped submission)
+        # Should return sarif-2, sarif-3, and sarif-4 (sarif-1 and sarif-5 are used by active submissions, sarif-3
+        # is released by stopped submission)
         assert len(result) == 3
         sarif_ids = [sarif.sarif_id for sarif in result]
         assert "sarif-2" in sarif_ids
@@ -4912,7 +4915,8 @@ class TestRecordPatchedBuild:
             SubmissionEntryBuilder().crash(task_id="task-1", crash_input_path="/path/to/crash2.bin").stopped().build(),
         ]
 
-        # Ensure task registry doesn't filter out submissions (stopped submissions are filtered by the stop flag, not task registry)
+        # Ensure task registry doesn't filter out submissions (stopped submissions are filtered by the stop flag,
+        # not task registry).
         submissions.task_registry.should_stop_processing.return_value = False
 
         mock_consolidate = Mock()
@@ -5435,7 +5439,9 @@ class TestRecordPatchedBuild:
         mock_consolidate.assert_not_called()
 
     def test_merge_entries_by_patch_mitigation_mixed_build_completion(self, submissions):
-        """Test _merge_entries_by_patch_mitigation with multiple build outputs where some are complete and some aren't."""
+        """Test _merge_entries_by_patch_mitigation with multiple build outputs where some are complete and
+        some aren't.
+        """
         # Create submission with mixed build completion status
         entry = (
             SubmissionEntryBuilder()

@@ -50,6 +50,8 @@ from buttercup.patcher.agents.tools import (
 )
 from buttercup.patcher.utils import PatchInputPoV, get_challenge
 
+# ruff: noqa: E501
+
 logger = logging.getLogger(__name__)
 
 CHECK_HARNESS_CHANGES_SYSTEM_MSG = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.

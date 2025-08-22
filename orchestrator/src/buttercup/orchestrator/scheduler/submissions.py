@@ -304,7 +304,7 @@ class CompetitionAPI:
                     SubmissionResult.PASSED,
                 ]:
                     logger.error(
-                        f"[{crash.crash.target.task_id}] POV submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}",
+                        f"[{crash.crash.target.task_id}] POV submission rejected (status: {response.status}) for harness: {crash.crash.harness_name}",  # noqa: E501
                     )
                     span.set_status(Status(StatusCode.ERROR))
                     return None, mapped_status
@@ -521,7 +521,7 @@ class CompetitionAPI:
                 SubmissionResult.PASSED,
             ]:
                 logger.error(
-                    f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}",
+                    f"[{task_id}] Bundle patch submission rejected (status: {response.status}) for harness: {pov_id} {patch_id} {sarif_id}",  # noqa: E501
                 )
                 span.set_status(Status(StatusCode.ERROR))
                 return (False, mapped_status)
@@ -585,7 +585,6 @@ class CompetitionAPI:
         assert task_id
         assert sarif_id
 
-        # TODO: The description is the most basic I could think of. I don't know if we wanted to do something more fancy.
         submission = TypesSarifAssessmentSubmission(
             assessment=TypesAssessment.AssessmentCorrect,
             description="Overlapping with our POV/patch",
@@ -615,7 +614,7 @@ class CompetitionAPI:
                 SubmissionResult.PASSED,
             ]:
                 logger.error(
-                    f"[{task_id}] Matching SARIF submission rejected (status: {response.status}) for sarif_id: {sarif_id}",
+                    f"[{task_id}] Matching SARIF submission rejected (status: {response.status}) for sarif_id: {sarif_id}",  # noqa: E501
                 )
                 span.set_status(Status(StatusCode.ERROR))
                 return (False, mapped_status)
@@ -707,7 +706,7 @@ class Submissions:
 
     def __post_init__(self) -> None:
         logger.info(
-            f"Initializing Submissions, patch_submission_retry_limit={self.patch_submission_retry_limit}, patch_requests_per_vulnerability={self.patch_requests_per_vulnerability}, concurrent_patch_requests_per_task={self.concurrent_patch_requests_per_task}",
+            f"Initializing Submissions, patch_submission_retry_limit={self.patch_submission_retry_limit}, patch_requests_per_vulnerability={self.patch_requests_per_vulnerability}, concurrent_patch_requests_per_task={self.concurrent_patch_requests_per_task}",  # noqa: E501
         )
         self.entries = self._get_stored_submissions()
         self.sarif_store = SARIFStore(self.redis)
@@ -790,7 +789,7 @@ class Submissions:
                 if cf_comparator.is_similar() or instkey_comparator.is_similar():
                     log_entry(
                         e,
-                        f"Incoming PoV crash_data: {crash_data}, inst_key: {inst_key}, existing crash_data: {submission_crash_data}, existing inst_key: {submission_inst_key} are duplicates. ",
+                        f"Incoming PoV crash_data: {crash_data}, inst_key: {inst_key}, existing crash_data: {submission_crash_data}, existing inst_key: {submission_inst_key} are duplicates. ",  # noqa: E501
                         i,
                         fn=logger.debug,
                     )
@@ -881,7 +880,7 @@ class Submissions:
             log_entry(
                 source_entry,
                 i=source_index,
-                msg=f"Submission consolidated and stopped. Total crashes in target: {len(target_entry.crashes)}, total patches: {len(target_entry.patches)}",
+                msg=f"Submission consolidated and stopped. Total crashes in target: {len(target_entry.crashes)}, total patches: {len(target_entry.patches)}",  # noqa: E501
             )
 
         # Reorder patches after consolidation to ensure optimal processing order
@@ -896,7 +895,7 @@ class Submissions:
         log_entry(
             target_entry,
             i=target_index,
-            msg=f"Consolidation complete. Final submission has {len(target_entry.crashes)} crashes and {len(target_entry.patches)} patches.",
+            msg=f"Consolidation complete. Final submission has {len(target_entry.crashes)} crashes and {len(target_entry.patches)} patches.",  # noqa: E501
         )
 
         return True
@@ -966,7 +965,7 @@ class Submissions:
                 log_entry(e, i=i, msg="Submitted POV")
                 return True
             logger.error(
-                f"[{_task_id(pov.crash)}] Failed to submit vulnerability. Competition API returned {status}. Will attempt the next PoV.",
+                f"[{_task_id(pov.crash)}] Failed to submit vulnerability. Competition API returned {status}. Will attempt the next PoV.",  # noqa: E501
             )
             logger.debug(f"CrashInfo: {pov.crash}")
             log_entry(e, i=i, msg="Failed to submit POV")
@@ -1004,7 +1003,8 @@ class Submissions:
         if _current_patch(e):
             return False
 
-        # Do not request a patch until we know if the PoV is already mitigated by an already submitted patch from another submission
+        # Do not request a patch until we know if the PoV is already mitigated by an already submitted patch from
+        # another submission
         # If this returns False, this will later be merged.
         if self._should_wait_for_patch_mitigation_merge(i, e):
             return False
@@ -1014,7 +1014,7 @@ class Submissions:
             log_entry(
                 e,
                 i=i,
-                msg=f"Skipping patch request because there are already {self._task_outstanding_patch_requests(_task_id(e))} outstanding patch requests for the task",
+                msg=f"Skipping patch request because there are already {self._task_outstanding_patch_requests(_task_id(e))} outstanding patch requests for the task",  # noqa: E501
                 fn=logger.debug,
             )
             return False
@@ -1064,7 +1064,7 @@ class Submissions:
             build_output = BuildOutput(
                 engine=engine,
                 sanitizer=san,
-                task_dir="",  # Use a placeholder for the task dir, it will be updated when the build request is processed
+                task_dir="",  # placeholder,  will be updated when the build request is processed
                 task_id=task_id,
                 build_type=BuildType.PATCH,
                 apply_diff=True,
@@ -1084,7 +1084,7 @@ class Submissions:
             # Add the build output placeholder to the list of patch builds
             patch.build_outputs.append(build_output)
             logger.info(
-                f"[{task_id}] Pushed build request {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff} | {build_req.internal_patch_id}",
+                f"[{task_id}] Pushed build request {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff} | {build_req.internal_patch_id}",  # noqa: E501
             )
         return True
 
@@ -1108,7 +1108,7 @@ class Submissions:
             # If we get here, the build output is not associated with any patch,
             # it is possible that the task was cancelled or expired.
             logger.error(
-                f"Build output {build_output.internal_patch_id} not found in any patch (task expired/cancelled?). Will discard.",
+                f"Build output {build_output.internal_patch_id} not found in any patch (task expired/cancelled?). Will discard.",  # noqa: E501
             )
             return True
 
@@ -1118,7 +1118,7 @@ class Submissions:
         if not bo:
             # This should never happen, but just in case.
             logger.error(
-                f"Build output {build_output.internal_patch_id} not found in patch {patch.internal_patch_id}. Will discard.",
+                f"Build output {build_output.internal_patch_id} not found in patch {patch.internal_patch_id}. Will discard.",  # noqa: E501
             )
             return True
 
@@ -1126,7 +1126,7 @@ class Submissions:
         if bo.task_dir:
             # This could happen if the build takes longer than the build request timeout.
             logger.warning(
-                f"Build output {build_output.internal_patch_id} already recorded for patch {patch.internal_patch_id}. Will discard.",
+                f"Build output {build_output.internal_patch_id} already recorded for patch {patch.internal_patch_id}. Will discard.",  # noqa: E501
             )
             return True
 
@@ -1175,7 +1175,8 @@ class Submissions:
         # Check if the patch has already been submitted.
         if patch.competition_patch_id:
             # This patch has already been submitted, we don't need to submit it again.
-            # It is either that the current patch is good, or, we advanced to the next patch (which was previously merged from a different SubmissionEntry)
+            # It is either that the current patch is good, or, we advanced to the next patch (which was
+            # previously merged from a different SubmissionEntry)
             return False
 
         # Check if this submission's POVs are mitigated by patches from other submissions
@@ -1184,9 +1185,10 @@ class Submissions:
 
         # If we have tried submitting the patch too many times, we will move on to the next patch.
         if e.patch_submission_attempts >= self.patch_submission_retry_limit:
-            # Hopefully, it was something wrong with our previous patch that made the submission fail and not the competition-API side.
-            # If it is the competition-API that is the issue, we will end up in a loop requesting new patches and submitting them. This
-            # is not ideal, however the alternative scenario is that we are stuck submitting the same patch over and over again.
+            # Hopefully, it was something wrong with our previous patch that made the submission fail and not the
+            # competition-API side. If it is the competition-API that is the issue, we will end up in a loop
+            # requesting new patches and submitting them. This is not ideal, however the alternative scenario is that
+            # we are stuck submitting the same patch over and over again.
             _advance_patch_idx(e)
             return True
 
@@ -1209,8 +1211,8 @@ class Submissions:
                 msg=f"Patch submission failed, advancing to next patch. Attempts={e.patch_submission_attempts}",
             )
         else:
-            # This is a status we won't do anything about, just record it. If it is a timeout, next iteration will probably
-            # filter the SubmissionEntry so we won't try this patch again.
+            # This is a status we won't do anything about, just record it. If it is a timeout, next iteration
+            # will probably filter the SubmissionEntry so we won't try this patch again.
             log_entry(e, i=i, msg=f"Patch submission returned unknown status {status}")
 
         return True
@@ -1274,7 +1276,8 @@ class Submissions:
         competition_patch_id: str | None = None,
         competition_sarif_id: str | None = None,
     ) -> bool:
-        """ "Ensures there is a single bundle with the given competition_pov_id, competition_patch_id and competition_sarif_id
+        """ "Ensures there is a single bundle with the given competition_pov_id, competition_patch_id and
+        competition_sarif_id
         NOTE: Only called when bundles < 2
         NOTE: competition_patch_id and competition_sarif_id can be None if we are not submitting a patch or sarif
         when they are not set, for a new bundle we will set them to empty strings,
@@ -1306,7 +1309,7 @@ class Submissions:
                 log_entry(
                     e,
                     i=i,
-                    msg=f"Submitted bundle {competition_bundle_id} for patch {competition_patch_id} and sarif {competition_sarif_id}",
+                    msg=f"Submitted bundle {competition_bundle_id} for patch {competition_patch_id} and sarif {competition_sarif_id}",  # noqa: E501
                 )
                 return True
             log_entry(
@@ -1348,7 +1351,7 @@ class Submissions:
             log_entry(
                 e,
                 i=i,
-                msg=f"Patched bundle {bundle.bundle_id} with patch {competition_patch_id} and sarif {competition_sarif_id}",
+                msg=f"Patched bundle {bundle.bundle_id} with patch {competition_patch_id} and sarif {competition_sarif_id}",  # noqa: E501
             )
             return True
 
@@ -1686,7 +1689,7 @@ class Submissions:
                 log_entry(
                     e,
                     i=i,
-                    msg=f"Patch competition_patch_id={maybe_patch.competition_patch_id} mitigates at least one PoV, wait for merge",
+                    msg=f"Patch competition_patch_id={maybe_patch.competition_patch_id} mitigates at least one PoV, wait for merge",  # noqa: E501
                 )
                 return True
 
@@ -1720,7 +1723,8 @@ class Submissions:
                     # Builds aren't ready yet
                     continue
 
-                # At this point we have the patched builds available, we can check if they mitigate any PoVs in other entries (for the same task)
+                # At this point we have the patched builds available, we can check if they mitigate any
+                # PoVs in other entries (for the same task)
 
                 to_merge = [(i, e)]
                 for j, e2 in self._enumerate_task_submissions(task_id):
@@ -1736,7 +1740,7 @@ class Submissions:
                 if len(to_merge) > 1:
                     merged_indices = [j for j, _ in to_merge[1:]]  # Skip the first entry (i) since it's the target
                     logger.info(
-                        f"[{i}:{_task_id(e)}] Merging {len(to_merge) - 1} similar submissions into this one. Merging indices: {', '.join(map(str, merged_indices))}",
+                        f"[{i}:{_task_id(e)}] Merging {len(to_merge) - 1} similar submissions into this one. Merging indices: {', '.join(map(str, merged_indices))}",  # noqa: E501
                     )
                     self._consolidate_similar_submissions(crash=None, similar_entries=to_merge)
             except Exception as err:
@@ -1793,13 +1797,14 @@ class Submissions:
 
             except Exception:
                 logger.exception(f"[{i}:{_task_id(e)}] Error processing submission")
-                # NOTE: The question is if we should raise at some point. Worst case we are stuck in a error-condition
-                # that can only be fixed by a restart of the scheduler. However, we don't know that. If we raise, we risk
-                # the scheduler only attempting the first vulnerability and the rest of the cycle being skipped. This could
-                # lead to a situation where we don't attempt any submissions. For now, we will just log the error and continue.
+                # NOTE: The question is if we should raise at some point. Worst case we are stuck in a
+                # error-condition that can only be fixed by a restart of the scheduler. However, we don't know that.
+                # If we raise, we risk the scheduler only attempting the first vulnerability and the rest of the
+                # cycle being skipped. This could lead to a situation where we don't attempt any submissions.
+                # For now, we will just log the error and continue.
 
-        # As a final phase we will check if active patches fixes vulnerabilities in other SubmissionEntries and for those we will
-        # consolidate the SubmissionEntries.
+        # As a final phase we will check if active patches fixes vulnerabilities in other SubmissionEntries and for
+        # those we will consolidate the SubmissionEntries.
         try:
             self._merge_entries_by_patch_mitigation()
         except Exception as err:

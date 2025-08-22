@@ -84,7 +84,7 @@ class ProgramModel:
                     )
                     cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
                     logger.info(
-                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery",
+                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery",  # noqa: E501
                     )
                     span.set_status(Status(StatusCode.OK))
                 # Push it to the remote storage

@@ -106,7 +106,7 @@ class CoverageRunner:
         jacoco_path = build_dir / "dumps" / f"{harness_name}.xml"
         if not jacoco_path.exists():
             logger.error(
-                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}",
+                f"Failed to find jacoco file for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {jacoco_path}",  # noqa: E501
             )
             return None
 
@@ -159,7 +159,7 @@ class CoverageRunner:
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(
-                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}",
+                f"Failed to find profdata for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {profdata_path}",  # noqa: E501
             )
             return None
 

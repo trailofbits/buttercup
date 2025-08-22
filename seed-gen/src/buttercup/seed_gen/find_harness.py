@@ -63,11 +63,7 @@ def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path
     def is_in_exclude_list(path: Path) -> bool:
         return any(path.as_posix().startswith(exclude) for exclude in exclude_list)
 
-    return [
-        path
-        for path in harness_files
-        if not is_in_exclude_list(path.relative_to(container_src_dir))
-    ]
+    return [path for path in harness_files if not is_in_exclude_list(path.relative_to(container_src_dir))]
 
 
 def _find_source_files(

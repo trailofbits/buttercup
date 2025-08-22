@@ -17,6 +17,8 @@ from ..common import (
     common_test_get_type_usages,
 )
 
+# ruff: noqa: W291
+
 
 @pytest.mark.parametrize(
     "function_name,file_path,function_info",

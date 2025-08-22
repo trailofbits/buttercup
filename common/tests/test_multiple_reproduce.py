@@ -7,6 +7,8 @@ from buttercup.common.challenge_task import CommandResult, ReproduceResult
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 
+# ruff: noqa: E501, W291
+
 
 @pytest.fixture
 def build_outputs():
