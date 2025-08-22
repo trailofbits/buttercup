@@ -255,7 +255,8 @@ class MergerBot:
                         },
                     )
 
-                    # We specify the remote_dir as the target dir as that will cause any `local_dir` files that adds coverage to be moved to remote_dir.
+                    # We specify the remote_dir as the target dir as that will cause any `local_dir`
+                    # files that adds coverage to be moved to remote_dir.
                     self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir))
                     span.set_status(Status(StatusCode.OK))
 
@@ -303,12 +304,12 @@ class MergerBot:
                     # If L is empty, the node is up to date
                     if not partitioned_corpus.local_only_files:
                         logger.debug(
-                            f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because local corpus is up to date",
+                            f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because local corpus is up to date",  # noqa: E501
                         )
                         return False  # We did not do any work
 
                     logger.info(
-                        f"Found {len(partitioned_corpus.local_only_files)} files only in local corpus for {task.harness_name}. Will run merge operation.",
+                        f"Found {len(partitioned_corpus.local_only_files)} files only in local corpus for {task.harness_name}. Will run merge operation.",  # noqa: E501
                     )
 
                     try:
@@ -345,7 +346,7 @@ class MergerBot:
 
         except FailedToAcquireLock:
             logger.debug(
-                f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because another worker is already merging",
+                f"Skipping merge for {task.harness_name} | {task.package_name} | {task.task_id} because another worker is already merging",  # noqa: E501
             )
         except Exception as e:
             logger.error(f"Error merging corpus: {e}")

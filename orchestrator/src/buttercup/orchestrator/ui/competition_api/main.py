@@ -841,7 +841,7 @@ def post_v1_task_task_id_broadcast_sarif_assessment_broadcast_sarif_id_(
 ) -> SarifAssessmentResponse | Error:
     """Submit a SARIF Assessment"""
     logger.info(
-        f"SARIF Assessment submission - Task: {task_id}, Broadcast SARIF ID: {broadcast_sarif_id}, Assessment: {body.assessment}, Description: {body.description[:100]}...",
+        f"SARIF Assessment submission - Task: {task_id}, Broadcast SARIF ID: {broadcast_sarif_id}, Assessment: {body.assessment}, Description: {body.description[:100]}...",  # noqa: E501
     )
     return SarifAssessmentResponse(status=SubmissionStatus.SubmissionStatusAccepted)
 
@@ -1090,7 +1090,7 @@ def post_v1_task_task_id_pov_(
     """Submit Vulnerability"""
     logger.info(f"POV submission - Task: {task_id}")
     logger.debug(
-        f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}",
+        f"POV details: architecture={body.architecture.value}, engine={body.engine.value}, fuzzer_name={body.fuzzer_name}, sanitizer={body.sanitizer}",  # noqa: E501
     )
 
     with database_manager.get_task(task_id) as task:
