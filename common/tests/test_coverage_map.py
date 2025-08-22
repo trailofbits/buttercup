@@ -1,7 +1,8 @@
 import pytest
 from redis import Redis
-from buttercup.common.maps import CoverageMap
+
 from buttercup.common.datastructures.msg_pb2 import FunctionCoverage
+from buttercup.common.maps import CoverageMap
 
 
 @pytest.fixture

@@ -1,12 +1,14 @@
-import pytest
 import os
 import tempfile
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import FunctionCoverage
+from buttercup.common.maps import CoverageMap
 from buttercup.fuzzing_infra.coverage_bot import CoverageBot
 from buttercup.fuzzing_infra.coverage_runner import CoveredFunction
-from buttercup.common.maps import CoverageMap
-from buttercup.common.datastructures.msg_pb2 import FunctionCoverage
 
 
 @pytest.fixture
@@ -229,7 +231,7 @@ def test_should_update_function_coverage_worse_coverage(redis_client):
 def test_submit_function_coverage(coverage_bot, redis_client):
     # Create test data
     func_coverage = [
-        CoveredFunction(names="test_function", total_lines=100, covered_lines=75, function_paths=["path1", "path2"])
+        CoveredFunction(names="test_function", total_lines=100, covered_lines=75, function_paths=["path1", "path2"]),
     ]
     harness_name = "test_harness"
     package_name = "test_package"

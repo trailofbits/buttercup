@@ -1,11 +1,11 @@
-from buttercup.common.datastructures.msg_pb2 import TracedCrash
-from buttercup.common.clusterfuzz_parser.slice import StackFrame
-from buttercup.common import stack_parsing
-from buttercup.orchestrator.task_server.models.types import SARIFBroadcastDetail
-from typing import List, Tuple
-from pathlib import Path
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+
+from buttercup.common import stack_parsing
+from buttercup.common.clusterfuzz_parser.slice import StackFrame
+from buttercup.common.datastructures.msg_pb2 import TracedCrash
+from buttercup.orchestrator.task_server.models.types import SARIFBroadcastDetail
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SarifInfo:
     file: Path
-    lines: Tuple[int, int]
+    lines: tuple[int, int]
     function: str | None
     cwe: str | None
 
@@ -37,8 +37,7 @@ class SarifMatch:
 
 
 def match(sarif_broadcast: SARIFBroadcastDetail, traced_crash: TracedCrash) -> SarifMatch | None:
-    """
-    Match a SARIF broadcast with a traced crash.
+    """Match a SARIF broadcast with a traced crash.
 
     Args:
         sarif_broadcast: The SARIF broadcast to match
@@ -46,8 +45,8 @@ def match(sarif_broadcast: SARIFBroadcastDetail, traced_crash: TracedCrash) -> S
 
     Returns:
         A SarifMatch object if a match is found between the SARIF and traced crash, None otherwise
-    """
 
+    """
     # Extract SARIF details
     sarif_infos = _sarif_detail(sarif_broadcast)
 
@@ -66,15 +65,15 @@ def match(sarif_broadcast: SARIFBroadcastDetail, traced_crash: TracedCrash) -> S
     return None
 
 
-def _sarif_detail(sarif_broadcast: SARIFBroadcastDetail) -> List[SarifInfo]:
-    """
-    Extract detailed information from a SARIF broadcast.
+def _sarif_detail(sarif_broadcast: SARIFBroadcastDetail) -> list[SarifInfo]:
+    """Extract detailed information from a SARIF broadcast.
 
     Args:
         sarif_broadcast: The SARIF broadcast to extract details from
 
     Returns:
         List of SarifInfo objects containing file, line, function, and CWE information
+
     """
     sarif_infos = []
 
@@ -131,16 +130,18 @@ def _sarif_detail(sarif_broadcast: SARIFBroadcastDetail) -> List[SarifInfo]:
 
                 # Create SarifInfo object and add to the list
                 sarif_info = SarifInfo(
-                    file=Path(file_uri), lines=(start_line, end_line), function=function_name, cwe=cwe
+                    file=Path(file_uri),
+                    lines=(start_line, end_line),
+                    function=function_name,
+                    cwe=cwe,
                 )
                 sarif_infos.append(sarif_info)
 
     return sarif_infos
 
 
-def _match_thread_callstack(frames: List[StackFrame], sarif_infos: List[SarifInfo]) -> SarifMatch | None:
-    """
-    Match a thread frame with SARIF information.
+def _match_thread_callstack(frames: list[StackFrame], sarif_infos: list[SarifInfo]) -> SarifMatch | None:
+    """Match a thread frame with SARIF information.
 
     Args:
         frames: List of stack frames from a thread
@@ -148,6 +149,7 @@ def _match_thread_callstack(frames: List[StackFrame], sarif_infos: List[SarifInf
 
     Returns:
         True if any frame matches any SARIF info, False otherwise
+
     """
     if not frames:
         return None
@@ -171,8 +173,7 @@ def _match_thread_callstack(frames: List[StackFrame], sarif_infos: List[SarifInf
 
 
 def _get_frame(frame: StackFrame) -> Frame | None:
-    """
-    Get a Frame object from a StackFrame object.
+    """Get a Frame object from a StackFrame object.
     NOTE: We require the filename to be present in the StackFrame object.
     """
     if frame.filename is None:
@@ -181,9 +182,8 @@ def _get_frame(frame: StackFrame) -> Frame | None:
     return Frame(file=Path(frame.filename), line=int(frame.fileline), function=frame.function_name)
 
 
-def _match_frame(frame: Frame, sarif_infos: List[SarifInfo]) -> SarifMatch | None:
-    """
-    Match a frame with SARIF information.
+def _match_frame(frame: Frame, sarif_infos: list[SarifInfo]) -> SarifMatch | None:
+    """Match a frame with SARIF information.
 
     Tries to match based on:
     1. File path and line number
@@ -196,17 +196,16 @@ def _match_frame(frame: Frame, sarif_infos: List[SarifInfo]) -> SarifMatch | Non
 
     Returns:
         True if a match is found, False otherwise
+
     """
 
-    def line_match(frame_line: int | str, info_lines: Tuple[int, int]) -> bool:
+    def line_match(frame_line: int | str, info_lines: tuple[int, int]) -> bool:
         if isinstance(frame_line, str):
             frame_line = int(frame_line)
         return frame_line >= info_lines[0] and frame_line <= info_lines[1]
 
     def stripped_function_match(frame_function: str, info_function: str) -> bool:
-        """
-        Match a function name by stripping the OSS_FUZZ_ prefix.
-        """
+        """Match a function name by stripping the OSS_FUZZ_ prefix."""
         if frame_function.startswith("OSS_FUZZ_"):
             frame_function = frame_function.split("OSS_FUZZ_")[1]
             return frame_function == info_function

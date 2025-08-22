@@ -57,7 +57,9 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "previous_attempts": state.format_pov_attempts(),
         }
         res = self._analyze_bug_base(
-            VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT, VULN_FULL_ANALYZE_BUG_USER_PROMPT, prompt_vars
+            VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT,
+            VULN_FULL_ANALYZE_BUG_USER_PROMPT,
+            prompt_vars,
         )
         return res
 

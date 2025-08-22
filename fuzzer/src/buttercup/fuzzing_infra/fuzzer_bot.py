@@ -1,26 +1,26 @@
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.queues import QueueFactory, QueueNames
-from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.common import stack_parsing
-from buttercup.common.stack_parsing import CrashSet
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.utils import setup_periodic_zombie_reaper
-from redis import Redis
-from clusterfuzz.fuzz import engine
-from buttercup.common.default_task_loop import TaskLoop
-from typing import List
-import random
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.fuzzing_infra.settings import FuzzerBotSettings
-from buttercup.common.telemetry import init_telemetry, CRSActionCategory, set_crs_attributes
+import random
+from pathlib import Path
+
+from clusterfuzz.fuzz import engine
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
+from redis import Redis
+
+from buttercup.common import stack_parsing
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
+from buttercup.common.default_task_loop import TaskLoop
+from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
-from pathlib import Path
+from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.stack_parsing import CrashSet
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.utils import setup_periodic_zombie_reaper
+from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class FuzzerBot(TaskLoop):
         self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER]
 
     def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:
@@ -86,7 +86,10 @@ class FuzzerBot(TaskLoop):
 
                     crash_set = CrashSet(self.redis)
                     crash_dir = CrashDir(
-                        self.crs_scratch_dir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
+                        self.crs_scratch_dir,
+                        task.task_id,
+                        task.harness_name,
+                        count_limit=self.crash_dir_count_limit,
                     )
                     for crash_ in result.crashes:
                         crash: engine.Crash = crash_
@@ -111,7 +114,7 @@ class FuzzerBot(TaskLoop):
                             crash.stacktrace,
                         ):
                             logger.info(
-                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set"
+                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set",
                             )
                             logger.debug(f"Crash stacktrace: {crash.stacktrace}")
                             continue
