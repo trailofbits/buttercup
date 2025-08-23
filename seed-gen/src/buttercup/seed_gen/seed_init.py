@@ -36,14 +36,15 @@ class SeedInitTask(SeedBaseTask):
             "retrieved_context": state.format_retrieved_context(),
         }
         generated_functions = self._generate_python_funcs_base(
-            PYTHON_SEED_INIT_SYSTEM_PROMPT, PYTHON_SEED_INIT_USER_PROMPT, prompt_vars
+            PYTHON_SEED_INIT_SYSTEM_PROMPT,
+            PYTHON_SEED_INIT_USER_PROMPT,
+            prompt_vars,
         )
         return Command(update={"generated_functions": generated_functions})
 
     @override
     def _get_context(self, state: BaseTaskState) -> Command:
         """Generate tool calls to retrieve context"""
-
         logger.info("Getting context")
         prompt_vars = {
             "harness": str(state.harness),
@@ -67,7 +68,7 @@ class SeedInitTask(SeedBaseTask):
         workflow = self._build_workflow(BaseTaskState)
         llm_callbacks = get_langfuse_callbacks()
         chain = workflow.compile().with_config(
-            RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks)
+            RunnableConfig(tags=["seed-init"], callbacks=llm_callbacks),
         )
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span("seed_gen_init") as span:

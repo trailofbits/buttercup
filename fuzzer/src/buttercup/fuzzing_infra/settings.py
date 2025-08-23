@@ -1,6 +1,7 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from typing import Annotated
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Config:

@@ -90,9 +90,7 @@ def test_do_task_valid_pov(
         patch("buttercup.seed_gen.vuln_base_task.stack_parsing.get_crash_token") as mock_get_token,
     ):
         mock_span = MagicMock()
-        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = (
-            mock_span
-        )
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_sandbox_exec.side_effect = mock_sandbox_exec_funcs
         mock_get_token.return_value = "test_crash_token"
 
@@ -107,7 +105,7 @@ def test_do_task_valid_pov(
                         id="context_call_1",
                         name="get_function_definition",
                         args={"function_name": "target_function"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(
@@ -117,7 +115,7 @@ def test_do_task_valid_pov(
                         id="context_call_2",
                         name="get_type_definition",
                         args={"type_name": "buffer_t"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(
@@ -127,7 +125,7 @@ def test_do_task_valid_pov(
                         id="context_call_3",
                         name="cat",
                         args={"file_path": "/src/test.c"},
-                    )
+                    ),
                 ],
             ),
             AIMessage(
@@ -137,7 +135,7 @@ def test_do_task_valid_pov(
                         id="context_call_4",
                         name="get_callers",
                         args={"function_name": "target_function", "file_path": "/src/test.c"},
-                    )
+                    ),
                 ],
             ),
         ] * 2
@@ -145,7 +143,7 @@ def test_do_task_valid_pov(
         vuln_messages = []
         for _ in range(vuln_discovery_full_task.MAX_POV_ITERATIONS):
             vuln_messages.append(
-                AIMessage(content="This is a buffer overflow vulnerability in the strcpy function")
+                AIMessage(content="This is a buffer overflow vulnerability in the strcpy function"),
             )
             vuln_messages.append(
                 AIMessage(
@@ -156,22 +154,22 @@ def test_do_task_valid_pov(
                         "def gen_test_case_2() -> bytes:\n"
                         '    return b"B" * 300  # Another buffer overflow test case\n```'
                     ),
-                )
+                ),
             )
 
         mock_llm.invoke.side_effect = context_messages + vuln_messages
 
         vuln_discovery_full_task.codequery.get_functions = Mock(
-            return_value=mock_codequery_responses["get_functions"]
+            return_value=mock_codequery_responses["get_functions"],
         )
         vuln_discovery_full_task.codequery.get_callers = Mock(
-            return_value=mock_codequery_responses["get_callers"]
+            return_value=mock_codequery_responses["get_callers"],
         )
         vuln_discovery_full_task.codequery.get_types = Mock(
-            return_value=mock_codequery_responses["get_types"]
+            return_value=mock_codequery_responses["get_types"],
         )
         vuln_discovery_full_task.challenge_task.exec_docker_cmd = Mock(
-            return_value=mock_challenge_task_responses["exec_docker_cmd"]
+            return_value=mock_challenge_task_responses["exec_docker_cmd"],
         )
 
         vuln_discovery_full_task.do_task(out_dir, current_dir)

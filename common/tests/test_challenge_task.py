@@ -1,18 +1,22 @@
-from pathlib import Path
-import pytest
-from unittest.mock import MagicMock, patch
-from dirty_equals import IsStr
-import subprocess
-import os
 import base64
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+from dirty_equals import IsStr
+
 from buttercup.common.challenge_task import (
     ChallengeTask,
     ChallengeTaskError,
-    ReproduceResult,
     CommandResult,
+    ReproduceResult,
 )
 from buttercup.common.task_meta import TaskMeta
-import tempfile
+
+# ruff: noqa: E501, W291
 
 
 @pytest.fixture
@@ -373,7 +377,7 @@ def libjpeg_oss_fuzz_task_dir(tmp_path: Path) -> Path:
         metadata={"task_id": "task-id-libjpeg-turbo", "round_id": "testing", "team_id": "tob"},
     ).save(tmp_path)
 
-    yield tmp_path
+    return tmp_path
 
 
 @pytest.fixture
@@ -717,7 +721,10 @@ def mock_node_local(monkeypatch, tmp_path: Path):
 @patch("buttercup.common.node_local._get_root_path")
 @patch("buttercup.common.node_local.remote_archive_to_dir")
 def test_challenge_task_with_node_local_storage_existing(
-    mock_remote_archive_to_dir, mock_get_root_path, mock_node_local_storage, task_dir
+    mock_remote_archive_to_dir,
+    mock_get_root_path,
+    mock_node_local_storage,
+    task_dir,
 ):
     """Test ChallengeTask behavior when using node_local and path exists."""
     mock_get_root_path.return_value = Path(mock_node_local_storage)
@@ -770,7 +777,10 @@ def test_challenge_task_with_node_local_storage_existing(
 @patch("buttercup.common.node_local._get_root_path")
 @patch("buttercup.common.node_local.remote_archive_to_dir")
 def test_challenge_task_with_node_local_storage_download(
-    mock_remote_archive_to_dir, mock_get_root_path, mock_node_local_storage, task_dir
+    mock_remote_archive_to_dir,
+    mock_get_root_path,
+    mock_node_local_storage,
+    task_dir,
 ):
     """Test ChallengeTask behavior when using node_local and path doesn't exist."""
     mock_get_root_path.return_value = Path(mock_node_local_storage)
@@ -866,7 +876,7 @@ def mock_node_local_storage(tmp_path: Path):
         metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
     ).save(local_task_path)
 
-    yield node_data_dir
+    return node_data_dir
 
 
 @pytest.mark.integration
@@ -891,7 +901,7 @@ def test_reproduce_result_stacktrace():
     # Test case 1: Short string (under 1MB limit)
     short_output = b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow"
     result1 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=short_output, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=short_output, error=None),
     )
     stacktrace1 = result1.stacktrace()
     assert stacktrace1 is not None
@@ -906,7 +916,7 @@ def test_reproduce_result_stacktrace():
     )
 
     result2 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=large_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=large_content, error=None),
     )
     stacktrace2 = result2.stacktrace()
     assert stacktrace2 is not None
@@ -938,7 +948,7 @@ def test_reproduce_result_stacktrace():
     exact_size_content = prefix + b"B" * (MAX_OUTPUT_LEN - len(prefix) - len(suffix)) + suffix
 
     result4 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=exact_size_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=exact_size_content, error=None),
     )
     stacktrace4 = result4.stacktrace()
     assert stacktrace4 is not None
@@ -954,7 +964,7 @@ def test_reproduce_result_stacktrace():
     )
 
     result5 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=over_limit_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=over_limit_content, error=None),
     )
     stacktrace5 = result5.stacktrace()
     assert stacktrace5 is not None
@@ -969,7 +979,7 @@ def test_reproduce_result_stacktrace():
     )
 
     result6 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=very_large_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=very_large_content, error=None),
     )
     stacktrace6 = result6.stacktrace()
     assert stacktrace6 is not None
@@ -989,15 +999,18 @@ def test_reproduce_result_methods():
     # Test case 1: Successful run, no crash
     result1 = ReproduceResult(
         command_result=CommandResult(
-            success=True, returncode=0, output=b"INFO: Seed: 12345\nRunning normally", error=None
-        )
+            success=True,
+            returncode=0,
+            output=b"INFO: Seed: 12345\nRunning normally",
+            error=None,
+        ),
     )
     assert result1.did_run() is True
     assert result1.did_crash() is False
 
     # Test case 2: Failed run, no crash (fuzzer didn't start)
     result2 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=b"Error: Could not start fuzzer", error=None)
+        command_result=CommandResult(success=False, returncode=1, output=b"Error: Could not start fuzzer", error=None),
     )
     assert result2.did_run() is False
     assert result2.did_crash() is False
@@ -1009,7 +1022,7 @@ def test_reproduce_result_methods():
             returncode=1,
             output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
             error=None,
-        )
+        ),
     )
     assert result3.did_run() is True
     assert result3.did_crash() is True
@@ -1021,7 +1034,7 @@ def test_reproduce_result_methods():
             returncode=1,
             output=None,
             error=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
-        )
+        ),
     )
     assert result4.did_run() is True
     assert result4.did_crash() is True
@@ -1029,8 +1042,11 @@ def test_reproduce_result_methods():
     # Test case 5: Run with None returncode
     result5 = ReproduceResult(
         command_result=CommandResult(
-            success=False, returncode=None, output=b"INFO: Seed: 12345\nRunning normally", error=None
-        )
+            success=False,
+            returncode=None,
+            output=b"INFO: Seed: 12345\nRunning normally",
+            error=None,
+        ),
     )
     assert result5.did_run() is True
     assert result5.did_crash() is False
@@ -1042,7 +1058,7 @@ def test_reproduce_result_methods():
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result6.did_run() is True
     assert result6.did_crash() is True  # Should detect crash due to crash token in stacktrace
@@ -1054,7 +1070,7 @@ def test_reproduce_result_methods():
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\nTimeout occurred\nNo crash detected",
             error=None,
-        )
+        ),
     )
     assert result7.did_run() is True
     assert result7.did_crash() is False  # Should not detect crash due to no crash token
@@ -1102,7 +1118,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\nTimeout occurred",
             error=b"",
-        )
+        ),
     )
     assert result8.did_run() is True
     assert result8.did_crash() is True  # Should detect crash due to crash token in error output
@@ -1114,7 +1130,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=None,
             error=None,
-        )
+        ),
     )
     assert result9.did_run() is False
     assert result9.did_crash() is False  # Should not detect crash due to no output and no crash token
@@ -1126,7 +1142,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result10.did_run() is True
     assert result10.did_crash() is False  # Should not detect crash due to no crash token
@@ -1138,7 +1154,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=201,  # FAILURE_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
             error=None,
-        )
+        ),
     )
     assert result11.did_run() is True
     assert result11.did_crash() is False  # Should not detect crash due to FAILURE_ERR_RESULT
@@ -1150,7 +1166,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result12.did_run() is True
     assert result12.did_crash() is True  # Should detect crash due to UBSan error in stacktrace
@@ -1162,7 +1178,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\n" + output + b"\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result13.did_run() is True
     assert result13.did_crash() is True  # Should detect crash due to multiple crash patterns in stacktrace
@@ -1265,7 +1281,10 @@ def test_apply_patch_diff_git_apply_failure(challenge_task: ChallengeTask):
     with patch("subprocess.run") as mock_run:
         # Simulate git apply failure
         mock_run.side_effect = subprocess.CalledProcessError(
-            returncode=1, cmd=["patch", "-p1"], output="", stderr="patch does not apply"
+            returncode=1,
+            cmd=["patch", "-p1"],
+            output="",
+            stderr="patch does not apply",
         )
 
         with pytest.raises(ChallengeTaskError, match="Error applying diff"):

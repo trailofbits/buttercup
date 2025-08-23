@@ -1,31 +1,32 @@
 import logging
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Union
+
 from redis import Redis
-from buttercup.common.queues import ReliableQueue, QueueFactory, RQItem, QueueNames, GroupNames
-from buttercup.common.maps import HarnessWeights, BuildMap
+
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.datastructures.msg_pb2 import (
-    TaskReady,
-    Task,
-    BuildRequest,
-    BuildOutput,
-    WeightedHarness,
-    IndexRequest,
-    BuildType,
-    TracedCrash,
-    Patch,
-)
-from buttercup.common.project_yaml import ProjectYaml
-from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.orchestrator.scheduler.submissions import Submissions, CompetitionAPI
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
-from buttercup.orchestrator.api_client_factory import create_api_client
-from buttercup.common.utils import serve_loop
+from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildRequest,
+    BuildType,
+    IndexRequest,
+    Patch,
+    Task,
+    TaskReady,
+    TracedCrash,
+    WeightedHarness,
+)
+from buttercup.common.maps import BuildMap, HarnessWeights
+from buttercup.common.project_yaml import ProjectYaml
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.utils import serve_loop
+from buttercup.orchestrator.api_client_factory import create_api_client
+from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
-import random
+from buttercup.orchestrator.scheduler.submissions import CompetitionAPI, Submissions
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class Scheduler:
     build_map: BuildMap | None = field(init=False, default=None)
     cancellation: Cancellation | None = field(init=False, default=None)
     task_registry: TaskRegistry | None = field(init=False, default=None)
-    cached_cancelled_ids: Set[str] = field(init=False, default_factory=set)
+    cached_cancelled_ids: set[str] = field(init=False, default_factory=set)
     status_checker: StatusChecker | None = field(init=False, default=None)
     patches_queue: ReliableQueue | None = field(init=False, default=None)
     traced_vulnerabilities_queue: ReliableQueue | None = field(init=False, default=None)
@@ -66,6 +67,7 @@ class Scheduler:
 
         Returns:
             bool: True if there were any cancelled task IDs, False otherwise
+
         """
         if self.task_registry is None:
             return False
@@ -78,7 +80,7 @@ class Scheduler:
 
         return len(self.cached_cancelled_ids) > 0
 
-    def should_stop_processing(self, task_or_id: Union[str, Task]) -> bool:
+    def should_stop_processing(self, task_or_id: str | Task) -> bool:
         """Check if a task should no longer be processed due to cancellation or expiration.
 
         Wrapper around the registry.should_stop_processing method that uses the cached
@@ -90,6 +92,7 @@ class Scheduler:
         Returns:
             bool: True if the task should not be processed (is cancelled or expired),
                  False otherwise
+
         """
         if self.task_registry is None:
             return False
@@ -99,18 +102,24 @@ class Scheduler:
         if self.redis is not None:
             queue_factory = QueueFactory(self.redis)
             api_client = create_api_client(
-                self.competition_api_url, self.competition_api_key_id, self.competition_api_key_token
+                self.competition_api_url,
+                self.competition_api_key_id,
+                self.competition_api_key_token,
             )
             # Input queues are non-blocking as we're already sleeping between iterations
             self.cancellation = Cancellation(redis=self.redis)
             self.ready_queue = queue_factory.create(QueueNames.READY_TASKS, GroupNames.ORCHESTRATOR, block_time=None)
             self.build_requests_queue = queue_factory.create(QueueNames.BUILD, block_time=None)
             self.build_output_queue = queue_factory.create(
-                QueueNames.BUILD_OUTPUT, GroupNames.ORCHESTRATOR, block_time=None
+                QueueNames.BUILD_OUTPUT,
+                GroupNames.ORCHESTRATOR,
+                block_time=None,
             )
             self.index_queue = queue_factory.create(QueueNames.INDEX, block_time=None)
             self.index_output_queue = queue_factory.create(
-                QueueNames.INDEX_OUTPUT, GroupNames.ORCHESTRATOR, block_time=None
+                QueueNames.INDEX_OUTPUT,
+                GroupNames.ORCHESTRATOR,
+                block_time=None,
             )
             self.harness_map = HarnessWeights(self.redis)
             self.build_map = BuildMap(self.redis)
@@ -127,7 +136,9 @@ class Scheduler:
             )
             self.patches_queue = queue_factory.create(QueueNames.PATCHES, GroupNames.ORCHESTRATOR, block_time=None)
             self.traced_vulnerabilities_queue = queue_factory.create(
-                QueueNames.TRACED_VULNERABILITIES, GroupNames.ORCHESTRATOR, block_time=None
+                QueueNames.TRACED_VULNERABILITIES,
+                GroupNames.ORCHESTRATOR,
+                block_time=None,
             )
 
     def select_preferred(self, available_options: list[str], preferred_order: list[str]) -> str:
@@ -139,6 +150,7 @@ class Scheduler:
 
         Returns:
             Selected option string
+
         """
         for preferred in preferred_order:
             if preferred in available_options:
@@ -184,7 +196,9 @@ class Scheduler:
     def process_build_output(self, build_output: BuildOutput) -> list[WeightedHarness]:
         """Process a build output"""
         logger.info(
-            f"[{build_output.task_id}] Processing build output for type {BuildType.Name(build_output.build_type)} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}"
+            f"[{build_output.task_id}] Processing build output for type "
+            f"{BuildType.Name(build_output.build_type)} | {build_output.engine} | "
+            f"{build_output.sanitizer} | {build_output.task_dir} | {build_output.apply_diff}",
         )
 
         if build_output.build_type != BuildType.FUZZER:
@@ -220,7 +234,7 @@ class Scheduler:
             # Check if the task should be stopped (cancelled or expired)
             if self.should_stop_processing(task_ready.task):
                 logger.info(
-                    f"Skipping ready task processing for task {task_ready.task.task_id} as it is cancelled or expired"
+                    f"Skipping ready task processing for task {task_ready.task.task_id} as it is cancelled or expired",
                 )
                 self.ready_queue.ack_item(task_ready_item.item_id)
                 return True
@@ -240,7 +254,9 @@ class Scheduler:
                 for build_req in self.process_ready_task(task_ready.task):
                     self.build_requests_queue.push(build_req)
                     logger.info(
-                        f"[{task_ready.task.task_id}] Pushed build request of type {BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | {build_req.engine} | {build_req.apply_diff}"
+                        f"[{task_ready.task.task_id}] Pushed build request of type "
+                        f"{BuildType.Name(build_req.build_type)} | {build_req.sanitizer} | "
+                        f"{build_req.engine} | {build_req.apply_diff}",
                     )
                 self.ready_queue.ack_item(task_ready_item.item_id)
                 return True
@@ -267,12 +283,14 @@ class Scheduler:
             for target in targets:
                 self.harness_map.push_harness(target)
             logger.info(
-                f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}"
+                f"Pushed {len(targets)} targets to fuzzer map for {build_output.task_id} | "
+                f"{build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}",
             )
             return True
         except Exception as e:
             logger.error(
-                f"Failed to process build output for {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir}: {e}"
+                f"Failed to process build output for {build_output.task_id} | {build_output.engine} | "
+                f"{build_output.sanitizer} | {build_output.task_dir}: {e}",
             )
             return False
 
@@ -289,7 +307,7 @@ class Scheduler:
         # Check if the task should be stopped (cancelled or expired)
         if self.should_stop_processing(build_output.task_id):
             logger.info(
-                f"Skipping build output processing for task {build_output.task_id} as it is cancelled or expired"
+                f"Skipping build output processing for task {build_output.task_id} as it is cancelled or expired",
             )
             self.build_output_queue.ack_item(build_output_item.item_id)
             return True
@@ -302,7 +320,8 @@ class Scheduler:
 
         if res:
             logger.info(
-                f"Acked build output {build_output.task_id} | {build_output.engine} | {build_output.sanitizer} | {build_output.task_dir} | {build_output.internal_patch_id}"
+                f"Acked build output {build_output.task_id} | {build_output.engine} | "
+                f"{build_output.sanitizer} | {build_output.task_dir} | {build_output.internal_patch_id}",
             )
             self.build_output_queue.ack_item(build_output_item.item_id)
             return True
@@ -335,6 +354,7 @@ class Scheduler:
 
         Returns:
             bool: True if any weights were updated, False otherwise
+
         """
         if not self.task_registry or not self.harness_map:
             return False
@@ -362,7 +382,8 @@ class Scheduler:
                 self.harness_map.push_harness(zero_weight_harness)
 
                 logger.info(
-                    f"Updated weight to -1.0 for cancelled/expired task {harness.task_id}, harness {harness.harness_name}"
+                    f"Updated weight to -1.0 for cancelled/expired task {harness.task_id}, "
+                    f"harness {harness.harness_name}",
                 )
                 any_updated = True
 
@@ -382,6 +403,7 @@ class Scheduler:
 
         Returns:
             bool: True if any items were processed from the queues, False otherwise
+
         """
         assert self.traced_vulnerabilities_queue is not None
         assert self.patches_queue is not None

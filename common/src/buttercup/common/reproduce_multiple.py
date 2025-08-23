@@ -1,17 +1,21 @@
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
-from buttercup.common.challenge_task import ReproduceResult, ChallengeTask
-from pathlib import Path
-from typing import Generator
-from contextlib import contextmanager
 import contextlib
 import logging
+from collections.abc import Generator
+from contextlib import contextmanager
+from pathlib import Path
+
+from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
+from buttercup.common.datastructures.msg_pb2 import BuildOutput
 
 logger = logging.getLogger(__name__)
 
 
 class ReproduceMultiple:
     def __init__(
-        self, wdir: Path, build_outputs: list[BuildOutput], build_cache: list[ChallengeTask] | None = None
+        self,
+        wdir: Path,
+        build_outputs: list[BuildOutput],
+        build_cache: list[ChallengeTask] | None = None,
     ) -> None:
         self.build_outputs = build_outputs
         self.wdir = wdir
@@ -32,11 +36,13 @@ class ReproduceMultiple:
                 pass
 
     def attempt_reproduce(
-        self, pov: Path, harness_name: str
+        self,
+        pov: Path,
+        harness_name: str,
     ) -> Generator[tuple[BuildOutput, ReproduceResult], None, None]:
         if self.builds_cache is None:
             raise RuntimeError("Build cache is not populated")
-        for build, task in zip(self.build_outputs, self.builds_cache):
+        for build, task in zip(self.build_outputs, self.builds_cache, strict=False):
             yield (build, task.reproduce_pov(harness_name, pov))
 
     def get_first_crash(self, pov: Path, harness_name: str) -> tuple[BuildOutput, ReproduceResult] | None:

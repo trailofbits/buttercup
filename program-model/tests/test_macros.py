@@ -4,12 +4,13 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
+
 from .common import (
-    common_test_get_functions,
-    common_test_get_type_definitions,
     TestFunctionInfo,
     TestTypeDefinitionInfo,
     TypeDefinitionType,
+    common_test_get_functions,
+    common_test_get_type_definitions,
 )
 
 
@@ -28,7 +29,7 @@ from .common import (
 #else
    return png_create_read_struct_2(user_png_ver, error_ptr, error_fn,
         warn_fn, NULL, NULL, NULL);
-"""
+""",
                 ],
             ),
         ),

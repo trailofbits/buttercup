@@ -64,7 +64,7 @@ def test_extract_code_no_markdown():
 
 def test_extract_code_single_block():
     message = AIMessage(
-        content="Some text before\n```python\nprint('hello')\nprint('hello')\n```\nText after"
+        content="Some text before\n```python\nprint('hello')\nprint('hello')\n```\nText after",
     )
     result = extract_code(message)
     assert result == "print('hello')\nprint('hello')\n"
@@ -72,12 +72,7 @@ def test_extract_code_single_block():
 
 def test_extract_code_multiple_blocks():
     message = AIMessage(
-        content=(
-            "First block:\n"
-            "```python\nprint('first')\n```\n"
-            "Middle text\n"
-            "```python\nprint('second')\n```"
-        )
+        content=("First block:\n```python\nprint('first')\n```\nMiddle text\n```python\nprint('second')\n```"),
     )
     result = extract_code(message)
     assert result == "print('second')\n"
@@ -97,7 +92,7 @@ def test_extract_code_partial_block_with_complete_functions():
             "\n"
             "def last_func():\n"
             "    return"
-        )
+        ),
     )
     result = extract_code(message)
     assert result == "import os\ndef func1():\n    return 1\n\ndef func2():\n    return 2\n"

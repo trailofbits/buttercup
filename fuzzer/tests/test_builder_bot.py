@@ -1,11 +1,12 @@
 import unittest
-from unittest.mock import Mock, patch, MagicMock
-from redis import Redis
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from buttercup.fuzzing_infra.builder_bot import BuilderBot
-from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildOutput, BuildType
+from redis import Redis
+
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildRequest, BuildType
 from buttercup.common.task_registry import TaskRegistry
+from buttercup.fuzzing_infra.builder_bot import BuilderBot
 
 
 class TestBuilderBot(unittest.TestCase):
@@ -197,12 +198,16 @@ class TestBuilderBot(unittest.TestCase):
 
         # Verify ChallengeTask was created with caching enabled
         challenge_task_mock.assert_called_once_with(
-            Path("/path/to/task"), python_path=self.python, local_task_dir=Path("/path/to/task")
+            Path("/path/to/task"),
+            python_path=self.python,
+            local_task_dir=Path("/path/to/task"),
         )
 
         # Verify build was called
         task_mock.build_fuzzers_with_cache.assert_called_once_with(
-            engine="libfuzzer", sanitizer="address", pull_latest_base_image=self.allow_pull
+            engine="libfuzzer",
+            sanitizer="address",
+            pull_latest_base_image=self.allow_pull,
         )
 
         # Verify task was committed and archived
@@ -281,7 +286,9 @@ class TestBuilderBot(unittest.TestCase):
 
         # Verify build was called
         task_mock.build_fuzzers_with_cache.assert_called_once_with(
-            engine="libfuzzer", sanitizer="address", pull_latest_base_image=self.allow_pull
+            engine="libfuzzer",
+            sanitizer="address",
+            pull_latest_base_image=self.allow_pull,
         )
 
         # Verify task was committed and archived

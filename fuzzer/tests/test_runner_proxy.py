@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import Mock, patch
 import time
-import httpx
+from unittest.mock import Mock, patch
 
-from buttercup.fuzzing_infra.runner_proxy import RunnerProxy, Conf, FuzzResult, Crash
+import httpx
+import pytest
+
 from buttercup.common.types import FuzzConfiguration
+from buttercup.fuzzing_infra.runner_proxy import Conf, Crash, FuzzResult, RunnerProxy
 
 
 @pytest.fixture

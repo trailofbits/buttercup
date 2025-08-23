@@ -3,7 +3,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from buttercup.fuzzer_runner.temp_dir import get_temp_dir, patched_temp_dir, _scratch_path_var
 
@@ -108,7 +108,7 @@ class TestPatchedTempDir(unittest.TestCase):
             with patched_temp_dir():
                 with patch("buttercup.fuzzer_runner.temp_dir.shell.create_directory") as mock_create_dir:
                     # Import and call the clusterfuzz function - it should be patched to use our implementation
-                    import clusterfuzz._internal.bot.fuzzers.utils as utils
+                    from clusterfuzz._internal.bot.fuzzers import utils
 
                     result = utils.get_temp_dir()
 

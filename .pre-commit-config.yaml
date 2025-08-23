@@ -1,0 +1,54 @@
+# Pre-commit hooks for Buttercup CRS
+# See https://pre-commit.com for more information
+
+repos:
+  # Standard file fixes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: 'deployment/k8s/.*\.(yaml|yml)$'
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: '(\.proto$|test/data/|tests/data/)'
+      - id: check-toml
+      - id: check-json
+      - id: debug-statements
+
+  # Ruff - Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.0
+    hooks:
+      # Run the formatter first
+      - id: ruff-format
+        types_or: [python, pyi]
+
+      # Then run the linter with auto-fix
+      - id: ruff
+        types_or: [python, pyi]
+        args: [--fix, --exit-non-zero-on-fix]
+
+# Global exclusions for files that should never be checked
+exclude: |
+  (?x)^(
+    external/.*|
+    .*\.pb\.py|
+    .*_pb2\.py|
+    .*_pb2_grpc\.py|
+    .*/\.venv/.*|
+    .*/\.mypy_cache/.*|
+    .*/\.ruff_cache/.*|
+    .*/\.pytest_cache/.*|
+    __pycache__/.*|
+    .*\.egg-info/.*
+  )$
+
+# Configuration
+fail_fast: false
+ci:
+  autofix_prs: true
+  autoupdate_schedule: weekly

@@ -1,9 +1,11 @@
-from buttercup.common.types import FuzzConfiguration
-from dataclasses import dataclass, field
 import logging
 import time
+from dataclasses import dataclass, field
+from typing import Any
+
 import httpx
-from typing import Dict, Any
+
+from buttercup.common.types import FuzzConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +115,7 @@ class RunnerProxy:
             logger.error(f"Error during corpus merge: {e}")
             raise
 
-    def _wait_for_task_completion(self, task_id: str, task_type: str) -> Dict[str, Any]:
+    def _wait_for_task_completion(self, task_id: str, task_type: str) -> dict[str, Any]:
         """Wait for a task to complete and return the result"""
         logger.info(f"Waiting for {task_type} task {task_id} to complete...")
 
@@ -157,7 +159,7 @@ class RunnerProxy:
                 logger.error(f"Error checking task status after {elapsed_time:.1f}s: {e}")
                 raise
 
-    def _dict_to_fuzz_result(self, result_dict: Dict[str, Any]) -> FuzzResult:
+    def _dict_to_fuzz_result(self, result_dict: dict[str, Any]) -> FuzzResult:
         """Convert dictionary result back to FuzzResult object"""
         return FuzzResult(
             logs=result_dict.get("logs", ""),

@@ -16,9 +16,10 @@ try:
 except ImportError:
     _opentelemetry_enabled = False
 
-from buttercup.common.telemetry import crs_instance_id, service_instance_id
 import logging
 import tempfile
+
+from buttercup.common.telemetry import crs_instance_id, service_instance_id
 
 _is_initialized = False
 PACKAGE_LOGGER_NAME = "buttercup"
@@ -37,7 +38,10 @@ class MaxLengthFormatter(logging.Formatter):
 
 
 def setup_package_logger(
-    application_name: str, logger_name: str, log_level: str = "info", max_line_length: int | None = None
+    application_name: str,
+    logger_name: str,
+    log_level: str = "info",
+    max_line_length: int | None = None,
 ) -> logging.Logger:
     global _is_initialized
 

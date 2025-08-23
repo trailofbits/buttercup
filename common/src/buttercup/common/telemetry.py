@@ -1,7 +1,7 @@
-import os
 import logging
-from enum import Enum
+import os
 import uuid
+from enum import Enum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 try:
     import openlit
     from opentelemetry import trace
-    from opentelemetry.trace import Span, Tracer, Status, StatusCode
+    from opentelemetry.trace import Span, Status, StatusCode, Tracer
 
     _opentelemetry_enabled = True
 except ImportError:
