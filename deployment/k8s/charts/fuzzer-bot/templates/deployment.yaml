@@ -36,7 +36,7 @@ spec:
         {{- include "buttercup.fuzzerBotEnv" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}
         resources:
-          {{- toYaml .Values.resources | nindent 10 }}
+          {{- toYaml .Values.fuzzerBot.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
@@ -49,15 +49,11 @@ spec:
         - containerPort: {{ .Values.fuzzerRunner.port }}
           name: runner-http
         env:
+        {{- include "buttercup.fuzzerRunnerEnv" . | nindent 8 }}
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.env.nodeData" . | nindent 8 }}
-        {{- include "buttercup.env.telemetry" . | nindent 8 }}
-        - name: BUTTERCUP_FUZZER_RUNNER_HOST
-          value: "0.0.0.0"
-        - name: BUTTERCUP_FUZZER_RUNNER_PORT
-          value: "{{ .Values.fuzzerRunner.port }}"
         resources:
-          {{- toYaml .Values.fuzzerRunner.resources | nindent 10 }}
+          {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}

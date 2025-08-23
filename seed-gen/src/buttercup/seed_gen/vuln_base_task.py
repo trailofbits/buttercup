@@ -257,13 +257,12 @@ class VulnBaseTask(Task):
             ctoken,
         )
 
-        crash = Crash(
-            target=build,
-            harness_name=self.harness_name,
-            crash_input_path=dst,
-            stacktrace=stacktrace,
-            crash_token=ctoken,
-        )
+        crash = Crash()
+        crash.target.CopyFrom(build)
+        crash.harness_name = self.harness_name
+        crash.crash_input_path = dst
+        crash.stacktrace = stacktrace
+        crash.crash_token = ctoken
         self.crash_submit.crash_queue.push(crash)
 
         logger.debug("PoV stdout: %s", result.command_result.output)

@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import time
 import httpx
 
-from buttercup.fuzzing_infra.runner_proxy import RunnerProxy, Conf, FuzzResult
+from buttercup.fuzzing_infra.runner_proxy import RunnerProxy, Conf, FuzzResult, Crash
 from buttercup.common.types import FuzzConfiguration
 
 
@@ -43,12 +43,18 @@ def test_run_fuzzer_success(mock_client_class, fuzz_config):
         "status": "completed",
         "result": {
             "logs": "test logs",
-            "crashes": ["crash1"],
+            "crashes": [
+                {
+                    "input_path": "input1",
+                    "stacktrace": "stacktrace1",
+                    "reproduce_args": ["arg1", "arg2"],
+                    "crash_time": 1.0,
+                }
+            ],
             "stats": {"execs_per_sec": 1000},
-            "corpus": ["input1"],
-            "time_taken": 10.0,
+            "time_executed": 10.0,
+            "timed_out": False,
             "command": "test command",
-            "return_code": 0,
         },
     }
     status_response.raise_for_status.return_value = None
@@ -75,12 +81,18 @@ def test_run_fuzzer_success(mock_client_class, fuzz_config):
     # Verify result is a FuzzResult instance
     assert isinstance(result, FuzzResult)
     assert result.logs == "test logs"
-    assert result.crashes == ["crash1"]
+    assert result.crashes == [
+        Crash(
+            input_path="input1",
+            stacktrace="stacktrace1",
+            reproduce_args=["arg1", "arg2"],
+            crash_time=1.0,
+        ),
+    ]
     assert result.stats == {"execs_per_sec": 1000}
-    assert result.corpus == ["input1"]
-    assert result.time_taken == 10.0
+    assert result.time_executed == 10.0
+    assert not result.timed_out
     assert result.command == "test command"
-    assert result.return_code == 0
 
 
 @patch("buttercup.fuzzing_infra.runner_proxy.httpx.Client")
@@ -251,21 +263,45 @@ def test_fuzz_result_creation():
     """Test FuzzResult dataclass creation"""
     result = FuzzResult(
         logs="test logs",
-        crashes=["crash1", "crash2"],
-        stats={"execs_per_sec": 1000},
-        corpus=["input1"],
-        time_taken=5.5,
         command="fuzzer command",
-        return_code=0,
+        crashes=[
+            Crash(
+                input_path="input1",
+                stacktrace="stacktrace1",
+                reproduce_args=["arg1", "arg2"],
+                crash_time=1.0,
+            ),
+            Crash(
+                input_path="input2",
+                stacktrace="stacktrace2",
+                reproduce_args=["arg3", "arg4"],
+                crash_time=2.0,
+            ),
+        ],
+        stats={"execs_per_sec": 1000},
+        time_executed=5.5,
+        timed_out=False,
     )
 
     assert result.logs == "test logs"
-    assert result.crashes == ["crash1", "crash2"]
+    assert result.crashes == [
+        Crash(
+            input_path="input1",
+            stacktrace="stacktrace1",
+            reproduce_args=["arg1", "arg2"],
+            crash_time=1.0,
+        ),
+        Crash(
+            input_path="input2",
+            stacktrace="stacktrace2",
+            reproduce_args=["arg3", "arg4"],
+            crash_time=2.0,
+        ),
+    ]
     assert result.stats == {"execs_per_sec": 1000}
-    assert result.corpus == ["input1"]
-    assert result.time_taken == 5.5
+    assert result.time_executed == 5.5
+    assert not result.timed_out
     assert result.command == "fuzzer command"
-    assert result.return_code == 0
 
 
 def test_conf_defaults():

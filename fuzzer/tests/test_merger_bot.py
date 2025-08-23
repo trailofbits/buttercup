@@ -24,7 +24,7 @@ class TestMergerBot(unittest.TestCase):
         self.max_local_files = 500
 
         # Create the MergerBot instance with mocked runner
-        with patch("buttercup.fuzzing_infra.corpus_merger.Runner") as runner_class_mock:
+        with patch("buttercup.fuzzing_infra.corpus_merger.RunnerProxy") as runner_class_mock:
             runner_class_mock.return_value = self.runner_mock
             self.merger_bot = MergerBot(
                 self.redis_mock, self.timeout_seconds, self.python, self.crs_scratch_dir, self.max_local_files

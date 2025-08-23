@@ -1,4 +1,5 @@
 import pytest
+
 from redis import Redis
 
 from buttercup.seed_gen.task import TaskName

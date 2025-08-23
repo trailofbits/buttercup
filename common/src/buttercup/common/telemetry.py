@@ -10,6 +10,8 @@ try:
     import openlit
     from opentelemetry import trace
     from opentelemetry.trace import Span, Tracer, Status, StatusCode
+
+    _opentelemetry_enabled = True
 except ImportError:
     logger.warning("OpenTelemetry is not installed, skipping telemetry")
 
