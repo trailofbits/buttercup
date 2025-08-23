@@ -6,10 +6,11 @@ import uuid
 from dataclasses import dataclass
 
 from clusterfuzz.fuzz import get_engine
-from clusterfuzz.fuzz.engine import Engine, FuzzResult, FuzzOptions
-from buttercup.common.types import FuzzConfiguration
+from clusterfuzz.fuzz.engine import Engine, FuzzOptions, FuzzResult
+
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
+from buttercup.common.types import FuzzConfiguration
 from buttercup.fuzzer_runner.temp_dir import patched_temp_dir, scratch_cwd
 
 logger = logging.getLogger(__name__)

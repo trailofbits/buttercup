@@ -1,4 +1,5 @@
 import uvicorn
+
 from buttercup.fuzzer_runner.settings import ServerSettings
 
 

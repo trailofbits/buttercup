@@ -1,14 +1,15 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
-from pathlib import Path
 import uuid
+from pathlib import Path
+from typing import Any
 
-from buttercup.fuzzer_runner.runner import Runner, Conf
-from buttercup.fuzzer_runner.settings import ServerSettings
-from buttercup.common.types import FuzzConfiguration
-from buttercup.common.logger import setup_package_logger
 from clusterfuzz.fuzz.engine import FuzzResult
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.types import FuzzConfiguration
+from buttercup.fuzzer_runner.runner import Conf, Runner
+from buttercup.fuzzer_runner.settings import ServerSettings
 
 server_settings = ServerSettings()
 logger = setup_package_logger("fuzzer-runner", __name__, server_settings.log_level)
@@ -19,7 +20,7 @@ app = FastAPI(
     description="HTTP API for running fuzzers and merging corpus",
     version="0.1.0",
 )
-active_tasks: Dict[str, Dict[str, Any]] = {}
+active_tasks: dict[str, dict[str, Any]] = {}
 
 
 class FuzzRequest(BaseModel):
@@ -27,7 +28,7 @@ class FuzzRequest(BaseModel):
     target_path: str = Field(..., description="Path to the target binary")
     engine: str = Field(..., description="Fuzzing engine to use")
     sanitizer: str = Field(..., description="Sanitizer to use")
-    timeout: Optional[int] = Field(None, description="Timeout in seconds (overrides server default)")
+    timeout: int | None = Field(None, description="Timeout in seconds (overrides server default)")
 
 
 class MergeCorpusRequest(BaseModel):
@@ -36,20 +37,20 @@ class MergeCorpusRequest(BaseModel):
     engine: str = Field(..., description="Fuzzing engine to use")
     sanitizer: str = Field(..., description="Sanitizer to use")
     output_dir: str = Field(..., description="Output directory for merged corpus")
-    timeout: Optional[int] = Field(None, description="Timeout in seconds (overrides server default)")
+    timeout: int | None = Field(None, description="Timeout in seconds (overrides server default)")
 
 
 class FuzzResponse(BaseModel):
     task_id: str = Field(..., description="Unique task identifier")
     status: str = Field(..., description="Task status")
-    result: Optional[Dict[str, Any]] = Field(None, description="Fuzzing result if completed")
-    error: Optional[str] = Field(None, description="Error message if failed")
+    result: dict[str, Any] | None = Field(None, description="Fuzzing result if completed")
+    error: str | None = Field(None, description="Error message if failed")
 
 
 class MergeCorpusResponse(BaseModel):
     task_id: str = Field(..., description="Unique task identifier")
     status: str = Field(..., description="Task status")
-    error: Optional[str] = Field(None, description="Error message if failed")
+    error: str | None = Field(None, description="Error message if failed")
 
 
 class HealthResponse(BaseModel):
@@ -136,8 +137,8 @@ async def merge_corpus(request: MergeCorpusRequest, background_tasks: Background
     return MergeCorpusResponse(task_id=task_id, status="running")
 
 
-@app.get("/tasks/{task_id}", response_model=Dict[str, Any])
-async def get_task_status(task_id: str) -> Dict[str, Any]:
+@app.get("/tasks/{task_id}", response_model=dict[str, Any])
+async def get_task_status(task_id: str) -> dict[str, Any]:
     """Get the status of a running or completed task"""
     if task_id not in active_tasks:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
@@ -152,8 +153,8 @@ async def get_task_status(task_id: str) -> Dict[str, Any]:
     }
 
 
-@app.get("/tasks", response_model=Dict[str, Any])
-async def list_tasks() -> Dict[str, Any]:
+@app.get("/tasks", response_model=dict[str, Any])
+async def list_tasks() -> dict[str, Any]:
     """List all active and completed tasks"""
     return {
         "tasks": {
@@ -168,7 +169,7 @@ async def list_tasks() -> Dict[str, Any]:
     }
 
 
-async def _run_fuzzer_task(task_id: str, fuzz_conf: FuzzConfiguration, timeout: Optional[int]) -> None:
+async def _run_fuzzer_task(task_id: str, fuzz_conf: FuzzConfiguration, timeout: int | None) -> None:
     """Run fuzzer task in background"""
     try:
         logger.info(f"Starting fuzzer task {task_id}")
@@ -210,7 +211,7 @@ async def _run_fuzzer_task(task_id: str, fuzz_conf: FuzzConfiguration, timeout: 
         active_tasks[task_id]["error"] = str(e)
 
 
-async def _run_merge_task(task_id: str, fuzz_conf: FuzzConfiguration, output_dir: str, timeout: Optional[int]) -> None:
+async def _run_merge_task(task_id: str, fuzz_conf: FuzzConfiguration, output_dir: str, timeout: int | None) -> None:
     """Run merge corpus task in background"""
     try:
         logger.info(f"Starting merge corpus task {task_id}")

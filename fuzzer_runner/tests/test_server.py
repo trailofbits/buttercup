@@ -1,8 +1,9 @@
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 
-from buttercup.fuzzer_runner.server import app, active_tasks
+import pytest
+from fastapi.testclient import TestClient
+
+from buttercup.fuzzer_runner.server import active_tasks, app
 
 
 @pytest.fixture
