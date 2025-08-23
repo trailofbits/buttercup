@@ -21,7 +21,7 @@ from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS, FailedToAcquireLock, MergedCorpusSetLock
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
-from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.runner_proxy import Conf, FuzzConfiguration, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,7 @@ class MergerBot:
         max_local_files: int = 500,
     ):
         self.redis = redis
-        self.runner = Runner(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.harness_weights = HarnessWeights(redis)

@@ -6,19 +6,22 @@ authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "protobuf ==3.20.3",                 # Pin exactly for stability
     "pydantic-settings ~=2.7.1",
     "pymongo ~=4.10.1",
     "redis ~=5.2.1",
-    "langchain-core ~=0.3.32",
-    "langchain-openai ~=0.3.2",
+    "langchain-core ~=0.3.74",
+    "langchain-openai ~=0.3.30",
+    "langchain ~=0.3.27",
     "langfuse ~=2.59.2",
-    "langchain ~=0.3.18",
     "six ~=1.17.0",
-    "openlit ==1.32.12",                 # 1.33 currently fails to import opentelemetry.sdk._events
-    "langchain-community ~=0.3.20",      # implicit dep of openlit if you instrument langchain
-    "langchain-text-splitters ~=0.3.7",  # implicit dep of openlit if you instrument langchain
 ]
+
+[project.optional-dependencies]
+full = [
+    "protobuf>=5.0",
+    "openlit ==1.35.0",
+]
+
 
 [project.urls]
 Repository = "https://github.com/trailofbits/buttercup"

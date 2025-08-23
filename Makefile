@@ -168,7 +168,7 @@ send-libpng-task:
 # Development targets
 lint:
 	@echo "Linting all Python code..."
-	@set -e; for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+	@set -e; for component in common orchestrator fuzzer fuzzer_runner program-model seed-gen patcher; do \
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
@@ -187,7 +187,7 @@ lint-component:
 
 reformat:
 	@echo "Reformatting all Python code..."
-	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+	@for component in common orchestrator fuzzer fuzzer_runner program-model seed-gen patcher; do \
 		make --no-print-directory reformat-component COMPONENT=$$component; \
 	done
 
