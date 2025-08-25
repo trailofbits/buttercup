@@ -63,15 +63,13 @@ def _exclude_common_harnesses(harness_files: list[Path], container_src_dir: Path
     def is_in_exclude_list(path: Path) -> bool:
         return any(path.as_posix().startswith(exclude) for exclude in exclude_list)
 
-    return [
-        path
-        for path in harness_files
-        if not is_in_exclude_list(path.relative_to(container_src_dir))
-    ]
+    return [path for path in harness_files if not is_in_exclude_list(path.relative_to(container_src_dir))]
 
 
 def _find_source_files(
-    codequery: CodeQuery, file_patterns: list[str], grep_pattern: str
+    codequery: CodeQuery,
+    file_patterns: list[str],
+    grep_pattern: str,
 ) -> list[Path]:
     """Find source files that match file patterns and contain a search string
 
@@ -120,7 +118,6 @@ def find_libfuzzer_harnesses(codequery: CodeQuery) -> list[Path]:
 
     Heuristic: C/C++ file that defines the LLVMFuzzerTestOneInput function.
     """
-
     grep_pattern = r"int\s+LLVMFuzzerTestOneInput\s*\([^)]*\)"
 
     return _find_source_files(
@@ -177,7 +174,9 @@ def get_harness_source_candidates(codequery: CodeQuery, harness_name: str) -> li
 
 
 def get_harness_source(
-    redis: Redis | None, codequery: CodeQuery, harness_name: str
+    redis: Redis | None,
+    codequery: CodeQuery,
+    harness_name: str,
 ) -> HarnessInfo | None:
     task_id = codequery.challenge.task_meta.task_id
     logger.info("Getting harness source for %s | %s", task_id, harness_name)

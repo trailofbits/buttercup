@@ -82,15 +82,6 @@ exclude = [
 select = ["E", "F", "I", "W", "UP"]
 ignore = [
     "COM812", "ISC001",  # Formatter conflicts
-    # Temporarily disabled for standardization PR - re-enable after refactoring:
-    "I001",   # Import block is un-sorted or un-formatted
-    "E501",   # Line too long
-    "UP006",  # Use built-in collection types for type annotations
-    "UP007",  # Use X | Y for type annotations
-    "UP009",  # UTF-8 encoding declaration is unnecessary
-    "UP015",  # Unnecessary mode argument
-    "UP035",  # Import from modern locations instead of deprecated typing
-    "UP045",  # Use X | None for type annotations
 ]
 
 [tool.ruff.lint.per-file-ignores]

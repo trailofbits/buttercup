@@ -41,6 +41,10 @@ dist/
 pdm.lock
 .langchain.db
 
+# Mypy type checking cache
+.mypy_cache/
+**/.mypy_cache/
+
 *.bak
 *.orig
 

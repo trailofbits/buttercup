@@ -65,7 +65,9 @@ class VulnDiscoveryDeltaTask(VulnBaseTask):
             "previous_attempts": state.format_pov_attempts(),
         }
         res = self._analyze_bug_base(
-            VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT, VULN_DELTA_ANALYZE_BUG_USER_PROMPT, prompt_vars
+            VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT,
+            VULN_DELTA_ANALYZE_BUG_USER_PROMPT,
+            prompt_vars,
         )
         return res
 

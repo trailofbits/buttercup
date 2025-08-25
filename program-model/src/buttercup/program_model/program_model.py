@@ -1,23 +1,25 @@
 import logging
-from typing import Any
 from dataclasses import dataclass, field
-from buttercup.common.queues import (
-    QueueFactory,
-    ReliableQueue,
-    QueueNames,
-    GroupNames,
-)
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.common.datastructures.msg_pb2 import IndexRequest, IndexOutput
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.utils import serve_loop
 from pathlib import Path
+from typing import Any
+
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from redis import Redis
-import buttercup.common.node_local as node_local
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
+
+from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.datastructures.msg_pb2 import IndexOutput, IndexRequest
+from buttercup.common.queues import (
+    GroupNames,
+    QueueFactory,
+    QueueNames,
+    ReliableQueue,
+)
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from buttercup.common.utils import serve_loop
+from buttercup.program_model.codequery import CodeQueryPersistent
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,6 @@ class ProgramModel:
 
     def cleanup(self) -> None:
         """Cleanup resources used by the program model"""
-        pass
 
     def process_task_codequery(self, args: IndexRequest) -> bool:
         """Process a single task for indexing a program"""
@@ -83,7 +84,7 @@ class ProgramModel:
                     )
                     cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
                     logger.info(
-                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery"
+                        f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery",  # noqa: E501
                     )
                     span.set_status(Status(StatusCode.OK))
                 # Push it to the remote storage
@@ -125,11 +126,11 @@ class ProgramModel:
                     sanitizer=task_index.sanitizer,
                     task_dir=task_index.task_dir,
                     task_id=task_index.task_id,
-                )
+                ),
             )
             self.task_queue.ack_item(rq_item.item_id)
             logger.info(
-                f"Successfully processed task {task_index.package_name}/{task_index.task_id}/{task_index.task_dir}"
+                f"Successfully processed task {task_index.package_name}/{task_index.task_id}/{task_index.task_dir}",
             )
         else:
             logger.error(f"Failed to process task {task_index.task_id}")

@@ -1,9 +1,11 @@
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, Mock
 from redis import Redis
-from buttercup.program_model.program_model import ProgramModel
+
 from buttercup.common.datastructures.msg_pb2 import IndexRequest
 from buttercup.common.task_registry import TaskRegistry
+from buttercup.program_model.program_model import ProgramModel
 
 
 @pytest.fixture

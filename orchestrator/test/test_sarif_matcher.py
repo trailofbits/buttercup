@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
+import copy
 import os
 import unittest
-import copy
 from pathlib import Path
 
-from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
+from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.orchestrator.scheduler.sarif_matcher import match
 
 
@@ -22,7 +22,7 @@ class TestSarifMatcher(unittest.TestCase):
 
     def load_sarif_broadcast(self) -> SARIFBroadcastDetail:
         """Test that we can load a SARIF broadcast from the file."""
-        with open(self.sarif_broadcast_path, "r") as f:
+        with open(self.sarif_broadcast_path) as f:
             sarif_json = f.read()
             sarif_broadcast = SARIFBroadcastDetail.model_validate_json(sarif_json)
 
@@ -131,7 +131,7 @@ class TestSarifMatcher(unittest.TestCase):
 
         # Add a logical location with the exact function name
         modified_sarif["runs"][0]["results"][0]["locations"][0]["logicalLocations"] = [
-            {"name": "OSS_FUZZ_png_handle_iCCP"}
+            {"name": "OSS_FUZZ_png_handle_iCCP"},
         ]
         sarif_broadcast.sarif = modified_sarif
 

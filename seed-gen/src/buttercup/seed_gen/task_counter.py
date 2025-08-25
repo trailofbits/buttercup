@@ -13,7 +13,11 @@ class TaskCounter:
         self.redis = redis
 
     def _get_counter_key(
-        self, harness_name: str, package_name: str, task_id: str, task_name: str
+        self,
+        harness_name: str,
+        package_name: str,
+        task_id: str,
+        task_name: str,
     ) -> str:
         """Generate a unique Redis key for the counter."""
         key = [
@@ -36,6 +40,7 @@ class TaskCounter:
 
         Returns:
             The new count after incrementing
+
         """
         key = self._get_counter_key(harness_name, package_name, task_id, task_name)
         return self.redis.incr(key)
@@ -51,6 +56,7 @@ class TaskCounter:
 
         Returns:
             The current count, or 0 if no count exists
+
         """
         key = self._get_counter_key(harness_name, package_name, task_id, task_name)
         count = self.redis.get(key)
@@ -66,10 +72,14 @@ class TaskCounter:
 
         Returns:
             Dictionary mapping task names to their counts
+
         """
         counts = {}
         for task_name in TaskName:
             counts[task_name.value] = self.get_count(
-                harness_name, package_name, task_id, task_name.value
+                harness_name,
+                package_name,
+                task_id,
+                task_name.value,
             )
         return counts

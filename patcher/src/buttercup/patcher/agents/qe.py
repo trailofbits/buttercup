@@ -1,55 +1,56 @@
 """Quality Engineer LLM agent, handling the testing of patches."""
 
-import logging
-import tempfile
-import langgraph.errors
-import re
+import concurrent.futures
 import importlib.resources
+import logging
+import re
 import subprocess
-from unidiff import PatchSet
-from io import StringIO
+import tempfile
+import time
 from dataclasses import dataclass, field
+from io import StringIO
 from pathlib import Path
 from typing import Literal
-from pydantic import ValidationError, Field, field_validator
-from langchain_core.runnables import Runnable
-from langgraph.types import Command
-from langgraph.constants import END
-from buttercup.common.corpus import CrashDir
-from buttercup.common.challenge_task import ChallengeTaskError, CommandResult
+
+import langgraph.errors
 from langchain_core.messages import BaseMessage
-import buttercup.common.node_local as node_local
-from langchain_core.runnables import RunnableConfig
-from buttercup.common.project_yaml import ProjectYaml
-from buttercup.common.challenge_task import ChallengeTask
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
-from buttercup.patcher.utils import PatchInputPoV, get_challenge
+from langgraph.constants import END
+from langgraph.prebuilt import create_react_agent
+from langgraph.types import Command
+from pydantic import Field, ValidationError, field_validator
+from unidiff import PatchSet
+
+from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, CommandResult
+from buttercup.common.constants import ARCHITECTURE
+from buttercup.common.corpus import CrashDir
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.common.project_yaml import ProjectYaml
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
-    PatchAttempt,
-    PatchStatus,
     BaseCtxState,
+    PatchAttempt,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
+    PatchStatus,
 )
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.patcher.agents.tools import (
-    ls,
-    grep,
     cat,
-    get_lines,
-    get_function,
-    get_type,
     get_callees,
     get_callers,
+    get_function,
+    get_lines,
+    get_type,
+    grep,
+    ls,
 )
-from buttercup.common.llm import create_default_llm_with_temperature, ButtercupLLM
-from buttercup.common.constants import ARCHITECTURE
-from langchain_core.prompts import ChatPromptTemplate
-from langgraph.prebuilt import create_react_agent
-from langchain_core.prompts import MessagesPlaceholder
-import time
-import concurrent.futures
+from buttercup.patcher.utils import PatchInputPoV, get_challenge
+
+# ruff: noqa: E501
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ CHECK_HARNESS_CHANGES_CHAIN = ChatPromptTemplate.from_messages(
         ("user", CHECK_HARNESS_CHANGES_USER_MSG),
         MessagesPlaceholder(variable_name="messages", optional=True),
         ("ai", "<think>"),
-    ]
+    ],
 )
 
 
@@ -184,7 +185,9 @@ class QEAgent(PatcherAgentBase):
             logger.debug("Patch written to %s", patch_file.name)
 
             logger.info(
-                "Applying patch to task %s / internal patch id %s", self.input.task_id, self.input.internal_patch_id
+                "Applying patch to task %s / internal patch id %s",
+                self.input.task_id,
+                self.input.internal_patch_id,
             )
             try:
                 return challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
@@ -275,17 +278,18 @@ class QEAgent(PatcherAgentBase):
                 )
                 # Return the task directory path for later reuse
                 return True, True, cp_output, built_challenge.task_dir
-            else:
-                logger.warning(
-                    "Failed to rebuild Challenge Task %s with sanitizer %s (%s)",
-                    built_challenge.name,
-                    sanitizer,
-                    built_challenge.task_dir,
-                )
-                return True, False, cp_output, None
+            logger.warning(
+                "Failed to rebuild Challenge Task %s with sanitizer %s (%s)",
+                built_challenge.name,
+                sanitizer,
+                built_challenge.task_dir,
+            )
+            return True, False, cp_output, None
 
     def build_patch_node(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that builds a patch"""
         logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
@@ -308,7 +312,11 @@ class QEAgent(PatcherAgentBase):
             # Submit all build tasks
             future_to_sanitizer = {
                 executor.submit(
-                    self._build_with_sanitizer, clean_challenge, configuration, last_patch_attempt, sanitizer
+                    self._build_with_sanitizer,
+                    clean_challenge,
+                    configuration,
+                    last_patch_attempt,
+                    sanitizer,
                 ): sanitizer
                 for sanitizer in sanitizers
             }
@@ -442,7 +450,7 @@ class QEAgent(PatcherAgentBase):
                                 harness_name=pov.harness_name,
                             )
                             for crash in crashes_for_token[: configuration.max_pov_variants_per_token_sanitizer]
-                        }
+                        },
                     )
             except Exception as e:
                 logger.error("Failed to list PoV variants for token %s", pov.pov_token)
@@ -454,13 +462,16 @@ class QEAgent(PatcherAgentBase):
                 res.pop(pov.pov.absolute())
             except KeyError:
                 logger.warning(
-                    "PoV %s not found in res, this should never happen. Skipping it, but continuing.", pov.pov
+                    "PoV %s not found in res, this should never happen. Skipping it, but continuing.",
+                    pov.pov,
                 )
 
         return povs + list(res.values())
 
     def run_pov_node(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs a PoV against a currently built patch"""
         configuration = PatcherConfig.from_configurable(config)
@@ -567,7 +578,8 @@ class QEAgent(PatcherAgentBase):
                         break
 
                     return _handle_failure(
-                        f"Operation timed out after {configuration.max_minutes_run_povs} minutes".encode(), None
+                        f"Operation timed out after {configuration.max_minutes_run_povs} minutes".encode(),
+                        None,
                     )
 
                 try:
@@ -597,7 +609,9 @@ class QEAgent(PatcherAgentBase):
         )
 
     def run_tests_node(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[Literal[PatcherAgentName.REFLECTION.value, PatcherAgentName.PATCH_VALIDATION.value]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs tests against a currently built patch"""
         logger.info(
@@ -747,7 +761,7 @@ class QEAgent(PatcherAgentBase):
 
         # Find language identifier binary using importlib resources
         identifier_bin = importlib.resources.files("buttercup.patcher.bins").joinpath(
-            f"language-identifier-{ARCHITECTURE}"
+            f"language-identifier-{ARCHITECTURE}",
         )
         identifier_bin = Path(str(identifier_bin)).resolve()
         if not identifier_bin.exists():
@@ -764,6 +778,7 @@ class QEAgent(PatcherAgentBase):
             try:
                 result = subprocess.run(
                     [str(identifier_bin), "--language", language.value.lower(), "--path", str(abs_path)],
+                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=60,
@@ -778,7 +793,9 @@ class QEAgent(PatcherAgentBase):
         return True
 
     def validate_patch_node(
-        self, state: PatcherAgentState, config: RunnableConfig
+        self,
+        state: PatcherAgentState,
+        config: RunnableConfig,
     ) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
         """Node in the LangGraph that validates a patch"""
         logger.info(

@@ -4,18 +4,19 @@ import pytest
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.program_model.codequery import CodeQuery
+
 from ..common import (
-    TestFunctionInfo,
-    common_test_get_functions,
-    common_test_get_callers,
-    common_test_get_callees,
-    common_test_get_type_definitions,
-    common_test_get_type_usages,
-    TestCallerInfo,
     TestCalleeInfo,
+    TestCallerInfo,
+    TestFunctionInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
     TypeDefinitionType,
+    common_test_get_callees,
+    common_test_get_callers,
+    common_test_get_functions,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
 )
 
 
@@ -70,7 +71,7 @@ def test_get_functions(
                     name="printJavaAndJavadocTree",
                     file_path="/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/AstTreeStringPrinter.java",
                     start_line=88,
-                )
+                ),
             ],
             2,
         ),
@@ -114,7 +115,7 @@ def test_get_callers(
                     name="parseJavadocAsDetailNode",
                     file_path="/src/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/DetailNodeTreeStringPrinter.java",
                     start_line=66,
-                )
+                ),
             ],
             2,
         ),

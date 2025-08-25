@@ -1,15 +1,17 @@
-import logging
-from typing import BinaryIO, List
-import buttercup.common.node_local as node_local
-from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
-import os
 import hashlib
+import logging
+import os
 import shutil
 import subprocess
-from pathlib import Path
-from redis import Redis
-from buttercup.common.sets import MergedCorpusSet
 import tempfile
+from pathlib import Path
+from typing import BinaryIO
+
+from redis import Redis
+
+from buttercup.common import node_local
+from buttercup.common.constants import CORPUS_DIR_NAME, CRASH_DIR_NAME
+from buttercup.common.sets import MergedCorpusSet
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +99,7 @@ class InputDir:
         return len(name) == 64 and all(c in "0123456789abcdef" for c in name)
 
     @classmethod
-    def hash_corpus(cls, path: str) -> List[str]:
+    def hash_corpus(cls, path: str) -> list[str]:
         hashed_files = []
         for file in os.listdir(path):
             # If the file is already a hash, skip it
@@ -130,7 +132,7 @@ class InputDir:
                 "--exclude=*",
                 str(src_path) + "/",
                 str(dst_path) + "/",
-            ]
+            ],
         )
 
     def sync_to_remote(self) -> None:
@@ -139,11 +141,11 @@ class InputDir:
         self._do_sync(self.path, self.remote_path)
 
     def sync_specific_files_to_remote(self, files: list[str]) -> None:
-        """
-        Sync only specific files to remote storage.
+        """Sync only specific files to remote storage.
 
         Args:
             files: List of filenames (basename only, not full path) to sync to remote
+
         """
         self.hash_new_corpus()
         os.makedirs(self.remote_path, exist_ok=True)
@@ -166,7 +168,7 @@ class InputDir:
                     f"--files-from={file_list.name}",
                     str(self.path) + "/",
                     str(self.remote_path) + "/",
-                ]
+                ],
             )
 
     def sync_from_remote(self) -> None:

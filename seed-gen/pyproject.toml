@@ -78,35 +78,18 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [tool.ruff]
-line-length = 100
-include = ["src/**/*.py", "test/**/*.py", "eval/**/*.py"]
+line-length = 120
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
-# D203 and D213 are incompatible with D211 and D212 respectively.
-# COM812 and ISC001 can cause conflicts when using ruff as a formatter.
-# See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
 ignore = [
-    "D203", "D213", "COM812", "ISC001",
-    # Temporarily disabled for standardization PR - re-enable after refactoring:
-    "I001",   # Import block is un-sorted or un-formatted
-    "E501",   # Line too long
-    "W291",   # Trailing whitespace  
-    "UP006",  # Use built-in collection types for type annotations
-    "UP015",  # Unnecessary mode argument
-    "UP035",  # Import from modern locations instead of deprecated typing
-    "UP045",  # Use X | None for type annotations
-    "UP046",  # Use modern generic class syntax
+    "COM812", "ISC001",  # Formatter conflicts
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/seed_gen/_cli.py" = [
-    "T201", # allow `print` in cli module
-]
-"test/**/*.py" = [
-    "D",    # no docstrings in tests
-    "S101", # asserts are expected in tests
-]
+"src/seed_gen/_cli.py" = ["T201"]  # Allow print in CLI modules
+"test/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
 [tool.interrogate]
 # don't enforce documentation coverage for packaging, testing, the virtual
 # environment, or the CLI (which is documented separately).
