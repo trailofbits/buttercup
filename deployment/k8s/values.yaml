@@ -375,6 +375,28 @@ litellm-helm:
           api_key: os.environ/ANTHROPIC_API_KEY
           tpm: 1775000
 
+      - model_name: gemini-pro	
+        litellm_params:
+          model: gemini/gemini-pro	
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 2000000
+          rpm: 150
+        
+      - model_name: gemini-2.5-flash-exp
+        litellm_params:
+          model: gemini/gemini-2.5-flash-exp
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 4000000
+          rpm: 2000
+
+      - model_name: gemini-2.5-flash
+        litellm_params:
+          model: gemini/gemini-2.5-flash
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 4000000
+          rpm: 2000
+
+
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
       database_url: "postgresql://litellm_user:litellm_password11@buttercup-postgresql:5432/litellm"

@@ -157,7 +157,7 @@ class QEAgent(PatcherAgentBase):
                 tools=tools,
                 prompt=self._check_harness_changes_prompt,
             )
-            for llm in [ButtercupLLM.CLAUDE_3_7_SONNET]
+            for llm in [ButtercupLLM.CLAUDE_3_7_SONNET, ButtercupLLM.GEMINI_PRO]
         ]
         self.check_harness_changes_chain = default_agent.with_fallbacks(fallback_agents)
 
