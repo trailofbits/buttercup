@@ -194,8 +194,18 @@ async def _run_fuzzer_task(task_id: str, fuzz_conf: FuzzConfiguration, timeout: 
         runner_timeout = timeout or (server_settings.timeout if server_settings else 1000)
         runner = Runner(Conf(runner_timeout))
 
-        # Run fuzzer in a separate thread to avoid blocking the server
-        result: FuzzResult = await asyncio.to_thread(runner.run_fuzzer, fuzz_conf)
+        # Run fuzzer in a separate thread to avoid blocking the server,
+        # but enforce a timeout of runner_timeout + 5 minutes (in seconds)
+        future_timeout = runner_timeout + 300
+        try:
+            result: FuzzResult = await asyncio.wait_for(
+                asyncio.to_thread(runner.run_fuzzer, fuzz_conf), timeout=future_timeout
+            )
+        except TimeoutError:
+            logger.error(f"Fuzzer task {task_id} timed out after {future_timeout} seconds")
+            active_tasks[task_id]["status"] = "failed"
+            active_tasks[task_id]["error"] = f"Task timed out after {future_timeout} seconds"
+            return
 
         # Convert result to dict for JSON serialization
         result_dict = {
