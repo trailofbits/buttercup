@@ -340,7 +340,7 @@ Service-specific environment variables that utilize the standardized variables
 
 {{- define "buttercup.fuzzerRunnerEnv" }}
 - name: BUTTERCUP_FUZZER_RUNNER_HOST
-  value: "0.0.0.0"
+  value: "127.0.0.1"
 - name: BUTTERCUP_FUZZER_RUNNER_PORT
   value: "{{ .Values.fuzzerRunner.port }}"
 {{- end }}
