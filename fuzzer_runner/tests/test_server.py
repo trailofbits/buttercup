@@ -67,12 +67,11 @@ def test_run_fuzzer_success(mock_runner_class, client, tmp_path):
     mock_runner = Mock()
     mock_result = Mock()
     mock_result.logs = "test logs"
+    mock_result.command = "test command"
     mock_result.crashes = []
     mock_result.stats = {}
-    mock_result.corpus = []
-    mock_result.time_taken = 10.0
-    mock_result.command = "test command"
-    mock_result.return_code = 0
+    mock_result.time_executed = 10.0
+    mock_result.timed_out = False
     mock_runner.run_fuzzer.return_value = mock_result
     mock_runner_class.return_value = mock_runner
 

@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
@@ -178,8 +179,8 @@ async def _run_fuzzer_task(task_id: str, fuzz_conf: FuzzConfiguration, timeout: 
         runner_timeout = timeout or (server_settings.timeout if server_settings else 1000)
         runner = Runner(Conf(runner_timeout))
 
-        # Run fuzzer
-        result: FuzzResult = runner.run_fuzzer(fuzz_conf)
+        # Run fuzzer in a separate thread to avoid blocking the server
+        result: FuzzResult = await asyncio.to_thread(runner.run_fuzzer, fuzz_conf)
 
         # Convert result to dict for JSON serialization
         result_dict = {
@@ -220,8 +221,8 @@ async def _run_merge_task(task_id: str, fuzz_conf: FuzzConfiguration, output_dir
         runner_timeout = timeout or (server_settings.timeout if server_settings else 1000)
         runner = Runner(Conf(runner_timeout))
 
-        # Run merge
-        runner.merge_corpus(fuzz_conf, output_dir)
+        # Run merge in a separate thread to avoid blocking the server
+        await asyncio.to_thread(runner.merge_corpus, fuzz_conf, output_dir)
 
         # Update task status
         active_tasks[task_id]["status"] = "completed"
