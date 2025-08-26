@@ -585,7 +585,10 @@ Remember to call the `test_instructions` tool to log and validate any test comma
 
 def _are_test_instructions_valid(instructions: str, output: bytes, error: bytes) -> bool:
     """Validate a set of test instructions by executing them inside the project environment."""
-    llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
+    llm = create_default_llm(
+        model_name=ButtercupLLM.OPENAI_GPT_4_1.value,
+        fallback_models=[ButtercupLLM.CLAUDE_4_SONNET, ButtercupLLM.GEMINI_PRO],
+    )
     chain = ARE_VALID_TEST_INSTRUCTIONS_PROMPT | llm | StrOutputParser()
     res = chain.invoke(
         {
@@ -708,6 +711,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self.cheap_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1_MINI.value)
         self.cheap_fallback_llms = [
             create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
+            create_default_llm(model_name=ButtercupLLM.GEMINI_PRO.value),
         ]
 
         self.tools = [

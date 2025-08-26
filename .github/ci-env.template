@@ -21,6 +21,7 @@ export BUTTERCUP_NAMESPACE=replace-me
 export GHCR_AUTH=replace-me
 export OPENAI_API_KEY=replace-me
 export ANTHROPIC_API_KEY=replace-me
+export GEMINI_API_KEY=replace-me
 export LANGFUSE_HOST=replace-me
 export LANGFUSE_PUBLIC_KEY=replace-me
 export LANGFUSE_SECRET_KEY=replace-me
