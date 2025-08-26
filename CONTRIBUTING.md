@@ -1,214 +1,120 @@
 # Contributing to Buttercup CRS
 
-Thank you for your interest in contributing to the Buttercup Cyber Reasoning System! This guide will help you get started with development and understand our workflows.
+Thank you for contributing to the Buttercup Cyber Reasoning System!
 
-## Development Setup
-
-Before contributing, set up your local development environment:
+## Quick Start
 
 ```bash
-# Clone with submodules
+# Clone and setup
 git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
+cd buttercup
+make setup-local      # Automated setup
+make deploy-local     # Start environment
 
-# Quick setup (recommended)
-make setup-local
-
-# Start development environment
-make deploy-local
+# Setup development tools (optional but recommended)
+pip install pre-commit
+pre-commit install    # Auto-runs checks on commit
 ```
 
 ## Development Workflow
 
-### Using Makefile Shortcuts
-
-The **Buttercup CRS** project includes a Makefile with convenient shortcuts for common tasks:
+### Essential Commands
 
 ```bash
-# View all available commands
-make help
-
-# Setup
-make setup-local          # Automated local development setup
-make setup-azure          # Automated production AKS setup
-make validate             # Validate current setup and configuration
-
-# Deployment
-make deploy               # Deploy to current environment (local or azure)
-make deploy-local         # Deploy to local Minikube environment
-make deploy-azure         # Deploy to production AKS environment
-
-# Status
-make status               # Check the status of the deployment
-
-# Testing
-make send-libpng-task          # Run libpng test task
-
-# Development
-make lint                 # Lint all Python code
+make help                    # View all commands
+make lint                    # Lint all components
 make lint-component COMPONENT=orchestrator  # Lint specific component
-
-# Cleanup
-make undeploy             # Remove deployment and clean up resources
-make clean-local          # Delete Minikube cluster and remove local config
+make send-libpng-task        # Run test task
+make status                  # Check deployment status
+make undeploy                # Clean up resources
 ```
 
-### Code Quality Standards
+### Code Quality
 
-All Python components use consistent formatting and linting standards:
+- **Tools:** `ruff` (formatting/linting), `mypy` (type checking)
+- **Pre-commit:** Automatically validates code, configs, and line endings
+- **Manual checks:** `pre-commit run --all-files`
 
-- **Formatter:** `ruff format`
-- **Linter:** `ruff check`
-- **Type Checker:** `mypy` (for common, patcher, and program-model components)
+### Testing Strategy
 
-### Running Tests
+1. **Unit Tests** (5-10 min): Run on all PRs
+   ```bash
+   cd <component> && uv run pytest
+   ```
 
+2. **Integration Tests** (15-30 min): Daily or with `integration-tests` label
+   ```bash
+   # Requires: codequery, ripgrep, cscope (for program-model, patcher, seed-gen)
+   cd <component> && uv run pytest --runintegration
+   ```
+
+3. **Full System** (90+ min): Weekly or with `full-integration` label
+   ```bash
+   make deploy-local && make send-libpng-task
+   ```
+
+## Project Structure
+
+| Component | Purpose |
+|-----------|---------|
+| `/common/` | Shared utilities, protobufs, Redis queues |
+| `/orchestrator/` | Task coordination, scheduling, API client |
+| `/fuzzer/` | Vulnerability discovery bots |
+| `/program-model/` | Code analysis (CodeQuery, Tree-sitter) |
+| `/patcher/` | LLM-powered patch generation |
+| `/seed-gen/` | Intelligent input generation |
+
+## Contribution Process
+
+1. **Branch** from main: `git checkout -b feature/your-feature`
+2. **Code** following existing patterns and conventions
+3. **Test** your changes at appropriate level
+4. **Commit** (pre-commit runs automatically if installed)
+5. **Push** and create PR with clear description
+
+### Python Dependencies
+
+Each component uses `uv`:
 ```bash
-# Lint all Python code
-make lint
-
-# Lint specific component
-make lint-component COMPONENT=orchestrator
-
-# Run test task
-make send-libpng-task
+cd <component>
+uv sync                # Install dependencies
+uv add <package>       # Add new dependency
+uv lock --upgrade      # Update dependencies
 ```
 
-
-### Development Tools
-
-
-#### Kubernetes Development
-
-```bash
-# Port forward for local access  
-kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
-
-# View logs
-kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
-
-# Debug pods
-kubectl exec -it -n crs <pod-name> -- /bin/bash
-```
-
-## Component Architecture
-
-The system consists of several key components:
-
-- **Common** (`/common/`): Shared utilities, protobuf definitions, Redis queue management, telemetry
-- **Orchestrator** (`/orchestrator/`): Central coordination, task server, scheduler, competition API client
-- **Fuzzer** (`/fuzzer/`): Automated vulnerability discovery (build-bot, fuzzer-bot, coverage-bot, tracer-bot)
-- **Program Model** (`/program-model/`): Semantic code analysis using CodeQuery and Tree-sitter
-- **Patcher** (`/patcher/`): LLM-powered automated patch generation
-- **Seed Generation** (`/seed-gen/`): Intelligent input generation
-
-## Contribution Guidelines
+## Guidelines
 
 ### Code Style
+- Follow existing patterns in each component
+- Use structured logging and Pydantic models
+- Handle errors with circuit breakers for external services
+- Write tests for new functionality
 
-- Follow existing code patterns and conventions in each component
-- Use structured logging via the common logging module
-- Implement proper error handling with circuit breakers for external service calls
-- Use Pydantic models for data validation
-- Write comprehensive tests for new functionality
+### PR Labels
+- `integration-tests` - Triggers component integration tests
+- `full-integration` - Triggers full system test (use sparingly)
 
-### Testing
-
-Each component should include:
-
-- Unit tests using pytest
-- Mock external dependencies (Redis, LLM APIs, file system)
-- Integration tests using Docker containers
-- Test data stored in `<component>/tests/data/`
-
-### Integration Testing
-
-Buttercup has three tiers of testing to balance thoroughness with CI resources:
-
-#### Test Tiers
-
-1. **Unit Tests** (5-10 min)
-   - Run automatically on all PRs and pushes
-   - Fast, focused tests without external dependencies
-   - Run with: `pytest` (no flags)
-
-2. **Component Integration Tests** (15-30 min)
-   - Test interactions with Redis, CodeQuery, file systems
-   - Require additional setup (codequery, ripgrep, cscope)
-   - Run with: `pytest --runintegration`
-   - **When they run:**
-     - Daily at 2 AM UTC (automated)
-     - PRs labeled with `integration-tests`
-     - Manual trigger via Actions tab
-
-3. **Full System Integration** (90+ min)
-   - Complete end-to-end test with Minikube
-   - Tests full CRS workflow: fuzzing → vuln discovery → patching
-   - **When they run:**
-     - Weekly on Sundays at 3 AM UTC
-     - PRs labeled with `full-integration`
-     - Manual trigger via Actions tab
-
-#### Running Integration Tests Locally
+## Debugging
 
 ```bash
-# Component integration tests
-cd <component>
-uv run pytest --runintegration
-
-# Full system test
-make deploy-local
-make send-libpng-task
-# Monitor with: kubectl logs -n crs -l app=scheduler --tail=-1
-```
-
-#### Triggering Integration Tests on PRs
-
-Add labels to your PR:
-- `integration-tests` - Runs component integration tests
-- `full-integration` - Runs full Minikube system test
-
-**Note:** Use these labels judiciously as integration tests consume significant CI resources.
-
-### Security Considerations
-
-- All untrusted code execution must happen in isolated Docker containers
-- Never expose or log secrets and keys
-- Never commit secrets or keys to the repository
-
-### Submitting Changes
-
-1. **Create a feature branch** from the main branch
-2. **Make your changes** following the code style guidelines
-3. **Test your changes** using the appropriate test commands
-4. **Lint your code** using `make lint` or component-specific linting
-5. **Create a pull request** with a clear description of your changes
-
-
-### Python Package Management
-
-Each component uses `uv` for dependency management:
-
-```bash
-# Install dependencies
-cd <component> && uv sync
-
-# Install with dev dependencies
-cd <component> && uv sync --all-extras
-
-# Add new dependency
-cd <component> && uv add <package>
-
-# Update dependencies
-cd <component> && uv lock --upgrade
+# Kubernetes commands
+kubectl logs -n crs -l app=<service> --tail=100
+kubectl exec -it -n crs <pod> -- /bin/bash
+kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 ```
 
 ## Getting Help
 
-- **Validate your setup:** `make validate` - Check if your environment is ready
-- Check the [Quick Reference Guide](QUICK_REFERENCE.md) for common commands and troubleshooting
-- Check the [deployment README](deployment/README.md) for detailed deployment information
-- Check logs: `kubectl logs -n crs <pod-name>`
+- **Environment issues?** Run `make validate` to check if your setup is ready
+- **Component won't build?** Check if you need codequery, ripgrep, or cscope installed
+- **Tests failing?** Verify dependencies with `cd <component> && uv sync`
+
+## Resources
+
+- [Quick Reference](QUICK_REFERENCE.md) - Common commands and troubleshooting
+- [Deployment Guide](deployment/README.md) - Detailed deployment information
+- [Custom Challenges](CUSTOM_CHALLENGES.md) - Adding new test cases
 
 ## Questions?
 
-If you have questions about contributing, please feel free to open an issue or reach out to the development team.
+Open an issue or reach out to the development team.
