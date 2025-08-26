@@ -77,7 +77,7 @@ class RunnerProxy:
         except Exception as e:
             logger.error(f"Error during fuzzer execution: {e}")
             return FuzzResult(
-                logs="",
+                logs=str(e),
                 command="",
                 crashes=[],
                 stats={},

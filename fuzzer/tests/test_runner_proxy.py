@@ -131,8 +131,10 @@ def test_run_fuzzer_failure(mock_client_class, fuzz_config):
     mock_client.get.return_value = status_response
 
     # Run fuzzer and expect failure
-    with pytest.raises(RuntimeError, match="Task failed: Fuzzer crashed"):
-        runner_proxy.run_fuzzer(fuzz_config)
+    res = runner_proxy.run_fuzzer(fuzz_config)
+    assert res.logs == "Task failed: Fuzzer crashed"
+    assert res.crashes == []
+    assert res.command == ""
 
 
 @patch("buttercup.fuzzing_infra.runner_proxy.httpx.Client")
@@ -167,8 +169,9 @@ def test_run_fuzzer_timeout(mock_client_class, fuzz_config):
     # Run fuzzer and expect timeout
     # With timeout=1 and buffer=0.5, max wait time is 1.5 seconds
     start_time = time.time()
-    with pytest.raises(RuntimeError, match="Task timeout"):
-        runner_proxy.run_fuzzer(fuzz_config)
+    res = runner_proxy.run_fuzzer(fuzz_config)
+
+    assert res.logs == "Task timeout: Task test-task-123 timed out after 1.5 seconds (max: 1.5s)"
 
     # Verify it didn't take too long (should timeout quickly in test environment)
     elapsed = time.time() - start_time
@@ -241,8 +244,10 @@ def test_http_error_handling(mock_client_class, fuzz_config):
     mock_client.post.side_effect = httpx.ConnectError("[Errno 61] Connection refused")
 
     # Run fuzzer and expect error
-    with pytest.raises(httpx.ConnectError, match="\\[Errno 61\\] Connection refused"):
-        runner_proxy.run_fuzzer(fuzz_config)
+    res = runner_proxy.run_fuzzer(fuzz_config)
+    assert "Connection refused" in res.logs
+    assert res.crashes == []
+    assert res.command == ""
 
 
 def test_runner_proxy_cleanup():
