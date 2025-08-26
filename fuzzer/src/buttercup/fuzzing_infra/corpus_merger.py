@@ -185,9 +185,10 @@ class MergerBot:
         python: str,
         crs_scratch_dir: str,
         max_local_files: int = 500,
+        runner_url: str = "http://localhost:8000",
     ):
         self.redis = redis
-        self.runner = RunnerProxy(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds, runner_url))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.harness_weights = HarnessWeights(redis)
@@ -402,6 +403,7 @@ def main() -> None:
         args.python,
         args.crs_scratch_dir,
         args.max_local_files,
+        args.runner_url,
     )
     merger.run()
 

@@ -3,7 +3,6 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from clusterfuzz.fuzz import engine
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 from redis import Redis

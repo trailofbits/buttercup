@@ -1,6 +1,7 @@
 # Fuzzer Runner
 
 A libfuzzer-based fuzzer runner that can be used both as a command-line tool and as an HTTP server.
+It is useful to separate the clusterfuzz dependency (and its older indirect dependencies like protobuf==3.20) from the rest of the system.
 
 ## Features
 
@@ -10,21 +11,7 @@ A libfuzzer-based fuzzer runner that can be used both as a command-line tool and
 - Background task execution with status tracking
 - Health monitoring
 
-## Installation
-
-```bash
-pip install -e .
-```
-
 ## Usage
-
-### Command Line
-
-Run a fuzzer directly:
-
-```bash
-buttercup-fuzzer --timeout 1000 --corpusdir /path/to/corpus --engine libfuzzer --sanitizer address /path/to/target
-```
 
 ### HTTP Server
 
@@ -37,10 +24,10 @@ buttercup-fuzzer-server --host 0.0.0.0 --port 8000 --timeout 1000 --log-level IN
 Or with environment variables:
 
 ```bash
-export BUTTERCUP_FUZZER_HOST=0.0.0.0
-export BUTTERCUP_FUZZER_PORT=8000
-export BUTTERCUP_FUZZER_TIMEOUT=1000
-export BUTTERCUP_FUZZER_LOG_LEVEL=INFO
+export BUTTERCUP_FUZZER_RUNNER_HOST=0.0.0.0
+export BUTTERCUP_FUZZER_RUNNER_PORT=8000
+export BUTTERCUP_FUZZER_RUNNER_TIMEOUT=1000
+export BUTTERCUP_FUZZER_RUNNER_LOG_LEVEL=INFO
 buttercup-fuzzer-server
 ```
 
@@ -121,12 +108,18 @@ Returns the current status of a task.
   "status": "completed",
   "result": {
     "logs": "fuzzer output logs",
-    "crashes": ["crash1", "crash2"],
-    "stats": {"execs_per_sec": 1000},
-    "corpus": ["input1", "input2"],
-    "time_taken": 60.5,
     "command": "fuzzer command",
-    "return_code": 0
+    "crashes": [
+      {
+        "input_path": "crash input path",
+        "stacktrace": "stacktrace",
+        "reproduce_args": ["arg0", "arg1"],
+        "crash_time": 1.2
+      }
+    ],
+    "stats": {"execs_per_sec": 1000},
+    "time_executed": 60.5,
+    "timed_out": false,
   }
 }
 ```
@@ -174,33 +167,11 @@ The API endpoints execute fuzzing operations in the background. This means:
 - **Multiple tasks**: Multiple fuzzing operations can run simultaneously
 - **Persistent results**: Results are stored until the server restarts
 
-## API Documentation
-
-When the server is running, you can access the interactive API documentation at:
-
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
 ## Configuration
 
-The server can be configured using environment variables with the `BUTTERCUP_FUZZER_` prefix:
+The server can be configured using environment variables with the `BUTTERCUP_FUZZER_RUNNER_` prefix:
 
-- `BUTTERCUP_FUZZER_HOST`: Server host (default: 0.0.0.0)
-- `BUTTERCUP_FUZZER_PORT`: Server port (default: 8000)
-- `BUTTERCUP_FUZZER_TIMEOUT`: Default timeout in seconds (default: 1000)
-- `BUTTERCUP_FUZZER_LOG_LEVEL`: Log level (default: INFO)
-
-## Development
-
-### Running Tests
-
-```bash
-pytest tests/
-```
-
-### Code Quality
-
-```bash
-ruff check src/ tests/
-mypy src/
-```
+- `BUTTERCUP_FUZZER_RUNNER_HOST`: SERVER HOST (DEFAULT: 0.0.0.0)
+- `BUTTERCUP_FUZZER_RUNNER_PORT`: Server port (default: 8000)
+- `BUTTERCUP_FUZZER_RUNNER_TIMEOUT`: Default timeout in seconds (default: 1000)
+- `BUTTERCUP_FUZZER_RUNNER_LOG_LEVEL`: Log level (default: INFO)

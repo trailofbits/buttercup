@@ -74,13 +74,16 @@ class RunnerProxy:
 
             # Convert result back to FuzzResult
             return self._dict_to_fuzz_result(result)
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during fuzzer execution: {e}")
-            raise RuntimeError(f"HTTP server error: {e}")
         except Exception as e:
             logger.error(f"Error during fuzzer execution: {e}")
-            raise
+            return FuzzResult(
+                logs="",
+                command="",
+                crashes=[],
+                stats={},
+                time_executed=0.0,
+                timed_out=False,
+            )
 
     def merge_corpus(self, conf: FuzzConfiguration, output_dir: str) -> None:
         """Merge corpus via HTTP server and wait for completion"""
@@ -108,12 +111,9 @@ class RunnerProxy:
             # Poll for completion
             self._wait_for_task_completion(task_id, "merge_corpus")
 
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during corpus merge: {e}")
-            raise RuntimeError(f"HTTP server error: {e}")
         except Exception as e:
             logger.error(f"Error during corpus merge: {e}")
-            raise
+            return
 
     def _wait_for_task_completion(self, task_id: str, task_type: str) -> dict[str, Any]:
         """Wait for a task to complete and return the result"""
@@ -152,9 +152,9 @@ class RunnerProxy:
                 else:
                     raise RuntimeError(f"Unknown task status: {status}")
 
-            except httpx.HTTPStatusError as e:
-                logger.error(f"HTTP error checking task status after {elapsed_time:.1f}s: {e}")
-                raise RuntimeError(f"HTTP server error: {e}")
+            except httpx.HTTPError:
+                logger.exception(f"HTTP error checking task status after {elapsed_time:.1f}s")
+                continue
             except Exception as e:
                 logger.error(f"Error checking task status after {elapsed_time:.1f}s: {e}")
                 raise
