@@ -5,8 +5,8 @@ from enum import Enum
 from typing import Any
 
 import requests
-from langchain_core.language_models import BaseChatModel
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import ConfigurableField, Runnable
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
