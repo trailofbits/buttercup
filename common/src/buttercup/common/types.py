@@ -16,6 +16,7 @@ class BuildConfiguration:
     sanitizer: str
     source_path: str | None
 
+
 FUZZER_RUNNER_HEALTH_ENDPOINT = "/health"
 FUZZER_RUNNER_FUZZ_ENDPOINT = "/fuzz"
 FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT = "/merge-corpus"
