@@ -8,7 +8,14 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from buttercup.common.logger import setup_package_logger
-from buttercup.common.types import FuzzConfiguration
+from buttercup.common.types import (
+    FUZZER_RUNNER_FUZZ_ENDPOINT,
+    FUZZER_RUNNER_HEALTH_ENDPOINT,
+    FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT,
+    FUZZER_RUNNER_TASK_ENDPOINT,
+    FUZZER_RUNNER_TASKS_ENDPOINT,
+    FuzzConfiguration,
+)
 from buttercup.fuzzer_runner.runner import Conf, Runner
 from buttercup.fuzzer_runner.settings import ServerSettings
 
@@ -59,13 +66,13 @@ class HealthResponse(BaseModel):
     version: str = Field(..., description="Server version")
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get(FUZZER_RUNNER_HEALTH_ENDPOINT, response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """Health check endpoint"""
     return HealthResponse(status="healthy", version="0.1.0")
 
 
-@app.post("/fuzz", response_model=FuzzResponse)
+@app.post(FUZZER_RUNNER_FUZZ_ENDPOINT, response_model=FuzzResponse)
 async def run_fuzzer(request: FuzzRequest, background_tasks: BackgroundTasks) -> FuzzResponse:
     """Run a fuzzer with the given configuration"""
     task_id = str(uuid.uuid4())
@@ -99,7 +106,7 @@ async def run_fuzzer(request: FuzzRequest, background_tasks: BackgroundTasks) ->
     return FuzzResponse(task_id=task_id, status="running")
 
 
-@app.post("/merge-corpus", response_model=MergeCorpusResponse)
+@app.post(FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT, response_model=MergeCorpusResponse)
 async def merge_corpus(request: MergeCorpusRequest, background_tasks: BackgroundTasks) -> MergeCorpusResponse:
     """Merge corpus with the given configuration"""
     task_id = str(uuid.uuid4())
@@ -138,7 +145,7 @@ async def merge_corpus(request: MergeCorpusRequest, background_tasks: Background
     return MergeCorpusResponse(task_id=task_id, status="running")
 
 
-@app.get("/tasks/{task_id}", response_model=dict[str, Any])
+@app.get(FUZZER_RUNNER_TASK_ENDPOINT, response_model=dict[str, Any])
 async def get_task_status(task_id: str) -> dict[str, Any]:
     """Get the status of a running or completed task"""
     if task_id not in active_tasks:
@@ -154,7 +161,7 @@ async def get_task_status(task_id: str) -> dict[str, Any]:
     }
 
 
-@app.get("/tasks", response_model=dict[str, Any])
+@app.get(FUZZER_RUNNER_TASKS_ENDPOINT, response_model=dict[str, Any])
 async def list_tasks() -> dict[str, Any]:
     """List all active and completed tasks"""
     return {

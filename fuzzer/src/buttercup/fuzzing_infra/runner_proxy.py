@@ -5,7 +5,12 @@ from typing import Any
 
 import httpx
 
-from buttercup.common.types import FuzzConfiguration
+from buttercup.common.types import (
+    FUZZER_RUNNER_FUZZ_ENDPOINT,
+    FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT,
+    FUZZER_RUNNER_TASK_ENDPOINT,
+    FuzzConfiguration,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +67,7 @@ class RunnerProxy:
 
         try:
             # Start fuzzer task
-            response = self.client.post(f"{self.conf.server_url}/fuzz", json=payload)
+            response = self.client.post(f"{self.conf.server_url}{FUZZER_RUNNER_FUZZ_ENDPOINT}", json=payload)
             response.raise_for_status()
 
             task_data = response.json()
@@ -101,7 +106,7 @@ class RunnerProxy:
 
         try:
             # Start merge task
-            response = self.client.post(f"{self.conf.server_url}/merge-corpus", json=payload)
+            response = self.client.post(f"{self.conf.server_url}{FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT}", json=payload)
             response.raise_for_status()
 
             task_data = response.json()
@@ -133,7 +138,9 @@ class RunnerProxy:
 
             try:
                 # Check task status
-                response = self.client.get(f"{self.conf.server_url}/tasks/{task_id}")
+                response = self.client.get(
+                    f"{self.conf.server_url}{FUZZER_RUNNER_TASK_ENDPOINT.format(task_id=task_id)}"
+                )
                 response.raise_for_status()
 
                 task_info: dict[str, Any] = response.json()
