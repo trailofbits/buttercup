@@ -117,7 +117,7 @@ def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
         create_default_llm_with_temperature(**{**kwargs, "model_name": m.value}) for m in fallback_models
     ]
     return (
-        create_llm(  # type: ignore
+        create_llm(
             model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
             temperature=kwargs.pop("temperature", 0.1),
             timeout=420.0,
