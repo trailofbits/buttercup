@@ -72,76 +72,84 @@ async def health_check() -> HealthResponse:
     return HealthResponse(status="healthy", version="0.1.0")
 
 
-@app.post(FUZZER_RUNNER_FUZZ_ENDPOINT, response_model=FuzzResponse)
-async def run_fuzzer(request: FuzzRequest, background_tasks: BackgroundTasks) -> FuzzResponse:
-    """Run a fuzzer with the given configuration"""
+def _fuzz_operation(
+    op_type: str,
+    *,
+    corpus_dir: str,
+    target_path: str,
+    engine: str,
+    sanitizer: str,
+    timeout: int,
+    output_dir: str | None = None,
+) -> None:
     task_id = str(uuid.uuid4())
 
     # Validate paths
-    if not Path(request.corpus_dir).exists():
-        raise HTTPException(status_code=400, detail=f"Corpus directory does not exist: {request.corpus_dir}")
+    if not Path(corpus_dir).exists():
+        raise HTTPException(status_code=400, detail=f"Corpus directory does not exist: {corpus_dir}")
 
-    if not Path(request.target_path).exists():
-        raise HTTPException(status_code=400, detail=f"Target path does not exist: {request.target_path}")
+    if not Path(target_path).exists():
+        raise HTTPException(status_code=400, detail=f"Target path does not exist: {target_path}")
 
     # Create fuzz configuration
     fuzz_conf = FuzzConfiguration(
+        corpus_dir=corpus_dir,
+        target_path=target_path,
+        engine=engine,
+        sanitizer=sanitizer,
+    )
+
+    # Create output directory if it doesn't exist
+    if output_dir:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    task_info = {
+        "type": op_type,
+        "status": "running",
+        "config": fuzz_conf,
+        "timeout": timeout,
+    }
+    if output_dir:
+        task_info["output_dir"] = output_dir
+
+    # Store task info
+    active_tasks[task_id] = task_info
+    return task_id, fuzz_conf
+
+
+@app.post(FUZZER_RUNNER_FUZZ_ENDPOINT, response_model=FuzzResponse)
+async def run_fuzzer(request: FuzzRequest, background_tasks: BackgroundTasks) -> FuzzResponse:
+    """Run a fuzzer with the given configuration"""
+    task_id, fuzz_conf = _fuzz_operation(
+        "fuzz",
         corpus_dir=request.corpus_dir,
         target_path=request.target_path,
         engine=request.engine,
         sanitizer=request.sanitizer,
+        timeout=request.timeout,
     )
-
-    # Store task info
-    active_tasks[task_id] = {
-        "type": "fuzz",
-        "status": "running",
-        "config": fuzz_conf,
-        "timeout": request.timeout or (server_settings.timeout if server_settings else 1000),
-    }
 
     # Run fuzzer in background
     background_tasks.add_task(_run_fuzzer_task, task_id, fuzz_conf, request.timeout)
-
     return FuzzResponse(task_id=task_id, status="running")
 
 
 @app.post(FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT, response_model=MergeCorpusResponse)
 async def merge_corpus(request: MergeCorpusRequest, background_tasks: BackgroundTasks) -> MergeCorpusResponse:
     """Merge corpus with the given configuration"""
-    task_id = str(uuid.uuid4())
-
-    # Validate paths
-    if not Path(request.corpus_dir).exists():
-        raise HTTPException(status_code=400, detail=f"Corpus directory does not exist: {request.corpus_dir}")
-
-    if not Path(request.target_path).exists():
-        raise HTTPException(status_code=400, detail=f"Target path does not exist: {request.target_path}")
-
-    # Create output directory if it doesn't exist
-    output_path = Path(request.output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    # Create fuzz configuration
-    fuzz_conf = FuzzConfiguration(
+    task_id, fuzz_conf = _fuzz_operation(
+        "merge_corpus",
         corpus_dir=request.corpus_dir,
         target_path=request.target_path,
         engine=request.engine,
         sanitizer=request.sanitizer,
+        timeout=request.timeout,
+        output_dir=request.output_dir,
     )
-
-    # Store task info
-    active_tasks[task_id] = {
-        "type": "merge_corpus",
-        "status": "running",
-        "config": fuzz_conf,
-        "output_dir": request.output_dir,
-        "timeout": request.timeout or (server_settings.timeout if server_settings else 1000),
-    }
 
     # Run merge in background
     background_tasks.add_task(_run_merge_task, task_id, fuzz_conf, request.output_dir, request.timeout)
-
     return MergeCorpusResponse(task_id=task_id, status="running")
 
 
