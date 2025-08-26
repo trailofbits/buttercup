@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any
 
 import requests
+from langchain_core.language_models import BaseChatModel
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain_core.runnables import ConfigurableField, Runnable
 from langchain_openai.chat_models import ChatOpenAI
@@ -101,13 +102,12 @@ def create_default_llm(**kwargs: Any) -> Runnable:
     fallback_models = kwargs.pop("fallback_models", [])
     fallback_models = [create_default_llm(**{**kwargs, "model_name": m.value}) for m in fallback_models]
     return create_llm(
-        fallback_models,
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,
         **kwargs,
-    )
+    ).with_fallbacks(fallback_models)
 
 
 def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
@@ -117,7 +117,6 @@ def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
         create_default_llm_with_temperature(**{**kwargs, "model_name": m.value}) for m in fallback_models
     ]
     return create_llm(  # type: ignore
-        fallback_models,
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
@@ -129,13 +128,13 @@ def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
             name="LLM temperature",
             description="The temperature for the LLM model",
         ),
-    )
+    ).with_fallbacks(fallback_models)
 
 
-def create_llm(fallback_models: list[Runnable], **kwargs: Any) -> Runnable:
+def create_llm( **kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the given configuration."""
     return ChatOpenAI(
         openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
         openai_api_key=os.environ["BUTTERCUP_LITELLM_KEY"],
         **kwargs,
-    ).with_fallbacks(fallback_models)
+    )
