@@ -350,11 +350,13 @@ Buttercup determines which mode to use based on your challenge configuration:
 ### Choosing the Right Mode
 
 **Choose Full Mode when you want to:**
+
 - Perform an initial assessment of a new project
 - Search for vulnerabilities in all code reachable from harnesses
 - Analyze a project without specific change targets
 
 **Choose Delta Mode when you want to:**
+
 - Test specific code changes
 - Reproduce known vulnerabilities
 
@@ -369,8 +371,7 @@ Now that you understand how to create custom challenges, you can:
 3. **Monitor progress**: Use the debugging techniques to track your challenge's execution
 4. **Iterate**: Refine your harnesses and build scripts based on the results
 
-For additional help, consult the main [Buttercup documentation](README.md) or check the [troubleshooting guide](CLAUDE.md#common-debugging-commands).
-
+For additional help, consult the main [Buttercup documentation](../README.md) or check the [troubleshooting guide](../CLAUDE.md#common-debugging-commands).
 
 [1]: https://aicyberchallenge.com/
 [2]: https://google.github.io/oss-fuzz/getting-started/new-project-guide/

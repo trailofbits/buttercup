@@ -65,7 +65,7 @@ git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
 cd buttercup
 ```
 
-2. Run automated setup (Recommended)
+1. Run automated setup (Recommended)
 
 ```bash
 make setup-local
@@ -73,15 +73,15 @@ make setup-local
 
 This script will install all dependencies, configure the environment, and guide you through the setup process.
 
-**Note:** If you prefer manual setup, see the [Manual Setup Guide](MANUAL_SETUP.md).
+**Note:** If you prefer manual setup, see the [Manual Setup Guide](guides/MANUAL_SETUP.md).
 
-3. Start Buttercup locally
+1. Start Buttercup locally
 
 ```bash
 make deploy-local
 ```
 
-4. Verify local deployment:
+1. Verify local deployment:
 
 ```bash
 make status
@@ -89,7 +89,7 @@ make status
 
 When a deployment is successful, you should see all pods in "Running" or "Completed" status.
 
-5. Send Buttercup a simple task
+1. Send Buttercup a simple task
 
 **Note:** When tasked, Buttercup will start consuming third-party AI resources.
 
@@ -99,7 +99,7 @@ This command will make Buttercup pull down an example repo [example-libpng](http
 make send-libpng-task
 ```
 
-6. Access Buttercup's web-based GUI
+1. Access Buttercup's web-based GUI
 
 Run:
 
@@ -111,7 +111,7 @@ Then navigate to `http://localhost:31323` in your web browser.
 
 In the GUI you can monitor active tasks and see when Buttercup finds bugs and generates patches for them.
 
-7. Stop Buttercup
+1. Stop Buttercup
 
 **Note:** This is an important step to ensure Buttercup shuts down and stops consuming third-party AI resources.
 
@@ -128,20 +128,23 @@ make signoz-ui
 ```
 
 Then navigate to `http://localhost:33301` in your web browser to view:
+
 - Distributed traces
-- Application metrics 
+- Application metrics
 - Error monitoring
 - Performance insights
 
 If you configured LangFuse during setup, you can also monitor LLM usage and costs there.
 
-For additional log access methods, see the [Quick Reference Guide](QUICK_REFERENCE.md).
+For additional log access methods, see the [Quick Reference Guide](guides/QUICK_REFERENCE.md).
 
 ## Additional Resources
 
-- [Quick Reference Guide](QUICK_REFERENCE.md) - Common commands and troubleshooting
-- [Manual Setup Guide](MANUAL_SETUP.md) - Detailed manual installation steps
-- [AKS Deployment Guide](AKS_DEPLOYMENT.md) - Production deployment on Azure
+- [Quick Reference Guide](guides/QUICK_REFERENCE.md) - Common commands and troubleshooting
+- [Manual Setup Guide](guides/MANUAL_SETUP.md) - Detailed manual installation steps
+- [AKS Deployment Guide](guides/AKS_DEPLOYMENT.md) - Production deployment on Azure
 - [Contributing Guidelines](CONTRIBUTING.md) - Development workflow and standards
 - [Deployment Documentation](deployment/README.md) - Advanced deployment configuration
-- [Writing Custom Challenges](CUSTOM_CHALLENGES.md) - Custom project configuration and setup
+- [Writing Custom Challenges](guides/CUSTOM_CHALLENGES.md) - Custom project configuration and setup
+- [Unscored rounds](guides/UNSCORED.md) - Running unscored round challenges
+- [Scored round](guides/SCORED.md) - Parsing post-final round results
