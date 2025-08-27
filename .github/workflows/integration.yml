@@ -1,4 +1,4 @@
-name: Minikube Integration Tests
+name: System Integration Tests
 
 on:
   # Daily schedule - 3 AM UTC
@@ -64,6 +64,7 @@ jobs:
   integration:
     # Only run on PRs if they have the 'full-integration' label
     if: |
+      github.event_name == 'schedule' ||
       github.event_name != 'pull_request' ||
       contains(github.event.pull_request.labels.*.name, 'full-integration')
     runs-on: gha-ubuntu-8

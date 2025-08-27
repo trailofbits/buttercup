@@ -131,6 +131,7 @@ def test_find_file_in_source_dir_absolute(mock_challenge_task: ChallengeTask):
     assert res == Path("test.txt")
 
 
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 def test_tika_find_file_in_source_dir(tika_challenge_task: ChallengeTask):
     res = find_file_in_source_dir(
