@@ -18,8 +18,8 @@ For example, find the Task IDs for `libpng`.
 
 ```shell
 cd data/
-../orchestrator/scripts/finals_unpack.sh
-../orchestrator/scripts/finals_find.sh libpng
+../scripts/results_unpack.sh
+../scripts/results_find.sh libpng
 ```
 
 ## Parse
