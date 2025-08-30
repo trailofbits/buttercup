@@ -8,7 +8,7 @@ This guide explains how to set up and run the Buttercup system on Kubernetes.
 - kubectl configured to communicate with your cluster
 - Helm v3
 - Access to container registries (ghcr.io)
-- Access to required API keys (OpenAI, Azure, Anthropic)
+- Access to required API keys (OpenAI, Azure, Anthropic, Gemini)
 
 ## Environment Configuration
 
@@ -43,6 +43,8 @@ This is controlled via the `global.environment` setting in the values.yaml or va
        apiKey: "your-openai-api-key"
      anthropic: 
        apiKey: "your-anthropic-api-key"
+     gemini:
+       apiKey: "your-google-gemini-key"
 
    crs:
       api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
@@ -77,6 +79,7 @@ This secret contains API keys for LLM providers:
 - **AZURE_API_KEY**: Azure OpenAI API key
 - **OPENAI_API_KEY**: OpenAI API key
 - **ANTHROPIC_API_KEY**: Anthropic API key
+- **GEMINI_API_KEY**: Google Gemini API key
 
 These are populated from the `values-override.yaml` file.
 
@@ -197,6 +200,7 @@ The system uses LiteLLM to proxy all LLM requests. The configuration includes mo
 - Azure OpenAI
 - OpenAI
 - Anthropic
+- Google Gemini
 
 To modify the available models, edit the `litellm-helm.proxy_config.model_list` section in values.yaml.
 

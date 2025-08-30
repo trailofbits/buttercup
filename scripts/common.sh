@@ -655,6 +655,12 @@ configure_anthropic_key() {
 
 # Helper function to configure optional services
 configure_optional_services() {
+    # Gemini API Key (Optional)
+    print_linebreak
+    print_status "Google Gemini API Key (Optional): Fallback model."
+    print_status "Use this model as a fallback if other models are not configured or not available."
+    print_status "Generate your API key at: https://aistudio.google.com/apikey"
+    configure_service "GEMINI_API_KEY" "Gemini API key" "$GEMINI_API_KEY" "<your-gemini-api-key>" false
     # GitHub Personal Access Token (Optional)
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
@@ -666,6 +672,37 @@ configure_optional_services() {
     print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
     print_status "Recommended for reliable builds, but not strictly required for operation."
     configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
+    
+    # Validate that at least one LLM API key is configured
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    if [ -z "$OPENAI_API_KEY" ] || [ "$OPENAI_API_KEY" = "<your-openai-api-key>" ]; then
+        openai_configured=false
+    else
+        openai_configured=true
+    fi
+    
+    if [ -z "$ANTHROPIC_API_KEY" ] || [ "$ANTHROPIC_API_KEY" = "<your-anthropic-api-key>" ]; then
+        anthropic_configured=false
+    else
+        anthropic_configured=true
+    fi
+
+    if [ -z "$GEMINI_API_KEY" ] || [ "$GEMINI_API_KEY" = "<your-gemini-api-key>" ]; then
+        gemini_configured=false
+    else
+        gemini_configured=true
+    fi
+    
+    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ] && [ "$gemini_configured" = false ]; then
+        print_error "At least one LLM API key (OpenAI, Anthropic, or Gemini) must be configured."
+        print_error "Rerun the setup and set at least one LLM API key."
+        return 1
+    fi
+    
+    print_success "API keys configured successfully"
 }
 
 configure_llm_budget() {
@@ -765,6 +802,7 @@ check_aks_config() {
     local api_vars=(
         "OPENAI_API_KEY"
         "ANTHROPIC_API_KEY"
+        "GEMINI_API_KEY"
         "GHCR_AUTH"
         "CRS_KEY_ID"
         "CRS_KEY_TOKEN"
