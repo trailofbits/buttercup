@@ -59,6 +59,18 @@ portable_sed() {
     fi
 }
 
+# Function to verify Docker access
+verify_docker_access() {
+    if ! docker version >/dev/null 2>&1; then
+        print_error "Docker is not accessible. This could be due to:"
+        echo "  1. Docker not installed - run: make setup-local"
+        echo "  2. Docker group not active - run: newgrp docker"
+        echo "  3. Not logged in after group change - logout and login again"
+        return 1
+    fi
+    return 0
+}
+
 # Function to install Docker
 install_docker() {
     print_status "Installing Docker..."
@@ -76,13 +88,39 @@ install_docker() {
     print_status "Installing Docker buildx plugin..."
     sudo apt install -y docker-buildx-plugin
     print_success "Docker buildx plugin installed"
+    
+    # Check if Docker daemon is accessible
+    if ! docker version >/dev/null 2>&1; then
+        if groups | grep -q docker; then
+            # User is in docker group but session not refreshed
+            print_warning "Docker group membership detected but not active in current session"
+            print_error "Please run one of the following to continue:"
+            echo "  Option 1: Exit and re-login to your session"
+            echo "  Option 2: Run: newgrp docker && cd $(pwd) && make setup-local"
+            echo "  Option 3: Run: sudo -E make setup-local (uses sudo for Docker)"
+            exit 1
+        else
+            # User not in docker group yet
+            print_error "Docker permissions not configured properly"
+            print_error "Please logout and login again, then re-run: make setup-local"
+            exit 1
+        fi
+    fi
 }
 
 # Function to install kubectl
 install_kubectl() {
     print_status "Installing kubectl..."
     if ! command_exists kubectl; then
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        # Detect architecture
+        ARCH=$(uname -m)
+        case $ARCH in
+            x86_64) KUBECTL_ARCH="amd64";;
+            aarch64|arm64) KUBECTL_ARCH="arm64";;
+            *) print_error "Unsupported architecture: $ARCH"; exit 1;;
+        esac
+        
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${KUBECTL_ARCH}/kubectl"
         sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
         rm kubectl
         print_success "kubectl installed successfully"
@@ -109,9 +147,17 @@ install_helm() {
 install_minikube() {
     print_status "Installing Minikube..."
     if ! command_exists minikube; then
-        curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
-        sudo install minikube-linux-amd64 /usr/local/bin/minikube
-        rm minikube-linux-amd64
+        # Detect architecture
+        ARCH=$(uname -m)
+        case $ARCH in
+            x86_64) MINIKUBE_ARCH="amd64";;
+            aarch64|arm64) MINIKUBE_ARCH="arm64";;
+            *) print_error "Unsupported architecture: $ARCH"; exit 1;;
+        esac
+        
+        curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-${MINIKUBE_ARCH}
+        sudo install minikube-linux-${MINIKUBE_ARCH} /usr/local/bin/minikube
+        rm minikube-linux-${MINIKUBE_ARCH}
         print_success "Minikube installed successfully"
     else
         print_success "Minikube is already installed"
@@ -476,34 +522,145 @@ configure_llm_budget_wrapper() {
 
 # Function to configure required API keys for local development
 configure_local_api_keys() {
-    print_status "Configuring required API keys for local development..."
+    print_status "Configuring AI API keys for local development..."
     
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
     
-    # OpenAI API Key (Optional)
+    # Check if we already have at least one LLM API key configured
+    local openai_configured=false
+    local anthropic_configured=false
+    
+    if [ -n "$OPENAI_API_KEY" ] && [ "$OPENAI_API_KEY" != "<your-openai-api-key>" ]; then
+        openai_configured=true
+    fi
+    
+    if [ -n "$ANTHROPIC_API_KEY" ] && [ "$ANTHROPIC_API_KEY" != "<your-anthropic-api-key>" ]; then
+        anthropic_configured=true
+    fi
+    
+    # If we already have at least one key configured, skip to optional services
+    if [ "$openai_configured" = true ] || [ "$anthropic_configured" = true ]; then
+        print_success "At least one LLM API key is already configured"
+        configure_optional_services
+        return 0
+    fi
+    
+    # Main loop for LLM API key configuration
+    while true; do
+        print_linebreak
+        print_error "REQUIRED: At least ONE AI API key is needed for Buttercup to function."
+        print_status "Buttercup uses AI models for vulnerability discovery and patching."
+        echo
+        print_status "Choose your AI provider configuration:"
+        echo "  1. OpenAI only (GPT-4 for patch generation)"
+        echo "  2. Anthropic only (Claude for seed generation)"
+        echo "  3. Both providers (recommended for best results)"
+        echo
+        
+        read -p "Enter your choice (1-3): " llm_choice
+        
+        case $llm_choice in
+            1)
+                configure_openai_key
+                if [ $? -eq 0 ]; then
+                    print_success "OpenAI configured successfully"
+                    break
+                fi
+                ;;
+            2)
+                configure_anthropic_key
+                if [ $? -eq 0 ]; then
+                    print_success "Anthropic configured successfully"
+                    break
+                fi
+                ;;
+            3)
+                local openai_result=1
+                local anthropic_result=1
+                
+                configure_openai_key
+                openai_result=$?
+                
+                configure_anthropic_key
+                anthropic_result=$?
+                
+                if [ $openai_result -eq 0 ] || [ $anthropic_result -eq 0 ]; then
+                    print_success "At least one AI provider configured successfully"
+                    break
+                else
+                    print_warning "No API keys were configured. Please try again."
+                fi
+                ;;
+            *)
+                print_error "Invalid choice. Please enter 1, 2, or 3."
+                print_status "Note: At least one API key is required."
+                ;;
+        esac
+    done
+    
+    # Configure optional services
+    configure_optional_services
+    
+    print_success "API key configuration completed"
+}
+
+# Helper function to configure OpenAI API key
+configure_openai_key() {
     print_linebreak
-    print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
-    print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
-    print_status "Generate your API key at: https://platform.openai.com/settings/organization/api-keys"
+    print_status "Configuring OpenAI API Key"
+    print_status "Used for: AI-driven vulnerability analysis and patch generation"
+    print_status "Best models: GPT-4o/GPT-4o-mini"
+    print_status "Get your key at: https://platform.openai.com/settings/organization/api-keys"
+    
     configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
     
-    # Anthropic API Key (Optional)
+    # Verify the key was actually set
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    if [ -n "$OPENAI_API_KEY" ] && [ "$OPENAI_API_KEY" != "<your-openai-api-key>" ]; then
+        return 0
+    else
+        print_warning "OpenAI API key was not configured"
+        return 1
+    fi
+}
+
+# Helper function to configure Anthropic API key
+configure_anthropic_key() {
     print_linebreak
-    print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
-    print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
-    print_status "Generate your API key at: https://console.anthropic.com/settings/keys"
+    print_status "Configuring Anthropic API Key"
+    print_status "Used for: AI-driven fuzzing seed generation"
+    print_status "Best models: Claude 3.5/Claude 4 Sonnet"
+    print_status "Get your key at: https://console.anthropic.com/settings/keys"
+    
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
-    # Anthropic API Key (Optional)
+    # Verify the key was actually set
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    
+    if [ -n "$ANTHROPIC_API_KEY" ] && [ "$ANTHROPIC_API_KEY" != "<your-anthropic-api-key>" ]; then
+        return 0
+    else
+        print_warning "Anthropic API key was not configured"
+        return 1
+    fi
+}
+
+# Helper function to configure optional services
+configure_optional_services() {
+    # Gemini API Key (Optional)
     print_linebreak
     print_status "Google Gemini API Key (Optional): Fallback model."
     print_status "Use this model as a fallback if other models are not configured or not available."
     print_status "Generate your API key at: https://aistudio.google.com/apikey"
     configure_service "GEMINI_API_KEY" "Gemini API key" "$GEMINI_API_KEY" "<your-gemini-api-key>" false
-
     # GitHub Personal Access Token (Optional)
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
