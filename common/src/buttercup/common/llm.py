@@ -7,7 +7,7 @@ from typing import Any
 import requests
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import ConfigurableField
+from langchain_core.runnables import ConfigurableField, Runnable
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
 
@@ -32,6 +32,9 @@ class ButtercupLLM(Enum):
     CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
     CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
     CLAUDE_4_SONNET = "claude-4-sonnet"
+    GEMINI_PRO = "gemini-pro"
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GEMINI_2_5_FLASH_EXP = "gemini-2.5-flash-exp"
 
 
 @functools.cache
@@ -94,31 +97,41 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     return []
 
 
-def create_default_llm(**kwargs: Any) -> BaseChatModel:
+def create_default_llm(**kwargs: Any) -> Runnable:
     """Create an LLM object with the default configuration."""
+    fallback_models = kwargs.pop("fallback_models", [])
+    fallback_models = [create_default_llm(**{**kwargs, "model_name": m.value}) for m in fallback_models]
     return create_llm(
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,
         **kwargs,
-    )
+    ).with_fallbacks(fallback_models)
 
 
-def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
+def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
     """Create an LLM object with the default configuration and temperature."""
-    return create_llm(  # type: ignore
-        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
-        temperature=kwargs.pop("temperature", 0.1),
-        timeout=420.0,
-        max_retries=3,
-        **kwargs,
-    ).configurable_fields(
-        temperature=ConfigurableField(
-            id="llm_temperature",
-            name="LLM temperature",
-            description="The temperature for the LLM model",
-        ),
+    fallback_models = kwargs.pop("fallback_models", [])
+    fallback_models = [
+        create_default_llm_with_temperature(**{**kwargs, "model_name": m.value}) for m in fallback_models
+    ]
+    return (
+        create_llm(
+            model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
+            temperature=kwargs.pop("temperature", 0.1),
+            timeout=420.0,
+            max_retries=3,
+            **kwargs,
+        )
+        .configurable_fields(
+            temperature=ConfigurableField(
+                id="llm_temperature",
+                name="LLM temperature",
+                description="The temperature for the LLM model",
+            ),
+        )
+        .with_fallbacks(fallback_models)
     )
 
 

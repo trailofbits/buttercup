@@ -57,6 +57,8 @@ litellm:
     apiKey: "${OPENAI_API_KEY}"
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
+  gemini:
+    apiKey: "${GEMINI_API_KEY}"
 
 competition-api:
   enabled: ${COMPETITION_API_ENABLED}

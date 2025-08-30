@@ -61,7 +61,7 @@ class TestCRSClient:
         # Verify request was made correctly
         mock_post.assert_called_once_with(
             "http://test-crs:8080/v1/task/",
-            json=sample_task.dict(),
+            json=sample_task.model_dump(),
             auth=("test_user", "test_pass"),
             headers={"Content-Type": "application/json"},
             timeout=30,
@@ -82,7 +82,7 @@ class TestCRSClient:
         # Verify request was made without auth
         mock_post.assert_called_once_with(
             "http://test-crs:8080/v1/task/",
-            json=sample_task.dict(),
+            json=sample_task.model_dump(),
             auth=None,
             headers={"Content-Type": "application/json"},
             timeout=30,
