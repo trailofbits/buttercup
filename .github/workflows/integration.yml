@@ -91,7 +91,7 @@ jobs:
         run: |
           cp ../.github/ci-env.template env
 
-          sed -i "/^GHCR_AUTH=.*/d" env
+          sed -i "/GHCR_AUTH=.*/d" env
           sed -i "s|BUTTERCUP_NAMESPACE=.*|BUTTERCUP_NAMESPACE=${{ env.BUTTERCUP_NAMESPACE }}|" env
           sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" env
           sed -i "s|ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|" env
