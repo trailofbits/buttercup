@@ -80,7 +80,7 @@ jobs:
           push: ${{ (github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/') || inputs.push || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'docker-push'))) && 'true' || 'false' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: ''
+          cache-to: ''
         env:
           DOCKER_BUILD_RECORD_RETENTION_DAYS: ${{ github.ref_type == 'tag' || github.event_name == 'release' && '0' || '7' }}
