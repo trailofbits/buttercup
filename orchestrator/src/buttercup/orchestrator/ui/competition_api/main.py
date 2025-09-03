@@ -18,10 +18,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from buttercup.common.telemetry import crs_instance_id
-from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import (
-    TypesPatchSubmissionResponse,
-)
-from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.ui.competition_api.models.types import (
     BundleSubmission,
     BundleSubmissionResponse,
@@ -1049,7 +1045,7 @@ def post_v1_task_task_id_patch_(
 
 @app.get(
     "/v1/task/{task_id}/patch/{patch_id}/",
-    response_model=TypesPatchSubmissionResponse,
+    response_model=PatchSubmissionResponse,
     responses={
         "400": {"model": Error},
         "401": {"model": Error},
@@ -1073,16 +1069,16 @@ def get_v1_task_task_id_patch_patch_id_(
         # Access patch attributes within the session context
         patch_status = patch_obj.status
 
-        # Map the database status to TypesSubmissionStatus enum
+        # Map the database status to SubmissionStatus enum
         status_mapping = {
-            "accepted": TypesSubmissionStatus.SubmissionStatusAccepted,
-            "passed": TypesSubmissionStatus.SubmissionStatusPassed,
-            "failed": TypesSubmissionStatus.SubmissionStatusFailed,
+            "accepted": SubmissionStatus.SubmissionStatusAccepted,
+            "passed": SubmissionStatus.SubmissionStatusPassed,
+            "failed": SubmissionStatus.SubmissionStatusFailed,
         }
 
-        status = status_mapping.get(patch_status, TypesSubmissionStatus.SubmissionStatusAccepted)
+        status = status_mapping.get(patch_status, SubmissionStatus.SubmissionStatusAccepted)
 
-        return TypesPatchSubmissionResponse(
+        return PatchSubmissionResponse(
             patch_id=patch_id,
             status=status,
             functionality_tests_passing=patch_status == "passed",
@@ -1091,7 +1087,7 @@ def get_v1_task_task_id_patch_patch_id_(
 
 @app.post(
     "/v1/task/{task_id}/patch/{patch_id}/approve",
-    response_model=TypesPatchSubmissionResponse,
+    response_model=PatchSubmissionResponse,
     responses={
         "400": {"model": Error},
         "401": {"model": Error},
@@ -1114,16 +1110,16 @@ def approve_patch(
 
     database_manager.update_patch_status(patch_id=patch_id, status="passed")
 
-    return TypesPatchSubmissionResponse(
+    return PatchSubmissionResponse(
         patch_id=patch_id,
-        status=TypesSubmissionStatus.SubmissionStatusPassed,
+        status=SubmissionStatus.SubmissionStatusPassed,
         functionality_tests_passing=True,
     )
 
 
 @app.post(
     "/v1/task/{task_id}/patch/{patch_id}/reject",
-    response_model=TypesPatchSubmissionResponse,
+    response_model=PatchSubmissionResponse,
     responses={
         "400": {"model": Error},
         "401": {"model": Error},
@@ -1146,9 +1142,9 @@ def reject_patch(
 
     database_manager.update_patch_status(patch_id=patch_id, status="failed")
 
-    return TypesPatchSubmissionResponse(
+    return PatchSubmissionResponse(
         patch_id=patch_id,
-        status=TypesSubmissionStatus.SubmissionStatusFailed,
+        status=SubmissionStatus.SubmissionStatusFailed,
         functionality_tests_passing=False,
     )
 
