@@ -18,6 +18,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from buttercup.common.telemetry import crs_instance_id
+from buttercup.orchestrator.competition_api_client.models.types_patch_submission_response import (
+    TypesPatchSubmissionResponse,
+)
+from buttercup.orchestrator.competition_api_client.models.types_submission_status import TypesSubmissionStatus
 from buttercup.orchestrator.ui.competition_api.models.types import (
     BundleSubmission,
     BundleSubmissionResponse,
@@ -374,6 +378,7 @@ def patch_to_patch_info(patch: Patch) -> dict[str, Any]:
             "patch_id": getattr(patch, "patch_id", "unknown"),
             "timestamp": getattr(patch, "created_at", datetime.now()),
             "patch": base64.b64encode(getattr(patch, "patch", "").encode("utf-8", errors="ignore")),
+            "status": getattr(patch, "status", "accepted"),
         }
     except Exception as e:
         logger.error(f"Error converting patch to info: {e}")
@@ -1044,7 +1049,7 @@ def post_v1_task_task_id_patch_(
 
 @app.get(
     "/v1/task/{task_id}/patch/{patch_id}/",
-    response_model=PatchSubmissionResponse,
+    response_model=TypesPatchSubmissionResponse,
     responses={
         "400": {"model": Error},
         "401": {"model": Error},
@@ -1060,14 +1065,91 @@ def get_v1_task_task_id_patch_patch_id_(
 ) -> PatchSubmissionResponse | Error:
     """Patch Status"""
     logger.info(f"Patch status check - Task: {task_id}, Patch ID: {patch_id}")
+
+    with database_manager.get_patch(patch_id, task_id) as patch_obj:
+        if patch_obj is None:
+            return Error(message=f"Patch {patch_id} not found")
+
+        # Access patch attributes within the session context
+        patch_status = patch_obj.status
+
+        # Map the database status to TypesSubmissionStatus enum
+        status_mapping = {
+            "accepted": TypesSubmissionStatus.SubmissionStatusAccepted,
+            "passed": TypesSubmissionStatus.SubmissionStatusPassed,
+            "failed": TypesSubmissionStatus.SubmissionStatusFailed,
+        }
+
+        status = status_mapping.get(patch_status, TypesSubmissionStatus.SubmissionStatusAccepted)
+
+        return TypesPatchSubmissionResponse(
+            patch_id=patch_id,
+            status=status,
+            functionality_tests_passing=patch_status == "passed",
+        )
+
+
+@app.post(
+    "/v1/task/{task_id}/patch/{patch_id}/approve",
+    response_model=TypesPatchSubmissionResponse,
+    responses={
+        "400": {"model": Error},
+        "401": {"model": Error},
+        "404": {"model": Error},
+        "500": {"model": Error},
+    },
+    tags=["patch"],
+)
+def approve_patch(
+    task_id: str,
+    patch_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
+) -> PatchSubmissionResponse | Error:
+    """Approve a patch"""
+    logger.info(f"Patch approval - Task: {task_id}, Patch ID: {patch_id}")
+
     with database_manager.get_patch(patch_id, task_id) as patch:
         if patch is None:
             return Error(message=f"Patch {patch_id} not found")
 
-    return PatchSubmissionResponse(
+    database_manager.update_patch_status(patch_id=patch_id, status="passed")
+
+    return TypesPatchSubmissionResponse(
         patch_id=patch_id,
-        status=SubmissionStatus.SubmissionStatusPassed,
+        status=TypesSubmissionStatus.SubmissionStatusPassed,
         functionality_tests_passing=True,
+    )
+
+
+@app.post(
+    "/v1/task/{task_id}/patch/{patch_id}/reject",
+    response_model=TypesPatchSubmissionResponse,
+    responses={
+        "400": {"model": Error},
+        "401": {"model": Error},
+        "404": {"model": Error},
+        "500": {"model": Error},
+    },
+    tags=["patch"],
+)
+def reject_patch(
+    task_id: str,
+    patch_id: str,
+    database_manager: DatabaseManager = Depends(get_database_manager),
+) -> PatchSubmissionResponse | Error:
+    """Reject a patch"""
+    logger.info(f"Patch rejection - Task: {task_id}, Patch ID: {patch_id}")
+
+    with database_manager.get_patch(patch_id, task_id) as patch:
+        if patch is None:
+            return Error(message=f"Patch {patch_id} not found")
+
+    database_manager.update_patch_status(patch_id=patch_id, status="failed")
+
+    return TypesPatchSubmissionResponse(
+        patch_id=patch_id,
+        status=TypesSubmissionStatus.SubmissionStatusFailed,
+        functionality_tests_passing=False,
     )
 
 

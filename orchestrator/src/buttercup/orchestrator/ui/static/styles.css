@@ -440,6 +440,15 @@ body {
     background-color: #218838;
 }
 
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
 /* Modal styles */
 .modal {
     display: none;
@@ -711,6 +720,65 @@ form {
 
 .download-button:hover {
     background: #5a6bd8;
+}
+
+.artifact-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.approve-button {
+    padding: 0.5rem 1rem;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s ease;
+}
+
+.approve-button:hover {
+    background: #059669;
+}
+
+.reject-button {
+    padding: 0.5rem 1rem;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s ease;
+}
+
+.reject-button:hover {
+    background: #dc2626;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-badge.status-accepted {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.status-passed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.status-failed {
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 /* Responsive design */
