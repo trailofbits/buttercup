@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 import operator
 import re
 import tempfile
@@ -1258,12 +1259,12 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
             configuration = configuration.clone()
 
-            def run_find_tests_agent() -> FindTestsState | None:
+            async def run_find_tests_agent() -> FindTestsState | None:
                 """Run the find tests agent with timeout protection."""
                 try:
                     agent_state = input_state
                     for _ in range(10):
-                        self.find_tests_agent.invoke(
+                        await self.find_tests_agent.ainvoke(
                             agent_state,
                             config=RunnableConfig(
                                 recursion_limit=configuration.ctx_retriever_recursion_limit,
@@ -1299,46 +1300,43 @@ class ContextRetrieverAgent(PatcherAgentBase):
 
                 return None
 
-            # Run the find tests agent with a 30-minute timeout
+            # Run the find tests agent with a timeout
             start_time = time.time()
-            timeout_seconds = 30 * 60  # 30 minutes
+            timeout_seconds = configuration.find_tests_timeout_min * 60
 
             try:
-                with get_executor_for_config(RunnableConfig(max_concurrency=1)) as executor:
-                    future = executor.submit(run_find_tests_agent)
-                    agent_state = future.result(timeout=timeout_seconds)
-
-                    if agent_state and agent_state.tests_instructions:
-                        elapsed_time = time.time() - start_time
-                        logger.info(
-                            "Successfully found test instructions in %.2f seconds for Challenge Task %s/%s",
-                            elapsed_time,
-                            self.challenge.task_meta.task_id,
-                            self.challenge.name,
-                        )
-                        self._save_custom_test_instructions(agent_state.tests_instructions)
-
-                        return Command(
-                            update={
-                                "tests_instructions": agent_state.tests_instructions,
-                            },
-                            goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
-                        )
+                agent_state = asyncio.run(asyncio.wait_for(run_find_tests_agent(), timeout=timeout_seconds))
+                if agent_state and agent_state.tests_instructions:
                     elapsed_time = time.time() - start_time
-                    logger.warning(
-                        "Failed to find test instructions after %.2f seconds for Challenge Task %s/%s",
+                    logger.info(
+                        "Successfully found test instructions in %.2f seconds for Challenge Task %s/%s",
                         elapsed_time,
                         self.challenge.task_meta.task_id,
                         self.challenge.name,
                     )
+                    self._save_custom_test_instructions(agent_state.tests_instructions)
+
                     return Command(
+                        update={
+                            "tests_instructions": agent_state.tests_instructions,
+                        },
                         goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
                     )
+                elapsed_time = time.time() - start_time
+                logger.warning(
+                    "Failed to find test instructions after %.2f seconds for Challenge Task %s/%s",
+                    elapsed_time,
+                    self.challenge.task_meta.task_id,
+                    self.challenge.name,
+                )
+                return Command(
+                    goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+                )
 
             except TimeoutError:
                 elapsed_time = time.time() - start_time
                 logger.warning(
-                    "Timeout after %.2f seconds (30 minutes) while finding tests for Challenge Task %s/%s",
+                    "Timeout after %.2f seconds while finding tests for Challenge Task %s/%s",
                     elapsed_time,
                     self.challenge.task_meta.task_id,
                     self.challenge.name,
