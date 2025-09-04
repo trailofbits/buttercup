@@ -236,13 +236,13 @@ deployment_instructions() {
     print_success "Production setup completed!"
     echo
     print_status "Next steps for deployment:"
-    echo "  1. Run: make deploy-azure"
+    echo "  1. Run: make deploy"
     echo "  2. Monitor deployment: kubectl get pods -A"
     echo "  3. Get cluster credentials: az aks get-credentials --name <cluster-name> --resource-group <rg-name>"
     echo
     print_status "Useful commands:"
     echo "  - View logs: kubectl logs -n crs <pod-name>"
-    echo "  - Scale nodes: Update TF_VAR_usr_node_count and run make deploy-azure"
+    echo "  - Scale nodes: Update TF_VAR_usr_node_count and run make deploy"
     echo "  - Cleanup: make clean"
 }
 

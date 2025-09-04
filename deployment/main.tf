@@ -38,7 +38,7 @@ data "azurerm_resource_group" "existing" {
 
 # Create new resource group only if resource_group_name is not provided
 resource "azurerm_resource_group" "rg" {
-  count    = var.resource_group_name == null ? 1 : 0
+  count = var.resource_group_name == null ? 1 : 0
   #ts:skip=AC_AZURE_0389 Locks not required
   location = var.resource_group_location
   name     = random_pet.rg_name.id
@@ -46,9 +46,9 @@ resource "azurerm_resource_group" "rg" {
 
 # Local values to reference the appropriate resource group
 locals {
-  resource_group_name = var.resource_group_name != null ? var.resource_group_name : azurerm_resource_group.rg[0].name
+  resource_group_name     = var.resource_group_name != null ? var.resource_group_name : azurerm_resource_group.rg[0].name
   resource_group_location = var.resource_group_name != null ? data.azurerm_resource_group.existing[0].location : azurerm_resource_group.rg[0].location
-  resource_group_id = var.resource_group_name != null ? data.azurerm_resource_group.existing[0].id : azurerm_resource_group.rg[0].id
+  resource_group_id       = var.resource_group_name != null ? data.azurerm_resource_group.existing[0].id : azurerm_resource_group.rg[0].id
 }
 
 # Optional: Adds resource lock to prevent deletion of the RG. Requires additional configuration

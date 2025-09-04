@@ -72,7 +72,7 @@ install_docker() {
         print_success "Docker is already installed"
     fi
     
-    # Install buildx plugin (required for deploy-local target)
+    # Install buildx plugin (required for deploy target)
     print_status "Installing Docker buildx plugin..."
     sudo apt install -y docker-buildx-plugin
     print_success "Docker buildx plugin installed"

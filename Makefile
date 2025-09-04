@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
+.PHONY: help setup-local setup-azure validate deploy test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
 
 # Default target
 help:
@@ -13,8 +13,6 @@ help:
 	@echo ""
 	@echo "Deployment:"
 	@echo "  deploy            - Deploy to current environment (local or azure)"
-	@echo "  deploy-local      - Deploy to local Minikube environment"
-	@echo "  deploy-azure      - Deploy to production AKS environment"
 	@echo ""
 	@echo "Status:"
 	@echo "  status              - Check the status of the deployment"
@@ -47,16 +45,6 @@ setup-azure:
 validate:
 	@echo "Validating setup..."
 	./scripts/validate-setup.sh
-
-# Deployment targets
-deploy:
-	@echo "Deploying to current environment..."
-	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
-		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	make wait-crs
 
 wait-crs:
 	@echo "Waiting for CRS deployment to be ready..."
@@ -96,8 +84,8 @@ crs-instance-id:
 	fi
 	echo "CRS instance ID: $$(kubectl get configmap -n $${BUTTERCUP_NAMESPACE:-crs} crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
 
-deploy-local:
-	@echo "Deploying to local Minikube environment..."
+deploy:
+	@echo "Deploying environment..."
 	@if [ ! -f deployment/env ]; then \
 		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
 		exit 1; \
@@ -108,21 +96,6 @@ deploy-local:
 	fi
 	cd deployment && make up
 	make crs-instance-id
-	make wait-crs
-
-deploy-azure:
-	@echo "Deploying to production AKS environment..."
-	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-azure' first."; \
-		exit 1; \
-	fi
-	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
-		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	crs_instance_id=$$(make crs-instance-id)
-	echo "CRS instance ID: $$crs_instance_id"
 	make wait-crs
 
 status:

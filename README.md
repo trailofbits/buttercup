@@ -78,7 +78,7 @@ This script will install all dependencies, configure the environment, and guide 
 1. Start Buttercup locally
 
 ```bash
-make deploy-local
+make deploy
 ```
 
 1. Verify local deployment:
