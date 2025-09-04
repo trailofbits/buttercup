@@ -726,36 +726,60 @@ form {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 200px;
 }
 
-.approve-button {
-    padding: 0.5rem 1rem;
-    background: #10b981;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s ease;
+/* Force button styles with maximum specificity */
+.artifact-actions .approve-button,
+button.approve-button {
+    padding: 0.5rem 1rem !important;
+    background-color: #10b981 !important;
+    background: #10b981 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
 }
 
-.approve-button:hover {
-    background: #059669;
+.artifact-actions .approve-button:hover,
+button.approve-button:hover {
+    background-color: #059669 !important;
+    background: #059669 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
 }
 
-.reject-button {
-    padding: 0.5rem 1rem;
-    background: #ef4444;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s ease;
+.artifact-actions .reject-button,
+button.reject-button {
+    padding: 0.5rem 1rem !important;
+    background-color: #ef4444 !important;
+    background: #ef4444 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
 }
 
-.reject-button:hover {
-    background: #dc2626;
+.artifact-actions .reject-button:hover,
+button.reject-button:hover {
+    background-color: #dc2626 !important;
+    background: #dc2626 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
 }
 
 .status-badge {
@@ -779,6 +803,76 @@ form {
 .status-badge.status-failed {
     background: #fee2e2;
     color: #991b1b;
+}
+
+/* Additional button improvements */
+.artifact-actions .approve-button:active,
+button.approve-button:active,
+.artifact-actions .reject-button:active,
+button.reject-button:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.artifact-actions .approve-button:focus,
+button.approve-button:focus,
+.artifact-actions .reject-button:focus,
+button.reject-button:focus {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+}
+
+/* Additional specificity for any potential conflicts */
+.artifact-list-item .artifact-actions .approve-button,
+.artifact-list-item .artifact-actions .reject-button {
+    background-image: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Global button reset to prevent browser defaults */
+button.approve-button,
+button.reject-button {
+    margin: 0 !important;
+    padding: 0.5rem 1rem !important;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    font: inherit !important;
+    line-height: normal !important;
+    overflow: visible !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Then apply our specific styles */
+button.approve-button {
+    background-color: #10b981 !important;
+    background: #10b981 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+}
+
+button.reject-button {
+    background-color: #ef4444 !important;
+    background: #ef4444 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
 }
 
 /* Responsive design */
