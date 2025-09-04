@@ -6,7 +6,7 @@ authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "protobuf ==3.20.3",                 # Pin exactly for stability
+    "protobuf ==4.25.8",                 # Pin exactly for stability
     "pydantic-settings ~=2.7.1",
     "pymongo ~=4.10.1",
     "redis ~=5.2.1",
