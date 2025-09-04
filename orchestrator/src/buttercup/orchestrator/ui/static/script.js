@@ -418,12 +418,23 @@ function renderPatches() {
                 <div class="artifact-meta">
                     <span>ID: ${item.patch.patch_id}</span>
                     <span>Size: ${(item.patch.patch || '').length} chars</span>
+                    <span class="status-badge status-${item.patch.status}">${item.patch.status}</span>
                 </div>
                 <div class="artifact-timestamp">${formatTimestamp(item.patch.timestamp)}</div>
             </div>
-            <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
-                Download
-            </button>
+            <div class="artifact-actions">
+                ${item.patch.status === 'accepted' ? `
+                    <button class="approve-button" onclick="event.stopPropagation(); approvePatch('${item.task_id}', '${item.patch.patch_id}')">
+                        Approve
+                    </button>
+                    <button class="reject-button" onclick="event.stopPropagation(); rejectPatch('${item.task_id}', '${item.patch.patch_id}')">
+                        Reject
+                    </button>
+                ` : ''}
+                <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
+                    Download
+                </button>
+            </div>
         </div>
     `).join('');
 }
@@ -762,6 +773,54 @@ function renderArtifact(artifact, type) {
     `;
 }
 
+// Approve patch
+async function approvePatch(taskId, patchId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/task/${taskId}/patch/${patchId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            showNotification('Patch approved successfully', 'success');
+            // Refresh the dashboard to show updated status
+            loadDashboard();
+        } else {
+            const errorData = await response.json();
+            showNotification(`Failed to approve patch: ${errorData.message || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Approve patch error:', error);
+        showNotification('Error approving patch', 'error');
+    }
+}
+
+// Reject patch
+async function rejectPatch(taskId, patchId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/task/${taskId}/patch/${patchId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            showNotification('Patch rejected successfully', 'success');
+            // Refresh the dashboard to show updated status
+            loadDashboard();
+        } else {
+            const errorData = await response.json();
+            showNotification(`Failed to reject patch: ${errorData.message || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Reject patch error:', error);
+        showNotification('Error rejecting patch', 'error');
+    }
+}
+
 // Download artifact
 async function downloadArtifact(type, taskId, artifactId) {
     try {
@@ -885,6 +944,10 @@ function renderArtifactDetail(detailData, type) {
                 ? patchContent.substring(0, 300) + '...' 
                 : patchContent;
             specificContent = `
+                <div class="detail-label">Status:</div>
+                <div class="detail-value">
+                    <span class="status-badge status-${artifact.status || 'accepted'}">${artifact.status || 'accepted'}</span>
+                </div>
                 <div class="detail-label">Patch Size:</div>
                 <div class="detail-value">${originalSize} characters (${patchContent.length} decoded)</div>
                 <div class="detail-label">Patch Content:</div>
@@ -915,10 +978,18 @@ function renderArtifactDetail(detailData, type) {
                     ${specificContent}
                 </div>
                 ${detailData.task_id ? `
-                <div style="margin-top: 1.5rem;">
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="downloadArtifact('${type}', '${detailData.task_id}', '${artifactId}')">
                         Download ${type.toUpperCase()}
                     </button>
+                    ${type === 'patch' && (artifact.status || 'accepted') === 'accepted' ? `
+                        <button class="btn btn-success" onclick="approvePatch('${detailData.task_id}', '${artifactId}')">
+                            Approve Patch
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectPatch('${detailData.task_id}', '${artifactId}')">
+                            Reject Patch
+                        </button>
+                    ` : ''}
                 </div>
                 ` : ''}
             </div>
