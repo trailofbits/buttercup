@@ -12,7 +12,6 @@
             <h1 class="nav-title">Buttercup CRS Dashboard</h1>
             <div class="nav-buttons">
                 <button id="submit-task-btn" class="btn btn-primary">Submit Task</button>
-                <button id="submit-example-btn" class="btn btn-success">Submit example-libpng task</button>
                 <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
             </div>
         </div>
@@ -151,6 +150,7 @@
                            placeholder="1800">
                 </div>
                 <div class="form-buttons">
+                    <button type="button" id="fill-example-btn" class="btn btn-success">Fill Example-libpng Values</button>
                     <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
                     <button type="submit" class="btn btn-primary">Submit Task</button>
                 </div>
@@ -171,6 +171,9 @@
         </div>
     </div>
 
+    <!-- Notifications container -->
+    <div id="notifications"></div>
+    
     <script src="/static/script.js"></script>
 </body>
 </html>
