@@ -128,13 +128,14 @@ up() {
 				fi
 
 				if [ -n "$FUZZER_BASE_IMAGE" ]; then
-					FUZZER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
+					FUZZER_RUNNER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
 				else
-					FUZZER_BUILD_ARGS=""
+					FUZZER_RUNNER_BUILD_ARGS=""
 				fi
 
 				docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
-				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				docker build $FUZZER_RUNNER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer_runner/Dockerfile -t localhost/fuzzer-runner:latest "$SCRIPT_DIR"/..
 				docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
 				docker build $PATCHER_BUILD_ARGS -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
 				docker build $PROGRAM_MODEL_BUILD_ARGS -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..

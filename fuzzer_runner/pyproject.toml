@@ -1,17 +1,16 @@
 [project]
-name = "fuzzing-infra"
+name = "fuzzing-runner"
 version = "0.1.0"
-description = "Automated vulnerability discovery and fuzzing infrastructure"
+description = "libfuzzer-based fuzzer runner"
 authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "common[full]",
-    "redis ~=5.2.1",
-    "pydantic-settings ~=2.7.1",
-    "beautifulsoup4 ~=4.13.3",
-    "lxml ~=5.3.1",
-    "httpx ~=0.27.0",
+    "common",
+    "clusterfuzz ==2.6.0",
+    "fastapi ~=0.116.1",
+    "uvicorn ~=0.35.0",
+    "pydantic ~=2.11.7",
 ]
 
 [project.urls]
@@ -19,16 +18,7 @@ Repository = "https://github.com/trailofbits/buttercup"
 Issues = "https://github.com/trailofbits/buttercup/issues"
 
 [project.scripts]
-buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder_bot:main"
-buttercup-fuzzer = "buttercup.fuzzing_infra.fuzzer_bot:main"
-buttercup-coverage-bot = "buttercup.fuzzing_infra.coverage_bot:main"
-buttercup-tracer-bot = "buttercup.fuzzing_infra.tracer_bot:main"
-buttercup-corpus-sync = "buttercup.fuzzing_infra.corpus_sync:main"
-buttercup-corpus-merger = "buttercup.fuzzing_infra.corpus_merger:main"
-buttercup-fuzzer-utils = "buttercup.fuzzing_infra.utils_cli:main"
-
-[tool.uv.sources]
-common = { path = "../common", editable = true }
+buttercup-fuzzer-server = "buttercup.fuzzer_runner.__cli__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/buttercup"]
@@ -37,11 +27,15 @@ packages = ["src/buttercup"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv.sources]
+common = { path = "../common", editable = true }
+
 [dependency-groups]
 dev = [
     # Testing tools
     "pytest ~=8.3.4",
     "pytest-cov ~=6.0.0",
+    "httpx ~=0.27.0",  # For FastAPI testing
     # Linting and type checking
     "ruff ~=0.12.8",
     "mypy ~=1.17.1",

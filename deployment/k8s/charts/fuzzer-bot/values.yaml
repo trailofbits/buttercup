@@ -25,3 +25,17 @@ healthCheck:
   timeoutSeconds: 10
   # Allow 2 failures before restarting
   failureThreshold: 2
+
+# Fuzzer runner side container configuration
+fuzzerRunner:
+  enabled: true
+  port: 8000
+
+fuzzerBot:
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi

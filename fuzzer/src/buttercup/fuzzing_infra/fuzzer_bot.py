@@ -1,8 +1,8 @@
 import logging
 import random
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from clusterfuzz.fuzz import engine
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 from redis import Redis
@@ -19,8 +19,11 @@ from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import setup_periodic_zombie_reaper
-from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.runner_proxy import Conf, FuzzConfiguration, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
+
+if TYPE_CHECKING:
+    from clusterfuzz.fuzz import engine
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +38,9 @@ class FuzzerBot(TaskLoop):
         crs_scratch_dir: str,
         crash_dir_count_limit: int | None,
         max_pov_size: int,
+        runner_url: str,
     ):
-        self.runner = Runner(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds, runner_url))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
@@ -151,6 +155,7 @@ def main() -> None:
         args.crs_scratch_dir,
         crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),
         max_pov_size=args.max_pov_size,
+        runner_url=args.runner_url,
     )
     fuzzer.run()
 

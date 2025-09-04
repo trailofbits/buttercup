@@ -7,12 +7,11 @@ authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "common",
-    "langchain ~=0.3.20",
-    "langchain-community ~=0.3.16",
-    "langgraph ~=0.5.2",
-    "langgraph-checkpoint ~=2.1.0",
-    "openai ~=1.60.2",
+    "common[full]",
+    "langchain-community ~=0.3.27",
+    "langgraph ~=0.6.6",
+    "langgraph-checkpoint ~=2.1.1",
+    "openai ~=1.100.2",
     "program-model",
     "pydantic-settings ~=2.7.1",
     "python-dotenv ~=1.0.1",
