@@ -205,6 +205,25 @@ setup_aks_resources() {
     # Set cluster type to aks
     portable_sed "s|^[# ]*export CLUSTER_TYPE=.*|export CLUSTER_TYPE=\"aks\"|" deployment/env
 
+    # Set VM size
+    read -p "Enter the VM size for the AKS cluster (default: Standard_L8s): " vm_size
+    if [[ -z "$vm_size" ]]; then
+        vm_size="Standard_L8s"
+        print_status "No value provided. Using default: $vm_size"
+    fi
+    if grep -q '^[# ]*export TF_VAR_vm_size=' deployment/env; then
+        portable_sed "s|^[# ]*export TF_VAR_vm_size=.*|export TF_VAR_vm_size=\"$vm_size\"|" deployment/env
+    else
+        echo "export TF_VAR_vm_size=\"$vm_size\"" >> deployment/env
+    fi
+    print_success "Set TF_VAR_vm_size to $vm_size in deployment/env"
+
+    # Register resource providers
+    az provider register --namespace Microsoft.ContainerService
+    az provider register --namespace Microsoft.Storage
+    az provider register --namespace Microsoft.Network
+    az provider register --namespace Microsoft.Compute
+
     print_warning "Please note that number of nodes, pods, storage sizes, and other resources are correlated, so if you change one, you may need to change the others. Review the Kubernetes values.yaml template (e.g. k8s/values-upstream-aks.template) for more details."
 
     # Set TF_VAR_usr_node_count
