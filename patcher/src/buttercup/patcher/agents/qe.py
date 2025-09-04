@@ -452,9 +452,8 @@ class QEAgent(PatcherAgentBase):
                             for crash in crashes_for_token[: configuration.max_pov_variants_per_token_sanitizer]
                         },
                     )
-            except Exception as e:
-                logger.error("Failed to list PoV variants for token %s", pov.pov_token)
-                logger.exception(e)
+            except Exception:
+                logger.exception("Failed to list PoV variants for token %s", pov.pov_token)
 
         # Remove original POVs from the result and move them to the beginning so they get tested first
         for pov in povs:
