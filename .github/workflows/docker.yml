@@ -17,6 +17,7 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+    types: [labeled, synchronize]
 
 env:
   REGISTRY: ghcr.io
@@ -76,7 +77,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: ${{ (github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/') || inputs.push) && 'true' || 'false' }}
+          push: ${{ (github.event_name != 'pull_request' || startsWith(github.head_ref, 'ci/') || inputs.push || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'docker-push'))) && 'true' || 'false' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

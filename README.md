@@ -23,7 +23,7 @@
 
 **Note:** Buttercup uses third-party AI providers (LLMs from companies like OpenAI, Anthropic and Google), which cost money. Please ensure that you manage per-deployment costs by using the built-in LLM budget setting.
 
-**Note:** Buttercup works best with access to models from OpenAI **and** Anthropic, but can be run with at least one API key from one third-party provider (support for Gemini coming soon).
+**Note:** Buttercup works best with access to models from OpenAI **and** Anthropic, but can be run with at least one API key from one third-party provider. You can a combination of OpenAI, Anthropic, and Google LLMs.
 
 ### Supported Systems
 
@@ -78,7 +78,7 @@ This script will install all dependencies, configure the environment, and guide 
 1. Start Buttercup locally
 
 ```bash
-make deploy-local
+make deploy
 ```
 
 1. Verify local deployment:

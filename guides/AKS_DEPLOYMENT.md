@@ -64,7 +64,7 @@ In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
 **Deploy the cluster and services:**
 
 ```bash
-make deploy-azure
+make deploy
 ```
 
 **Alternative manual command:**
