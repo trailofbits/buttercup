@@ -96,6 +96,7 @@ class ReadBuildsSettings(BaseModel):
 
 
 class ReadSubmissionsSettings(BaseModel):
+    task_id: str = Field(default="", description="Task ID")
     verbose: bool = Field(False, description="Show full stacktraces instead of truncated versions")
     filter_stop: bool = Field(False, description="Filter out submissions that are stopped")
 
@@ -226,6 +227,10 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
                 task = registry.get(task_id)
                 if task is None:
                     logger.error(f"Task {task_id} not found in registry")
+                    continue
+
+                if command.task_id and task_id != command.task_id:
+                    logger.info(f"Skipping submission {i} for task {task_id} (not {command.task_id})")
                     continue
 
                 if task_id not in result:

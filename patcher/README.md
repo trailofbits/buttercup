@@ -303,3 +303,44 @@ The patcher integrates with:
 - **Task Registry**: For task lifecycle management
 
 This architecture enables the patcher to autonomously handle complex vulnerability patching tasks while maintaining high quality and reliability standards.
+
+## Development
+
+To run the patcher component alone, you have to configure a few settings and make sure the environment is properly set:
+1. Create a "node-local" directory where you will put everything related to the challenge (e.g. `/tmp/scratch`)
+2. Ensure the current user can create or write to `/scratch` (e.g. `sudo mkdir /scratch ; sudo chown $(id -u):$(id -g) /scratch`)
+3. Make sure you have a directory with all the built targets (pre-apply the diff, if a Delta mode challenge) inside the "node-local" directory (e.g. `/tmp/scratch/0197b76a-b429-78fa-8d0e-ad84994c8f44`)
+4. Keep the original task directory (no diff applied there, if a Delta mode challenge) somewhere inside the "node-local" directory (e.g. `/tmp/scratch/original_tasks/0197b76a-b429-78fa-8d0e-ad84994c8f44`)
+   ```shell
+   # For example
+   $ ls /tmp/scratch/<task-id>
+   > diff/
+   > fuzz-tooling/
+   > src/
+   > task_meta.json
+
+   $ ls /tmp/scratch/original_tasks
+   > <task-id>
+   > > diff/
+   > > fuzz-tooling/
+   > > src/
+   > > task_meta.json
+
+   ```
+5. Ensure you have a reproducer
+6. Create the stacktrace for that reproducer (e.g. `python3 infra/helper.py reproduce myproject myfuzzer reproducer.bin 2>&1 > stacktrace`)
+7. Have a litellm service up and running (e.g. `docker compose -f ../dev/docker-compose/compose.yaml up -d litellm`). Make sure to configure the right API Keys in `../dev/docker-compose/.env`.
+8. Create a `.env` file with at least the following environment variables
+   ```
+   export BUTTERCUP_LITELLM_KEY=sk-1234
+   export BUTTERCUP_LITELLM_HOSTNAME=http://localhost:8080
+   export NODE_DATA_DIR=/tmp/scratch
+   export BUTTERCUP_PATCHER_SCRATCH_DIR=/tmp/scratch/scratch
+   export BUTTERCUP_PATCHER_TASK_STORAGE_DIR=/tmp/scratch/original_tasks
+   ```
+9. Set `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` if you want to trace LLM calls with LangFuse.
+10. Set `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, and `OTEL_EXPORTER_OTLP_PROTOCOL` if you want to send logs and traces to SigNoz for better observability (note: `OTEL_EXPORTER_OTLP_HEADERS` must contain the full header, e.g. `Authorization=Bearer my-token`).
+11. Run the patcher in `process` mode with:
+   ```shell
+   buttercup-patcher process /tmp/scratch/0197b76a-b429-78fa-8d0e-ad84994c8f44 0197b76a-b429-78fa-8d0e-ad84994c8f44 random-patch-id fuzz libfuzzer address ~/reproducer.bin ~/stacktrace.txt
+   ```

@@ -1,4 +1,4 @@
-name: Minikube Integration Tests
+name: System Integration Tests
 
 on:
   # Daily schedule - 3 AM UTC
@@ -64,6 +64,7 @@ jobs:
   integration:
     # Only run on PRs if they have the 'full-integration' label
     if: |
+      github.event_name == 'schedule' ||
       github.event_name != 'pull_request' ||
       contains(github.event.pull_request.labels.*.name, 'full-integration')
     runs-on: gha-ubuntu-8
@@ -90,14 +91,15 @@ jobs:
         run: |
           cp ../.github/ci-env.template env
 
+          sed -i "/GHCR_AUTH=.*/d" env
           sed -i "s|BUTTERCUP_NAMESPACE=.*|BUTTERCUP_NAMESPACE=${{ env.BUTTERCUP_NAMESPACE }}|" env
           sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" env
           sed -i "s|ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|" env
+          sed -i "s|GEMINI_API_KEY=.*|GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}|" env
           sed -i "s|LANGFUSE_HOST=.*|LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}|" env
           sed -i "s|LANGFUSE_PUBLIC_KEY=.*|LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}|" env
           sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
           # Base64 encoding is required for Docker registry authentication (not for security, but for format)
-          sed -i "s|GHCR_AUTH=.*|GHCR_AUTH=$(echo "USERNAME:${{ secrets.GH_TOKEN }}" | base64 --wrap=0)|" env
           sed -i "s|OTEL_ENDPOINT=.*|OTEL_ENDPOINT=${{ secrets.OTEL_ENDPOINT }}|" env
 
         working-directory: deployment

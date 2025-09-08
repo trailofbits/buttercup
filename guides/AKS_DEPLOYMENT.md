@@ -1,8 +1,8 @@
 # Production AKS Deployment Guide
 
-> **⚠️ Notice:**  
-> The following production deployment instructions have **not been fully tested**.  
-> Please proceed with caution and verify each step in your environment.  
+> **⚠️ Notice:**
+> The following production deployment instructions have **not been fully tested**.
+> Please proceed with caution and verify each step in your environment.
 > If you encounter issues, consult the script comments and configuration files for troubleshooting.
 
 Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
@@ -81,7 +81,7 @@ cd deployment && make up
 
 ## Additional Resources
 
-For detailed deployment instructions and advanced configuration options, see the [deployment README](deployment/README.md).
+For detailed deployment instructions and advanced configuration options, see the [deployment README](../deployment/README.md).
 
 ## Troubleshooting
 

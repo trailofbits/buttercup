@@ -111,9 +111,9 @@ kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
 ## Resources
 
-- [Quick Reference](QUICK_REFERENCE.md) - Common commands and troubleshooting
+- [Quick Reference](guides/QUICK_REFERENCE.md) - Common commands and troubleshooting
 - [Deployment Guide](deployment/README.md) - Detailed deployment information
-- [Custom Challenges](CUSTOM_CHALLENGES.md) - Adding new test cases
+- [Custom Challenges](guides/CUSTOM_CHALLENGES.md) - Adding new test cases
 
 ## Questions?
 

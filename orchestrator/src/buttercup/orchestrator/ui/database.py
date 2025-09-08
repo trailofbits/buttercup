@@ -81,6 +81,7 @@ class Patch(Base):
     patch_id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.task_id"), nullable=False)
     patch: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String, default="accepted")  # accepted, passed, failed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     task: Mapped[Task] = relationship("Task", back_populates="patches")
@@ -117,6 +118,24 @@ class DatabaseManager:
         """Create all database tables."""
         Base.metadata.create_all(bind=self.engine)
         logger.info("Database tables created/verified")
+
+        # Migrate existing patches to have status field
+        self._migrate_patch_status()
+
+    def _migrate_patch_status(self) -> None:
+        """Migrate existing patches to have a status field."""
+        try:
+            with self.get_session() as session:
+                # Check if there are any patches without status
+                patches_without_status = session.query(Patch).filter(Patch.status.is_(None)).all()
+                if patches_without_status:
+                    logger.info(f"Migrating {len(patches_without_status)} patches to have status field")
+                    for patch in patches_without_status:
+                        patch.status = "accepted"
+                    session.commit()
+                    logger.info("Patch status migration completed")
+        except Exception as e:
+            logger.warning(f"Patch status migration failed (this is normal for new databases): {e}")
 
     def get_session(self) -> Session:
         """Get a database session."""
@@ -346,6 +365,17 @@ class DatabaseManager:
             session.commit()
             logger.info(f"Created patch: {patch_obj.patch_id}")
             return patch_obj
+
+    def update_patch_status(self, *, patch_id: str, status: str) -> None:
+        """Update the status of a patch."""
+        with self.get_session() as session:
+            patch = session.query(Patch).filter(Patch.patch_id == patch_id).first()
+            if patch:
+                patch.status = status
+                session.commit()
+                logger.info(f"Updated patch {patch_id} status to: {status}")
+            else:
+                logger.error(f"Patch {patch_id} not found for status update")
 
     # Bundle operations
     def create_bundle(

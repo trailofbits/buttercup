@@ -352,6 +352,7 @@ class SWEAgent(PatcherAgentBase):
         fallback_llms: list[Runnable] = []
         for fb_model in [
             ButtercupLLM.CLAUDE_3_7_SONNET,
+            ButtercupLLM.GEMINI_PRO,
         ]:
             fallback_llms.append(create_default_llm_with_temperature(model_name=fb_model.value, **kwargs))
         self.llm = self.default_llm.with_fallbacks(fallback_llms)

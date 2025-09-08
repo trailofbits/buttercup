@@ -497,6 +497,13 @@ configure_local_api_keys() {
     print_status "Generate your API key at: https://console.anthropic.com/settings/keys"
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
+    # Anthropic API Key (Optional)
+    print_linebreak
+    print_status "Google Gemini API Key (Optional): Fallback model."
+    print_status "Use this model as a fallback if other models are not configured or not available."
+    print_status "Generate your API key at: https://aistudio.google.com/apikey"
+    configure_service "GEMINI_API_KEY" "Gemini API key" "$GEMINI_API_KEY" "<your-gemini-api-key>" false
+
     # GitHub Personal Access Token (Optional)
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
@@ -525,9 +532,15 @@ configure_local_api_keys() {
     else
         anthropic_configured=true
     fi
+
+    if [ -z "$GEMINI_API_KEY" ] || [ "$GEMINI_API_KEY" = "<your-gemini-api-key>" ]; then
+        gemini_configured=false
+    else
+        gemini_configured=true
+    fi
     
-    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ]; then
-        print_error "At least one LLM API key (OpenAI or Anthropic) must be configured."
+    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ] && [ "$gemini_configured" = false ]; then
+        print_error "At least one LLM API key (OpenAI, Anthropic, or Gemini) must be configured."
         print_error "Rerun the setup and set at least one LLM API key."
         return 1
     fi
@@ -632,6 +645,7 @@ check_aks_config() {
     local api_vars=(
         "OPENAI_API_KEY"
         "ANTHROPIC_API_KEY"
+        "GEMINI_API_KEY"
         "GHCR_AUTH"
         "CRS_KEY_ID"
         "CRS_KEY_TOKEN"
