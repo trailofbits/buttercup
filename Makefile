@@ -87,7 +87,7 @@ crs-instance-id:
 deploy:
 	@echo "Deploying environment..."
 	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
+		echo "Error: Configuration file not found. Run 'make setup-local' or `make setup-azure` first."; \
 		exit 1; \
 	fi
 	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
