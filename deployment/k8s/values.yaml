@@ -14,7 +14,7 @@ global:
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]
   fuzzerRunnerImage:
-    repository: ghcr.io/trailofbits/buttercup/buttercup-fuzzer-runner
+    repository: ghcr.io/trailofbits/buttercup/buttercup-fuzzer_runner
     tag: "main"
     pullPolicy: Always
     pullSecrets: ["ghcr-auth"]

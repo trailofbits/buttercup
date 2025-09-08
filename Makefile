@@ -187,6 +187,10 @@ undeploy:
 	@echo "Cleaning up deployment..."
 	cd deployment && make down
 
+undeploy-k8s:
+	@echo "Cleaning up kubernetes resources..."
+	cd deployment && make down-k8s
+
 clean-local:
 	@echo "Cleaning up local environment..."
 	minikube delete || true
