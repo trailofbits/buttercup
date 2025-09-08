@@ -72,7 +72,7 @@ install_docker() {
         print_success "Docker is already installed"
     fi
     
-    # Install buildx plugin (required for deploy-local target)
+    # Install buildx plugin (required for deploy target)
     print_status "Installing Docker buildx plugin..."
     sudo apt install -y docker-buildx-plugin
     print_success "Docker buildx plugin installed"
@@ -222,7 +222,7 @@ setup_config_file() {
     else
         print_warning "Configuration file already exists"
         if [ "$overwrite_existing" = "true" ]; then
-            read -p "Do you want to overwrite it? (y/n): " -n 1 -r
+            read -p "Do you want to overwrite it? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 cp deployment/env.template deployment/env

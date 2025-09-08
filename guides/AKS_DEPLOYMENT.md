@@ -1,11 +1,6 @@
 # Production AKS Deployment Guide
 
-> **⚠️ Notice:**
-> The following production deployment instructions have **not been fully tested**.
-> Please proceed with caution and verify each step in your environment.
-> If you encounter issues, consult the script comments and configuration files for troubleshooting.
-
-Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring, and scaling for the DARPA AIxCC competition.
+Full production deployment of the **Buttercup CRS** on Azure Kubernetes Service with proper networking, monitoring.
 
 ## Quick Setup (Recommended)
 
@@ -16,66 +11,28 @@ make setup-azure
 ```
 
 This script will check prerequisites, help create service principals, configure the environment, and validate your setup.
-
-## Manual Setup
-
-If you prefer to set up manually, follow these steps:
-
-### Prerequisites
-
-- Azure CLI installed and configured
-- Terraform installed
-- Active Azure subscription
-- Access to competition Tailscale tailnet
-
-### Azure Setup
-
-1. **Login to Azure:**
-
-```bash
-az login --tenant <your-tenant-here>
-```
-
-2. **Create Service Principal:**
-
-```bash
-# Get your subscription ID
-az account show --query "{SubscriptionID:id}" --output table
-
-# Create service principal (replace with your subscription ID)
-az ad sp create-for-rbac --name "ButtercupCRS" --role Contributor --scopes /subscriptions/<YOUR-SUBSCRIPTION-ID>
-```
+You probably need at least `Contributor` role in your Azure subscription to deploy Buttercup.
 
 ### Production Configuration
 
-1. **Configure environment file:**
+The setup-azure make target will help you configure a simple production-ready
+cluster, however each deployment is different based on requirements: cost,
+number of tasks that you want to solve at the same time, size of projects, etc.
 
-```bash
-cp deployment/env.template deployment/env
-```
+For more fine-grained adjustments that are not configurable during the automated setup script, modify `deployment/env` and `deployment/values-upstream-aks.template`. In particular you may want to change the number of nodes in the k8s cluster, the type of nodes, the number of pods for different kind of services, the storage, etc.
 
-2. **Update `deployment/env` for production:**
-
-Look at the comments in the `deployment/env.template` for how to set variables.
-In particular, set `TF_VAR_*` variables, and `TAILSCALE_*` if used.
 
 ## Deploy to AKS
 
 **Deploy the cluster and services:**
 
 ```bash
-make deploy-azure
-```
-
-**Alternative manual command:**
-
-```bash
-cd deployment && make up
+make deploy
 ```
 
 ## Scaling and Management
 
-- **Scale nodes:** Update `TF_VAR_usr_node_count` in your env file and run `make up`
+- **Scale nodes:** Update `TF_VAR_usr_node_count` in your env file and run `make deploy` again
 - **View logs:** `kubectl logs -n crs <pod-name>`
 - **Monitor resources:** `kubectl top pods -A`
 
