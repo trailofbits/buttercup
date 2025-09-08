@@ -19,7 +19,6 @@ const API_BASE = '';
 // DOM elements
 const elements = {
     submitTaskBtn: document.getElementById('submit-task-btn'),
-    submitExampleBtn: document.getElementById('submit-example-btn'),
     refreshBtn: document.getElementById('refresh-btn'),
     taskModal: document.getElementById('task-modal'),
     detailModal: document.getElementById('detail-modal'),
@@ -28,6 +27,7 @@ const elements = {
     closeModal: document.getElementById('close-modal'),
     closeDetailModal: document.getElementById('close-detail-modal'),
     taskForm: document.getElementById('task-form'),
+    fillExampleBtn: document.getElementById('fill-example-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
     tasksContainer: document.getElementById('tasks-container'),
     povsContainer: document.getElementById('povs-container'),
@@ -45,10 +45,19 @@ const elements = {
     notifications: document.getElementById('notifications')
 };
 
+// Debug: Check if elements are found
+console.log('DOM elements found:', {
+    submitTaskBtn: !!elements.submitTaskBtn,
+    refreshBtn: !!elements.refreshBtn,
+    fillExampleBtn: !!elements.fillExampleBtn,
+    taskModal: !!elements.taskModal,
+    notifications: !!elements.notifications
+});
+
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', function() {
     // Preserve button widths to prevent size changes during refresh
-    const buttons = ['refresh-btn', 'submit-task-btn', 'submit-example-btn'];
+    const buttons = ['refresh-btn', 'submit-task-btn'];
     buttons.forEach(id => {
         const button = document.getElementById(id);
         if (button) {
@@ -69,7 +78,12 @@ function setupEventListeners() {
         elements.taskModal.style.display = 'block';
     });
     
-    elements.submitExampleBtn.addEventListener('click', handleExampleTaskSubmission);
+    if (elements.fillExampleBtn) {
+        console.log('Setting up event listener for fillExampleBtn');
+        elements.fillExampleBtn.addEventListener('click', fillExampleValues);
+    } else {
+        console.error('fillExampleBtn element not found');
+    }
     
     elements.refreshBtn.addEventListener('click', loadDashboard);
     
@@ -404,12 +418,23 @@ function renderPatches() {
                 <div class="artifact-meta">
                     <span>ID: ${item.patch.patch_id}</span>
                     <span>Size: ${(item.patch.patch || '').length} chars</span>
+                    <span class="status-badge status-${item.patch.status}">${item.patch.status}</span>
                 </div>
                 <div class="artifact-timestamp">${formatTimestamp(item.patch.timestamp)}</div>
             </div>
-            <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
-                Download
-            </button>
+            <div class="artifact-actions">
+                ${item.patch.status === 'accepted' ? `
+                    <button class="approve-button" onclick="event.stopPropagation(); approvePatch('${item.task_id}', '${item.patch.patch_id}')">
+                        Approve
+                    </button>
+                    <button class="reject-button" onclick="event.stopPropagation(); rejectPatch('${item.task_id}', '${item.patch.patch_id}')">
+                        Reject
+                    </button>
+                ` : ''}
+                <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
+                    Download
+                </button>
+            </div>
         </div>
     `).join('');
 }
@@ -487,67 +512,48 @@ function filterTasks() {
 }
 
 // Handle task submission
-// Handle example task submission
-async function handleExampleTaskSubmission() {
-    const exampleTaskData = {
-        challenge_repo_url: "https://github.com/tob-challenges/example-libpng",
-        challenge_repo_base_ref: "5bf8da2d7953974e5dfbd778429c3affd461f51a",
-        challenge_repo_head_ref: "challenges/lp-delta-01",
-        fuzz_tooling_url: "https://github.com/google/oss-fuzz",
-        fuzz_tooling_ref: "master",
-        fuzz_tooling_project_name: "libpng",
-        duration: 1800
-    };
-    
-    // Get submit button and show loading state
-    const submitBtn = elements.submitExampleBtn;
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+// Fill form with example values
+function fillExampleValues() {
+    console.log('fillExampleValues function called');
     
     try {
-        const response = await fetch(`${API_BASE}/webhook/trigger_task`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(exampleTaskData)
-        });
+        // Fill in the form fields with example libpng values
+        const fields = {
+            'challenge-repo-url': 'https://github.com/tob-challenges/example-libpng',
+            'challenge-repo-base-ref': '5bf8da2d7953974e5dfbd778429c3affd461f51a',
+            'challenge-repo-head-ref': 'challenges/lp-delta-01',
+            'fuzz-tooling-url': 'https://github.com/google/oss-fuzz',
+            'fuzz-tooling-ref': 'master',
+            'fuzz-tooling-project-name': 'libpng',
+            'duration': '1800'
+        };
         
-        const result = await response.json();
-        console.log('Example task submission response:', result);
-        console.log('Response message:', result.message);
-        console.log('Response color:', result.color);
-        
-        if (response.ok) {
-            // Check if the response indicates a CRS submission failure or setup failure
-            if (result.message && (result.message.includes('failed to submit to CRS') || result.message.includes('failed during setup'))) {
-                console.log('Example task creation/submission failed, showing error notification');
-                // Task was created but failed - show notification with proper color
-                showNotification(result.message, null, result.color);
-                
-                // Force refresh failed tasks and main tasks list
-                setTimeout(async () => {
-                    await forceRefreshFailedTasks();
-                }, 1000);
+        for (const [fieldId, value] of Object.entries(fields)) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.value = value;
+                console.log(`Set ${fieldId} to ${value}`);
             } else {
-                // Complete success
-                showNotification(result.message || 'Example libpng task submitted successfully!', 'success');
-                
-                // Refresh dashboard after a short delay
-                setTimeout(loadDashboard, 1000);
+                console.error(`Field ${fieldId} not found`);
             }
-        } else {
-            const error = await response.json();
-            showNotification(`Error: ${error.message || 'Failed to submit example task'}`, 'error');
         }
+        
+        // Handle checkbox separately
+        const harnessesIncluded = document.getElementById('harnesses-included');
+        if (harnessesIncluded) {
+            harnessesIncluded.checked = true;
+            console.log('Set harnesses-included to checked');
+        } else {
+            console.error('Field harnesses-included not found');
+        }
+        
+        // Show a brief notification that values were filled
+        showNotification('Example-libpng values filled in. You can now modify them as needed.', 'success');
+        console.log('Notification shown');
+        
     } catch (error) {
-        console.error('Error submitting example task:', error);
-        showNotification('Network error occurred', 'error');
-    } finally {
-        // Restore button state
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
+        console.error('Error in fillExampleValues:', error);
+        showNotification('Error filling example values: ' + error.message, 'error');
     }
 }
 
@@ -767,6 +773,54 @@ function renderArtifact(artifact, type) {
     `;
 }
 
+// Approve patch
+async function approvePatch(taskId, patchId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/task/${taskId}/patch/${patchId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            showNotification('Patch approved successfully', 'success');
+            // Refresh the dashboard to show updated status
+            loadDashboard();
+        } else {
+            const errorData = await response.json();
+            showNotification(`Failed to approve patch: ${errorData.message || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Approve patch error:', error);
+        showNotification('Error approving patch', 'error');
+    }
+}
+
+// Reject patch
+async function rejectPatch(taskId, patchId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/task/${taskId}/patch/${patchId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            showNotification('Patch rejected successfully', 'success');
+            // Refresh the dashboard to show updated status
+            loadDashboard();
+        } else {
+            const errorData = await response.json();
+            showNotification(`Failed to reject patch: ${errorData.message || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Reject patch error:', error);
+        showNotification('Error rejecting patch', 'error');
+    }
+}
+
 // Download artifact
 async function downloadArtifact(type, taskId, artifactId) {
     try {
@@ -890,6 +944,10 @@ function renderArtifactDetail(detailData, type) {
                 ? patchContent.substring(0, 300) + '...' 
                 : patchContent;
             specificContent = `
+                <div class="detail-label">Status:</div>
+                <div class="detail-value">
+                    <span class="status-badge status-${artifact.status || 'accepted'}">${artifact.status || 'accepted'}</span>
+                </div>
                 <div class="detail-label">Patch Size:</div>
                 <div class="detail-value">${originalSize} characters (${patchContent.length} decoded)</div>
                 <div class="detail-label">Patch Content:</div>
@@ -920,10 +978,18 @@ function renderArtifactDetail(detailData, type) {
                     ${specificContent}
                 </div>
                 ${detailData.task_id ? `
-                <div style="margin-top: 1.5rem;">
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="downloadArtifact('${type}', '${detailData.task_id}', '${artifactId}')">
                         Download ${type.toUpperCase()}
                     </button>
+                    ${type === 'patch' && (artifact.status || 'accepted') === 'accepted' ? `
+                        <button class="btn btn-success" onclick="approvePatch('${detailData.task_id}', '${artifactId}')">
+                            Approve Patch
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectPatch('${detailData.task_id}', '${artifactId}')">
+                            Reject Patch
+                        </button>
+                    ` : ''}
                 </div>
                 ` : ''}
             </div>
