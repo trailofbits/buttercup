@@ -77,11 +77,8 @@ redis:
         cpu: 8000m
         memory: 32Gi
       requests:
-        cpu: 2000m
+        cpu: 1000m
         memory: 12Gi
-
-build-bot:
-  replicaCount: 1
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
@@ -112,8 +109,8 @@ litellm-helm:
           cpu: 4000m
           memory: 8Gi
         requests:
-          cpu: 2000m
-          memory: 2Gi
+          cpu: 500m
+          memory: 1Gi
 
 ui:
   enabled: true
@@ -149,8 +146,8 @@ registry-cache:
       cpu: 4000m
       memory: 8Gi
     requests:
-      cpu: 2000m
-      memory: 4Gi
+      cpu: 500m
+      memory: 2Gi
 
 task-server:
   enabled: true
@@ -182,7 +179,7 @@ scheduler:
       memory: 3Gi
     requests:
       cpu: 250m
-      memory: 3Gi
+      memory: 1Gi
 
 program-model:
   enabled: true
@@ -197,7 +194,7 @@ program-model:
 
 build-bot:
   enabled: true
-  replicaCount: 4
+  replicaCount: 3
   resources:
     limits:
       cpu: 4000m
@@ -208,7 +205,7 @@ build-bot:
 
 fuzzer-bot:
   enabled: true
-  replicaCount: 8
+  replicaCount: 4
   resources:
     limits:
       cpu: 16000m
@@ -224,7 +221,7 @@ merger-bot:
       cpu: 8000m
       memory: 16Gi
     requests:
-      cpu: 500m
+      cpu: 250m
       memory: 1Gi
 
 coverage-bot:
@@ -236,7 +233,7 @@ coverage-bot:
       memory: 32Gi
     requests:
       cpu: 250m
-      memory: 2Gi
+      memory: 1Gi
 
 tracer-bot:
   enabled: true
@@ -246,8 +243,8 @@ tracer-bot:
       cpu: 4000m
       memory: 4Gi
     requests:
-      cpu: 500m
-      memory: 4Gi
+      cpu: 200m
+      memory: 1Gi
 
 pov-reproducer:
   enabled: true
@@ -257,18 +254,18 @@ pov-reproducer:
       cpu: 4000m
       memory: 2Gi
     requests:
-      cpu: 500m
-      memory: 2Gi
+      cpu: 200m
+      memory: 1Gi
 
 seed-gen:
   enabled: true
-  replicaCount: 8
+  replicaCount: 5
   resources:
     limits:
       cpu: 2000m
       memory: 4Gi
     requests:
-      cpu: 500m
+      cpu: 200m
       memory: 1Gi
 
 patcher:
@@ -282,5 +279,5 @@ patcher:
       cpu: 2000m
       memory: 3Gi
     requests:
-      cpu: 500m
-      memory: 2Gi
+      cpu: 200m
+      memory: 1Gi
