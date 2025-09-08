@@ -41,6 +41,16 @@ setup_service_principal() {
     else
         print_success "Using RESOURCE_GROUP_NAME from deployment/env: $RESOURCE_GROUP_NAME"
     fi
+    RESOURCE_GROUP_LOCATION="${TF_VAR_resource_group_location:-}"
+    if [ -z "$RESOURCE_GROUP_LOCATION" ] || [ "$RESOURCE_GROUP_LOCATION" = "<your-resource-group-location>" ]; then
+        read -p "Enter resource group location (default: eastus): " RESOURCE_GROUP_LOCATION
+        if [ -z "$RESOURCE_GROUP_LOCATION" ]; then
+            RESOURCE_GROUP_LOCATION="eastus"
+            print_status "No value provided. Using default: $RESOURCE_GROUP_LOCATION"
+        fi
+    else
+        print_success "Using RESOURCE_GROUP_LOCATION from deployment/env: $RESOURCE_GROUP_LOCATION"
+    fi
 
     # Check if resource group exists, if not ask to create it
     if ! az group show --name "$RESOURCE_GROUP_NAME" >/dev/null 2>&1; then
@@ -53,7 +63,7 @@ setup_service_principal() {
         fi
 
         print_status "Creating resource group: $RESOURCE_GROUP_NAME"
-        az group create --name "$RESOURCE_GROUP_NAME" --location eastus
+        az group create --name "$RESOURCE_GROUP_NAME" --location "$RESOURCE_GROUP_LOCATION"
         print_success "Resource group created successfully"
     else
         print_success "Using existing resource group: $RESOURCE_GROUP_NAME"
@@ -64,6 +74,13 @@ setup_service_principal() {
         portable_sed "s|^[# ]*export TF_VAR_resource_group_name=.*|export TF_VAR_resource_group_name=\"$RESOURCE_GROUP_NAME\"|" deployment/env
     else
         echo "export TF_VAR_resource_group_name=\"$RESOURCE_GROUP_NAME\"" >> deployment/env
+    fi
+
+    # Write RESOURCE_GROUP_LOCATION to deployment/env (uncomment or add line)
+    if grep -q '^[# ]*export TF_VAR_resource_group_location=' deployment/env; then
+        portable_sed "s|^[# ]*export TF_VAR_resource_group_location=.*|export TF_VAR_resource_group_location=\"$RESOURCE_GROUP_LOCATION\"|" deployment/env
+    else
+        echo "export TF_VAR_resource_group_location=\"$RESOURCE_GROUP_LOCATION\"" >> deployment/env
     fi
 
     # Only prompt to create a new service principal if TF_VAR_ARM_CLIENT_ID and TF_VAR_ARM_CLIENT_SECRET are not set
