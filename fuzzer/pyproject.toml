@@ -46,7 +46,6 @@ dev = [
     "mypy ~=1.17.1",
     # Type stubs
     "types-redis ~=4.6.0",
-    "pytest-asyncio>=1.1.0",
 ]
 
 [tool.ruff]

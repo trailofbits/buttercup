@@ -1,6 +1,7 @@
 import json
+import subprocess
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -15,9 +16,8 @@ def fuzz_config():
     )
 
 
-@patch("buttercup.fuzzing_infra.runner_proxy.asyncio.create_subprocess_exec")
-@pytest.mark.asyncio
-async def test_run_fuzzer_success(mock_create_subprocess, fuzz_config):
+@patch("buttercup.fuzzing_infra.runner_proxy.subprocess.Popen")
+def test_run_fuzzer_success(mock_popen, fuzz_config):
     """Test successful fuzzer execution via subprocess"""
     # Create runner proxy
     conf = Conf(
@@ -44,13 +44,14 @@ async def test_run_fuzzer_success(mock_create_subprocess, fuzz_config):
     }
 
     # Mock the subprocess
-    mock_process = AsyncMock()
+    mock_process = Mock()
     mock_process.communicate.return_value = (json.dumps(mock_result).encode(), b"")
     mock_process.returncode = 0
-    mock_create_subprocess.return_value = mock_process
+    mock_process.pid = 12345
+    mock_popen.return_value = mock_process
 
     # Run fuzzer
-    result = await runner_proxy.run_fuzzer(fuzz_config)
+    result = runner_proxy.run_fuzzer(fuzz_config)
 
     # Verify subprocess was called with correct arguments
     expected_cmd = [
@@ -66,9 +67,9 @@ async def test_run_fuzzer_success(mock_create_subprocess, fuzz_config):
         "/path/to/target",
         "fuzz",
     ]
-    mock_create_subprocess.assert_called_once()
-    call_args = mock_create_subprocess.call_args[0]
-    assert call_args == tuple(expected_cmd)
+    mock_popen.assert_called_once()
+    call_args = mock_popen.call_args[0][0]  # First positional argument (cmd)
+    assert call_args == expected_cmd
 
     # Verify result is a FuzzResult instance
     assert isinstance(result, FuzzResult)
@@ -87,9 +88,8 @@ async def test_run_fuzzer_success(mock_create_subprocess, fuzz_config):
     assert result.command == "test command"
 
 
-@patch("buttercup.fuzzing_infra.runner_proxy.asyncio.create_subprocess_exec")
-@pytest.mark.asyncio
-async def test_run_fuzzer_failure(mock_create_subprocess, fuzz_config):
+@patch("buttercup.fuzzing_infra.runner_proxy.subprocess.Popen")
+def test_run_fuzzer_failure(mock_popen, fuzz_config):
     """Test fuzzer execution failure via subprocess"""
     # Create runner proxy
     conf = Conf(
@@ -99,21 +99,21 @@ async def test_run_fuzzer_failure(mock_create_subprocess, fuzz_config):
     runner_proxy = RunnerProxy(conf)
 
     # Mock the subprocess to return non-zero exit code
-    mock_process = AsyncMock()
+    mock_process = Mock()
     mock_process.communicate.return_value = (b"", b"Fuzzer crashed")
     mock_process.returncode = 1
-    mock_create_subprocess.return_value = mock_process
+    mock_process.pid = 12345
+    mock_popen.return_value = mock_process
 
     # Run fuzzer and expect failure
-    res = await runner_proxy.run_fuzzer(fuzz_config)
+    res = runner_proxy.run_fuzzer(fuzz_config)
     assert "Task failed: Fuzzer crashed" in res.logs
     assert res.crashes == []
     assert res.command == ""
 
 
-@patch("buttercup.fuzzing_infra.runner_proxy.asyncio.create_subprocess_exec")
-@pytest.mark.asyncio
-async def test_run_fuzzer_timeout(mock_create_subprocess, fuzz_config):
+@patch("buttercup.fuzzing_infra.runner_proxy.subprocess.Popen")
+def test_run_fuzzer_timeout(mock_popen, fuzz_config):
     """Test fuzzer execution timeout"""
     # Create runner proxy with very short timeout for testing
     conf = Conf(
@@ -123,14 +123,16 @@ async def test_run_fuzzer_timeout(mock_create_subprocess, fuzz_config):
     runner_proxy = RunnerProxy(conf)
 
     # Mock the subprocess to timeout
-    mock_process = AsyncMock()
-    mock_process.communicate.side_effect = TimeoutError()
+    mock_process = Mock()
+    mock_process.communicate.side_effect = subprocess.TimeoutExpired("test", 1)
     mock_process.returncode = None
-    mock_create_subprocess.return_value = mock_process
+    mock_process.poll.return_value = None
+    mock_process.pid = 12345
+    mock_popen.return_value = mock_process
 
     # Run fuzzer and expect timeout
     start_time = time.time()
-    res = await runner_proxy.run_fuzzer(fuzz_config)
+    res = runner_proxy.run_fuzzer(fuzz_config)
 
     assert "Task timed out" in res.logs
     assert res.crashes == []
@@ -141,9 +143,8 @@ async def test_run_fuzzer_timeout(mock_create_subprocess, fuzz_config):
     assert elapsed < 3.0  # Should timeout within 3 seconds
 
 
-@patch("buttercup.fuzzing_infra.runner_proxy.asyncio.create_subprocess_exec")
-@pytest.mark.asyncio
-async def test_merge_corpus_success(mock_create_subprocess, fuzz_config):
+@patch("buttercup.fuzzing_infra.runner_proxy.subprocess.Popen")
+def test_merge_corpus_success(mock_popen, fuzz_config):
     """Test successful corpus merge via subprocess"""
     # Create runner proxy
     conf = Conf(
@@ -153,13 +154,14 @@ async def test_merge_corpus_success(mock_create_subprocess, fuzz_config):
     runner_proxy = RunnerProxy(conf)
 
     # Mock the subprocess
-    mock_process = AsyncMock()
+    mock_process = Mock()
     mock_process.communicate.return_value = (b"", b"")
     mock_process.returncode = 0
-    mock_create_subprocess.return_value = mock_process
+    mock_process.pid = 12345
+    mock_popen.return_value = mock_process
 
     # Run merge corpus
-    await runner_proxy.merge_corpus(fuzz_config, "/path/to/output")
+    runner_proxy.merge_corpus(fuzz_config, "/path/to/output")
 
     # Verify subprocess was called with correct arguments
     expected_cmd = [
@@ -177,14 +179,13 @@ async def test_merge_corpus_success(mock_create_subprocess, fuzz_config):
         "--output-dir",
         "/path/to/output",
     ]
-    mock_create_subprocess.assert_called_once()
-    call_args = mock_create_subprocess.call_args[0]
-    assert call_args == tuple(expected_cmd)
+    mock_popen.assert_called_once()
+    call_args = mock_popen.call_args[0][0]  # First positional argument (cmd)
+    assert call_args == expected_cmd
 
 
-@patch("buttercup.fuzzing_infra.runner_proxy.asyncio.create_subprocess_exec")
-@pytest.mark.asyncio
-async def test_subprocess_error_handling(mock_create_subprocess, fuzz_config):
+@patch("buttercup.fuzzing_infra.runner_proxy.subprocess.Popen")
+def test_subprocess_error_handling(mock_popen, fuzz_config):
     """Test subprocess error handling"""
     # Create runner proxy
     conf = Conf(
@@ -194,10 +195,10 @@ async def test_subprocess_error_handling(mock_create_subprocess, fuzz_config):
     runner_proxy = RunnerProxy(conf)
 
     # Mock subprocess to raise an exception
-    mock_create_subprocess.side_effect = FileNotFoundError("Runner not found")
+    mock_popen.side_effect = FileNotFoundError("Runner not found")
 
     # Run fuzzer and expect error
-    res = await runner_proxy.run_fuzzer(fuzz_config)
+    res = runner_proxy.run_fuzzer(fuzz_config)
     assert "Runner not found" in res.logs
     assert res.crashes == []
     assert res.command == ""
