@@ -4,8 +4,6 @@ global:
     tag: "latest"
   fuzzerImage:
     tag: "latest"
-  fuzzerRunnerImage:
-    tag: "latest"
   seedGenImage:
     tag: "latest"
   patcherImage:
