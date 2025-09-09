@@ -28,5 +28,5 @@ cd dev/docker-compose && docker-compose down
 
 - This setup is **not recommended for production** - use the Kubernetes deployment instead
 - Primarily useful for developers who need to run individual components for testing
-- The main deployment method is now Kubernetes via `make deploy-local` from the repository root
+- The main deployment method is now Kubernetes via `make deploy` from the repository root
 - See the main [README](../../README.md) for the recommended setup instructions

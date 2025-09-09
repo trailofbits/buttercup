@@ -39,7 +39,7 @@ verify_setup() {
     if make validate >/dev/null 2>&1; then
         print_success "Setup verification completed successfully!"
         print_status "Next steps:"
-        echo "  1. Run: make deploy-local"
+        echo "  1. Run: make deploy"
         echo "  2. Test with: make send-libpng-task"
     else
         print_error "Setup verification failed. Run 'make validate' for details."

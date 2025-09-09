@@ -9,7 +9,7 @@ Thank you for contributing to the Buttercup Cyber Reasoning System!
 git clone --recurse-submodules https://github.com/trailofbits/buttercup.git
 cd buttercup
 make setup-local      # Automated setup
-make deploy-local     # Start environment
+make deploy           # Start environment
 
 # Setup development tools (optional but recommended)
 pip install pre-commit
@@ -50,7 +50,7 @@ make undeploy                # Clean up resources
 
 3. **Full System** (90+ min): Weekly or with `full-integration` label
    ```bash
-   make deploy-local && make send-libpng-task
+   make deploy && make send-libpng-task
    ```
 
 ## Project Structure
