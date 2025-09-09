@@ -33,8 +33,6 @@ jobs:
             dockerfile: ./orchestrator/Dockerfile
           - component: fuzzer
             dockerfile: ./fuzzer/Dockerfile
-          - component: fuzzer_runner
-            dockerfile: ./fuzzer_runner/Dockerfile
           - component: patcher
             dockerfile: ./patcher/Dockerfile
           - component: seed-gen

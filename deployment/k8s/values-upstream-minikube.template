@@ -8,10 +8,6 @@ global:
     repository: localhost/fuzzer
     tag: "latest"
     pullPolicy: Never
-  fuzzerRunnerImage:
-    repository: localhost/fuzzer-runner
-    tag: "latest"
-    pullPolicy: Never
   seedGenImage:
     repository: localhost/seed-gen
     tag: "latest"

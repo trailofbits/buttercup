@@ -184,21 +184,11 @@ services:
       dind:
         condition: service_started
 
-  fuzzer-runner:
-    build:
-      context: ../../
-      dockerfile: ./fuzzer_runner/Dockerfile
-    command: ["buttercup-fuzzer-server"]
-    env_file: env.dev.compose
-    volumes:
-      - ../../crs_scratch:/crs_scratch
-      - ../../node_data_storage/:/node_data
-
   fuzzer-bot:
     build:
       context: ../../
       dockerfile: ./fuzzer/Dockerfile
-    command: ["buttercup-fuzzer", "--crs_scratch_dir", "/node_data/crs_scratch", "--redis_url", "redis://redis:6379", "--timeout", "900", "--timer", "5000", "--crash_dir_count_limit", "100"]
+    command: ["buttercup-fuzzer"]
     env_file: env.dev.compose
     volumes:
       - ../../crs_scratch:/crs_scratch
@@ -322,7 +312,7 @@ services:
       dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-ui"]
     ports:
-      - "127.0.0.1:1323:1323"
+      - "127.0.0.1:31323:1323"
     env_file: env.dev.compose
 
 

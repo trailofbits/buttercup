@@ -1,16 +1,13 @@
+import asyncio
+import json
 import logging
-import time
+import os
+import signal
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
-import httpx
-
-from buttercup.common.types import (
-    FUZZER_RUNNER_FUZZ_ENDPOINT,
-    FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT,
-    FUZZER_RUNNER_TASK_ENDPOINT,
-    FuzzConfiguration,
-)
+from buttercup.common.types import FuzzConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -39,137 +36,164 @@ class FuzzResult:
 class Conf:
     # in seconds
     timeout: int
-    server_url: str = "http://localhost:8000"
-    poll_interval: float = 1.0  # seconds between status checks
-    timeout_buffer: float = 60.0  # extra time buffer beyond the fuzzer timeout
+    runner_path: Path
 
 
 @dataclass
 class RunnerProxy:
     conf: Conf
-    client: httpx.Client = field(init=False)
+    _timeout: int = field(init=False, default=5)
 
-    def __post_init__(self) -> None:
-        self.client = httpx.Client(timeout=30.0)
+    async def _kill_process(self, process: asyncio.subprocess.Process) -> None:
+        try:
+            process.kill()
+            await asyncio.wait_for(process.wait(), timeout=self._timeout)
+        except TimeoutError:
+            logger.error("Process did not terminate after kill within 5 seconds")
 
-    def run_fuzzer(self, conf: FuzzConfiguration) -> FuzzResult:
+    async def _kill_process_group(self, process: asyncio.subprocess.Process) -> None:
+        # Kill the entire process group
+        try:
+            if os.name != "nt":  # Unix-like systems
+                # Kill the process group
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                # Wait a bit for graceful termination
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=self._timeout)
+                except TimeoutError:
+                    # Force kill if graceful termination failed
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=self._timeout)
+                    except TimeoutError:
+                        logger.error("Process did not terminate after kill within 5 seconds")
+            else:  # Windows
+                await self._kill_process(process)
+        except (ProcessLookupError, OSError) as e:
+            logger.warning(f"Error killing process group: {e}")
+            await self._kill_process(process)
+
+    async def _run_subprocess_task(self, cmd: list[str], timeout: int, task_type: str) -> dict[str, Any]:
+        """Run subprocess task and return result"""
+        # Enforce a timeout of runner_timeout + 5 minutes (in seconds)
+        subprocess_timeout = timeout + 300
+
+        # Create subprocess in a new process group for proper cleanup
+        def create_process_group() -> None:
+            """Create a new process group for the subprocess"""
+            os.setsid()
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            preexec_fn=create_process_group if os.name != "nt" else None,
+        )
+        logger.info(f"Process PID: {process.pid}")
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=subprocess_timeout)
+            if process.returncode != 0:
+                error_msg = stderr.decode("utf-8") if stderr else "Unknown subprocess error"
+                logger.error(f"{task_type} task failed: {error_msg}")
+                return {
+                    "status": "failed",
+                    "error": f"Task failed: {error_msg}",
+                }
+        except TimeoutError:
+            logger.error(f"{task_type} task timed out after {subprocess_timeout} seconds")
+            if process.returncode is None:
+                await self._kill_process_group(process)
+
+            return {
+                "status": "failed",
+                "error": f"Task timed out after {subprocess_timeout} seconds",
+            }
+
+        # Parse the JSON output from the subprocess
+        try:
+            output_str = stdout.decode("utf-8").strip()
+            logger.debug(f"Subprocess output: {output_str}")
+
+            return json.loads(output_str)  # type: ignore[no-any-return]
+        except json.JSONDecodeError as parse_error:
+            logger.error(f"Failed to parse JSON output for task {task_type}: {parse_error}")
+            logger.error(f"Raw output: {output_str}")
+            return {
+                "status": "failed",
+                "error": f"Failed to parse JSON output: {parse_error}",
+            }
+        except Exception as parse_error:
+            logger.error(f"Failed to parse subprocess output for task {task_type}: {parse_error}")
+            return {
+                "status": "failed",
+                "error": f"Failed to parse output: {parse_error}",
+            }
+
+    async def run_fuzzer(self, conf: FuzzConfiguration) -> FuzzResult:
         """Run fuzzer via HTTP server and wait for completion"""
-        logger.info(f"Starting fuzzer via HTTP server: {conf.engine} | {conf.sanitizer} | {conf.target_path}")
-
-        # Prepare request payload
-        payload = {
-            "corpus_dir": conf.corpus_dir,
-            "target_path": conf.target_path,
-            "engine": conf.engine,
-            "sanitizer": conf.sanitizer,
-            "timeout": self.conf.timeout,
-        }
 
         try:
-            # Start fuzzer task
-            response = self.client.post(f"{self.conf.server_url}{FUZZER_RUNNER_FUZZ_ENDPOINT}", json=payload)
-            response.raise_for_status()
+            logger.info(f"Starting fuzzer task {conf.engine} | {conf.sanitizer} | {conf.target_path}")
+            runner_timeout = self.conf.timeout if self.conf.timeout else 1000
 
-            task_data = response.json()
-            task_id = task_data["task_id"]
-            logger.info(f"Started fuzzer task: {task_id}")
+            cmd = [
+                str(self.conf.runner_path),
+                "--timeout",
+                str(runner_timeout),
+                "--corpusdir",
+                str(conf.corpus_dir),
+                "--engine",
+                conf.engine,
+                "--sanitizer",
+                conf.sanitizer,
+                str(conf.target_path),
+                "fuzz",
+            ]
 
-            # Poll for completion
-            result = self._wait_for_task_completion(task_id, "fuzz")
-
-            # Convert result back to FuzzResult
-            return self._dict_to_fuzz_result(result)
+            result = await self._run_subprocess_task(cmd, runner_timeout, "fuzz")
         except Exception as e:
-            logger.error(f"Error during fuzzer execution: {e}")
-            return FuzzResult(
-                logs=str(e),
-                command="",
-                crashes=[],
-                stats={},
-                time_executed=0.0,
-                timed_out=False,
+            logger.exception(f"Fuzzer task {conf.engine} | {conf.sanitizer} | {conf.target_path} failed: {str(e)}")
+            result = {
+                "status": "failed",
+                "error": str(e),
+            }
+
+        return await self._dict_to_fuzz_result(result)
+
+    async def merge_corpus(self, conf: FuzzConfiguration, output_dir: str) -> None:
+        """Merge corpus via HTTP server and wait for completion"""
+        try:
+            logger.info(f"Starting merge corpus task {conf.engine} | {conf.sanitizer} | {conf.target_path}")
+            runner_timeout = self.conf.timeout if self.conf.timeout else 1000
+
+            cmd = [
+                str(self.conf.runner_path),
+                "--timeout",
+                str(runner_timeout),
+                "--corpusdir",
+                str(conf.corpus_dir),
+                "--engine",
+                conf.engine,
+                "--sanitizer",
+                conf.sanitizer,
+                str(conf.target_path),
+                "merge",
+                "--output-dir",
+                str(output_dir),
+            ]
+
+            await self._run_subprocess_task(cmd, runner_timeout, "merge")
+        except Exception as e:
+            logger.exception(
+                f"Merge corpus task {conf.engine} | {conf.sanitizer} | {conf.target_path} failed: {str(e)}"
             )
 
-    def merge_corpus(self, conf: FuzzConfiguration, output_dir: str) -> None:
-        """Merge corpus via HTTP server and wait for completion"""
-        logger.info(f"Starting corpus merge via HTTP server: {conf.engine} | {conf.sanitizer} | {conf.target_path}")
-
-        # Prepare request payload
-        payload = {
-            "corpus_dir": conf.corpus_dir,
-            "target_path": conf.target_path,
-            "engine": conf.engine,
-            "sanitizer": conf.sanitizer,
-            "output_dir": output_dir,
-            "timeout": self.conf.timeout,
-        }
-
-        try:
-            # Start merge task
-            response = self.client.post(f"{self.conf.server_url}{FUZZER_RUNNER_MERGE_CORPUS_ENDPOINT}", json=payload)
-            response.raise_for_status()
-
-            task_data = response.json()
-            task_id = task_data["task_id"]
-            logger.info(f"Started merge task: {task_id}")
-
-            # Poll for completion
-            self._wait_for_task_completion(task_id, "merge_corpus")
-
-        except Exception as e:
-            logger.error(f"Error during corpus merge: {e}")
-            return
-
-    def _wait_for_task_completion(self, task_id: str, task_type: str) -> dict[str, Any]:
-        """Wait for a task to complete and return the result"""
-        logger.info(f"Waiting for {task_type} task {task_id} to complete...")
-
-        # Calculate maximum wait time (fuzzer timeout + buffer)
-        max_wait_time = self.conf.timeout + self.conf.timeout_buffer
-        start_time = time.time()
-
-        while True:
-            # Check if we've exceeded the maximum wait time
-            elapsed_time = time.time() - start_time
-            if elapsed_time > max_wait_time:
-                error_msg = f"Task {task_id} timed out after {elapsed_time:.1f} seconds (max: {max_wait_time:.1f}s)"
-                logger.error(error_msg)
-                raise RuntimeError(f"Task timeout: {error_msg}")
-
-            try:
-                # Check task status
-                response = self.client.get(
-                    f"{self.conf.server_url}{FUZZER_RUNNER_TASK_ENDPOINT.format(task_id=task_id)}"
-                )
-                response.raise_for_status()
-
-                task_info: dict[str, Any] = response.json()
-                status = task_info["status"]
-
-                if status == "completed":
-                    logger.info(f"Task {task_id} completed successfully after {elapsed_time:.1f} seconds")
-                    return task_info.get("result", {})  # type: ignore[no-any-return]
-                elif status == "failed":
-                    error_msg = task_info.get("error", "Unknown error")
-                    logger.error(f"Task {task_id} failed after {elapsed_time:.1f} seconds: {error_msg}")
-                    raise RuntimeError(f"Task failed: {error_msg}")
-                elif status == "running":
-                    logger.debug(f"Task {task_id} still running after {elapsed_time:.1f}s, waiting...")
-                    time.sleep(self.conf.poll_interval)
-                else:
-                    raise RuntimeError(f"Unknown task status: {status}")
-
-            except httpx.HTTPError:
-                logger.exception(f"HTTP error checking task status after {elapsed_time:.1f}s")
-                continue
-            except Exception as e:
-                logger.error(f"Error checking task status after {elapsed_time:.1f}s: {e}")
-                raise
-
-    def _dict_to_fuzz_result(self, result_dict: dict[str, Any]) -> FuzzResult:
+    async def _dict_to_fuzz_result(self, result_dict: dict[str, Any]) -> FuzzResult:
         """Convert dictionary result back to FuzzResult object"""
+        # Handle both "logs" and "error" keys for backward compatibility
+        logs = result_dict.get("logs", result_dict.get("error", ""))
         return FuzzResult(
-            logs=result_dict.get("logs", ""),
+            logs=logs,
             crashes=[
                 Crash(
                     input_path=crash.get("input_path", ""),
@@ -184,8 +208,3 @@ class RunnerProxy:
             timed_out=result_dict.get("timed_out", False),
             command=result_dict.get("command", ""),
         )
-
-    def __del__(self) -> None:
-        """Cleanup HTTP client"""
-        if hasattr(self, "client"):
-            self.client.close()

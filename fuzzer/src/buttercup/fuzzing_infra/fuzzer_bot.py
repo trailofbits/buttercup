@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 from pathlib import Path
@@ -18,8 +19,9 @@ from buttercup.common.node_local import scratch_dir
 from buttercup.common.queues import QueueFactory, QueueNames
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.types import FuzzConfiguration
 from buttercup.common.utils import setup_periodic_zombie_reaper
-from buttercup.fuzzing_infra.runner_proxy import Conf, FuzzConfiguration, RunnerProxy
+from buttercup.fuzzing_infra.runner_proxy import Conf, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 if TYPE_CHECKING:
@@ -38,9 +40,9 @@ class FuzzerBot(TaskLoop):
         crs_scratch_dir: str,
         crash_dir_count_limit: int | None,
         max_pov_size: int,
-        runner_url: str,
+        runner_path: Path,
     ):
-        self.runner = RunnerProxy(Conf(timeout_seconds, runner_url))
+        self.runner = RunnerProxy(Conf(timeout_seconds, runner_path))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
@@ -86,7 +88,7 @@ class FuzzerBot(TaskLoop):
                             "fuzz.corpus.size": corp.local_corpus_size(),
                         },
                     )
-                    result = self.runner.run_fuzzer(fuzz_conf)
+                    result = asyncio.run(self.runner.run_fuzzer(fuzz_conf))
 
                     crash_set = CrashSet(self.redis)
                     crash_dir = CrashDir(
@@ -145,6 +147,7 @@ def main() -> None:
     setup_periodic_zombie_reaper()
 
     logger.info(f"Starting fuzzer (crs_scratch_dir: {args.crs_scratch_dir})")
+    logger.debug("Args: %s", args)
 
     seconds_sleep = args.timer // 1000
     fuzzer = FuzzerBot(
@@ -155,7 +158,7 @@ def main() -> None:
         args.crs_scratch_dir,
         crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),
         max_pov_size=args.max_pov_size,
-        runner_url=args.runner_url,
+        runner_path=args.runner_path,
     )
     fuzzer.run()
 

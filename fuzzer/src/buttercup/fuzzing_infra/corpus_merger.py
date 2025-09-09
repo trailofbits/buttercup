@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import os
@@ -5,6 +6,7 @@ import random
 import shutil
 from dataclasses import dataclass
 from os import PathLike
+from pathlib import Path
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -184,11 +186,11 @@ class MergerBot:
         timeout_seconds: int,
         python: str,
         crs_scratch_dir: str,
+        runner_path: PathLike[str],
         max_local_files: int = 500,
-        runner_url: str = "http://localhost:8000",
     ):
         self.redis = redis
-        self.runner = RunnerProxy(Conf(timeout_seconds, runner_url))
+        self.runner = RunnerProxy(Conf(timeout_seconds, Path(runner_path)))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.harness_weights = HarnessWeights(redis)
@@ -258,7 +260,7 @@ class MergerBot:
 
                     # We specify the remote_dir as the target dir as that will cause any `local_dir`
                     # files that adds coverage to be moved to remote_dir.
-                    self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir))
+                    asyncio.run(self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir)))
                     span.set_status(Status(StatusCode.OK))
 
     def run_task(self, task: WeightedHarness, builds: list[BuildOutput]) -> bool:
@@ -402,8 +404,8 @@ def main() -> None:
         args.timeout,
         args.python,
         args.crs_scratch_dir,
+        args.runner_path,
         args.max_local_files,
-        args.runner_url,
     )
     merger.run()
 
