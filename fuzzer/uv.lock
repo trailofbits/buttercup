@@ -313,7 +313,6 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "common", extra = ["full"] },
-    { name = "httpx" },
     { name = "lxml" },
     { name = "pydantic-settings" },
     { name = "redis" },
@@ -333,7 +332,6 @@ dev = [
 requires-dist = [
     { name = "beautifulsoup4", specifier = "~=4.13.3" },
     { name = "common", extras = ["full"], editable = "../common" },
-    { name = "httpx", specifier = "~=0.27.0" },
     { name = "lxml", specifier = "~=5.3.1" },
     { name = "pydantic-settings", specifier = "~=2.7.1" },
     { name = "redis", specifier = "~=5.2.1" },
