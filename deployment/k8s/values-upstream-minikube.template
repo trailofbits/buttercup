@@ -20,7 +20,6 @@ global:
     repository: localhost/program-model
     tag: "latest"
     pullPolicy: Never
-  
 
   langfuse:
     enabled: ${LANGFUSE_ENABLED}
