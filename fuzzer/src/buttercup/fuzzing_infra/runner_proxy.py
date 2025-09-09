@@ -88,7 +88,6 @@ class RunnerProxy:
                 stderr=subprocess.PIPE,
                 start_new_session=True,
             )
-            logger.info(f"Process PID: {process.pid}")
 
             try:
                 stdout, stderr = process.communicate(timeout=subprocess_timeout)
