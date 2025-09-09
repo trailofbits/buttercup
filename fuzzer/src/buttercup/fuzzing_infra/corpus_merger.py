@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import logging
 import os
@@ -260,7 +259,7 @@ class MergerBot:
 
                     # We specify the remote_dir as the target dir as that will cause any `local_dir`
                     # files that adds coverage to be moved to remote_dir.
-                    asyncio.run(self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir)))
+                    self.runner.merge_corpus(fuzz_conf, os.fspath(remote_dir))
                     span.set_status(Status(StatusCode.OK))
 
     def run_task(self, task: WeightedHarness, builds: list[BuildOutput]) -> bool:

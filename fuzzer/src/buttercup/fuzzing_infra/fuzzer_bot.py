@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import random
 from pathlib import Path
@@ -88,7 +87,7 @@ class FuzzerBot(TaskLoop):
                             "fuzz.corpus.size": corp.local_corpus_size(),
                         },
                     )
-                    result = asyncio.run(self.runner.run_fuzzer(fuzz_conf))
+                    result = self.runner.run_fuzzer(fuzz_conf)
 
                     crash_set = CrashSet(self.redis)
                     crash_dir = CrashDir(
