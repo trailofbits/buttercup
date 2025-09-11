@@ -5,6 +5,7 @@ import random
 import shutil
 from dataclasses import dataclass
 from os import PathLike
+from pathlib import Path
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -21,7 +22,7 @@ from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS, FailedToAcquireLock, MergedCorpusSetLock
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
-from buttercup.fuzzing_infra.runner import Conf, FuzzConfiguration, Runner
+from buttercup.fuzzing_infra.runner_proxy import Conf, FuzzConfiguration, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 logger = logging.getLogger(__name__)
@@ -184,10 +185,11 @@ class MergerBot:
         timeout_seconds: int,
         python: str,
         crs_scratch_dir: str,
+        runner_path: PathLike[str],
         max_local_files: int = 500,
     ):
         self.redis = redis
-        self.runner = Runner(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds, Path(runner_path)))
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
         self.harness_weights = HarnessWeights(redis)
@@ -401,6 +403,7 @@ def main() -> None:
         args.timeout,
         args.python,
         args.crs_scratch_dir,
+        args.runner_path,
         args.max_local_files,
     )
     merger.run()

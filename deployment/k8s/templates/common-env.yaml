@@ -336,6 +336,8 @@ Service-specific environment variables that utilize the standardized variables
   value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_FUZZER_MAX_POV_SIZE
   value: {{ int .Values.global.maxPovSize | quote }}
+- name: BUTTERCUP_FUZZER_RUNNER_PATH
+  value: "/app/fuzzer_runner/runner.sh"
 {{- end }}
 
 {{- define "buttercup.povReproducerEnv" }}

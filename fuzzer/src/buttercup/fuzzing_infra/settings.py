@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field
@@ -44,6 +45,7 @@ class FuzzerBotSettings(WorkerSettings):
     crash_dir_count_limit: Annotated[int, Field(default=0)]
     max_local_files: Annotated[int, Field(default=500)]
     max_pov_size: Annotated[int, Field(default=2 * 1024 * 1024)]  # 2 MiB
+    runner_path: Path
 
 
 class CoverageBotSettings(WorkerSettings, BuilderSettings):

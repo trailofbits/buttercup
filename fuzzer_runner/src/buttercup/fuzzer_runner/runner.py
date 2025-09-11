@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import typing
@@ -10,8 +11,8 @@ from clusterfuzz.fuzz.engine import Engine, FuzzOptions, FuzzResult
 
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.node_local import scratch_dir
-from buttercup.common.queues import FuzzConfiguration
-from buttercup.fuzzing_infra.temp_dir import patched_temp_dir, scratch_cwd
+from buttercup.common.types import FuzzConfiguration
+from buttercup.fuzzer_runner.temp_dir import patched_temp_dir, scratch_cwd
 
 logger = logging.getLogger(__name__)
 
@@ -67,21 +68,76 @@ class Runner:
                 )
 
 
+def run_fuzzer_command(args: argparse.Namespace, runner: Runner, fuzzconf: FuzzConfiguration) -> dict[str, typing.Any]:
+    """Run fuzzer command"""
+    result = runner.run_fuzzer(fuzzconf)
+    result_dict = {
+        "logs": result.logs,
+        "command": result.command,
+        "crashes": [
+            {
+                "input_path": crash.input_path,
+                "stacktrace": crash.stacktrace,
+                "reproduce_args": crash.reproduce_args,
+                "crash_time": crash.crash_time,
+            }
+            for crash in result.crashes
+        ],
+        "stats": result.stats,
+        "time_executed": result.time_executed,
+        "timed_out": result.timed_out,
+    }
+    return result_dict
+
+
+def merge_corpus_command(
+    args: argparse.Namespace, runner: Runner, fuzzconf: FuzzConfiguration
+) -> dict[str, typing.Any]:
+    """Run merge corpus command"""
+    runner.merge_corpus(fuzzconf, args.output_dir)
+
+    result_dict = {
+        "status": "completed",
+        "output_dir": args.output_dir,
+        "message": "Corpus merge completed successfully",
+    }
+    return result_dict
+
+
 def main() -> None:
     prsr = argparse.ArgumentParser("Fuzzer runner")
+
     prsr.add_argument("--timeout", required=True, type=int)
     prsr.add_argument("--corpusdir", required=True)
     prsr.add_argument("--engine", required=True)
     prsr.add_argument("--sanitizer", required=True)
     prsr.add_argument("target")
-    args = prsr.parse_args()
+
+    subparsers = prsr.add_subparsers(dest="command", help="Available commands")
+
+    # Fuzzer command
+    fuzzer_parser = subparsers.add_parser("fuzz", help="Run fuzzer")
+    fuzzer_parser.set_defaults(func=run_fuzzer_command)
+
+    # Merge corpus command
+    merge_parser = subparsers.add_parser("merge", help="Merge corpus")
+    merge_parser.add_argument("--output-dir", required=True)
+    merge_parser.set_defaults(func=merge_corpus_command)
 
     setup_package_logger("fuzzer-runner", __name__, "DEBUG", None)
+
+    args = prsr.parse_args()
+
+    if not hasattr(args, "func"):
+        prsr.print_help()
+        return
 
     conf = Conf(args.timeout)
     fuzzconf = FuzzConfiguration(args.corpusdir, args.target, args.engine, args.sanitizer)
     runner = Runner(conf)
-    print(runner.run_fuzzer(fuzzconf))
+
+    result_dict = args.func(args, runner, fuzzconf)
+    print(json.dumps(result_dict))
 
 
 if __name__ == "__main__":

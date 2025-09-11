@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from redis import Redis
 
@@ -14,6 +14,8 @@ class TestMergerBot(unittest.TestCase):
     def setUp(self):
         self.redis_mock = Mock(spec=Redis)
         self.runner_mock = Mock()
+        # Make merge_corpus an async mock since it's now an async method
+        self.runner_mock.merge_corpus = AsyncMock()
         self.corpus_mock = Mock()
         self.lock_mock = MagicMock()
 
@@ -25,13 +27,14 @@ class TestMergerBot(unittest.TestCase):
         self.max_local_files = 500
 
         # Create the MergerBot instance with mocked runner
-        with patch("buttercup.fuzzing_infra.corpus_merger.Runner") as runner_class_mock:
+        with patch("buttercup.fuzzing_infra.corpus_merger.RunnerProxy") as runner_class_mock:
             runner_class_mock.return_value = self.runner_mock
             self.merger_bot = MergerBot(
                 self.redis_mock,
                 self.timeout_seconds,
                 self.python,
                 self.crs_scratch_dir,
+                "/path/to/runner",
                 self.max_local_files,
             )
 

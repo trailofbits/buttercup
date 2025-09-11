@@ -64,7 +64,7 @@ def test_do_task_valid_pov(
     # Mock reproduce_multiple to return crashes on 2nd iteration
     def mock_get_crashes(pov_path, harness_name):
         if "iter1_" in pov_path.name:
-            build = MagicMock(spec=BuildOutput)
+            build = BuildOutput()
             build.sanitizer = "asan"
 
             result = MagicMock(spec=ReproduceResult)
