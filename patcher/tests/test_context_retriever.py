@@ -469,7 +469,7 @@ def mock_runnable_config(tmp_path: Path) -> dict:
             "thread_id": "test-thread-id",
             "work_dir": tmp_path / "work_dir",
             "tasks_storage": tmp_path / "tasks_storage",
-            "max_concurrency": 1,
+            "max_concurrency": 2,
         },
     }
 
