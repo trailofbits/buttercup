@@ -97,16 +97,19 @@ deploy:
 	@echo "Deployment configuration:"
 	@grep 'CLUSTER_TYPE=' deployment/env || echo "CLUSTER_TYPE not set"
 	@grep 'K8S_VALUES_TEMPLATE' deployment/env || echo "K8S_VALUES_TEMPLATE not set"
-	@echo "Are you sure you want to deploy with these settings? Type 'yes' to continue:"
-	@read ans; \
-	ans_lc=$$(echo "$$ans" | tr '[:upper:]' '[:lower:]'); \
-	if [ "$$ans_lc" != "yes" ] && [ "$$ans_lc" != "y" ]; then \
-		echo "Aborted by user."; \
-		exit 1; \
+	@if [ "$${FORCE:-false}" != "true" ]; then \
+		echo "Are you sure you want to deploy with these settings? Type 'yes' to continue:"; \
+		read ans; \
+		ans_lc=$$(echo "$$ans" | tr '[:upper:]' '[:lower:]'); \
+		if [ "$$ans_lc" != "yes" ] && [ "$$ans_lc" != "y" ]; then \
+			echo "Aborted by user."; \
+			exit 1; \
+		fi; \
 	fi
 	cd deployment && make up
 	make crs-instance-id
 	make wait-crs
+
 status:
 	@echo "----------PODS------------"
 	@kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs}
