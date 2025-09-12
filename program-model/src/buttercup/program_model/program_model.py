@@ -82,6 +82,8 @@ class ProgramModel:
                         crs_action_name="index_task_with_codequery",
                         task_metadata=dict(challenge.task_meta.metadata),
                     )
+                    # No need to pass tasks_storage because the IndexRequest
+                    # already uses the original task
                     cqp = CodeQueryPersistent(local_challenge, work_dir=self.wdir)
                     logger.info(
                         f"Successfully processed task {args.package_name}/{args.task_id}/{args.task_dir} with codequery",  # noqa: E501

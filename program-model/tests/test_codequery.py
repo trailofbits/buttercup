@@ -119,6 +119,9 @@ def mock_docker_run(challenge_task: ChallengeTask):
                 pass
 
             return subprocess.CompletedProcess(args, returncode=0)
+        elif args[0] == "git":
+            return subprocess.CompletedProcess(args, returncode=0)
+
         return original_subprocess_run(args, *rest, **kwargs)
 
     return wrapped
@@ -222,6 +225,7 @@ def test_keep_status(
 
     with patch("subprocess.run", side_effect=mock_docker_run(mock_c_challenge_task_ro)):
         codequery2 = CodeQueryPersistent(mock_c_challenge_task_ro, work_dir=wdir)
+
     assert codequery2.get_functions("main")
     assert codequery2.challenge.task_dir == codequery.challenge.task_dir
     assert mock_c_challenge_task.task_dir.exists()

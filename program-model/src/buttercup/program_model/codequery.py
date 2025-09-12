@@ -873,7 +873,10 @@ class CodeQueryPersistent(CodeQuery):
         except ChallengeTaskError:
             # This is the case where the cqdb is not yet created
             logger.debug("Creating new CodeQueryPersistent DB in %s", cqdb_path)
-            clean_task = self.challenge.get_clean_task(self.tasks_storage)
+            if self.tasks_storage is not None:
+                clean_task = self.challenge.get_clean_task(self.tasks_storage)
+            else:
+                clean_task = self.challenge
             with clean_task.get_rw_copy(self.work_dir) as persistent_challenge:
                 persistent_challenge.apply_patch_diff()
                 self.challenge = persistent_challenge
