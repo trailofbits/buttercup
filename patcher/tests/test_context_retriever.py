@@ -54,6 +54,9 @@ def mock_docker_run(challenge_task: ChallengeTask):
                 pass
 
             return subprocess.CompletedProcess(args, returncode=0)
+        elif args[0] == "git":
+            return subprocess.CompletedProcess(args, returncode=0)
+
         return original_subprocess_run(args, *rest, **kwargs)
 
     return wrapped
