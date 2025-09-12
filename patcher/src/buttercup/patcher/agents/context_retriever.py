@@ -698,6 +698,8 @@ class ContextRetrieverAgent(PatcherAgentBase):
     """Agent that retrieves code snippets from the project."""
 
     redis: Redis | None = None
+    find_tests: bool = True
+
     agent: Runnable = field(init=False)
     llm: BaseChatOpenAI = field(init=False)
     cheap_llm: BaseChatOpenAI = field(init=False)
