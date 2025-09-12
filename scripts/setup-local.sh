@@ -17,6 +17,12 @@ check_not_root
 # Function to setup configuration
 setup_config() {
     setup_config_file
+
+    # Generate a secure master key for LiteLLM
+    generate_litellm_master_key
+
+    # Generate key ID/token for CRS
+    generate_crs_key_id_token
     
     # Configure required API keys
     configure_local_api_keys

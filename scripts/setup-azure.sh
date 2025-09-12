@@ -140,6 +140,12 @@ setup_config() {
     portable_sed "s|.*export BUTTERCUP_K8S_VALUES_TEMPLATE=.*|export BUTTERCUP_K8S_VALUES_TEMPLATE=\"k8s/values-upstream-aks.template\"|" deployment/env
     print_success "Kubernetes values template set to: k8s/values-upstream-aks.template"
 
+    # Generate a secure master key for LiteLLM
+    generate_litellm_master_key
+
+    # Generate key ID/token for CRS
+    generate_crs_key_id_token
+
     # Configure required API keys
     configure_local_api_keys
 
@@ -149,8 +155,8 @@ setup_config() {
     # Configure LangFuse (optional)
     configure_langfuse
     
-    # Configure SigNoz deployment (optional)
-    configure_otel
+    # TODO: For production, we don't deploy SigNoz, as it needs to be done properly
+    #       Just allow to configure access to an existing SigNoz instance
 }
 
 # Function to validate configuration
