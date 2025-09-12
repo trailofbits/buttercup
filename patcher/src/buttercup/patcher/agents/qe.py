@@ -1,36 +1,24 @@
 """Quality Engineer LLM agent, handling the testing of patches."""
 
 import concurrent.futures
-import importlib.resources
 import logging
-import re
-import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, field
-from io import StringIO
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-import langgraph.errors
-from langchain_core.messages import BaseMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableConfig
+from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
 from langgraph.constants import END
-from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
-from pydantic import Field, ValidationError, field_validator
-from unidiff import PatchSet
 
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, CommandResult
 from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.corpus import CrashDir
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.patcher.agents.common import (
-    BaseCtxState,
     PatchAttempt,
     PatcherAgentBase,
     PatcherAgentName,
@@ -38,17 +26,7 @@ from buttercup.patcher.agents.common import (
     PatchStatus,
 )
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.patcher.agents.tools import (
-    cat,
-    get_callees,
-    get_callers,
-    get_function,
-    get_lines,
-    get_type,
-    grep,
-    ls,
-)
-from buttercup.patcher.utils import PatchInputPoV, get_challenge
+from buttercup.patcher.utils import PatchInputPoV
 
 # ruff: noqa: E501
 
