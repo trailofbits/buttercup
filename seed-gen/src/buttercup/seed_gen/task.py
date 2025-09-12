@@ -545,7 +545,9 @@ def get_function_definition(
 
     Notes:
     - If looking up a method in a Java program, only specify the method name.
-        For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+      For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+    - If looking up a method in a C++ program, only specify the method name.
+      For example, if the method is `example::MyClass::myMethod`, only specify `myMethod`.
 
     """
     assert isinstance(state, BaseTaskState)
@@ -681,6 +683,11 @@ def get_callers(
         function_name: The name of the function to get callers for
         file_path: The path to the file containing the function
 
+    Notes:
+        - If looking up a method in a Java program, only specify the method name.
+          For example, if the method is `example.MyClass.myMethod`, only specify `myMethod`.
+        - If looking up a method in a C++ program, only specify the method name.
+          For example, if the method is `example::MyClass::myMethod`, only specify `myMethod`.
     """
     assert isinstance(state, BaseTaskState)
     return Task._get_callers(function_name, file_path, state, tool_call_id)

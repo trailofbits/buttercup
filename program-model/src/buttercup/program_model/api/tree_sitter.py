@@ -69,6 +69,29 @@ QUERY_STR_C = """
 # 4. Captures the function body (compound_statement) with @function.body
 # 5. Captures the entire function definition with @function.definition
 
+QUERY_STR_CPP = """
+(function_definition
+  declarator: [
+      (_declarator (function_declarator declarator: (identifier) @function.name))
+      (function_declarator declarator: (identifier) @function.name)
+      (function_declarator (field_identifier) @function.name)
+      (function_declarator (qualified_identifier (identifier) @function.name))
+  ]
+  body: (compound_statement) @function.body
+) @function.definition
+"""
+# This query matches C++ function definitions:
+# 1. Matches function_definition nodes (both free functions and class/struct methods)
+# 2. Looks for declarators that can be either:
+#    - A nested _declarator with function_declarator and identifier (for complex declarations)
+#    - A direct function_declarator with identifier (for simple declarations)
+#    - A direct function_declarator with field_identifier (for class/struct methods)
+#    - A direct function_declarator with qualified_identifier (for qualified function names like Class::method)
+# 3. Captures the function name with @function.name
+# 4. Captures the function body (compound_statement) with @function.body
+# 5. Captures the entire function definition with @function.definition
+
+
 QUERY_STR_JAVA = """
 (method_declaration
   (modifiers)*
@@ -141,6 +164,62 @@ QUERY_STR_TYPES_C = """
 #    - name captured with @type.name
 #    - value captured with @type.value
 # 6. preproc_function_def - Matches preprocessor function definitions with:
+#    - name captured with @type.name
+#    - value captured with @type.value
+
+QUERY_STR_TYPES_CPP = """
+(
+[
+  (class_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list)) @type.definition
+
+  (struct_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list)) @type.definition
+
+  (union_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list)) @type.definition
+
+  (enum_specifier
+    name: (type_identifier) @type.name
+    body: (enumerator_list)) @type.definition
+
+  (type_definition
+    type: (type_specifier) @type.original_type
+    declarator: (_) @type.name) @type.definition
+
+  (preproc_def
+    (identifier) @type.name
+    (preproc_arg)? @type.value) @type.definition
+
+  (preproc_function_def
+    (identifier) @type.name
+    (preproc_arg)? @type.value) @type.definition
+]
+)
+"""
+# This query matches C++ type definitions:
+# 1. class_specifier - Matches class definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 2. struct_specifier - Matches struct definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 3. union_specifier - Matches union definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 4. enum_specifier - Matches enum definitions with:
+#    - name captured with @type.name
+#    - body containing enumerator list
+# 5. type_definition - Matches typedef statements with:
+#    - original type captured with @type.original_type
+#    - new type name captured with @type.name
+# 6. preproc_def - Matches preprocessor type definitions with:
+#    - name captured with @type.name
+#    - value captured with @type.value
+# 7. preproc_function_def - Matches preprocessor function definitions with:
 #    - name captured with @type.name
 #    - value captured with @type.value
 
@@ -239,6 +318,12 @@ class CodeTS:
             query_str = QUERY_STR_C
             types_query_str = QUERY_STR_TYPES_C
             query_class_members = None
+        elif self.project_yaml.unified_language == Language.CPP:
+            self.parser = get_parser("cpp")
+            self.language = get_language("cpp")
+            query_str = QUERY_STR_CPP
+            types_query_str = QUERY_STR_TYPES_CPP
+            query_class_members = None
         elif self.project_yaml.unified_language == Language.JAVA:
             self.parser = get_parser("java")
             self.language = get_language("java")
@@ -277,7 +362,7 @@ class CodeTS:
 
     def get_functions_in_code(self, code: bytes, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a piece of code and return a dictionary of function names/body"""
-        if self.project_yaml.unified_language == Language.C:
+        if self.project_yaml.unified_language in [Language.C, Language.CPP]:
             code_no_preproc = self._get_code_no_preproc(code)
             tree = self.parser.parse(code_no_preproc)
         else:
@@ -361,7 +446,7 @@ class CodeTS:
         """Parse the definition of a type in a piece of code."""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
 
-        if self.project_yaml.unified_language == Language.C:
+        if self.project_yaml.unified_language in [Language.C, Language.CPP]:
             code_no_preproc = self._get_code_no_preproc(code)
             tree = self.parser.parse(code_no_preproc)
         else:
@@ -424,7 +509,11 @@ class CodeTS:
                 type_def_type = TypeDefinitionType.PREPROC_TYPE
             elif definition_node.type == "preproc_function_def":
                 type_def_type = TypeDefinitionType.PREPROC_FUNCTION
-            elif definition_node.type == "class_declaration" or definition_node.type == "interface_declaration":
+            elif (
+                definition_node.type == "class_declaration"
+                or definition_node.type == "interface_declaration"
+                or definition_node.type == "class_specifier"
+            ):
                 type_def_type = TypeDefinitionType.CLASS
             else:
                 logger.debug(f"Unknown type definition node type: {definition_node.type}")

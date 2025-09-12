@@ -144,7 +144,7 @@ class CodeQuery:
         self._verify_requirements()
         self.ts = CodeTS(self.challenge)
         language = self._get_project_language()
-        if language == Language.C:
+        if language in [Language.C, Language.CPP]:
             self.imports_resolver = FuzzyCImportsResolver(self._get_container_src_dir())
         elif language == Language.JAVA:
             self.imports_resolver = FuzzyJavaImportsResolver(self.challenge, self)
@@ -229,7 +229,7 @@ class CodeQuery:
 
         with self._get_container_src_dir().joinpath(self.CSCOPE_FILES).open("w") as f:
             project_yaml = ProjectYaml(self.challenge, self.challenge.task_meta.project_name)
-            if project_yaml.unified_language == Language.C:
+            if project_yaml.unified_language in [Language.C, Language.CPP]:
                 extensions = C_CPP_EXTENSIONS
             elif project_yaml.unified_language == Language.JAVA:
                 extensions = JAVA_EXTENSIONS
@@ -862,6 +862,7 @@ class CodeQueryPersistent(CodeQuery):
     """
 
     work_dir: Path
+    tasks_storage: Path | None = None
 
     def __post_init__(self) -> None:
         """Post init the persistent codequery db"""
@@ -872,7 +873,9 @@ class CodeQueryPersistent(CodeQuery):
         except ChallengeTaskError:
             # This is the case where the cqdb is not yet created
             logger.debug("Creating new CodeQueryPersistent DB in %s", cqdb_path)
-            with self.challenge.get_rw_copy(self.work_dir) as persistent_challenge:
+            clean_task = self.challenge.get_clean_task(self.tasks_storage)
+            with clean_task.get_rw_copy(self.work_dir) as persistent_challenge:
+                persistent_challenge.apply_patch_diff()
                 self.challenge = persistent_challenge
                 super().__post_init__()
 

@@ -183,11 +183,21 @@ def get_function_tool_impl(function_name: str, file_path: str | None, state: Bas
 
 @tool
 def get_function(function_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get a function's definition. If available, pass a file_path, \
+    """Get a function's definition. If available, pass an absolute file_path, \
     otherwise pass None. Use this when you want to get information about a \
     function. If not sure about the file path, pass None. Prefer using this \
     tool over any other and rely on others only if this tool fails or does \
-    not work.
+    not work. If the function is a method, just pass the method name and, if
+    known, the file_path as usual. Do NOT pass the class name as part of the
+    function name.
+
+    Do NOT do this:
+    - `get_function("MyClass::add", "/src/example_project/test.cpp")`
+
+    Do this:
+    - `get_function("add", "/src/example_project/test2.c")`
+    - `get_function("add", None)`
+    - `get_function("add", "/src/example_project/test2.cpp")`
     """
     code_snippets = get_function_tool_impl(function_name, file_path, state)
     output_str = "\n".join(str(code_snippet) for code_snippet in code_snippets)
@@ -196,7 +206,17 @@ def get_function(function_name: str, file_path: str | None, *, state: Annotated[
 
 @tool
 def get_callers(function_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get the callers of a function."""
+    """Get the callers of a function. If the function is a method, just pass the method name and, if
+    known, the absolute file_path as usual. Do NOT pass the class name as part of the function name.
+
+    Do NOT do this:
+    - `get_callers("MyClass::add", "/src/example_project/test.cpp")`
+
+    Do this:
+    - `get_callers("add", "/src/example_project/test2.c")`
+    - `get_callers("add", None)`
+    - `get_callers("add", "/src/example_project/test2.cpp")`
+    """
     path = Path(file_path) if file_path else None
     logger.info("Getting callers of %s in %s", function_name, path)
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
@@ -217,7 +237,17 @@ call `get_function` tool with the caller's name and file_path.
 
 @tool
 def get_callees(function_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get the callees of a function."""
+    """Get the callees of a function. If the function is a method, just pass the method name and, if
+    known, the absolute file_path as usual. Do NOT pass the class name as part of the function name.
+
+    Do NOT do this:
+    - `get_callees("MyClass::add", "/src/example_project/test.cpp")`
+
+    Do this:
+    - `get_callees("add", "/src/example_project/test2.c")`
+    - `get_callees("add", None)`
+    - `get_callees("add", "/src/example_project/test2.cpp")`
+    """
     path = Path(file_path) if file_path else None
     logger.info("Getting callees of %s in %s", function_name, path)
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
@@ -255,7 +285,7 @@ def get_type_tool_impl(type_name: str, file_path: str | None, state: BaseCtxStat
 
 @tool
 def get_type(type_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get a type/class/typedef/struct/enum/macro's definition. If available, pass a file_path, \
+    """Get a type/class/typedef/struct/enum/macro's definition. If available, pass an absolute file_path, \
     otherwise pass None. Use this when you want to get information about a type. \
     If not sure about the file path, pass None. Prefer using this tool over any \
     other and rely on others only if this tool fails or does not work.

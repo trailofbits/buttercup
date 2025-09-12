@@ -54,68 +54,6 @@ from buttercup.patcher.utils import PatchInputPoV, get_challenge
 
 logger = logging.getLogger(__name__)
 
-CHECK_HARNESS_CHANGES_SYSTEM_MSG = """You are an agent - please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved.
-If you are not sure about file content or codebase structure pertaining to the user's request, use your tools to read files and gather the relevant information: do NOT guess or make up an answer.
-You MUST plan extensively before each function call, and reflect extensively on the outcomes of the previous function calls. DO NOT do this entire process by making function calls only, as this can impair your ability to solve the problem and think insightfully.
-You are a quality engineer agent tasked with checking the validity of a patch.
-"""
-
-CHECK_HARNESS_CHANGES_USER_MSG = """You are given a patch that has been applied to a challenge task.
-You need to check if the patch is valid.
-
-A patch is considered valid if it does NOT modify harness code.
-
-Harness code is code that is used to test/fuzz the challenge task, usually found in `fuzz`, `fuzzers`, `tests`, `test` directories, etc.
-Fuzzers are usually written in libfuzzer and they contain functions such as `LLVMFuzzerTestOneInput`, `Fuzzer::Execute`, `fuzzerTestOneInput` or similar.
-
-Project name:
-<project_name>
-{PROJECT_NAME}
-</project_name>
-
-Patch:
-<patch>
-{PATCH}
-</patch>
-
-Current directory (pwd):
-<cwd>
-{CWD}
-</cwd>
-
-Files in current directory (ls -la):
-<ls_cwd>
-{LS_CWD}
-</ls_cwd>
-
-
-Think step by step and use your tools to check the validity of the patch. Wrap your thoughts and reasoning in <think> tags.
-When you are done, return a true/false value in <is_valid> tags.
-"""
-
-CHECK_HARNESS_CHANGES_CHAIN = ChatPromptTemplate.from_messages(
-    [
-        ("system", CHECK_HARNESS_CHANGES_SYSTEM_MSG),
-        ("user", CHECK_HARNESS_CHANGES_USER_MSG),
-        MessagesPlaceholder(variable_name="messages", optional=True),
-        ("ai", "<think>"),
-    ],
-)
-
-
-class PatchValidationState(BaseCtxState):
-    """State for the patch validation agent"""
-
-    patch: PatchAttempt = Field(..., description="The patch to validate")
-
-    @field_validator("patch")
-    def validate_patch(cls, v: PatchAttempt) -> PatchAttempt:
-        if v.patch is None:
-            raise ValueError("patch.patch cannot be None")
-        if v.patch.patch is None or not v.patch.patch.strip():
-            raise ValueError("patch.patch.patch cannot be None or empty")
-        return v
-
 
 @dataclass
 class _PoVResult:
@@ -130,52 +68,6 @@ class _PoVResult:
 @dataclass
 class QEAgent(PatcherAgentBase):
     """Quality Engineer LLM agent, handling the testing of patches."""
-
-    check_harness_changes_chain: Runnable = field(init=False)
-
-    def __post_init__(self) -> None:
-        tools = [
-            ls,
-            grep,
-            cat,
-            get_lines,
-            get_function,
-            get_type,
-            get_callees,
-            get_callers,
-        ]
-        default_agent = create_react_agent(
-            model=create_default_llm_with_temperature(model_name=ButtercupLLM.OPENAI_GPT_4_1.value),
-            state_schema=PatchValidationState,
-            tools=tools,
-            prompt=self._check_harness_changes_prompt,
-        )
-        fallback_agents = [
-            create_react_agent(
-                model=create_default_llm_with_temperature(model_name=llm.value),
-                state_schema=PatchValidationState,
-                tools=tools,
-                prompt=self._check_harness_changes_prompt,
-            )
-            for llm in [ButtercupLLM.CLAUDE_3_7_SONNET, ButtercupLLM.GEMINI_PRO]
-        ]
-        self.check_harness_changes_chain = default_agent.with_fallbacks(fallback_agents)
-
-    def _check_harness_changes_prompt(self, state: PatchValidationState) -> list[BaseMessage]:
-        challenge = get_challenge(state.challenge_task_dir)
-        ls_cwd = challenge.exec_docker_cmd(["ls", "-la"])
-        if ls_cwd.success:
-            ls_cwd = ls_cwd.output.decode("utf-8")
-        else:
-            ls_cwd = "ls cwd failed"
-
-        return CHECK_HARNESS_CHANGES_CHAIN.format_messages(
-            PROJECT_NAME=challenge.name,
-            PATCH=state.patch.patch.patch,  # type: ignore[union-attr]
-            CWD=challenge.workdir_from_dockerfile(),
-            LS_CWD=ls_cwd,
-            messages=state.messages,
-        )
 
     def _patch_challenge(self, challenge: ChallengeTask, patch_attempt: PatchAttempt) -> bool:
         assert patch_attempt.patch
@@ -611,7 +503,7 @@ class QEAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.REFLECTION.value, PatcherAgentName.PATCH_VALIDATION.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
         """Node in the LangGraph that runs tests against a currently built patch"""
         logger.info(
             "[%s / %s] Running tests on Challenge Task %s rebuilt with patch",
@@ -696,7 +588,7 @@ class QEAgent(PatcherAgentBase):
                 self.input.internal_patch_id,
                 self.challenge.name,
             )
-            next_node = PatcherAgentName.PATCH_VALIDATION.value
+            next_node = END
         else:
             logger.warning(
                 "[%s / %s] Tests failed for Challenge Task %s",
@@ -713,152 +605,4 @@ class QEAgent(PatcherAgentBase):
                 "execution_info": execution_info,
             },
             goto=next_node,
-        )
-
-    def _is_valid_patched_code(self, last_patch_attempt: PatchAttempt, configuration: PatcherConfig) -> bool:
-        """Check if the patch does not patch harness code"""
-        input_state = {
-            "challenge_task_dir": self.challenge.task_dir,
-            "work_dir": configuration.work_dir,
-            "patch": last_patch_attempt,
-        }
-        try:
-            state_dict = self.check_harness_changes_chain.invoke(
-                input_state,
-                config=RunnableConfig(
-                    recursion_limit=configuration.patch_validation_recursion_limit,
-                ),
-            )
-        except langgraph.errors.GraphRecursionError:
-            logger.error("Reached recursion limit for patch validation")
-            return False
-
-        try:
-            state = PatchValidationState.model_validate(state_dict)
-        except ValidationError as e:
-            logger.error("Invalid state dict for patch strategy: %s", e)
-            return False
-
-        last_msg = str(state.messages[-1].content)
-        match = re.search(r"<is_valid>(.*?)</is_valid>", last_msg, re.DOTALL | re.IGNORECASE)
-        if match is None:
-            logger.error("No is_valid tag found in the output")
-            return False
-
-        is_valid = match.group(1).strip().lower() == "true"
-        return is_valid
-
-    def _is_valid_patched_language(self, last_patch_attempt: PatchAttempt) -> bool:
-        """Check if the patch patches only files in valid languages"""
-        assert last_patch_attempt.patch
-
-        # Use unidiff library to parse patch
-        patch = PatchSet(StringIO(last_patch_attempt.patch.patch))
-        modified_files = [patched_file.path for patched_file in patch]
-        # Get language from challenge task project yaml
-        language = ProjectYaml(self.challenge, self.challenge.project_name).unified_language
-
-        # Find language identifier binary using importlib resources
-        identifier_bin = importlib.resources.files("buttercup.patcher.bins").joinpath(
-            f"language-identifier-{ARCHITECTURE}",
-        )
-        identifier_bin = Path(str(identifier_bin)).resolve()
-        if not identifier_bin.exists():
-            logger.error("Could not find language identifier binary at %s", identifier_bin)
-            return False
-
-        # Check each modified file against expected language
-        for file_path in modified_files:
-            abs_path = Path(self.challenge.get_source_path()) / file_path
-            if not abs_path.exists():
-                logger.error("Modified file %s does not exist", abs_path)
-                return False
-
-            try:
-                result = subprocess.run(
-                    [str(identifier_bin), "--language", language.value.lower(), "--path", str(abs_path)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-                if result.returncode != 0:
-                    logger.error("File %s is not valid %s code: %s", abs_path, language, result.stderr)
-                    return False
-            except subprocess.CalledProcessError:
-                logger.exception("Failed to check language for %s", abs_path)
-                return False
-
-        return True
-
-    def validate_patch_node(
-        self,
-        state: PatcherAgentState,
-        config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
-        """Node in the LangGraph that validates a patch"""
-        logger.info(
-            "[%s / %s] Validating patch for Challenge Task %s",
-            self.input.task_id,
-            self.input.internal_patch_id,
-            self.challenge.name,
-        )
-        configuration = PatcherConfig.from_configurable(config)
-        last_patch_attempt = state.get_last_patch_attempt()
-        if not last_patch_attempt:
-            logger.fatal(
-                "[%s / %s] No patch to validate, this should never happen",
-                self.input.task_id,
-                self.input.internal_patch_id,
-            )
-            raise RuntimeError("No patch to validate, this should never happen")
-
-        execution_info = state.execution_info
-        execution_info.prev_node = PatcherAgentName.PATCH_VALIDATION
-
-        valid_patched_code = self._is_valid_patched_code(last_patch_attempt, configuration)
-        if not valid_patched_code:
-            logger.error(
-                "[%s / %s] The patched code is not valid, this should never happen",
-                self.input.task_id,
-                self.input.internal_patch_id,
-            )
-            last_patch_attempt.status = PatchStatus.VALIDATION_FAILED
-            return Command(
-                update={
-                    "patch_attempts": last_patch_attempt,
-                    "execution_info": execution_info,
-                },
-                goto=PatcherAgentName.REFLECTION.value,
-            )
-
-        valid_patched_language = self._is_valid_patched_language(last_patch_attempt)
-        if not valid_patched_language:
-            logger.error(
-                "[%s / %s] The patch alters code in a language different from the challenge",
-                self.input.task_id,
-                self.input.internal_patch_id,
-            )
-            last_patch_attempt.status = PatchStatus.VALIDATION_FAILED
-            return Command(
-                update={
-                    "patch_attempts": last_patch_attempt,
-                    "execution_info": execution_info,
-                },
-                goto=PatcherAgentName.REFLECTION.value,
-            )
-
-        last_patch_attempt.status = PatchStatus.SUCCESS
-        logger.info(
-            "[%s / %s] Patch for Challenge Task %s is valid",
-            self.input.task_id,
-            self.input.internal_patch_id,
-            self.challenge.name,
-        )
-        return Command(
-            update={
-                "patch_attempts": last_patch_attempt,
-                "execution_info": execution_info,
-            },
-            goto=END,
         )

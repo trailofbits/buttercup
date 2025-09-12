@@ -182,6 +182,6 @@ def get_challenge(task_dir: Path, task_dir_ro: Path | None = None) -> ChallengeT
 
 
 @lru_cache(maxsize=100)
-def get_codequery(task_dir: Path, work_dir: Path) -> CodeQueryPersistent:
+def get_codequery(task_dir: Path, work_dir: Path, tasks_storage: Path | None = None) -> CodeQueryPersistent:
     challenge = get_challenge(task_dir)
-    return CodeQueryPersistent(challenge, work_dir=work_dir)
+    return CodeQueryPersistent(challenge, work_dir=work_dir, tasks_storage=tasks_storage)

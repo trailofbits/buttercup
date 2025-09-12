@@ -20,7 +20,7 @@ class InputProcessingAgent(PatcherAgentBase):
         """Process the input and return the processed input."""
         configuration = PatcherConfig.from_configurable(config)
         # Run this to make sure the codequery is initialized with the correct challenge task
-        get_codequery(self.challenge.task_dir, configuration.work_dir)
+        get_codequery(self.challenge.task_dir, configuration.work_dir, configuration.tasks_storage)
 
         return Command(
             goto=[

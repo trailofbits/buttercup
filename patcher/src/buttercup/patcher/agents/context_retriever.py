@@ -456,6 +456,8 @@ def track_snippet(
           `get_function` or `get_type` first.
         - Only one of `function_name`, `type_name`, (`start_line` and
           `end_line`) should be provided; do not pass two or more of them.
+        - `function_name` must NOT contain the class name if it is a method. Do
+           NOT pass `function_name=MyClass::foo`, instead pass `function_name=foo`.
 
     Example:
         >>> track_snippet(

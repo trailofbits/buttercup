@@ -110,7 +110,6 @@ class PatcherAgentName(Enum):
     REFLECTION = "reflection"
     INPUT_PROCESSING = "input_processing"
     FIND_TESTS = "find_tests"
-    PATCH_VALIDATION = "patch_validation"
 
 
 class PatchStatus(Enum):

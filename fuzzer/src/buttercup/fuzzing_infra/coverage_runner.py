@@ -86,7 +86,7 @@ class CoverageRunner:
 
     def run(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
         lang = ProjectYaml(self.tool, self.tool.project_name).unified_language
-        if lang == Language.C:
+        if lang in [Language.C, Language.CPP]:
             ret = self.run_c(harness_name, corpus_dir)
         elif lang == Language.JAVA:
             ret = self.run_java(harness_name, corpus_dir)
