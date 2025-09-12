@@ -19,6 +19,7 @@ class ProcessCommand(BaseModel):
     sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")
     crash_input_path: CliPositionalArg[str] = Field(description="Crash Input Path")
     stacktrace_path: CliPositionalArg[str] = Field(description="Stacktrace Path")
+    disable_find_tests: CliImplicitFlag[bool] = Field(default=False, description="Disable find tests")
 
 
 class ProcessMsgCommand(BaseModel):

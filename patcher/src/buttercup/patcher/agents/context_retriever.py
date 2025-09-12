@@ -1246,6 +1246,12 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
 
+        if not self.find_tests:
+            logger.info("Skipping finding tests because disabled by user")
+            return Command(
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            )
+
         clean_challenge = self.challenge.get_clean_task(configuration.tasks_storage)
         with clean_challenge.get_rw_copy(configuration.work_dir) as clean_challenge_rw:
             clean_challenge_rw.apply_patch_diff()
