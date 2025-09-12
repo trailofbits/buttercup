@@ -221,17 +221,4 @@ signoz-ui:
 	fi
 
 web-ui:
-	@echo "Opening web UI (https://localhost:31323/)..."
-	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
-		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
-		exit 1; \
-	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
-	@sleep 3
-	@if command -v xdg-open >/dev/null 2>&1; then \
-		xdg-open http://localhost:31323; \
-	elif command -v open >/dev/null 2>&1; then \
-		open http://localhost:31323; \
-	else \
-		echo "Please open http://localhost:31323 in your browser."; \
-	fi
+	@./scripts/web_ui.sh
