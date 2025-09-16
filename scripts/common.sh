@@ -549,7 +549,7 @@ configure_local_api_keys() {
 }
 
 generate_litellm_master_key() {
-    # If CRS_KEY_ID is already set to the default value, skip key generation
+    # If LITELLM_MASTER_KEY is already configured, skip key generation
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
@@ -566,7 +566,7 @@ generate_litellm_master_key() {
 }
 
 generate_crs_key_id_token() {
-    # If CRS_KEY_ID is already set to the default value, skip key generation
+    # If CRS_KEY_ID is already configured, skip key generation
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
