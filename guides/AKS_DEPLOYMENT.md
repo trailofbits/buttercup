@@ -21,6 +21,7 @@ number of tasks that you want to solve at the same time, size of projects, etc.
 
 For more fine-grained adjustments that are not configurable during the automated setup script, modify `deployment/env` and `deployment/values-upstream-aks.template`. In particular you may want to change the number of nodes in the k8s cluster, the type of nodes, the number of pods for different kind of services, the storage, etc.
 
+We *strongly suggest* you also enable Tailscale, so that your cluster is accessible only through the Tailscale network. Moreover, for a real production environment, you may want to generate and set secrets for all services, including redis, postgresql, etc.
 
 ## Deploy to AKS
 
@@ -29,6 +30,14 @@ For more fine-grained adjustments that are not configurable during the automated
 ```bash
 make deploy
 ```
+
+## Access the cluster
+
+To access the CRS Web interface:
+```bash
+make web-ui
+```
+
 
 ## Scaling and Management
 

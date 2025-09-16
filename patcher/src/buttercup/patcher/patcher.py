@@ -31,6 +31,7 @@ class Patcher:
     redis: Redis | None = None
     sleep_time: float = 1
     dev_mode: bool = False
+    find_tests: bool = True
 
     vulnerability_queue: ReliableQueue[ConfirmedVulnerability] | None = field(init=False, default=None)
     patches_queue: ReliableQueue[Patch] | None = field(init=False, default=None)
@@ -78,6 +79,7 @@ class Patcher:
             chain_call=self._chain_call,
             work_dir=self.scratch_dir,
             tasks_storage=self.task_storage_dir,
+            find_tests=self.find_tests,
         )
         patch = patcher_agent.run_patch_task()
         if patch is None:
