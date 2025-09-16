@@ -29,19 +29,6 @@ else
     sleep 3
     UI_URL="http://localhost:31323"
 
-    echo "Opening web UI at $UI_URL..."
-    if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "$UI_URL"
-    elif command -v open >/dev/null 2>&1; then
-        open "$UI_URL"
-    else
-        echo "Please open $UI_URL in your browser."
-    fi
-
-    echo ""
-    echo "Port-forward is active. Press Ctrl+C to stop the port-forward and exit."
-    echo "The web UI will remain accessible at $UI_URL until you stop this process."
-
     # Function to cleanup on exit
     cleanup() {
         echo ""
@@ -51,9 +38,24 @@ else
         exit 0
     }
 
+    echo ""
+    echo "Port-forward is active. Press Ctrl+C to stop the port-forward and exit."
+    echo "The web UI will remain accessible at $UI_URL until you stop this process."
+
     # Set up signal handlers
     trap cleanup SIGINT SIGTERM
+fi
 
+echo "Opening web UI at $UI_URL in your browser..."
+if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$UI_URL"
+elif command -v open >/dev/null 2>&1; then
+    open "$UI_URL"
+else
+    echo "Please open $UI_URL in your browser."
+fi
+
+if [ -n "$PORT_FORWARD_PID" ]; then
     # Keep the script running
     wait $PORT_FORWARD_PID
 fi
