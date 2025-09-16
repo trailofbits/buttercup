@@ -170,9 +170,9 @@ jobs:
           done
       - name: Approve the patch in the buttercup-ui
         run: |
-          PATCH_ID=$(kubectl logs -n crs -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1 | awk -F 'competition_patch_id=' '{if (NF>1) print $2}' | awk '{print $1}')
+          PATCH_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1 | awk -F 'competition_patch_id=' '{if (NF>1) print $2}' | awk '{print $1}')
           echo "Patch ID: $PATCH_ID"
-          TASK_ID=$(kubectl logs -n crs -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1 | awk -F'[][]' '{print $2}' | sed 's/^[^:]*://')
+          TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1 | awk -F'[][]' '{print $2}' | sed 's/^[^:]*://')
           echo "Task ID: $TASK_ID"
           kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-ui 31323:1323 &
           sleep 5
