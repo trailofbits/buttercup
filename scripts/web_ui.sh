@@ -23,16 +23,37 @@ if [ "${TAILSCALE_ENABLED:-false}" = "true" ]; then
     UI_URL="http://${CRS_HOSTNAME}.${TAILSCALE_DOMAIN}"
 else
     # Use local port-forward
+    echo "Starting port-forward to buttercup-ui service..."
     kubectl port-forward -n "${BUTTERCUP_NAMESPACE:-crs}" service/buttercup-ui 31323:1323 &
+    PORT_FORWARD_PID=$!
     sleep 3
     UI_URL="http://localhost:31323"
-fi
 
-echo "Opening web UI at $UI_URL..."
-if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$UI_URL"
-elif command -v open >/dev/null 2>&1; then
-    open "$UI_URL"
-else
-    echo "Please open $UI_URL in your browser."
+    echo "Opening web UI at $UI_URL..."
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$UI_URL"
+    elif command -v open >/dev/null 2>&1; then
+        open "$UI_URL"
+    else
+        echo "Please open $UI_URL in your browser."
+    fi
+
+    echo ""
+    echo "Port-forward is active. Press Ctrl+C to stop the port-forward and exit."
+    echo "The web UI will remain accessible at $UI_URL until you stop this process."
+
+    # Function to cleanup on exit
+    cleanup() {
+        echo ""
+        echo "Stopping port-forward..."
+        kill $PORT_FORWARD_PID 2>/dev/null
+        echo "Port-forward stopped. Goodbye!"
+        exit 0
+    }
+
+    # Set up signal handlers
+    trap cleanup SIGINT SIGTERM
+
+    # Keep the script running
+    wait $PORT_FORWARD_PID
 fi
