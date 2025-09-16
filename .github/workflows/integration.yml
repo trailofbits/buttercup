@@ -170,9 +170,21 @@ jobs:
           done
       - name: Approve the patch in the buttercup-ui
         run: |
-          PATCH_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1 | awk -F 'competition_patch_id=' '{if (NF>1) print $2}' | awk '{print $1}')
+          # Wait until a log line with competition_patch_id= is available, then extract PATCH_ID and TASK_ID from that line
+          while true; do
+            PATCH_LINE=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1)
+            if [ -n "$PATCH_LINE" ]; then
+              break
+            fi
+            echo "Waiting for PATCH_ID to be available..."
+            sleep 10
+          done
+          echo "Patch log line: $PATCH_LINE"
+          # Extract PATCH_ID from the log line (after 'competition_patch_id=' and before any space or end of line)
+          PATCH_ID=$(echo "$PATCH_LINE" | sed -n 's/.*competition_patch_id=\([^ ]*\).*/\1/p')
+          # Extract TASK_ID from the log line (between the first '[' and the first ']'), then after the first ':' (if present)
+          TASK_ID=$(echo "$PATCH_LINE" | sed -n 's/.*\[\([^]]*\)\].*/\1/p' | sed 's/^[^:]*://')
           echo "Patch ID: $PATCH_ID"
-          TASK_ID=$(kubectl logs -n $BUTTERCUP_NAMESPACE -l app=scheduler --tail=-1 | grep "competition_patch_id=" | head -n 1 | awk -F'[][]' '{print $2}' | sed 's/^[^:]*://')
           echo "Task ID: $TASK_ID"
           kubectl port-forward -n $BUTTERCUP_NAMESPACE service/buttercup-ui 31323:1323 &
           sleep 5
