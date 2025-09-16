@@ -28,6 +28,7 @@ else
 fi
 if [ "$TAILSCALE_ENABLED" = "true" ]; then
 	envsubst <k8s/base/tailscale-operator/operator.template >k8s/base/tailscale-operator/operator.yaml
+	envsubst <k8s/base/tailscale-connections/proxies.template >k8s/base/tailscale-connections/proxies.yaml
 fi
 if [ "$(echo "$LANGFUSE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
 	LANGFUSE_ENABLED="true"

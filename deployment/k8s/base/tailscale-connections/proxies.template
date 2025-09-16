@@ -5,7 +5,7 @@ metadata:
   name: competition-echo-egress
   namespace: tailscale
   annotations:
-    tailscale.com/tailnet-fqdn: "echo.tail7e9b4c.ts.net" #Basic http echo test server
+    tailscale.com/tailnet-fqdn: "echo.${TAILSCALE_DOMAIN}" #Basic http echo test server
 spec:
   externalName: placeholder
   type: ExternalName
@@ -16,7 +16,8 @@ metadata:
   name: competition-api-1-egress
   namespace: tailscale
   annotations:
-    tailscale.com/tailnet-fqdn: "api.tail7e9b4c.ts.net" #Competition API FQDN
+    tailscale.com/tailnet-fqdn: "api.${TAILSCALE_DOMAIN}" #Competition API FQDN
 spec:
   externalName: placeholder
   type: ExternalName
+

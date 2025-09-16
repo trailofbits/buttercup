@@ -548,6 +548,46 @@ configure_local_api_keys() {
     print_success "API keys configured successfully"
 }
 
+generate_litellm_master_key() {
+    # If LITELLM_MASTER_KEY is already configured, skip key generation
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    if [ "${LITELLM_MASTER_KEY:-}" != "" ] && [ "$LITELLM_MASTER_KEY" != "d5179c62ae1c7366e3ee09775d0993d5" ]; then
+        print_status "LITELLM_MASTER_KEY is already configured, skipping LiteLLM master key generation."
+        return 0
+    fi
+
+    print_linebreak
+    print_status "Configuring LiteLLM master key..."
+    local litellm_master_key=$(openssl rand -hex 16)
+    portable_sed "s|.*export LITELLM_MASTER_KEY=.*|export LITELLM_MASTER_KEY=\"$litellm_master_key\"|" deployment/env
+    print_success "LiteLLM master key configured successfully"
+}
+
+generate_crs_key_id_token() {
+    # If CRS_KEY_ID is already configured, skip key generation
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    if [ "${CRS_KEY_ID:-}" != "" ] && [ "$CRS_KEY_ID" != "515cc8a0-3019-4c9f-8c1c-72d0b54ae561" ]; then
+        print_status "CRS_KEY_ID/TOKEN/TOKEN_HASH are already configured, skipping CRS keys generation."
+        return 0
+    fi
+
+    print_linebreak
+    print_status "Configuring CRS key ID/token..."
+    local auth_tool_output=$(pushd orchestrator && uv run python3 ./src/buttercup/orchestrator/task_server/auth_tool.py --env)
+    local crs_key_id=$(echo "$auth_tool_output" | grep "BUTTERCUP_TASK_SERVER_API_KEY_ID" | cut -d'=' -f2-)
+    local crs_key_token=$(echo "$auth_tool_output" | grep "^API_TOKEN" | cut -d'=' -f2-)
+    local crs_key_token_hash=$(echo "$auth_tool_output" | grep "^BUTTERCUP_TASK_SERVER_API_TOKEN_HASH" | cut -d'=' -f2-)
+
+    portable_sed "s|.*export CRS_KEY_ID=.*|export CRS_KEY_ID=\"$crs_key_id\"|" deployment/env
+    portable_sed "s|.*export CRS_KEY_TOKEN=.*|export CRS_KEY_TOKEN=\"$crs_key_token\"|" deployment/env
+    portable_sed "s|.*export CRS_KEY_TOKEN_HASH=.*|export CRS_KEY_TOKEN_HASH='$crs_key_token_hash'|" deployment/env
+    print_success "CRS key ID/token configured successfully"
+}
+
 configure_llm_budget() {
     print_linebreak
     print_status "Configuring LLM Budget..."

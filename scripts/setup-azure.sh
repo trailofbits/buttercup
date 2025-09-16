@@ -140,6 +140,12 @@ setup_config() {
     portable_sed "s|.*export BUTTERCUP_K8S_VALUES_TEMPLATE=.*|export BUTTERCUP_K8S_VALUES_TEMPLATE=\"k8s/values-upstream-aks.template\"|" deployment/env
     print_success "Kubernetes values template set to: k8s/values-upstream-aks.template"
 
+    # Generate a secure master key for LiteLLM
+    generate_litellm_master_key
+
+    # Generate key ID/token for CRS
+    generate_crs_key_id_token
+
     # Configure required API keys
     configure_local_api_keys
 
@@ -149,8 +155,8 @@ setup_config() {
     # Configure LangFuse (optional)
     configure_langfuse
     
-    # Configure SigNoz deployment (optional)
-    configure_otel
+    # TODO: For production, we don't deploy SigNoz, as it needs to be done properly
+    #       Just allow to configure access to an existing SigNoz instance
 }
 
 # Function to validate configuration
@@ -267,6 +273,33 @@ setup_aks_resources() {
     print_success "Set TF_VAR_usr_node_count to $usr_node_count in deployment/env"
 }
 
+setup_tailscale() {
+    print_status "Setting up Tailscale..."
+    read -p "Do you want to setup Tailscale? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        print_status "Setting up Tailscale..."
+        print_status "Configure a OAuth Client at https://login.tailscale.com/admin/settings/oauth"
+        print_status "Make sure to configure Tailscale DNS and to enable HTTPS Certificates at https://login.tailscale.com/admin/dns"
+
+        read -p "Enter the OAuth Client ID: " oauth_client_id
+        read -s -p "Enter the OAuth Client Secret: " oauth_client_secret
+        read -p "Enter the Tailscale Operator Tag: " tailscale_op_tag
+        read -p "Enter the Tailscale Domain: " tailscale_domain
+
+        portable_sed "s|^[# ]*export TAILSCALE_ENABLED=.*|export TAILSCALE_ENABLED=\"true\"|" deployment/env
+        portable_sed "s|^[# ]*export TS_CLIENT_ID=.*|export TS_CLIENT_ID=\"$oauth_client_id\"|" deployment/env
+        portable_sed "s|^[# ]*export TS_CLIENT_SECRET=.*|export TS_CLIENT_SECRET=\"$oauth_client_secret\"|" deployment/env
+        portable_sed "s|^[# ]*export TS_OP_TAG=.*|export TS_OP_TAG=\"$tailscale_op_tag\"|" deployment/env
+        portable_sed "s|^[# ]*export TAILSCALE_DOMAIN=.*|export TAILSCALE_DOMAIN=\"$tailscale_domain\"|" deployment/env
+
+        print_success "Set TAILSCALE_ENABLED to true in deployment/env"
+    else
+        portable_sed "s|^[# ]*export TAILSCALE_ENABLED=.*|export TAILSCALE_ENABLED=\"false\"|" deployment/env
+        print_success "Set TAILSCALE_ENABLED to false in deployment/env"
+    fi
+}
+
 # Function to provide deployment instructions
 deployment_instructions() {
     print_success "Production setup completed!"
@@ -292,6 +325,7 @@ main() {
     setup_service_principal
     setup_remote_state
     setup_aks_resources
+    setup_tailscale
     
     print_status "Configuration validation..."
     if validate_config; then

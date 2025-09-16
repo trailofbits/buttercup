@@ -97,16 +97,19 @@ deploy:
 	@echo "Deployment configuration:"
 	@grep 'CLUSTER_TYPE=' deployment/env || echo "CLUSTER_TYPE not set"
 	@grep 'K8S_VALUES_TEMPLATE' deployment/env || echo "K8S_VALUES_TEMPLATE not set"
-	@echo "Are you sure you want to deploy with these settings? Type 'yes' to continue:"
-	@read ans; \
-	ans_lc=$$(echo "$$ans" | tr '[:upper:]' '[:lower:]'); \
-	if [ "$$ans_lc" != "yes" ] && [ "$$ans_lc" != "y" ]; then \
-		echo "Aborted by user."; \
-		exit 1; \
+	@if [ "$${FORCE:-false}" != "true" ]; then \
+		echo "Are you sure you want to deploy with these settings? Type 'yes' to continue:"; \
+		read ans; \
+		ans_lc=$$(echo "$$ans" | tr '[:upper:]' '[:lower:]'); \
+		if [ "$$ans_lc" != "yes" ] && [ "$$ans_lc" != "y" ]; then \
+			echo "Aborted by user."; \
+			exit 1; \
+		fi; \
 	fi
 	cd deployment && make up
 	make crs-instance-id
 	make wait-crs
+
 status:
 	@echo "----------PODS------------"
 	@kubectl get pods -n $${BUTTERCUP_NAMESPACE:-crs}
@@ -221,17 +224,4 @@ signoz-ui:
 	fi
 
 web-ui:
-	@echo "Opening web UI (https://localhost:31323/)..."
-	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
-		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
-		exit 1; \
-	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
-	@sleep 3
-	@if command -v xdg-open >/dev/null 2>&1; then \
-		xdg-open http://localhost:31323; \
-	elif command -v open >/dev/null 2>&1; then \
-		open http://localhost:31323; \
-	else \
-		echo "Please open http://localhost:31323 in your browser."; \
-	fi
+	@./scripts/web_ui.sh

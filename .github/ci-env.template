@@ -17,6 +17,7 @@ export DOCKER_PAT=""
 
 # Secrets/Env replaced
 export OTEL_ENDPOINT=replace-me
+export OTEL_TOKEN=replace-me
 export BUTTERCUP_NAMESPACE=replace-me
 export GHCR_AUTH=replace-me
 export OPENAI_API_KEY=replace-me

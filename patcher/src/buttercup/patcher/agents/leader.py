@@ -35,6 +35,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
     work_dir: Path
     tasks_storage: Path
     model_name: str | None = None
+    find_tests: bool = True
 
     def _init_patch_team(self) -> StateGraph[PatcherAgentState, PatcherConfig, PatcherAgentState, PatcherAgentState]:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
@@ -45,6 +46,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
             self.input,
             chain_call=self.chain_call,
             redis=self.redis,
+            find_tests=self.find_tests,
         )
         reflection_agent = ReflectionAgent(self.challenge, self.input, chain_call=self.chain_call)
         input_processing_agent = InputProcessingAgent(self.challenge, self.input, chain_call=self.chain_call)
