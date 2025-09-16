@@ -698,6 +698,8 @@ class ContextRetrieverAgent(PatcherAgentBase):
     """Agent that retrieves code snippets from the project."""
 
     redis: Redis | None = None
+    find_tests: bool = True
+
     agent: Runnable = field(init=False)
     llm: BaseChatOpenAI = field(init=False)
     cheap_llm: BaseChatOpenAI = field(init=False)
@@ -1243,6 +1245,12 @@ class ContextRetrieverAgent(PatcherAgentBase):
                 update={
                     "tests_instructions": custom_test_instructions,
                 },
+                goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
+            )
+
+        if not self.find_tests:
+            logger.info("Skipping finding tests because disabled by user")
+            return Command(
                 goto=PatcherAgentName.ROOT_CAUSE_ANALYSIS.value,
             )
 

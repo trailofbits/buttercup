@@ -57,6 +57,7 @@ def main() -> None:
             task_storage_dir=settings.task_storage_dir,
             scratch_dir=settings.scratch_dir,
             dev_mode=settings.dev_mode,
+            find_tests=command.find_tests,
         )
         patch = patcher.process_patch_input(patch_input)
         if patch is not None:
