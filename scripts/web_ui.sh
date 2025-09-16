@@ -23,7 +23,7 @@ if [ "${TAILSCALE_ENABLED:-false}" = "true" ]; then
     UI_URL="http://${CRS_HOSTNAME}.${TAILSCALE_DOMAIN}"
 else
     # Use local port-forward
-    kubectl port-forward -n "${BUTTERCUP_NAMESPACE:-crs}" service/buttercup-ui 31323:1323
+    kubectl port-forward -n "${BUTTERCUP_NAMESPACE:-crs}" service/buttercup-ui 31323:1323 &
     sleep 3
     UI_URL="http://localhost:31323"
 fi
