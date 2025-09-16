@@ -101,6 +101,7 @@ jobs:
           sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
           # Base64 encoding is required for Docker registry authentication (not for security, but for format)
           sed -i "s|OTEL_ENDPOINT=.*|OTEL_ENDPOINT=${{ secrets.OTEL_ENDPOINT }}|" env
+          sed -i "s|OTEL_TOKEN=.*|OTEL_TOKEN=${{ secrets.OTEL_TOKEN }}|" env
 
         working-directory: deployment
 
