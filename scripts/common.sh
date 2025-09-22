@@ -385,7 +385,12 @@ configure_simple_api_key() {
     fi
     
     if [ -n "$value" ]; then
-        portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        # Check if the export line exists anywhere in the file; if not, append it, else update it
+        if grep -q "export $var_name=" deployment/env; then
+            portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        else
+            echo "export $var_name=\"$value\"" >> deployment/env
+        fi
         return 0
     else
         # Clear the key if skipped (set to empty string)
