@@ -31,7 +31,7 @@ spec:
             - name: output
               mountPath: /output
         - name: secret-setup
-          image: bitnami/kubectl:latest
+          image: alpine/kubectl:latest
           command:
             - /bin/sh
             - -c
@@ -46,4 +46,4 @@ spec:
           configMap:
             name: litellm-user-keys-setup-script
         - name: output
-          emptyDir: {} 
+          emptyDir: {}
