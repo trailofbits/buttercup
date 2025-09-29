@@ -11,7 +11,7 @@ dependencies:
     version: "*"
     repository: "file://charts/dind-daemon"
   - name: litellm-helm
-    version: "0.1.615"
+    version: "0.1.783"
     repository: "oci://ghcr.io/berriai"
   - name: task-server
     version: "0.0.1"

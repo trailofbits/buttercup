@@ -118,6 +118,9 @@ dind-daemon:
 
 # Service-specific configurations
 redis:
+  image:
+    repository: bitnamisecure/redis
+    tag: latest
   auth:
     enabled: false  # Disable authentication for simplicity
   architecture: standalone  # Use single instance instead of cluster
@@ -408,3 +411,7 @@ restartPolicy: Always
 # SigNoz observability platform
 signoz:
   enabled: false
+  clickhouse:
+    zookeeper:
+      image:
+        repository: bitnamilegacy/zookeeper
