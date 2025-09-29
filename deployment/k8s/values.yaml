@@ -230,6 +230,7 @@ litellm-helm:
   postgresql:
     enabled: true
     image:
+      repository: bitnamilegacy/postgresql
       tag: "17.2.0"
     auth:
       username: litellm_user

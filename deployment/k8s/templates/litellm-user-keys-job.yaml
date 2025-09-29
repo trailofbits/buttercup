@@ -7,6 +7,7 @@ metadata:
   annotations:
     "helm.sh/hook": post-install,post-upgrade
 spec:
+  activeDeadlineSeconds: 600  # 10 minutes timeout
   template:
     spec:
       serviceAccountName: litellm-user-keys-setup
