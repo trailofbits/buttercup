@@ -315,9 +315,40 @@ deployment_instructions() {
     echo "  - Cleanup: make clean"
 }
 
+install_linux() {
+    install_kubectl
+    install_helm
+    install_uv
+}
+
+install_macos() {
+    check_brew
+    install_kubectl_mac
+    install_helm_mac
+    install_uv_mac
+}
+
 # Main execution
 main() {
     print_status "Starting production setup..."
+
+    # Detect operating system and install dependencies
+    OS="$(uname -s)"
+    case "$OS" in
+        Linux*)
+            print_status "Detected Linux - installing Linux dependencies..."
+            install_linux
+            ;;
+        Darwin*)
+            print_status "Detected macOS - installing macOS dependencies..."
+            install_macos
+            ;;
+        *)
+            print_error "Unsupported operating system: $OS"
+            print_error "This script supports Linux and macOS only."
+            exit 1
+            ;;
+    esac
     
     check_azure_cli
     check_terraform

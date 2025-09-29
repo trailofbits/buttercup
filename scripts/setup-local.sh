@@ -59,51 +59,7 @@ install_linux() {
     install_helm
     install_minikube
     install_git_lfs
-}
-
-# Function to check if Homebrew exists
-check_brew() {
-    if ! command_exists brew; then
-        print_error "Homebrew (brew) is not installed!"
-        print_error "Please install Homebrew first: https://brew.sh/"
-        exit 1
-    fi
-}
-
-install_docker_mac() {
-    if command_exists docker; then
-        print_success "Docker is already installed"
-    else
-        print_status "Installing Docker..."
-        brew install --cask docker
-    fi
-}
-
-install_helm_mac() {
-    if command_exists helm; then
-        print_success "Helm is already installed"
-    else
-        print_status "Installing Helm..."
-        brew install helm
-    fi
-}
-
-install_minikube_mac() {
-    if command_exists minikube; then
-        print_success "Minikube is already installed"
-    else
-        print_status "Installing Minikube..."
-        brew install minikube
-    fi
-}
-
-install_git_lfs_mac() {
-    if command_exists git-lfs; then
-        print_success "Git LFS is already installed"
-    else
-        print_status "Installing Git LFS..."
-        brew install git-lfs
-    fi
+    install_uv
 }
 
 install_macos() {
@@ -112,6 +68,7 @@ install_macos() {
     install_helm_mac
     install_minikube_mac
     install_git_lfs_mac
+    install_uv_mac
 }
 
 # Main execution

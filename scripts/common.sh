@@ -78,6 +78,18 @@ install_docker() {
     print_success "Docker buildx plugin installed"
 }
 
+install_uv() {
+    print_status "Installing uv..."
+    if ! command_exists uv; then
+        curl -fsSL https://astral.sh/uv/install.sh | sh
+        print_status "Sourcing uv environment..."
+        source $HOME/.local/bin/env
+        print_success "uv installed successfully"
+    else
+        print_success "uv is already installed"
+    fi
+}
+
 # Function to install kubectl
 install_kubectl() {
     print_status "Installing kubectl..."
@@ -752,5 +764,68 @@ check_aks_config() {
     else
         print_error "AKS configuration has $errors error(s)"
         return $errors
+    fi
+}
+
+# Function to check if Homebrew exists
+check_brew() {
+    if ! command_exists brew; then
+        print_error "Homebrew (brew) is not installed!"
+        print_error "Please install Homebrew first: https://brew.sh/"
+        exit 1
+    fi
+}
+
+install_docker_mac() {
+    if command_exists docker; then
+        print_success "Docker is already installed"
+    else
+        print_status "Installing Docker..."
+        brew install --cask docker
+    fi
+}
+
+install_uv_mac() {
+    if command_exists uv; then
+        print_success "uv is already installed"
+    else
+        print_status "Installing uv..."
+        brew install uv
+    fi
+}
+
+install_helm_mac() {
+    if command_exists helm; then
+        print_success "Helm is already installed"
+    else
+        print_status "Installing Helm..."
+        brew install helm
+    fi
+}
+
+install_kubectl_mac() {
+    if command_exists kubectl; then
+        print_success "kubectl is already installed"
+    else
+        print_status "Installing kubectl..."
+        brew install kubectl
+    fi
+}
+
+install_minikube_mac() {
+    if command_exists minikube; then
+        print_success "Minikube is already installed"
+    else
+        print_status "Installing Minikube..."
+        brew install minikube
+    fi
+}
+
+install_git_lfs_mac() {
+    if command_exists git-lfs; then
+        print_success "Git LFS is already installed"
+    else
+        print_status "Installing Git LFS..."
+        brew install git-lfs
     fi
 }
