@@ -265,6 +265,11 @@ down-k8s() {
 	set -x
 	kubectl delete -k k8s/base/tailscale-connections/
 	helm uninstall --wait --namespace "$BUTTERCUP_NAMESPACE" buttercup
+	set +x
+	# Clean up all persistent volume claims to prevent session issues on redeployment
+	echo -e "${BLU}Cleaning up all persistent volumes in namespace${NC}"
+	set -x
+	kubectl delete pvc --all -n "$BUTTERCUP_NAMESPACE" --ignore-not-found=true
 	# Remove finalizers from clickhouse installation as stated in https://signoz.io/docs/operate/kubernetes/#uninstall-signoz
 	# Without this, the namespace would not be deleted
 	kubectl -n "$BUTTERCUP_NAMESPACE" patch clickhouseinstallations.clickhouse.altinity.com/buttercup-clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge
@@ -274,6 +279,8 @@ down-k8s() {
 	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE"
 	kubectl delete namespace "$BUTTERCUP_NAMESPACE"
 	set +x
+	echo -e "${GRN}Cleanup complete.${NC}"
+	echo -e "${BLU}Note: If you plan to redeploy and access SigNoz, clear your browser cookies for http://localhost:33301 to avoid login issues.${NC}"
 	set -e
 }
 
