@@ -16,9 +16,7 @@ class ProcessCommand(BaseModel):
     internal_patch_id: CliPositionalArg[str] = Field(description="Internal Patch ID")
     harness_name: CliPositionalArg[str] = Field(description="Harness Name")
     engine: CliPositionalArg[str] = Field(description="Engine")
-    sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")
-    crash_input_path: CliPositionalArg[str] = Field(description="Crash Input Path")
-    stacktrace_path: CliPositionalArg[str] = Field(description="Stacktrace Path")
+    inputs: CliPositionalArg[list[tuple[str, str, str]]] = Field(description="List of pov and stacktraces paths")
     find_tests: CliImplicitFlag[bool] = Field(default=True, description="Enable the find tests step")
 
 

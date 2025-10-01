@@ -46,11 +46,12 @@ def main() -> None:
                     challenge_task_dir=command.challenge_task_dir,
                     harness_name=command.harness_name,
                     engine=command.engine,
-                    sanitizer=command.sanitizer,
-                    pov=Path(command.crash_input_path),
-                    pov_token=f"token-{Path(command.crash_input_path).name}",
-                    sanitizer_output=Path(command.stacktrace_path).read_bytes(),
-                ),
+                    sanitizer=sanitizer,
+                    pov=Path(pov),
+                    pov_token=f"token-{Path(pov).name}",
+                    sanitizer_output=Path(stacktrace).read_bytes(),
+                )
+                for sanitizer, pov, stacktrace in command.inputs
             ],
         )
         patcher = Patcher(
