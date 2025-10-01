@@ -256,11 +256,6 @@ litellm-helm:
     database: "litellm"
     url: "postgresql://litellm_user:litellm_password11@buttercup-litellm-postgresql:5432/litellm"
 
-  # Environment variables - only keep DATABASE_URL as backup
-  envVars:
-    DATABASE_URL: "postgresql://litellm_user:litellm_password11@buttercup-litellm-postgresql:5432/litellm"
-    # API keys are now provided through Kubernetes secrets
-
   # Use environment secrets for API keys
   # For subcharts, we need to use a static name that will be templated at the parent level
   environmentSecrets:
