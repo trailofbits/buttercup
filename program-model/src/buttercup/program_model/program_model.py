@@ -67,8 +67,6 @@ class ProgramModel:
             with challenge.get_rw_copy(work_dir=self.wdir) as local_challenge:
                 # Apply the diff if it exists
                 logger.debug(f"Applying diff for {args.task_id}")
-                if not local_challenge.apply_patch_diff():
-                    logger.debug(f"No diffs for {args.task_id}")
 
                 if self.wdir is None:
                     raise ValueError("Work directory is not initialized")
