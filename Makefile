@@ -205,6 +205,9 @@ install-cscope:
 
 signoz-ui:
 	@echo "Opening SigNoz UI..."
+	@echo ""
+	@echo "NOTE: If you plan to redeploy and access SigNoz, clear your browser cookies for http://localhost:33301 to avoid login issues."
+	@echo ""
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
