@@ -143,6 +143,29 @@ install_git_lfs() {
     fi
 }
 
+install_azcli() {
+    print_status "Installing Azure CLI..."
+    if ! command_exists az; then
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        print_success "Azure CLI installed successfully"
+    else
+        print_success "Azure CLI is already installed"
+    fi
+}
+
+install_terraform() {
+    print_status "Installing Terraform..."
+    if ! command_exists terraform; then
+        sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
+        wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+        sudo apt update
+        sudo apt-get install terraform
+        print_success "Terraform installed successfully"
+    else
+        print_success "Terraform is already installed"
+    fi
+}
 
 # Function to check Docker
 check_docker() {
@@ -827,5 +850,24 @@ install_git_lfs_mac() {
     else
         print_status "Installing Git LFS..."
         brew install git-lfs
+    fi
+}
+
+install_azcli_mac() {
+    if command_exists az; then
+        print_success "az is already installed"
+    else
+        print_status "Installing az..."
+        brew install azure-cli
+    fi
+}
+
+install_terraform_mac() {
+    if command_exists terraform; then
+        print_success "Terraform is already installed"
+    else
+        print_status "Installing Terraform..."
+        brew tap hashicorp/tap
+        brew install hashicorp/tap/terraform
     fi
 }

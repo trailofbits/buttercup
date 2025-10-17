@@ -319,6 +319,8 @@ install_linux() {
     install_kubectl
     install_helm
     install_uv
+    install_azcli
+    install_terraform
 }
 
 install_macos() {
@@ -326,6 +328,8 @@ install_macos() {
     install_kubectl_mac
     install_helm_mac
     install_uv_mac
+    install_azcli_mac
+    install_terraform_mac
 }
 
 # Main execution
