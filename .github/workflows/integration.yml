@@ -3,7 +3,7 @@ name: System Integration Tests
 on:
   # Daily schedule - 3 AM UTC
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 3 * * 0"
   # Pull requests with 'full-integration' label
   pull_request:
     types: [labeled, synchronize]
