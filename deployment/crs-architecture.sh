@@ -129,6 +129,11 @@ up() {
 				fi
 
 				if [ -n "$FUZZER_BASE_IMAGE" ]; then
+					# Check for aarch64 and append :manifest-arm64v8 to base image if needed
+					if { [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; } && [ "$FUZZER_BASE_IMAGE" = "gcr.io/oss-fuzz-base/base-runner" ]; then
+						FUZZER_BASE_IMAGE="${FUZZER_BASE_IMAGE}:manifest-arm64v8"
+					fi
+
 					FUZZER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
 				else
 					FUZZER_BUILD_ARGS=""

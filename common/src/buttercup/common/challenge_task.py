@@ -865,6 +865,29 @@ class ChallengeTask:
             logger.exception(f"[task {self.task_dir}] Error applying diff: {e!s}")
             raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
 
+    def _hack_oss_fuzz_aarch64(self, task: ChallengeTask) -> None:
+        # We find the oss-fuzz/projects/<project>/Dockerfile and make sure the
+        # base image has `:manifest-arm64v8` tag
+        dockerfile_path = task.get_oss_fuzz_path() / "projects" / task.project_name / "Dockerfile"
+        if not dockerfile_path.exists():
+            return
+
+        dockerfile_content = dockerfile_path.read_text()
+
+        # Regex to match FROM gcr.io/oss-fuzz-base/base-builder* [optional tag] [optional as builder]
+        def _replace_from(match):
+            image = match.group(1)
+            as_clause = match.group(2) or ""
+            # Always ensure tag is :manifest-arm64v8 regardless if there was a tag before
+            return f"FROM {image}:manifest-arm64v8{as_clause}"
+
+        # This regex matches various FROM lines
+        pattern = r"^FROM\s+(gcr\.io/oss-fuzz-base/base-builder(?:[^\s:]*)?)(?::[^\s]+)?(\s+as\s+\w+)?\s*$"
+        new_content = re.sub(pattern, _replace_from, dockerfile_content, flags=re.MULTILINE)
+
+        if new_content != dockerfile_content:
+            dockerfile_path.write_text(new_content)
+
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None, delete: bool = True) -> Iterator[ChallengeTask]:
         """Create a copy of this task in a new writable directory.
@@ -890,6 +913,11 @@ class ChallengeTask:
                 python_path=self.python_path,
                 local_task_dir=tmp_dir,
             )
+            # HACK: due to recent changes in oss-fuzz, the `:latest` container
+            # images are not available anymore for aarch64. Let's manually force
+            # `:manifest-arm64v8` tag.
+            if ARCHITECTURE == "aarch64":
+                self._hack_oss_fuzz_aarch64(copied_task)
 
             try:
                 yield copied_task
