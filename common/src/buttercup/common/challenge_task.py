@@ -875,7 +875,7 @@ class ChallengeTask:
         dockerfile_content = dockerfile_path.read_text()
 
         # Regex to match FROM gcr.io/oss-fuzz-base/base-builder* [optional tag] [optional as builder]
-        def _replace_from(match):
+        def _replace_from(match: re.Match) -> str:
             image = match.group(1)
             as_clause = match.group(2) or ""
             # Always ensure tag is :manifest-arm64v8 regardless if there was a tag before
