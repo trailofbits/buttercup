@@ -865,7 +865,7 @@ class ChallengeTask:
             logger.exception(f"[task {self.task_dir}] Error applying diff: {e!s}")
             raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
 
-    def _hack_oss_fuzz_aarch64(self, task: ChallengeTask) -> None:
+    def _hack_oss_fuzz_aarch64_dockerfile(self, task: ChallengeTask) -> None:
         # We find the oss-fuzz/projects/<project>/Dockerfile and make sure the
         # base image has `:manifest-arm64v8` tag
         dockerfile_path = task.get_oss_fuzz_path() / "projects" / task.project_name / "Dockerfile"
@@ -875,18 +875,136 @@ class ChallengeTask:
         dockerfile_content = dockerfile_path.read_text()
 
         # Regex to match FROM gcr.io/oss-fuzz-base/base-builder* [optional tag] [optional as builder]
+        # Only patch base-builder variants, not base-clang or others that may not have manifest-arm64v8 tag
         def _replace_from(match: re.Match) -> str:
             image = match.group(1)
             as_clause = match.group(2) or ""
             # Always ensure tag is :manifest-arm64v8 regardless if there was a tag before
             return f"FROM {image}:manifest-arm64v8{as_clause}"
 
-        # This regex matches various FROM lines
+        # This regex matches FROM lines with base-builder images only
         pattern = r"^FROM\s+(gcr\.io/oss-fuzz-base/base-builder(?:[^\s:]*)?)(?::[^\s]+)?(\s+as\s+\w+)?\s*$"
         new_content = re.sub(pattern, _replace_from, dockerfile_content, flags=re.MULTILINE)
 
         if new_content != dockerfile_content:
             dockerfile_path.write_text(new_content)
+            logger.info("Patched oss-fuzz %s/Dockerfile to use the :manifest-arm64v8 tag", task.project_name)
+
+    def _hack_oss_fuzz_aarch64_runner(self, task: ChallengeTask) -> None:
+        # Patch oss-fuzz infra/helper.py to use the :manifest-arm64v8 tag for image_name,
+        # patch BASE_RUNNER_IMAGE assignment, and fix architecture parameter passing.
+        helper_path = task.get_oss_fuzz_path() / "infra" / "helper.py"
+        if not helper_path.exists():
+            return
+
+        content = helper_path.read_text()
+        replaced = False
+
+        def _replace_image_name(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            original = match.group(0)
+            if "base-runner-debug" in original:
+                return f"{match.group(1)}image_name = 'base-runner-debug:manifest-arm64v8'"
+            else:
+                return f"{match.group(1)}image_name = 'base-runner:manifest-arm64v8'"
+
+        # Patch image_name variables
+        pattern_img = r"(\s*)image_name\s*=\s*['\"]base-runner(?:-debug)?['\"]"
+        new_content = re.sub(pattern_img, _replace_image_name, content, flags=re.MULTILINE)
+        if new_content != content:
+            replaced = True
+            content = new_content
+
+        # Patch BASE_RUNNER_IMAGE assignment (ex: BASE_RUNNER_IMAGE = 'gcr.io/oss-fuzz-base/base-runner')
+        def _replace_base_runner_image(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            prefix = match.group(1)
+            image = match.group(2)
+            suffix = match.group(3) or ""
+            # Avoid double-appending tag
+            if ":manifest-arm64v8" not in image:
+                # Remove any existing tag first (split on last colon only)
+                if ":" in image:
+                    image = image.rsplit(":", 1)[0]
+                image = image + ":manifest-arm64v8"
+            return f"{prefix}BASE_RUNNER_IMAGE = '{image}'{suffix}"
+
+        pattern_base_img = (
+            r"(^\s*)BASE_RUNNER_IMAGE\s*=\s*['\"](gcr\.io/oss-fuzz-base/base-runner(?:[^\s'\"]*)?)['\"](\s*)"
+        )
+        new_content2 = re.sub(pattern_base_img, _replace_base_runner_image, content, flags=re.MULTILINE)
+        if new_content2 != content:
+            replaced = True
+            content = new_content2
+
+        # Patch the debug mode handling in _get_base_runner_image()
+        # The function does: image += '-debug'
+        # This appends -debug after the tag, creating invalid tags like base-runner:manifest-arm64v8-debug
+        # We need to insert -debug BEFORE the tag if one exists
+        def _replace_debug_append(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            indent = match.group(1)
+            # Replace the simple append with logic that inserts -debug before the tag
+            # Changes: image += '-debug' -> image = image.replace(':', '-debug:') if ':' in image else image + '-debug'
+            return f"{indent}image = image.replace(':', '-debug:', 1) if ':' in image else image + '-debug'"
+
+        # Match: image += '-debug' or image += "-debug" (with any amount of whitespace)
+        pattern_debug_append = r"^(\s+)image\s*\+=\s*['\"]-debug['\"]\s*$"
+        new_content3 = re.sub(pattern_debug_append, _replace_debug_append, content, flags=re.MULTILINE)
+        if new_content3 != content:
+            replaced = True
+            content = new_content3
+
+        # Patch the _get_base_runner_image() function to avoid appending tag if one exists
+        # The function does: return f'{image}:{tag}'
+        # We need to check if image already has a tag (contains ':') before appending
+        def _replace_get_base_runner_return(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            indent = match.group(1)
+            # Replace the return statement to check for existing tag before appending
+            # Changes: return f'{image}:{tag}' -> return image if ':' in image else f'{image}:{tag}'
+            return f"{indent}return image if ':' in image else f'{{image}}:{{tag}}'"
+
+        # Match: return f'{image}:{tag}' or return f"{image}:{tag}"
+        # This is the exact line in OSS-Fuzz's _get_base_runner_image() function
+        # Capture group 1 is indentation, group 2 is the quote character (backreferenced as \2)
+        pattern_get_base_runner = r"^(\s+)return f(['\"])\{image\}:\{tag\}\2\s*$"
+        new_content4 = re.sub(pattern_get_base_runner, _replace_get_base_runner_return, content, flags=re.MULTILINE)
+        if new_content4 != content:
+            replaced = True
+            content = new_content4
+
+        # Patch reproduce_impl to pass architecture parameter to docker_run
+        # The function calls: return run_function(run_args, err_result)
+        # But docker_run signature is: docker_run(run_args, print_output=True, architecture='x86_64')
+        # So err_result was being passed to print_output, causing output suppression!
+        # Fix: remove err_result and just pass architecture as keyword argument
+        def _replace_reproduce_run_function(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            indent = match.group(1)
+            # Remove err_result and add architecture parameter correctly
+            return f"{indent}return run_function(run_args, architecture=architecture)"
+
+        # Match: return run_function(run_args, err_result)
+        # This is in the reproduce_impl function
+        pattern_reproduce_run = r"^(\s+)return run_function\(run_args,\s*err_result\)\s*$"
+        new_content5 = re.sub(pattern_reproduce_run, _replace_reproduce_run_function, content, flags=re.MULTILINE)
+        if new_content5 != content:
+            replaced = True
+            content = new_content5
+
+        if replaced:
+            helper_path.write_text(content)
+            logger.info("Patched oss-fuzz helper.py to use the :manifest-arm64v8 tag")
+
+    def _hack_oss_fuzz_aarch64(self, task: ChallengeTask) -> None:
+        self._hack_oss_fuzz_aarch64_dockerfile(task)
+        self._hack_oss_fuzz_aarch64_runner(task)
 
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None, delete: bool = True) -> Iterator[ChallengeTask]:

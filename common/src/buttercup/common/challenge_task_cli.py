@@ -6,13 +6,14 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, get_subcommand
 
 from buttercup.common.challenge_task import ChallengeTask, CommandResult, ReproduceResult
+from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.logger import setup_package_logger
 
 
 class BuildImageCommand(BaseModel):
     pull_latest_base_image: bool = False
     cache: bool | None = None
-    architecture: str | None = None
+    architecture: str = ARCHITECTURE
 
 
 class ApplyPatchCommand(BaseModel):
@@ -20,7 +21,7 @@ class ApplyPatchCommand(BaseModel):
 
 
 class BuildFuzzersCommand(BaseModel):
-    architecture: str | None = None
+    architecture: str = ARCHITECTURE
     engine: str | None = None
     sanitizer: str | None = None
     env: dict[str, str] | None = None
@@ -28,7 +29,7 @@ class BuildFuzzersCommand(BaseModel):
 
 
 class CheckBuildCommand(BaseModel):
-    architecture: str | None = None
+    architecture: str = ARCHITECTURE
     engine: str | None = None
     sanitizer: str | None = None
     env: dict[str, str] | None = None
@@ -38,7 +39,7 @@ class ReproducePovCommand(BaseModel):
     fuzzer_name: str
     crash_path: Path
     fuzzer_args: list[str] | None = None
-    architecture: str | None = None
+    architecture: str = ARCHITECTURE
     env: dict[str, str] | None = None
 
 
