@@ -714,7 +714,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self.llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
         self.cheap_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1_MINI.value)
         self.cheap_fallback_llms = [
-            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_5_SONNET.value),
+            create_default_llm(model_name=ButtercupLLM.CLAUDE_3_7_SONNET.value),
             create_default_llm(model_name=ButtercupLLM.GEMINI_PRO.value),
         ]
 

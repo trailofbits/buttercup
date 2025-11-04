@@ -51,7 +51,7 @@ redis:
       enabled: false
 
 build-bot:
-  replicaCount: 1
+  replicaCount: 3
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
