@@ -1,5 +1,6 @@
 import base64
 import os
+import platform
 import subprocess
 import tempfile
 from pathlib import Path
@@ -459,6 +460,121 @@ def test_real_reproduce_pov(libjpeg_oss_fuzz_task_rw: ChallengeTask, libjpeg_cra
         crash_path=libjpeg_crash_testcase,
     )
     assert result.did_crash(), "Reproduce POV failed"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "oss_fuzz_commit,description",
+    [
+        ("eb47f56bd15626ab4ae8727bc435148dd2f9857c^", "before_bug"),
+        ("eb47f56bd15626ab4ae8727bc435148dd2f9857c", "bug_introduced"),
+        ("HEAD", "current_head"),
+    ],
+)
+def test_helper_py_patching_across_commits(
+    tmp_path: Path, libjpeg_crash_testcase: Path, oss_fuzz_commit: str, description: str
+):
+    """Test helper.py patching across different OSS-Fuzz commits.
+
+    This test validates that helper.py patching works correctly across different
+    OSS-Fuzz commits:
+    - Before the bug: eb47f56^ (should work without needing reproduce_impl patch)
+    - Bug introduced: eb47f56bd15626ab4ae8727bc435148dd2f9857c (needs patching)
+    - Current HEAD: Latest OSS-Fuzz (needs patching)
+
+    The patching should ensure reproduce_pov runs successfully on all commits.
+    """
+    # Detect current architecture
+    current_arch = platform.machine()
+    # Normalize architecture names
+    if current_arch in ("arm64", "aarch64"):
+        current_arch = "aarch64"
+    elif current_arch in ("x86_64", "amd64"):
+        current_arch = "x86_64"
+
+    # Only test ARM64 on ARM64 platforms, x86_64 on x86_64 platforms
+    # For this test we use the current architecture
+
+    # Create task directory structure
+    task_dir = tmp_path / f"libjpeg-turbo-{description}"
+    task_dir.mkdir(parents=True)
+
+    oss_fuzz_dir = task_dir / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = task_dir / "src"
+    source_dir.mkdir(parents=True)
+
+    # Clone OSS-Fuzz at specific commit
+    subprocess.run(["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/google/oss-fuzz.git"], check=True)
+    subprocess.run(
+        ["git", "-C", str(oss_fuzz_dir / "oss-fuzz"), "checkout", oss_fuzz_commit],
+        check=True,
+    )
+
+    # Clone libjpeg-turbo source (same commit as existing test)
+    libjpeg_url = "https://github.com/libjpeg-turbo/libjpeg-turbo"
+    subprocess.run(["git", "-C", str(source_dir), "clone", libjpeg_url], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_dir / "libjpeg-turbo"), "checkout", "6d91e950c871103a11bac2f10c63bf998796c719"],
+        check=True,
+    )
+
+    # Create task metadata
+    TaskMeta(
+        project_name="libjpeg-turbo",
+        focus="libjpeg-turbo",
+        task_id=f"task-id-libjpeg-turbo-{description}",
+        metadata={"task_id": f"task-id-libjpeg-turbo-{description}", "round_id": "testing", "team_id": "tob"},
+    ).save(task_dir)
+
+    # Create challenge task
+    task = ChallengeTask(
+        read_only_task_dir=task_dir,
+    )
+
+    # Get RW copy and test
+    with task.get_rw_copy(None) as local_task:
+        # Build image and fuzzers
+        result = local_task.build_image(pull_latest_base_image=False, architecture=current_arch)
+        assert result.success is True, f"Build image failed: {result.error}"
+
+        result = local_task.build_fuzzers(engine="libfuzzer", sanitizer="address", architecture=current_arch)
+        assert result.success is True, f"Build fuzzers failed: {result.error}"
+
+        # Reproduce the POV - this should work with patching (the fuzzer should run successfully)
+        # Note: We're testing that reproduce_pov runs without errors, not necessarily that
+        # this specific crash test case triggers a crash (compatibility may vary by version)
+        result = local_task.reproduce_pov(
+            fuzzer_name="libjpeg_turbo_fuzzer",
+            crash_path=libjpeg_crash_testcase,
+        )
+
+        # The key is that reproduce_pov should RUN successfully (did_run returns True)
+        # This confirms the patching fixed the reproduce_impl issue
+        assert result.did_run(), (
+            f"Reproduce POV did not run for commit {oss_fuzz_commit} ({description}). "
+            f"Patching may not have worked correctly. Output: {result.command_result.output[:500] if result.command_result.output else 'None'}"
+        )
+
+        # Verify that helper.py was patched correctly
+        helper_path = local_task.get_oss_fuzz_path() / "infra" / "helper.py"
+        assert helper_path.exists(), "helper.py not found"
+
+        helper_content = helper_path.read_text()
+
+        # Check for the common fix: architecture=architecture instead of err_result
+        # The fix should change: return run_function(run_args, err_result)
+        # To: return run_function(run_args, architecture=architecture)
+        assert "architecture=architecture" in helper_content, (
+            f"helper.py patching failed: 'architecture=architecture' not found in helper.py for commit {oss_fuzz_commit}"
+        )
+
+        # On ARM64, verify ARM64-specific patches were applied
+        if current_arch == "aarch64":
+            # Check for ARM64 manifest tags
+            assert ":manifest-arm64v8" in helper_content, (
+                f"helper.py patching failed: ARM64 manifest tags not found for commit {oss_fuzz_commit}"
+            )
 
 
 def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
