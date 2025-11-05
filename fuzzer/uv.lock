@@ -289,6 +289,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cxxfilt"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/dc/71ac606f7dfa71d49e3dc126b49b18daefaf6bd953078858af30fde40702/cxxfilt-0.3.0.tar.gz", hash = "sha256:7df6464ba5e8efbf0d8974c0b2c78b32546676f06059a83515dbdfa559b34214", size = 4806, upload-time = "2021-08-21T16:48:04.038Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/29/23572dc59bf4a3984fe3c5fc242f73be916785ee93387dd95c972dbf584e/cxxfilt-0.3.0-py2.py3-none-any.whl", hash = "sha256:774e85a8d0157775ed43276d89397d924b104135762d86b3a95f81f203094e07", size = 4649, upload-time = "2021-08-21T16:48:02.953Z" },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -313,6 +322,7 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "common", extra = ["full"] },
+    { name = "cxxfilt" },
     { name = "lxml" },
     { name = "pydantic-settings" },
     { name = "redis" },
@@ -331,6 +341,7 @@ dev = [
 requires-dist = [
     { name = "beautifulsoup4", specifier = "~=4.13.3" },
     { name = "common", extras = ["full"], editable = "../common" },
+    { name = "cxxfilt", specifier = ">=0.3.0" },
     { name = "lxml", specifier = "~=5.3.1" },
     { name = "pydantic-settings", specifier = "~=2.7.1" },
     { name = "redis", specifier = "~=5.2.1" },

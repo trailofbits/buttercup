@@ -5,6 +5,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Any, cast
 
+import cxxfilt
 from bs4 import BeautifulSoup, Tag
 
 from buttercup.common.challenge_task import ChallengeTask
@@ -25,9 +26,9 @@ class CoverageRunner:
     def __init__(self, tool: ChallengeTask, llvm_cov_path: str):
         self.tool = tool
         self.llvm_cov_path = llvm_cov_path
+        self.language = ProjectYaml(self.tool, self.tool.project_name).unified_language
 
-    @staticmethod
-    def _process_function_coverage(coverage_data: dict[str, Any]) -> list[CoveredFunction]:
+    def _process_function_coverage(self, coverage_data: dict[str, Any]) -> list[CoveredFunction]:
         """Process the LLVM coverage data to extract function-level line coverage.
 
         Returns a dictionary mapping function names to their line coverage metrics.
@@ -49,7 +50,15 @@ class CoverageRunner:
                 if "name" not in function or "regions" not in function:
                     continue
 
+                # Demangle the function name if necessary, depending on the language.
                 name = function["name"]
+                if self.language in {Language.CPP, Language.C}:
+                    try:
+                        demangled_name: str = cxxfilt.demangle(name)
+                        name = demangled_name
+                    except Exception as e:
+                        logger.debug(f"Failed to demangle name {name}: {e!r}")
+
                 regions = function["regions"]
 
                 covered_lines = set()
@@ -184,7 +193,7 @@ class CoverageRunner:
         coverage = json.loads(coverage)
         logger.info(f"Coverage for {harness_name} | {corpus_dir} | {self.tool.project_name} | in {len(coverage)}")
 
-        return CoverageRunner._process_function_coverage(coverage)
+        return self._process_function_coverage(coverage)
 
 
 def main() -> None:
