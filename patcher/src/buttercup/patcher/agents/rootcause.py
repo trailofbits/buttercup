@@ -389,7 +389,7 @@ class RootCauseAgent(PatcherAgentBase):
             )
 
         root_cause_str = str(root_cause_state.messages[-1].content)
-        if "<code_snippet_requests>" in root_cause_str:
+        if "<code_snippet_request>" in root_cause_str:
             requests = self._parse_code_snippet_requests(root_cause_str)
             execution_info.code_snippet_requests = requests
             return Command(
