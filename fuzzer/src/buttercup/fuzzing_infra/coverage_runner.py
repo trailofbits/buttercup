@@ -55,7 +55,8 @@ class CoverageRunner:
                 if self.language in {Language.CPP, Language.C}:
                     try:
                         demangled_name: str = cxxfilt.demangle(name)
-                        name = demangled_name
+                        if demangled_name != "":
+                            name = demangled_name
                     except Exception as e:
                         logger.debug(f"Failed to demangle name {name}: {e!r}")
 
