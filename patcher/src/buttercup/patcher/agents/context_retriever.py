@@ -227,7 +227,7 @@ INITIAL_CODE_SNIPPET_REQUESTS_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 FILTER_CODE_SNIPPETS_USER_MSG = """You are an AI assistant. Your job is to evaluate whether a code snippet is relevant to one of the requests.
-Be mindful that the function/type/variable names might be slightly different from the ones in the requests (e.g. they might be in a slightly different file, or they might have some prefix/suffix).
+Be mindful that the function/type/variable names might be slightly different from the ones in the requests (e.g. they might be in a slightly different file, or they might have some prefix/suffix like OSS_FUZZ_). If you are not sure, consider the code snippet as relevant.
 
 Here are the requests:
 <requests>
