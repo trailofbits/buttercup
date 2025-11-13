@@ -5,7 +5,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y software
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y python3.12 curl \
     && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL https://get.docker.com | sh
+RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh --version 29.0
 
 FROM base AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.5.20 /uv /uvx /bin/

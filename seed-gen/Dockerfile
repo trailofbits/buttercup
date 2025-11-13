@@ -8,7 +8,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
 FROM python_base AS runtime-base
 RUN apt-get update \
     && apt-get install -y curl ripgrep codequery
-RUN curl -fsSL https://get.docker.com | sh
+RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh --version 29.0
 RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
 
 RUN rm -rf /var/lib/apt/lists/*

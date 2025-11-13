@@ -31,7 +31,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y git curl && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://get.docker.com | sh
+RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh --version 29.0
 
 COPY --from=builder --chown=app:app /app/orchestrator/.venv /app/orchestrator/.venv
 WORKDIR /app/orchestrator

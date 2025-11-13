@@ -22,7 +22,7 @@ spec:
           - "ghcr.io"
       containers:
       - name: dind
-        image: "docker:24.0.6-dind"
+        image: "docker:29.0.0-dind"
         securityContext:
           privileged: true
         resources:
@@ -72,4 +72,4 @@ spec:
           secret:
             secretName: registry-cache-tls
         {{- include "buttercup.dockerSocketVolume" . | nindent 8 }}
-{{- end }} 
+{{- end }}
