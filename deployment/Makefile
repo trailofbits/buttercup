@@ -37,3 +37,13 @@ down-k8s:
 .PHONY: clean
 clean:
 	@rm -f $(GENERATED_FILES)
+
+# up-observability target
+.PHONY: up-observability
+up-observability: check
+	@bash $(SCRIPT) up-langfuse
+
+# down-observability target
+.PHONY: down-observability
+down-observability: check
+	@bash $(SCRIPT) down-langfuse

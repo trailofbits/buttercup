@@ -280,13 +280,40 @@ configure_langfuse() {
     print_status "LangFuse: Optional LLM monitoring and observability platform."
     print_status "Tracks AI model usage, costs, and performance metrics for debugging and optimization."
     
-    # Use a meaningful current value for the check
-    local current_langfuse_config=""
-    if [ "$LANGFUSE_ENABLED" = "true" ] && [ -n "$LANGFUSE_HOST" ] && [ -n "$LANGFUSE_PUBLIC_KEY" ]; then
-        current_langfuse_config="$LANGFUSE_HOST"
+    # Ask if user wants to deploy LangFuse (default true)
+    echo -n "Deploy LangFuse? (Y/n): "
+    read -r response
+    if [[ "$response" =~ ^[Nn]$ ]]; then
+        # Set DEPLOY_LANGFUSE to false and proceed with external configuration
+        if grep -q "export DEPLOY_LANGFUSE=" deployment/env; then
+            portable_sed "s|.*export DEPLOY_LANGFUSE=.*|export DEPLOY_LANGFUSE=false|" deployment/env
+        else
+            echo "export DEPLOY_LANGFUSE=false" >> deployment/env
+        fi
+
+        # Use a meaningful current value for the check
+        local current_langfuse_config=""
+        if [ "$LANGFUSE_ENABLED" = "true" ] && [ -n "$LANGFUSE_HOST" ] && [ -n "$LANGFUSE_PUBLIC_KEY" ]; then
+            current_langfuse_config="$LANGFUSE_HOST"
+        fi
+
+        # Proceed with external LangFuse configuration
+        configure_service "LANGFUSE" "LangFuse configuration" "$current_langfuse_config" "" false "configure_langfuse_wrapper"
+    else
+        # Set DEPLOY_LANGFUSE to true and skip asking for other vars
+        if grep -q "export DEPLOY_LANGFUSE=" deployment/env; then
+            portable_sed "s|.*export DEPLOY_LANGFUSE=.*|export DEPLOY_LANGFUSE=true|" deployment/env
+        else
+            echo "export DEPLOY_LANGFUSE=true" >> deployment/env
+        fi
+        # Ensure other vars are not set (or set to empty)
+        portable_sed "s|.*export LANGFUSE_ENABLED=.*|export LANGFUSE_ENABLED=false|" deployment/env
+        portable_sed "s|.*export LANGFUSE_HOST=.*|export LANGFUSE_HOST=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_PUBLIC_KEY=.*|export LANGFUSE_PUBLIC_KEY=\"\"|" deployment/env
+        portable_sed "s|.*export LANGFUSE_SECRET_KEY=.*|export LANGFUSE_SECRET_KEY=\"\"|" deployment/env
+        print_success "LangFuse deployment enabled (no external configuration needed)"
+        return 0
     fi
-    
-    configure_service "LANGFUSE" "LangFuse configuration" "$current_langfuse_config" "" false "configure_langfuse_wrapper"
 }
 
 # Helper function to prompt for value update if already configured

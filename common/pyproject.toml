@@ -12,7 +12,7 @@ dependencies = [
     "langchain-core ~=0.3.74",
     "langchain-openai ~=0.3.30",
     "langchain ~=0.3.27",
-    "langfuse ~=2.59.2",
+    "langfuse >=3.0.0",
     "six ~=1.17.0",
 ]
 

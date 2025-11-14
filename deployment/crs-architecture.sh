@@ -46,18 +46,8 @@ if [ "$DEPLOY_CLUSTER" = "true" ] && [ "$CLUSTER_TYPE" = "aks" ]; then
 	az account show --query "{SubscriptionID:id, Tenant:tenantId}" --output table || echo -e "${RED}Error: Failed to retrieve azure account status${NC}"
 fi
 
-#deploy the AKS cluster and kubernetes resources function
-up() {
-
-	echo -e "${BLU}Applying environment variables to yaml from templates${NC}"
-	CLIENT_BASE64=$(echo -n "$TF_VAR_ARM_CLIENT_SECRET" | base64)
-	CRS_KEY_BASE64=$(echo -n "$CRS_KEY_TOKEN" | base64)
-	COMPETITION_API_KEY_BASE64=$(echo -n "$COMPETITION_API_KEY_TOKEN" | base64)
-	export CLIENT_BASE64
-	export CRS_KEY_BASE64
-	export COMPETITION_API_KEY_BASE64
-	export TS_DNS_IP
-
+# Ensure cluster is created and accessible
+ensure_cluster() {
 	if [ "$DEPLOY_CLUSTER" = "true" ]; then
 		# Authenticate with GitHub Container Registry for Docker builds
 		if [ -n "$GHCR_AUTH" ]; then
@@ -90,8 +80,8 @@ up() {
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
 				# Minikube defaults
-				MINIKUBE_CPU="${MINIKUBE_CPU:-6}"
-				MINIKUBE_MEMORY_GB="${MINIKUBE_MEMORY_GB:-10}"
+				MINIKUBE_CPU="${MINIKUBE_CPU:-8}"
+				MINIKUBE_MEMORY_GB="${MINIKUBE_MEMORY_GB:-16}"
 				MINIKUBE_DISK_GB="${MINIKUBE_DISK_GB:-80}"
 
 				echo -e "${BLU}Using Minikube configuration: CPU=${MINIKUBE_CPU}, Memory=${MINIKUBE_MEMORY_GB}GB, Disk=${MINIKUBE_DISK_GB}GB${NC}"
@@ -106,7 +96,7 @@ up() {
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 
-				echo -e "${BLU}Building local docker images${NC}"
+				echo -e "${BLU}Setting up minikube docker environment${NC}"
 				eval $(minikube docker-env)
 
 				# Authenticate with GitHub Container Registry for Docker builds
@@ -127,27 +117,102 @@ up() {
 						exit 1
 					fi
 				fi
-
-				if [ -n "$FUZZER_BASE_IMAGE" ]; then
-					# Check for aarch64 and append :manifest-arm64v8 to base image if needed
-					if { [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; } && [ "$FUZZER_BASE_IMAGE" = "gcr.io/oss-fuzz-base/base-runner" ]; then
-						FUZZER_BASE_IMAGE="${FUZZER_BASE_IMAGE}:manifest-arm64v8"
-					fi
-
-					FUZZER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
-				else
-					FUZZER_BUILD_ARGS=""
-				fi
-
-				docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
-				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
-				docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
-				docker build $PATCHER_BUILD_ARGS -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
-				docker build $PROGRAM_MODEL_BUILD_ARGS -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
 				;;
 		esac
 	fi
+}
 
+up_langfuse() {
+	ensure_cluster
+
+	LANGFUSE_NAMESPACE=${LANGFUSE_NAMESPACE:-${BUTTERCUP_NAMESPACE}-langfuse}
+
+	# Check if LangFuse is already deployed by checking if the release exists in the target namespace
+	if helm status langfuse --namespace "${LANGFUSE_NAMESPACE}" >/dev/null 2>&1; then
+		echo -e "${GRN}LangFuse is already deployed in namespace ${LANGFUSE_NAMESPACE}. Doing nothing.${NC}"
+		return 0
+	fi
+
+	echo -e "${BLU}Deploying LangFuse${NC}"
+	kubectl create namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse namespace already exists${NC}" && true
+
+	kubectl delete secret langfuse-general \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse general secret not found${NC}" && true
+	kubectl delete secret langfuse-nextauth-secret \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse nextauth secret not found${NC}" && true
+	kubectl delete secret langfuse-postgresql-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse postgresql secret not found${NC}" && true
+	kubectl delete secret langfuse-clickhouse-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse clickhouse secret not found${NC}" && true
+	kubectl delete secret langfuse-redis-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse redis secret not found${NC}" && true
+	kubectl delete secret langfuse-s3-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse s3 secret not found${NC}" && true
+
+	LANGFUSE_SALT=$(openssl rand -hex 32)
+	LANGFUSE_NEXTAUTH_SECRET=$(openssl rand -hex 32)
+	LANGFUSE_POSTGRES_PASSWORD=$(openssl rand -hex 32)
+	LANGFUSE_CLICKHOUSE_PASSWORD=$(openssl rand -hex 32)
+	LANGFUSE_REDIS_PASSWORD=$(openssl rand -hex 32)
+	LANGFUSE_S3_ROOT_USER=$(openssl rand -hex 32)
+	LANGFUSE_S3_ROOT_PASSWORD=$(openssl rand -hex 32)
+
+	LANGFUSE_PUBLIC_KEY="lf_pk_$(openssl rand -hex 32)"
+	LANGFUSE_SECRET_KEY="lf_sk_$(openssl rand -hex 32)"
+	LANGFUSE_PASSWORD="$(openssl rand -hex 32)"
+
+	echo -e "${BLU}LANGFUSE_PUBLIC_KEY: $LANGFUSE_PUBLIC_KEY${NC}"
+	echo -e "${BLU}LANGFUSE_SECRET_KEY: $LANGFUSE_SECRET_KEY${NC}"
+	echo -e "${BLU}LANGFUSE_PASSWORD: $LANGFUSE_PASSWORD${NC}"
+
+	kubectl create secret generic langfuse-general \
+		--namespace "$LANGFUSE_NAMESPACE" \
+		--from-literal=publicKey="$LANGFUSE_PUBLIC_KEY" \
+		--from-literal=secretKey="$LANGFUSE_SECRET_KEY" \
+		--from-literal=password="$LANGFUSE_PASSWORD" \
+		--from-literal=salt="$LANGFUSE_SALT" || echo -e "${GRN}LangFuse general secret already exists${NC}" && true
+	kubectl create secret generic langfuse-nextauth-secret \
+		--namespace "$LANGFUSE_NAMESPACE" \
+		--from-literal=nextauth-secret="$LANGFUSE_NEXTAUTH_SECRET" || echo -e "${GRN}LangFuse nextauth secret already exists${NC}" && true
+	kubectl create secret generic langfuse-postgresql-auth \
+		--namespace "$LANGFUSE_NAMESPACE" \
+		--from-literal=password="$LANGFUSE_POSTGRES_PASSWORD" \
+		--from-literal=postgres-password="$LANGFUSE_POSTGRES_PASSWORD" || echo -e "${GRN}LangFuse postgresql secret already exists${NC}" && true
+	kubectl create secret generic langfuse-clickhouse-auth \
+		--namespace "$LANGFUSE_NAMESPACE" \
+		--from-literal=password="$LANGFUSE_CLICKHOUSE_PASSWORD" || echo -e "${GRN}LangFuse clickhouse secret already exists${NC}" && true
+	kubectl create secret generic langfuse-redis-auth \
+		--namespace "$LANGFUSE_NAMESPACE" \
+		--from-literal=password="$LANGFUSE_REDIS_PASSWORD" || echo -e "${GRN}LangFuse redis secret already exists${NC}" && true
+	kubectl create secret generic langfuse-s3-auth \
+		--namespace "$LANGFUSE_NAMESPACE" \
+		--from-literal=rootUser="$LANGFUSE_S3_ROOT_USER" \
+		--from-literal=rootPassword="$LANGFUSE_S3_ROOT_PASSWORD" || echo -e "${GRN}LangFuse s3 secret already exists${NC}" && true
+
+	helm upgrade --install langfuse langfuse/langfuse --namespace "${LANGFUSE_NAMESPACE}" -f ./k8s/values-langfuse.yaml
+}
+
+down_langfuse() {
+	echo -e "${BLU}Destroying LangFuse${NC}"
+	LANGFUSE_NAMESPACE=${LANGFUSE_NAMESPACE:-${BUTTERCUP_NAMESPACE}-langfuse}
+	helm uninstall --wait --namespace "${LANGFUSE_NAMESPACE}" langfuse || echo -e "${GRN}LangFuse could not be uninstalled${NC}" && true
+	kubectl delete secret langfuse-general \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse general secret not found${NC}" && true
+	kubectl delete secret langfuse-nextauth-secret \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse nextauth secret not found${NC}" && true
+	kubectl delete secret langfuse-postgresql-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse postgresql secret not found${NC}" && true
+	kubectl delete secret langfuse-clickhouse-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse clickhouse secret not found${NC}" && true
+	kubectl delete secret langfuse-redis-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse redis secret not found${NC}" && true
+	kubectl delete secret langfuse-s3-auth \
+		--namespace "${LANGFUSE_NAMESPACE}" || echo -e "${GRN}LangFuse s3 secret not found${NC}" && true
+	kubectl delete namespace "${LANGFUSE_NAMESPACE}"
+}
+
+# Deploy buttercup CRS to the cluster
+deploy_buttercup() {
 	# Create namespace if it doesn't exist
 	kubectl create namespace "$BUTTERCUP_NAMESPACE" || true
 
@@ -171,15 +236,15 @@ up() {
 		-o jsonpath='{.data.crs-instance-id}')
 	echo -e "${GRN}CRS_INSTANCE_ID is $CRS_INSTANCE_ID${NC}"
 
-if [[ -n "${DOCKER_USERNAME}" ]] && [[ -n "${DOCKER_PAT}" ]]; then
-	kubectl create secret docker-registry docker-auth \
-		--namespace "$BUTTERCUP_NAMESPACE" \
-		--docker-server=docker.io \
-		--docker-username="$DOCKER_USERNAME" \
-		--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
-else
-	echo -e "${GRN}Docker credentials have not been configured. Skipping creating optional docker-registry secret${NC}"
-fi
+	if [[ -n "${DOCKER_USERNAME}" ]] && [[ -n "${DOCKER_PAT}" ]]; then
+		kubectl create secret docker-registry docker-auth \
+			--namespace "$BUTTERCUP_NAMESPACE" \
+			--docker-server=docker.io \
+			--docker-username="$DOCKER_USERNAME" \
+			--docker-password="$DOCKER_PAT" || echo -e "${GRN}docker-registry secret already exists${NC}"
+	else
+		echo -e "${GRN}Docker credentials have not been configured. Skipping creating optional docker-registry secret${NC}"
+	fi
 
 	# Create TLS certificate for registry cache
 	echo -e "${BLU}Creating TLS certificate for registry cache${NC}"
@@ -228,6 +293,47 @@ fi
 	fi
 
 	echo -e "${GRN}Buttercup CRS installation complete${NC}"
+}
+
+#deploy the AKS cluster and kubernetes resources function
+up() {
+	echo -e "${BLU}Applying environment variables to yaml from templates${NC}"
+	CLIENT_BASE64=$(echo -n "$TF_VAR_ARM_CLIENT_SECRET" | base64)
+	CRS_KEY_BASE64=$(echo -n "$CRS_KEY_TOKEN" | base64)
+	COMPETITION_API_KEY_BASE64=$(echo -n "$COMPETITION_API_KEY_TOKEN" | base64)
+	export CLIENT_BASE64
+	export CRS_KEY_BASE64
+	export COMPETITION_API_KEY_BASE64
+	export TS_DNS_IP
+
+	ensure_cluster
+
+	if [ "$DEPLOY_LANGFUSE" = "true" ]; then
+		up_langfuse
+	fi
+
+	# Build docker images (only for minikube)
+	if [ "$DEPLOY_CLUSTER" = "true" ] && [ "$CLUSTER_TYPE" != "aks" ]; then
+		echo -e "${BLU}Building local docker images${NC}"
+		if [ -n "$FUZZER_BASE_IMAGE" ]; then
+			# Check for aarch64 and append :manifest-arm64v8 to base image if needed
+			if { [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; } && [ "$FUZZER_BASE_IMAGE" = "gcr.io/oss-fuzz-base/base-runner" ]; then
+				FUZZER_BASE_IMAGE="${FUZZER_BASE_IMAGE}:manifest-arm64v8"
+			fi
+
+			FUZZER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
+		else
+			FUZZER_BUILD_ARGS=""
+		fi
+
+		docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
+		docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+		docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
+		docker build $PATCHER_BUILD_ARGS -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
+		docker build $PROGRAM_MODEL_BUILD_ARGS -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
+	fi
+
+	deploy_buttercup
 }
 
 #destroy the AKS cluster and kubernetes resources function
@@ -288,8 +394,14 @@ case $1 in
 up)
 	up
 	;;
+up-langfuse)
+	up_langfuse
+	;;
 down)
 	down
+	;;
+down-langfuse)
+	down_langfuse
 	;;
 down-k8s)
 	down-k8s

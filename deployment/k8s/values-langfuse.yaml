@@ -1,0 +1,63 @@
+langfuse: 
+  salt:
+    secretKeyRef:
+      name: langfuse-general
+      key: salt
+  nextauth:
+    secret:
+      secretKeyRef:
+        name: langfuse-nextauth-secret
+        key: nextauth-secret
+  additionalEnv:
+    - name: LANGFUSE_INIT_ORG_ID
+      value: "buttercup-org-id"
+    - name: LANGFUSE_INIT_ORG_NAME
+      value: "buttercup-org-name"
+    - name: LANGFUSE_INIT_PROJECT_ID
+      value: "buttercup-project-id"
+    - name: LANGFUSE_INIT_PROJECT_NAME
+      value: "buttercup-project-name"
+    - name: LANGFUSE_INIT_PROJECT_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-general
+          key: publicKey
+    - name: LANGFUSE_INIT_PROJECT_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-general
+          key: secretKey
+    - name: LANGFUSE_INIT_USER_EMAIL
+      value: "user@example.com"
+    - name: LANGFUSE_INIT_USER_NAME
+      value: "John Doe"
+    - name: LANGFUSE_INIT_USER_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: langfuse-general
+          key: password
+ 
+postgresql:
+  auth:
+    # If you want to use `postgres` as the username, you need to provide a adminPasswordKey in secretKeys.
+    username: langfuse
+    existingSecret: langfuse-postgresql-auth
+    secretKeys:
+      userPasswordKey: password
+ 
+clickhouse:
+  auth:
+    existingSecret: langfuse-clickhouse-auth
+    existingSecretKey: password
+ 
+redis:
+  auth:
+    existingSecret: langfuse-redis-auth
+    existingSecretPasswordKey: password
+ 
+s3:
+  auth:
+    # If existingSecret is set, both root user and root password must be supplied via the secret
+    existingSecret: langfuse-s3-auth
+    rootUserSecretKey: rootUser
+    rootPasswordSecretKey: rootPassword

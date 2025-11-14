@@ -228,3 +228,11 @@ signoz-ui:
 
 web-ui:
 	@./scripts/web_ui.sh
+
+up-observability:
+	@echo "Deploying Observability tools..."
+	cd deployment && make up-observability
+
+down-observability:
+	@echo "Destroying Observability tools..."
+	cd deployment && make down-observability
