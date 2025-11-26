@@ -624,7 +624,9 @@ generate_crs_key_id_token() {
 
     portable_sed "s|.*export CRS_KEY_ID=.*|export CRS_KEY_ID=\"$crs_key_id\"|" deployment/env
     portable_sed "s|.*export CRS_KEY_TOKEN=.*|export CRS_KEY_TOKEN=\"$crs_key_token\"|" deployment/env
-    portable_sed "s|.*export CRS_KEY_TOKEN_HASH=.*|export CRS_KEY_TOKEN_HASH='$crs_key_token_hash'|" deployment/env
+    # Escape $ characters in the hash so sed treats them as literals (Argon2id hashes contain multiple $)
+    local escaped_hash="${crs_key_token_hash//\$/\\$}"
+    portable_sed "s|.*export CRS_KEY_TOKEN_HASH=.*|export CRS_KEY_TOKEN_HASH='$escaped_hash'|" deployment/env
     print_success "CRS key ID/token configured successfully"
 }
 

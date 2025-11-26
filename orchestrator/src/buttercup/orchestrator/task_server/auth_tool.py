@@ -96,12 +96,22 @@ def print_api_key_info(key_id: str, token: str, token_hash: str, env_format: boo
     console = Console()
 
     if env_format:
-        rprint("[bold]Environment Variables:[/bold]")
-        rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_KEY_ID[/yellow]={key_id}")
-        rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_TOKEN_HASH[/yellow]={token_hash}")
-        rprint("\n[bold]Client Authentication:[/bold]")
-        rprint(f"[green]API_KEY_ID[/green]={key_id}")
-        rprint(f"[green]API_TOKEN[/green]={token}")
+        # Use Rich formatting only when outputting to a TTY; plain text when piped
+        # Rich's rprint() can truncate output when not connected to a TTY
+        if sys.stdout.isatty():
+            rprint("[bold]Environment Variables:[/bold]")
+            rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_KEY_ID[/yellow]={key_id}")
+            rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_TOKEN_HASH[/yellow]={token_hash}")
+            rprint("\n[bold]Client Authentication:[/bold]")
+            rprint(f"[green]API_KEY_ID[/green]={key_id}")
+            rprint(f"[green]API_TOKEN[/green]={token}")
+        else:
+            print("Environment Variables:")
+            print(f"BUTTERCUP_TASK_SERVER_API_KEY_ID={key_id}")
+            print(f"BUTTERCUP_TASK_SERVER_API_TOKEN_HASH={token_hash}")
+            print("\nClient Authentication:")
+            print(f"API_KEY_ID={key_id}")
+            print(f"API_TOKEN={token}")
     else:
         table = Table(title="API Key Information")
         table.add_column("Field", style="cyan")
