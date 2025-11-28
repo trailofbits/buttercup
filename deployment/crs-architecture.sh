@@ -125,7 +125,7 @@ ensure_cluster() {
 up_langfuse() {
 	ensure_cluster
 
-	LANGFUSE_NAMESPACE=${LANGFUSE_NAMESPACE:-${BUTTERCUP_NAMESPACE}-langfuse}
+	LANGFUSE_NAMESPACE=${BUTTERCUP_NAMESPACE}-langfuse
 
 	# Check if LangFuse is already deployed by checking if the release exists in the target namespace
 	if helm status langfuse --namespace "${LANGFUSE_NAMESPACE}" >/dev/null 2>&1; then

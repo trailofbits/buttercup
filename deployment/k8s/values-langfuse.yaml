@@ -36,6 +36,13 @@ langfuse:
         secretKeyRef:
           name: langfuse-general
           key: password
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "1Gi"
  
 postgresql:
   auth:
@@ -46,14 +53,40 @@ postgresql:
       userPasswordKey: password
  
 clickhouse:
+  replicaCount: 1
   auth:
     existingSecret: langfuse-clickhouse-auth
     existingSecretKey: password
+  resources:
+    limits:
+      cpu: "2"
+      memory: "8Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+      
+  zookeeper:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+      requests:
+        cpu: "1"
+        memory: "1Gi"
  
 redis:
   auth:
     existingSecret: langfuse-redis-auth
     existingSecretPasswordKey: password
+  primary:
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1.5Gi"
+      requests:
+        cpu: "1"
+        memory: "0.5Gi"
  
 s3:
   auth:
@@ -61,3 +94,10 @@ s3:
     existingSecret: langfuse-s3-auth
     rootUserSecretKey: rootUser
     rootPasswordSecretKey: rootPassword
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "1Gi"
