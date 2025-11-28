@@ -39,7 +39,7 @@ jobs:
       patcher: ${{ steps.filter.outputs.patcher }}
       run-all: ${{ steps.filter.outputs.workflow || steps.filter.outputs.global }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -97,12 +97,12 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Setup uv cache
         uses: actions/cache@v4
@@ -135,7 +135,7 @@ jobs:
     if: needs.changes.outputs.run-all == 'true' || contains(github.event.head_commit.modified, '.proto') || contains(github.event.head_commit.modified, 'protoc.sh')
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
