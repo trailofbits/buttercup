@@ -53,8 +53,5 @@ dependencies:
 - name: ui
   repository: file://charts/ui
   version: 0.1.0
-- name: signoz
-  repository: https://charts.signoz.io
-  version: 0.71.0
-digest: sha256:d406395eef32321d26f3dee82bd5ab91e80f476dc8f271bac7edbcd04790cc34
-generated: "2025-09-29T12:14:43.37270009Z"
+digest: sha256:127f211095649787969caa6ac55652a0fda0d2be8e532510de584f4d3e8fc20a
+generated: "2025-12-04T14:47:04.214674+01:00"

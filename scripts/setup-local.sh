@@ -32,8 +32,8 @@ setup_config() {
 
     # Configure LangFuse (optional)
     configure_langfuse
-    
-    # Configure SigNoz deployment (optional)
+
+    # Configure OpenTelemetry (optional)
     configure_otel
 }
 

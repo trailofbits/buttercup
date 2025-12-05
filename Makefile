@@ -18,7 +18,6 @@ help:
 	@echo "  status              - Check the status of the deployment"
 	@echo "  crs-instance-id     - Get the CRS instance ID"
 	@echo "  download-artifacts  - Download submitted artifacts from the CRS"
-	@echo "  signoz-ui           - Open the SigNoz UI"
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
@@ -202,29 +201,6 @@ clean-local:
 # Additional targets migrated from justfile
 install-cscope:
 	cd external/buttercup-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
-
-signoz-ui:
-	@echo "Opening SigNoz UI..."
-	@echo ""
-	@echo "NOTE: If you plan to redeploy and access SigNoz, clear your browser cookies for http://localhost:33301 to avoid login issues."
-	@echo ""
-	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
-		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
-		exit 1; \
-	fi
-	@if ! kubectl get service/buttercup-signoz-frontend -n $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
-		echo "Error: SigNoz is not deployed. Set DEPLOY_SIGNOZ=true in deployment/env and redeploy."; \
-		exit 1; \
-	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-signoz-frontend 33301:3301 &
-	@sleep 3
-	@if command -v xdg-open >/dev/null 2>&1; then \
-		xdg-open http://localhost:33301; \
-	elif command -v open >/dev/null 2>&1; then \
-		open http://localhost:33301; \
-	else \
-		echo "Please open http://localhost:33301 in your browser."; \
-	fi
 
 web-ui:
 	@./scripts/web_ui.sh

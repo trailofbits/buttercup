@@ -119,22 +119,27 @@ In the GUI you can monitor active tasks and see when Buttercup finds bugs and ge
 make undeploy
 ```
 
-## Accessing Logs
+## Accessing Logs and Observability
 
-Buttercup includes local SigNoz deployment by default for comprehensive system observability. You can access logs, traces, and metrics through the SigNoz UI:
+Buttercup supports OpenTelemetry for comprehensive system observability. To view distributed traces, metrics, and logs, you need to deploy an observability backend separately:
 
+- **SigNoz**: [Kubernetes deployment guide](https://signoz.io/docs/install/kubernetes/)
+- **LangFuse** (for LLM observability): [Self-hosting guide](https://langfuse.com/self-hosting)
+
+Configure the OTEL endpoint in your `deployment/env` file:
 ```bash
-make signoz-ui
+export OTEL_ENDPOINT="<your-signoz-otel-collector-endpoint>"
+export OTEL_TOKEN="<your-auth-token>"
+export OTEL_PROTOCOL=grpc
 ```
 
-Then navigate to `http://localhost:33301` in your web browser to view:
-
-- Distributed traces
-- Application metrics
-- Error monitoring
-- Performance insights
-
-If you configured LangFuse during setup, you can also monitor LLM usage and costs there.
+For LangFuse integration, configure:
+```bash
+export LANGFUSE_ENABLED=true
+export LANGFUSE_HOST="<your-langfuse-url>"
+export LANGFUSE_PUBLIC_KEY="<your-public-key>"
+export LANGFUSE_SECRET_KEY="<your-secret-key>"
+```
 
 For additional log access methods, see the [Quick Reference Guide](guides/QUICK_REFERENCE.md).
 

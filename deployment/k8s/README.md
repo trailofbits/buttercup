@@ -91,6 +91,33 @@ If Langfuse integration is enabled:
 - **LANGFUSE_PUBLIC_KEY**: Langfuse public key
 - **LANGFUSE_SECRET_KEY**: Langfuse secret key
 
+## Observability Configuration
+
+Buttercup uses OpenTelemetry for distributed tracing and observability. You must deploy an observability backend separately (e.g., SigNoz) and configure the system to send telemetry data to it.
+
+### OpenTelemetry Configuration
+
+Configure the following in your `values-override.yaml`:
+
+```yaml
+global:
+  otel:
+    endpoint: "https://your-signoz-otel-collector:4317"
+    token: "Basic <base64-encoded-credentials>"
+    protocol: "grpc"
+```
+
+### Deploying SigNoz
+
+For Kubernetes deployment of SigNoz, see:
+- [SigNoz Kubernetes Installation](https://signoz.io/docs/install/kubernetes/)
+- [SigNoz Helm Deployment](https://signoz.io/docs/install/kubernetes/others/)
+
+### Deploying LangFuse
+
+For self-hosting LangFuse for LLM observability:
+- [LangFuse Self-Hosting Guide](https://langfuse.com/self-hosting)
+
 ### 3. Container Registry Auth
 
 For pulling private container images, create a Kubernetes secret named `ghcr-auth`:

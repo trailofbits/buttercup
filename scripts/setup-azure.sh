@@ -151,12 +151,12 @@ setup_config() {
 
     # Configure LLM Budget
     configure_llm_budget
-    
+
     # Configure LangFuse (optional)
     configure_langfuse
-    
-    # TODO: For production, we don't deploy SigNoz, as it needs to be done properly
-    #       Just allow to configure access to an existing SigNoz instance
+
+    # Configure OpenTelemetry / SigNoz (optional)
+    configure_otel
 }
 
 # Function to validate configuration

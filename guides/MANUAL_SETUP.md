@@ -69,22 +69,16 @@ cp deployment/env.template deployment/env
 
 Look at the comments in the `deployment/env.template` for how to set variables.
 
-### External SigNoz Configuration
+### OpenTelemetry Configuration (Optional)
 
-If you want to use an external SigNoz instance instead of the default local deployment, you can configure custom OpenTelemetry settings:
+Buttercup supports sending telemetry data to an external observability platform like SigNoz. You must deploy SigNoz separately - see the [SigNoz Kubernetes deployment guide](https://signoz.io/docs/install/kubernetes/).
 
-1. **Disable local SigNoz deployment:**
+To configure the OTEL endpoint:
 ```bash
 # In deployment/env
-export DEPLOY_SIGNOZ=false
-```
-
-2. **Configure external OTEL endpoint:**
-```bash
-# In deployment/env
-export OTEL_ENDPOINT="https://your-signoz-instance.com"
-export OTEL_PROTOCOL="http"  # or "grpc"
-export OTEL_TOKEN="your-otel-token"  # optional
+export OTEL_ENDPOINT="https://your-signoz-otel-collector:4317"
+export OTEL_PROTOCOL="grpc"  # or "http"
+export OTEL_TOKEN="your-otel-auth-token"  # Include Basic or Bearer prefix
 ```
 
 ## Start Services Manually
