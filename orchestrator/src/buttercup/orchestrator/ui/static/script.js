@@ -12,6 +12,7 @@ let dashboardConfig = {
     crs_instance_id: null
 };
 let currentTab = 'tasks';
+let apiError = false;
 
 // API base URL - will be set dynamically
 const API_BASE = '';
@@ -237,13 +238,16 @@ async function loadTasks() {
         const response = await fetch(`${API_BASE}/v1/dashboard/tasks?t=${Date.now()}`);
         if (response.ok) {
             tasks = await response.json();
+            apiError = false;
         } else {
-            // Fallback to mock data if API not available
-            tasks = getMockTasks();
+            console.warn('Tasks API returned error:', response.status);
+            tasks = [];
+            apiError = true;
         }
     } catch (error) {
-        console.warn('Tasks API not available, using mock data');
-        tasks = getMockTasks();
+        console.warn('Tasks API not available:', error.message);
+        tasks = [];
+        apiError = true;
     }
 }
 
@@ -335,13 +339,16 @@ function calculateStatsFromTasks() {
 
 // Update dashboard UI
 function updateDashboard() {
+    // Handle API error state
+    updateApiErrorBanner();
+
     // Update stats
     elements.activeTasks.textContent = dashboardStats.activeTasks;
     elements.failedTasks.textContent = dashboardStats.failedTasks || 0;
     elements.totalPovs.textContent = dashboardStats.totalPovs;
     elements.totalPatches.textContent = dashboardStats.totalPatches;
     elements.totalBundles.textContent = dashboardStats.totalBundles;
-    
+
     // Update current tab content
     if (currentTab === 'tasks') {
         renderTasks();
@@ -349,6 +356,35 @@ function updateDashboard() {
         renderPovs();
     } else if (currentTab === 'patches') {
         renderPatches();
+    }
+}
+
+// Show or hide API error banner
+function updateApiErrorBanner() {
+    let banner = document.getElementById('api-error-banner');
+
+    if (apiError) {
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'api-error-banner';
+            banner.className = 'api-error-banner';
+            banner.innerHTML = `
+                <span class="error-icon">⚠️</span>
+                <span>Unable to connect to the server. The dashboard will automatically retry.</span>
+            `;
+            // Insert after the nav
+            const nav = document.querySelector('nav');
+            if (nav && nav.parentNode) {
+                nav.parentNode.insertBefore(banner, nav.nextSibling);
+            } else {
+                document.body.prepend(banner);
+            }
+        }
+        banner.style.display = 'flex';
+    } else {
+        if (banner) {
+            banner.style.display = 'none';
+        }
     }
 }
 
@@ -1035,7 +1071,6 @@ function showNotification(message, type = 'info', color = null) {
     }, 5000);
 }
 
-// Mock data for development/fallback
 // Helper function to create hexdump preview
 function createHexdumpPreview(data, maxBytes = 128) {
     const bytes = [];
@@ -1080,58 +1115,3 @@ function createHexdumpPreview(data, maxBytes = 128) {
     return result;
 }
 
-function getMockTasks() {
-    const now = new Date();
-    const deadline1 = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
-    const deadline2 = new Date(now.getTime() - 1 * 60 * 60 * 1000); // 1 hour ago
-    
-    return [
-        {
-            task_id: "12345678-1234-1234-1234-123456789abc",
-            name: "libpng-analysis",
-            project_name: "libpng",
-            status: "active",
-            duration: 1800,
-            created_at: new Date(now.getTime() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-            deadline: deadline1.toISOString(),
-            challenge_repo_url: "https://github.com/pnggroup/libpng",
-            challenge_repo_head_ref: "libpng16",
-            challenge_repo_base_ref: "v1.6.39",
-            povs: [
-                {
-                    pov_id: "pov-001",
-                    testcase: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-                    timestamp: new Date().toISOString()
-                }
-            ],
-            patches: [
-                {
-                    patch_id: "patch-001",
-                    patch: "--- a/png.c\n+++ b/png.c\n@@ -123,7 +123,7 @@\n    if (size > MAX_SIZE)\n-      return NULL;\n+      return png_error(png_ptr, \"Size too large\");",
-                    timestamp: new Date().toISOString()
-                }
-            ],
-            bundles: [
-                {
-                    bundle_id: "bundle-001",
-                    patches: ["patch-001"],
-                    timestamp: new Date().toISOString()
-                }
-            ]
-        },
-        {
-            task_id: "87654321-4321-4321-4321-cba987654321",
-            name: "libxml2-fuzzing",
-            project_name: "libxml2",
-            status: "expired",
-            duration: 1800,
-            created_at: new Date(now.getTime() - 90 * 60 * 1000).toISOString(), // 1.5 hours ago
-            deadline: deadline2.toISOString(),
-            challenge_repo_url: "https://github.com/GNOME/libxml2",
-            challenge_repo_head_ref: "master",
-            povs: [],
-            patches: [],
-            bundles: []
-        }
-    ];
-}
