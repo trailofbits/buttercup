@@ -80,11 +80,12 @@ class CoverageRunner:
                         logger.debug(f"Failed to demangle name {name}: {e!r}")
 
                 regions = function["regions"]
+                filenames = function.get("filenames", [])
 
                 covered_lines: set[int] = set()
                 total_lines: set[int] = set()
 
-                self._process_regions(regions, total_lines, covered_lines, expansion_coverage)
+                self._process_regions(regions, total_lines, covered_lines, expansion_coverage, filenames)
 
                 total_line_count = len(total_lines)
                 covered_line_count = len(covered_lines)
@@ -102,25 +103,30 @@ class CoverageRunner:
 
     def _build_expansion_coverage_map(
         self, export_obj: dict[str, Any]
-    ) -> dict[tuple[int, int, int, int], tuple[bool, bool]]:
+    ) -> dict[tuple[str, int, int, int, int], tuple[bool, bool]]:
         """Build a map of macro expansion coverage from file-level expansions.
 
-        Returns a dict mapping source_region location (line_start, col_start, line_end, col_end)
+        Returns a dict mapping (filename, line_start, col_start, line_end, col_end)
         to a tuple of (has_code_regions, any_covered).
+
+        The filename is included in the key to prevent cross-file collisions when
+        different files have macros at the same line/column coordinates.
 
         This allows us to determine:
         1. Whether a macro expansion contains any CodeRegions (i.e., expands to executable code)
         2. Whether any of those CodeRegions were covered (execution_count > 0)
         """
-        expansion_coverage: dict[tuple[int, int, int, int], tuple[bool, bool]] = {}
+        expansion_coverage: dict[tuple[str, int, int, int, int], tuple[bool, bool]] = {}
 
         for file_obj in export_obj.get("files", []):
+            filename = file_obj.get("filename", "")
             for expansion in file_obj.get("expansions", []):
                 source_region = expansion.get("source_region", [])
                 if len(source_region) < 4:
                     continue
 
-                key = (source_region[0], source_region[1], source_region[2], source_region[3])
+                # Include filename in key to prevent cross-file collisions
+                key = (filename, source_region[0], source_region[1], source_region[2], source_region[3])
                 target_regions = expansion.get("target_regions", [])
 
                 # Check if expansion has CodeRegions and if any are covered
@@ -149,13 +155,18 @@ class CoverageRunner:
         regions: list[Any],
         total_lines: set[int],
         covered_lines: set[int],
-        expansion_coverage: dict[tuple[int, int, int, int], tuple[bool, bool]],
+        expansion_coverage: dict[tuple[str, int, int, int, int], tuple[bool, bool]],
+        filenames: list[str],
     ) -> None:
         """Process regions, filtering by region kind for accurate coverage.
 
         Only CodeRegions (kind=0) are counted as reachable lines.
         ExpansionRegions (kind=1) are counted as 1 reachable line if they expand to CodeRegions.
         All other region kinds are skipped (SkippedRegion, GapRegion, BranchRegion, MCDC).
+
+        Args:
+            filenames: List of filenames associated with the function, used to look up
+                       expansion coverage with the correct file context.
         """
         for region in regions:
             # Region format: [lineStart, colStart, lineEnd, colEnd, executionCount, fileID, expandedFileID, kind]
@@ -173,8 +184,14 @@ class CoverageRunner:
             elif region_kind == REGION_KIND_EXPANSION:
                 # ExpansionRegion: count the macro call as ONE reachable line
                 # if the expansion contains CodeRegions
-                key = (region[0], region[1], region[2], region[3])
-                has_code, is_covered = expansion_coverage.get(key, (False, False))
+                # Try each filename the function is associated with to find the matching expansion
+                has_code = False
+                is_covered = False
+                for fn in filenames:
+                    key = (fn, region[0], region[1], region[2], region[3])
+                    if key in expansion_coverage:
+                        has_code, is_covered = expansion_coverage[key]
+                        break
 
                 if has_code:
                     # The macro expands to executable code - count the call site line

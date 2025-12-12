@@ -324,7 +324,7 @@ class TestBuildExpansionCoverageMap:
             ]
         }
         result = mock_coverage_runner._build_expansion_coverage_map(export_obj)
-        key = (10, 5, 10, 20)
+        key = ("test.c", 10, 5, 10, 20)  # key now includes filename
         assert key in result
         assert result[key] == (True, True)
 
@@ -346,7 +346,7 @@ class TestBuildExpansionCoverageMap:
             ]
         }
         result = mock_coverage_runner._build_expansion_coverage_map(export_obj)
-        key = (10, 5, 10, 20)
+        key = ("test.c", 10, 5, 10, 20)  # key now includes filename
         assert key in result
         assert result[key] == (True, False)
 
@@ -369,7 +369,7 @@ class TestBuildExpansionCoverageMap:
             ]
         }
         result = mock_coverage_runner._build_expansion_coverage_map(export_obj)
-        key = (10, 5, 10, 20)
+        key = ("test.c", 10, 5, 10, 20)  # key now includes filename
         assert key in result
         assert result[key] == (False, False)
 
@@ -389,7 +389,7 @@ class TestBuildExpansionCoverageMap:
             ]
         }
         result = mock_coverage_runner._build_expansion_coverage_map(export_obj)
-        key = (10, 5, 10, 20)
+        key = ("test.c", 10, 5, 10, 20)  # key now includes filename
         assert key in result
         assert result[key] == (False, False)
 
@@ -430,7 +430,7 @@ class TestBuildExpansionCoverageMap:
             ]
         }
         result = mock_coverage_runner._build_expansion_coverage_map(export_obj)
-        key = (10, 5, 10, 20)
+        key = ("test.c", 10, 5, 10, 20)  # key now includes filename
         assert key in result
         assert result[key] == (True, True)
 
@@ -442,7 +442,7 @@ class TestProcessRegions:
         """Empty regions list produces empty sets."""
         total_lines: set[int] = set()
         covered_lines: set[int] = set()
-        mock_coverage_runner._process_regions([], total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions([], total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -454,7 +454,7 @@ class TestProcessRegions:
             [1, 1, 5, 1, 10, 0, 0, REGION_KIND_CODE],  # covered
             [6, 1, 8, 1, 0, 0, 0, REGION_KIND_CODE],  # not covered
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == {1, 2, 3, 4, 5, 6, 7, 8}
         assert covered_lines == {1, 2, 3, 4, 5}
 
@@ -465,8 +465,9 @@ class TestProcessRegions:
         regions = [
             [10, 5, 10, 20, 0, 0, 0, REGION_KIND_EXPANSION],
         ]
-        expansion_coverage = {(10, 5, 10, 20): (True, True)}  # has code, is covered
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, expansion_coverage)
+        # key now includes filename
+        expansion_coverage = {("test.c", 10, 5, 10, 20): (True, True)}  # has code, is covered
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, expansion_coverage, ["test.c"])
         assert total_lines == {10}
         assert covered_lines == {10}
 
@@ -477,8 +478,9 @@ class TestProcessRegions:
         regions = [
             [10, 5, 10, 20, 0, 0, 0, REGION_KIND_EXPANSION],
         ]
-        expansion_coverage = {(10, 5, 10, 20): (True, False)}  # has code, not covered
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, expansion_coverage)
+        # key now includes filename
+        expansion_coverage = {("test.c", 10, 5, 10, 20): (True, False)}  # has code, not covered
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, expansion_coverage, ["test.c"])
         assert total_lines == {10}
         assert covered_lines == set()
 
@@ -489,8 +491,9 @@ class TestProcessRegions:
         regions = [
             [10, 5, 10, 20, 0, 0, 0, REGION_KIND_EXPANSION],
         ]
-        expansion_coverage = {(10, 5, 10, 20): (False, False)}  # no code
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, expansion_coverage)
+        # key now includes filename
+        expansion_coverage = {("test.c", 10, 5, 10, 20): (False, False)}  # no code
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, expansion_coverage, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -501,7 +504,7 @@ class TestProcessRegions:
         regions = [
             [10, 5, 10, 20, 0, 0, 0, REGION_KIND_EXPANSION],
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -512,7 +515,7 @@ class TestProcessRegions:
         regions = [
             [1, 1, 100, 1, 0, 0, 0, REGION_KIND_SKIPPED],
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -523,7 +526,7 @@ class TestProcessRegions:
         regions = [
             [1, 1, 100, 1, 0, 0, 0, REGION_KIND_GAP],
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -534,7 +537,7 @@ class TestProcessRegions:
         regions = [
             [1, 1, 100, 1, 50, 0, 0, REGION_KIND_BRANCH],
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -545,7 +548,7 @@ class TestProcessRegions:
         regions = [
             [1, 1, 100, 1, 0, 0, 0, REGION_KIND_MCDC_DECISION],
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -556,7 +559,7 @@ class TestProcessRegions:
         regions = [
             [1, 1, 100, 1, 0, 0, 0, REGION_KIND_MCDC_BRANCH],
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == set()
         assert covered_lines == set()
 
@@ -568,7 +571,7 @@ class TestProcessRegions:
             [1, 1, 5],  # too short
             [1, 1, 5, 1, 10, 0, 0, REGION_KIND_CODE],  # valid
         ]
-        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {})
+        mock_coverage_runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
         assert total_lines == {1, 2, 3, 4, 5}
         assert covered_lines == {1, 2, 3, 4, 5}
 
@@ -629,7 +632,7 @@ class TestCoverageInvariants:
         total_lines: set[int] = set()
         covered_lines: set[int] = set()
         region = [line_start, 1, line_end, 1, exec_count, 0, 0, REGION_KIND_CODE]
-        runner._process_regions([region], total_lines, covered_lines, {})
+        runner._process_regions([region], total_lines, covered_lines, {}, ["test.c"])
         assert covered_lines.issubset(total_lines)
 
     @given(
@@ -665,7 +668,7 @@ class TestCoverageInvariants:
 
         total_lines: set[int] = set()
         covered_lines: set[int] = set()
-        runner._process_regions(regions, total_lines, covered_lines, {})
+        runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
 
         assert len(covered_lines) <= len(total_lines)
 
@@ -700,7 +703,7 @@ class TestCoverageInvariants:
 
             total_lines: set[int] = set()
             covered_lines: set[int] = set()
-            runner._process_regions(regions, total_lines, covered_lines, {})
+            runner._process_regions(regions, total_lines, covered_lines, {}, ["test.c"])
 
             assert total_lines == set(), f"Kind {kind} should add no lines"
             assert covered_lines == set(), f"Kind {kind} should add no covered lines"
@@ -716,7 +719,7 @@ class TestCoverageInvariants:
         total_lines: set[int] = set()
         covered_lines: set[int] = set()
         region = [line_start, 1, line_start, 1, exec_count, 0, 0, REGION_KIND_CODE]
-        runner._process_regions([region], total_lines, covered_lines, {})
+        runner._process_regions([region], total_lines, covered_lines, {}, ["test.c"])
         assert len(covered_lines) > 0
 
     @given(
@@ -731,7 +734,7 @@ class TestCoverageInvariants:
         total_lines: set[int] = set()
         covered_lines: set[int] = set()
         region = [line_start, 1, line_end, 1, 0, 0, 0, REGION_KIND_CODE]
-        runner._process_regions([region], total_lines, covered_lines, {})
+        runner._process_regions([region], total_lines, covered_lines, {}, ["test.c"])
         assert len(covered_lines) == 0
         assert len(total_lines) == line_span + 1
 
@@ -751,11 +754,12 @@ class TestCoverageInvariants:
 
         total_lines: set[int] = set()
         covered_lines: set[int] = set()
-        key = (line, 1, line, 10)
+        # key now includes filename
+        key = ("test.c", line, 1, line, 10)
         expansion_coverage = {key: (has_code, is_covered)}
         regions = [[line, 1, line, 10, 0, 0, 0, REGION_KIND_EXPANSION]]
 
-        runner._process_regions(regions, total_lines, covered_lines, expansion_coverage)
+        runner._process_regions(regions, total_lines, covered_lines, expansion_coverage, ["test.c"])
 
         if has_code:
             assert line in total_lines
@@ -920,3 +924,80 @@ class TestIntegrationScenarios:
         result = runner._process_function_coverage(coverage_data)
         assert len(result) == 1
         assert result[0].names == "foo(int)"  # demangled
+
+    def test_cross_file_macro_collision_prevented(self, mock_coverage_runner):
+        """Macros at same line/col in different files should not cause coverage leakage.
+
+        This tests the fix for a bug where functions in different files could
+        incorrectly inherit coverage from each other when they had macros at
+        the same line/column coordinates.
+
+        Scenario:
+        - file_a.c:func_a has macro PNG_UNUSED at line 10, col 4 - COVERED (executed)
+        - file_b.c:func_b has macro PNG_UNUSED at line 10, col 4 - NOT COVERED (never executed)
+
+        Before the fix: func_b would incorrectly show coverage because the
+        expansion_coverage map used only (line, col) as key, causing collisions.
+
+        After the fix: filename is included in the key, preventing collisions.
+        """
+        coverage_data = {
+            "data": [
+                {
+                    "functions": [
+                        {
+                            "name": "func_a",
+                            "regions": [
+                                [10, 4, 10, 20, 0, 0, 0, REGION_KIND_EXPANSION],  # macro call
+                                [11, 1, 15, 1, 5, 0, 0, REGION_KIND_CODE],  # covered code
+                            ],
+                            "filenames": ["file_a.c"],
+                        },
+                        {
+                            "name": "func_b",
+                            "regions": [
+                                # Same line/col as func_a's macro - but different file!
+                                [10, 4, 10, 20, 0, 0, 0, REGION_KIND_EXPANSION],  # macro call
+                                [11, 1, 15, 1, 0, 0, 0, REGION_KIND_CODE],  # uncovered code
+                            ],
+                            "filenames": ["file_b.c"],
+                        },
+                    ],
+                    "files": [
+                        {
+                            "filename": "file_a.c",
+                            "expansions": [
+                                {
+                                    "source_region": [10, 4, 10, 20],
+                                    "target_regions": [
+                                        [100, 1, 100, 10, 5, 0, 0, REGION_KIND_CODE],  # covered
+                                    ],
+                                }
+                            ],
+                        },
+                        {
+                            "filename": "file_b.c",
+                            "expansions": [
+                                {
+                                    "source_region": [10, 4, 10, 20],  # Same coordinates!
+                                    "target_regions": [
+                                        [100, 1, 100, 10, 0, 0, 0, REGION_KIND_CODE],  # NOT covered
+                                    ],
+                                }
+                            ],
+                        },
+                    ],
+                }
+            ]
+        }
+        result = mock_coverage_runner._process_function_coverage(coverage_data)
+
+        # func_a should be covered (has covered code and covered macro expansion)
+        func_a_results = [r for r in result if r.names == "func_a"]
+        assert len(func_a_results) == 1
+        assert func_a_results[0].covered_lines > 0  # Should have coverage
+
+        # func_b should NOT appear in results because it has zero covered lines
+        # The macro at same coordinates should NOT inherit coverage from file_a.c
+        func_b_results = [r for r in result if r.names == "func_b"]
+        assert len(func_b_results) == 0  # Should be excluded (zero coverage)
