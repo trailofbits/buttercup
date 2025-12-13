@@ -132,11 +132,11 @@ send-integration-task:
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
-	@sleep 3
-	./orchestrator/scripts/task_integration_test.sh
-	pkill -f "kubectl port-forward" || true
-	exit 0
+	@kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 & \
+	PORT_FORWARD_PID=$$!; \
+	sleep 3; \
+	./orchestrator/scripts/task_integration_test.sh; \
+	kill $$PORT_FORWARD_PID 2>/dev/null || true
 
 send-libpng-task:
 	@echo "Running libpng task..."
@@ -144,11 +144,11 @@ send-libpng-task:
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
-	@sleep 3
-	./orchestrator/scripts/task_crs.sh
-	pkill -f "kubectl port-forward" || true
-	exit 0
+	@kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 & \
+	PORT_FORWARD_PID=$$!; \
+	sleep 3; \
+	./orchestrator/scripts/task_crs.sh; \
+	kill $$PORT_FORWARD_PID 2>/dev/null || true
 
 # Development targets
 lint:
