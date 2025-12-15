@@ -48,19 +48,22 @@ Standard executable code. All lines in the region are counted as reachable. Line
 
 Macro call sites. These are pointers to expanded content, not executable code themselves. The expanded content's CodeRegions are stored separately in `files[].expansions[].target_regions`.
 
-**Our approach**: Count the macro call as ONE reachable line (the start line of the macro invocation). If ANY CodeRegion in the expansion's target_regions has `execution_count > 0`, count that line as covered.
+**Our approach**: Recursively process all CodeRegions from the macro's `target_regions`. This includes handling nested macros (macros that expand to other macros) with cycle detection to prevent infinite loops.
 
-**Rationale**: This avoids inflating line counts with macro internals while still tracking whether macro code was exercised.
+**Rationale**: This provides precise line counts that reflect the actual code being executed within macros, giving better visibility into which macro lines are covered vs uncovered.
 
 **Example**:
 ```c
+// macro.h defines: MY_MACRO(x) as lines 100-104
 void foo() {
     int x = 1;        // Line 1: CodeRegion - counted
-    MY_MACRO(x);      // Line 2: ExpansionRegion - 1 reachable line
+    MY_MACRO(x);      // Line 2: ExpansionRegion - adds lines 100-104 from macro
     int y = 2;        // Line 3: CodeRegion - counted
 }
 ```
-If `MY_MACRO` expands to 5 lines of code, we count 3 total lines (not 8).
+If `MY_MACRO` expands to 5 lines of code (100-104), we count 7 total lines: 1, 3, 100, 101, 102, 103, 104.
+
+**Nested macros**: If `OUTER_MACRO` expands to `INNER_MACRO`, we recursively follow the chain to count all final CodeRegion lines.
 
 ### SkippedRegion (kind=2)
 
@@ -96,10 +99,10 @@ LLVM uses a "zero counter" encoding internally to mark statically unreachable co
 
 The coverage processing flow:
 
-1. **Build expansion coverage map**: Pre-process `files[].expansions[]` to determine which expansions contain CodeRegions and whether any are covered
+1. **Build expansion map**: Pre-process `files[].expansions[]` to create a map from source_region coordinates to target_regions
 2. **Process function regions**: For each region in `function["regions"]`:
    - CodeRegion: Add all lines to totals
-   - ExpansionRegion: Look up in map; if has CodeRegions, add 1 line
+   - ExpansionRegion: Recursively process all CodeRegions from target_regions (handles nested macros with cycle detection)
    - Other kinds: Skip
 3. **Compute metrics**: `total_lines` (reachable) and `covered_lines` (executed)
 

@@ -3,7 +3,7 @@ import json
 import logging
 import subprocess
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 import cxxfilt
 from bs4 import BeautifulSoup, Tag
@@ -12,6 +12,43 @@ from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
 
 logger = logging.getLogger(__name__)
+
+
+# Type definitions for LLVM coverage data structures
+class RegionCoords(NamedTuple):
+    """Source location coordinates for a region (line_start, col_start, line_end, col_end)."""
+
+    line_start: int
+    col_start: int
+    line_end: int
+    col_end: int
+
+
+class ExpansionKey(NamedTuple):
+    """Key for expansion map: filename + region coordinates."""
+
+    filename: str
+    line_start: int
+    col_start: int
+    line_end: int
+    col_end: int
+
+    @classmethod
+    def from_coords(cls, filename: str, coords: RegionCoords) -> "ExpansionKey":
+        return cls(filename, coords.line_start, coords.col_start, coords.line_end, coords.col_end)
+
+
+class CachedExpansionLines(NamedTuple):
+    """Cached result of processing an expansion's lines."""
+
+    total_lines: frozenset[int]
+    covered_lines: frozenset[int]
+
+
+# Type aliases for complex data structures
+ExpansionMap = dict[ExpansionKey, list[Any]]
+CoordToFilenames = dict[RegionCoords, list[str]]
+ExpansionLinesCache = dict[ExpansionKey, CachedExpansionLines]
 
 # LLVM Coverage Region Kind constants (from CoverageMapping.h)
 # See: https://llvm.org/doxygen/structllvm_1_1coverage_1_1CounterMappingRegion.html
@@ -26,6 +63,8 @@ REGION_KIND_MCDC_BRANCH = 6  # MC/DC branch with control flow IDs
 
 @dataclass
 class CoveredFunction:
+    """Coverage metrics for a single function."""
+
     names: str
     total_lines: int
     covered_lines: int
@@ -61,13 +100,20 @@ class CoverageRunner:
             if "functions" not in export_obj:
                 continue
 
-            # Build expansion coverage map: source_region -> (has_code_regions, any_covered)
-            # This allows us to check if macro expansions contain executable code
-            expansion_coverage = self._build_expansion_coverage_map(export_obj)
+            # Build expansion coverage map and coordinate index for fast lookups
+            expansion_map, coord_to_filenames = self._build_expansion_coverage_map(export_obj)
+            # Cache for computed expansion lines to avoid recomputing the same macro across functions
+            expansion_lines_cache: ExpansionLinesCache = {}
+            num_functions = len(export_obj.get("functions", []))
+            logger.info(f"Processing {num_functions} functions with {len(expansion_map)} expansion entries")
 
-            for function in export_obj["functions"]:
+            for func_idx, function in enumerate(export_obj["functions"]):
                 if "name" not in function or "regions" not in function:
                     continue
+                if func_idx % 100 == 0:
+                    logger.info(
+                        f"Processing function {func_idx}/{num_functions}: {function.get('name', 'unknown')[:50]}"
+                    )
 
                 # Demangle the function name if necessary, depending on the language.
                 name = function["name"]
@@ -85,7 +131,15 @@ class CoverageRunner:
                 covered_lines: set[int] = set()
                 total_lines: set[int] = set()
 
-                self._process_regions(regions, total_lines, covered_lines, expansion_coverage, filenames)
+                self._process_regions(
+                    regions,
+                    total_lines,
+                    covered_lines,
+                    expansion_map,
+                    coord_to_filenames,
+                    filenames,
+                    expansion_lines_cache,
+                )
 
                 total_line_count = len(total_lines)
                 covered_line_count = len(covered_lines)
@@ -101,22 +155,19 @@ class CoverageRunner:
 
         return function_coverage
 
-    def _build_expansion_coverage_map(
-        self, export_obj: dict[str, Any]
-    ) -> dict[tuple[str, int, int, int, int], tuple[bool, bool]]:
-        """Build a map of macro expansion coverage from file-level expansions.
+    def _build_expansion_coverage_map(self, export_obj: dict[str, Any]) -> tuple[ExpansionMap, CoordToFilenames]:
+        """Build a map of macro expansion target_regions from file-level expansions.
 
-        Returns a dict mapping (filename, line_start, col_start, line_end, col_end)
-        to a tuple of (has_code_regions, any_covered).
+        Returns:
+            expansion_map: Maps ExpansionKey to the list of target_regions for that expansion.
+            coord_to_filenames: Maps RegionCoords to list of filenames with expansions at those
+                coordinates. This enables O(1) lookup instead of iterating through all filenames.
 
-        The filename is included in the key to prevent cross-file collisions when
-        different files have macros at the same line/column coordinates.
-
-        This allows us to determine:
-        1. Whether a macro expansion contains any CodeRegions (i.e., expands to executable code)
-        2. Whether any of those CodeRegions were covered (execution_count > 0)
+        The filename is included in the expansion_map key to prevent cross-file collisions
+        when different files have macros at the same line/column coordinates.
         """
-        expansion_coverage: dict[tuple[str, int, int, int, int], tuple[bool, bool]] = {}
+        expansion_map: ExpansionMap = {}
+        coord_to_filenames: CoordToFilenames = {}
 
         for file_obj in export_obj.get("files", []):
             filename = file_obj.get("filename", "")
@@ -125,49 +176,117 @@ class CoverageRunner:
                 if len(source_region) < 4:
                     continue
 
-                # Include filename in key to prevent cross-file collisions
-                key = (filename, source_region[0], source_region[1], source_region[2], source_region[3])
+                coords = RegionCoords(source_region[0], source_region[1], source_region[2], source_region[3])
+                key = ExpansionKey.from_coords(filename, coords)
                 target_regions = expansion.get("target_regions", [])
+                expansion_map[key] = target_regions
 
-                # Check if expansion has CodeRegions and if any are covered
-                has_code_regions = False
-                any_covered = False
+                # Build secondary index for fast coordinate lookup
+                if coords not in coord_to_filenames:
+                    coord_to_filenames[coords] = []
+                coord_to_filenames[coords].append(filename)
 
-                for tr in target_regions:
-                    if len(tr) < 5:
-                        continue
+        return expansion_map, coord_to_filenames
 
-                    # Get region kind (index 7), default to CodeRegion for old format
-                    region_kind = tr[7] if len(tr) > 7 else REGION_KIND_CODE
+    def _process_expansion_lines(
+        self,
+        target_regions: list[Any],
+        total_lines: set[int],
+        covered_lines: set[int],
+        expansion_map: ExpansionMap,
+        coord_to_filenames: CoordToFilenames,
+        filenames_set: set[str],
+        expansion_lines_cache: ExpansionLinesCache,
+        visited: set[ExpansionKey] | None = None,
+    ) -> None:
+        """Recursively process macro expansion target_regions to extract line coverage.
 
-                    if region_kind == REGION_KIND_CODE:
-                        has_code_regions = True
-                        if tr[4] > 0:  # execution_count > 0
-                            any_covered = True
-                            break  # Found coverage, no need to continue
+        For each region in target_regions:
+        - CodeRegion: add all lines to total_lines/covered_lines
+        - ExpansionRegion: recursively look up and process its target_regions
 
-                expansion_coverage[key] = (has_code_regions, any_covered)
+        Args:
+            target_regions: The regions from a macro expansion to process
+            total_lines: Set to accumulate all reachable lines
+            covered_lines: Set to accumulate lines with execution_count > 0
+            expansion_map: Map from ExpansionKey to target_regions
+            coord_to_filenames: Map from RegionCoords to filenames with expansions at those coords
+            filenames_set: Set of filenames for O(1) membership check
+            expansion_lines_cache: Cache for computed expansion lines
+            visited: Set of already-visited expansion keys to prevent infinite loops
+        """
+        if visited is None:
+            visited = set()
 
-        return expansion_coverage
+        for region in target_regions:
+            if len(region) < 5:
+                continue
+
+            region_kind = region[7] if len(region) > 7 else REGION_KIND_CODE
+
+            if region_kind == REGION_KIND_CODE:
+                self._add_region_lines(region, total_lines, covered_lines)
+            elif region_kind == REGION_KIND_EXPANSION:
+                # Look up nested expansion using coordinate index for O(1) lookup
+                coords = RegionCoords(region[0], region[1], region[2], region[3])
+                expansion_filenames = coord_to_filenames.get(coords, [])
+                for fn in expansion_filenames:
+                    if fn in filenames_set:
+                        key = ExpansionKey.from_coords(fn, coords)
+                        if key in expansion_map and key not in visited:
+                            visited.add(key)
+                            # Check cache for nested expansion
+                            if key in expansion_lines_cache:
+                                cached = expansion_lines_cache[key]
+                                total_lines.update(cached.total_lines)
+                                covered_lines.update(cached.covered_lines)
+                            else:
+                                # Compute and cache nested expansion lines
+                                nested_total: set[int] = set()
+                                nested_covered: set[int] = set()
+                                self._process_expansion_lines(
+                                    expansion_map[key],
+                                    nested_total,
+                                    nested_covered,
+                                    expansion_map,
+                                    coord_to_filenames,
+                                    filenames_set,
+                                    expansion_lines_cache,
+                                    visited,
+                                )
+                                expansion_lines_cache[key] = CachedExpansionLines(
+                                    frozenset(nested_total),
+                                    frozenset(nested_covered),
+                                )
+                                total_lines.update(nested_total)
+                                covered_lines.update(nested_covered)
+                            break
 
     def _process_regions(
         self,
         regions: list[Any],
         total_lines: set[int],
         covered_lines: set[int],
-        expansion_coverage: dict[tuple[str, int, int, int, int], tuple[bool, bool]],
+        expansion_map: ExpansionMap,
+        coord_to_filenames: CoordToFilenames,
         filenames: list[str],
+        expansion_lines_cache: ExpansionLinesCache,
     ) -> None:
         """Process regions, filtering by region kind for accurate coverage.
 
         Only CodeRegions (kind=0) are counted as reachable lines.
-        ExpansionRegions (kind=1) are counted as 1 reachable line if they expand to CodeRegions.
+        ExpansionRegions (kind=1) are processed recursively to count all lines from the
+        expanded macro body (not just the call site).
         All other region kinds are skipped (SkippedRegion, GapRegion, BranchRegion, MCDC).
 
         Args:
-            filenames: List of filenames associated with the function, used to look up
-                       expansion coverage with the correct file context.
+            expansion_map: Map from ExpansionKey to target_regions.
+            coord_to_filenames: Map from RegionCoords to filenames with expansions at those coords.
+            filenames: List of filenames associated with the function.
+            expansion_lines_cache: Cache for computed expansion lines to avoid recomputation.
         """
+        filenames_set = set(filenames) if filenames else set()
+
         for region in regions:
             # Region format: [lineStart, colStart, lineEnd, colEnd, executionCount, fileID, expandedFileID, kind]
             if len(region) < 5:
@@ -182,23 +301,39 @@ class CoverageRunner:
                 self._add_region_lines(region, total_lines, covered_lines)
 
             elif region_kind == REGION_KIND_EXPANSION:
-                # ExpansionRegion: count the macro call as ONE reachable line
-                # if the expansion contains CodeRegions
-                # Try each filename the function is associated with to find the matching expansion
-                has_code = False
-                is_covered = False
-                for fn in filenames:
-                    key = (fn, region[0], region[1], region[2], region[3])
-                    if key in expansion_coverage:
-                        has_code, is_covered = expansion_coverage[key]
-                        break
-
-                if has_code:
-                    # The macro expands to executable code - count the call site line
-                    line = region[0]  # Just the start line of the macro call
-                    total_lines.add(line)
-                    if is_covered:
-                        covered_lines.add(line)
+                # ExpansionRegion: recursively process all lines from the expanded macro
+                # Use coordinate index for O(1) lookup instead of iterating filenames
+                coords = RegionCoords(region[0], region[1], region[2], region[3])
+                expansion_filenames = coord_to_filenames.get(coords, [])
+                for fn in expansion_filenames:
+                    if fn in filenames_set:
+                        key = ExpansionKey.from_coords(fn, coords)
+                        if key in expansion_map:
+                            # Check cache first to avoid recomputing the same macro's lines
+                            if key in expansion_lines_cache:
+                                cached = expansion_lines_cache[key]
+                                total_lines.update(cached.total_lines)
+                                covered_lines.update(cached.covered_lines)
+                            else:
+                                # Compute lines and cache the result
+                                expansion_total: set[int] = set()
+                                expansion_covered: set[int] = set()
+                                self._process_expansion_lines(
+                                    expansion_map[key],
+                                    expansion_total,
+                                    expansion_covered,
+                                    expansion_map,
+                                    coord_to_filenames,
+                                    filenames_set,
+                                    expansion_lines_cache,
+                                )
+                                expansion_lines_cache[key] = CachedExpansionLines(
+                                    frozenset(expansion_total),
+                                    frozenset(expansion_covered),
+                                )
+                                total_lines.update(expansion_total)
+                                covered_lines.update(expansion_covered)
+                            break
 
             # Skip other region types:
             # - REGION_KIND_SKIPPED: #ifdef'd out code, never compiled
@@ -217,10 +352,11 @@ class CoverageRunner:
         line_end = region[2]
         execution_count = region[4]
 
-        for line in range(line_start, line_end + 1):
-            total_lines.add(line)
-            if execution_count > 0:
-                covered_lines.add(line)
+        # Use set.update with range for O(n) bulk insertion instead of O(n) individual adds
+        lines = range(line_start, line_end + 1)
+        total_lines.update(lines)
+        if execution_count > 0:
+            covered_lines.update(lines)
 
     def run(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
         lang = ProjectYaml(self.tool, self.tool.project_name).unified_language
