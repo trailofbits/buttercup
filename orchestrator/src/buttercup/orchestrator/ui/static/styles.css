@@ -355,14 +355,31 @@ body {
 }
 
 @keyframes slideIn {
-    from { 
-        transform: translateX(100%); 
-        opacity: 0; 
+    from {
+        transform: translateX(100%);
+        opacity: 0;
     }
-    to { 
-        transform: translateX(0); 
-        opacity: 1; 
+    to {
+        transform: translateX(0);
+        opacity: 1;
     }
+}
+
+/* API error banner */
+.api-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: #f44336;
+    color: white;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.api-error-banner .error-icon {
+    font-size: 1.2rem;
 }
 
 /* Error message styling for backend errors */
