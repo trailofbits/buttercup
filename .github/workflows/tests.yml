@@ -50,16 +50,16 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Setup uv cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-results-${{ matrix.component }}-py${{ matrix.python }}
           path: |
@@ -170,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all coverage reports
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           pattern: test-results-*
           path: coverage-reports
