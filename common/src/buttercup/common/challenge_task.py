@@ -302,6 +302,78 @@ class ChallengeTask:
         except FileNotFoundError:
             return default_workdir
 
+    def get_external_harness_sources(self) -> list[tuple[str, str]]:
+        """Detect COPY directives that copy harness directories into the source.
+
+        Public OSS-Fuzz projects often have harnesses in the projects/<name>/ directory
+        rather than in the source repository. These are copied via COPY directives like:
+            COPY fuzz/ $SRC/libmodbus/fuzz/
+            COPY fuzzer/ $SRC/project/fuzzer/
+
+        Returns:
+            List of (source_dir, dest_subdir) tuples where:
+            - source_dir: Directory in projects/<project>/ (e.g., "fuzz")
+            - dest_subdir: Subdirectory in the source (e.g., "fuzz")
+            Empty list if no external harness sources detected.
+        """
+        try:
+            dockerfile_path = self.dockerfile_path()
+            logger.debug(f"Looking for Dockerfile at: {dockerfile_path}")
+
+            if not dockerfile_path.exists():
+                logger.debug(f"Dockerfile not found at {dockerfile_path}")
+                return []
+
+            with open(dockerfile_path) as f:
+                content = f.read()
+
+            logger.debug(f"Dockerfile content length: {len(content)} chars")
+
+            results = []
+            # Pattern matches: COPY <dir>/ $SRC/<something>/<dir>/ or /src/<something>/<dir>/
+            # Captures the source directory name
+            # Examples:
+            #   COPY fuzz/ $SRC/libmodbus/fuzz/  -> ("fuzz", "fuzz")
+            #   COPY fuzzer/ $SRC/project/test/  -> ("fuzzer", "test")
+            #   COPY fuzz/ /src/libmodbus/fuzz/  -> ("fuzz", "fuzz")
+            # Handle both $SRC and /src variants, with or without trailing slash
+            pattern = r"^\s*COPY\s+(\w+)/?\s+(?:\$SRC|/src)/[^/\s]+/(\w+)/?"
+            for match in re.finditer(pattern, content, re.MULTILINE):
+                src_dir = match.group(1)
+                dest_dir = match.group(2)
+                logger.debug(f"Regex matched: src_dir={src_dir}, dest_dir={dest_dir}")
+
+                # Verify the source directory exists in the OSS-Fuzz project
+                oss_fuzz_src = self.get_oss_fuzz_path() / "projects" / self.project_name / src_dir
+                logger.debug(f"Checking if exists: {oss_fuzz_src}")
+
+                if oss_fuzz_src.exists() and oss_fuzz_src.is_dir():
+                    results.append((src_dir, dest_dir))
+                    logger.info(
+                        f"Detected external harness source: {src_dir} -> {dest_dir} (verified at {oss_fuzz_src})"
+                    )
+                else:
+                    logger.debug(f"Source directory not found or not a dir: {oss_fuzz_src}")
+
+            if not results:
+                logger.debug("No external harness sources detected in Dockerfile")
+
+            return results
+        except FileNotFoundError as e:
+            logger.warning(f"Dockerfile not found: {e}")
+            return []
+        except Exception as e:
+            logger.warning(f"Error detecting external harness sources: {e}")
+            return []
+
+    def has_external_harnesses(self) -> bool:
+        """Check if project uses external harnesses (public OSS-Fuzz style).
+
+        Returns True if the Dockerfile copies harness directories from the
+        OSS-Fuzz project into the source tree.
+        """
+        return len(self.get_external_harness_sources()) > 0
+
     @property
     def task_dir(self) -> Path:
         if self.local_task_dir is None:

@@ -1,4 +1,5 @@
 import logging
+import shutil
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -95,6 +96,73 @@ class BuilderBot:
 
         return True
 
+    def _copy_external_harnesses(self, task: ChallengeTask) -> bool:
+        """Copy external harness sources from OSS-Fuzz project to source directory.
+
+        For public OSS-Fuzz projects, harnesses live in projects/<project>/<dir>/
+        in the fuzz-tooling repository. These need to be copied to the source
+        directory so they're available when the source is mounted during build.
+
+        Returns:
+            True if copying succeeded or no external harnesses detected,
+            False if copying failed.
+        """
+        external_sources = task.task_meta.metadata.get("external_harness_sources", [])
+        logger.debug(f"[task {task.task_meta.task_id}] Metadata: {task.task_meta.metadata}")
+
+        if not external_sources:
+            logger.debug(f"[task {task.task_meta.task_id}] No external harness sources in metadata")
+            return True
+
+        logger.info(f"[task {task.task_meta.task_id}] Copying external harness sources: {external_sources}")
+
+        try:
+            oss_fuzz_path = task.get_oss_fuzz_path()
+            source_path = task.get_source_path()
+            project_name = task.project_name
+
+            logger.debug(f"[task {task.task_meta.task_id}] OSS-Fuzz path: {oss_fuzz_path}")
+            logger.debug(f"[task {task.task_meta.task_id}] Source path: {source_path}")
+            logger.debug(f"[task {task.task_meta.task_id}] Project name: {project_name}")
+
+            for src_dir, dest_dir in external_sources:
+                # Source: fuzz-tooling/<oss-fuzz>/projects/<project>/<src_dir>/
+                harness_src = oss_fuzz_path / "projects" / project_name / src_dir
+
+                if not harness_src.exists():
+                    logger.warning(
+                        f"[task {task.task_meta.task_id}] External harness source not found: {harness_src}"
+                    )
+                    continue
+
+                # Destination: src/<focus>/<dest_dir>/
+                harness_dst = source_path / dest_dir
+
+                logger.info(f"[task {task.task_meta.task_id}] Copying {harness_src} -> {harness_dst}")
+
+                # Remove existing directory if present (will be replaced)
+                if harness_dst.exists():
+                    logger.debug(f"[task {task.task_meta.task_id}] Removing existing {harness_dst}")
+                    shutil.rmtree(harness_dst)
+
+                # Copy harnesses
+                shutil.copytree(harness_src, harness_dst)
+
+                # Verify copy
+                if harness_dst.exists():
+                    files = list(harness_dst.iterdir())
+                    logger.info(
+                        f"[task {task.task_meta.task_id}] Successfully copied {len(files)} files to {harness_dst}"
+                    )
+                else:
+                    logger.error(f"[task {task.task_meta.task_id}] Copy failed - destination doesn't exist!")
+                    return False
+
+            return True
+        except Exception as e:
+            logger.exception(f"[task {task.task_meta.task_id}] Failed to copy external harnesses: {e}")
+            return False
+
     def serve_item(self) -> bool:
         rqit = self._build_requests_queue.pop()
         if rqit is None:
@@ -138,6 +206,16 @@ class BuilderBot:
                 if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
                     logger.error(
                         f"Max tries reached for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)} | diff {msg.apply_diff} | patch {msg.internal_patch_id}",  # noqa: E501
+                    )
+                    self._build_requests_queue.ack_item(rqit.item_id)
+
+                return True
+
+            # Copy external harnesses if needed (for public OSS-Fuzz projects)
+            if not self._copy_external_harnesses(task):
+                if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
+                    logger.error(
+                        f"Max tries reached copying harnesses for {msg.task_id} | {msg.engine} | {msg.sanitizer} | {BuildType.Name(msg.build_type)}",  # noqa: E501
                     )
                     self._build_requests_queue.ack_item(rqit.item_id)
 

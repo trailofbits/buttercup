@@ -11,6 +11,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task, TaskDownload, TaskReady
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue
 from buttercup.common.task_meta import TaskMeta
@@ -199,9 +200,28 @@ class Downloader:
             logger.error(f"Failed to download and extract sources for task {task.task_id}")
             return False
 
-        # Store the task meta in the tasks storage directory
-        task_meta = TaskMeta(task.project_name, task.focus, task.task_id, dict(task.metadata))
+        # Store the initial task meta (required before creating ChallengeTask)
+        metadata = dict(task.metadata)
+        task_meta = TaskMeta(task.project_name, task.focus, task.task_id, metadata)
         task_meta.save(tmp_task_dir_path)
+
+        # Detect external harness sources (public OSS-Fuzz style projects)
+        # This must happen after TaskMeta is saved since ChallengeTask needs it
+        try:
+            challenge_task = ChallengeTask(tmp_task_dir_path)
+            external_harness_sources = challenge_task.get_external_harness_sources()
+            if external_harness_sources:
+                # Store as JSON-serializable list of [src, dest] pairs
+                metadata["external_harness_sources"] = [[src, dest] for src, dest in external_harness_sources]
+                logger.info(
+                    f"[task {task.task_id}] Detected external harness sources: {external_harness_sources}"
+                )
+                # Update task meta with external harness info
+                task_meta = TaskMeta(task.project_name, task.focus, task.task_id, metadata)
+                task_meta.save(tmp_task_dir_path)
+        except Exception as e:
+            logger.warning(f"[task {task.task_id}] Could not detect external harness sources: {e}")
+
         return True
 
     def serve_item(self) -> bool:
