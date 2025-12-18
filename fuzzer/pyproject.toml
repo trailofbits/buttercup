@@ -47,6 +47,7 @@ dev = [
     "mypy ~=1.17.1",
     # Type stubs
     "types-redis ~=4.6.0",
+    "hypothesis>=6.148.7",
 ]
 
 [tool.ruff]

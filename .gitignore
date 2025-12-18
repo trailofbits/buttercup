@@ -46,6 +46,10 @@ pdm.lock
 .mypy_cache/
 **/.mypy_cache/
 
+# Hypothesis property-based testing cache
+.hypothesis/
+**/.hypothesis/
+
 *.bak
 *.orig
 
