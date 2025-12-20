@@ -150,17 +150,17 @@ redis:
       - docker-auth
 
 task-server:
-  enabled: true
+  enabled: false
   # API authentication is configured with the following credentials:
   # API Key ID: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
   # API Token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB (for client usage)
   # These values are set in the secret/config-map in config.yaml
 
 task-downloader:
-  enabled: true
+  enabled: false
 
 scheduler:
-  enabled: true
+enabled: false
 
 program-model:
   enabled: true
@@ -172,13 +172,13 @@ build-bot:
   logLevel: "DEBUG"
 
 fuzzer-bot:
-  enabled: true
+  enabled: false 
 
 coverage-bot:
   enabled: true
 
 tracer-bot:
-  enabled: true
+  enabled: false
 
 seed-gen:
   enabled: true
@@ -186,10 +186,10 @@ seed-gen:
   maxCorpusSeedSize: 65536  # 64 KiB
 
 patcher:
-  enabled: true
+  enabled: false
 
 competition-api:
-  enabled: true
+  enabled: false
 
 # Registry cache configuration
 registry-cache:
