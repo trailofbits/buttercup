@@ -197,19 +197,19 @@ When writing new PoVs:
         res = self._write_pov_base(system_prompt, user_prompt, base_vars)
         return res
 
-    def _debug_failed_povs(self, state: VulnDiscoveryDebugState) -> Command:
-        """Debug failed PoVs using DebugSubagent to understand why they didn't crash"""
-        logger.info("Debugging failed PoVs from iteration %d", state.pov_iteration - 1)
+    def _debug_generated_pov(self, state: VulnDiscoveryDebugState) -> Command:
+        """Debug generated PoV to understand execution flow before testing"""
+        logger.info("Debugging generated PoV from iteration %d", state.pov_iteration)
 
-        # Find the most recent failed PoV
-        recent_povs = list(state.output_dir.glob(f"iter{state.pov_iteration - 1}_*.seed"))
+        # Find the most recent PoV in current_dir (where they're written before being moved to output_dir)
+        recent_povs = list(state.current_dir.glob("*.seed"))
         if not recent_povs:
-            logger.warning("No PoVs found to debug")
+            logger.warning("No PoVs found to debug in current_dir")
             return Command(update={"should_debug": False})
 
         # Debug the first PoV (could be extended to debug multiple)
         pov_path = recent_povs[0]
-        logger.info(f"Debugging PoV: {pov_path}")
+        logger.info(f"Proactively debugging PoV before testing: {pov_path}")
 
         # Create debug context from the analysis
         harness_info = f"Fuzzer: {state.harness.harness_name} in {state.harness.file_path}"
@@ -217,39 +217,47 @@ When writing new PoVs:
         # Add more specific context if analysis is available
         analysis_section = f"\n{state.analysis}\n" if state.analysis.strip() else "\nNo detailed analysis available.\n"
         
-        debug_context = f"""This PoV was generated to test a potential vulnerability in the target program.
+        debug_context = f"""This PoV was just generated to exploit a potential vulnerability in the target program.
 
 **Target Information:**
 {harness_info}
 
-**Analysis Context:**{analysis_section}
-**Problem:**
-The PoV is expected to exploit the vulnerability, but it did not cause a crash.
+**Vulnerability Analysis:**{analysis_section}
+**Debugging Goals:**
+Before testing whether this PoV crashes the program, analyze its execution to understand:
 
-**Investigation Goals:**
-1. Is the vulnerable code path being executed?
-2. Are the necessary conditions for exploitation being met?
-3. What is the actual state of the program when processing this input?
-4. Why didn't the expected crash occur?
-5. Are there any validation checks or sanitization preventing exploitation?
-6. Are memory allocations failing or being bounded in unexpected ways?
+1. **Execution Path**: Is the vulnerable code path being executed?
+2. **Input Processing**: How is the PoV input being parsed and processed?
+3. **Exploitation Conditions**: Are the necessary conditions for exploitation being met?
+4. **Program State**: What is the actual state of the program at critical points (buffer sizes, pointers, validation checks)?
+5. **Vulnerability Trigger**: Is the vulnerability actually being triggered? If not, what's preventing it?
+6. **Expected vs Actual**: Does the program behavior match our expectations from the analysis?
+
+This proactive debugging will help us:
+- Confirm the PoV is targeting the right code
+- Identify why it might fail before running tests
+- Gather insights to improve subsequent iterations
 """
 
         # Run debug subagent
         try:
+            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, state.output_dir / f"debug_iter{state.pov_iteration}")
             debug_result = self.debug_subagent.debug(
                 harness=state.harness,
                 pov_input_path=pov_path,
                 debug_context=debug_context,
-                output_dir=state.output_dir / f"debug_iter{state.pov_iteration - 1}",
+                output_dir=state.output_dir / f"debug_iter{state.pov_iteration}",
             )
+            logger.info("Debug subagent returned: analysis_len=%d, script_len=%d, output_len=%d, attempts=%d", 
+                       len(debug_result.analysis), 
+                       len(debug_result.debug_script),
+                       len(debug_result.debug_output),
+                       len(debug_result.attempts))
 
             # Format debug insights
-            debug_insights = f"""## Debug Session for iteration {state.pov_iteration - 1}
+            debug_insights = f"""## Proactive Debug Session for iteration {state.pov_iteration}
 
-**PoV Validity:** {"Valid (causes crash)" if debug_result.pov_valid else "Invalid (no crash)"}
-
-**Analysis:**
+**Execution Analysis:**
 {debug_result.analysis}
 
 **GDB Script Used:**
@@ -259,37 +267,36 @@ The PoV is expected to exploit the vulnerability, but it did not cause a crash.
 
 **GDB Output:**
 ```
-{debug_result.debug_output[:1000]}  # Limit to first 1000 chars
+{debug_result.debug_output[:2000]}  # Limit to first 2000 chars
 ```
 
 **Key Findings:**
-- The PoV {"DOES" if debug_result.pov_valid else "DOES NOT"} cause a crash
 - Review the GDB output above to understand execution flow
-- Consider adjusting the exploit strategy based on these findings
+- The PoV validation will now test if this actually crashes
+- Use these insights to understand program behavior
 """
 
-            logger.info("Debug session completed: pov_valid=%s", debug_result.pov_valid)
+            logger.info("Proactive debug session completed")
 
             return Command(
                 update={
                     "debug_insights": state.debug_insights + "\n\n" + debug_insights,
-                    "should_debug": False,
                 }
             )
 
         except Exception as e:
-            logger.error(f"Error during debugging: {e}")
+            logger.error(f"Error during proactive debugging: {e}")
+            # Don't fail the whole workflow if debugging fails
             return Command(
                 update={
                     "debug_insights": state.debug_insights
                     + f"\n\n## Debug Error\n\nFailed to debug PoV: {str(e)}",
-                    "should_debug": False,
                 }
             )
 
     @override
     def _build_workflow(self) -> StateGraph:  # type: ignore[override]
-        """Build workflow with integrated debugging"""
+        """Build workflow with proactive debugging before testing"""
         workflow = StateGraph(self.TaskStateClass)
 
         workflow.add_node("gather_context", self._gather_context)
@@ -298,8 +305,8 @@ The PoV is expected to exploit the vulnerability, but it did not cause a crash.
         workflow.add_node("analyze_bug", self._analyze_bug)
         workflow.add_node("write_pov", self._write_pov)
         workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)
+        workflow.add_node("debug_pov", self._debug_generated_pov)  # Run BEFORE testing
         workflow.add_node("test_povs", self._test_povs)
-        workflow.add_node("debug_povs", self._debug_failed_povs)
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")
@@ -314,34 +321,30 @@ The PoV is expected to exploit the vulnerability, but it did not cause a crash.
 
         workflow.add_edge("analyze_bug", "write_pov")
         workflow.add_edge("write_pov", "execute_python_funcs")
-        workflow.add_edge("execute_python_funcs", "test_povs")
+        # After executing POV functions, debug them before testing
+        workflow.add_edge("execute_python_funcs", "debug_pov")
+        # After debugging, test the POVs
+        workflow.add_edge("debug_pov", "test_povs")
 
-        # After testing PoVs, decide whether to debug
-        def should_debug_or_continue(state: VulnDiscoveryDebugState) -> str:
+        # After testing PoVs, decide whether to continue
+        def should_continue_or_end(state: VulnDiscoveryDebugState) -> str:
             # If we found valid PoVs, we're done
             if state.valid_pov_count > 0:
                 return "end"
             # If we've reached max iterations, we're done
             if state.pov_iteration >= self.MAX_POV_ITERATIONS:
                 return "end"
-            # If this is the first iteration, don't debug yet
-            if state.pov_iteration <= self.DEBUG_AFTER_ITERATION:
-                return "retry"
-            # Otherwise, debug before retrying
-            return "debug"
+            # Otherwise, retry with insights from debugging
+            return "retry"
 
         workflow.add_conditional_edges(
             "test_povs",
-            should_debug_or_continue,
+            should_continue_or_end,
             {
-                "debug": "debug_povs",
                 "retry": "analyze_bug",
                 "end": END,
             },
         )
-
-        # After debugging, always retry
-        workflow.add_edge("debug_povs", "analyze_bug")
 
         return workflow
 

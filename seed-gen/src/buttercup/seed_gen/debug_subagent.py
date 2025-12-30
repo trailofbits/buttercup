@@ -152,6 +152,7 @@ class DebugSubagent:
             output_dir = Path(tempfile.mkdtemp(prefix="debug-"))
 
         try:
+            logger.info("Creating debug state")
             state = DebugTaskState(
                 harness=harness,
                 task=self.task,
@@ -159,9 +160,13 @@ class DebugSubagent:
                 pov_input_path=pov_input_path,
                 debug_context=debug_context,
             )
+            logger.info("Debug state created successfully")
 
+            logger.info("Building debug workflow")
             workflow = self._build_workflow()
+            logger.info("Getting Langfuse callbacks")
             llm_callbacks = get_langfuse_callbacks()
+            logger.info("Compiling workflow with recursion_limit=%d", self._recursion_limit())
             chain = workflow.compile().with_config(
                 RunnableConfig(
                     tags=["debug-subagent"],
@@ -169,6 +174,7 @@ class DebugSubagent:
                     recursion_limit=self._recursion_limit(),
                 ),
             )
+            logger.info("Workflow compiled successfully")
 
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("seed_gen_debug") as span:
@@ -183,7 +189,9 @@ class DebugSubagent:
                 )
 
                 # Run the workflow
+                logger.info("Invoking debug workflow chain")
                 final_state = chain.invoke(state)  # type: ignore[arg-type]
+                logger.info("Debug workflow chain completed")
 
                 # Get values from state (final_state is a dict)
                 debug_script = final_state.get("debug_script", "") or ""
@@ -191,6 +199,14 @@ class DebugSubagent:
                 analysis = final_state.get("analysis", "") or ""
                 pov_valid = final_state.get("pov_valid", False)
                 debug_attempts = final_state.get("debug_attempts", [])
+
+                logger.info(
+                    "Debug state extracted: analysis_len=%d, script_len=%d, output_len=%d, attempts=%d",
+                    len(analysis),
+                    len(debug_script),
+                    len(debug_output),
+                    len(debug_attempts),
+                )
 
                 # Write results to output directory if provided
                 if output_dir:
