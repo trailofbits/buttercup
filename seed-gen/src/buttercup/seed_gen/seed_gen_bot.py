@@ -23,6 +23,7 @@ from buttercup.seed_gen.seed_init import SeedInitTask
 from buttercup.seed_gen.task import TaskName
 from buttercup.seed_gen.task_counter import TaskCounter
 from buttercup.seed_gen.vuln_base_task import CrashSubmit, VulnBaseTask
+from buttercup.seed_gen.vuln_discovery_debug_task import VulnDiscoveryDebugTask
 from buttercup.seed_gen.vuln_discovery_delta import VulnDiscoveryDeltaTask
 from buttercup.seed_gen.vuln_discovery_full import VulnDiscoveryFullTask
 
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class SeedGenBot(TaskLoop):
+    # Default probabilities (can be overridden by environment variables)
     TASK_SEED_INIT_PROB_FULL = 0.05
     TASK_VULN_DISCOVERY_PROB_FULL = 0.35
     TASK_SEED_EXPLORE_PROB_FULL = 0.60
@@ -60,6 +62,29 @@ class SeedGenBot(TaskLoop):
         self.crash_dir_count_limit = crash_dir_count_limit
         self.max_corpus_seed_size = max_corpus_seed_size
         self.max_pov_size = max_pov_size
+        
+        # Read probability overrides from environment variables
+        self.TASK_SEED_INIT_PROB_FULL = float(os.getenv("BUTTERCUP_SEED_INIT_PROB_FULL", self.TASK_SEED_INIT_PROB_FULL))
+        self.TASK_VULN_DISCOVERY_PROB_FULL = float(os.getenv("BUTTERCUP_VULN_DISCOVERY_PROB_FULL", self.TASK_VULN_DISCOVERY_PROB_FULL))
+        self.TASK_SEED_EXPLORE_PROB_FULL = float(os.getenv("BUTTERCUP_SEED_EXPLORE_PROB_FULL", self.TASK_SEED_EXPLORE_PROB_FULL))
+        
+        self.TASK_SEED_INIT_PROB_DELTA = float(os.getenv("BUTTERCUP_SEED_INIT_PROB_DELTA", self.TASK_SEED_INIT_PROB_DELTA))
+        self.TASK_VULN_DISCOVERY_PROB_DELTA = float(os.getenv("BUTTERCUP_VULN_DISCOVERY_PROB_DELTA", self.TASK_VULN_DISCOVERY_PROB_DELTA))
+        self.TASK_SEED_EXPLORE_PROB_DELTA = float(os.getenv("BUTTERCUP_SEED_EXPLORE_PROB_DELTA", self.TASK_SEED_EXPLORE_PROB_DELTA))
+        
+        self.MIN_SEED_INIT_RUNS = int(os.getenv("BUTTERCUP_MIN_SEED_INIT_RUNS", self.MIN_SEED_INIT_RUNS))
+        self.MIN_VULN_DISCOVERY_RUNS = int(os.getenv("BUTTERCUP_MIN_VULN_DISCOVERY_RUNS", self.MIN_VULN_DISCOVERY_RUNS))
+        
+        # Option to use debug-enabled vuln discovery
+        self.use_debug_vuln_discovery = os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
+        
+        logger.info(f"Task probabilities (FULL): seed-init={self.TASK_SEED_INIT_PROB_FULL}, "
+                   f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_FULL}, seed-explore={self.TASK_SEED_EXPLORE_PROB_FULL}")
+        logger.info(f"Task probabilities (DELTA): seed-init={self.TASK_SEED_INIT_PROB_DELTA}, "
+                   f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_DELTA}, seed-explore={self.TASK_SEED_EXPLORE_PROB_DELTA}")
+        logger.info(f"Min runs: seed-init={self.MIN_SEED_INIT_RUNS}, vuln-discovery={self.MIN_VULN_DISCOVERY_RUNS}")
+        logger.info(f"Use debug vuln discovery: {self.use_debug_vuln_discovery}")
+        
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
@@ -202,8 +227,10 @@ class SeedGenBot(TaskLoop):
                     max_pov_size=self.max_pov_size,
                 )
                 with reproduce_multiple.open() as mult:
-                    if is_delta:
-                        vuln_discovery: VulnBaseTask = VulnDiscoveryDeltaTask(
+                    if self.use_debug_vuln_discovery:
+                        # Use the unified debug-enabled task (works for both delta and full)
+                        logger.info("Using VulnDiscoveryDebugTask with integrated debugging")
+                        vuln_discovery: VulnBaseTask = VulnDiscoveryDebugTask(
                             task.package_name,
                             task.harness_name,
                             challenge_task,
@@ -215,17 +242,31 @@ class SeedGenBot(TaskLoop):
                             crash_submit=crash_submit,
                         )
                     else:
-                        vuln_discovery = VulnDiscoveryFullTask(
-                            task.package_name,
-                            task.harness_name,
-                            challenge_task,
-                            codequery,
-                            project_yaml,
-                            self.redis,
-                            mult,
-                            sarifs,
-                            crash_submit=crash_submit,
-                        )
+                        # Use legacy tasks (separate delta/full implementations)
+                        if is_delta:
+                            vuln_discovery = VulnDiscoveryDeltaTask(
+                                task.package_name,
+                                task.harness_name,
+                                challenge_task,
+                                codequery,
+                                project_yaml,
+                                self.redis,
+                                mult,
+                                sarifs,
+                                crash_submit=crash_submit,
+                            )
+                        else:
+                            vuln_discovery = VulnDiscoveryFullTask(
+                                task.package_name,
+                                task.harness_name,
+                                challenge_task,
+                                codequery,
+                                project_yaml,
+                                self.redis,
+                                mult,
+                                sarifs,
+                                crash_submit=crash_submit,
+                            )
                     vuln_discovery.do_task(out_dir, current_dir)
             elif task_choice == TaskName.SEED_EXPLORE.value:
                 seed_explore = SeedExploreTask(

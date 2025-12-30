@@ -160,7 +160,7 @@ task-downloader:
   enabled: false
 
 scheduler:
-enabled: false
+  enabled: false
 
 program-model:
   enabled: true
