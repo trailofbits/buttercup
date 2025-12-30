@@ -1,0 +1,200 @@
+2025-12-30 20:15:39,232 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:39,235 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:39,235 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:39,235 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:39,235 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 100001916
+2025-12-30 20:15:39,244 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x561fa2a54c58, 0x561fa2a566da), 
+2025-12-30 20:15:39,244 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x561fa2a566e0,0x561fa2a70f00), 
+2025-12-30 20:15:39,244 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:39,244 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:39,246 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 0 ms
+2025-12-30 20:15:39,246 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:39,246 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:39,246 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:39,246 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:39,469 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2025-12-30 20:15:39,469 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-b4b4b0d7-9ca4-4f-xxa7kptt/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed
+2025-12-30 20:15:39,974 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-b4b4b0d7-9ca4-4f-xxa7kptt/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2025-12-30 20:15:40,237 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2025-12-30 20:15:40,237 - buttercup.common.challenge_task - DEBUG - + shift
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2025-12-30 20:15:40,238 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2025-12-30 20:15:40,239 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2025-12-30 20:15:40,308 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:40,312 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:40,313 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:40,313 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:40,313 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 101079616
+2025-12-30 20:15:40,344 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x55fb3b84a7f8, 0x55fb3b84bdcb), 
+2025-12-30 20:15:40,344 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x55fb3b84bdd0,0x55fb3b861b00), 
+2025-12-30 20:15:40,344 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:40,344 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:40,346 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2025-12-30 20:15:40,346 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:40,346 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:40,346 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:40,346 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:40,567 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2025-12-30 20:15:40,567 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-0eb695d6-5314-4a-wsqxq2yu/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed
+2025-12-30 20:15:41,069 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-0eb695d6-5314-4a-wsqxq2yu/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2025-12-30 20:15:41,325 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + shift
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2025-12-30 20:15:41,326 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2025-12-30 20:15:41,327 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2025-12-30 20:15:41,395 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:41,399 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:41,400 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:41,400 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:41,400 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 102166462
+2025-12-30 20:15:41,409 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x55dd5353a928, 0x55dd5353bf11), 
+2025-12-30 20:15:41,409 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x55dd5353bf18,0x55dd53551da8), 
+2025-12-30 20:15:41,409 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:41,409 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:41,412 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 3 ms
+2025-12-30 20:15:41,412 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:41,412 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:41,412 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:41,412 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:41,612 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2025-12-30 20:15:41,613 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-9757dcf9-4974-4c-4yqm1yco/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed
+2025-12-30 20:15:42,086 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-9757dcf9-4974-4c-4yqm1yco/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_3.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + shift
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:42,347 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:42,348 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:42,348 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2025-12-30 20:15:42,348 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2025-12-30 20:15:42,348 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2025-12-30 20:15:42,349 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2025-12-30 20:15:42,414 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:42,417 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:42,417 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:42,417 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:42,418 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 103183888
+2025-12-30 20:15:42,427 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x55fbee12dc58, 0x55fbee12f6da), 
+2025-12-30 20:15:42,427 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x55fbee12f6e0,0x55fbee149f00), 
+2025-12-30 20:15:42,427 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:42,427 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:42,428 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 0 ms
+2025-12-30 20:15:42,428 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:42,428 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:42,428 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:42,428 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:42,632 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2025-12-30 20:15:42,633 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-b4b4b0d7-9ca4-4f-xxa7kptt/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed
+2025-12-30 20:15:43,114 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-b4b4b0d7-9ca4-4f-xxa7kptt/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + shift
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:43,411 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:43,412 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:43,412 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:43,412 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2025-12-30 20:15:43,412 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2025-12-30 20:15:43,412 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2025-12-30 20:15:43,413 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2025-12-30 20:15:43,479 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:43,483 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:43,484 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:43,484 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:43,484 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 104250482
+2025-12-30 20:15:43,514 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x5648a772a7f8, 0x5648a772bdcb), 
+2025-12-30 20:15:43,514 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x5648a772bdd0,0x5648a7741b00), 
+2025-12-30 20:15:43,514 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:43,514 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:43,515 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2025-12-30 20:15:43,516 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:43,516 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:43,516 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:43,516 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:43,710 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2025-12-30 20:15:43,710 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-0eb695d6-5314-4a-wsqxq2yu/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed
+2025-12-30 20:15:44,169 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-0eb695d6-5314-4a-wsqxq2yu/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + shift
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:43,816 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:43,817 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:43,817 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2025-12-30 20:15:43,817 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2025-12-30 20:15:43,817 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2025-12-30 20:15:43,818 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2025-12-30 20:15:43,135 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:43,139 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:43,139 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:43,140 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:43,140 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 103906237
+2025-12-30 20:15:43,149 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x55a764863928, 0x55a764864f11), 
+2025-12-30 20:15:43,149 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x55a764864f18,0x55a76487ada8), 
+2025-12-30 20:15:43,149 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:43,149 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:43,152 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 3 ms
+2025-12-30 20:15:43,152 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:43,152 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:43,152 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:43,152 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:43,441 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2025-12-30 20:15:43,442 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-9757dcf9-4974-4c-4yqm1yco/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed
+2025-12-30 20:15:43,944 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/b74b20cd-5f10-4014-a217-abfe74fd3a24/b74b20cd-5f10-4014-a217-abfe74fd3a24-9757dcf9-4974-4c-4yqm1yco/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/b74b20cd-5f10-4014-a217-abfe74fd3a24/seedgen-lpnr_vy0/seedgen-out/iter2_gen_test_case_1.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + shift
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2025-12-30 20:15:44,207 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2025-12-30 20:15:44,208 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2025-12-30 20:15:44,208 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2025-12-30 20:15:44,209 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2025-12-30 20:15:44,275 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2025-12-30 20:15:44,277 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2025-12-30 20:15:44,277 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2025-12-30 20:15:44,278 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2025-12-30 20:15:44,278 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 105043939
+2025-12-30 20:15:44,285 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x55f047f7fc58, 0x55f047f816da), 
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x55f047f816e0,0x55f047f9bf00), 
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 0 ms
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2025-12-30 20:15:44,286 - buttercup.common.challenge_task - DEBUG - ***
+2025-12-30 20:15:45,259 - buttercup.seed_gen.seed_gen_bot - INFO - Copied 15 files to corpus b74b20cd-5f10-4014-a217-abfe74fd3a24/buttercup_corpus_libpng_read_fuzzer
+2025-12-30 20:15:45,259 - buttercup.seed_gen.seed_gen_bot - INFO - Seed-gen finished for libpng_read_fuzzer | libpng | b74b20cd-5f10-4014-a217-abfe74fd3a24
+2025-12-30 20:15:45,533 - buttercup.common.utils - INFO - Sleeping, waiting for inputs
+2025-12-30 20:16:47,954 - buttercup.common.utils - INFO - Sleeping, waiting for inputs
+2025-12-30 20:17:50,371 - buttercup.common.utils - INFO - Sleeping, waiting for inputs
+2025-12-30 20:18:52,767 - buttercup.common.utils - INFO - Sleeping, waiting for inputs
