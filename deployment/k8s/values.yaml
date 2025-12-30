@@ -150,17 +150,17 @@ redis:
       - docker-auth
 
 task-server:
-  enabled: false
+  enabled: true
   # API authentication is configured with the following credentials:
   # API Key ID: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
   # API Token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB (for client usage)
   # These values are set in the secret/config-map in config.yaml
 
 task-downloader:
-  enabled: false
+  enabled: true
 
 scheduler:
-  enabled: false
+  enabled: true 
 
 program-model:
   enabled: true
