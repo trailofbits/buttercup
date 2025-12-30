@@ -172,7 +172,7 @@ build-bot:
   logLevel: "DEBUG"
 
 fuzzer-bot:
-  enabled: false 
+  enabled: true 
 
 coverage-bot:
   enabled: true

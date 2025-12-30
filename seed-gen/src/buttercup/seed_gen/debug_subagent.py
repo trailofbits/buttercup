@@ -339,11 +339,15 @@ class DebugSubagent:
 
             # Get the fuzzer binary path (typically in /out)
             harness_name = self.task.harness_name
-            binary_path = f"/out/{harness_name}"
-
+            project_name = self.task.challenge_task.project_name
+            
             # Determine the debug container image
             # Default to gcr.io/oss-fuzz-base/base-runner-debug
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
+
+            # Resolve paths to ensure they're absolute
+            debug_script_path = debug_script_path.resolve()
+            pov_input_path = pov_input_path.resolve()
 
             # Mount the debug script and PoV input
             mount_dirs = {
@@ -358,9 +362,25 @@ class DebugSubagent:
                 out_dir = build_dir.parent  # This should be .../build/out
                 if out_dir.exists():
                     mount_dirs[out_dir] = Path("/out")
+                    # Binary is at /out/{project_name}/{harness_name}
+                    binary_path = f"/out/{project_name}/{harness_name}"
+                    logger.info(
+                        f"Mounting build output directory: {out_dir} -> /out, binary at {binary_path}"
+                    )
                 else:
                     # Fallback: mount build_dir directly
                     mount_dirs[build_dir] = Path("/out")
+                    # Binary is directly under /out
+                    binary_path = f"/out/{harness_name}"
+                    logger.info(
+                        f"Mounting build directory directly: {build_dir} -> /out, binary at {binary_path}"
+                    )
+            else:
+                # No build directory found, try default OSS-Fuzz path
+                logger.warning(
+                    f"Build directory not found (build_dir={build_dir}), using default binary path"
+                )
+                binary_path = f"/out/{harness_name}"
 
             # Create the GDB command
             gdb_cmd = [

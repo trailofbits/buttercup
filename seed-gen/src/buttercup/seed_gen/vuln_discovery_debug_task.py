@@ -212,16 +212,27 @@ When writing new PoVs:
         logger.info(f"Debugging PoV: {pov_path}")
 
         # Create debug context from the analysis
-        debug_context = f"""This PoV was generated based on the following analysis:
+        harness_info = f"Fuzzer: {state.harness.harness_name} in {state.harness.file_path}"
+        
+        # Add more specific context if analysis is available
+        analysis_section = f"\n{state.analysis}\n" if state.analysis.strip() else "\nNo detailed analysis available.\n"
+        
+        debug_context = f"""This PoV was generated to test a potential vulnerability in the target program.
 
-{state.analysis}
+**Target Information:**
+{harness_info}
 
+**Analysis Context:**{analysis_section}
+**Problem:**
 The PoV is expected to exploit the vulnerability, but it did not cause a crash.
-Please investigate:
+
+**Investigation Goals:**
 1. Is the vulnerable code path being executed?
 2. Are the necessary conditions for exploitation being met?
 3. What is the actual state of the program when processing this input?
 4. Why didn't the expected crash occur?
+5. Are there any validation checks or sanitization preventing exploitation?
+6. Are memory allocations failing or being bounded in unexpected ways?
 """
 
         # Run debug subagent
