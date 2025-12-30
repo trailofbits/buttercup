@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import override
 
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from pydantic import Field
 
@@ -277,9 +279,6 @@ Please investigate:
     @override
     def _build_workflow(self) -> StateGraph:  # type: ignore[override]
         """Build workflow with integrated debugging"""
-        from langgraph.graph import END, StateGraph
-        from langgraph.prebuilt import ToolNode
-
         workflow = StateGraph(self.TaskStateClass)
 
         workflow.add_node("gather_context", self._gather_context)
