@@ -631,17 +631,17 @@ def test_debug_binary_path_without_project_name(
         build_dir.mkdir(parents=True)
         mock_task.challenge_task.get_build_dir = Mock(return_value=build_dir)
         mock_task.harness_name = "my_fuzzer"
-        mock_task.challenge_task.project_name = "libpng"  # Should NOT appear in path!
+        # project_name is a property, so we need to patch it
+        with patch.object(type(mock_task.challenge_task), 'project_name', new_callable=lambda: property(lambda self: "libpng")):
+            original_continue_debug = debug_subagent._continue_debug
+            debug_subagent._continue_debug = lambda state: state.debug_iteration < 1 and original_continue_debug(state)
 
-        original_continue_debug = debug_subagent._continue_debug
-        debug_subagent._continue_debug = lambda state: state.debug_iteration < 1 and original_continue_debug(state)
-
-        debug_subagent.debug(
-            harness=mock_harness_info,
-            pov_input_path=pov_input_path,
-            debug_context="Test",
-            output_dir=tmp_path / "out",
-        )
+            debug_subagent.debug(
+                harness=mock_harness_info,
+                pov_input_path=pov_input_path,
+                debug_context="Test",
+                output_dir=tmp_path / "out",
+            )
 
         assert captured_cmd is not None
         binary_path = captured_cmd[captured_cmd.index("--args") + 1]

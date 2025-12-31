@@ -6,6 +6,7 @@ PoV inputs and investigate why they might not be working.
 
 import logging
 import operator
+import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -106,8 +107,11 @@ class DebugSubagent:
     why they might not be working as expected.
     """
 
-    MAX_DEBUG_ITERATIONS = 5
-    MAX_CONTEXT_ITERATIONS = 6
+    MAX_DEBUG_ITERATIONS = 2
+    MAX_CONTEXT_ITERATIONS = 3
+    # Each context iteration can have multiple tool calls (get_context -> tools)
+    # Estimate ~5 tool calls per context iteration to be safe
+    ESTIMATED_TOOLS_PER_CONTEXT = 5
 
     def __init__(
         self,
@@ -328,21 +332,39 @@ class DebugSubagent:
             return Command(update={"debug_output": "No debug script provided"})
 
         # Write debug script to a temporary file
+        # NOTE: We do NOT delete this file. Docker needs it to remain accessible
+        # during the mount. The OS will clean it up later, or we could clean it
+        # up after Docker has fully completed, but that's complex with the current
+        # architecture where exec_docker_cmd might cache containers.
         with tempfile.NamedTemporaryFile(mode="w", suffix=".gdb", delete=False) as f:
             f.write(state.debug_script)
+            f.flush()  # Ensure content is written to disk
             debug_script_path = Path(f.name)
+        
+        # Verify the file was created successfully
+        if not debug_script_path.exists():
+            logger.error(f"Failed to create debug script file at {debug_script_path}")
+            return Command(update={"debug_output": f"Error: Failed to create debug script file"})
+        
+        logger.info(f"Created debug script file: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
 
         try:
             # Run the debug script using exec_docker_cmd with debug container
+            # Verify the file exists and is readable before passing to Docker
+            if not debug_script_path.exists():
+                return Command(update={"debug_output": f"Error: Debug script file not found at {debug_script_path}"})
+            if not debug_script_path.is_file():
+                return Command(update={"debug_output": f"Error: Debug script path is not a file: {debug_script_path}"})
+            
+            logger.info(f"Debug script file verified: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
+            
             debug_output = self._execute_debug_script(debug_script_path, state.pov_input_path)
             return Command(update={"debug_output": debug_output})
         except Exception as e:
             logger.error(f"Error running debug script: {e}")
             return Command(update={"debug_output": f"Error: {str(e)}"})
-        finally:
-            # Clean up temporary script file
-            if debug_script_path.exists():
-                debug_script_path.unlink()
+        # Note: We intentionally do NOT delete the debug_script_path here
+        # because Docker might still be accessing it via the mount
 
     def _execute_debug_script(
         self,
@@ -358,47 +380,87 @@ class DebugSubagent:
 
             # Get the fuzzer binary path (typically in /out)
             harness_name = self.task.harness_name
-            project_name = self.task.challenge_task.project_name
             
             # Determine the debug container image
             # Default to gcr.io/oss-fuzz-base/base-runner-debug
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
 
             # Resolve paths to ensure they're absolute
+            # Log the paths before and after resolution to debug any path issues
+            logger.info(f"Pre-resolve paths:")
+            logger.info(f"  debug_script_path: {debug_script_path} (is_absolute: {debug_script_path.is_absolute()})")
+            logger.info(f"  pov_input_path: {pov_input_path} (is_absolute: {pov_input_path.is_absolute()})")
+            logger.info(f"  Current working directory: {Path.cwd()}")
+            
             debug_script_path = debug_script_path.resolve()
             pov_input_path = pov_input_path.resolve()
+            
+            logger.info(f"Post-resolve paths:")
+            logger.info(f"  debug_script_path: {debug_script_path}")
+            logger.info(f"  pov_input_path: {pov_input_path}")
 
-            # Mount the parent directories containing the files, then reference them
-            # Docker can't mount individual files reliably, so mount parent dirs
-            debug_script_dir = debug_script_path.parent
-            pov_input_dir = pov_input_path.parent
+            # Get the build output directory so GDB can find the binary
+            build_dir = task.get_build_dir()
+            logger.info(f"Build directory from task.get_build_dir(): {build_dir}")
+            
+            if not build_dir or not build_dir.exists():
+                raise ValueError(f"Build directory not found or doesn't exist: {build_dir}")
+            
+            logger.info(f"Build directory exists: {build_dir}")
+            # List files in build_dir to debug
+            if build_dir.is_dir():
+                files_in_build = list(build_dir.iterdir())[:10]  # First 10 files
+                logger.info(f"Files in build_dir: {[f.name for f in files_in_build]}")
+            
+            # Check if the harness binary exists in the build directory
+            harness_binary_path = build_dir / harness_name
+            if not harness_binary_path.exists():
+                available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
+                raise ValueError(
+                    f"Harness binary '{harness_name}' not found in {build_dir}. "
+                    f"Available files: {available_files}"
+                )
+            
+            # Ensure the binary has execute permissions
+            current_perms = harness_binary_path.stat().st_mode
+            harness_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            
+            # Read first 4 bytes to check if it's an ELF binary (magic: 7f 45 4c 46)
+            try:
+                with open(harness_binary_path, 'rb') as f:
+                    magic = f.read(4)
+                    is_elf = magic == b'\x7fELF'
+            except Exception:
+                is_elf = False
+            
+            logger.info(f"Found harness binary: {harness_binary_path}")
+            logger.info(f"  Permissions: {oct(harness_binary_path.stat().st_mode)}")
+            logger.info(f"  Size: {harness_binary_path.stat().st_size} bytes")
+            logger.info(f"  Is ELF binary: {is_elf}")
+            
+            # Mount files for Docker
+            # Mount individual files directly to their container paths
+            # This matches the pattern used in debug_subagent_task.py
+            debug_script_container_path = "/tmp/debug_script.gdb"
+            pov_input_container_path = f"/tmp/{pov_input_path.name}"
+            binary_path = f"/out/{harness_name}"
+            
+            # Verify all source files exist before mounting
+            logger.info(f"Verifying source files before Docker mount:")
+            logger.info(f"  Debug script: {debug_script_path} exists={debug_script_path.exists()} is_file={debug_script_path.is_file()}")
+            logger.info(f"  PoV input: {pov_input_path} exists={pov_input_path.exists()} is_file={pov_input_path.is_file()}")
+            logger.info(f"  Build dir: {build_dir} exists={build_dir.exists()} is_dir={build_dir.is_dir()}")
             
             mount_dirs = {
-                debug_script_dir: Path("/tmp/debug_workdir"),
-                pov_input_dir: Path("/tmp/pov_workdir"),
+                debug_script_path: Path(debug_script_container_path),
+                pov_input_path: Path(pov_input_container_path),
+                build_dir: Path("/out"),
             }
             
-            # Reference the files within their mounted parent directories
-            debug_script_container_path = f"/tmp/debug_workdir/{debug_script_path.name}"
-            pov_input_container_path = f"/tmp/pov_workdir/{pov_input_path.name}"
-
-            # Also need to mount the build output directory so GDB can find the binary
-            build_dir = task.get_build_dir()
-            if build_dir and build_dir.exists():
-                # build_dir should be the actual output directory containing the binaries
-                # Mount it directly to /out in the container
-                mount_dirs[build_dir] = Path("/out")
-                # OSS-Fuzz binaries are directly in /out, not in subdirectories
-                binary_path = f"/out/{harness_name}"
-                logger.info(
-                    f"Mounting build directory: {build_dir} -> /out, binary at {binary_path}"
-                )
-            else:
-                # No build directory found, try default OSS-Fuzz path
-                logger.warning(
-                    f"Build directory not found (build_dir={build_dir}), using default binary path"
-                )
-                binary_path = f"/out/{harness_name}"
+            logger.info(f"Mount directories: {mount_dirs}")
+            logger.info(f"Debug script container path: {debug_script_container_path}")
+            logger.info(f"PoV input container path: {pov_input_container_path}")
+            logger.info(f"Binary path: {binary_path}")
 
             # Create the GDB command
             gdb_cmd = [
@@ -473,6 +535,14 @@ class DebugSubagent:
         # Continue if PoV is not valid and we haven't exceeded max iterations
         return not state.pov_valid and state.debug_iteration < self.MAX_DEBUG_ITERATIONS
 
+    def _continue_context_retrieval(self, state: DebugTaskState) -> bool:
+        """Determine if we should continue the context retrieval iteration
+        
+        Override the parent task's method to use DebugSubagent's own MAX_CONTEXT_ITERATIONS
+        instead of the parent task's limit.
+        """
+        return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
+
     def _build_workflow(self) -> StateGraph:
         """Build the workflow for the debug task"""
         workflow = StateGraph(DebugTaskState)
@@ -488,7 +558,7 @@ class DebugSubagent:
         workflow.add_edge("get_context", "tools")
         workflow.add_conditional_edges(
             "tools",
-            self.task._continue_context_retrieval,
+            self._continue_context_retrieval,  # Use our own method, not self.task's
             {
                 True: "get_context",
                 False: "analyze_debug",
@@ -517,13 +587,27 @@ class DebugSubagent:
         return workflow
 
     def _recursion_limit(self) -> int:
-        """Calculate recursion limit for the workflow"""
-        context_steps = 2
+        """Calculate recursion limit for the workflow
+        
+        The workflow structure:
+        1. Context gathering phase: get_context -> tools (can loop multiple times)
+           - Each tool call from the LLM counts as a step
+           - Can have multiple tool calls per iteration
+        2. Debug phase: analyze_debug -> write_debug_script -> run_debug_script
+        3. Validation phase (if not skipped): validate_pov -> (maybe loop back)
+        
+        We need to be generous with the limit because tool calls add up quickly.
+        """
+        # Each context iteration: get_context (1) + tools (N tool calls) 
+        # Estimate max tool calls per context iteration
+        context_steps_per_iteration = 1 + self.ESTIMATED_TOOLS_PER_CONTEXT
+        context_total = context_steps_per_iteration * self.MAX_CONTEXT_ITERATIONS
+        
         if self.skip_validation:
-            # Just one pass: context + analyze + write + run
+            # Single debug pass: analyze + write + run
             debug_steps = 3
-            return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + debug_steps
+            return 1 + context_total + debug_steps
         else:
-            # Full validation loop
-            debug_steps = 4
-            return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + debug_steps * self.MAX_DEBUG_ITERATIONS
+            # Full validation loop with retries
+            debug_steps = 4  # analyze + write + run + validate
+            return 1 + context_total + debug_steps * self.MAX_DEBUG_ITERATIONS
