@@ -65,8 +65,12 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        # Initialize debug subagent
-        self.debug_subagent = DebugSubagent(task=self, reproduce_multiple=self.reproduce_multiple)
+        # Initialize debug subagent with validation skipped (proactive debugging)
+        self.debug_subagent = DebugSubagent(
+            task=self, 
+            reproduce_multiple=self.reproduce_multiple,
+            skip_validation=True  # Skip validation for proactive debugging
+        )
 
     @override
     def _gather_context(self, state: VulnDiscoveryDebugState) -> Command:  # type: ignore[override]
@@ -200,6 +204,19 @@ When writing new PoVs:
     def _debug_generated_pov(self, state: VulnDiscoveryDebugState) -> Command:
         """Debug generated PoV to understand execution flow before testing"""
         logger.info("Debugging generated PoV from iteration %d", state.pov_iteration)
+        
+        # Debug: log directory contents
+        logger.debug("current_dir path: %s", state.current_dir)
+        logger.debug("current_dir exists: %s", state.current_dir.exists())
+        if state.current_dir.exists():
+            all_files = list(state.current_dir.iterdir())
+            logger.debug("current_dir contents (%d files): %s", len(all_files), [f.name for f in all_files])
+        
+        logger.debug("output_dir path: %s", state.output_dir)
+        logger.debug("output_dir exists: %s", state.output_dir.exists())
+        if state.output_dir.exists():
+            all_output_files = list(state.output_dir.iterdir())
+            logger.debug("output_dir contents (%d files): %s", len(all_output_files), [f.name for f in all_output_files])
 
         # Find the most recent PoV in current_dir (where they're written before being moved to output_dir)
         recent_povs = list(state.current_dir.glob("*.seed"))

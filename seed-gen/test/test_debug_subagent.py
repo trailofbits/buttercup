@@ -445,3 +445,211 @@ def test_debug_malformed_llm_response(
         assert result.debug_script == ""  # Empty due to extraction failure
         assert result.debug_output == "No debug script provided"  # Message from _run_debug_script
         assert len(result.attempts) == 1  # Still recorded the attempt
+
+
+def test_debug_docker_path_construction(
+    debug_subagent,
+    mock_task,
+    mock_llm,
+    mock_harness_info,
+    mock_codequery_responses,
+    tmp_path,
+):
+    """Test that Docker paths are constructed correctly for GDB execution."""
+    pov_input_path = tmp_path / "pov_input.bin"
+    pov_input_path.write_bytes(b"test input")
+    debug_context = "Test path construction"
+
+    # Create a proper debug script file
+    debug_script_content = "break main\nrun\nbt\ncontinue\n"
+    
+    with (
+        patch("buttercup.common.llm.get_langfuse_callbacks", return_value=[]),
+        patch("opentelemetry.trace.get_tracer") as mock_tracer,
+        patch("buttercup.seed_gen.debug_subagent.set_crs_attributes") as _,
+    ):
+        mock_span = MagicMock()
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+
+        # Context gathering messages
+        context_messages = [
+            AIMessage(
+                content="I'll gather context",
+                tool_calls=[
+                    ToolCall(
+                        id="context_call_1",
+                        name="get_function_definition",
+                        args={"function_name": "main"},
+                    ),
+                ],
+            ),
+        ]
+
+        # Debug workflow messages with proper GDB script
+        debug_messages = [
+            AIMessage(content="Test analysis"),
+            AIMessage(content=f"```gdb\n{debug_script_content}```"),
+        ]
+
+        mock_llm.invoke.side_effect = context_messages + debug_messages
+
+        # Mock codequery
+        mock_task.codequery.get_functions = Mock(return_value=mock_codequery_responses["get_functions"])
+        mock_task.codequery.get_callers = Mock(return_value=mock_codequery_responses["get_callers"])
+        mock_task.codequery.get_types = Mock(return_value=mock_codequery_responses["get_types"])
+        mock_task._continue_context_retrieval = lambda state: False
+
+        # Track the Docker command that gets called
+        docker_cmd_captured = None
+        mount_dirs_captured = None
+
+        def capture_docker_cmd(cmd, mount_dirs=None, **kwargs):
+            nonlocal docker_cmd_captured, mount_dirs_captured
+            docker_cmd_captured = cmd
+            mount_dirs_captured = mount_dirs
+            return CommandResult(success=True, output=b"Test output", error=b"")
+
+        mock_task.challenge_task.exec_docker_cmd = Mock(side_effect=capture_docker_cmd)
+
+        # Set up build directory
+        build_dir = tmp_path / "build" / "out"
+        build_dir.mkdir(parents=True)
+        mock_task.challenge_task.get_build_dir = Mock(return_value=build_dir)
+        
+        # Set harness name for path verification
+        mock_task.harness_name = "test_fuzzer"
+
+        # Stop after first iteration
+        original_continue_debug = debug_subagent._continue_debug
+        def stop_after_first(state):
+            return state.debug_iteration < 1 and original_continue_debug(state)
+        debug_subagent._continue_debug = stop_after_first
+
+        result = debug_subagent.debug(
+            harness=mock_harness_info,
+            pov_input_path=pov_input_path,
+            debug_context=debug_context,
+            output_dir=tmp_path / "debug_output",
+        )
+
+        # Verify the Docker command was called
+        assert docker_cmd_captured is not None, "Docker command should have been called"
+        assert mount_dirs_captured is not None, "Mount directories should have been provided"
+
+        # TEST 1: Binary path should be /out/{harness_name}, NOT /out/{project_name}/{harness_name}
+        binary_path = docker_cmd_captured[docker_cmd_captured.index("--args") + 1]
+        assert binary_path == "/out/test_fuzzer", (
+            f"Binary path should be /out/test_fuzzer, got {binary_path}. "
+            "It should NOT include project_name in the path!"
+        )
+
+        # TEST 2: Debug script should be mounted as parent directory
+        debug_script_path_in_container = docker_cmd_captured[docker_cmd_captured.index("-x") + 1]
+        assert debug_script_path_in_container.startswith("/tmp/debug_workdir/"), (
+            f"Debug script should be in /tmp/debug_workdir/, got {debug_script_path_in_container}"
+        )
+
+        # TEST 3: PoV input should be mounted as parent directory
+        pov_path_in_container = docker_cmd_captured[-1]
+        assert pov_path_in_container.startswith("/tmp/pov_workdir/"), (
+            f"PoV input should be in /tmp/pov_workdir/, got {pov_path_in_container}"
+        )
+
+        # TEST 4: Mount directories should include parent dirs, not individual files
+        from pathlib import Path
+        mount_paths = list(mount_dirs_captured.keys())
+        mount_targets = list(mount_dirs_captured.values())
+        
+        # Should have 3 mounts: debug_script parent, pov_input parent, build_dir
+        assert len(mount_dirs_captured) == 3, (
+            f"Expected 3 mount directories (debug parent, pov parent, build), got {len(mount_dirs_captured)}"
+        )
+        
+        # Verify all mount sources are directories, not files
+        for mount_source in mount_paths:
+            assert mount_source.is_dir(), (
+                f"Mount source {mount_source} should be a directory, not a file"
+            )
+
+        # TEST 5: Build directory should be mounted to /out
+        assert Path("/out") in mount_targets, (
+            f"Build directory should be mounted to /out, got targets: {mount_targets}"
+        )
+
+
+def test_debug_binary_path_without_project_name(
+    debug_subagent,
+    mock_task,
+    mock_llm,
+    mock_harness_info,
+    mock_codequery_responses,
+    tmp_path,
+):
+    """Regression test: Ensure binary path does NOT include project_name subdirectory."""
+    pov_input_path = tmp_path / "pov_input.bin"
+    pov_input_path.write_bytes(b"test")
+
+    with (
+        patch("buttercup.common.llm.get_langfuse_callbacks", return_value=[]),
+        patch("opentelemetry.trace.get_tracer") as mock_tracer,
+    ):
+        mock_span = MagicMock()
+        mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
+
+        context_messages = [
+            AIMessage(
+                content="Context",
+                tool_calls=[
+                    ToolCall(
+                        id="1",
+                        name="get_function_definition",
+                        args={"function_name": "main"},
+                    ),
+                ],
+            ),
+        ]
+        debug_messages = [
+            AIMessage(content="Analysis"),
+            AIMessage(content="```gdb\nrun\n```"),
+        ]
+        mock_llm.invoke.side_effect = context_messages + debug_messages
+
+        mock_task.codequery.get_functions = Mock(return_value=mock_codequery_responses["get_functions"])
+        mock_task.codequery.get_callers = Mock(return_value=mock_codequery_responses["get_callers"])
+        mock_task.codequery.get_types = Mock(return_value=mock_codequery_responses["get_types"])
+        mock_task._continue_context_retrieval = lambda state: False
+
+        captured_cmd = None
+        def capture_cmd(cmd, **kwargs):
+            nonlocal captured_cmd
+            captured_cmd = cmd
+            return CommandResult(success=True, output=b"", error=b"")
+
+        mock_task.challenge_task.exec_docker_cmd = Mock(side_effect=capture_cmd)
+        
+        build_dir = tmp_path / "build"
+        build_dir.mkdir(parents=True)
+        mock_task.challenge_task.get_build_dir = Mock(return_value=build_dir)
+        mock_task.harness_name = "my_fuzzer"
+        mock_task.challenge_task.project_name = "libpng"  # Should NOT appear in path!
+
+        original_continue_debug = debug_subagent._continue_debug
+        debug_subagent._continue_debug = lambda state: state.debug_iteration < 1 and original_continue_debug(state)
+
+        debug_subagent.debug(
+            harness=mock_harness_info,
+            pov_input_path=pov_input_path,
+            debug_context="Test",
+            output_dir=tmp_path / "out",
+        )
+
+        assert captured_cmd is not None
+        binary_path = captured_cmd[captured_cmd.index("--args") + 1]
+        
+        # CRITICAL: Binary should be /out/my_fuzzer, NOT /out/libpng/my_fuzzer
+        assert binary_path == "/out/my_fuzzer", (
+            f"Binary path must be /out/my_fuzzer (no project name subdirectory), got {binary_path}"
+        )
+        assert "/libpng/" not in binary_path, (
+            f"Binary path should NOT contain project_name 'libpng', got {binary_path}"
+        )

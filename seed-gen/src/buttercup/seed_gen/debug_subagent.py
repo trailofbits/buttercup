@@ -113,15 +113,18 @@ class DebugSubagent:
         self,
         task: Task,
         reproduce_multiple: ReproduceMultiple,
+        skip_validation: bool = False,
     ):
         """Initialize the debug subagent.
 
         Args:
             task: The parent task (provides LLM, tools, codequery, etc.)
             reproduce_multiple: Used to validate PoVs and run debug containers
+            skip_validation: If True, skip PoV validation and only run debug once
         """
         self.task = task
         self.reproduce_multiple = reproduce_multiple
+        self.skip_validation = skip_validation
 
     def debug(
         self,
@@ -365,32 +368,31 @@ class DebugSubagent:
             debug_script_path = debug_script_path.resolve()
             pov_input_path = pov_input_path.resolve()
 
-            # Mount the debug script and PoV input
+            # Mount the parent directories containing the files, then reference them
+            # Docker can't mount individual files reliably, so mount parent dirs
+            debug_script_dir = debug_script_path.parent
+            pov_input_dir = pov_input_path.parent
+            
             mount_dirs = {
-                debug_script_path: Path("/tmp/debug_script.gdb"),
-                pov_input_path: Path(f"/tmp/{pov_input_path.name}"),
+                debug_script_dir: Path("/tmp/debug_workdir"),
+                pov_input_dir: Path("/tmp/pov_workdir"),
             }
+            
+            # Reference the files within their mounted parent directories
+            debug_script_container_path = f"/tmp/debug_workdir/{debug_script_path.name}"
+            pov_input_container_path = f"/tmp/pov_workdir/{pov_input_path.name}"
 
             # Also need to mount the build output directory so GDB can find the binary
             build_dir = task.get_build_dir()
             if build_dir and build_dir.exists():
-                # Mount the parent of build_dir (which contains /out) to /out in container
-                out_dir = build_dir.parent  # This should be .../build/out
-                if out_dir.exists():
-                    mount_dirs[out_dir] = Path("/out")
-                    # Binary is at /out/{project_name}/{harness_name}
-                    binary_path = f"/out/{project_name}/{harness_name}"
-                    logger.info(
-                        f"Mounting build output directory: {out_dir} -> /out, binary at {binary_path}"
-                    )
-                else:
-                    # Fallback: mount build_dir directly
-                    mount_dirs[build_dir] = Path("/out")
-                    # Binary is directly under /out
-                    binary_path = f"/out/{harness_name}"
-                    logger.info(
-                        f"Mounting build directory directly: {build_dir} -> /out, binary at {binary_path}"
-                    )
+                # build_dir should be the actual output directory containing the binaries
+                # Mount it directly to /out in the container
+                mount_dirs[build_dir] = Path("/out")
+                # OSS-Fuzz binaries are directly in /out, not in subdirectories
+                binary_path = f"/out/{harness_name}"
+                logger.info(
+                    f"Mounting build directory: {build_dir} -> /out, binary at {binary_path}"
+                )
             else:
                 # No build directory found, try default OSS-Fuzz path
                 logger.warning(
@@ -403,10 +405,10 @@ class DebugSubagent:
                 "gdb",
                 "-batch",
                 "-x",
-                "/tmp/debug_script.gdb",
+                debug_script_container_path,
                 "--args",
                 binary_path,
-                f"/tmp/{pov_input_path.name}",
+                pov_input_container_path,
             ]
 
             # Run in debug container
@@ -481,8 +483,7 @@ class DebugSubagent:
         workflow.add_node("analyze_debug", self._analyze_debug)
         workflow.add_node("write_debug_script", self._write_debug_script)
         workflow.add_node("run_debug_script", self._run_debug_script)
-        workflow.add_node("validate_pov", self._validate_pov)
-
+        
         workflow.set_entry_point("get_context")
         workflow.add_edge("get_context", "tools")
         workflow.add_conditional_edges(
@@ -496,20 +497,33 @@ class DebugSubagent:
 
         workflow.add_edge("analyze_debug", "write_debug_script")
         workflow.add_edge("write_debug_script", "run_debug_script")
-        workflow.add_edge("run_debug_script", "validate_pov")
-        workflow.add_conditional_edges(
-            "validate_pov",
-            self._continue_debug,
-            {
-                True: "analyze_debug",  # Retry if PoV not valid
-                False: END,  # Done if PoV valid or max iterations reached
-            },
-        )
+        
+        if self.skip_validation:
+            # Skip validation - just run debug once and exit
+            workflow.add_edge("run_debug_script", END)
+        else:
+            # Include validation and allow retries
+            workflow.add_node("validate_pov", self._validate_pov)
+            workflow.add_edge("run_debug_script", "validate_pov")
+            workflow.add_conditional_edges(
+                "validate_pov",
+                self._continue_debug,
+                {
+                    True: "analyze_debug",  # Retry if PoV not valid
+                    False: END,  # Done if PoV valid or max iterations reached
+                },
+            )
 
         return workflow
 
     def _recursion_limit(self) -> int:
         """Calculate recursion limit for the workflow"""
         context_steps = 2
-        debug_steps = 4
-        return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + debug_steps * self.MAX_DEBUG_ITERATIONS
+        if self.skip_validation:
+            # Just one pass: context + analyze + write + run
+            debug_steps = 3
+            return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + debug_steps
+        else:
+            # Full validation loop
+            debug_steps = 4
+            return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + debug_steps * self.MAX_DEBUG_ITERATIONS

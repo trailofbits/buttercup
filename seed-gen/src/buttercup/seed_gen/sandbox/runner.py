@@ -24,20 +24,28 @@ def load_module_from_path(path: Path) -> ModuleType | None:
 
 def exec_seed_funcs(seed_func_path: Path, output_dir: Path) -> None:
     """Execute seed functions in file and save seeds"""
+    logging.debug(f"exec_seed_funcs: Loading module from {seed_func_path}")
     module = load_module_from_path(seed_func_path)
     if module is None:
         logging.error("Failed to load module")
         return
-    for func_name, func in inspect.getmembers(module, inspect.isfunction):
+    
+    funcs = list(inspect.getmembers(module, inspect.isfunction))
+    logging.debug(f"Found {len(funcs)} functions in module: {[name for name, _ in funcs]}")
+    
+    for func_name, func in funcs:
         try:
             logging.info(f"Executing function: {func_name}")
             seed = func()
+            logging.debug(f"Function {func_name} returned {len(seed) if isinstance(seed, bytes) else 'non-bytes'} bytes")
             filename = f"{func_name}.seed"
             path = output_dir / filename
+            logging.debug(f"Writing seed to {path}")
             with open(path, "wb") as f:
                 f.write(seed)
+            logging.debug(f"Successfully wrote {len(seed)} bytes to {path}")
         except Exception as e:
-            logging.exception(f"Error occurred: {e}")
+            logging.exception(f"Error executing {func_name}: {e}")
 
 
 def main() -> None:
