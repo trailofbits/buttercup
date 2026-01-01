@@ -6,5 +6,5 @@ curl -X 'POST' 'http://127.0.0.1:31323/webhook/trigger_task' -H 'Content-Type: a
     "fuzz_tooling_url": "https://github.com/trail-of-forks/oss-fuzz",
     "fuzz_tooling_ref": "fix-libpng",
     "fuzz_tooling_project_name": "libpng",
-    "duration": 1800
+    "duration": 14400
 }'

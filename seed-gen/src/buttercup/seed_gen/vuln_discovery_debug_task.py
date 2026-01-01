@@ -230,6 +230,7 @@ When writing new PoVs:
 
         # Create debug context from the analysis
         harness_info = f"Fuzzer: {state.harness.harness_name} in {state.harness.file_path}"
+        logger.info(f"Harness info: {harness_info}")
         
         # Add more specific context if analysis is available
         analysis_section = f"\n{state.analysis}\n" if state.analysis.strip() else "\nNo detailed analysis available.\n"
@@ -258,12 +259,12 @@ This proactive debugging will help us:
 
         # Run debug subagent
         try:
-            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, state.output_dir / f"debug_iter{state.pov_iteration}")
+            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, state.output_dir / f"agent_debug_iter{state.pov_iteration}")
             debug_result = self.debug_subagent.debug(
                 harness=state.harness,
                 pov_input_path=pov_path,
                 debug_context=debug_context,
-                output_dir=state.output_dir / f"debug_iter{state.pov_iteration}",
+                output_dir=state.output_dir / f"agent_debug_iter{state.pov_iteration}",
             )
             logger.info("Debug subagent returned: analysis_len=%d, script_len=%d, output_len=%d, attempts=%d", 
                        len(debug_result.analysis), 

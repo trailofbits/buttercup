@@ -337,22 +337,42 @@ class DebugSubagent:
         # up after Docker has fully completed, but that's complex with the current
         # architecture where exec_docker_cmd might cache containers.
         import os
+        logger.info("Creating temporary GDB script file...")
+        logger.info(f"  Script content length: {len(state.debug_script)} characters")
+        
         with tempfile.NamedTemporaryFile(mode="w", suffix=".gdb", delete=False) as f:
+            logger.info(f"  Temporary file created: {f.name}")
             f.write(state.debug_script)
+            logger.info(f"  Content written to buffer")
             f.flush()  # Ensure content is written to OS buffer
+            logger.info(f"  Buffer flushed to OS")
             os.fsync(f.fileno())  # Force write to disk before mounting
+            logger.info(f"  File synced to disk (fsync)")
             debug_script_path = Path(f.name)
         
         # Also sync the parent directory to ensure metadata is written
         # This helps prevent race conditions where Docker tries to mount before
         # the file system has fully committed the file metadata
+        logger.info(f"Syncing parent directory metadata: {debug_script_path.parent}")
         dir_fd = os.open(str(debug_script_path.parent), os.O_RDONLY)
         try:
             os.fsync(dir_fd)  # Sync directory metadata to disk
+            logger.info(f"  Directory metadata synced to disk")
         finally:
             os.close(dir_fd)
         
         # Verify the file was created successfully
+        logger.info(f"Verifying file after creation:")
+        logger.info(f"  Path: {debug_script_path}")
+        logger.info(f"  Exists: {debug_script_path.exists()}")
+        if debug_script_path.exists():
+            stat_info = debug_script_path.stat()
+            logger.info(f"  Is file: {debug_script_path.is_file()}")
+            logger.info(f"  Is directory: {debug_script_path.is_dir()}")
+            logger.info(f"  Size: {stat_info.st_size} bytes")
+            logger.info(f"  Permissions: {oct(stat_info.st_mode)}")
+            logger.info(f"  Absolute path: {debug_script_path.resolve()}")
+        
         if not debug_script_path.exists():
             logger.error(f"Failed to create debug script file at {debug_script_path}")
             return Command(update={"debug_output": f"Error: Failed to create debug script file"})
@@ -526,9 +546,23 @@ class DebugSubagent:
             # Mount files for Docker
             # Use unique paths to avoid conflicts with existing directories in the container
             # Generate a unique filename based on the temp file name to ensure uniqueness
+            logger.info("=" * 80)
+            logger.info("Setting up Docker mounts...")
+            logger.info("=" * 80)
+            
+            # Mount debug script to scratchpad (same directory as PoV input)
+            # This avoids /tmp issues in Docker-in-Docker scenarios
+            # Strategy: Mount the PoV input's parent directory to /work in container
+            # Then both files are accessible at /work/<filename>
+            pov_input_parent = pov_input_path.parent
             script_unique_name = f"debug_script_{debug_script_path.stem}.gdb"
-            debug_script_container_path = f"/tmp/{script_unique_name}"
-            pov_input_container_path = f"/tmp/{pov_input_path.name}"
+            # Container paths relative to /work mount
+            debug_script_container_path = Path(f"/work/{script_unique_name}")
+            pov_input_container_path = Path(f"/work/{pov_input_path.name}")
+            
+            logger.info(f"Container paths (targets in container):")
+            logger.info(f"  Debug script: {debug_script_container_path}")
+            logger.info(f"  PoV input: {pov_input_container_path}")
             
             # Get project_name for container binary path
             # build_dir is .../build/out/<project_name>, so project_name is the last component
@@ -545,48 +579,150 @@ class DebugSubagent:
             
             # Verify all source files exist before mounting
             logger.info(f"Verifying source files before Docker mount:")
-            logger.info(f"  Debug script: {debug_script_path} exists={debug_script_path.exists()} is_file={debug_script_path.is_file()}")
-            logger.info(f"  PoV input: {pov_input_path} exists={pov_input_path.exists()} is_file={pov_input_path.is_file()}")
-            logger.info(f"  Build dir: {build_dir} exists={build_dir.exists()} is_dir={build_dir.is_dir()}")
-            logger.info(f"  Out dir (parent): {out_dir} exists={out_dir.exists()} is_dir={out_dir.is_dir()}")
+            logger.info(f"  Debug script:")
+            logger.info(f"    Path: {debug_script_path}")
+            logger.info(f"    Exists: {debug_script_path.exists()}")
+            logger.info(f"    Is file: {debug_script_path.is_file()}")
+            logger.info(f"    Is directory: {debug_script_path.is_dir()}")
+            if debug_script_path.exists():
+                logger.info(f"    Size: {debug_script_path.stat().st_size} bytes")
+                logger.info(f"    Absolute: {debug_script_path.resolve()}")
             
+            logger.info(f"  PoV input:")
+            logger.info(f"    Path: {pov_input_path}")
+            logger.info(f"    Exists: {pov_input_path.exists()}")
+            logger.info(f"    Is file: {pov_input_path.is_file()}")
+            logger.info(f"    Is directory: {pov_input_path.is_dir()}")
+            if pov_input_path.exists():
+                logger.info(f"    Size: {pov_input_path.stat().st_size} bytes")
+                logger.info(f"    Absolute: {pov_input_path.resolve()}")
+            
+            logger.info(f"  Build dir:")
+            logger.info(f"    Path: {build_dir}")
+            logger.info(f"    Exists: {build_dir.exists()}")
+            logger.info(f"    Is directory: {build_dir.is_dir()}")
+            logger.info(f"    Absolute: {build_dir.resolve()}")
+            
+            logger.info(f"  Out dir (parent of build_dir):")
+            logger.info(f"    Path: {out_dir}")
+            logger.info(f"    Exists: {out_dir.exists()}")
+            logger.info(f"    Is directory: {out_dir.is_dir()}")
+            logger.info(f"    Absolute: {out_dir.resolve()}")
+            
+            # Mount the PoV input's parent directory to /work so both files are accessible
+            # This puts both the debug script and PoV input in the scratchpad
             mount_dirs = {
-                debug_script_path: Path(debug_script_container_path),
-                pov_input_path: Path(pov_input_container_path),
+                pov_input_parent: Path("/work"),  # Mount parent dir to /work
             }
             
             # Mount the parent directory (build/out) to /out, not the project_name subdirectory
             if out_dir.exists():
                 mount_dirs[out_dir] = Path("/out")
+                logger.info(f"  Using out_dir for /out mount: {out_dir}")
             else:
                 # Fallback: mount build_dir directly if parent doesn't exist
                 logger.warning(f"Out directory {out_dir} does not exist, falling back to mounting build_dir directly")
                 mount_dirs[build_dir] = Path("/out")
                 # If we mount build_dir directly, binary path should be /out/<actual_binary_name>
                 binary_path = f"/out/{harness_name_for_path}"
+                logger.info(f"  Using build_dir for /out mount (fallback): {build_dir}")
             
-            logger.info(f"Mount directories: {mount_dirs}")
-            logger.info(f"Debug script container path: {debug_script_container_path}")
-            logger.info(f"PoV input container path: {pov_input_container_path}")
-            logger.info(f"Binary path: {binary_path}")
+            # Copy debug script to the scratchpad directory before mounting
+            # This ensures it's in the same directory as the PoV input
+            import shutil
+            debug_script_in_scratchpad = pov_input_parent / script_unique_name
+            logger.info(f"Copying debug script to scratchpad: {debug_script_in_scratchpad}")
+            shutil.copy2(debug_script_path, debug_script_in_scratchpad)
+            logger.info(f"  Copied: {debug_script_path} -> {debug_script_in_scratchpad}")
+            
+            logger.info(f"Final mount configuration:")
+            for src, dst in mount_dirs.items():
+                src_resolved = src.resolve() if hasattr(src, 'resolve') else Path(str(src)).resolve()
+                dst_path = dst.resolve() if hasattr(dst, 'resolve') else Path(str(dst))
+                logger.info(f"  {src_resolved.as_posix()} -> {dst_path.as_posix()}")
+                logger.info(f"    Source exists: {src_resolved.exists()}")
+                logger.info(f"    Source is_file: {src_resolved.is_file() if src_resolved.exists() else 'N/A'}")
+                logger.info(f"    Source is_dir: {src_resolved.is_dir() if src_resolved.exists() else 'N/A'}")
+                logger.info(f"    Destination path type: {type(dst_path)}")
+                logger.info(f"    Destination as_posix(): {dst_path.as_posix()}")
+                # Check if destination path looks suspicious
+                if str(dst_path).endswith('/'):
+                    logger.warning(f"    WARNING: Destination path ends with '/' - this might cause issues!")
+                if '//' in str(dst_path):
+                    logger.warning(f"    WARNING: Destination path contains '//' - this might cause issues!")
+            
+            logger.info(f"Container paths:")
+            logger.info(f"  Debug script: {debug_script_container_path}")
+            logger.info(f"  PoV input: {pov_input_container_path}")
+            logger.info(f"  Binary: {binary_path}")
+            logger.info("=" * 80)
 
             # Create the GDB command
+            # Ensure all items are strings (Path objects cause join() to fail)
             gdb_cmd = [
                 "gdb",
                 "-batch",
                 "-x",
-                debug_script_container_path,
+                str(debug_script_container_path),
                 "--args",
-                binary_path,
-                pov_input_container_path,
+                str(binary_path),  # Ensure binary_path is also a string
+                str(pov_input_container_path),
             ]
+            
+            logger.info("GDB command to execute in container:")
+            logger.info(f"  {' '.join(gdb_cmd)}")
+            logger.info(f"  Script path in container: {debug_script_container_path}")
+            logger.info(f"  Binary path in container: {binary_path}")
+            logger.info(f"  PoV input path in container: {pov_input_container_path}")
+
+            # CRITICAL: Clean up any existing directory at mount target before mounting
+            # If the target path exists as a directory, Docker will mount the file INTO it
+            # instead of replacing it, causing "Is a directory" errors
 
             # Run in debug container
+            # First, verify the mount will work by checking what exec_docker_cmd will actually do
+            logger.info(f"Executing Docker command with:")
+            logger.info(f"  Container image: {debug_container_image}")
+            logger.info(f"  Number of mounts: {len(mount_dirs)}")
+            logger.info(f"  Mount details logged above")
+            
+            # Log what the actual Docker mount command will look like
+            for src, dst in mount_dirs.items():
+                src_resolved = src.resolve() if hasattr(src, 'resolve') else Path(str(src)).resolve()
+                dst_path = dst.resolve() if hasattr(dst, 'resolve') else Path(str(dst))
+                mount_spec = f"{src_resolved.as_posix()}:{dst_path.as_posix()}"
+                logger.info(f"  -v {mount_spec}")
+                # Check for potential issues
+                if str(dst_path).endswith('/'):
+                    logger.error(f"    ERROR: Destination ends with '/' - Docker will treat this as a directory mount!")
+                if ' ' in str(dst_path):
+                    logger.warning(f"    WARNING: Destination contains spaces - may cause issues")
+            
+            # Combine GDB command with verification in the SAME container
+            # This way we can see what actually happened in the container where GDB ran
+            combined_cmd = [
+                "bash", "-c",
+                f"""
+                # Run GDB
+                echo "=== Running GDB ==="
+                {' '.join(gdb_cmd)}
+                gdb_exit_code=$?
+                echo ""
+                """
+            ]
+            
             result = task.exec_docker_cmd(
-                gdb_cmd,
+                combined_cmd,
                 mount_dirs=mount_dirs,
                 container_image=debug_container_image,
             )
+            logger.info(f"Docker command completed:")
+            logger.info(f"  Success: {result.success}")
+            logger.info(f"  Return code: {result.returncode}")
+            logger.info(f"  Output length: {len(result.output)} bytes")
+            logger.info(f"  Error length: {len(result.error)} bytes")
+            if result.error:
+                logger.info(f"  Error preview: {result.error[:500].decode('utf-8', errors='ignore')}")
 
             if not result.success:
                 return f"GDB execution failed:\nSTDOUT: {result.output.decode('utf-8', errors='ignore')}\nSTDERR: {result.error.decode('utf-8', errors='ignore')}"

@@ -380,33 +380,33 @@ def test_docker_file_mount_debugging(tmp_path):
         test_dir_path = Path(test_dir)
         test_file = test_dir_path / "test.txt"
         test_file.write_text("test content")
-        
-        # Force sync to ensure file is written to disk before mounting
-        import os
-        with test_file.open('r+b') as f:
-            os.fsync(f.fileno())
-        
-        # Also sync the parent directory to ensure metadata is written
+    
+    # Force sync to ensure file is written to disk before mounting
+    import os
+    with test_file.open('r+b') as f:
+        os.fsync(f.fileno())
+    
+    # Also sync the parent directory to ensure metadata is written
         dir_fd = os.open(str(test_dir_path), os.O_RDONLY)
-        try:
-            os.fsync(dir_fd)
-        finally:
-            os.close(dir_fd)
-        
-        # Verify file exists and is actually a file using system commands
-        import subprocess as sp
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+    
+    # Verify file exists and is actually a file using system commands
+    import subprocess as sp
         ls_result = sp.run(["ls", "-la", str(test_dir_path)], capture_output=True, text=True)
-        logger.info(f"Host ls output: {ls_result.stdout}")
-        
-        # Verify file exists and is actually a file
-        assert test_file.exists(), "Test file should exist"
-        assert test_file.is_file(), "Test file should be a file, not directory"
-        assert not test_file.is_dir(), "Test file should not be a directory"
-        
-        # Double-check file is readable
-        content = test_file.read_text()
-        assert content == "test content", f"File content mismatch. Got: {content!r}"
-        
+    logger.info(f"Host ls output: {ls_result.stdout}")
+    
+    # Verify file exists and is actually a file
+    assert test_file.exists(), "Test file should exist"
+    assert test_file.is_file(), "Test file should be a file, not directory"
+    assert not test_file.is_dir(), "Test file should not be a directory"
+    
+    # Double-check file is readable
+    content = test_file.read_text()
+    assert content == "test content", f"File content mismatch. Got: {content!r}"
+    
         # Mount parent directory (more reliable approach)
         # This is what we'd use if individual file mounts were problematic
         mount_source = test_dir_path.resolve().as_posix()
@@ -414,7 +414,7 @@ def test_docker_file_mount_debugging(tmp_path):
         logger.info(f"Files in source directory (Python): {list(test_dir_path.iterdir())}")
         logger.info(f"Test file absolute path: {test_file.resolve()}")
         logger.info(f"Test file exists: {test_file.exists()}, is_file: {test_file.is_file()}")
-        
+    
         # First, verify the mount works by listing the directory
         docker_cmd_ls = [
             "docker", "run", "--rm",
