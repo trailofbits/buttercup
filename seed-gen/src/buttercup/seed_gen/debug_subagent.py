@@ -336,10 +336,21 @@ class DebugSubagent:
         # during the mount. The OS will clean it up later, or we could clean it
         # up after Docker has fully completed, but that's complex with the current
         # architecture where exec_docker_cmd might cache containers.
+        import os
         with tempfile.NamedTemporaryFile(mode="w", suffix=".gdb", delete=False) as f:
             f.write(state.debug_script)
-            f.flush()  # Ensure content is written to disk
+            f.flush()  # Ensure content is written to OS buffer
+            os.fsync(f.fileno())  # Force write to disk before mounting
             debug_script_path = Path(f.name)
+        
+        # Also sync the parent directory to ensure metadata is written
+        # This helps prevent race conditions where Docker tries to mount before
+        # the file system has fully committed the file metadata
+        dir_fd = os.open(str(debug_script_path.parent), os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)  # Sync directory metadata to disk
+        finally:
+            os.close(dir_fd)
         
         # Verify the file was created successfully
         if not debug_script_path.exists():
@@ -400,6 +411,9 @@ class DebugSubagent:
             logger.info(f"  pov_input_path: {pov_input_path}")
 
             # Get the build output directory so GDB can find the binary
+            # get_build_dir() returns .../build/out/<project_name>
+            # Binaries are located at .../build/out/<project_name>/<harness_name>
+            # This matches the pattern used in fuzzer_bot.py
             build_dir = task.get_build_dir()
             logger.info(f"Build directory from task.get_build_dir(): {build_dir}")
             
@@ -413,6 +427,7 @@ class DebugSubagent:
                 logger.info(f"Files in build_dir: {[f.name for f in files_in_build]}")
             
             # Check if the harness binary exists in the build directory
+            # Binary location matches fuzzer_bot.py: build_dir / harness_name
             harness_binary_path = build_dir / harness_name
             if not harness_binary_path.exists():
                 available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
@@ -433,29 +448,122 @@ class DebugSubagent:
             except Exception:
                 is_elf = False
             
+            binary_size = harness_binary_path.stat().st_size
             logger.info(f"Found harness binary: {harness_binary_path}")
             logger.info(f"  Permissions: {oct(harness_binary_path.stat().st_mode)}")
-            logger.info(f"  Size: {harness_binary_path.stat().st_size} bytes")
+            logger.info(f"  Size: {binary_size} bytes")
             logger.info(f"  Is ELF binary: {is_elf}")
             
+            # If the file is not an ELF binary or is suspiciously small, it might be a wrapper script
+            # Try to find the actual binary. Wrapper scripts often have suffixes like _nalloc, _asan, etc.
+            # The actual binary is usually the base harness name without the suffix
+            actual_binary_path = harness_binary_path
+            actual_binary_name = harness_name
+            if not is_elf or binary_size < 1024:
+                logger.warning(
+                    f"File '{harness_name}' appears to be a wrapper script (size={binary_size}, is_elf={is_elf}). "
+                    f"Searching for actual ELF binary..."
+                )
+                
+                # Try to find the actual binary by looking for ELF files in the build directory
+                # Priority: 1) Base name without suffix, 2) Any ELF file with base name as prefix
+                base_name = harness_name
+                # Remove common sanitizer suffixes
+                for suffix in ['_nalloc', '_asan', '_msan', '_ubsan', '_tsan', '_hwasan']:
+                    if base_name.endswith(suffix):
+                        base_name = base_name[:-len(suffix)]
+                        break
+                
+                # First, try the base name directly
+                candidate_path = build_dir / base_name
+                if candidate_path.exists() and candidate_path.is_file():
+                    try:
+                        with open(candidate_path, 'rb') as f:
+                            candidate_magic = f.read(4)
+                            candidate_is_elf = candidate_magic == b'\x7fELF'
+                        candidate_size = candidate_path.stat().st_size
+                        if candidate_is_elf and candidate_size > 1024:
+                            logger.info(
+                                f"Found actual binary: {base_name} (size={candidate_size}, is_elf={candidate_is_elf}). "
+                                f"Using this instead of wrapper '{harness_name}'."
+                            )
+                            actual_binary_path = candidate_path
+                            actual_binary_name = base_name
+                            # Set execute permissions
+                            current_perms = actual_binary_path.stat().st_mode
+                            actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                    except Exception as e:
+                        logger.debug(f"Error checking candidate {base_name}: {e}")
+                
+                # If base name didn't work, search for any ELF file with base name as prefix
+                if actual_binary_path == harness_binary_path and build_dir.is_dir():
+                    for candidate in build_dir.iterdir():
+                        if candidate.is_file() and candidate != harness_binary_path:
+                            if candidate.name.startswith(base_name):
+                                try:
+                                    with open(candidate, 'rb') as f:
+                                        candidate_magic = f.read(4)
+                                        candidate_is_elf = candidate_magic == b'\x7fELF'
+                                    candidate_size = candidate.stat().st_size
+                                    if candidate_is_elf and candidate_size > 1024:
+                                        logger.info(
+                                            f"Found actual binary: {candidate.name} (size={candidate_size}, is_elf={candidate_is_elf}). "
+                                            f"Using this instead of wrapper '{harness_name}'."
+                                        )
+                                        actual_binary_path = candidate
+                                        actual_binary_name = candidate.name
+                                        # Set execute permissions
+                                        current_perms = actual_binary_path.stat().st_mode
+                                        actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                                        break
+                                except Exception:
+                                    pass
+            
+            # Use the actual binary (or original if it was already valid)
+            harness_binary_path = actual_binary_path
+            harness_name_for_path = actual_binary_name
+            
             # Mount files for Docker
-            # Mount individual files directly to their container paths
-            # This matches the pattern used in debug_subagent_task.py
-            debug_script_container_path = "/tmp/debug_script.gdb"
+            # Use unique paths to avoid conflicts with existing directories in the container
+            # Generate a unique filename based on the temp file name to ensure uniqueness
+            script_unique_name = f"debug_script_{debug_script_path.stem}.gdb"
+            debug_script_container_path = f"/tmp/{script_unique_name}"
             pov_input_container_path = f"/tmp/{pov_input_path.name}"
-            binary_path = f"/out/{harness_name}"
+            
+            # Get project_name for container binary path
+            # build_dir is .../build/out/<project_name>, so project_name is the last component
+            project_name = build_dir.name
+            # Binary path in container: /out/<project_name>/<actual_binary_name>
+            # Use the actual binary name (which may differ from harness_name if it was a wrapper)
+            binary_path = f"/out/{project_name}/{harness_name_for_path}"
+            
+            # Mount the parent of build_dir (which is .../build/out) to /out in container
+            # This matches the pattern used in debug_subagent_task.py
+            # build_dir is typically .../build/out/<project_name>
+            # We want to mount .../build/out to /out
+            out_dir = build_dir.parent  # This should be .../build/out
             
             # Verify all source files exist before mounting
             logger.info(f"Verifying source files before Docker mount:")
             logger.info(f"  Debug script: {debug_script_path} exists={debug_script_path.exists()} is_file={debug_script_path.is_file()}")
             logger.info(f"  PoV input: {pov_input_path} exists={pov_input_path.exists()} is_file={pov_input_path.is_file()}")
             logger.info(f"  Build dir: {build_dir} exists={build_dir.exists()} is_dir={build_dir.is_dir()}")
+            logger.info(f"  Out dir (parent): {out_dir} exists={out_dir.exists()} is_dir={out_dir.is_dir()}")
             
             mount_dirs = {
                 debug_script_path: Path(debug_script_container_path),
                 pov_input_path: Path(pov_input_container_path),
-                build_dir: Path("/out"),
             }
+            
+            # Mount the parent directory (build/out) to /out, not the project_name subdirectory
+            if out_dir.exists():
+                mount_dirs[out_dir] = Path("/out")
+            else:
+                # Fallback: mount build_dir directly if parent doesn't exist
+                logger.warning(f"Out directory {out_dir} does not exist, falling back to mounting build_dir directly")
+                mount_dirs[build_dir] = Path("/out")
+                # If we mount build_dir directly, binary path should be /out/<actual_binary_name>
+                binary_path = f"/out/{harness_name_for_path}"
             
             logger.info(f"Mount directories: {mount_dirs}")
             logger.info(f"Debug script container path: {debug_script_container_path}")
