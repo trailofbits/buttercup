@@ -122,11 +122,34 @@ GDB commands you can use:
 - `printf "<format>", <expr>` - Formatted output
 - `commands <breakpoint>` ... `end` - Define commands to run at breakpoint
 
+CRITICAL - Shared Library Functions:
+- Many functions (like png_handle_iCCP, png_read_info, etc.) are in shared libraries (libpng.so) that load at runtime
+- You MUST start your script with: `set breakpoint pending on`
+- This makes GDB automatically set breakpoints when shared libraries load
+- Without this, breakpoints on shared library functions will fail with "Function not defined" errors
+
+CRITICAL - Local Variables in Breakpoint Conditions:
+- Local variables (like `owner`, `keyword`, etc.) only exist when inside the function
+- Do NOT use local variables in breakpoint conditions like: `break func if owner == 0x123`
+- Instead, set the breakpoint at the function entry, then check the variable in the `commands` block
+- Example:
+  ```
+  break png_inflate_claim
+  commands
+      if owner == 0x69434350
+          printf "Found iCCP decompression\n"
+      end
+      continue
+  end
+  ```
+
 Important:
 - The script must be self-contained and work in batch mode
 - Use `printf` or `print` to output information (stdout will be captured)
+- ALWAYS start with `set breakpoint pending on` to handle shared library functions
 - Set breakpoints before running
 - Use `commands` blocks to automatically output information at breakpoints
+- Check local variables INSIDE `commands` blocks, not in breakpoint conditions
 - Make your output clear and structured so we understand execution flow
 - Focus on VERIFYING the PoV is doing what we expect, not just detecting crashes
 """
@@ -172,7 +195,86 @@ The script will be executed with:
 gdb -batch -x <script> --args <binary> <pov_input_file>
 ```
 
+CRITICAL REQUIREMENTS:
+1. Start the script with `set breakpoint pending on` to handle shared library functions
+2. Do NOT use local variables in breakpoint conditions - check them inside `commands` blocks instead
+3. Set breakpoints on functions before calling `run`
+4. Use `commands` blocks to check conditions and output information
+
 Output only the GDB script code, wrapped in a code block with language "gdb" or "text".
 Make sure the script outputs detailed information using `printf` or `print` statements so we can understand execution flow.
 Use `commands` blocks at breakpoints to automatically output relevant information.
+"""
+
+DEBUG_REFLECT_SYSTEM_PROMPT = """
+You are an expert security engineer analyzing debug output from a GDB session. Your job is to create a concise summary that explains what was tried, what happened, and what the limitations are.
+
+You will be given:
+- The debug output from running a GDB script
+- The GDB script that was executed
+- The original analysis/motivation for creating the script
+- The original debugging context/question
+
+Your reflection MUST include:
+1. **What was tried**: Briefly summarize the debugging approach and what breakpoints/checks were set up
+2. **What happened**: Summarize the actual execution flow based on the debug output - what code paths were taken, what functions were called, what the program state was
+3. **Limitations**: Clearly state what could NOT be determined or verified, what breakpoints didn't fire, what information was missing, what obstacles were encountered
+4. **Relationship to vulnerability**: How does what happened relate to the original vulnerability and debugging question?
+5. **Key findings**: What are the most important takeaways about whether the PoV is working as intended?
+
+CRITICAL: This summary will be used by another agent that does NOT have access to the full debug script or raw output. Make it self-contained and actionable. Focus on:
+- What we learned (not the technical details of how we learned it)
+- What we still don't know
+- What this means for the vulnerability exploitation
+- What limitations prevent us from fully understanding the execution
+
+Keep it concise but comprehensive - the calling agent needs to understand what was attempted, what succeeded, and what failed, without needing the technical debug details.
+"""
+
+DEBUG_REFLECT_USER_PROMPT = """
+The test harness is:
+{harness}
+
+The original debugging context/question was:
+{debug_context}
+
+The original analysis/motivation for the debug script:
+<analysis>
+{analysis}
+</analysis>
+
+The GDB script that was executed:
+<debug_script>
+{debug_script}
+</debug_script>
+
+The debug output from running the script:
+<debug_output>
+{debug_output}
+</debug_output>
+
+Create a concise summary that includes:
+
+1. **What was tried**: What debugging approach was used? What breakpoints or checks were set up? What were we trying to verify?
+
+2. **What happened**: Based on the debug output, what actually occurred during execution?
+   - What code paths were taken?
+   - What functions were called (or not called)?
+   - What was the program state at key points?
+   - Did the PoV reach the vulnerable code paths?
+
+3. **Limitations**: What could NOT be determined or verified?
+   - What breakpoints didn't fire?
+   - What information was missing from the output?
+   - What obstacles prevented full understanding?
+   - What assumptions had to be made?
+
+4. **Relationship to vulnerability**: How does what happened relate to the original vulnerability and debugging question?
+
+5. **Key findings**: What are the most important takeaways?
+   - Is the PoV working as intended?
+   - Are exploitation conditions being met?
+   - What might prevent successful exploitation?
+
+Remember: This summary will be read by another agent that does NOT have access to the full script or raw output. Make it self-contained, focusing on what we learned and what we still don't know, not the technical details of the debugging process.
 """

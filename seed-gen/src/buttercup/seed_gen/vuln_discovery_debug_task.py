@@ -1,6 +1,6 @@
 """Vuln Discovery task with integrated debug capabilities.
 
-This task integrates DebugSubagent into the vulnerability discovery workflow.
+This task integrates DebugSubagent_interactive into the vulnerability discovery workflow.
 When PoVs fail to crash, it uses GDB-based debugging to understand why and
 incorporates those insights into the next iteration.
 """
@@ -15,7 +15,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from pydantic import Field
 
-from buttercup.seed_gen.debug_subagent import DebugSubagent
+from buttercup.seed_gen.debug_subagent_interactive import DebugSubagentInteractive
 from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT,
     VULN_DELTA_ANALYZE_BUG_USER_PROMPT,
@@ -55,7 +55,7 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
     This task extends the base vulnerability discovery workflow by:
     1. Running GDB-based debugging when PoVs fail to crash
     2. Incorporating debug insights into the next analysis iteration
-    3. Using the DebugSubagent to understand execution flow and state
+    3. Using the DebugSubagent_interactive to understand execution flow and state
     """
 
     TaskStateClass = VulnDiscoveryDebugState
@@ -66,7 +66,7 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
     def __post_init__(self) -> None:
         super().__post_init__()
         # Initialize debug subagent with validation skipped (proactive debugging)
-        self.debug_subagent = DebugSubagent(
+        self.debug_subagent_interactive = DebugSubagentInteractive(
             task=self, 
             reproduce_multiple=self.reproduce_multiple,
             skip_validation=True  # Skip validation for proactive debugging
@@ -257,41 +257,30 @@ This proactive debugging will help us:
 - Gather insights to improve subsequent iterations
 """
 
-        # Run debug subagent
+        # Run debug subagent_interactive
         try:
             logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, state.output_dir / f"agent_debug_iter{state.pov_iteration}")
-            debug_result = self.debug_subagent.debug(
+            debug_result = self.debug_subagent_interactive.debug(
                 harness=state.harness,
                 pov_input_path=pov_path,
                 debug_context=debug_context,
                 output_dir=state.output_dir / f"agent_debug_iter{state.pov_iteration}",
             )
-            logger.info("Debug subagent returned: analysis_len=%d, script_len=%d, output_len=%d, attempts=%d", 
+            logger.info("Debug subagent_interactive returned: analysis_len=%d, debug_commands_len=%d, output_len=%d, reflection_len=%d, attempts=%d", 
                        len(debug_result.analysis), 
-                       len(debug_result.debug_script),
+                       len(debug_result.debug_commands),
                        len(debug_result.debug_output),
+                       len(debug_result.reflection),
                        len(debug_result.attempts))
 
-            # Format debug insights
+            # Format debug insights - only include the summary/reflection
+            # The calling agent doesn't need the script or raw output details
             debug_insights = f"""## Proactive Debug Session for iteration {state.pov_iteration}
 
-**Execution Analysis:**
-{debug_result.analysis}
+**Debug Summary:**
+{debug_result.reflection}
 
-**GDB Script Used:**
-```gdb
-{debug_result.debug_script}
-```
-
-**GDB Output:**
-```
-{debug_result.debug_output[:2000]}  # Limit to first 2000 chars
-```
-
-**Key Findings:**
-- Review the GDB output above to understand execution flow
-- The PoV validation will now test if this actually crashes
-- Use these insights to understand program behavior
+The PoV validation will now test if this actually crashes.
 """
 
             logger.info("Proactive debug session completed")

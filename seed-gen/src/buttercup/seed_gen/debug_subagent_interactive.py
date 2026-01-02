@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
 
+from langchain_core.messages import AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
@@ -26,6 +27,7 @@ from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.seed_gen.find_harness import HarnessInfo
+from buttercup.seed_gen.interactive_debug_docker import InteractiveGDBDocker
 from buttercup.seed_gen.prompt.debug import (
     DEBUG_ANALYZE_SYSTEM_PROMPT,
     DEBUG_ANALYZE_USER_PROMPT,
@@ -33,11 +35,9 @@ from buttercup.seed_gen.prompt.debug import (
     DEBUG_GET_CONTEXT_USER_PROMPT,
     DEBUG_REFLECT_SYSTEM_PROMPT,
     DEBUG_REFLECT_USER_PROMPT,
-    DEBUG_WRITE_SCRIPT_SYSTEM_PROMPT,
-    DEBUG_WRITE_SCRIPT_USER_PROMPT,
 )
-from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_code
+from buttercup.seed_gen.task import BaseTaskState, Task
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +92,8 @@ class DebugTaskState(BaseTaskState):
         description="Path to the PoV input file",
     )
     analysis: str = Field(description="The analysis of the debugging task", default="")
-    debug_script: str = Field(description="The GDB debug script to execute", default="")
-    debug_output: str = Field(description="Output from running the debug script", default="")
+    debug_output: str = Field(description="Output from running the interactive debug session", default="")
+    debug_commands: list[str] = Field(description="List of GDB commands executed", default_factory=list)
     reflection: str = Field(description="Reflection on what happened during execution and how it relates to the vulnerability", default="")
     pov_valid: bool = Field(description="Whether the PoV is valid (causes a crash)", default=False)
     debug_iteration: int = Field(description="Count of debug iterations", default=0)
@@ -104,7 +104,7 @@ class DebugTaskState(BaseTaskState):
         return "\n\n".join(str(attempt) for attempt in self.debug_attempts)
 
 
-class DebugSubagent:
+class DebugSubagentInteractive:
     """Utility for debugging PoVs with GDB scripts.
 
     This can be called by other tasks to debug PoV inputs and investigate
@@ -113,6 +113,7 @@ class DebugSubagent:
 
     MAX_DEBUG_ITERATIONS = 2
     MAX_CONTEXT_ITERATIONS = 3
+    MAX_INTERACTIVE_COMMANDS = 10  # Depth of interactive debug loop
     # Each context iteration can have multiple tool calls (get_context -> tools)
     # Estimate ~5 tool calls per context iteration to be safe
     ESTIMATED_TOOLS_PER_CONTEXT = 5
@@ -205,17 +206,17 @@ class DebugSubagent:
                 logger.info("Debug workflow chain completed")
 
                 # Get values from state (final_state is a dict)
-                debug_script = final_state.get("debug_script", "") or ""
                 debug_output = final_state.get("debug_output", "") or ""
+                debug_commands = final_state.get("debug_commands", [])
                 analysis = final_state.get("analysis", "") or ""
                 reflection = final_state.get("reflection", "") or ""
                 pov_valid = final_state.get("pov_valid", False)
                 debug_attempts = final_state.get("debug_attempts", [])
 
                 logger.info(
-                    "Debug state extracted: analysis_len=%d, script_len=%d, output_len=%d, reflection_len=%d, attempts=%d",
+                    "Debug state extracted: analysis_len=%d, commands=%d, output_len=%d, reflection_len=%d, attempts=%d",
                     len(analysis),
-                    len(debug_script),
+                    len(debug_commands),
                     len(debug_output),
                     len(reflection),
                     len(debug_attempts),
@@ -224,8 +225,8 @@ class DebugSubagent:
                 # Write results to output directory if provided
                 if output_dir:
                     output_dir.mkdir(parents=True, exist_ok=True)
-                    if debug_script:
-                        (output_dir / "debug_script.gdb").write_text(debug_script)
+                    if debug_commands:
+                        (output_dir / "debug_commands.txt").write_text("\n".join(debug_commands))
                     if debug_output:
                         (output_dir / "debug_output.txt").write_text(debug_output)
                     if analysis:
@@ -246,7 +247,7 @@ class DebugSubagent:
 
                 return DebugResult(
                     pov_valid=pov_valid,
-                    debug_script=debug_script,
+                    debug_script="",  # No script in interactive mode
                     debug_output=debug_output,
                     analysis=analysis,
                     reflection=reflection,
@@ -299,123 +300,38 @@ class DebugSubagent:
         analysis = chain.invoke(prompt_vars)
         return Command(update={"analysis": analysis})
 
-    def _write_debug_script(self, state: DebugTaskState) -> Command:
-        """Write a GDB debug script"""
-        logger.info("Writing debug script")
-        prompt_vars = {
-            "harness": str(state.harness),
-            "debug_context": state.debug_context,
-            "analysis": state.analysis,
-            "retrieved_context": state.format_retrieved_context(),
-            "previous_attempts": state.format_debug_attempts(),
-        }
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", DEBUG_WRITE_SCRIPT_SYSTEM_PROMPT),
-                ("human", DEBUG_WRITE_SCRIPT_USER_PROMPT),
-            ],
-        )
-        logger.debug(f"Prompt variables for debug script generation: {prompt_vars}")
+    def _run_interactive_debug(self, state: DebugTaskState) -> Command:
+        """Run interactive GDB debugging session with LLM-driven commands"""
+        logger.info("Starting interactive debug session")
         
         try:
-            # Get LLM response first to log it if extraction fails
-            chain_no_extract = prompt | self.task.llm
-            llm_response = chain_no_extract.invoke(prompt_vars)
-            
-            # Extract code from response
-            debug_script = extract_code(llm_response)
-            logger.info(f"Successfully extracted debug script ({len(debug_script)} chars)")
-            return Command(update={"debug_script": debug_script})
+            debug_output, debug_commands = self._execute_interactive_debug(state.pov_input_path, state)
+            return Command(update={
+                "debug_output": debug_output,
+                "debug_commands": debug_commands,
+            })
         except Exception as e:
-            logger.error(f"Failed to extract debug script from LLM response: {e}")
-            if "llm_response" in locals():
-                content = getattr(llm_response, "content", str(llm_response))
-                logger.error(f"LLM response content (first 500 chars): {content[:500] if content else 'None'}")
-            # Continue the loop with empty script - this iteration will be treated as failed
-            return Command(update={"debug_script": ""})
+            logger.error(f"Error running interactive debug: {e}")
+            return Command(update={
+                "debug_output": f"Error: {str(e)}",
+                "debug_commands": [],
+            })
 
-    def _run_debug_script(self, state: DebugTaskState) -> Command:
-        """Run the debug script in a debug container"""
-        logger.info("Running debug script")
-        if not state.debug_script:
-            logger.warning("No debug script to run")
-            return Command(update={"debug_output": "No debug script provided"})
-
-        # Write debug script to a temporary file
-        # NOTE: We do NOT delete this file. Docker needs it to remain accessible
-        # during the mount. The OS will clean it up later, or we could clean it
-        # up after Docker has fully completed, but that's complex with the current
-        # architecture where exec_docker_cmd might cache containers.
-        import os
-        logger.info("Creating temporary GDB script file...")
-        logger.info(f"  Script content length: {len(state.debug_script)} characters")
         
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".gdb", delete=False) as f:
-            logger.info(f"  Temporary file created: {f.name}")
-            f.write(state.debug_script)
-            logger.info(f"  Content written to buffer")
-            f.flush()  # Ensure content is written to OS buffer
-            logger.info(f"  Buffer flushed to OS")
-            os.fsync(f.fileno())  # Force write to disk before mounting
-            logger.info(f"  File synced to disk (fsync)")
-            debug_script_path = Path(f.name)
-        
-        # Also sync the parent directory to ensure metadata is written
-        # This helps prevent race conditions where Docker tries to mount before
-        # the file system has fully committed the file metadata
-        logger.info(f"Syncing parent directory metadata: {debug_script_path.parent}")
-        dir_fd = os.open(str(debug_script_path.parent), os.O_RDONLY)
-        try:
-            os.fsync(dir_fd)  # Sync directory metadata to disk
-            logger.info(f"  Directory metadata synced to disk")
-        finally:
-            os.close(dir_fd)
-        
-        # Verify the file was created successfully
-        logger.info(f"Verifying file after creation:")
-        logger.info(f"  Path: {debug_script_path}")
-        logger.info(f"  Exists: {debug_script_path.exists()}")
-        if debug_script_path.exists():
-            stat_info = debug_script_path.stat()
-            logger.info(f"  Is file: {debug_script_path.is_file()}")
-            logger.info(f"  Is directory: {debug_script_path.is_dir()}")
-            logger.info(f"  Size: {stat_info.st_size} bytes")
-            logger.info(f"  Permissions: {oct(stat_info.st_mode)}")
-            logger.info(f"  Absolute path: {debug_script_path.resolve()}")
-        
-        if not debug_script_path.exists():
-            logger.error(f"Failed to create debug script file at {debug_script_path}")
-            return Command(update={"debug_output": f"Error: Failed to create debug script file"})
-        
-        logger.info(f"Created debug script file: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
-
-        try:
-            # Run the debug script using exec_docker_cmd with debug container
-            # Verify the file exists and is readable before passing to Docker
-            if not debug_script_path.exists():
-                return Command(update={"debug_output": f"Error: Debug script file not found at {debug_script_path}"})
-            if not debug_script_path.is_file():
-                return Command(update={"debug_output": f"Error: Debug script path is not a file: {debug_script_path}"})
-            
-            logger.info(f"Debug script file verified: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
-            
-            debug_output = self._execute_debug_script(debug_script_path, state.pov_input_path)
-            return Command(update={"debug_output": debug_output})
-        except Exception as e:
-            logger.error(f"Error running debug script: {e}")
-            return Command(update={"debug_output": f"Error: {str(e)}"})
-        # Note: We intentionally do NOT delete the debug_script_path here
-        # because Docker might still be accessing it via the mount
 
     def _reflect_debug(self, state: DebugTaskState) -> Command:
         """Reflect on the debug output and summarize what happened"""
         logger.info("Reflecting on debug output")
+        # For interactive mode, there's no debug_script, so provide a placeholder
+        debug_script = "Interactive GDB session - commands executed interactively"
+        if state.debug_commands:
+            debug_script = "\n".join(state.debug_commands)
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "analysis": state.analysis,
-            "debug_script": state.debug_script,
             "debug_output": state.debug_output,
+            "debug_script": debug_script,
         }
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -427,35 +343,17 @@ class DebugSubagent:
         reflection = chain.invoke(prompt_vars)
         return Command(update={"reflection": reflection})
 
-    def _execute_debug_script(
+    def _execute_interactive_debug(
         self,
-        debug_script_path: Path,
         pov_input_path: Path,
-    ) -> str:
-        """Execute a GDB debug script in a debug container
+        state: DebugTaskState,
+    ) -> tuple[str, list[str]]:
+        """Execute interactive GDB debugging session with LLM-driven commands.
         
-        IMPORTANT: Debug Symbol Support
-        --------------------------------
-        This method attempts to use debug binaries (built with build_fuzzers_with_debug_symbols())
-        which have FULL debug symbols (`-ggdb -fno-inline`). If debug binaries are not available,
-        it falls back to regular production binaries which are compiled with `-gline-tables-only`
-        (minimal debug information).
-        
-        With FULL debug symbols (debug binaries):
-        - ✅ Function names work
-        - ✅ Line numbers work
-        - ✅ Variable names available
-        - ✅ Type information available
-        - ✅ Detailed debugging info available
-        
-        With MINIMAL debug symbols (production binaries, fallback):
-        - ✅ Function names work (from symbol table)
-        - ✅ Line numbers work
-        - ❌ Variable names may NOT be available
-        - ❌ Type information may NOT be available
-        - ❌ Detailed debugging info is limited
-        
-        GDB scripts should work with both, but will have better variable/type access with debug binaries.
+        Returns:
+            Tuple of (debug_output, debug_commands) where:
+            - debug_output: Combined output from all GDB commands
+            - debug_commands: List of commands executed
         """
         # Get a writable copy of the task
         with self.reproduce_multiple.open() as mult:
@@ -465,46 +363,17 @@ class DebugSubagent:
 
             # Get the fuzzer binary path (typically in /out)
             harness_name = self.task.harness_name
-            
-            # Determine the debug container image
-            # Default to gcr.io/oss-fuzz-base/base-runner-debug
-            # NOTE: This container provides GDB and debugging tools, but does NOT
-            # change how binaries are built. The binaries are built by OSS-Fuzz's
-            # build_fuzzers command with -gline-tables-only (minimal debug info).
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
 
-            # Resolve paths to ensure they're absolute
-            # Log the paths before and after resolution to debug any path issues
-            logger.info(f"Pre-resolve paths:")
-            logger.info(f"  debug_script_path: {debug_script_path} (is_absolute: {debug_script_path.is_absolute()})")
-            logger.info(f"  pov_input_path: {pov_input_path} (is_absolute: {pov_input_path.is_absolute()})")
-            logger.info(f"  Current working directory: {Path.cwd()}")
-            
-            debug_script_path = debug_script_path.resolve()
+            # Resolve paths
             pov_input_path = pov_input_path.resolve()
             
-            logger.info(f"Post-resolve paths:")
-            logger.info(f"  debug_script_path: {debug_script_path}")
-            logger.info(f"  pov_input_path: {pov_input_path}")
-
-            # Get the build output directory so GDB can find the binary
-            # get_build_dir() returns .../build/out/<project_name>
-            # Binaries are located at .../build/out/<project_name>/<harness_name>
-            # This matches the pattern used in fuzzer_bot.py
+            # Get build directory and binary path
             build_dir = task.get_build_dir()
-            logger.info(f"Build directory from task.get_build_dir(): {build_dir}")
-            
             if not build_dir or not build_dir.exists():
                 raise ValueError(f"Build directory not found or doesn't exist: {build_dir}")
             
-            logger.info(f"Build directory exists: {build_dir}")
-            # List files in build_dir to debug
-            if build_dir.is_dir():
-                files_in_build = list(build_dir.iterdir())[:10]  # First 10 files
-                logger.info(f"Files in build_dir: {[f.name for f in files_in_build]}")
-            
-            # Try to use debug binary first (with full debug symbols), fallback to regular binary
-            # Debug binaries are built with build_fuzzers_with_debug_symbols() and are in /out/debug
+            # Try to use debug binary first, fallback to regular binary
             debug_binary_path = task.get_debug_binary_path(harness_name)
             using_debug_binary = False
             if debug_binary_path and debug_binary_path.exists():
@@ -512,8 +381,6 @@ class DebugSubagent:
                 using_debug_binary = True
                 logger.info(f"Using debug binary with full symbols: {harness_binary_path}")
             else:
-                # Fallback to regular production binary
-                # Binary location matches fuzzer_bot.py: build_dir / harness_name
                 harness_binary_path = build_dir / harness_name
                 if not harness_binary_path.exists():
                     available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
@@ -523,11 +390,34 @@ class DebugSubagent:
                     )
                 logger.info(f"Using regular production binary (debug binary not available): {harness_binary_path}")
             
-            # Ensure the binary has execute permissions
+            # Ensure binary has execute permissions
             current_perms = harness_binary_path.stat().st_mode
             harness_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             
+            # Determine binary path in container
+            project_name = build_dir.name
+            if using_debug_binary:
+                binary_path = f"/out/{project_name}/debug/{harness_name}"
+            else:
+                logger.info(f"Using regular production binary (debug binary not available): {harness_binary_path}")
+                binary_path = f"/out/{project_name}/{harness_name}"
+            
+            # Set up mount directories
+            pov_input_parent = pov_input_path.parent
+            pov_input_container_path = f"/work/{pov_input_path.name}"
+            out_dir = build_dir.parent
+            
+            mount_dirs = {
+                pov_input_parent: Path("/work"),
+            }
+            if out_dir.exists():
+                mount_dirs[out_dir] = Path("/out")
+            else:
+                mount_dirs[build_dir] = Path("/out")
+                binary_path = f"/out/{harness_name}"
+
             # Read first 4 bytes to check if it's an ELF binary (magic: 7f 45 4c 46)
+            # TODO: This is brittle, and should be moved to a helper function.
             try:
                 with open(harness_binary_path, 'rb') as f:
                     magic = f.read(4)
@@ -610,31 +500,9 @@ class DebugSubagent:
             # Use the actual binary (or original if it was already valid)
             harness_binary_path = actual_binary_path
             harness_name_for_path = actual_binary_name
-            
-            # Mount files for Docker
-            # Use unique paths to avoid conflicts with existing directories in the container
-            # Generate a unique filename based on the temp file name to ensure uniqueness
-            logger.info("=" * 80)
-            logger.info("Setting up Docker mounts...")
-            logger.info("=" * 80)
-            
-            # Mount debug script to scratchpad (same directory as PoV input)
-            # This avoids /tmp issues in Docker-in-Docker scenarios
-            # Strategy: Mount the PoV input's parent directory to /work in container
-            # Then both files are accessible at /work/<filename>
-            pov_input_parent = pov_input_path.parent
-            script_unique_name = f"debug_script_{debug_script_path.stem}.gdb"
-            # Container paths relative to /work mount
-            debug_script_container_path = Path(f"/work/{script_unique_name}")
-            pov_input_container_path = Path(f"/work/{pov_input_path.name}")
-            
-            logger.info(f"Container paths (targets in container):")
-            logger.info(f"  Debug script: {debug_script_container_path}")
-            logger.info(f"  PoV input: {pov_input_container_path}")
-            
-            # Get project_name for container binary path
-            # build_dir is .../build/out/<project_name>, so project_name is the last component
+
             project_name = build_dir.name
+            binary_path = actual_binary_name
             # Binary path in container: /out/<project_name>/<actual_binary_name>
             # If using debug binary, it's in /out/<project_name>/debug/<actual_binary_name>
             # Use the actual binary name (which may differ from harness_name if it was a wrapper)
@@ -642,166 +510,129 @@ class DebugSubagent:
                 binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
             else:
                 binary_path = f"/out/{project_name}/{harness_name_for_path}"
-            
-            # Mount the parent of build_dir (which is .../build/out) to /out in container
-            # This matches the pattern used in debug_subagent_task.py
-            # build_dir is typically .../build/out/<project_name>
-            # We want to mount .../build/out to /out
-            out_dir = build_dir.parent  # This should be .../build/out
-            
-            # Verify all source files exist before mounting
-            logger.info(f"Verifying source files before Docker mount:")
-            logger.info(f"  Debug script:")
-            logger.info(f"    Path: {debug_script_path}")
-            logger.info(f"    Exists: {debug_script_path.exists()}")
-            logger.info(f"    Is file: {debug_script_path.is_file()}")
-            logger.info(f"    Is directory: {debug_script_path.is_dir()}")
-            if debug_script_path.exists():
-                logger.info(f"    Size: {debug_script_path.stat().st_size} bytes")
-                logger.info(f"    Absolute: {debug_script_path.resolve()}")
-            
-            logger.info(f"  PoV input:")
-            logger.info(f"    Path: {pov_input_path}")
-            logger.info(f"    Exists: {pov_input_path.exists()}")
-            logger.info(f"    Is file: {pov_input_path.is_file()}")
-            logger.info(f"    Is directory: {pov_input_path.is_dir()}")
-            if pov_input_path.exists():
-                logger.info(f"    Size: {pov_input_path.stat().st_size} bytes")
-                logger.info(f"    Absolute: {pov_input_path.resolve()}")
-            
-            logger.info(f"  Build dir:")
-            logger.info(f"    Path: {build_dir}")
-            logger.info(f"    Exists: {build_dir.exists()}")
-            logger.info(f"    Is directory: {build_dir.is_dir()}")
-            logger.info(f"    Absolute: {build_dir.resolve()}")
-            
-            logger.info(f"  Out dir (parent of build_dir):")
-            logger.info(f"    Path: {out_dir}")
-            logger.info(f"    Exists: {out_dir.exists()}")
-            logger.info(f"    Is directory: {out_dir.is_dir()}")
-            logger.info(f"    Absolute: {out_dir.resolve()}")
-            
-            # Mount the PoV input's parent directory to /work so both files are accessible
-            # This puts both the debug script and PoV input in the scratchpad
-            mount_dirs = {
-                pov_input_parent: Path("/work"),  # Mount parent dir to /work
-            }
-            
-            # Mount the parent directory (build/out) to /out, not the project_name subdirectory
-            if out_dir.exists():
-                mount_dirs[out_dir] = Path("/out")
-                logger.info(f"  Using out_dir for /out mount: {out_dir}")
-            else:
-                # Fallback: mount build_dir directly if parent doesn't exist
-                logger.warning(f"Out directory {out_dir} does not exist, falling back to mounting build_dir directly")
-                mount_dirs[build_dir] = Path("/out")
-                # If we mount build_dir directly, binary path should be /out/<actual_binary_name>
-                binary_path = f"/out/{harness_name_for_path}"
-                logger.info(f"  Using build_dir for /out mount (fallback): {build_dir}")
-            
-            # Copy debug script to the scratchpad directory before mounting
-            # This ensures it's in the same directory as the PoV input
-            import shutil
-            debug_script_in_scratchpad = pov_input_parent / script_unique_name
-            logger.info(f"Copying debug script to scratchpad: {debug_script_in_scratchpad}")
-            shutil.copy2(debug_script_path, debug_script_in_scratchpad)
-            logger.info(f"  Copied: {debug_script_path} -> {debug_script_in_scratchpad}")
-            
-            logger.info(f"Final mount configuration:")
-            for src, dst in mount_dirs.items():
-                src_resolved = src.resolve() if hasattr(src, 'resolve') else Path(str(src)).resolve()
-                dst_path = dst.resolve() if hasattr(dst, 'resolve') else Path(str(dst))
-                logger.info(f"  {src_resolved.as_posix()} -> {dst_path.as_posix()}")
-                logger.info(f"    Source exists: {src_resolved.exists()}")
-                logger.info(f"    Source is_file: {src_resolved.is_file() if src_resolved.exists() else 'N/A'}")
-                logger.info(f"    Source is_dir: {src_resolved.is_dir() if src_resolved.exists() else 'N/A'}")
-                logger.info(f"    Destination path type: {type(dst_path)}")
-                logger.info(f"    Destination as_posix(): {dst_path.as_posix()}")
-                # Check if destination path looks suspicious
-                if str(dst_path).endswith('/'):
-                    logger.warning(f"    WARNING: Destination path ends with '/' - this might cause issues!")
-                if '//' in str(dst_path):
-                    logger.warning(f"    WARNING: Destination path contains '//' - this might cause issues!")
-            
-            logger.info(f"Container paths:")
-            logger.info(f"  Debug script: {debug_script_container_path}")
-            logger.info(f"  PoV input: {pov_input_container_path}")
-            logger.info(f"  Binary: {binary_path}")
-            logger.info("=" * 80)
-
-            # Create the GDB command
-            # Ensure all items are strings (Path objects cause join() to fail)
-            gdb_cmd = [
-                "gdb",
-                "-batch",
-                "-x",
-                str(debug_script_container_path),
-                "--args",
-                str(binary_path),  # Ensure binary_path is also a string
-                str(pov_input_container_path),
-            ]
-            
-            logger.info("GDB command to execute in container:")
-            logger.info(f"  {' '.join(gdb_cmd)}")
-            logger.info(f"  Script path in container: {debug_script_container_path}")
-            logger.info(f"  Binary path in container: {binary_path}")
-            logger.info(f"  PoV input path in container: {pov_input_container_path}")
-
-            # CRITICAL: Clean up any existing directory at mount target before mounting
-            # If the target path exists as a directory, Docker will mount the file INTO it
-            # instead of replacing it, causing "Is a directory" errors
-
-            # Run in debug container
-            # First, verify the mount will work by checking what exec_docker_cmd will actually do
-            logger.info(f"Executing Docker command with:")
-            logger.info(f"  Container image: {debug_container_image}")
-            logger.info(f"  Number of mounts: {len(mount_dirs)}")
-            logger.info(f"  Mount details logged above")
-            
-            # Log what the actual Docker mount command will look like
-            for src, dst in mount_dirs.items():
-                src_resolved = src.resolve() if hasattr(src, 'resolve') else Path(str(src)).resolve()
-                dst_path = dst.resolve() if hasattr(dst, 'resolve') else Path(str(dst))
-                mount_spec = f"{src_resolved.as_posix()}:{dst_path.as_posix()}"
-                logger.info(f"  -v {mount_spec}")
-                # Check for potential issues
-                if str(dst_path).endswith('/'):
-                    logger.error(f"    ERROR: Destination ends with '/' - Docker will treat this as a directory mount!")
-                if ' ' in str(dst_path):
-                    logger.warning(f"    WARNING: Destination contains spaces - may cause issues")
-            
-            # Combine GDB command with verification in the SAME container
-            # This way we can see what actually happened in the container where GDB ran
-            combined_cmd = [
-                "bash", "-c",
-                f"""
-                # Run GDB
-                echo "=== Running GDB ==="
-                {' '.join(gdb_cmd)}
-                gdb_exit_code=$?
-                echo ""
-                """
-            ]
-            
-            result = task.exec_docker_cmd(
-                combined_cmd,
-                mount_dirs=mount_dirs,
+            # Create InteractiveGDBDocker session
+            logger.info("Creating interactive GDB session")
+            gdb_session = InteractiveGDBDocker(
                 container_image=debug_container_image,
+                mount_dirs=mount_dirs,
+                binary_path=binary_path,
+                input_path=pov_input_container_path,
             )
-            logger.info(f"Docker command completed:")
-            logger.info(f"  Success: {result.success}")
-            logger.info(f"  Return code: {result.returncode}")
-            logger.info(f"  Output length: {len(result.output)} bytes")
-            logger.info(f"  Error length: {len(result.error)} bytes")
-            if result.error:
-                logger.info(f"  Error preview: {result.error[:500].decode('utf-8', errors='ignore')}")
+            
+            try:
+                # Start the GDB session
+                gdb_session.run()
+                logger.info("GDB session started")
+                
+                # Initial setup commands
+                setup_commands = [
+                    "set breakpoint pending on",
+                    "set print elements 0",
+                    "set print pretty on",
+                    "set pagination off",
+                ]
+                
+                all_output_lines: list[str] = []
+                executed_commands: list[str] = []
+                
+                # Run setup commands
+                for cmd in setup_commands:
+                    logger.info(f"Setup: {cmd}")
+                    result = gdb_session.console(cmd, timeout=5.0)
+                    all_output_lines.extend(result.lines)
+                    executed_commands.append(cmd)
+                
+                # Interactive loop with LLM (depth 10)
+                command_count = 0
+                session_history: list[str] = []
+                
+                while command_count < self.MAX_INTERACTIVE_COMMANDS:
+                    # Build prompt for next command
+                    history_text = "\n\n".join(session_history[-5:]) if session_history else "No commands executed yet"
+                    
+                    # Get harness from state if available, otherwise use task
+                    harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
+                    
+                    prompt_vars = {
+                        "harness": harness_str,
+                        "debug_context": state.debug_context if hasattr(state, 'debug_context') else "Interactive debugging session",
+                        "analysis": state.analysis if hasattr(state, 'analysis') and state.analysis else "Use GDB to investigate program execution",
+                        "session_history": history_text,
+                        "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
+                    }
+                    
+                    # Prompt LLM for next command
+                    next_command_prompt = ChatPromptTemplate.from_messages([
+                        ("system", """You are debugging a program with GDB to understand why a PoV input doesn't crash as expected.
 
-            if not result.success:
-                return f"GDB execution failed:\nSTDOUT: {result.output.decode('utf-8', errors='ignore')}\nSTDERR: {result.error.decode('utf-8', errors='ignore')}"
+Debug goal: {debug_context}
 
-            output = result.output.decode("utf-8", errors="ignore")
-            error = result.error.decode("utf-8", errors="ignore")
-            return f"GDB Output:\n{output}\n\nGDB Errors:\n{error}"
+Analysis: {analysis}
+
+Based on the session history, suggest the NEXT GDB command or set of commands to run. 
+- Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
+- The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
+- Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers
+- If you've gathered enough information, respond with 'quit'
+- Be aware that symbol names may not be avaliable, or may be modified by the compiler.
+)"""),
+                        ("human", "Harness:\n{harness}\n\nSession history:\n{session_history}\n\nCommands remaining: {commands_remaining}\n\nNext GDB command:"),
+                    ])
+                    
+                    chain = next_command_prompt | self.task.llm | StrOutputParser()
+                    llm_response = chain.invoke(prompt_vars)
+                    
+                    # Extract command from string response (StrOutputParser returns a string)
+                    # Try to extract code block, otherwise use the response as-is
+                    try:
+                        # extract_code expects AIMessage, but we have a string
+                        # Create a temporary AIMessage for extraction
+                        temp_msg = AIMessage(content=llm_response)
+                        next_command = extract_code(temp_msg)
+                    except Exception:
+                        # If extraction fails, try simple regex for code blocks
+                        import re
+                        code_match = re.search(r"```(?:gdb)?\n(.*?)```", llm_response, re.DOTALL)
+                        if code_match:
+                            next_command = code_match.group(1).strip()
+                        else:
+                            # No code block, use the response directly (might be "quit" or a command)
+                            next_command = llm_response.strip()
+                    
+                    if not next_command or next_command.lower() in ["quit", "done", "exit", "q"]:
+                        logger.info("LLM indicated debugging complete")
+                        break
+                    
+                    # Execute command
+                    logger.info(f"Executing GDB command [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {next_command}")
+                    try:
+                        result = gdb_session.console(next_command, timeout=10.0)
+                        output_text = "\n".join(result.lines)
+                        logger.info(f"GDB command output: {output_text}")
+                        session_history.append(f"Command: {next_command}\nOutput:\n{output_text}")
+                        all_output_lines.extend([f"Command: {next_command}"] + result.lines)
+                        executed_commands.append(next_command)
+                        command_count += 1
+                    except Exception as e:
+                        error_msg = f"Error executing command: {str(e)}"
+                        logger.error(error_msg)
+                        session_history.append(f"Command: {next_command}\nError: {error_msg}")
+                        all_output_lines.extend([f"Command: {next_command}", error_msg])
+                        executed_commands.append(next_command)
+                        command_count += 1
+                
+                # Finalize output
+                debug_output = "\n".join(all_output_lines)
+                logger.info(f"Interactive debug session completed: {command_count} commands executed")
+                
+                return debug_output, executed_commands
+                
+            finally:
+                # Clean up
+                try:
+                    gdb_session.close()
+                except Exception as e:
+                    logger.warning(f"Error closing GDB session: {e}")
 
     def _validate_pov(self, state: DebugTaskState) -> Command:
         """Validate if the PoV causes a crash"""
@@ -818,7 +649,7 @@ class DebugSubagent:
                 # Store the debug attempt
                 debug_attempt = DebugAttempt(
                     analysis=state.analysis,
-                    debug_script=state.debug_script,
+                    debug_script="",  # No script in interactive mode
                     debug_output=state.debug_output,
                     pov_valid=pov_valid,
                 )
@@ -834,7 +665,7 @@ class DebugSubagent:
             logger.error(f"Error validating PoV: {exc}")
             debug_attempt = DebugAttempt(
                 analysis=state.analysis,
-                debug_script=state.debug_script,
+                debug_script="",  # No script in interactive mode
                 debug_output=state.debug_output,
                 pov_valid=False,
             )
@@ -867,8 +698,7 @@ class DebugSubagent:
         tool_node = ToolNode(self.task.tools, name="tools")
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_debug", self._analyze_debug)
-        workflow.add_node("write_debug_script", self._write_debug_script)
-        workflow.add_node("run_debug_script", self._run_debug_script)
+        workflow.add_node("run_interactive_debug", self._run_interactive_debug)
         workflow.add_node("reflect_debug", self._reflect_debug)
         
         workflow.set_entry_point("get_context")
@@ -882,9 +712,8 @@ class DebugSubagent:
             },
         )
 
-        workflow.add_edge("analyze_debug", "write_debug_script")
-        workflow.add_edge("write_debug_script", "run_debug_script")
-        workflow.add_edge("run_debug_script", "reflect_debug")
+        workflow.add_edge("analyze_debug", "run_interactive_debug")
+        workflow.add_edge("run_interactive_debug", "reflect_debug")
         
         if self.skip_validation:
             # Skip validation - just run debug once and exit
@@ -922,10 +751,12 @@ class DebugSubagent:
         context_total = context_steps_per_iteration * self.MAX_CONTEXT_ITERATIONS
         
         if self.skip_validation:
-            # Single debug pass: analyze + write + run + reflect
-            debug_steps = 4
+            # Single debug pass: analyze + run_interactive + reflect
+            # Interactive loop adds MAX_INTERACTIVE_COMMANDS LLM calls
+            debug_steps = 3 + self.MAX_INTERACTIVE_COMMANDS  # analyze + interactive_loop + reflect
             return 1 + context_total + debug_steps
         else:
             # Full validation loop with retries
-            debug_steps = 5  # analyze + write + run + reflect + validate
+            # Interactive loop adds MAX_INTERACTIVE_COMMANDS LLM calls per iteration
+            debug_steps = 4 + self.MAX_INTERACTIVE_COMMANDS  # analyze + interactive_loop + reflect + validate
             return 1 + context_total + debug_steps * self.MAX_DEBUG_ITERATIONS
