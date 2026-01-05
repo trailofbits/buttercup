@@ -107,7 +107,7 @@ up() {
 				minikube status
 
 				echo -e "${BLU}Building local docker images${NC}"
-				eval $(minikube docker-env)
+				eval "$(minikube docker-env --shell bash)"
 
 				# Authenticate with GitHub Container Registry for Docker builds
 				if [ -n "$GHCR_AUTH" ]; then
