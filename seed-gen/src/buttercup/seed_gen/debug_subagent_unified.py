@@ -1331,7 +1331,7 @@ Please gather more context about the codebase that will help with debugging.
             # Hybrid mode workflow
             workflow.add_node("needs_interactive_follow_up", self._needs_interactive_follow_up)
             workflow.add_node("gather_context_again", self._get_context)
-            workflow.add_node("tools_again", tool_node)
+            workflow.add_node("tools_*again", tool_node)
         if mode == DebugMode.INTERACTIVE or mode == DebugMode.HYBRID:
             # Interactive mode workflow
             workflow.add_node("run_interactive_debug", self._run_interactive_debug)
