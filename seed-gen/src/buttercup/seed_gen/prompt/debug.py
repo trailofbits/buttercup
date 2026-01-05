@@ -2,11 +2,15 @@
 DEBUG_GET_CONTEXT_SYSTEM_PROMPT = """
 You are an expert debugger and security engineer. Your job is to gather relevant context about the codebase to help understand how a proof-of-vulnerability (PoV) input will execute.
 
+You are given a proof-of-vulnerability (PoV) input and a harness function that processes it. The harness function is part of a binary that has been compiled with different sanitizors to detect
+bad memory accesses and other vulnerabilities. The goal is to get one of these sanitizors to trigger with a POV input. 
+
 You have access to tools that let you:
 - Get function definitions
 - Get type definitions
 - Read file contents
 - Get callers of functions
+- Grep for text in files
 - Batch multiple tool calls
 
 Use these tools to gather context about:
@@ -35,8 +39,11 @@ Retrieved context so far:
 {retrieved_context}
 </retrieved_context>
 
-Use the available tools to gather more context about the codebase that will help with proactive debugging.
+{prev_debug_attempt}
+
+Use the available tools to gather more context about the codebase that will help with debugging.
 Focus on understanding the code paths, functions, and variables relevant to understanding how this PoV will execute.
+Note that some symbol names, especially function names, may not be available or may be modified by the compiler, so use the line numbers from the CodeSnippet objects in the retrieved context to determine these.
 """
 
 DEBUG_ANALYZE_SYSTEM_PROMPT = """
@@ -54,7 +61,7 @@ Your analysis should:
 3. Plan what GDB commands will verify the PoV is working as intended
 4. Consider what might prevent successful exploitation and how to detect it
 
-This is PROACTIVE debugging - we want to understand execution BEFORE testing whether it crashes.
+
 """
 
 DEBUG_ANALYZE_USER_PROMPT = """
@@ -81,7 +88,7 @@ Analyze the debugging task:
 4. What GDB commands will verify the PoV is executing as intended?
 5. What conditions might prevent exploitation and how can we detect them?
 
-Provide a clear analysis that will guide the creation of a proactive GDB debug script.
+Provide a clear analysis that will guide the creation of a proactive GDB debug script. Be no more verbose than nessary to understand the strategy.
 """
 
 DEBUG_WRITE_SCRIPT_SYSTEM_PROMPT = """
@@ -122,11 +129,14 @@ GDB commands you can use:
 - `printf "<format>", <expr>` - Formatted output
 - `commands <breakpoint>` ... `end` - Define commands to run at breakpoint
 
-CRITICAL - Shared Library Functions:
-- Many functions (like png_handle_iCCP, png_read_info, etc.) are in shared libraries (libpng.so) that load at runtime
-- You MUST start your script with: `set breakpoint pending on`
-- This makes GDB automatically set breakpoints when shared libraries load
-- Without this, breakpoints on shared library functions will fail with "Function not defined" errors
+CRITICAL - Breaking on functions:
+- Because of how the program was compiled, the function names in the source code may not reflect the actual function names in the binary.
+- Instead, you should set breakpoints on source file:line numbers. Use the line numbers from the CodeSnippet objects in the retrieved context to determine these.
+- Example:
+  ```
+  break contrib/oss-fuzz/libpng_read_fuzzer.cc:100
+  ```
+- You may try breaking on functions if you cannot determine the line numbers, but this is much less reliable.
 
 CRITICAL - Local Variables in Breakpoint Conditions:
 - Local variables (like `owner`, `keyword`, etc.) only exist when inside the function
@@ -277,4 +287,74 @@ Create a concise summary that includes:
    - What might prevent successful exploitation?
 
 Remember: This summary will be read by another agent that does NOT have access to the full script or raw output. Make it self-contained, focusing on what we learned and what we still don't know, not the technical details of the debugging process.
+"""
+
+DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT = """You are debugging a program with GDB to understand why a PoV input doesn't crash as expected.
+
+Debug goal: {debug_context}
+
+Analysis: {analysis}
+
+{prev_debug_attempt}
+
+Based on the session history, suggest the NEXT GDB command or set of commands to run. 
+- Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
+- The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
+- Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers
+- If you've gathered enough information, respond with 'quit'
+- Be aware that symbol names may not be avaliable, or may be modified by the compiler. This is especially true for functions, so USE THE FILE NAMES AND LINE NUMBERS INSTEAD OF FUNCTION NAMES from the CodeSnippet objects in the retrieved context to determine these.
+"""
+
+DEBUG_INTERACTIVE_COMMAND_USER_PROMPT = """Harness:
+{harness}
+
+Session history:
+{session_history}
+
+Commands remaining: {commands_remaining}
+
+Next GDB command(s):
+"""
+
+DEBUG_INTERACTIVE_FOLLOW_UP_SYSTEM_PROMPT = """
+You are an expert debugger analyzing whether an interactive GDB debugging session is needed after a batch script-based debugging attempt.
+
+You have just run a batch GDB script that was automatically generated. Your task is to determine if an interactive debugging session would be beneficial to further investigate the issue.
+
+Consider:
+1. Did the batch script successfully complete its intended investigation?
+2. Are there unanswered questions or unclear results from the batch script output?
+3. Would interactive debugging (where you can dynamically explore based on what you see) help clarify the situation?
+4. Is the PoV validation status clear, or do we need more investigation?
+
+Respond with ONLY "yes" or "no" (lowercase, no quotes, no punctuation, no explanation).
+- "yes" if an interactive debugging session would be beneficial
+- "no" if the batch script results are sufficient or if further debugging won't help
+"""
+
+DEBUG_INTERACTIVE_FOLLOW_UP_USER_PROMPT = """Harness:
+{harness}
+
+Debug Context:
+{debug_context}
+
+Analysis:
+{analysis}
+
+Batch Debug Script:
+```gdb
+{debug_script}
+```
+
+Batch Debug Output:
+{debug_output}
+
+PoV Valid: {pov_valid}
+
+Previous Debug Attempts:
+{previous_attempts}
+
+Based on the batch script execution and its output, determine if an interactive debugging follow-up session is necessary to further investigate this PoV.
+
+Respond with ONLY "yes" or "no":
 """

@@ -1,3 +1,0 @@
-[libfuzzer]
-dict = png.dict
-timeout_exitcode=0

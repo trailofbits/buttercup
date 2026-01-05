@@ -1,4 +1,0 @@
-#!/bin/sh
-# LLVMFuzzerTestOneInput for fuzzer detection.
-this_dir=$(dirname "$0")
-NALLOC_FREQ=32 $this_dir/libpng_read_fuzzer $@

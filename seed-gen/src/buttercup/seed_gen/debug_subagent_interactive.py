@@ -33,6 +33,8 @@ from buttercup.seed_gen.prompt.debug import (
     DEBUG_ANALYZE_USER_PROMPT,
     DEBUG_GET_CONTEXT_SYSTEM_PROMPT,
     DEBUG_GET_CONTEXT_USER_PROMPT,
+    DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT,
+    DEBUG_INTERACTIVE_COMMAND_USER_PROMPT,
     DEBUG_REFLECT_SYSTEM_PROMPT,
     DEBUG_REFLECT_USER_PROMPT,
 )
@@ -72,13 +74,11 @@ class DebugAttempt:
 @dataclass
 class DebugResult:
     """Result of a debug session"""
-
+    debug_commands: list[str]
     pov_valid: bool
-    debug_script: str
     debug_output: str
     analysis: str
     reflection: str
-    attempts: list[DebugAttempt]
 
 
 class DebugTaskState(BaseTaskState):
@@ -134,6 +134,9 @@ class DebugSubagentInteractive:
         self.task = task
         self.reproduce_multiple = reproduce_multiple
         self.skip_validation = skip_validation
+        # Create debug tools list with grep included
+        self.debug_tools = task.get_debug_tools()
+        self.llm_with_debug_tools = task.llm.bind_tools(self.debug_tools)
 
     def debug(
         self,
@@ -272,14 +275,21 @@ class DebugSubagentInteractive:
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "retrieved_context": state.format_retrieved_context(),
+            "prev_debug_attempt": "",  # No previous attempt for interactive mode
         }
-        res = self.task._get_context_base(
-            DEBUG_GET_CONTEXT_SYSTEM_PROMPT,
-            DEBUG_GET_CONTEXT_USER_PROMPT,
-            state,
-            prompt_vars,
+        # Use custom llm_with_debug_tools that includes grep
+        prompt = [
+            ("system", DEBUG_GET_CONTEXT_SYSTEM_PROMPT),
+            ("human", DEBUG_GET_CONTEXT_USER_PROMPT.format(**prompt_vars)),
+        ]
+        res = self.llm_with_debug_tools.invoke([*prompt, *state.messages])
+        cmd: Command = Command(
+            update={
+                "messages": [res],
+                "context_iteration": state.context_iteration + 1,
+            },
         )
-        return res
+        return cmd
 
     def _analyze_debug(self, state: DebugTaskState) -> Command:
         """Analyze the debugging task and plan the debug script"""
@@ -305,10 +315,11 @@ class DebugSubagentInteractive:
         logger.info("Starting interactive debug session")
         
         try:
-            debug_output, debug_commands = self._execute_interactive_debug(state.pov_input_path, state)
+            debug_output, debug_commands, debug_reasoning = self._execute_interactive_debug(state.pov_input_path, state)
             return Command(update={
                 "debug_output": debug_output,
                 "debug_commands": debug_commands,
+                "debug_reasoning": debug_reasoning,
             })
         except Exception as e:
             logger.error(f"Error running interactive debug: {e}")
@@ -347,7 +358,7 @@ class DebugSubagentInteractive:
         self,
         pov_input_path: Path,
         state: DebugTaskState,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[str, list[str], list[str]]:
         """Execute interactive GDB debugging session with LLM-driven commands.
         
         Returns:
@@ -366,7 +377,23 @@ class DebugSubagentInteractive:
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
 
             # Resolve paths
+            logger.info(f"Pre-resolve PoV input path: {pov_input_path} (is_absolute: {pov_input_path.is_absolute()})")
             pov_input_path = pov_input_path.resolve()
+            logger.info(f"Post-resolve PoV input path: {pov_input_path}")
+            
+            # Verify PoV input file exists and is accessible
+            logger.info(f"Verifying PoV input file before Docker mount:")
+            logger.info(f"  Path: {pov_input_path}")
+            logger.info(f"  Exists: {pov_input_path.exists()}")
+            logger.info(f"  Is file: {pov_input_path.is_file()}")
+            logger.info(f"  Is directory: {pov_input_path.is_dir()}")
+            if not pov_input_path.exists():
+                raise ValueError(f"PoV input file does not exist: {pov_input_path}")
+            if not pov_input_path.is_file():
+                raise ValueError(f"PoV input path is not a file: {pov_input_path}")
+            if pov_input_path.exists():
+                logger.info(f"  Size: {pov_input_path.stat().st_size} bytes")
+                logger.info(f"  Absolute: {pov_input_path.resolve()}")
             
             # Get build directory and binary path
             build_dir = task.get_build_dir()
@@ -407,6 +434,13 @@ class DebugSubagentInteractive:
             pov_input_container_path = f"/work/{pov_input_path.name}"
             out_dir = build_dir.parent
             
+            logger.info(f"Container paths (targets in container):")
+            logger.info(f"  PoV input: {pov_input_container_path}")
+            logger.info(f"  Binary: {binary_path}")
+            logger.info(f"  PoV input parent (host): {pov_input_parent}")
+            logger.info(f"  PoV input parent (container): /work")
+            logger.info(f"  PoV input file name: {pov_input_path.name}")
+            
             mount_dirs = {
                 pov_input_parent: Path("/work"),
             }
@@ -415,6 +449,10 @@ class DebugSubagentInteractive:
             else:
                 mount_dirs[build_dir] = Path("/out")
                 binary_path = f"/out/{harness_name}"
+            
+            logger.info(f"Mount directories:")
+            for host_path, container_path in mount_dirs.items():
+                logger.info(f"  {host_path} -> {container_path}")
 
             # Read first 4 bytes to check if it's an ELF binary (magic: 7f 45 4c 46)
             # TODO: This is brittle, and should be moved to a helper function.
@@ -512,6 +550,10 @@ class DebugSubagentInteractive:
                 binary_path = f"/out/{project_name}/{harness_name_for_path}"
             # Create InteractiveGDBDocker session
             logger.info("Creating interactive GDB session")
+            logger.info(f"GDB command will be: gdb -q --interpreter=mi2 --args {binary_path} {pov_input_container_path}")
+            logger.info(f"  Binary path in container: {binary_path}")
+            logger.info(f"  Seed file path in container: {pov_input_container_path}")
+            logger.info(f"  Seed file should be accessible at: {pov_input_container_path}")
             gdb_session = InteractiveGDBDocker(
                 container_image=debug_container_image,
                 mount_dirs=mount_dirs,
@@ -530,11 +572,12 @@ class DebugSubagentInteractive:
                     "set print elements 0",
                     "set print pretty on",
                     "set pagination off",
+                    "set verbose off",
                 ]
                 
                 all_output_lines: list[str] = []
                 executed_commands: list[str] = []
-                
+                debug_reasoning: list[str] = []
                 # Run setup commands
                 for cmd in setup_commands:
                     logger.info(f"Setup: {cmd}")
@@ -563,25 +606,13 @@ class DebugSubagentInteractive:
                     
                     # Prompt LLM for next command
                     next_command_prompt = ChatPromptTemplate.from_messages([
-                        ("system", """You are debugging a program with GDB to understand why a PoV input doesn't crash as expected.
-
-Debug goal: {debug_context}
-
-Analysis: {analysis}
-
-Based on the session history, suggest the NEXT GDB command or set of commands to run. 
-- Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
-- The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
-- Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers
-- If you've gathered enough information, respond with 'quit'
-- Be aware that symbol names may not be avaliable, or may be modified by the compiler.
-)"""),
-                        ("human", "Harness:\n{harness}\n\nSession history:\n{session_history}\n\nCommands remaining: {commands_remaining}\n\nNext GDB command:"),
+                        ("system", DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT),
+                        ("human", DEBUG_INTERACTIVE_COMMAND_USER_PROMPT),
                     ])
                     
                     chain = next_command_prompt | self.task.llm | StrOutputParser()
                     llm_response = chain.invoke(prompt_vars)
-                    
+                    debug_reasoning.append(llm_response)
                     # Extract command from string response (StrOutputParser returns a string)
                     # Try to extract code block, otherwise use the response as-is
                     try:
@@ -603,29 +634,56 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
                         logger.info("LLM indicated debugging complete")
                         break
                     
-                    # Execute command
-                    logger.info(f"Executing GDB command [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {next_command}")
-                    try:
-                        result = gdb_session.console(next_command, timeout=10.0)
-                        output_text = "\n".join(result.lines)
-                        logger.info(f"GDB command output: {output_text}")
-                        session_history.append(f"Command: {next_command}\nOutput:\n{output_text}")
-                        all_output_lines.extend([f"Command: {next_command}"] + result.lines)
-                        executed_commands.append(next_command)
-                        command_count += 1
-                    except Exception as e:
-                        error_msg = f"Error executing command: {str(e)}"
-                        logger.error(error_msg)
-                        session_history.append(f"Command: {next_command}\nError: {error_msg}")
-                        all_output_lines.extend([f"Command: {next_command}", error_msg])
-                        executed_commands.append(next_command)
-                        command_count += 1
+                    # Split multi-line commands and execute each line individually
+                    command_lines = [line.strip() for line in next_command.split("\n") if line.strip()]
+                    logger.info(f"Executing GDB command(s) [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {len(command_lines)} line(s)")
+                    logger.debug(f"Command lines: {command_lines}")
+                    
+                    all_command_outputs: list[str] = []
+                    all_command_errors: list[str] = []
+                    found_quit = False
+                    
+                    for cmd_line in command_lines:
+                        # Check for quit in individual lines too
+                        if cmd_line.lower() in ["quit", "done", "exit", "q"]:
+                            logger.info("LLM indicated debugging complete (found in command line)")
+                            found_quit = True
+                            break
+                        
+                        try:
+                            logger.debug(f"Executing individual command: {cmd_line}")
+                            result = gdb_session.console(cmd_line, timeout=10.0)
+                            output_text = "\n".join(result.lines)
+                            logger.debug(f"Command '{cmd_line}' output: {output_text[:200]}...")  # Log first 200 chars
+                            all_command_outputs.append(f"Command: {cmd_line}\nOutput:\n{output_text}")
+                            all_output_lines.extend([f"Command: {cmd_line}"] + result.lines)
+                            executed_commands.append(cmd_line)
+                            command_count += 1
+                        except Exception as e:
+                            error_msg = f"Error executing command '{cmd_line}': {str(e)}"
+                            logger.error(error_msg)
+                            all_command_errors.append(error_msg)
+                            all_output_lines.extend([f"Command: {cmd_line}", error_msg])
+                            executed_commands.append(cmd_line)
+                            command_count += 1
+                    
+                    # Combine all outputs for session history
+                    combined_output = "\n".join(all_command_outputs)
+                    if all_command_errors:
+                        combined_output += "\n" + "\n".join(all_command_errors)
+                    
+                    if combined_output:
+                        session_history.append(combined_output)
+                    
+                    # If we hit quit in a command line, break out of the main loop
+                    if found_quit:
+                        break
                 
                 # Finalize output
                 debug_output = "\n".join(all_output_lines)
                 logger.info(f"Interactive debug session completed: {command_count} commands executed")
                 
-                return debug_output, executed_commands
+                return debug_output, executed_commands, debug_reasoning
                 
             finally:
                 # Clean up
@@ -695,7 +753,7 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
         workflow = StateGraph(DebugTaskState)
 
         workflow.add_node("get_context", self._get_context)
-        tool_node = ToolNode(self.task.tools, name="tools")
+        tool_node = ToolNode(self.debug_tools, name="tools")
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_debug", self._analyze_debug)
         workflow.add_node("run_interactive_debug", self._run_interactive_debug)

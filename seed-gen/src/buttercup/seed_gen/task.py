@@ -41,10 +41,14 @@ class CodeSnippet(BaseModel):
 
     file_path: Path
     code: str
+    start_line: int
+    end_line: int
 
     def __str__(self) -> str:
         return f"""<code_snippet>
 <file_path>{self.file_path}</file_path>
+<start_line>{self.start_line}</start_line>
+<end_line>{self.end_line}</end_line>
 <code>
 {self.code}
 </code>
@@ -69,7 +73,7 @@ class ToolCallResult(BaseModel):
 
 class ToolCall(BaseModel):
     tool_name: str
-    arguments: dict[str, str]
+    arguments: dict[str, str | None]
 
 
 class BatchToolCalls(BaseModel):
@@ -108,6 +112,17 @@ class Task:
             get_callers,
         ]
         self.llm_with_tools = self.llm.bind_tools(self.tools)
+
+    def get_debug_tools(self) -> list[BaseTool]:
+        """Get tools for debug subagents, including grep."""
+        return [
+            get_function_definition,
+            get_type_definition,
+            batch_tool,
+            cat,
+            get_callers,
+            grep,
+        ]
 
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
@@ -312,7 +327,7 @@ class Task:
         function_def = state.task.get_function_def(function_name, fuzzy=False)
         if function_def:
             results = [
-                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body),
+                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body, start_line=function_def.bodies[0].start_line, end_line=function_def.bodies[0].end_line),
             ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
@@ -361,7 +376,15 @@ class Task:
             )
         type_defs = state.task._do_get_type_defs(type_name)
         if len(type_defs) > 0:
-            results = [CodeSnippet(file_path=type_def.file_path, code=type_def.definition) for type_def in type_defs]
+            results = [
+                CodeSnippet(
+                    file_path=type_def.file_path,
+                    code=type_def.definition,
+                    start_line=type_def.definition_line,
+                    end_line=type_def.definition_line + len(type_def.definition.splitlines()),
+                )
+                for type_def in type_defs
+            ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
                 update={
@@ -422,13 +445,70 @@ class Task:
                 },
             )
         cat_output = cat_cmd_res.output.decode("utf-8")
-        results = [CodeSnippet(file_path=path, code=cat_output)]
+        results = [CodeSnippet(file_path=path, code=cat_output, start_line=1, end_line=len(cat_output.splitlines()))]
         call_result = ToolCallResult(call=call, results=results)
         return Command(
             update={
                 "messages": [
                     ToolMessage(
                         f"Retrieved contents of {path}",
+                        tool_call_id=tool_call_id,
+                    ),
+                ],
+                "retrieved_context": {
+                    call: call_result,
+                },
+            },
+        )
+
+    @staticmethod
+    def _grep(
+        pattern: str,
+        file_path: str | None,
+        state: "BaseTaskState",
+        tool_call_id: str,
+    ) -> Command:
+        """Implementation of grep tool"""
+        logger.info("Tool call: grep for pattern %s in %s", pattern, file_path)
+        path = Path(file_path) if file_path else None
+        call = f'grep("{pattern}", "{file_path}")' if file_path else f'grep("{pattern}")'
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Grep results for pattern {pattern} already retrieved",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        args = ["grep", "-C", "5", "-nHrE", pattern]
+        if path:
+            args.append(str(path))
+        grep_cmd_res = state.task.challenge_task.exec_docker_cmd(args)
+        if not grep_cmd_res.success:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Could not search for pattern {pattern} in {path if path else 'project'}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        grep_output = grep_cmd_res.output.decode("utf-8")
+        # For grep results, we create a single CodeSnippet with the grep output
+        # Since grep can match multiple files, we use a generic path or the provided path
+        result_path = path if path else Path(".")
+        results = [CodeSnippet(file_path=result_path, code=grep_output, start_line=1, end_line=len(grep_output.splitlines()) if grep_output else 1)]
+        call_result = ToolCallResult(call=call, results=results)
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        f"Found matches for pattern {pattern}",
                         tool_call_id=tool_call_id,
                     ),
                 ],
@@ -490,21 +570,16 @@ class Task:
             )
         callers = state.task._do_get_callers(function_name)
 
-        code_snippets = [CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body) for caller in callers]
+        code_snippets = [CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body, start_line=caller.bodies[0].start_line, end_line=caller.bodies[0].end_line) for caller in callers]
         call_result = ToolCallResult(call=call, results=code_snippets)
-        return Command(
+        return Command("""
             update={
                 "messages": [
-                    ToolMessage(
-                        f"Found {len(code_snippets)} callers of function {function_name}",
-                        tool_call_id=tool_call_id,
-                    ),
+                    ToolMessage(f"Found {len(code_snippets)} callers of function {function_name}", tool_call_id=tool_call_id),
                 ],
-                "retrieved_context": {
-                    call: call_result,
-                },
+                "retrieved_context": {call: call_result},
             },
-        )
+        """)
 
 
 class BaseTaskState(BaseModel):
@@ -518,6 +593,7 @@ class BaseTaskState(BaseModel):
     )
     generated_functions: str = Field(description="The generated seed functions", default="")
     context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
+    context_iteration_again: int = Field(description="Count of context retrieval iterations for the second time", default=0)
     task: Task = Field(description="The task instance")
     output_dir: Path = Field(description="Directory to save generated seeds")
 
@@ -617,6 +693,11 @@ def batch_tool(
             file_path = call.arguments["file_path"]
             result = Task._get_callers(function_name, file_path, state, tool_call_id)
             results.append(result)
+        elif call.tool_name == "grep" and "pattern" in call.arguments:
+            pattern = call.arguments["pattern"]
+            file_path = call.arguments.get("file_path")  # Optional, can be None
+            result = Task._grep(pattern, file_path, state, tool_call_id)
+            results.append(result)
         else:
             logger.warning("Invalid tool call: %s args: %s", call.tool_name, call.arguments)
 
@@ -692,3 +773,29 @@ def get_callers(
     """
     assert isinstance(state, BaseTaskState)
     return Task._get_callers(function_name, file_path, state, tool_call_id)
+
+
+@tool
+def grep(
+    pattern: str,
+    file_path: str | None = None,
+    *,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Grep for a string and return a 5-line context around the match, together with line numbers.
+    
+    If no file_path is provided, search the entire project. Prefer using this tool over cat when
+    you need to search for specific patterns.
+
+    Args:
+        pattern: The pattern to search for (regular expression)
+        file_path: Optional path to a specific file or directory to search in
+
+    Notes:
+        - If no file_path is provided, the entire project will be searched
+        - The search returns 5 lines of context around each match
+        - Line numbers are included in the output
+    """
+    assert isinstance(state, BaseTaskState)
+    return Task._grep(pattern, file_path, state, tool_call_id)

@@ -6,6 +6,7 @@ incorporates those insights into the next iteration.
 """
 
 import logging
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import override
@@ -259,12 +260,16 @@ This proactive debugging will help us:
 
         # Run debug subagent_interactive
         try:
-            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, state.output_dir / f"agent_debug_iter{state.pov_iteration}")
+            # Use a separate directory for debug output (not in output_dir which is for seed files)
+            # Use UUID to create a unique identifier to avoid collisions
+            debug_uuid = uuid.uuid4().hex[:8]
+            debug_output_dir = state.current_dir.parent / "agentic_debug" / f"{debug_uuid}_iter{state.pov_iteration}"
+            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, debug_output_dir)
             debug_result = self.debug_subagent_interactive.debug(
                 harness=state.harness,
                 pov_input_path=pov_path,
                 debug_context=debug_context,
-                output_dir=state.output_dir / f"agent_debug_iter{state.pov_iteration}",
+                output_dir=debug_output_dir,
             )
             logger.info("Debug subagent_interactive returned: analysis_len=%d, debug_commands_len=%d, output_len=%d, reflection_len=%d, attempts=%d", 
                        len(debug_result.analysis), 

@@ -5,6 +5,7 @@ import signal
 import time
 import queue
 import subprocess
+from typing import Callable
 
 _MI_STOP_RE = re.compile(r"^\*stopped\b")  # MI async stop record
 _MI_RESULT_RE = re.compile(r"^\d+\^(done|error|running)\b")
@@ -12,22 +13,52 @@ _MI_RESULT_RE = re.compile(r"^\d+\^(done|error|running)\b")
 class InteractiveGDBDockerError(Exception):
     """Base class for InteractiveGDBDocker errors."""
 
-def mi_completion(token: int):
-    pat = re.compile(rf"^{token}\^(done|error|running)\b")
+def mi_completion(token: int) -> Callable[[list[str]], bool]:
+    # Tokened result record for *this* command.
+    result_pat = re.compile(rf"^{token}\^(done|error|running)\b")
+    stopped_pat = re.compile(r"^\*stopped\b")
+
+    saw_running = False
+    saw_result = False
+
     def done(lines: list[str]) -> bool:
-        return any(pat.match(ln) for ln in lines)
+        nonlocal saw_running, saw_result
+
+        for ln in lines:
+            m = result_pat.match(ln)
+            if m:
+                saw_result = True
+                kind = m.group(1)
+                if kind in ("done", "error"):
+                    return True
+                if kind == "running":
+                    saw_running = True
+                    # don't return yet; wait for *stopped
+
+            # If we started running, complete only once we observe a stop.
+            if saw_running and stopped_pat.match(ln):
+                return True
+
+        return False
+
     return done
 
 
 class InteractiveGDBDocker(DockerInteractive):
-    def __init__(self, container_image: str, mount_dirs: dict[Path, Path], binary_path: str, input_path: str):
+    def __init__(self, container_image: str, mount_dirs: dict[Path, Path], binary_path: str, input_path: str, global_timeout: float = 600.0):
         super().__init__(
             container_image,
             mount_dirs,
             start_command=["gdb", "-q", "--interpreter=mi2", "--args", binary_path, input_path],
+            global_timeout=global_timeout,
         )
         self._tok = 1
-
+    
+    def unescape_mi(self, s: str) -> str:
+        return (s.replace(r"\n", "\n")
+                .replace(r"\t", "\t")
+                .replace(r"\\", "\\")
+                .replace(r"\"", '"'))
     def mi(self, mi_cmd: str, timeout: float = 10.0) -> CommandResult:
         tok = self._tok
         self._tok += 1
@@ -36,7 +67,23 @@ class InteractiveGDBDocker(DockerInteractive):
 
     def console(self, cmd: str, timeout: float = 10.0) -> CommandResult:
         esc = cmd.replace("\\", "\\\\").replace('"', '\\"')
-        return self.mi(f'-interpreter-exec console "{esc}"', timeout=timeout)
+        cmd_result = self.mi(f'-interpreter-exec console "{esc}"', timeout=timeout)
+        newlines = []
+        for line in cmd_result.lines:
+            if line.startswith("^"):
+                newlines.append(self.unescape_mi(line[2:-1]))
+            elif line.startswith("~"):
+                newlines.append(self.unescape_mi(line[2:-1]))
+            elif line.startswith("@"):
+                newlines.append("inferior output: " + self.unescape_mi(line[2:-1]))
+            elif line.startswith("*"):
+                newlines.append(self.unescape_mi(line[2:-1]))
+            elif not line[:1] in "^~@*&=":
+                newlines.append("runtime output: " + self.unescape_mi(line))
+                
+
+        cmd_result.lines = newlines
+        return cmd_result
 
 
 

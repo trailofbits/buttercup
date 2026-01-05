@@ -1,17 +1,24 @@
-"""Debug subagent utility for debugging PoVs with GDB scripts.
+"""Unified debug subagent that supports batch, interactive, and hybrid debugging modes.
 
-This is a utility that can be called by other tasks (like vuln_discovery) to debug
-PoV inputs and investigate why they might not be working.
+This allows experimentation with different debugging strategies:
+- "batch": Uses pre-written GDB scripts (faster, less flexible)
+- "interactive": Uses LLM-driven interactive GDB commands (slower, more flexible)
+- "hybrid": Runs batch first, then interactive follow-up if needed
 """
 
 import logging
 import operator
+import os
+import re
+import shutil
 import stat
 import tempfile
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any
 
+from langchain_core.messages import AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
@@ -26,11 +33,16 @@ from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.seed_gen.find_harness import HarnessInfo
+from buttercup.seed_gen.interactive_debug_docker import InteractiveGDBDocker
 from buttercup.seed_gen.prompt.debug import (
     DEBUG_ANALYZE_SYSTEM_PROMPT,
     DEBUG_ANALYZE_USER_PROMPT,
     DEBUG_GET_CONTEXT_SYSTEM_PROMPT,
     DEBUG_GET_CONTEXT_USER_PROMPT,
+    DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT,
+    DEBUG_INTERACTIVE_COMMAND_USER_PROMPT,
+    DEBUG_INTERACTIVE_FOLLOW_UP_SYSTEM_PROMPT,
+    DEBUG_INTERACTIVE_FOLLOW_UP_USER_PROMPT,
     DEBUG_REFLECT_SYSTEM_PROMPT,
     DEBUG_REFLECT_USER_PROMPT,
     DEBUG_WRITE_SCRIPT_SYSTEM_PROMPT,
@@ -40,6 +52,13 @@ from buttercup.seed_gen.task import BaseTaskState, Task
 from buttercup.seed_gen.utils import extract_code
 
 logger = logging.getLogger(__name__)
+
+
+class DebugMode(str, Enum):
+    """Debug execution mode"""
+    BATCH = "batch"
+    INTERACTIVE = "interactive"
+    HYBRID = "hybrid"
 
 
 @dataclass
@@ -71,18 +90,22 @@ class DebugAttempt:
 
 @dataclass
 class DebugResult:
-    """Result of a debug session"""
-
+    """Unified result of a debug session"""
+    debug_commands: list[str]
     pov_valid: bool
-    debug_script: str
     debug_output: str
     analysis: str
     reflection: str
-    attempts: list[DebugAttempt]
+    debug_script: str = ""  # Only populated for batch/hybrid modes
+    attempts: list[DebugAttempt] = None  # For compatibility with batch mode
+
+    def __post_init__(self):
+        if self.attempts is None:
+            self.attempts = []
 
 
 class DebugTaskState(BaseTaskState):
-    """State for the debug task"""
+    """State for the debug task - supports both batch and interactive modes"""
 
     debug_context: str = Field(
         description="Articulated context about what to test and verify",
@@ -92,27 +115,33 @@ class DebugTaskState(BaseTaskState):
         description="Path to the PoV input file",
     )
     analysis: str = Field(description="The analysis of the debugging task", default="")
-    debug_script: str = Field(description="The GDB debug script to execute", default="")
-    debug_output: str = Field(description="Output from running the debug script", default="")
+    debug_script: str = Field(description="The GDB debug script to execute (batch mode)", default="")
+    debug_output: str = Field(description="Output from running the debug session", default="")
+    debug_commands: list[str] = Field(description="List of GDB commands executed (interactive mode)", default_factory=list)
     reflection: str = Field(description="Reflection on what happened during execution and how it relates to the vulnerability", default="")
     pov_valid: bool = Field(description="Whether the PoV is valid (causes a crash)", default=False)
     debug_iteration: int = Field(description="Count of debug iterations", default=0)
     debug_attempts: Annotated[list[DebugAttempt], operator.add] = Field(default_factory=list)
+    needs_interactive_follow_up: bool = Field(description="Whether interactive debugging follow-up is needed (hybrid mode)", default=False)
 
     def format_debug_attempts(self) -> str:
         """Format debug attempts for prompts"""
         return "\n\n".join(str(attempt) for attempt in self.debug_attempts)
 
 
-class DebugSubagent:
-    """Utility for debugging PoVs with GDB scripts.
-
-    This can be called by other tasks to debug PoV inputs and investigate
-    why they might not be working as expected.
+class DebugSubagentUnified:
+    """Unified debug subagent that supports multiple debugging modes.
+    
+    This allows easy experimentation with different debugging strategies:
+    - batch: Pre-written GDB scripts
+    - interactive: LLM-driven interactive commands
+    - hybrid: Batch first, then interactive follow-up
     """
 
     MAX_DEBUG_ITERATIONS = 2
     MAX_CONTEXT_ITERATIONS = 3
+    MAX_CONTEXT_ITERATIONS_AGAIN = 2
+    MAX_INTERACTIVE_COMMANDS = 10  # Depth of interactive debug loop
     # Each context iteration can have multiple tool calls (get_context -> tools)
     # Estimate ~5 tool calls per context iteration to be safe
     ESTIMATED_TOOLS_PER_CONTEXT = 5
@@ -121,18 +150,38 @@ class DebugSubagent:
         self,
         task: Task,
         reproduce_multiple: ReproduceMultiple,
+        mode: DebugMode | str | None = None,
         skip_validation: bool = False,
     ):
-        """Initialize the debug subagent.
+        """Initialize the unified debug subagent.
 
         Args:
             task: The parent task (provides LLM, tools, codequery, etc.)
             reproduce_multiple: Used to validate PoVs and run debug containers
+            mode: Debug mode - "batch", "interactive", or "hybrid". 
+                  If None, reads from BUTTERCUP_DEBUG_MODE env var (defaults to "interactive")
             skip_validation: If True, skip PoV validation and only run debug once
         """
         self.task = task
         self.reproduce_multiple = reproduce_multiple
         self.skip_validation = skip_validation
+        
+        # Determine mode
+        if mode is None:
+            mode_str = os.getenv("BUTTERCUP_DEBUG_MODE", "interactive")
+        elif isinstance(mode, DebugMode):
+            mode_str = mode.value
+        else:
+            mode_str = mode.lower()
+        
+        try:
+            self.mode = DebugMode(mode_str)
+        except ValueError:
+            logger.warning(f"Invalid debug mode '{mode_str}', defaulting to 'interactive'")
+            self.mode = DebugMode.INTERACTIVE
+        
+        logger.info(f"Initializing DebugSubagentUnified with mode: {self.mode.value}")
+        
         # Create debug tools list with grep included
         self.debug_tools = task.get_debug_tools()
         self.llm_with_debug_tools = task.llm.bind_tools(self.debug_tools)
@@ -144,7 +193,7 @@ class DebugSubagent:
         debug_context: str,
         output_dir: Path | None = None,
     ) -> DebugResult:
-        """Debug a PoV input.
+        """Debug a PoV input using the configured mode.
 
         Args:
             harness: The harness to target
@@ -155,10 +204,32 @@ class DebugSubagent:
         Returns:
             DebugResult with debug information and validation status
         """
+        return self._debug_workflow(harness, pov_input_path, debug_context, output_dir)
+
+    def _debug_workflow(
+        self,
+        harness: HarnessInfo,
+        pov_input_path: Path,
+        debug_context: str,
+        output_dir: Path | None,
+    ) -> DebugResult:
+        """Run the debug workflow based on the configured mode"""
+        return self._run_debug_workflow(harness, pov_input_path, debug_context, output_dir)
+
+
+    def _run_debug_workflow(
+        self,
+        harness: HarnessInfo,
+        pov_input_path: Path,
+        debug_context: str,
+        output_dir: Path | None,
+    ) -> DebugResult:
+        """Run the debug workflow (either batch or interactive)"""
         logger.info(
-            "Starting debug session for harness: %s | pov_input: %s",
+            "Starting debug session for harness: %s | pov_input: %s | mode: %s",
             harness,
             pov_input_path,
+            self.mode.value,
         )
 
         # Create temporary output directory if not provided
@@ -177,15 +248,16 @@ class DebugSubagent:
             logger.info("Debug state created successfully")
 
             logger.info("Building debug workflow")
-            workflow = self._build_workflow()
+            workflow = self._build_workflow(self.mode)
             logger.info("Getting Langfuse callbacks")
             llm_callbacks = get_langfuse_callbacks()
-            logger.info("Compiling workflow with recursion_limit=%d", self._recursion_limit())
+            recursion_limit = self._recursion_limit(self.mode)
+            logger.info("Compiling workflow with recursion_limit=%d", recursion_limit)
             chain = workflow.compile().with_config(
                 RunnableConfig(
-                    tags=["debug-subagent"],
+                    tags=["debug-subagent-unified"],
                     callbacks=llm_callbacks,
-                    recursion_limit=self._recursion_limit(),
+                    recursion_limit=recursion_limit,
                 ),
             )
             logger.info("Workflow compiled successfully")
@@ -199,6 +271,7 @@ class DebugSubagent:
                     task_metadata=dict(self.task.challenge_task.task_meta.metadata),
                     extra_attributes={
                         "gen_ai.request.model": self.task.llm.model_name,  # type: ignore[attr-defined]
+                        "debug_mode": self.mode.value,
                     },
                 )
 
@@ -210,15 +283,17 @@ class DebugSubagent:
                 # Get values from state (final_state is a dict)
                 debug_script = final_state.get("debug_script", "") or ""
                 debug_output = final_state.get("debug_output", "") or ""
+                debug_commands = final_state.get("debug_commands", [])
                 analysis = final_state.get("analysis", "") or ""
                 reflection = final_state.get("reflection", "") or ""
                 pov_valid = final_state.get("pov_valid", False)
                 debug_attempts = final_state.get("debug_attempts", [])
 
                 logger.info(
-                    "Debug state extracted: analysis_len=%d, script_len=%d, output_len=%d, reflection_len=%d, attempts=%d",
+                    "Debug state extracted: analysis_len=%d, script_len=%d, commands=%d, output_len=%d, reflection_len=%d, attempts=%d",
                     len(analysis),
                     len(debug_script),
+                    len(debug_commands),
                     len(debug_output),
                     len(reflection),
                     len(debug_attempts),
@@ -229,6 +304,8 @@ class DebugSubagent:
                     output_dir.mkdir(parents=True, exist_ok=True)
                     if debug_script:
                         (output_dir / "debug_script.gdb").write_text(debug_script)
+                    if debug_commands:
+                        (output_dir / "debug_commands.txt").write_text("\n".join(debug_commands))
                     if debug_output:
                         (output_dir / "debug_output.txt").write_text(debug_output)
                     if analysis:
@@ -248,33 +325,46 @@ class DebugSubagent:
                 )
 
                 return DebugResult(
+                    debug_commands=debug_commands,
                     pov_valid=pov_valid,
-                    debug_script=debug_script,
                     debug_output=debug_output,
                     analysis=analysis,
                     reflection=reflection,
+                    debug_script=debug_script,
                     attempts=debug_attempts,
                 )
 
         except Exception as err:
             logger.exception("Failed debug session: %s", str(err))
             return DebugResult(
+                debug_commands=[],
                 pov_valid=False,
-                debug_script="",
                 debug_output=f"Error: {str(err)}",
                 analysis="",
                 reflection="",
+                debug_script="",
                 attempts=[],
             )
 
     def _get_context(self, state: DebugTaskState) -> Command:
         """Get context about the codebase for debugging"""
         logger.info("Getting context for debugging")
+        prev_debug_attempt = """ We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
+Here is the previous debug attempt:
+<previous_debug_attempt>
+{state.debug_script}
+</previous_debug_attempt>
+Here is the previous debug output:
+<previous_debug_output>
+{state.debug_output}
+</previous_debug_output>
+Please gather more context about the codebase that will help with debugging.
+"""
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "retrieved_context": state.format_retrieved_context(),
-            "prev_debug_attempt": "",  # No previous attempt for batch mode
+            "prev_debug_attempt": prev_debug_attempt,
         }
         # Use custom llm_with_debug_tools that includes grep
         prompt = [
@@ -310,7 +400,7 @@ class DebugSubagent:
         return Command(update={"analysis": analysis})
 
     def _write_debug_script(self, state: DebugTaskState) -> Command:
-        """Write a GDB debug script"""
+        """Write a GDB debug script (batch mode only)"""
         logger.info("Writing debug script")
         prompt_vars = {
             "harness": str(state.harness),
@@ -345,7 +435,7 @@ class DebugSubagent:
             return Command(update={"debug_script": ""})
 
     def _run_debug_script(self, state: DebugTaskState) -> Command:
-        """Run the debug script in a debug container"""
+        """Run the debug script in a debug container (batch mode only)"""
         logger.info("Running debug script")
         if not state.debug_script:
             logger.warning("No debug script to run")
@@ -356,7 +446,6 @@ class DebugSubagent:
         # during the mount. The OS will clean it up later, or we could clean it
         # up after Docker has fully completed, but that's complex with the current
         # architecture where exec_docker_cmd might cache containers.
-        import os
         logger.info("Creating temporary GDB script file...")
         logger.info(f"  Script content length: {len(state.debug_script)} characters")
         
@@ -417,15 +506,36 @@ class DebugSubagent:
         # Note: We intentionally do NOT delete the debug_script_path here
         # because Docker might still be accessing it via the mount
 
+    def _run_interactive_debug(self, state: DebugTaskState) -> Command:
+        """Run interactive GDB debugging session with LLM-driven commands (interactive mode only)"""
+        logger.info("Starting interactive debug session")
+        
+        try:
+            debug_output, debug_commands, debug_reasoning = self._execute_interactive_debug(state.pov_input_path, state)
+            return Command(update={
+                "debug_output": debug_output,
+                "debug_commands": debug_commands,
+            })
+        except Exception as e:
+            logger.error(f"Error running interactive debug: {e}")
+            return Command(update={
+                "debug_output": f"Error: {str(e)}",
+                "debug_commands": [],
+            })
+
     def _reflect_debug(self, state: DebugTaskState) -> Command:
         """Reflect on the debug output and summarize what happened"""
         logger.info("Reflecting on debug output")
+        # For interactive mode, there's no debug_script, so provide a placeholder
+        debug_script = state.debug_script
+        if not debug_script and state.debug_commands:
+            debug_script = "Interactive GDB session - commands executed interactively\n" + "\n".join(state.debug_commands)
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "analysis": state.analysis,
-            "debug_script": state.debug_script,
             "debug_output": state.debug_output,
+            "debug_script": debug_script,
         }
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -442,7 +552,7 @@ class DebugSubagent:
         debug_script_path: Path,
         pov_input_path: Path,
     ) -> str:
-        """Execute a GDB debug script in a debug container
+        """Execute a GDB debug script in a debug container (batch mode)
         
         IMPORTANT: Debug Symbol Support
         --------------------------------
@@ -458,12 +568,6 @@ class DebugSubagent:
         - ✅ Type information available
         - ✅ Detailed debugging info available
         
-        With MINIMAL debug symbols (production binaries, fallback):
-        - ✅ Function names work (from symbol table)
-        - ✅ Line numbers work
-        - ❌ Variable names may NOT be available
-        - ❌ Type information may NOT be available
-        - ❌ Detailed debugging info is limited
         
         GDB scripts should work with both, but will have better variable/type access with debug binaries.
         """
@@ -477,14 +581,9 @@ class DebugSubagent:
             harness_name = self.task.harness_name
             
             # Determine the debug container image
-            # Default to gcr.io/oss-fuzz-base/base-runner-debug
-            # NOTE: This container provides GDB and debugging tools, but does NOT
-            # change how binaries are built. The binaries are built by OSS-Fuzz's
-            # build_fuzzers command with -gline-tables-only (minimal debug info).
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
 
             # Resolve paths to ensure they're absolute
-            # Log the paths before and after resolution to debug any path issues
             logger.info(f"Pre-resolve paths:")
             logger.info(f"  debug_script_path: {debug_script_path} (is_absolute: {debug_script_path.is_absolute()})")
             logger.info(f"  pov_input_path: {pov_input_path} (is_absolute: {pov_input_path.is_absolute()})")
@@ -498,9 +597,6 @@ class DebugSubagent:
             logger.info(f"  pov_input_path: {pov_input_path}")
 
             # Get the build output directory so GDB can find the binary
-            # get_build_dir() returns .../build/out/<project_name>
-            # Binaries are located at .../build/out/<project_name>/<harness_name>
-            # This matches the pattern used in fuzzer_bot.py
             build_dir = task.get_build_dir()
             logger.info(f"Build directory from task.get_build_dir(): {build_dir}")
             
@@ -514,7 +610,6 @@ class DebugSubagent:
                 logger.info(f"Files in build_dir: {[f.name for f in files_in_build]}")
             
             # Try to use debug binary first (with full debug symbols), fallback to regular binary
-            # Debug binaries are built with build_fuzzers_with_debug_symbols() and are in /out/debug
             debug_binary_path = task.get_debug_binary_path(harness_name)
             using_debug_binary = False
             if debug_binary_path and debug_binary_path.exists():
@@ -523,7 +618,6 @@ class DebugSubagent:
                 logger.info(f"Using debug binary with full symbols: {harness_binary_path}")
             else:
                 # Fallback to regular production binary
-                # Binary location matches fuzzer_bot.py: build_dir / harness_name
                 harness_binary_path = build_dir / harness_name
                 if not harness_binary_path.exists():
                     available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
@@ -711,7 +805,6 @@ class DebugSubagent:
             
             # Copy debug script to the scratchpad directory before mounting
             # This ensures it's in the same directory as the PoV input
-            import shutil
             debug_script_in_scratchpad = pov_input_parent / script_unique_name
             logger.info(f"Copying debug script to scratchpad: {debug_script_in_scratchpad}")
             shutil.copy2(debug_script_path, debug_script_in_scratchpad)
@@ -757,12 +850,7 @@ class DebugSubagent:
             logger.info(f"  Binary path in container: {binary_path}")
             logger.info(f"  PoV input path in container: {pov_input_container_path}")
 
-            # CRITICAL: Clean up any existing directory at mount target before mounting
-            # If the target path exists as a directory, Docker will mount the file INTO it
-            # instead of replacing it, causing "Is a directory" errors
-
             # Run in debug container
-            # First, verify the mount will work by checking what exec_docker_cmd will actually do
             logger.info(f"Executing Docker command with:")
             logger.info(f"  Container image: {debug_container_image}")
             logger.info(f"  Number of mounts: {len(mount_dirs)}")
@@ -813,6 +901,355 @@ class DebugSubagent:
             error = result.error.decode("utf-8", errors="ignore")
             return f"GDB Output:\n{output}\n\nGDB Errors:\n{error}"
 
+    def _execute_interactive_debug(
+        self,
+        pov_input_path: Path,
+        state: DebugTaskState,
+    ) -> tuple[str, list[str], list[str]]:
+        """Execute interactive GDB debugging session with LLM-driven commands (interactive mode)
+        
+        Returns:
+            Tuple of (debug_output, debug_commands, debug_reasoning) where:
+            - debug_output: Combined output from all GDB commands
+            - debug_commands: List of commands executed
+            - debug_reasoning: List of LLM reasoning for each command
+        """
+        # Get a writable copy of the task
+        with self.reproduce_multiple.open() as mult:
+            if mult.builds_cache is None or not mult.builds_cache:
+                raise ValueError("Build cache not available")
+            task = mult.builds_cache[0]
+
+            # Get the fuzzer binary path (typically in /out)
+            harness_name = self.task.harness_name
+            debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
+
+            # Resolve paths
+            logger.info(f"Pre-resolve PoV input path: {pov_input_path} (is_absolute: {pov_input_path.is_absolute()})")
+            pov_input_path = pov_input_path.resolve()
+            logger.info(f"Post-resolve PoV input path: {pov_input_path}")
+            
+            # Verify PoV input file exists and is accessible
+            logger.info(f"Verifying PoV input file before Docker mount:")
+            logger.info(f"  Path: {pov_input_path}")
+            logger.info(f"  Exists: {pov_input_path.exists()}")
+            logger.info(f"  Is file: {pov_input_path.is_file()}")
+            logger.info(f"  Is directory: {pov_input_path.is_dir()}")
+            if not pov_input_path.exists():
+                raise ValueError(f"PoV input file does not exist: {pov_input_path}")
+            if not pov_input_path.is_file():
+                raise ValueError(f"PoV input path is not a file: {pov_input_path}")
+            if pov_input_path.exists():
+                logger.info(f"  Size: {pov_input_path.stat().st_size} bytes")
+                logger.info(f"  Absolute: {pov_input_path.resolve()}")
+            
+            # Get build directory and binary path
+            build_dir = task.get_build_dir()
+            if not build_dir or not build_dir.exists():
+                raise ValueError(f"Build directory not found or doesn't exist: {build_dir}")
+            
+            # Try to use debug binary first, fallback to regular binary
+            debug_binary_path = task.get_debug_binary_path(harness_name)
+            using_debug_binary = False
+            if debug_binary_path and debug_binary_path.exists():
+                harness_binary_path = debug_binary_path
+                using_debug_binary = True
+                logger.info(f"Using debug binary with full symbols: {harness_binary_path}")
+            else:
+                harness_binary_path = build_dir / harness_name
+                if not harness_binary_path.exists():
+                    available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
+                    raise ValueError(
+                        f"Harness binary '{harness_name}' not found in {build_dir}. "
+                        f"Available files: {available_files}"
+                    )
+                logger.info(f"Using regular production binary (debug binary not available): {harness_binary_path}")
+            
+            # Ensure binary has execute permissions
+            current_perms = harness_binary_path.stat().st_mode
+            harness_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            
+            # Determine binary path in container
+            project_name = build_dir.name
+            if using_debug_binary:
+                binary_path = f"/out/{project_name}/debug/{harness_name}"
+            else:
+                binary_path = f"/out/{project_name}/{harness_name}"
+            
+            # Set up mount directories
+            pov_input_parent = pov_input_path.parent
+            pov_input_container_path = f"/work/{pov_input_path.name}"
+            out_dir = build_dir.parent
+            
+            logger.info(f"Container paths (targets in container):")
+            logger.info(f"  PoV input: {pov_input_container_path}")
+            logger.info(f"  Binary: {binary_path}")
+            logger.info(f"  PoV input parent (host): {pov_input_parent}")
+            logger.info(f"  PoV input parent (container): /work")
+            logger.info(f"  PoV input file name: {pov_input_path.name}")
+            
+            mount_dirs = {
+                pov_input_parent: Path("/work"),
+            }
+            if out_dir.exists():
+                mount_dirs[out_dir] = Path("/out")
+            else:
+                mount_dirs[build_dir] = Path("/out")
+                binary_path = f"/out/{harness_name}"
+            
+            logger.info(f"Mount directories:")
+            for host_path, container_path in mount_dirs.items():
+                logger.info(f"  {host_path} -> {container_path}")
+
+            # Read first 4 bytes to check if it's an ELF binary (magic: 7f 45 4c 46)
+            try:
+                with open(harness_binary_path, 'rb') as f:
+                    magic = f.read(4)
+                    is_elf = magic == b'\x7fELF'
+            except Exception:
+                is_elf = False
+            
+            binary_size = harness_binary_path.stat().st_size
+            logger.info(f"Found harness binary: {harness_binary_path}")
+            logger.info(f"  Permissions: {oct(harness_binary_path.stat().st_mode)}")
+            logger.info(f"  Size: {binary_size} bytes")
+            logger.info(f"  Is ELF binary: {is_elf}")
+            
+            
+            # If the file is not an ELF binary or is suspiciously small, it might be a wrapper script
+            # Try to find the actual binary. Wrapper scripts often have suffixes like _nalloc, _asan, etc.
+            # The actual binary is usually the base harness name without the suffix
+            actual_binary_path = harness_binary_path
+            actual_binary_name = harness_name
+            if not is_elf or binary_size < 1024:
+                logger.warning(
+                    f"File '{harness_name}' appears to be a wrapper script (size={binary_size}, is_elf={is_elf}). "
+                    f"Searching for actual ELF binary..."
+                )
+                
+                # Try to find the actual binary by looking for ELF files in the build directory
+                # Priority: 1) Base name without suffix, 2) Any ELF file with base name as prefix
+                base_name = harness_name
+                # Remove common sanitizer suffixes
+                for suffix in ['_nalloc', '_asan', '_msan', '_ubsan', '_tsan', '_hwasan']:
+                    if base_name.endswith(suffix):
+                        base_name = base_name[:-len(suffix)]
+                        break
+                
+                # First, try the base name directly
+                candidate_path = build_dir / base_name
+                if candidate_path.exists() and candidate_path.is_file():
+                    try:
+                        with open(candidate_path, 'rb') as f:
+                            candidate_magic = f.read(4)
+                            candidate_is_elf = candidate_magic == b'\x7fELF'
+                        candidate_size = candidate_path.stat().st_size
+                        if candidate_is_elf and candidate_size > 1024:
+                            logger.info(
+                                f"Found actual binary: {base_name} (size={candidate_size}, is_elf={candidate_is_elf}). "
+                                f"Using this instead of wrapper '{harness_name}'."
+                            )
+                            actual_binary_path = candidate_path
+                            actual_binary_name = base_name
+                            # Set execute permissions
+                            current_perms = actual_binary_path.stat().st_mode
+                            actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                    except Exception as e:
+                        logger.debug(f"Error checking candidate {base_name}: {e}")
+                
+                # If base name didn't work, search for any ELF file with base name as prefix
+                if actual_binary_path == harness_binary_path and build_dir.is_dir():
+                    for candidate in build_dir.iterdir():
+                        if candidate.is_file() and candidate != harness_binary_path:
+                            if candidate.name.startswith(base_name):
+                                try:
+                                    with open(candidate, 'rb') as f:
+                                        candidate_magic = f.read(4)
+                                        candidate_is_elf = candidate_magic == b'\x7fELF'
+                                    candidate_size = candidate.stat().st_size
+                                    if candidate_is_elf and candidate_size > 1024:
+                                        logger.info(
+                                            f"Found actual binary: {candidate.name} (size={candidate_size}, is_elf={candidate_is_elf}). "
+                                            f"Using this instead of wrapper '{harness_name}'."
+                                        )
+                                        actual_binary_path = candidate
+                                        actual_binary_name = candidate.name
+                                        # Set execute permissions
+                                        current_perms = actual_binary_path.stat().st_mode
+                                        actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                                        break
+                                except Exception:
+                                    pass
+            
+            # Use the actual binary (or original if it was already valid)
+            harness_binary_path = actual_binary_path
+            harness_name_for_path = actual_binary_name
+
+            project_name = build_dir.name
+            binary_path = actual_binary_name
+            # Binary path in container: /out/<project_name>/<actual_binary_name>
+            # If using debug binary, it's in /out/<project_name>/debug/<actual_binary_name>
+            # Use the actual binary name (which may differ from harness_name if it was a wrapper)
+            if using_debug_binary:
+                binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
+            else:
+                binary_path = f"/out/{project_name}/{harness_name_for_path}"
+            # Create InteractiveGDBDocker session
+            logger.info("Creating interactive GDB session")
+            logger.info(f"GDB command will be: gdb -q --interpreter=mi2 --args {binary_path} {pov_input_container_path}")
+            logger.info(f"  Binary path in container: {binary_path}")
+            logger.info(f"  Seed file path in container: {pov_input_container_path}")
+            logger.info(f"  Seed file should be accessible at: {pov_input_container_path}")
+            gdb_session = InteractiveGDBDocker(
+                container_image=debug_container_image,
+                mount_dirs=mount_dirs,
+                binary_path=binary_path,
+                input_path=pov_input_container_path,
+            )
+            
+            try:
+                # Start the GDB session
+                gdb_session.run()
+                logger.info("GDB session started")
+                
+                # Initial setup commands
+                setup_commands = [
+                    "set breakpoint pending on",
+                    "set print elements 0",
+                    "set print pretty on",
+                    "set pagination off",
+                    "set verbose off",
+                ]
+                
+                all_output_lines: list[str] = []
+                executed_commands: list[str] = []
+                debug_reasoning: list[str] = []
+                # Run setup commands
+                for cmd in setup_commands:
+                    logger.info(f"Setup: {cmd}")
+                    result = gdb_session.console(cmd, timeout=5.0)
+                    all_output_lines.extend(result.lines)
+                    executed_commands.append(cmd)
+                
+                # Interactive loop with LLM (depth 10)
+                command_count = 0
+                session_history: list[str] = []
+                
+                while command_count < self.MAX_INTERACTIVE_COMMANDS:
+                    # Build prompt for next command
+                    history_text = "\n\n".join(session_history[-5:]) if session_history else "No commands executed yet"
+                    
+                    # Get harness from state if available, otherwise use task
+                    harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
+                    if state.debug_script:
+                        prev_debug_attempt = f""" We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
+                        Here is the previous debug attempt:
+                        <previous_debug_attempt>
+                        {state.debug_script}
+                        </previous_debug_attempt>
+                        Here is the previous debug output:
+                        <previous_debug_output>
+                        {state.debug_output}
+                        </previous_debug_output>
+                        """
+                    else:
+                        prev_debug_attempt = ""
+                    prompt_vars = {
+                        "harness": harness_str,
+                        "debug_context": state.debug_context if hasattr(state, 'debug_context') else "Interactive debugging session",
+                        "analysis": state.analysis if hasattr(state, 'analysis') and state.analysis else "Use GDB to investigate program execution",
+                        "session_history": history_text,
+                        "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
+                        "prev_debug_attempt": prev_debug_attempt,
+                    }
+                    
+                    # Prompt LLM for next command
+                    next_command_prompt = ChatPromptTemplate.from_messages([
+                        ("system", DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT),
+                        ("human", DEBUG_INTERACTIVE_COMMAND_USER_PROMPT),
+                    ])
+                    
+                    chain = next_command_prompt | self.task.llm | StrOutputParser()
+                    llm_response = chain.invoke(prompt_vars)
+                    debug_reasoning.append(llm_response)
+                    # Extract command from string response (StrOutputParser returns a string)
+                    # Try to extract code block, otherwise use the response as-is
+                    try:
+                        # extract_code expects AIMessage, but we have a string
+                        # Create a temporary AIMessage for extraction
+                        temp_msg = AIMessage(content=llm_response)
+                        next_command = extract_code(temp_msg)
+                    except Exception:
+                        # If extraction fails, try simple regex for code blocks
+                        code_match = re.search(r"```(?:gdb)?\n(.*?)```", llm_response, re.DOTALL)
+                        if code_match:
+                            next_command = code_match.group(1).strip()
+                        else:
+                            # No code block, use the response directly (might be "quit" or a command)
+                            next_command = llm_response.strip()
+                    
+                    if not next_command or next_command.lower() in ["quit", "done", "exit", "q"]:
+                        logger.info("LLM indicated debugging complete")
+                        break
+                    
+                    # Split multi-line commands and execute each line individually
+                    command_lines = [line.strip() for line in next_command.split("\n") if line.strip()]
+                    logger.info(f"Executing GDB command(s) [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {len(command_lines)} line(s)")
+                    logger.debug(f"Command lines: {command_lines}")
+                    
+                    all_command_outputs: list[str] = []
+                    all_command_errors: list[str] = []
+                    found_quit = False
+                    
+                    for cmd_line in command_lines:
+                        # Check for quit in individual lines too
+                        if cmd_line.lower() in ["quit", "done", "exit", "q"]:
+                            logger.info("LLM indicated debugging complete (found in command line)")
+                            found_quit = True
+                            break
+                        
+                        try:
+                            logger.debug(f"Executing individual command: {cmd_line}")
+                            result = gdb_session.console(cmd_line, timeout=10.0)
+                            output_text = "\n".join(result.lines)
+                            logger.debug(f"Command '{cmd_line}' output: {output_text[:200]}...")  # Log first 200 chars
+                            all_command_outputs.append(f"Command: {cmd_line}\nOutput:\n{output_text}")
+                            all_output_lines.extend([f"Command: {cmd_line}"] + result.lines)
+                            executed_commands.append(cmd_line)
+                            command_count += 1
+                        except Exception as e:
+                            error_msg = f"Error executing command '{cmd_line}': {str(e)}"
+                            logger.error(error_msg)
+                            all_command_errors.append(error_msg)
+                            all_output_lines.extend([f"Command: {cmd_line}", error_msg])
+                            executed_commands.append(cmd_line)
+                            command_count += 1
+                    
+                    # Combine all outputs for session history
+                    combined_output = "\n".join(all_command_outputs)
+                    if all_command_errors:
+                        combined_output += "\n" + "\n".join(all_command_errors)
+                    
+                    if combined_output:
+                        session_history.append(combined_output)
+                    
+                    # If we hit quit in a command line, break out of the main loop
+                    if found_quit:
+                        break
+                
+                # Finalize output
+                debug_output = "\n".join(all_output_lines)
+                logger.info(f"Interactive debug session completed: {command_count} commands executed")
+                
+                return debug_output, executed_commands, debug_reasoning
+                
+            finally:
+                # Clean up
+                try:
+                    gdb_session.close()
+                except Exception as e:
+                    logger.warning(f"Error closing GDB session: {e}")
+
     def _validate_pov(self, state: DebugTaskState) -> Command:
         """Validate if the PoV causes a crash"""
         logger.info("Validating PoV")
@@ -826,9 +1263,13 @@ class DebugSubagent:
                     break
 
                 # Store the debug attempt
+                debug_script = state.debug_script if state.debug_script else ""
+                if not debug_script and state.debug_commands:
+                    debug_script = "\n".join(state.debug_commands)
+                
                 debug_attempt = DebugAttempt(
                     analysis=state.analysis,
-                    debug_script=state.debug_script,
+                    debug_script=debug_script,
                     debug_output=state.debug_output,
                     pov_valid=pov_valid,
                 )
@@ -840,11 +1281,15 @@ class DebugSubagent:
                         "debug_iteration": state.debug_iteration + 1,
                     },
                 )
+
         except ChallengeTaskError as exc:
             logger.error(f"Error validating PoV: {exc}")
+            debug_script = state.debug_script if state.debug_script else ""
+            if not debug_script and state.debug_commands:
+                debug_script = "\n".join(state.debug_commands)
             debug_attempt = DebugAttempt(
                 analysis=state.analysis,
-                debug_script=state.debug_script,
+                debug_script=debug_script,
                 debug_output=state.debug_output,
                 pov_valid=False,
             )
@@ -862,14 +1307,14 @@ class DebugSubagent:
         return not state.pov_valid and state.debug_iteration < self.MAX_DEBUG_ITERATIONS
 
     def _continue_context_retrieval(self, state: DebugTaskState) -> bool:
-        """Determine if we should continue the context retrieval iteration
-        
-        Override the parent task's method to use DebugSubagent's own MAX_CONTEXT_ITERATIONS
-        instead of the parent task's limit.
-        """
+        """Determine if we should continue the context retrieval iteration"""
         return state.context_iteration < self.MAX_CONTEXT_ITERATIONS
 
-    def _build_workflow(self) -> StateGraph:
+    def _continue_context_retrieval_again(self, state: DebugTaskState) -> bool:
+        """Determine if we should continue the context retrieval iteration"""
+        return state.context_iteration_again < self.MAX_CONTEXT_ITERATIONS_AGAIN
+
+    def _build_workflow(self, mode: DebugMode) -> StateGraph:
         """Build the workflow for the debug task"""
         workflow = StateGraph(DebugTaskState)
 
@@ -877,51 +1322,82 @@ class DebugSubagent:
         tool_node = ToolNode(self.debug_tools, name="tools")
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_debug", self._analyze_debug)
-        workflow.add_node("write_debug_script", self._write_debug_script)
-        workflow.add_node("run_debug_script", self._run_debug_script)
+        
+        if mode == DebugMode.BATCH or mode == DebugMode.HYBRID:
+            # Batch mode workflow
+            workflow.add_node("write_debug_script", self._write_debug_script)
+            workflow.add_node("run_debug_script", self._run_debug_script)
+        if mode == DebugMode.HYBRID:
+            # Hybrid mode workflow
+            workflow.add_node("needs_interactive_follow_up", self._needs_interactive_follow_up)
+            workflow.add_node("gather_context_again", self._get_context)
+            workflow.add_node("tools_again", tool_node)
+        if mode == DebugMode.INTERACTIVE or mode == DebugMode.HYBRID:
+            # Interactive mode workflow
+            workflow.add_node("run_interactive_debug", self._run_interactive_debug)
+        
         workflow.add_node("reflect_debug", self._reflect_debug)
         
         workflow.set_entry_point("get_context")
         workflow.add_edge("get_context", "tools")
         workflow.add_conditional_edges(
             "tools",
-            self._continue_context_retrieval,  # Use our own method, not self.task's
+            self._continue_context_retrieval,
             {
                 True: "get_context",
                 False: "analyze_debug",
             },
         )
 
-        workflow.add_edge("analyze_debug", "write_debug_script")
-        workflow.add_edge("write_debug_script", "run_debug_script")
-        workflow.add_edge("run_debug_script", "reflect_debug")
-        
-        if self.skip_validation:
-            # Skip validation - just run debug once and exit
-            workflow.add_edge("reflect_debug", END)
-        else:
-            # Include validation and allow retries
-            workflow.add_node("validate_pov", self._validate_pov)
-            workflow.add_edge("reflect_debug", "validate_pov")
+        if mode == DebugMode.BATCH:
+            workflow.add_edge("analyze_debug", "write_debug_script")
+            workflow.add_edge("write_debug_script", "run_debug_script")
+            workflow.add_edge("run_debug_script", "reflect_debug")
+        elif mode == DebugMode.INTERACTIVE:
+            workflow.add_edge("analyze_debug", "run_interactive_debug")
+            workflow.add_edge("run_interactive_debug", "reflect_debug")
+        elif mode == DebugMode.HYBRID:
+            workflow.add_edge("analyze_debug", "write_debug_script")
+            workflow.add_edge("write_debug_script", "run_debug_script")
+            workflow.add_edge("run_debug_script", "needs_interactive_follow_up")
             workflow.add_conditional_edges(
-                "validate_pov",
-                self._continue_debug,
+                "needs_interactive_follow_up",
+                self._continue_context_retrieval_again,
                 {
-                    True: "analyze_debug",  # Retry if PoV not valid
-                    False: END,  # Done if PoV valid or max iterations reached
+                    True: "gather_context_again",
+                    False: "reflect_debug",
                 },
             )
 
+            workflow.add_edge("gather_context_again", "tools_again")
+            workflow.add_conditional_edges(
+                "tools_again",
+                self._continue_context_retrieval,
+                {
+                    True: "gather_context_again",
+                    False: "run_interactive_debug",
+                },
+            )
+            workflow.add_edge("run_interactive_debug", "reflect_debug")
+
+        workflow.add_edge("reflect_debug", END)
+
+
         return workflow
 
-    def _recursion_limit(self) -> int:
+    def _recursion_limit(self, mode: DebugMode) -> int:
         """Calculate recursion limit for the workflow
         
         The workflow structure:
         1. Context gathering phase: get_context -> tools (can loop multiple times)
            - Each tool call from the LLM counts as a step
            - Can have multiple tool calls per iteration
-        2. Debug phase: analyze_debug -> write_debug_script -> run_debug_script -> reflect_debug
+        2. Debug phase: 
+           - Batch: analyze_debug -> write_debug_script -> run_debug_script -> reflect_debug
+           - Interactive: analyze_debug -> run_interactive_debug -> reflect_debug
+           - Hybrid: analyze_debug -> write_debug_script -> run_debug_script -> needs_interactive_follow_up 
+                    -> (if yes) gather_context_again -> tools_again -> run_interactive_debug -> reflect_debug
+                    -> (if no) reflect_debug
         3. Validation phase (if not skipped): validate_pov -> (maybe loop back)
         
         We need to be generous with the limit because tool calls add up quickly.
@@ -932,10 +1408,90 @@ class DebugSubagent:
         context_total = context_steps_per_iteration * self.MAX_CONTEXT_ITERATIONS
         
         if self.skip_validation:
-            # Single debug pass: analyze + write + run + reflect
-            debug_steps = 4
+            if mode == DebugMode.BATCH:
+                # Single debug pass: analyze + write + run + reflect
+                debug_steps = 4
+            elif mode == DebugMode.INTERACTIVE:
+                # Single debug pass: analyze + run_interactive + reflect
+                # Interactive loop adds MAX_INTERACTIVE_COMMANDS LLM calls
+                debug_steps = 3 + self.MAX_INTERACTIVE_COMMANDS
+            else:  # HYBRID
+                # Hybrid: batch phase + potentially interactive phase
+                # Batch: analyze + write + run + needs_interactive_follow_up (4)
+                # If interactive needed: gather_context_again + tools_again (can loop) + run_interactive + reflect
+                # Worst case: batch (4) + context_again (1 + tools) + interactive (MAX_INTERACTIVE_COMMANDS) + reflect (1)
+                batch_steps = 4  # analyze + write + run + needs_interactive_follow_up
+                interactive_context_steps = context_steps_per_iteration  # gather_context_again + tools_again (worst case one iteration)
+                interactive_steps = 1 + self.MAX_INTERACTIVE_COMMANDS  # run_interactive_debug
+                reflect_step = 1  # reflect_debug
+                debug_steps = batch_steps + interactive_context_steps + interactive_steps + reflect_step
             return 1 + context_total + debug_steps
         else:
             # Full validation loop with retries
-            debug_steps = 5  # analyze + write + run + reflect + validate
+            if mode == DebugMode.BATCH:
+                debug_steps = 5  # analyze + write + run + reflect + validate
+            elif mode == DebugMode.INTERACTIVE:
+                # Interactive loop adds MAX_INTERACTIVE_COMMANDS LLM calls per iteration
+                debug_steps = 4 + self.MAX_INTERACTIVE_COMMANDS  # analyze + interactive_loop + reflect + validate
+            else:  # HYBRID
+                # Hybrid: batch phase + potentially interactive phase + validation
+                # Batch: analyze + write + run + needs_interactive_follow_up (4)
+                # If interactive needed: gather_context_again + tools_again + run_interactive + reflect (worst case)
+                # Validation: validate_pov (1)
+                batch_steps = 4  # analyze + write + run + needs_interactive_follow_up
+                interactive_context_steps = context_steps_per_iteration  # gather_context_again + tools_again (worst case one iteration)
+                interactive_steps = 1 + self.MAX_INTERACTIVE_COMMANDS  # run_interactive_debug
+                reflect_step = 1  # reflect_debug
+                validate_step = 1  # validate_pov
+                debug_steps = batch_steps + interactive_context_steps + interactive_steps + reflect_step + validate_step
             return 1 + context_total + debug_steps * self.MAX_DEBUG_ITERATIONS
+
+    def _needs_interactive_follow_up(self, state: DebugTaskState) -> Command:
+        """Use LLM to determine if an interactive debugging follow-up is needed after batch mode"""
+        logger.info("Checking if interactive debugging follow-up is needed")
+        
+        # Don't run interactive if PoV is already valid or we've exceeded max iterations
+        if state.pov_valid:
+            logger.info("PoV is valid, skipping interactive follow-up")
+            return Command(update={"needs_interactive_follow_up": False})
+        
+        if state.debug_iteration >= self.MAX_DEBUG_ITERATIONS:
+            logger.info("Max debug iterations reached, skipping interactive follow-up")
+            return Command(update={"needs_interactive_follow_up": False})
+        
+        # Use LLM to analyze batch results and determine if interactive follow-up is needed
+        prompt_vars = {
+            "harness": str(state.harness),
+            "debug_context": state.debug_context,
+            "analysis": state.analysis,
+            "debug_script": state.debug_script,
+            "debug_output": state.debug_output,
+            "pov_valid": state.pov_valid,
+            "previous_attempts": state.format_debug_attempts(),
+        }
+        
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", DEBUG_INTERACTIVE_FOLLOW_UP_SYSTEM_PROMPT),
+                ("human", DEBUG_INTERACTIVE_FOLLOW_UP_USER_PROMPT),
+            ],
+        )
+        chain = prompt | self.task.llm | StrOutputParser()
+        
+        try:
+            response = chain.invoke(prompt_vars).strip().lower()
+            logger.info(f"LLM response for interactive follow-up decision: {response}")
+            
+            # Parse response - should be "yes" or "no"
+            needs_follow_up = response == "yes"
+            
+            logger.info(f"Determined interactive follow-up needed: {needs_follow_up}")
+            return Command(update={"needs_interactive_follow_up": needs_follow_up})
+        except Exception as e:
+            logger.error(f"Error determining interactive follow-up: {e}")
+            # Default to False on error
+            return Command(update={"needs_interactive_follow_up": False})
+    
+    def _continue_interactive_follow_up(self, state: DebugTaskState) -> bool:
+        """Determine whether to continue with interactive follow-up based on LLM decision"""
+        return state.needs_interactive_follow_up
