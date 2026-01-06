@@ -14,6 +14,7 @@ from typing import override
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
+import tempfile
 from pydantic import Field
 
 from buttercup.seed_gen.debug_subagent_unified import DebugSubagentUnified
@@ -278,6 +279,9 @@ When writing new PoVs:
 **Target Information:**
 {harness_info}
 
+**POV input:**
+{pov_path.name}
+
 **Vulnerability Analysis:**{analysis_section}
 **Debugging Goals:**
 This PoV was tested and did NOT cause a crash. Analyze its execution to understand why:
@@ -300,14 +304,15 @@ This debugging will help us:
             # Use a separate directory for debug output
             debug_uuid = uuid.uuid4().hex[:8]
             debug_output_dir = state.current_dir.parent / "agentic_debug" / f"{debug_uuid}_iter{previous_iteration}_failed"
-            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s, current_dir=%s", pov_path, debug_output_dir, state.current_dir)
-            debug_result = self.debug_subagent_unified.debug(
-                harness=state.harness,
-                pov_input_path=pov_path,
-                debug_context=debug_context,
-                output_dir=debug_output_dir,
-                current_dir=state.current_dir,
-            )
+            with tempfile.TemporaryDirectory(dir=state.current_dir ) as current_dir:
+                logger.info("Calling debug subagent with pov_path=%s, output_dir=%s, current_dir=%s", pov_path, debug_output_dir, state.current_dir)
+                debug_result = self.debug_subagent_unified.debug(
+                    harness=state.harness,
+                    pov_input_path=pov_path,
+                    debug_context=debug_context,
+                    output_dir=debug_output_dir,
+                    current_dir=Path(current_dir),
+                )
             logger.info("Debug subagent returned: analysis_len=%d, debug_commands_len=%d, output_len=%d, reflection_len=%d, attempts=%d", 
                        len(debug_result.analysis), 
                        len(debug_result.debug_commands),

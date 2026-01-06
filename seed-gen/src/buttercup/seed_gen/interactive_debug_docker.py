@@ -120,6 +120,7 @@ class InteractiveGDBDocker(DockerInteractive):
     def process_commands(self, commands: list[str]) -> list[str]:
 
         if self.scratchpad_dir is not None:
+            # Write commands to a file in the scratchpad (host path)
             scratchpad = Path(self.scratchpad_dir)
             cmd_gdb_path = scratchpad / "cmdset.gdb"
             with open(cmd_gdb_path, "w") as f:
@@ -128,7 +129,10 @@ class InteractiveGDBDocker(DockerInteractive):
                     if not cmd.endswith("\n"):
                         f.write("\n")
 
-            cmd_result = self.console(f'source {cmd_gdb_path.as_posix()}')
+            # Source the file using the CONTAINER path
+            # The scratchpad is always mounted at /scratchpad in the container
+            container_script_path = "/scratchpad/cmdset.gdb"
+            cmd_result = self.console(f'source {container_script_path}')
 
             return cmd_result.lines
         else:

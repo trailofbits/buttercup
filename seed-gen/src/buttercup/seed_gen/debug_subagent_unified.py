@@ -304,8 +304,7 @@ class DebugSubagentUnified:
                     len(analysis),
                     len(debug_script),
                     len(debug_commands),
-                    len(debug_script_output),
-                    len(debug_interactive_output),
+                    len(debug_output),
                     len(reflection),
                     len(debug_attempts),
                 )
@@ -511,8 +510,6 @@ Please gather more context about the codebase that will help with debugging.
             except Exception as e:
                 logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
             return Command(update={"debug_script_output": f"Error: {str(e)}"})
-        # Note: We intentionally do NOT delete the debug_script_path here
-        # because Docker might still be accessing it via the mount
 
     def _run_interactive_debug(self, state: DebugTaskState) -> Command:
         """Run interactive GDB debugging session with LLM-driven commands (interactive mode only)"""
@@ -783,16 +780,30 @@ Please gather more context about the codebase that will help with debugging.
             logger.info("Setting up Docker mounts...")
             logger.info("=" * 80)
             
-            # Mount debug script to scratchpad (same directory as PoV input)
-            # This avoids /tmp issues in Docker-in-Docker scenarios
-            # Strategy: Mount the PoV input's parent directory to /work in container
-            # Then both files are accessible at /work/<filename>
+            # Get parent directories for both files
+            # NOTE: These are often DIFFERENT directories:
+            # - debug_script_path is in state.current_dir (a temp directory)
+            # - pov_input_path is in the output directory from testing
+            debug_script_parent = debug_script_path.parent
             pov_input_parent = pov_input_path.parent
-            script_unique_name = f"debug_script_{debug_script_path.stem}.gdb"
-            # Container paths relative to /work mount
-            debug_script_container_path = Path(f"/work/{script_unique_name}")
-            pov_input_container_path = Path(f"/work/{pov_input_path.name}")
             
+            # Check if they're in the same directory
+            if debug_script_parent == pov_input_parent:
+                # Both files are in the same directory - mount once to /work
+                debug_script_container_path = Path(f"/work/{debug_script_path.name}")
+                pov_input_container_path = Path(f"/work/{pov_input_path.name}")
+                logger.info("Debug script and PoV input are in the same directory")
+            else:
+                # Files are in different directories - mount separately
+                debug_script_container_path = Path(f"/work/debug/{debug_script_path.name}")
+                pov_input_container_path = Path(f"/work/input/{pov_input_path.name}")
+                logger.info("Debug script and PoV input are in DIFFERENT directories")
+            
+            logger.info(f"Host paths (source files on host):")
+            logger.info(f"  Debug script: {debug_script_path}")
+            logger.info(f"  Debug script parent: {debug_script_parent}")
+            logger.info(f"  PoV input: {pov_input_path}")
+            logger.info(f"  PoV input parent: {pov_input_parent}")
             logger.info(f"Container paths (targets in container):")
             logger.info(f"  Debug script: {debug_script_container_path}")
             logger.info(f"  PoV input: {pov_input_container_path}")
@@ -846,11 +857,18 @@ Please gather more context about the codebase that will help with debugging.
             logger.debug(f"    Is directory: {out_dir.is_dir()}")
             logger.debug(f"    Absolute: {out_dir.resolve()}")
             
-            # Mount the PoV input's parent directory to /work so both files are accessible
-            # This puts both the debug script and PoV input in the scratchpad
-            mount_dirs = {
-                pov_input_parent: Path("/work"),  # Mount parent dir to /work
-            }
+            # Mount parent directories based on whether files are in the same directory
+            if debug_script_parent == pov_input_parent:
+                # Same directory - mount once to /work
+                mount_dirs = {
+                    pov_input_parent: Path("/work"),
+                }
+            else:
+                # Different directories - mount both separately
+                mount_dirs = {
+                    debug_script_parent: Path("/work/debug"),
+                    pov_input_parent: Path("/work/input"),
+                }
             
             # Mount the parent directory (build/out) to /out, not the project_name subdirectory
             if out_dir.exists():
@@ -1201,7 +1219,8 @@ Please gather more context about the codebase that will help with debugging.
             logger.info(f"  Seed file should be accessible at: {pov_input_container_path}")
 
             with tempfile.TemporaryDirectory(dir=state.current_dir) as scratchpad_dir_str:
-                mount_dirs[Path(scratchpad_dir_str)] = Path("/scripts")
+                # Note: InteractiveGDBDocker will automatically mount scratchpad_dir to /scratchpad
+                # if it's not already mounted, so we don't need to add it to mount_dirs here
                 gdb_session = InteractiveGDBDocker(
                     container_image=debug_container_image,
                     mount_dirs=mount_dirs,
