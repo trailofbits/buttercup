@@ -1,0 +1,1292 @@
+2026-01-04 20:06:43,142 - buttercup.common.telemetry - INFO - Initializing telemetry for seed-gen
+2026-01-04 20:06:43,143 - buttercup.common.telemetry - INFO - Sending telemetry to http://buttercup-signoz-otel-collector:4317
+2026-01-04 20:06:43,143 - buttercup.common.telemetry - INFO - Sending telemetry using grpc
+2026-01-04 20:06:43,154 - opentelemetry._logs._internal - WARNING - Overriding of current LoggerProvider is not allowed
+2026-01-04 20:06:48,843 - buttercup.seed_gen.seed_gen_bot - INFO - Task probabilities (FULL): seed-init=0.0, vuln-discovery=1.0, seed-explore=0.0
+2026-01-04 20:06:48,844 - buttercup.seed_gen.seed_gen_bot - INFO - Task probabilities (DELTA): seed-init=0.0, vuln-discovery=1.0, seed-explore=0.0
+2026-01-04 20:06:48,844 - buttercup.seed_gen.seed_gen_bot - INFO - Min runs: seed-init=0, vuln-discovery=0
+2026-01-04 20:06:48,844 - buttercup.seed_gen.seed_gen_bot - INFO - Use debug vuln discovery: True
+2026-01-04 20:06:48,850 - buttercup.common.default_task_loop - INFO - Received 2 weighted targets
+2026-01-04 20:06:48,850 - buttercup.common.default_task_loop - INFO - Running task for libpng_read_fuzzer | libpng | 49e4b8fa-65cc-41b8-9c5f-3feab163841d
+2026-01-04 20:06:48,858 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45 to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_
+2026-01-04 20:06:51,146 - buttercup.seed_gen.seed_gen_bot - INFO - Running seed-gen for libpng_read_fuzzer | libpng | 49e4b8fa-65cc-41b8-9c5f-3feab163841d
+2026-01-04 20:06:51,147 - buttercup.seed_gen.seed_gen_bot - DEBUG - Temp dir: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i
+2026-01-04 20:06:51,148 - buttercup.seed_gen.seed_gen_bot - INFO - Initializing codequery
+2026-01-04 20:06:51,325 - buttercup.program_model.codequery - DEBUG - CodeQuery DB already exists in /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d.cqdb.
+2026-01-04 20:06:51,325 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:06:51,326 - buttercup.seed_gen.seed_gen_bot - INFO - Running seed-gen task: vuln-discovery
+2026-01-04 20:06:51,336 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45 to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd
+2026-01-04 20:06:54,926 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45 to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez
+2026-01-04 20:06:58,250 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p
+2026-01-04 20:07:00,248 - buttercup.seed_gen.seed_gen_bot - INFO - Using VulnDiscoveryDebugTask with integrated debugging
+2026-01-04 20:07:00,941 - buttercup.common.llm - INFO - Tracing with LangFuse enabled
+2026-01-04 20:07:01,159 - opentelemetry.exporter.otlp.proto.grpc.exporter - ERROR - Failed to export traces to buttercup-signoz-otel-collector:4317, error code: StatusCode.DEADLINE_EXCEEDED
+2026-01-04 20:07:01,161 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:07:01,162 - opentelemetry.exporter.otlp.proto.grpc.exporter - ERROR - Failed to export logs to buttercup-signoz-otel-collector:4317, error code: StatusCode.DEADLINE_EXCEEDED
+2026-01-04 20:07:01,162 - buttercup.seed_gen.vuln_base_task - INFO - Doing vuln-discovery for challenge libpng (mode: delta)
+2026-01-04 20:07:01,162 - buttercup.seed_gen.find_harness - INFO - Getting harness source for 49e4b8fa-65cc-41b8-9c5f-3feab163841d | libpng_read_fuzzer
+2026-01-04 20:07:01,856 - buttercup.seed_gen.find_harness - INFO - Found single harness for 49e4b8fa-65cc-41b8-9c5f-3feab163841d | libpng_read_fuzzer: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d.cqdb/container_src_dir/src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc
+2026-01-04 20:07:01,857 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:07:01,857 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:07:01,858 - buttercup.seed_gen.vuln_base_task - INFO - Using 0 SARIFs for challenge libpng
+2026-01-04 20:07:01,873 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Gathering context
+2026-01-04 20:07:09,088 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:07:09,091 - buttercup.seed_gen.task - INFO - Tool call: batch_tool for 3 calls
+2026-01-04 20:07:09,091 - buttercup.seed_gen.task - INFO - Tool call: get_function_definition for png_handle_iCCP
+2026-01-04 20:07:09,091 - buttercup.seed_gen.task - INFO - Getting function definition for png_handle_iCCP (paths: None)
+2026-01-04 20:07:09,119 - buttercup.program_model.api.tree_sitter - DEBUG - Found 19 functions in container_src_dir/src/libpng/pngpread.c
+2026-01-04 20:07:09,227 - buttercup.program_model.api.tree_sitter - DEBUG - Found 37 functions in container_src_dir/src/libpng/pngread.c
+2026-01-04 20:07:09,256 - buttercup.program_model.api.tree_sitter - DEBUG - Found 51 functions in container_src_dir/src/libpng/pngrutil.c
+2026-01-04 20:07:09,258 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_handle_iCCP
+2026-01-04 20:07:09,258 - buttercup.seed_gen.task - INFO - Found function definition for png_handle_iCCP in None: png_handle_iCCP (fuzzy=False) (matches=1)
+2026-01-04 20:07:09,258 - buttercup.seed_gen.task - INFO - Tool call: get_type_definition for wpng_byte
+2026-01-04 20:07:09,428 - buttercup.program_model.api.tree_sitter - DEBUG - Found 1 types in container_src_dir/src/libpng/png.h
+2026-01-04 20:07:09,462 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngrutil.c
+2026-01-04 20:07:09,462 - buttercup.program_model.codequery - DEBUG - Found 1 types for wpng_byte
+2026-01-04 20:07:09,463 - buttercup.seed_gen.task - INFO - Got 1 type defs for wpng_byte
+2026-01-04 20:07:09,463 - buttercup.seed_gen.task - INFO - Tool call: get_type_definition for png_uint_16
+2026-01-04 20:07:09,529 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/examples/simpleover.c
+2026-01-04 20:07:09,544 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/libtests/makepng.c
+2026-01-04 20:07:09,627 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/libtests/pngstest.c
+2026-01-04 20:07:09,636 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/libtests/pngunknown.c
+2026-01-04 20:07:09,829 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/libtests/pngvalid.c
+2026-01-04 20:07:09,837 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/libtests/tarith.c
+2026-01-04 20:07:09,842 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/tools/genpng.c
+2026-01-04 20:07:09,845 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/tools/makesRGB.c
+2026-01-04 20:07:09,866 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/contrib/tools/pngfix.c
+2026-01-04 20:07:09,956 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/png.c
+2026-01-04 20:07:10,046 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/png.h
+2026-01-04 20:07:10,049 - buttercup.program_model.api.tree_sitter - DEBUG - Found 1 types in container_src_dir/src/libpng/pngconf.h
+2026-01-04 20:07:10,051 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pnginfo.h
+2026-01-04 20:07:10,068 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngpriv.h
+2026-01-04 20:07:10,148 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngread.c
+2026-01-04 20:07:10,234 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngrtran.c
+2026-01-04 20:07:10,260 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngrutil.c
+2026-01-04 20:07:10,332 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngstruct.h
+2026-01-04 20:07:10,353 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngwrite.c
+2026-01-04 20:07:10,425 - buttercup.program_model.api.tree_sitter - DEBUG - Found 0 types in container_src_dir/src/libpng/pngwutil.c
+2026-01-04 20:07:10,426 - buttercup.program_model.codequery - DEBUG - Found 1 types for png_uint_16
+2026-01-04 20:07:10,426 - buttercup.seed_gen.task - INFO - Got 1 type defs for png_uint_16
+2026-01-04 20:07:10,426 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_end callback: TypeError("'Command' object is not subscriptable")
+2026-01-04 20:07:10,429 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195d964600> was created in a different Context
+2026-01-04 20:07:10,432 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Gathering context
+2026-01-04 20:07:12,786 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:07:12,789 - buttercup.seed_gen.task - INFO - Tool call: get_function_definition for png_crc_read
+2026-01-04 20:07:12,789 - buttercup.seed_gen.task - INFO - Getting function definition for png_crc_read (paths: None)
+2026-01-04 20:07:12,796 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_crc_read
+2026-01-04 20:07:12,796 - buttercup.seed_gen.task - INFO - Found function definition for png_crc_read in None: png_crc_read (fuzzy=False) (matches=1)
+2026-01-04 20:07:12,797 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_end callback: TypeError("'Command' object is not subscriptable")
+2026-01-04 20:07:12,798 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195c2ba940> was created in a different Context
+2026-01-04 20:07:12,801 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Gathering context
+2026-01-04 20:07:24,263 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:07:24,266 - buttercup.seed_gen.task - INFO - Tool call: get_function_definition for png_icc_check_length
+2026-01-04 20:07:24,266 - buttercup.seed_gen.task - INFO - Getting function definition for png_icc_check_length (paths: None)
+2026-01-04 20:07:24,298 - buttercup.program_model.api.tree_sitter - DEBUG - Found 83 functions in container_src_dir/src/libpng/png.c
+2026-01-04 20:07:24,299 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_icc_check_length
+2026-01-04 20:07:24,299 - buttercup.seed_gen.task - INFO - Found function definition for png_icc_check_length in None: png_icc_check_length (fuzzy=False) (matches=1)
+2026-01-04 20:07:24,299 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_end callback: TypeError("'Command' object is not subscriptable")
+2026-01-04 20:07:24,301 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195c2b9480> was created in a different Context
+2026-01-04 20:07:24,304 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Gathering context
+2026-01-04 20:07:26,646 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:07:26,649 - buttercup.seed_gen.task - INFO - Tool call: batch_tool for 2 calls
+2026-01-04 20:07:26,649 - buttercup.seed_gen.task - INFO - Tool call: get_function_definition for png_icc_check_header
+2026-01-04 20:07:26,649 - buttercup.seed_gen.task - INFO - Getting function definition for png_icc_check_header (paths: None)
+2026-01-04 20:07:26,654 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_icc_check_header
+2026-01-04 20:07:26,654 - buttercup.seed_gen.task - INFO - Found function definition for png_icc_check_header in None: png_icc_check_header (fuzzy=False) (matches=1)
+2026-01-04 20:07:26,655 - buttercup.seed_gen.task - INFO - Tool call: get_function_definition for png_icc_check_tag_table
+2026-01-04 20:07:26,655 - buttercup.seed_gen.task - INFO - Getting function definition for png_icc_check_tag_table (paths: None)
+2026-01-04 20:07:26,659 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_icc_check_tag_table
+2026-01-04 20:07:26,659 - buttercup.seed_gen.task - INFO - Found function definition for png_icc_check_tag_table in None: png_icc_check_tag_table (fuzzy=False) (matches=1)
+2026-01-04 20:07:26,659 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_end callback: TypeError("'Command' object is not subscriptable")
+2026-01-04 20:07:26,661 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195d856740> was created in a different Context
+2026-01-04 20:07:26,664 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Gathering context
+2026-01-04 20:07:34,565 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:07:34,568 - buttercup.seed_gen.task - INFO - Tool call: get_callers for png_handle_iCCP in /src/libpng/pngrutil.c
+2026-01-04 20:07:34,568 - buttercup.seed_gen.task - INFO - Getting function definition for png_handle_iCCP (paths: [PosixPath('/src/libpng/pngrutil.c')])
+2026-01-04 20:07:34,577 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_handle_iCCP in /src/libpng/pngrutil.c
+2026-01-04 20:07:34,577 - buttercup.seed_gen.task - INFO - Found function definition for png_handle_iCCP in /src/libpng/pngrutil.c: png_handle_iCCP (fuzzy=False) (matches=1)
+2026-01-04 20:07:34,597 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_push_read_chunk in container_src_dir/src/libpng/pngpread.c at line 181
+2026-01-04 20:07:34,647 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_read_info in container_src_dir/src/libpng/pngread.c at line 91
+2026-01-04 20:07:34,655 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_read_end in container_src_dir/src/libpng/pngread.c at line 774
+2026-01-04 20:07:34,655 - buttercup.program_model.codequery - DEBUG - Found 3 callers for png_handle_iCCP
+2026-01-04 20:07:34,657 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195c25e600> was created in a different Context
+2026-01-04 20:07:34,659 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Gathering context
+2026-01-04 20:07:36,855 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:07:36,857 - buttercup.seed_gen.task - INFO - Tool call: get_callers for png_handle_iCCP in /src/libpng/pngrutil.c
+2026-01-04 20:07:36,857 - buttercup.seed_gen.task - INFO - Getting function definition for png_handle_iCCP (paths: [PosixPath('/src/libpng/pngrutil.c')])
+2026-01-04 20:07:36,861 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_handle_iCCP in /src/libpng/pngrutil.c
+2026-01-04 20:07:36,861 - buttercup.seed_gen.task - INFO - Found function definition for png_handle_iCCP in /src/libpng/pngrutil.c: png_handle_iCCP (fuzzy=False) (matches=1)
+2026-01-04 20:07:36,867 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_push_read_chunk in container_src_dir/src/libpng/pngpread.c at line 181
+2026-01-04 20:07:36,871 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_read_info in container_src_dir/src/libpng/pngread.c at line 91
+2026-01-04 20:07:36,875 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_read_end in container_src_dir/src/libpng/pngread.c at line 774
+2026-01-04 20:07:36,875 - buttercup.program_model.codequery - DEBUG - Found 3 callers for png_handle_iCCP
+2026-01-04 20:07:36,877 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195c25e700> was created in a different Context
+2026-01-04 20:07:36,879 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Analyzing bug (with debug insights: False)
+2026-01-04 20:07:36,880 - buttercup.seed_gen.vuln_base_task - INFO - Analyzing bug
+2026-01-04 20:07:55,943 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Writing PoV
+2026-01-04 20:07:55,946 - buttercup.seed_gen.vuln_base_task - INFO - Writing PoV
+2026-01-04 20:08:02,025 - opentelemetry.exporter.otlp.proto.grpc.exporter - ERROR - Failed to export metrics to buttercup-signoz-otel-collector:4317, error code: StatusCode.DEADLINE_EXCEEDED
+2026-01-04 20:08:20,726 - buttercup.seed_gen.vuln_base_task - INFO - Executing python functions
+2026-01-04 20:08:20,732 - buttercup.seed_gen.sandbox.sandbox - DEBUG - sandbox_exec_funcs called with output_dir: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current
+2026-01-04 20:08:20,732 - buttercup.seed_gen.sandbox.sandbox - DEBUG - output_dir exists: True
+2026-01-04 20:08:20,733 - buttercup.seed_gen.sandbox.sandbox - DEBUG - About to run wasm_run_script with workdir=/tmp/tmpbxfp8l89, runner=/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/seed_gen/sandbox/runner.py
+2026-01-04 20:08:35,179 - buttercup.seed_gen.sandbox.sandbox - DEBUG - wasm_run_script completed
+2026-01-04 20:08:35,182 - buttercup.seed_gen.sandbox.sandbox - DEBUG - wasm_outdir: /tmp/tmpbxfp8l89/output
+2026-01-04 20:08:35,182 - buttercup.seed_gen.sandbox.sandbox - DEBUG - wasm_outdir exists: True
+2026-01-04 20:08:35,182 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Files in wasm_outdir (5): ['test_iccp_buffer_overflow_max_length.seed', 'test_iccp_buffer_overflow_minimal.seed', 'test_iccp_buffer_overflow_basic.seed', 'test_iccp_buffer_overflow_extended.seed', 'test_iccp_buffer_overflow_alternating.seed']
+2026-01-04 20:08:35,182 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Copying /tmp/tmpbxfp8l89/output/test_iccp_buffer_overflow_max_length.seed to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:08:35,183 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Copying /tmp/tmpbxfp8l89/output/test_iccp_buffer_overflow_minimal.seed to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_minimal.seed
+2026-01-04 20:08:35,183 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Copying /tmp/tmpbxfp8l89/output/test_iccp_buffer_overflow_basic.seed to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_basic.seed
+2026-01-04 20:08:35,183 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Copying /tmp/tmpbxfp8l89/output/test_iccp_buffer_overflow_extended.seed to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_extended.seed
+2026-01-04 20:08:35,184 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Copying /tmp/tmpbxfp8l89/output/test_iccp_buffer_overflow_alternating.seed to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_alternating.seed
+2026-01-04 20:08:35,184 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Copied 5 files to output_dir
+2026-01-04 20:08:35,184 - buttercup.seed_gen.sandbox.sandbox - DEBUG - Files in output_dir after copy (5): ['test_iccp_buffer_overflow_max_length.seed', 'test_iccp_buffer_overflow_minimal.seed', 'test_iccp_buffer_overflow_basic.seed', 'test_iccp_buffer_overflow_extended.seed', 'test_iccp_buffer_overflow_alternating.seed']
+2026-01-04 20:08:35,244 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Debugging generated PoV from iteration 0
+2026-01-04 20:08:35,248 - buttercup.seed_gen.vuln_discovery_debug_task - DEBUG - current_dir path: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current
+2026-01-04 20:08:35,248 - buttercup.seed_gen.vuln_discovery_debug_task - DEBUG - current_dir exists: True
+2026-01-04 20:08:35,248 - buttercup.seed_gen.vuln_discovery_debug_task - DEBUG - current_dir contents (5 files): ['test_iccp_buffer_overflow_max_length.seed', 'test_iccp_buffer_overflow_minimal.seed', 'test_iccp_buffer_overflow_basic.seed', 'test_iccp_buffer_overflow_extended.seed', 'test_iccp_buffer_overflow_alternating.seed']
+2026-01-04 20:08:35,248 - buttercup.seed_gen.vuln_discovery_debug_task - DEBUG - output_dir path: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out
+2026-01-04 20:08:35,248 - buttercup.seed_gen.vuln_discovery_debug_task - DEBUG - output_dir exists: True
+2026-01-04 20:08:35,248 - buttercup.seed_gen.vuln_discovery_debug_task - DEBUG - output_dir contents (0 files): []
+2026-01-04 20:08:35,249 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Proactively debugging PoV before testing: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:08:35,249 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Harness info: Fuzzer: libpng_read_fuzzer in /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc
+2026-01-04 20:08:35,249 - buttercup.seed_gen.vuln_discovery_debug_task - INFO - Calling debug subagent with pov_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed, output_dir=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/agentic_debug_iter0
+2026-01-04 20:08:35,249 - buttercup.seed_gen.debug_subagent_interactive - INFO - Starting debug session for harness: <harness>
+<harness_binary_name>libpng_read_fuzzer</harness_binary_name>
+<source_file_path>/src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc</source_file_path>
+<code>
+// libpng_read_fuzzer.cc
+// Copyright 2017-2018 Glenn Randers-Pehrson
+// Copyright 2015 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that may
+// be found in the LICENSE file https://cs.chromium.org/chromium/src/LICENSE
+
+// The modifications in 2017 by Glenn Randers-Pehrson include
+// 1. addition of a PNG_CLEANUP macro,
+// 2. setting the option to ignore ADLER32 checksums,
+// 3. adding "#include <string.h>" which is needed on some platforms
+//    to provide memcpy().
+// 4. adding read_end_info() and creating an end_info structure.
+// 5. adding calls to png_set_*() transforms commonly used by browsers.
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <vector>
+
+#define PNG_INTERNAL
+#include "png.h"
+
+#define PNG_CLEANUP \
+  if(png_handler.png_ptr) \
+  { \
+    if (png_handler.row_ptr) \
+      png_free(png_handler.png_ptr, png_handler.row_ptr); \
+    if (png_handler.end_info_ptr) \
+      png_destroy_read_struct(&png_handler.png_ptr, &png_handler.info_ptr,\
+        &png_handler.end_info_ptr); \
+    else if (png_handler.info_ptr) \
+      png_destroy_read_struct(&png_handler.png_ptr, &png_handler.info_ptr,\
+        nullptr); \
+    else \
+      png_destroy_read_struct(&png_handler.png_ptr, nullptr, nullptr); \
+    png_handler.png_ptr = nullptr; \
+    png_handler.row_ptr = nullptr; \
+    png_handler.info_ptr = nullptr; \
+    png_handler.end_info_ptr = nullptr; \
+  }
+
+struct BufState {
+  const uint8_t* data;
+  size_t bytes_left;
+};
+
+struct PngObjectHandler {
+  png_infop info_ptr = nullptr;
+  png_structp png_ptr = nullptr;
+  png_infop end_info_ptr = nullptr;
+  png_voidp row_ptr = nullptr;
+  BufState* buf_state = nullptr;
+
+  ~PngObjectHandler() {
+    if (row_ptr)
+      png_free(png_ptr, row_ptr);
+    if (end_info_ptr)
+      png_destroy_read_struct(&png_ptr, &info_ptr, &end_info_ptr);
+    else if (info_ptr)
+      png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+    else
+      png_destroy_read_struct(&png_ptr, nullptr, nullptr);
+    delete buf_state;
+  }
+};
+
+void user_read_data(png_structp png_ptr, png_bytep data, size_t length) {
+  BufState* buf_state = static_cast<BufState*>(png_get_io_ptr(png_ptr));
+  if (length > buf_state->bytes_left) {
+    png_error(png_ptr, "read error");
+  }
+  memcpy(data, buf_state->data, length);
+  buf_state->bytes_left -= length;
+  buf_state->data += length;
+}
+
+void* limited_malloc(png_structp, png_alloc_size_t size) {
+  // libpng may allocate large amounts of memory that the fuzzer reports as
+  // an error. In order to silence these errors, make libpng fail when trying
+  // to allocate a large amount. This allocator used to be in the Chromium
+  // version of this fuzzer.
+  // This number is chosen to match the default png_user_chunk_malloc_max.
+  if (size > 8000000)
+    return nullptr;
+
+  return malloc(size);
+}
+
+void default_free(png_structp, png_voidp ptr) {
+  return free(ptr);
+}
+
+static const int kPngHeaderSize = 8;
+
+// Entry point for LibFuzzer.
+// Roughly follows the libpng book example:
+// http://www.libpng.org/pub/png/book/chapter13.html
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  if (size < kPngHeaderSize) {
+    return 0;
+  }
+
+  std::vector<unsigned char> v(data, data + size);
+  if (png_sig_cmp(v.data(), 0, kPngHeaderSize)) {
+    // not a PNG.
+    return 0;
+  }
+
+  PngObjectHandler png_handler;
+  png_handler.png_ptr = nullptr;
+  png_handler.row_ptr = nullptr;
+  png_handler.info_ptr = nullptr;
+  png_handler.end_info_ptr = nullptr;
+
+  png_handler.png_ptr = png_create_read_struct
+    (PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+  if (!png_handler.png_ptr) {
+    return 0;
+  }
+
+  png_handler.info_ptr = png_create_info_struct(png_handler.png_ptr);
+  if (!png_handler.info_ptr) {
+    PNG_CLEANUP
+    return 0;
+  }
+
+  png_handler.end_info_ptr = png_create_info_struct(png_handler.png_ptr);
+  if (!png_handler.end_info_ptr) {
+    PNG_CLEANUP
+    return 0;
+  }
+
+  // Use a custom allocator that fails for large allocations to avoid OOM.
+  png_set_mem_fn(png_handler.png_ptr, nullptr, limited_malloc, default_free);
+
+  png_set_crc_action(png_handler.png_ptr, PNG_CRC_QUIET_USE, PNG_CRC_QUIET_USE);
+#ifdef PNG_IGNORE_ADLER32
+  png_set_option(png_handler.png_ptr, PNG_IGNORE_ADLER32, PNG_OPTION_ON);
+#endif
+
+  // Setting up reading from buffer.
+  png_handler.buf_state = new BufState();
+  png_handler.buf_state->data = data + kPngHeaderSize;
+  png_handler.buf_state->bytes_left = size - kPngHeaderSize;
+  png_set_read_fn(png_handler.png_ptr, png_handler.buf_state, user_read_data);
+  png_set_sig_bytes(png_handler.png_ptr, kPngHeaderSize);
+
+  if (setjmp(png_jmpbuf(png_handler.png_ptr))) {
+    PNG_CLEANUP
+    return 0;
+  }
+
+  // Reading.
+  png_read_info(png_handler.png_ptr, png_handler.info_ptr);
+
+  // reset error handler to put png_deleter into scope.
+  if (setjmp(png_jmpbuf(png_handler.png_ptr))) {
+    PNG_CLEANUP
+    return 0;
+  }
+
+  png_uint_32 width, height;
+  int bit_depth, color_type, interlace_type, compression_type;
+  int filter_type;
+
+  if (!png_get_IHDR(png_handler.png_ptr, png_handler.info_ptr, &width,
+                    &height, &bit_depth, &color_type, &interlace_type,
+                    &compression_type, &filter_type)) {
+    PNG_CLEANUP
+    return 0;
+  }
+
+  // This is going to be too slow.
+  if (width && height > 100000000 / width) {
+    PNG_CLEANUP
+    return 0;
+  }
+
+  // Set several transforms that browsers typically use:
+  png_set_gray_to_rgb(png_handler.png_ptr);
+  png_set_expand(png_handler.png_ptr);
+  png_set_packing(png_handler.png_ptr);
+  png_set_scale_16(png_handler.png_ptr);
+  png_set_tRNS_to_alpha(png_handler.png_ptr);
+
+  int passes = png_set_interlace_handling(png_handler.png_ptr);
+
+  png_read_update_info(png_handler.png_ptr, png_handler.info_ptr);
+
+  png_handler.row_ptr = png_malloc(
+      png_handler.png_ptr, png_get_rowbytes(png_handler.png_ptr,
+                                            png_handler.info_ptr));
+
+  for (int pass = 0; pass < passes; ++pass) {
+    for (png_uint_32 y = 0; y < height; ++y) {
+      png_read_row(png_handler.png_ptr,
+                   static_cast<png_bytep>(png_handler.row_ptr), nullptr);
+    }
+  }
+
+  png_read_end(png_handler.png_ptr, png_handler.end_info_ptr);
+
+  PNG_CLEANUP
+
+#ifdef PNG_SIMPLIFIED_READ_SUPPORTED
+  // Simplified READ API
+  png_image image;
+  memset(&image, 0, (sizeof image));
+  image.version = PNG_IMAGE_VERSION;
+
+  if (!png_image_begin_read_from_memory(&image, data, size)) {
+    return 0;
+  }
+
+  image.format = PNG_FORMAT_RGBA;
+  std::vector<png_byte> buffer(PNG_IMAGE_SIZE(image));
+  png_image_finish_read(&image, NULL, buffer.data(), 0, NULL);
+#endif
+
+  return 0;
+}
+
+</code>
+</harness>
+ | pov_input: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:08:35,249 - buttercup.seed_gen.debug_subagent_interactive - INFO - Creating debug state
+2026-01-04 20:08:35,250 - buttercup.seed_gen.debug_subagent_interactive - INFO - Debug state created successfully
+2026-01-04 20:08:35,250 - buttercup.seed_gen.debug_subagent_interactive - INFO - Building debug workflow
+2026-01-04 20:08:35,265 - buttercup.seed_gen.debug_subagent_interactive - INFO - Getting Langfuse callbacks
+2026-01-04 20:08:35,265 - buttercup.seed_gen.debug_subagent_interactive - INFO - Compiling workflow with recursion_limit=32
+2026-01-04 20:08:35,273 - buttercup.seed_gen.debug_subagent_interactive - INFO - Workflow compiled successfully
+2026-01-04 20:08:35,273 - buttercup.seed_gen.debug_subagent_interactive - INFO - Invoking debug workflow chain
+2026-01-04 20:08:35,278 - buttercup.seed_gen.debug_subagent_interactive - INFO - Getting context for debugging
+2026-01-04 20:08:39,565 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:08:39,573 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195c268bc0> was created in a different Context
+2026-01-04 20:08:39,578 - buttercup.seed_gen.debug_subagent_interactive - INFO - Getting context for debugging
+2026-01-04 20:08:41,568 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:08:41,573 - buttercup.seed_gen.task - INFO - Tool call: batch_tool for 3 calls
+2026-01-04 20:08:41,573 - buttercup.seed_gen.task - INFO - Tool call: get_function_definition for png_read_info
+2026-01-04 20:08:41,573 - buttercup.seed_gen.task - INFO - Getting function definition for png_read_info (paths: None)
+2026-01-04 20:08:41,616 - buttercup.program_model.api.tree_sitter - DEBUG - Found 3 functions in container_src_dir/src/libpng/contrib/examples/iccfrompng.c
+2026-01-04 20:08:41,620 - buttercup.program_model.api.tree_sitter - DEBUG - Found 3 functions in container_src_dir/src/libpng/contrib/examples/pngpixel.c
+2026-01-04 20:08:41,623 - buttercup.program_model.api.tree_sitter - DEBUG - Found 6 functions in container_src_dir/src/libpng/contrib/gregbook/readpng.c
+2026-01-04 20:08:41,634 - buttercup.program_model.api.tree_sitter - DEBUG - Found 22 functions in container_src_dir/src/libpng/contrib/libtests/pngunknown.c
+2026-01-04 20:08:41,847 - buttercup.program_model.api.tree_sitter - DEBUG - Found 269 functions in container_src_dir/src/libpng/contrib/libtests/pngvalid.c
+2026-01-04 20:08:41,850 - buttercup.program_model.api.tree_sitter - DEBUG - Found 2 functions in container_src_dir/src/libpng/contrib/libtests/readpng.c
+2026-01-04 20:08:41,854 - buttercup.program_model.api.tree_sitter - DEBUG - Found 8 functions in container_src_dir/src/libpng/contrib/libtests/timepng.c
+2026-01-04 20:08:41,856 - buttercup.program_model.api.tree_sitter - DEBUG - Found 4 functions in container_src_dir/src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc
+2026-01-04 20:08:41,881 - buttercup.program_model.api.tree_sitter - DEBUG - Found 81 functions in container_src_dir/src/libpng/contrib/tools/pngfix.c
+2026-01-04 20:08:41,937 - buttercup.program_model.api.tree_sitter - DEBUG - Found 10 functions in container_src_dir/src/libpng/contrib/visupng/PngFile.c
+2026-01-04 20:08:41,945 - buttercup.program_model.api.tree_sitter - DEBUG - Found 9 functions in container_src_dir/src/libpng/example.c
+2026-01-04 20:08:42,056 - buttercup.program_model.api.tree_sitter - DEBUG - Found 22 functions in container_src_dir/src/libpng/pngtest.c
+2026-01-04 20:08:42,057 - buttercup.program_model.codequery - DEBUG - Found 1 functions for png_read_info
+2026-01-04 20:08:42,057 - buttercup.seed_gen.task - INFO - Found function definition for png_read_info in None: png_read_info (fuzzy=False) (matches=1)
+2026-01-04 20:08:42,057 - buttercup.seed_gen.task - WARNING - Invalid tool call: grep args: {'pattern': 'iCCP|iccp'}
+2026-01-04 20:08:42,057 - buttercup.seed_gen.task - WARNING - Invalid tool call: grep args: {'pattern': 'keyword.*\\[.*\\]'}
+2026-01-04 20:08:42,058 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_end callback: TypeError("'Command' object is not subscriptable")
+2026-01-04 20:08:42,059 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195d989a00> was created in a different Context
+2026-01-04 20:08:42,060 - buttercup.seed_gen.debug_subagent_interactive - INFO - Getting context for debugging
+2026-01-04 20:08:43,995 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_start callback: TypeError("unsupported operand type(s) for -: 'NoneType' and 'float'")
+2026-01-04 20:08:43,999 - buttercup.seed_gen.task - INFO - Tool call: grep for pattern iCCP|iccp in None
+2026-01-04 20:08:43,999 - buttercup.common.challenge_task - INFO - Building image for project libpng | pull_latest_base_image=False | cache=True | architecture=x86_64
+2026-01-04 20:08:44,011 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/fuzz-tooling/oss-fuzz): python infra/helper.py build_image --no-pull --cache --architecture x86_64 libpng
+2026-01-04 20:08:44,174 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Using cached base images...
+2026-01-04 20:08:44,174 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker build -t gcr.io/oss-fuzz/libpng --file /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/fuzz-tooling/oss-fuzz/projects/libpng/Dockerfile /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/fuzz-tooling/oss-fuzz/projects/libpng.
+2026-01-04 20:08:44,988 - buttercup.common.challenge_task - DEBUG - #0 building with "default" instance using docker driver
+2026-01-04 20:08:44,988 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:44,988 - buttercup.common.challenge_task - DEBUG - #1 [internal] load build definition from Dockerfile
+2026-01-04 20:08:44,989 - buttercup.common.challenge_task - DEBUG - #1 transferring dockerfile: 1.02kB done
+2026-01-04 20:08:44,989 - buttercup.common.challenge_task - DEBUG - #1 DONE 0.1s
+2026-01-04 20:08:44,989 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:44,989 - buttercup.common.challenge_task - DEBUG - #2 [internal] load metadata for gcr.io/oss-fuzz-base/base-builder:latest
+2026-01-04 20:08:44,989 - buttercup.common.challenge_task - DEBUG - #2 DONE 0.0s
+2026-01-04 20:08:45,114 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,114 - buttercup.common.challenge_task - DEBUG - #3 [internal] load .dockerignore
+2026-01-04 20:08:45,115 - buttercup.common.challenge_task - DEBUG - #3 transferring context: 2B done
+2026-01-04 20:08:45,115 - buttercup.common.challenge_task - DEBUG - #3 DONE 0.0s
+2026-01-04 20:08:45,115 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,115 - buttercup.common.challenge_task - DEBUG - #4 [1/6] FROM gcr.io/oss-fuzz-base/base-builder:latest@sha256:3d90565df51d78b69858c895f82140560cf69b4f9f3aa1742890f75f181523fd
+2026-01-04 20:08:45,115 - buttercup.common.challenge_task - DEBUG - #4 resolve gcr.io/oss-fuzz-base/base-builder:latest@sha256:3d90565df51d78b69858c895f82140560cf69b4f9f3aa1742890f75f181523fd 0.1s done
+2026-01-04 20:08:45,265 - buttercup.common.challenge_task - DEBUG - #4 DONE 0.1s
+2026-01-04 20:08:45,497 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,497 - buttercup.common.challenge_task - DEBUG - #5 [2/6] RUN apt-get update &&     apt-get install -y make autoconf automake libtool zlib1g-dev
+2026-01-04 20:08:45,497 - buttercup.common.challenge_task - DEBUG - #5 CACHED
+2026-01-04 20:08:45,497 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,497 - buttercup.common.challenge_task - DEBUG - #6 [3/6] RUN git clone --depth 1 https://github.com/madler/zlib.git
+2026-01-04 20:08:45,497 - buttercup.common.challenge_task - DEBUG - #6 CACHED
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - #7 [4/6] RUN git clone -b master --depth 1 https://github.com/pnggroup/libpng.git
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - #7 CACHED
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - #8 [5/6] RUN cp libpng/contrib/oss-fuzz/build.sh /src
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - #8 CACHED
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,498 - buttercup.common.challenge_task - DEBUG - #9 [6/6] WORKDIR libpng
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - #9 CACHED
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - #10 exporting to image
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - #10 exporting layers 0.0s done
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - #10 exporting manifest sha256:ed38e5c242006882d78a8a60d6f8e930d0e98ce1e05d6a7ce46bc19d6dc50cc5 done
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - #10 exporting config sha256:69869ab3b173e3b928c9976fda33ea134ebd10fea62cd60fc2c333a2edeefa29 done
+2026-01-04 20:08:45,612 - buttercup.common.challenge_task - DEBUG - #10 exporting attestation manifest sha256:07df2c88233ecb218b60bf47db94fdceac2fe4161326455cdcdadc89e18e3e4e
+2026-01-04 20:08:45,750 - buttercup.common.challenge_task - DEBUG - #10 exporting attestation manifest sha256:07df2c88233ecb218b60bf47db94fdceac2fe4161326455cdcdadc89e18e3e4e 0.0s done
+2026-01-04 20:08:45,750 - buttercup.common.challenge_task - DEBUG - #10 exporting manifest list sha256:a05a64d96744f165bd0603a3fe8d1e40b4acfe180b238d533e81859fec553e89 0.0s done
+2026-01-04 20:08:45,750 - buttercup.common.challenge_task - DEBUG - #10 naming to gcr.io/oss-fuzz/libpng:latest done
+2026-01-04 20:08:45,750 - buttercup.common.challenge_task - DEBUG - #10 unpacking to gcr.io/oss-fuzz/libpng:latest 0.1s done
+2026-01-04 20:08:45,966 - buttercup.common.challenge_task - DEBUG - #10 DONE 0.3s
+2026-01-04 20:08:46,281 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:08:46,281 - buttercup.common.challenge_task - DEBUG -  [33m1 warning found (use docker --debug to expand):
+2026-01-04 20:08:46,281 - buttercup.common.challenge_task - DEBUG - [0m - WorkdirRelativePath: Relative workdir "libpng" can have unexpected results if the base image changes (line 24)
+2026-01-04 20:08:46,388 - buttercup.common.challenge_task - INFO - Using oss-fuzz container org: gcr.io/oss-fuzz
+2026-01-04 20:08:46,388 - buttercup.common.challenge_task - DEBUG - Running command (cwd=None): docker run --privileged --shm-size=2g --rm -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/src/example-libpng:/src/libpng gcr.io/oss-fuzz/libpng bash -c grep -C 5 -nHrE 'iCCP|iccp'
+2026-01-04 20:08:47,577 - langchain_core.callbacks.manager - WARNING - Error in OpenLITLangChainCallbackHandler.on_tool_end callback: TypeError("'Command' object is not subscriptable")
+2026-01-04 20:08:47,581 - opentelemetry.context - ERROR - Failed to detach context
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/__init__.py", line 155, in detach
+    _RUNTIME_CONTEXT.detach(token)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py", line 53, in detach
+    self._current_context.reset(token)
+ValueError: <Token var=<ContextVar name='current_context' default={} at 0x7f1993cd2070> at 0x7f195d9676c0> was created in a different Context
+2026-01-04 20:08:47,585 - buttercup.seed_gen.debug_subagent_interactive - INFO - Analyzing debug task
+2026-01-04 20:09:07,194 - buttercup.seed_gen.debug_subagent_interactive - INFO - Starting interactive debug session
+2026-01-04 20:09:07,200 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45 to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-7pvg0pnb
+2026-01-04 20:09:18,046 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45 to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-0ifu4vlx
+2026-01-04 20:09:25,521 - buttercup.common.challenge_task - INFO - Copying task directory /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a to /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-5q8_zmmw
+2026-01-04 20:09:27,334 - buttercup.seed_gen.debug_subagent_interactive - INFO - Pre-resolve PoV input path: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed (is_absolute: True)
+2026-01-04 20:09:27,334 - buttercup.seed_gen.debug_subagent_interactive - INFO - Post-resolve PoV input path: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,334 - buttercup.seed_gen.debug_subagent_interactive - INFO - Verifying PoV input file before Docker mount:
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Path: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Exists: True
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Is file: True
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Is directory: False
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Size: 186 bytes
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Absolute: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO - Using debug binary with full symbols: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-7pvg0pnb/fuzz-tooling/oss-fuzz/build/out/libpng/debug/libpng_read_fuzzer
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO - Container paths (targets in container):
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   PoV input: /work/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Binary: /out/libpng/debug/libpng_read_fuzzer
+2026-01-04 20:09:27,335 - buttercup.seed_gen.debug_subagent_interactive - INFO -   PoV input parent (host): /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current
+2026-01-04 20:09:27,336 - buttercup.seed_gen.debug_subagent_interactive - INFO -   PoV input parent (container): /work
+2026-01-04 20:09:27,336 - buttercup.seed_gen.debug_subagent_interactive - INFO -   PoV input file name: test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,336 - buttercup.seed_gen.debug_subagent_interactive - INFO - Mount directories:
+2026-01-04 20:09:27,336 - buttercup.seed_gen.debug_subagent_interactive - INFO -   /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current -> /work
+2026-01-04 20:09:27,336 - buttercup.seed_gen.debug_subagent_interactive - INFO -   /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-7pvg0pnb/fuzz-tooling/oss-fuzz/build/out -> /out
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO - Found harness binary: /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-7pvg0pnb/fuzz-tooling/oss-fuzz/build/out/libpng/debug/libpng_read_fuzzer
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Permissions: 0o100755
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Size: 4152568 bytes
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Is ELF binary: True
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO - Creating interactive GDB session
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO - GDB command will be: gdb -q --interpreter=mi2 --args /out/libpng/debug/libpng_read_fuzzer /work/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Binary path in container: /out/libpng/debug/libpng_read_fuzzer
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Seed file path in container: /work/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,337 - buttercup.seed_gen.debug_subagent_interactive - INFO -   Seed file should be accessible at: /work/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,337 - buttercup.common.docker_interactive - INFO - Initializing DockerInteractive session: container=gcr.io/oss-fuzz-base/base-runner-debug, timeout=600.0s
+2026-01-04 20:09:27,337 - buttercup.common.docker_interactive - DEBUG - Mounting /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current -> /work
+2026-01-04 20:09:27,337 - buttercup.common.docker_interactive - DEBUG - Mounting /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-7pvg0pnb/fuzz-tooling/oss-fuzz/build/out -> /out
+2026-01-04 20:09:27,338 - buttercup.common.docker_interactive - DEBUG - Docker command: docker run --privileged --shm-size=2g -i --name docker_interactive_eb93e98a-cdc9-4865-a1be-466c18c0e5ce -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-current:/work -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-7pvg0pnb/fuzz-tooling/oss-fuzz/build/out:/out gcr.io/oss-fuzz-base/base-runner-debug gdb -q --interpreter=mi2 --args /out/libpng/debug/libpng_read_fuzzer /work/test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:27,338 - buttercup.common.docker_interactive - INFO - Starting Docker interactive session: container_name=docker_interactive_eb93e98a-cdc9-4865-a1be-466c18c0e5ce
+2026-01-04 20:09:27,338 - buttercup.common.docker_interactive - DEBUG - Session started at 1767557367.3388608, timeout=600.0s
+2026-01-04 20:09:27,339 - buttercup.common.docker_interactive - DEBUG - Output reader thread started
+2026-01-04 20:09:27,339 - buttercup.common.docker_interactive - DEBUG - Started output reader thread
+2026-01-04 20:09:27,340 - buttercup.common.docker_interactive - DEBUG - Timeout checker thread started
+2026-01-04 20:09:27,340 - buttercup.common.docker_interactive - DEBUG - Started timeout checker thread
+2026-01-04 20:09:27,340 - buttercup.seed_gen.debug_subagent_interactive - INFO - GDB session started
+2026-01-04 20:09:27,340 - buttercup.seed_gen.debug_subagent_interactive - INFO - Setup: set breakpoint pending on
+2026-01-04 20:09:27,340 - buttercup.common.docker_interactive - DEBUG - Sending command: 1-interpreter-exec console "set breakpoint pending on" (timeout=5.0s)
+2026-01-04 20:09:28,235 - buttercup.common.docker_interactive - DEBUG - Read line: =thread-group-added,id="i1"
+2026-01-04 20:09:28,238 - buttercup.common.docker_interactive - DEBUG - Read line: ~"Reading symbols from /out/libpng/debug/libpng_read_fuzzer...\n"
+2026-01-04 20:09:28,257 - buttercup.common.docker_interactive - DEBUG - Read line: (gdb) 
+2026-01-04 20:09:28,258 - buttercup.common.docker_interactive - DEBUG - Read line: =cmd-param-changed,param="breakpoint pending",value="on"
+2026-01-04 20:09:28,258 - buttercup.common.docker_interactive - DEBUG - Read line: 1^done
+2026-01-04 20:09:28,258 - buttercup.common.docker_interactive - DEBUG - Completion function returned True, command completed: 1-interpreter-exec console "set breakpoint pending on"
+2026-01-04 20:09:28,258 - buttercup.common.docker_interactive - DEBUG - Read line: (gdb) 
+2026-01-04 20:09:28,259 - buttercup.common.docker_interactive - DEBUG - Command completed: 1-interpreter-exec console "set breakpoint pending on" (elapsed=0.92s, lines=5)
+2026-01-04 20:09:28,259 - buttercup.common.docker_interactive - INFO - Closing Docker interactive session: container_name=docker_interactive_eb93e98a-cdc9-4865-a1be-466c18c0e5ce
+2026-01-04 20:09:28,259 - buttercup.common.docker_interactive - DEBUG - Terminating docker process
+2026-01-04 20:09:28,259 - buttercup.common.docker_interactive - DEBUG - Docker interactive session closed
+2026-01-04 20:09:28,626 - buttercup.common.docker_interactive - DEBUG - Output reader thread finished, read 6 lines total (process is None)
+2026-01-04 20:09:29,046 - buttercup.seed_gen.debug_subagent_interactive - ERROR - Error running interactive debug: InteractiveGDBDocker.unescape_mi() takes 1 positional argument but 2 were given
+2026-01-04 20:09:29,049 - buttercup.seed_gen.debug_subagent_interactive - INFO - Reflecting on debug output
+2026-01-04 20:09:41,276 - buttercup.seed_gen.debug_subagent_interactive - INFO - Debug workflow chain completed
+2026-01-04 20:09:41,284 - buttercup.seed_gen.debug_subagent_interactive - INFO - Debug state extracted: analysis_len=3147, commands=0, output_len=86, reflection_len=2551, attempts=0
+2026-01-04 20:09:41,285 - buttercup.seed_gen.debug_subagent_interactive - INFO - Debug session completed: pov_valid=False, iterations=0, attempts=0
+2026-01-04 20:09:41,286 - buttercup.seed_gen.vuln_discovery_debug_task - ERROR - Error during proactive debugging: 'DebugResult' object has no attribute 'debug_commands'
+2026-01-04 20:09:41,286 - buttercup.seed_gen.vuln_base_task - INFO - Testing PoVs
+2026-01-04 20:09:41,289 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:41,291 - buttercup.common.challenge_task - INFO - Using oss-fuzz container org: gcr.io/oss-fuzz
+2026-01-04 20:09:41,292 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:42,139 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:42,505 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:42,506 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:42,506 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:42,506 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:42,506 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:42,506 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:42,508 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:42,578 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:42,584 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:42,585 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:42,585 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:42,585 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2246622295
+2026-01-04 20:09:42,593 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x5599b15b6c58, 0x5599b15b86da), 
+2026-01-04 20:09:42,593 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x5599b15b86e0,0x5599b15d2f00), 
+2026-01-04 20:09:42,593 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:42,593 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:42,594 - buttercup.common.challenge_task - DEBUG - [1mpngrutil.c:1447:10:[1m[31m runtime error: [1m[0m[1mindex 41 out of bounds for type 'wpng_byte[max_keyword_wbytes]' (aka 'unsigned short[max_keyword_wbytes]')[1m[0m
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #0 0x5599b152a2d0 in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #1 0x5599b15105ed in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #2 0x5599b1466e37 in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #3 0x5599b1483add in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #4 0x5599b146e852 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #5 0x5599b1474720 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #6 0x5599b14a0252 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #7 0x7feb8393d082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG -     #8 0x5599b143959d in _start (/out/libpng_read_fuzzer+0x5b59d)
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:09:42,728 - buttercup.common.challenge_task - DEBUG - DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+2026-01-04 20:09:42,729 - buttercup.common.challenge_task - DEBUG - SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior pngrutil.c:1447:10 
+2026-01-04 20:09:43,122 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:09:43,122 - buttercup.seed_gen.vuln_base_task - INFO - Valid PoV found: (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: undefined | delta_mode: True | iter: 0)
+2026-01-04 20:09:43,134 - buttercup.common.stack_parsing - INFO - Crash data: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+
+2026-01-04 20:09:43,143 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:09:43,144 - buttercup.seed_gen.vuln_base_task - INFO - PoV already in crash set (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: undefined | delta_mode: True | crash_token: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+)
+2026-01-04 20:09:43,144 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:43,145 - buttercup.common.challenge_task - INFO - Using oss-fuzz container org: gcr.io/oss-fuzz
+2026-01-04 20:09:43,146 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:44,155 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:44,537 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:44,537 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:44,538 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:44,538 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:44,538 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:44,538 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:44,538 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:44,538 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:44,539 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:44,539 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:44,539 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:44,539 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:44,540 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:44,613 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:44,625 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:44,627 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:44,627 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:44,627 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2248663771
+2026-01-04 20:09:44,655 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x5613e8cc47f8, 0x5613e8cc5dcb), 
+2026-01-04 20:09:44,655 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x5613e8cc5dd0,0x5613e8cdbb00), 
+2026-01-04 20:09:44,655 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:44,655 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:44,655 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:09:44,656 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:44,656 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:09:44,656 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:09:44,656 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:45,102 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:45,103 - buttercup.common.challenge_task - INFO - Using oss-fuzz container org: gcr.io/oss-fuzz
+2026-01-04 20:09:45,104 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed
+2026-01-04 20:09:49,497 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_max_length.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:50,125 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:50,125 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:50,125 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:50,126 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:50,143 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:50,455 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:50,547 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:50,564 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:50,565 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:50,565 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2254598409
+2026-01-04 20:09:50,723 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x55be9b9cc928, 0x55be9b9cdf11), 
+2026-01-04 20:09:50,723 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x55be9b9cdf18,0x55be9b9e3da8), 
+2026-01-04 20:09:50,724 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:50,724 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:50,728 - buttercup.common.challenge_task - DEBUG - =================================================================
+2026-01-04 20:09:50,729 - buttercup.common.challenge_task - DEBUG - [1m[31m==18==ERROR: AddressSanitizer: dynamic-stack-buffer-overflow on address 0x7ffdc9f1b4b2 at pc 0x55be9b91704b bp 0x7ffdc9f1b430 sp 0x7ffdc9f1b428
+2026-01-04 20:09:50,729 - buttercup.common.challenge_task - DEBUG - [1m[0m[1m[34mREAD of size 2 at 0x7ffdc9f1b4b2 thread T0[1m[0m
+2026-01-04 20:09:50,729 - buttercup.common.challenge_task - DEBUG - SCARINESS: 29 (2-byte-read-dynamic-stack-buffer-overflow)
+2026-01-04 20:09:50,989 - buttercup.common.challenge_task - DEBUG -     #0 0x55be9b91704a in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #1 0x55be9b8eb056 in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #2 0x55be9b836bc8 in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #3 0x55be9b85416d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #4 0x55be9b83eee2 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #5 0x55be9b844db0 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #6 0x55be9b8708e2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #7 0x7fab4fc25082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+2026-01-04 20:09:50,990 - buttercup.common.challenge_task - DEBUG -     #8 0x55be9b74f13d in _start (/out/libpng_read_fuzzer+0x7413d)
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG - DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG - [1m[32mAddress 0x7ffdc9f1b4b2 is located in stack of thread T0[1m[0m
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG - SUMMARY: AddressSanitizer: dynamic-stack-buffer-overflow /src/libpng/pngrutil.c:1447:10 in OSS_FUZZ_png_handle_iCCP
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG - Shadow bytes around the buggy address:
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b200: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b280: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b300: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,991 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b380: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,992 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b400: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,992 - buttercup.common.challenge_task - DEBUG - =>0x7ffdc9f1b480: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m[[1m[0m02[1m[0m][1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,992 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b500: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b580: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b600: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b680: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf2[1m[0m
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG -   0x7ffdc9f1b700: [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[35mf8[1m[0m [1m[31mf2[1m[0m
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG - Shadow byte legend (one shadow byte represents 8 application bytes):
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG -   Addressable:           [1m[0m00[1m[0m
+2026-01-04 20:09:50,993 - buttercup.common.challenge_task - DEBUG -   Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m 
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Heap left redzone:       [1m[31mfa[1m[0m
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Freed heap region:       [1m[35mfd[1m[0m
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Stack left redzone:      [1m[31mf1[1m[0m
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Stack mid redzone:       [1m[31mf2[1m[0m
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Stack right redzone:     [1m[31mf3[1m[0m
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Stack after return:      [1m[35mf5[1m[0m
+2026-01-04 20:09:50,994 - buttercup.common.challenge_task - DEBUG -   Stack use after scope:   [1m[35mf8[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Global redzone:          [1m[31mf9[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Global init order:       [1m[36mf6[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Poisoned by user:        [1m[34mf7[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Container overflow:      [1m[34mfc[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Array cookie:            [1m[31mac[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Intra object redzone:    [1m[33mbb[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   ASan internal:           [1m[33mfe[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Left alloca redzone:     [1m[34mca[1m[0m
+2026-01-04 20:09:50,995 - buttercup.common.challenge_task - DEBUG -   Right alloca redzone:    [1m[34mcb[1m[0m
+2026-01-04 20:09:50,996 - buttercup.common.challenge_task - DEBUG - ==18==ABORTING
+2026-01-04 20:09:51,481 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:09:51,481 - buttercup.seed_gen.vuln_base_task - INFO - Valid PoV found: (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: address | delta_mode: True | iter: 0)
+2026-01-04 20:09:51,489 - buttercup.common.stack_parsing - INFO - Crash data: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+
+2026-01-04 20:09:51,503 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:09:51,504 - buttercup.seed_gen.vuln_base_task - INFO - PoV already in crash set (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: address | delta_mode: True | crash_token: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+)
+2026-01-04 20:09:51,505 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:51,506 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed
+2026-01-04 20:09:52,425 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:52,889 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:52,889 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:52,889 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:52,890 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:52,890 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:52,890 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:52,890 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:52,891 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:52,891 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:52,891 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:52,891 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:52,891 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:52,895 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:53,021 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:53,028 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:53,028 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:53,032 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:53,032 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2257064560
+2026-01-04 20:09:53,039 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x55ac3bcd4c58, 0x55ac3bcd66da), 
+2026-01-04 20:09:53,039 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x55ac3bcd66e0,0x55ac3bcf0f00), 
+2026-01-04 20:09:53,039 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:53,039 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:53,040 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:09:53,040 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:53,040 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:09:53,040 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:09:53,041 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:53,476 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:53,477 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed
+2026-01-04 20:09:54,386 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:54,819 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:54,819 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:54,819 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:54,819 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:54,820 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:54,821 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:54,899 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:54,904 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:54,905 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:54,905 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:54,905 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2258941805
+2026-01-04 20:09:54,933 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x556ec8a317f8, 0x556ec8a32dcb), 
+2026-01-04 20:09:54,933 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x556ec8a32dd0,0x556ec8a48b00), 
+2026-01-04 20:09:54,933 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:54,933 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:54,934 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:09:54,934 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:54,935 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:09:54,935 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:09:54,935 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:55,294 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:55,295 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed
+2026-01-04 20:09:56,035 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_minimal.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:56,396 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:56,397 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:56,467 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:56,471 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:56,472 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:56,472 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:56,472 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2260508872
+2026-01-04 20:09:56,481 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x555dc527a928, 0x555dc527bf11), 
+2026-01-04 20:09:56,481 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x555dc527bf18,0x555dc5291da8), 
+2026-01-04 20:09:56,481 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:56,481 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:56,485 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 3 ms
+2026-01-04 20:09:56,485 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:56,485 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:09:56,485 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:09:56,485 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:56,826 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:56,826 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed
+2026-01-04 20:09:57,594 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:57,987 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:57,987 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:57,987 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:57,987 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:57,988 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:57,989 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:58,059 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:58,062 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:58,062 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:58,062 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:58,062 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2262098887
+2026-01-04 20:09:58,070 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x55afe801dc58, 0x55afe801f6da), 
+2026-01-04 20:09:58,070 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x55afe801f6e0,0x55afe8039f00), 
+2026-01-04 20:09:58,070 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:58,070 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:58,071 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:09:58,071 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:58,071 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:09:58,071 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:09:58,071 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:58,444 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:58,444 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed
+2026-01-04 20:09:59,101 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:09:59,468 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:09:59,468 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:09:59,469 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:09:59,538 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:09:59,542 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:09:59,543 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:09:59,543 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:09:59,543 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2263579730
+2026-01-04 20:09:59,567 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x5574a8ed87f8, 0x5574a8ed9dcb), 
+2026-01-04 20:09:59,568 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x5574a8ed9dd0,0x5574a8eefb00), 
+2026-01-04 20:09:59,568 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:09:59,568 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:09:59,569 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:09:59,569 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:59,569 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:09:59,569 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:09:59,569 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:09:59,954 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:09:59,954 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed
+2026-01-04 20:10:00,611 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_basic.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:00,948 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:00,949 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:00,950 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:01,017 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:01,022 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:01,023 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:01,023 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:01,023 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2265059710
+2026-01-04 20:10:01,032 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x55c76f373928, 0x55c76f374f11), 
+2026-01-04 20:10:01,032 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x55c76f374f18,0x55c76f38ada8), 
+2026-01-04 20:10:01,032 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:01,032 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:01,035 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 2 ms
+2026-01-04 20:10:01,035 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:10:01,035 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:10:01,036 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:10:01,036 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:10:01,358 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:10:01,359 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed
+2026-01-04 20:10:02,011 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:02,366 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:02,366 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:02,366 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:02,366 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:02,366 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:02,367 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:02,368 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:02,435 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:02,438 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:02,438 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:02,438 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:02,438 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2266475107
+2026-01-04 20:10:02,445 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x555755bbdc58, 0x555755bbf6da), 
+2026-01-04 20:10:02,445 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x555755bbf6e0,0x555755bd9f00), 
+2026-01-04 20:10:02,445 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:02,446 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:02,446 - buttercup.common.challenge_task - DEBUG - [1mpngrutil.c:1447:10:[1m[31m runtime error: [1m[0m[1mindex 41 out of bounds for type 'wpng_byte[max_keyword_wbytes]' (aka 'unsigned short[max_keyword_wbytes]')[1m[0m
+2026-01-04 20:10:02,548 - buttercup.common.challenge_task - DEBUG -     #0 0x555755b312d0 in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #1 0x555755b175ed in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #2 0x555755a6de37 in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #3 0x555755a8aadd in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #4 0x555755a75852 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #5 0x555755a7b720 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #6 0x555755aa7252 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #7 0x7f43db068082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG -     #8 0x555755a4059d in _start (/out/libpng_read_fuzzer+0x5b59d)
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG - DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+2026-01-04 20:10:02,549 - buttercup.common.challenge_task - DEBUG - SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior pngrutil.c:1447:10 
+2026-01-04 20:10:02,933 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:02,934 - buttercup.seed_gen.vuln_base_task - INFO - Valid PoV found: (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: undefined | delta_mode: True | iter: 0)
+2026-01-04 20:10:02,938 - buttercup.common.stack_parsing - INFO - Crash data: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+
+2026-01-04 20:10:02,944 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:02,944 - buttercup.seed_gen.vuln_base_task - INFO - PoV already in crash set (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: undefined | delta_mode: True | crash_token: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+)
+2026-01-04 20:10:02,944 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:10:02,944 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed
+2026-01-04 20:10:03,692 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:03,283 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:03,284 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:03,353 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:03,358 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:03,358 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:03,358 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:03,358 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2267395199
+2026-01-04 20:10:03,381 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x557da7dee7f8, 0x557da7defdcb), 
+2026-01-04 20:10:03,381 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x557da7defdd0,0x557da7e05b00), 
+2026-01-04 20:10:03,381 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:03,381 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:03,382 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:10:03,383 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:10:03,383 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:10:03,383 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:10:03,383 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:10:03,702 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:10:03,702 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed
+2026-01-04 20:10:04,322 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_extended.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:04,716 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:04,716 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:04,716 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:04,716 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:04,716 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:04,716 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:04,717 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:04,717 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:04,717 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:04,717 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:04,717 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:04,717 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:04,718 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:04,786 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:04,790 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:04,791 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:04,791 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:04,791 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2268828012
+2026-01-04 20:10:04,799 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x557519bcc928, 0x557519bcdf11), 
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x557519bcdf18,0x557519be3da8), 
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - =================================================================
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - [1m[31m==18==ERROR: AddressSanitizer: dynamic-stack-buffer-overflow on address 0x7ffe5e650e32 at pc 0x557519b1704b bp 0x7ffe5e650db0 sp 0x7ffe5e650da8
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - [1m[0m[1m[34mREAD of size 2 at 0x7ffe5e650e32 thread T0[1m[0m
+2026-01-04 20:10:04,800 - buttercup.common.challenge_task - DEBUG - SCARINESS: 29 (2-byte-read-dynamic-stack-buffer-overflow)
+2026-01-04 20:10:04,905 - buttercup.common.challenge_task - DEBUG -     #0 0x557519b1704a in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+2026-01-04 20:10:04,905 - buttercup.common.challenge_task - DEBUG -     #1 0x557519aeb056 in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+2026-01-04 20:10:04,905 - buttercup.common.challenge_task - DEBUG -     #2 0x557519a36bc8 in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+2026-01-04 20:10:04,905 - buttercup.common.challenge_task - DEBUG -     #3 0x557519a5416d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+2026-01-04 20:10:04,905 - buttercup.common.challenge_task - DEBUG -     #4 0x557519a3eee2 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+2026-01-04 20:10:04,905 - buttercup.common.challenge_task - DEBUG -     #5 0x557519a44db0 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -     #6 0x557519a708e2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -     #7 0x7f7e4fe9f082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -     #8 0x55751994f13d in _start (/out/libpng_read_fuzzer+0x7413d)
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG - DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG - [1m[32mAddress 0x7ffe5e650e32 is located in stack of thread T0[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG - SUMMARY: AddressSanitizer: dynamic-stack-buffer-overflow /src/libpng/pngrutil.c:1447:10 in OSS_FUZZ_png_handle_iCCP
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG - Shadow bytes around the buggy address:
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650b80: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650c00: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650c80: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650d00: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650d80: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG - =>0x7ffe5e650e00: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m[[1m[0m02[1m[0m][1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650e80: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650f00: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e650f80: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e651000: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf2[1m[0m
+2026-01-04 20:10:04,906 - buttercup.common.challenge_task - DEBUG -   0x7ffe5e651080: [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[35mf8[1m[0m [1m[31mf2[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG - Shadow byte legend (one shadow byte represents 8 application bytes):
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Addressable:           [1m[0m00[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m 
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Heap left redzone:       [1m[31mfa[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Freed heap region:       [1m[35mfd[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Stack left redzone:      [1m[31mf1[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Stack mid redzone:       [1m[31mf2[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Stack right redzone:     [1m[31mf3[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Stack after return:      [1m[35mf5[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Stack use after scope:   [1m[35mf8[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Global redzone:          [1m[31mf9[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Global init order:       [1m[36mf6[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Poisoned by user:        [1m[34mf7[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Container overflow:      [1m[34mfc[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Array cookie:            [1m[31mac[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Intra object redzone:    [1m[33mbb[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   ASan internal:           [1m[33mfe[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Left alloca redzone:     [1m[34mca[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG -   Right alloca redzone:    [1m[34mcb[1m[0m
+2026-01-04 20:10:04,907 - buttercup.common.challenge_task - DEBUG - ==18==ABORTING
+2026-01-04 20:10:05,271 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:05,272 - buttercup.seed_gen.vuln_base_task - INFO - Valid PoV found: (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: address | delta_mode: True | iter: 0)
+2026-01-04 20:10:05,279 - buttercup.common.stack_parsing - INFO - Crash data: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+
+2026-01-04 20:10:05,287 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:05,287 - buttercup.seed_gen.vuln_base_task - INFO - PoV already in crash set (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: address | delta_mode: True | crash_token: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+)
+2026-01-04 20:10:05,287 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:10:05,287 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed
+2026-01-04 20:10:05,976 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-ar4uakrd/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:06,315 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:06,316 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:06,317 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:06,384 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:06,387 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:06,387 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:06,387 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:06,388 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2270424355
+2026-01-04 20:10:06,396 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (6786 inline 8-bit counters): 6786 [0x557b6f012c58, 0x557b6f0146da), 
+2026-01-04 20:10:06,396 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (6786 PCs): 6786 [0x557b6f0146e0,0x557b6f02ef00), 
+2026-01-04 20:10:06,396 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:06,396 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:06,396 - buttercup.common.challenge_task - DEBUG - [1mpngrutil.c:1447:10:[1m[31m runtime error: [1m[0m[1mindex 41 out of bounds for type 'wpng_byte[max_keyword_wbytes]' (aka 'unsigned short[max_keyword_wbytes]')[1m[0m
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #0 0x557b6ef862d0 in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #1 0x557b6ef6c5ed in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #2 0x557b6eec2e37 in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #3 0x557b6eedfadd in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #4 0x557b6eeca852 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #5 0x557b6eed0720 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #6 0x557b6eefc252 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #7 0x7f72bb70b082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG -     #8 0x557b6ee9559d in _start (/out/libpng_read_fuzzer+0x5b59d)
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG - DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+2026-01-04 20:10:06,499 - buttercup.common.challenge_task - DEBUG - SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior pngrutil.c:1447:10 
+2026-01-04 20:10:06,844 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:06,844 - buttercup.seed_gen.vuln_base_task - INFO - Valid PoV found: (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: undefined | delta_mode: True | iter: 0)
+2026-01-04 20:10:06,849 - buttercup.common.stack_parsing - INFO - Crash data: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+
+2026-01-04 20:10:06,854 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:06,854 - buttercup.seed_gen.vuln_base_task - INFO - PoV already in crash set (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: undefined | delta_mode: True | crash_token: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+)
+2026-01-04 20:10:06,854 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:10:06,855 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed
+2026-01-04 20:10:07,556 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-79f0736e-98f0-45-x03iveez/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:07,932 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:07,933 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:08,005 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:08,009 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:08,009 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:08,009 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:08,009 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2272046481
+2026-01-04 20:10:08,033 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5587 inline 8-bit counters): 5587 [0x555c879127f8, 0x555c87913dcb), 
+2026-01-04 20:10:08,033 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5587 PCs): 5587 [0x555c87913dd0,0x555c87929b00), 
+2026-01-04 20:10:08,034 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:08,034 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:08,035 - buttercup.common.challenge_task - DEBUG - Executed /testcase in 1 ms
+2026-01-04 20:10:08,035 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:10:08,035 - buttercup.common.challenge_task - DEBUG - *** NOTE: fuzzing was not performed, you have only
+2026-01-04 20:10:08,035 - buttercup.common.challenge_task - DEBUG - ***       executed the target code on a fixed set of inputs.
+2026-01-04 20:10:08,035 - buttercup.common.challenge_task - DEBUG - ***
+2026-01-04 20:10:08,380 - buttercup.common.challenge_task - INFO - Reproducing POV for project libpng | fuzzer_name=libpng_read_fuzzer | crash_path=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed | fuzzer_args=None | architecture=x86_64 | env=None
+2026-01-04 20:10:08,381 - buttercup.common.challenge_task - DEBUG - Running command (cwd=/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz): python infra/helper.py reproduce --architecture x86_64 libpng libpng_read_fuzzer /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed
+2026-01-04 20:10:09,123 - buttercup.common.challenge_task - DEBUG - INFO:__main__:Running: docker run --privileged --shm-size=2g --platform linux/amd64 --rm -e HELPER=True -e ARCHITECTURE=x86_64 -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-64037942-ab99-4a-ubocz9_p/fuzz-tooling/oss-fuzz/build/out/libpng:/out -v /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/iter0_test_iccp_buffer_overflow_alternating.seed:/testcase -t gcr.io/oss-fuzz-base/base-runner reproduce libpng_read_fuzzer -runs=100.
+2026-01-04 20:10:09,456 - buttercup.common.challenge_task - DEBUG - + FUZZER=libpng_read_fuzzer
+2026-01-04 20:10:09,456 - buttercup.common.challenge_task - DEBUG - + shift
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + '[' '!' -v TESTCASE ']'
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + TESTCASE=/testcase
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + '[' '!' -f /testcase ']'
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + export RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + RUN_FUZZER_MODE=interactive
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + export FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + FUZZING_ENGINE=libfuzzer
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + export SKIP_SEED_CORPUS=1
+2026-01-04 20:10:09,457 - buttercup.common.challenge_task - DEBUG - + SKIP_SEED_CORPUS=1
+2026-01-04 20:10:09,458 - buttercup.common.challenge_task - DEBUG - + run_fuzzer libpng_read_fuzzer -runs=100 /testcase
+2026-01-04 20:10:09,459 - buttercup.common.challenge_task - DEBUG - vm.mmap_rnd_bits = 28
+2026-01-04 20:10:09,527 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer -- -rss_limit_mb=2560 -timeout=25 -runs=100 /testcase -dict=png.dict -timeout_exitcode=0 < /dev/null
+2026-01-04 20:10:09,532 - buttercup.common.challenge_task - DEBUG - INFO: libFuzzer ignores flags that start with '--'
+2026-01-04 20:10:09,532 - buttercup.common.challenge_task - DEBUG - Dictionary: 28 entries
+2026-01-04 20:10:09,532 - buttercup.common.challenge_task - DEBUG - INFO: Running with entropic power schedule (0xFF, 100).
+2026-01-04 20:10:09,532 - buttercup.common.challenge_task - DEBUG - INFO: Seed: 2273569004
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 modules   (5609 inline 8-bit counters): 5609 [0x5646514c0928, 0x5646514c1f11), 
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - INFO: Loaded 1 PC tables (5609 PCs): 5609 [0x5646514c1f18,0x5646514d7da8), 
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - /out/libpng_read_fuzzer: Running 1 inputs 100 time(s) each.
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - Running: /testcase
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - =================================================================
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - [1m[31m==18==ERROR: AddressSanitizer: dynamic-stack-buffer-overflow on address 0x7fff607e42f2 at pc 0x56465140b04b bp 0x7fff607e4270 sp 0x7fff607e4268
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - [1m[0m[1m[34mREAD of size 2 at 0x7fff607e42f2 thread T0[1m[0m
+2026-01-04 20:10:09,541 - buttercup.common.challenge_task - DEBUG - SCARINESS: 29 (2-byte-read-dynamic-stack-buffer-overflow)
+2026-01-04 20:10:09,643 - buttercup.common.challenge_task - DEBUG -     #0 0x56465140b04a in OSS_FUZZ_png_handle_iCCP /src/libpng/pngrutil.c:1447:10
+2026-01-04 20:10:09,643 - buttercup.common.challenge_task - DEBUG -     #1 0x5646513df056 in OSS_FUZZ_png_read_info /src/libpng/pngread.c:229:10
+2026-01-04 20:10:09,643 - buttercup.common.challenge_task - DEBUG -     #2 0x56465132abc8 in LLVMFuzzerTestOneInput /src/libpng/contrib/oss-fuzz/libpng_read_fuzzer.cc:156:3
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -     #3 0x56465134816d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -     #4 0x564651332ee2 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -     #5 0x564651338db0 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -     #6 0x5646513648e2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -     #7 0x7f0a2d6c6082 in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x24082) (BuildId: 5792732f783158c66fb4f3756458ca24e46e827d)
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -     #8 0x56465124313d in _start (/out/libpng_read_fuzzer+0x7413d)
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG - 
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG - DEDUP_TOKEN: OSS_FUZZ_png_handle_iCCP--OSS_FUZZ_png_read_info--LLVMFuzzerTestOneInput
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG - [1m[32mAddress 0x7fff607e42f2 is located in stack of thread T0[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG - SUMMARY: AddressSanitizer: dynamic-stack-buffer-overflow /src/libpng/pngrutil.c:1447:10 in OSS_FUZZ_png_handle_iCCP
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG - Shadow bytes around the buggy address:
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4000: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4080: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4100: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4180: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4200: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG - =>0x7fff607e4280: [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[34mca[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m[[1m[0m02[1m[0m][1m[34mcb[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4300: [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[34mcb[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,644 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4380: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4400: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4480: [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   0x7fff607e4500: [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[31mf1[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[31mf2[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m [1m[0m00[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG - Shadow byte legend (one shadow byte represents 8 application bytes):
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Addressable:           [1m[0m00[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Partially addressable: [1m[0m01[1m[0m [1m[0m02[1m[0m [1m[0m03[1m[0m [1m[0m04[1m[0m [1m[0m05[1m[0m [1m[0m06[1m[0m [1m[0m07[1m[0m 
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Heap left redzone:       [1m[31mfa[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Freed heap region:       [1m[35mfd[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Stack left redzone:      [1m[31mf1[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Stack mid redzone:       [1m[31mf2[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Stack right redzone:     [1m[31mf3[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Stack after return:      [1m[35mf5[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Stack use after scope:   [1m[35mf8[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Global redzone:          [1m[31mf9[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Global init order:       [1m[36mf6[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Poisoned by user:        [1m[34mf7[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Container overflow:      [1m[34mfc[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Array cookie:            [1m[31mac[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Intra object redzone:    [1m[33mbb[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   ASan internal:           [1m[33mfe[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Left alloca redzone:     [1m[34mca[1m[0m
+2026-01-04 20:10:09,645 - buttercup.common.challenge_task - DEBUG -   Right alloca redzone:    [1m[34mcb[1m[0m
+2026-01-04 20:10:09,646 - buttercup.common.challenge_task - DEBUG - ==18==ABORTING
+2026-01-04 20:10:10,017 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:10,018 - buttercup.seed_gen.vuln_base_task - INFO - Valid PoV found: (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: address | delta_mode: True | iter: 0)
+2026-01-04 20:10:10,024 - buttercup.common.stack_parsing - INFO - Crash data: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+
+2026-01-04 20:10:10,032 - buttercup.common.utils - INFO - Getting diffs from /node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/49e4b8fa-65cc-41b8-9c5f-3feab163841d/49e4b8fa-65cc-41b8-9c5f-3feab163841d-672e9fe2-8f03-45-e93rirj_/diff/diff
+2026-01-04 20:10:10,032 - buttercup.seed_gen.vuln_base_task - INFO - PoV already in crash set (task_id: 49e4b8fa-65cc-41b8-9c5f-3feab163841d | package_name: libpng | harness_name: libpng_read_fuzzer | sanitizer: address | delta_mode: True | crash_token: OSS_FUZZ_png_handle_iCCP
+OSS_FUZZ_png_read_info
+libpng_read_fuzzer.cc
+)
+Traceback (most recent call last):
+  File "/app/seed-gen/.venv/bin/seed-gen", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/seed_gen/_cli.py", line 157, in main
+    command_server(settings)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/seed_gen/_cli.py", line 50, in command_server
+    seed_gen_bot.run()
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/common/default_task_loop.py", line 57, in run
+    serve_loop(self.serve_item, self.timeout)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/common/utils.py", line 76, in serve_loop
+    did_work = func()
+               ^^^^^^
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/common/default_task_loop.py", line 51, in serve_item
+    self.run_task(chc, builds)
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/seed_gen/seed_gen_bot.py", line 295, in run_task
+    copied_files = corp.copy_corpus(out_dir)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/common/corpus.py", line 63, in copy_corpus
+    files.append(self.copy_file(file_path))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/seed-gen/.venv/lib/python3.12/site-packages/buttercup/common/corpus.py", line 41, in copy_file
+    with open(src_file, "rb") as f:
+         ^^^^^^^^^^^^^^^^^^^^
+IsADirectoryError: [Errno 21] Is a directory: '/node_data/crs_scratch/49e4b8fa-65cc-41b8-9c5f-3feab163841d/seedgen-9def0h8i/seedgen-out/agentic_debug_iter0'

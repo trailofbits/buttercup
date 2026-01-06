@@ -449,26 +449,8 @@ Please gather more context about the codebase that will help with debugging.
         logger.info("Creating temporary GDB script file...")
         logger.info(f"  Script content length: {len(state.debug_script)} characters")
         
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".gdb", delete=False) as f:
-            logger.info(f"  Temporary file created: {f.name}")
-            f.write(state.debug_script)
-            logger.info(f"  Content written to buffer")
-            f.flush()  # Ensure content is written to OS buffer
-            logger.info(f"  Buffer flushed to OS")
-            os.fsync(f.fileno())  # Force write to disk before mounting
-            logger.info(f"  File synced to disk (fsync)")
-            debug_script_path = Path(f.name)
-        
-        # Also sync the parent directory to ensure metadata is written
-        # This helps prevent race conditions where Docker tries to mount before
-        # the file system has fully committed the file metadata
-        logger.info(f"Syncing parent directory metadata: {debug_script_path.parent}")
-        dir_fd = os.open(str(debug_script_path.parent), os.O_RDONLY)
-        try:
-            os.fsync(dir_fd)  # Sync directory metadata to disk
-            logger.info(f"  Directory metadata synced to disk")
-        finally:
-            os.close(dir_fd)
+        debug_script_path = state.current_dir / "debug_script.gdb"
+        debug_script_path.write_text(state.debug_script)
         
         # Verify the file was created successfully
         logger.info(f"Verifying file after creation:")
@@ -498,10 +480,20 @@ Please gather more context about the codebase that will help with debugging.
             
             logger.info(f"Debug script file verified: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
             
-            debug_output = self._execute_debug_script(debug_script_path, state.pov_input_path)
+            debug_output = self._execute_debug_script(debug_script_path, state.pov_input_path, state.harness.harness_name)
+            try:
+                debug_script_path.unlink()
+                logger.info(f"Removed debug script file: {debug_script_path}")
+            except Exception as e:
+                logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
             return Command(update={"debug_output": debug_output})
         except Exception as e:
             logger.error(f"Error running debug script: {e}")
+            try:
+                debug_script_path.unlink()
+                logger.info(f"Removed debug script file: {debug_script_path}")
+            except Exception as e:
+                logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
             return Command(update={"debug_output": f"Error: {str(e)}"})
         # Note: We intentionally do NOT delete the debug_script_path here
         # because Docker might still be accessing it via the mount
@@ -551,6 +543,7 @@ Please gather more context about the codebase that will help with debugging.
         self,
         debug_script_path: Path,
         pov_input_path: Path,
+        harness_name: str,
     ) -> str:
         """Execute a GDB debug script in a debug container (batch mode)
         
@@ -575,10 +568,50 @@ Please gather more context about the codebase that will help with debugging.
         with self.reproduce_multiple.open() as mult:
             if mult.builds_cache is None or not mult.builds_cache:
                 raise ValueError("Build cache not available")
-            task = mult.builds_cache[0]
-
-            # Get the fuzzer binary path (typically in /out)
-            harness_name = self.task.harness_name
+            
+            # Use the harness name from the PoV's harness (not self.task.harness_name)
+            # This ensures we debug with the same harness the PoV was generated for
+            
+            # Select a build that contains the harness binary
+            # Prefer address sanitizer builds, but verify the harness exists in the selected build
+            # All builds for the same project share the same build directory,
+            # but we prefer asan since it's most common and provides better crash detection
+            task = None
+            selected_build = None
+            
+            # First, try to find an address sanitizer build with the harness
+            for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
+                if build.sanitizer == "address":
+                    build_dir = cached_task.get_build_dir()
+                    if build_dir and build_dir.exists():
+                        # Check if harness exists (debug or regular binary)
+                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
+                        regular_binary_path = build_dir / harness_name
+                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
+                            task = cached_task
+                            selected_build = build
+                            logger.info(f"Using address sanitizer build with harness '{harness_name}' (task_id: {build.task_id})")
+                            break
+            
+            # If no asan build with harness found, try any build with the harness
+            if task is None:
+                for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
+                    build_dir = cached_task.get_build_dir()
+                    if build_dir and build_dir.exists():
+                        # Check if harness exists (debug or regular binary)
+                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
+                        regular_binary_path = build_dir / harness_name
+                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
+                            task = cached_task
+                            selected_build = build
+                            logger.info(f"Using build with harness '{harness_name}' (task_id: {build.task_id}, sanitizer: {build.sanitizer})")
+                            break
+            
+            # If still no build found, fallback to first build (will fail later if harness doesn't exist)
+            if task is None:
+                task = mult.builds_cache[0]
+                selected_build = mult.build_outputs[0]
+                logger.warning(f"No build found with harness '{harness_name}', using first build (task_id: {selected_build.task_id}). This may fail if harness doesn't exist.")
             
             # Determine the debug container image
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
@@ -754,36 +787,36 @@ Please gather more context about the codebase that will help with debugging.
             out_dir = build_dir.parent  # This should be .../build/out
             
             # Verify all source files exist before mounting
-            logger.info(f"Verifying source files before Docker mount:")
-            logger.info(f"  Debug script:")
-            logger.info(f"    Path: {debug_script_path}")
-            logger.info(f"    Exists: {debug_script_path.exists()}")
-            logger.info(f"    Is file: {debug_script_path.is_file()}")
-            logger.info(f"    Is directory: {debug_script_path.is_dir()}")
+            logger.debug(f"Verifying source files before Docker mount:")
+            logger.debug(f"  Debug script:")
+            logger.debug(f"    Path: {debug_script_path}")
+            logger.debug(f"    Exists: {debug_script_path.exists()}")
+            logger.debug(f"    Is file: {debug_script_path.is_file()}")
+            logger.debug(f"    Is directory: {debug_script_path.is_dir()}")
             if debug_script_path.exists():
-                logger.info(f"    Size: {debug_script_path.stat().st_size} bytes")
-                logger.info(f"    Absolute: {debug_script_path.resolve()}")
+                logger.debug(f"    Size: {debug_script_path.stat().st_size} bytes")
+                logger.debug(f"    Absolute: {debug_script_path.resolve()}")
             
             logger.info(f"  PoV input:")
-            logger.info(f"    Path: {pov_input_path}")
-            logger.info(f"    Exists: {pov_input_path.exists()}")
-            logger.info(f"    Is file: {pov_input_path.is_file()}")
-            logger.info(f"    Is directory: {pov_input_path.is_dir()}")
+            logger.debug(f"    Path: {pov_input_path}")
+            logger.debug(f"    Exists: {pov_input_path.exists()}")
+            logger.debug(f"    Is file: {pov_input_path.is_file()}")
+            logger.debug(f"    Is directory: {pov_input_path.is_dir()}")
             if pov_input_path.exists():
-                logger.info(f"    Size: {pov_input_path.stat().st_size} bytes")
-                logger.info(f"    Absolute: {pov_input_path.resolve()}")
+                logger.debug(f"    Size: {pov_input_path.stat().st_size} bytes")
+                logger.debug(f"    Absolute: {pov_input_path.resolve()}")
             
-            logger.info(f"  Build dir:")
-            logger.info(f"    Path: {build_dir}")
-            logger.info(f"    Exists: {build_dir.exists()}")
-            logger.info(f"    Is directory: {build_dir.is_dir()}")
-            logger.info(f"    Absolute: {build_dir.resolve()}")
+            logger.debug(f"  Build dir:")
+            logger.debug(f"    Path: {build_dir}")
+            logger.debug(f"    Exists: {build_dir.exists()}")
+            logger.debug(f"    Is directory: {build_dir.is_dir()}")
+            logger.debug(f"    Absolute: {build_dir.resolve()}")
             
             logger.info(f"  Out dir (parent of build_dir):")
-            logger.info(f"    Path: {out_dir}")
-            logger.info(f"    Exists: {out_dir.exists()}")
-            logger.info(f"    Is directory: {out_dir.is_dir()}")
-            logger.info(f"    Absolute: {out_dir.resolve()}")
+            logger.debug(f"    Path: {out_dir}")
+            logger.debug(f"    Exists: {out_dir.exists()}")
+            logger.debug(f"    Is directory: {out_dir.is_dir()}")
+            logger.debug(f"    Absolute: {out_dir.resolve()}")
             
             # Mount the PoV input's parent directory to /work so both files are accessible
             # This puts both the debug script and PoV input in the scratchpad
@@ -803,23 +836,17 @@ Please gather more context about the codebase that will help with debugging.
                 binary_path = f"/out/{harness_name_for_path}"
                 logger.info(f"  Using build_dir for /out mount (fallback): {build_dir}")
             
-            # Copy debug script to the scratchpad directory before mounting
-            # This ensures it's in the same directory as the PoV input
-            debug_script_in_scratchpad = pov_input_parent / script_unique_name
-            logger.info(f"Copying debug script to scratchpad: {debug_script_in_scratchpad}")
-            shutil.copy2(debug_script_path, debug_script_in_scratchpad)
-            logger.info(f"  Copied: {debug_script_path} -> {debug_script_in_scratchpad}")
             
-            logger.info(f"Final mount configuration:")
+            logger.debug(f"Final mount configuration:")
             for src, dst in mount_dirs.items():
                 src_resolved = src.resolve() if hasattr(src, 'resolve') else Path(str(src)).resolve()
                 dst_path = dst.resolve() if hasattr(dst, 'resolve') else Path(str(dst))
-                logger.info(f"  {src_resolved.as_posix()} -> {dst_path.as_posix()}")
-                logger.info(f"    Source exists: {src_resolved.exists()}")
-                logger.info(f"    Source is_file: {src_resolved.is_file() if src_resolved.exists() else 'N/A'}")
-                logger.info(f"    Source is_dir: {src_resolved.is_dir() if src_resolved.exists() else 'N/A'}")
-                logger.info(f"    Destination path type: {type(dst_path)}")
-                logger.info(f"    Destination as_posix(): {dst_path.as_posix()}")
+                logger.debug(f"  {src_resolved.as_posix()} -> {dst_path.as_posix()}")
+                logger.debug(f"    Source exists: {src_resolved.exists()}")
+                logger.debug(f"    Source is_file: {src_resolved.is_file() if src_resolved.exists() else 'N/A'}")
+                logger.debug(f"    Source is_dir: {src_resolved.is_dir() if src_resolved.exists() else 'N/A'}")
+                logger.debug(f"    Destination path type: {type(dst_path)}")
+                logger.debug(f"    Destination as_posix(): {dst_path.as_posix()}")
                 # Check if destination path looks suspicious
                 if str(dst_path).endswith('/'):
                     logger.warning(f"    WARNING: Destination path ends with '/' - this might cause issues!")
@@ -918,10 +945,54 @@ Please gather more context about the codebase that will help with debugging.
         with self.reproduce_multiple.open() as mult:
             if mult.builds_cache is None or not mult.builds_cache:
                 raise ValueError("Build cache not available")
-            task = mult.builds_cache[0]
-
-            # Get the fuzzer binary path (typically in /out)
-            harness_name = self.task.harness_name
+            
+            # Use the harness name from the PoV's harness (not self.task.harness_name)
+            # Note: self.task.harness_name should be the same as state.harness.harness_name
+            # since the harness was retrieved using self.task.harness_name in _init_state().
+            # However, using state.harness.harness_name is more explicit and defensive.
+            harness_name = state.harness.harness_name
+            
+            # Select a build that contains the harness binary
+            # Prefer address sanitizer builds, but verify the harness exists in the selected build
+            # All builds for the same project share the same build directory,
+            # but we prefer asan since it's most common and provides better crash detection
+            task = None
+            selected_build = None
+            
+            # First, try to find an address sanitizer build with the harness
+            for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
+                if build.sanitizer == "address":
+                    build_dir = cached_task.get_build_dir()
+                    if build_dir and build_dir.exists():
+                        # Check if harness exists (debug or regular binary)
+                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
+                        regular_binary_path = build_dir / harness_name
+                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
+                            task = cached_task
+                            selected_build = build
+                            logger.info(f"Using address sanitizer build with harness '{harness_name}' (task_id: {build.task_id})")
+                            break
+            
+            # If no asan build with harness found, try any build with the harness
+            if task is None:
+                for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
+                    build_dir = cached_task.get_build_dir()
+                    if build_dir and build_dir.exists():
+                        # Check if harness exists (debug or regular binary)
+                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
+                        regular_binary_path = build_dir / harness_name
+                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
+                            task = cached_task
+                            selected_build = build
+                            logger.info(f"Using build with harness '{harness_name}' (task_id: {build.task_id}, sanitizer: {build.sanitizer})")
+                            break
+            
+            # If still no build found, fallback to first build (will fail later if harness doesn't exist)
+            if task is None:
+                task = mult.builds_cache[0]
+                selected_build = mult.build_outputs[0]
+                logger.warning(f"No build found with harness '{harness_name}', using first build (task_id: {selected_build.task_id}). This may fail if harness doesn't exist.")
+            
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
 
             # Resolve paths
@@ -1100,11 +1171,16 @@ Please gather more context about the codebase that will help with debugging.
             logger.info(f"  Binary path in container: {binary_path}")
             logger.info(f"  Seed file path in container: {pov_input_container_path}")
             logger.info(f"  Seed file should be accessible at: {pov_input_container_path}")
+
+            scratchpad_dir = state.current_dir / "interactive_debug"
+            scratchpad_dir.mkdir(parents=True, exist_ok=True)
+            mount_dirs[scratchpad_dir] = Path("/scripts")
             gdb_session = InteractiveGDBDocker(
                 container_image=debug_container_image,
                 mount_dirs=mount_dirs,
                 binary_path=binary_path,
                 input_path=pov_input_container_path,
+                scratchpad_dir=scratchpad_dir,
             )
             
             try:
@@ -1193,7 +1269,12 @@ Please gather more context about the codebase that will help with debugging.
                         break
                     
                     # Split multi-line commands and execute each line individually
-                    command_lines = [line.strip() for line in next_command.split("\n") if line.strip()]
+                    # Filter out comment lines (they cause errors in GDB MI)
+                    command_lines = [
+                        line.strip() 
+                        for line in next_command.split("\n") 
+                        if line.strip() and not line.strip().startswith('#')
+                    ]
                     logger.info(f"Executing GDB command(s) [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {len(command_lines)} line(s)")
                     logger.debug(f"Command lines: {command_lines}")
                     
@@ -1201,29 +1282,13 @@ Please gather more context about the codebase that will help with debugging.
                     all_command_errors: list[str] = []
                     found_quit = False
                     
-                    for cmd_line in command_lines:
-                        # Check for quit in individual lines too
-                        if cmd_line.lower() in ["quit", "done", "exit", "q"]:
-                            logger.info("LLM indicated debugging complete (found in command line)")
-                            found_quit = True
-                            break
-                        
-                        try:
-                            logger.debug(f"Executing individual command: {cmd_line}")
-                            result = gdb_session.console(cmd_line, timeout=10.0)
-                            output_text = "\n".join(result.lines)
-                            logger.debug(f"Command '{cmd_line}' output: {output_text[:200]}...")  # Log first 200 chars
-                            all_command_outputs.append(f"Command: {cmd_line}\nOutput:\n{output_text}")
-                            all_output_lines.extend([f"Command: {cmd_line}"] + result.lines)
-                            executed_commands.append(cmd_line)
-                            command_count += 1
-                        except Exception as e:
-                            error_msg = f"Error executing command '{cmd_line}': {str(e)}"
-                            logger.error(error_msg)
-                            all_command_errors.append(error_msg)
-                            all_output_lines.extend([f"Command: {cmd_line}", error_msg])
-                            executed_commands.append(cmd_line)
-                            command_count += 1
+                    result = gdb_session.process_commands(command_lines)
+                    all_output_lines.extend(result)
+                    executed_commands.extend(command_lines)
+                    command_count += len(command_lines)
+                    # Log the block of commands being sent and output received
+                    logger.info(f"Sent GDB command block:\n{command_lines}")
+                    logger.info(f"Received GDB output:\n{result}")
                     
                     # Combine all outputs for session history
                     combined_output = "\n".join(all_command_outputs)
@@ -1249,6 +1314,10 @@ Please gather more context about the codebase that will help with debugging.
                     gdb_session.close()
                 except Exception as e:
                     logger.warning(f"Error closing GDB session: {e}")
+                try:
+                    scratchpad_dir.rmdir()
+                except Exception as e:
+                    logger.warning(f"Error removing scratchpad directory: {e}")
 
     def _validate_pov(self, state: DebugTaskState) -> Command:
         """Validate if the PoV causes a crash"""
@@ -1257,7 +1326,7 @@ Please gather more context about the codebase that will help with debugging.
             # Use reproduce_multiple to test the PoV
             with self.reproduce_multiple.open() as mult:
                 pov_valid = False
-                for build, result in mult.get_crashes(state.pov_input_path, self.task.harness_name):
+                for build, result in mult.get_crashes(state.pov_input_path, state.harness.harness_name):
                     # If we get here, the PoV caused a crash
                     pov_valid = result.did_crash()
                     break

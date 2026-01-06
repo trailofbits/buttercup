@@ -67,7 +67,7 @@ class VulnBaseState(BaseTaskState):
     )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
     current_dir: Path = Field(
-        description="Directory to store most recent seeds before they are tested",
+        description="Directory to store most recent files before they are tested",
     )
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)

@@ -6,37 +6,54 @@ import time
 import queue
 import subprocess
 from typing import Callable
+import tempfile
 
 _MI_STOP_RE = re.compile(r"^\*stopped\b")  # MI async stop record
 _MI_RESULT_RE = re.compile(r"^\d+\^(done|error|running)\b")
 
 class InteractiveGDBDockerError(Exception):
     """Base class for InteractiveGDBDocker errors."""
+_tok_prefix = re.compile(r"^\d+(?=[\^*+=~@&])")  # digits before a MI record marker
+
+def strip_tok_prefix(line: str) -> str:
+    return _tok_prefix.sub("", line)
+
+from typing import Callable
+import re
 
 def mi_completion(token: int) -> Callable[[list[str]], bool]:
     # Tokened result record for *this* command.
     result_pat = re.compile(rf"^{token}\^(done|error|running)\b")
     stopped_pat = re.compile(r"^\*stopped\b")
 
+    # GDB prompt in MI appears via console stream records:
+    #   ~"(gdb) \n"
+    #   ~"> \n"          (during 'commands' / define / etc.)
+    prompt_pat = re.compile(r'^[~@&]"(?:\(gdb\)|>)')  # starts with (gdb) or > in a quoted stream
+
     saw_running = False
-    saw_result = False
+    saw_stopped = False
 
     def done(lines: list[str]) -> bool:
-        nonlocal saw_running, saw_result
+        nonlocal saw_running, saw_stopped
 
         for ln in lines:
             m = result_pat.match(ln)
             if m:
-                saw_result = True
                 kind = m.group(1)
                 if kind in ("done", "error"):
+                    # For non-running commands, the result record is enough.
                     return True
                 if kind == "running":
                     saw_running = True
-                    # don't return yet; wait for *stopped
+                    # keep reading until stop+prompt
 
-            # If we started running, complete only once we observe a stop.
             if saw_running and stopped_pat.match(ln):
+                saw_stopped = True
+                # don't return yet; prints can still follow
+
+            # After a stop, wait until we see the prompt, which indicates GDB is ready.
+            if saw_running and saw_stopped and prompt_pat.match(ln):
                 return True
 
         return False
@@ -45,13 +62,27 @@ def mi_completion(token: int) -> Callable[[list[str]], bool]:
 
 
 class InteractiveGDBDocker(DockerInteractive):
-    def __init__(self, container_image: str, mount_dirs: dict[Path, Path], binary_path: str, input_path: str, global_timeout: float = 600.0):
+    def __init__(self, container_image: str, mount_dirs: dict[Path, Path], binary_path: str, input_path: str, global_timeout: float = 600.0, scratchpad_dir: Path = None):
+        
+        # Ensure scratchpad_dir is mounted as /scratchpad if provided and not already present
+        if scratchpad_dir is not None:
+            scratchpad_mountpoint = Path("/scratchpad")
+            need_mount = True
+            for host_path, cont_path in mount_dirs.items():
+                # Compare normalized mount points
+                if Path(cont_path).resolve() == scratchpad_mountpoint:
+                    need_mount = False
+                    break
+            if need_mount:
+                mount_dirs = dict(mount_dirs)  # copy to not mutate caller's dict
+                mount_dirs[scratchpad_dir] = scratchpad_mountpoint
         super().__init__(
             container_image,
             mount_dirs,
             start_command=["gdb", "-q", "--interpreter=mi2", "--args", binary_path, input_path],
             global_timeout=global_timeout,
         )
+        self.scratchpad_dir = scratchpad_dir
         self._tok = 1
     
     def unescape_mi(self, s: str) -> str:
@@ -70,14 +101,17 @@ class InteractiveGDBDocker(DockerInteractive):
         cmd_result = self.mi(f'-interpreter-exec console "{esc}"', timeout=timeout)
         newlines = []
         for line in cmd_result.lines:
+            line = strip_tok_prefix(line)
+            if (line.startswith('~"') or line.startswith('@"') or line.startswith('&"')) and line.endswith('"'):
+                line = self.unescape_mi(line[2:-1])  # decode C escapes
             if line.startswith("^"):
-                newlines.append(self.unescape_mi(line[2:-1]))
+                newlines.append(self.unescape_mi(line))
             elif line.startswith("~"):
-                newlines.append(self.unescape_mi(line[2:-1]))
+                newlines.append(self.unescape_mi(line))
             elif line.startswith("@"):
-                newlines.append("inferior output: " + self.unescape_mi(line[2:-1]))
+                newlines.append("inferior output: " + self.unescape_mi(line))
             elif line.startswith("*"):
-                newlines.append(self.unescape_mi(line[2:-1]))
+                newlines.append(self.unescape_mi(line))
             elif not line[:1] in "^~@*&=":
                 newlines.append("runtime output: " + self.unescape_mi(line))
                 
@@ -85,8 +119,26 @@ class InteractiveGDBDocker(DockerInteractive):
         cmd_result.lines = newlines
         return cmd_result
 
+    def process_commands(self, commands: list[str]) -> list[str]:
 
+        if self.scratchpad_dir is not None:
+            scratchpad = Path(self.scratchpad_dir)
+            cmd_gdb_path = scratchpad / "cmdset.gdb"
+            with open(cmd_gdb_path, "w") as f:
+                for cmd in commands:
+                    f.write(cmd)
+                    if not cmd.endswith("\n"):
+                        f.write("\n")
 
+            cmd_result = self.console(f'source {cmd_gdb_path.as_posix()}')
+
+            return cmd_result.lines
+        else:
+            cmd_result = []
+            for cmd in commands:
+                cmd_result.append(self.console(cmd))
+            return cmd_result
+        
     def interrupt(self) -> list[str]:
         """
         Best-effort interrupt for a GDB session running in a docker container.
