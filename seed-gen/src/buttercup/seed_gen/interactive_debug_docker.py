@@ -104,8 +104,6 @@ class InteractiveGDBDocker(DockerInteractive):
             line = strip_tok_prefix(line)
             if (line.startswith('~"') or line.startswith('@"') or line.startswith('&"')) and line.endswith('"'):
                 line = self.unescape_mi(line[2:-1])  # decode C escapes
-            if line.startswith("^"):
-                newlines.append(self.unescape_mi(line))
             elif line.startswith("~"):
                 newlines.append(self.unescape_mi(line))
             elif line.startswith("@"):

@@ -1,8 +1,8 @@
 """Vuln Discovery task with integrated debug capabilities.
 
-This task integrates DebugSubagent_interactive into the vulnerability discovery workflow.
-When PoVs fail to crash, it uses GDB-based debugging to understand why and
-incorporates those insights into the next iteration.
+This task integrates DebugSubagentUnified into the vulnerability discovery workflow.
+When PoVs fail to crash (after testing), it uses GDB-based debugging to understand why
+and incorporates those insights into the next iteration.
 """
 
 import logging
@@ -16,7 +16,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from pydantic import Field
 
-from buttercup.seed_gen.debug_subagent_interactive import DebugSubagentInteractive
+from buttercup.seed_gen.debug_subagent_unified import DebugSubagentUnified
 from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT,
     VULN_DELTA_ANALYZE_BUG_USER_PROMPT,
@@ -54,9 +54,10 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
     """Vuln discovery task with integrated debugging.
 
     This task extends the base vulnerability discovery workflow by:
-    1. Running GDB-based debugging when PoVs fail to crash
-    2. Incorporating debug insights into the next analysis iteration
-    3. Using the DebugSubagent_interactive to understand execution flow and state
+    1. Testing PoVs first (as normal)
+    2. Running GDB-based debugging only when PoVs fail to crash
+    3. Incorporating debug insights into the next analysis iteration
+    4. Using DebugSubagentUnified to understand why PoVs failed
     """
 
     TaskStateClass = VulnDiscoveryDebugState
@@ -66,11 +67,12 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        # Initialize debug subagent with validation skipped (proactive debugging)
-        self.debug_subagent_interactive = DebugSubagentInteractive(
+        # Initialize debug subagent - validation will be skipped since we test PoVs first
+        self.debug_subagent_unified = DebugSubagentUnified(
             task=self, 
             reproduce_multiple=self.reproduce_multiple,
-            skip_validation=True  # Skip validation for proactive debugging
+            mode="hybrid",
+            skip_validation=True  # Skip validation since we already tested the PoV
         )
 
     @override
@@ -202,32 +204,67 @@ When writing new PoVs:
         res = self._write_pov_base(system_prompt, user_prompt, base_vars)
         return res
 
-    def _debug_generated_pov(self, state: VulnDiscoveryDebugState) -> Command:
-        """Debug generated PoV to understand execution flow before testing"""
-        logger.info("Debugging generated PoV from iteration %d", state.pov_iteration)
+    def _debug_failed_povs(self, state: VulnDiscoveryDebugState) -> Command:
+        """Debug failed PoVs after testing to understand why they didn't crash"""
+        # Note: _test_povs increments pov_iteration, so we need to use previous_iteration
+        # to find files that were just moved
+        previous_iteration = state.pov_iteration - 1
+        logger.info("Debugging failed PoVs from iteration %d (current iteration is %d)", 
+                   previous_iteration, state.pov_iteration)
+        logger.info("Current state: valid_pov_count=%d, pov_iteration=%d", state.valid_pov_count, state.pov_iteration)
         
-        # Debug: log directory contents
-        logger.debug("current_dir path: %s", state.current_dir)
-        logger.debug("current_dir exists: %s", state.current_dir.exists())
-        if state.current_dir.exists():
-            all_files = list(state.current_dir.iterdir())
-            logger.debug("current_dir contents (%d files): %s", len(all_files), [f.name for f in all_files])
+        # Only debug if all PoVs failed (valid_pov_count == 0)
+        if state.valid_pov_count > 0:
+            logger.info("Some PoVs succeeded, skipping debug")
+            return Command(update={})
+
+        # Log output directory details
+        logger.info("Searching for failed PoVs in output_dir: %s", state.output_dir)
+        logger.info("Output dir exists: %s", state.output_dir.exists())
+        logger.info("Output dir is directory: %s", state.output_dir.is_dir() if state.output_dir.exists() else "N/A")
         
-        logger.debug("output_dir path: %s", state.output_dir)
-        logger.debug("output_dir exists: %s", state.output_dir.exists())
         if state.output_dir.exists():
-            all_output_files = list(state.output_dir.iterdir())
-            logger.debug("output_dir contents (%d files): %s", len(all_output_files), [f.name for f in all_output_files])
+            all_files = list(state.output_dir.iterdir())
+            logger.info("All files in output_dir (%d total): %s", len(all_files), [f.name for f in all_files])
+            
+            # Log all .seed files regardless of pattern
+            all_seed_files = list(state.output_dir.glob("*.seed"))
+            logger.info("All .seed files in output_dir (%d total): %s", len(all_seed_files), [f.name for f in all_seed_files])
+        else:
+            logger.warning("Output directory does not exist: %s", state.output_dir)
+            return Command(update={})
 
-        # Find the most recent PoV in current_dir (where they're written before being moved to output_dir)
-        recent_povs = list(state.current_dir.glob("*.seed"))
-        if not recent_povs:
-            logger.warning("No PoVs found to debug in current_dir")
-            return Command(update={"should_debug": False})
+        # Find failed PoVs in output_dir (they were moved there by _test_povs)
+        # IMPORTANT: _test_povs increments pov_iteration before returning, so we need to use
+        # the previous iteration number (pov_iteration - 1) to find files that were just moved
+        # Files are moved with pattern: iter{old_pov_iteration}_{original_name}
+        search_pattern = f"iter{previous_iteration}_*.seed"
+        logger.info("Searching for PoVs with pattern: %s (using previous iteration %d, current is %d)", 
+                   search_pattern, previous_iteration, state.pov_iteration)
+        
+        failed_povs = []
+        for pov_file in state.output_dir.glob(search_pattern):
+            # Check if this PoV actually failed (not valid)
+            # We can't easily check this here, so we'll debug the first one
+            logger.info("Found potential failed PoV: %s (size: %d bytes)", pov_file.name, pov_file.stat().st_size if pov_file.exists() else 0)
+            failed_povs.append(pov_file)
+        
+        logger.info("Total failed PoVs found: %d", len(failed_povs))
+        
+        if not failed_povs:
+            logger.warning("No failed PoVs found to debug in output_dir")
+            logger.warning("Expected pattern: iter%d_*.seed (previous iteration, current is %d)", 
+                         previous_iteration, state.pov_iteration)
+            logger.warning("This might indicate:")
+            logger.warning("  1. PoVs were not moved to output_dir by _test_povs")
+            logger.warning("  2. PoVs were moved with a different naming pattern")
+            logger.warning("  3. PoVs were moved to a different location")
+            logger.warning("  4. No PoVs were generated in this iteration")
+            return Command(update={})
 
-        # Debug the first PoV (could be extended to debug multiple)
-        pov_path = recent_povs[0]
-        logger.info(f"Proactively debugging PoV before testing: {pov_path}")
+        # Debug the first failed PoV (could be extended to debug multiple)
+        pov_path = failed_povs[0]
+        logger.info(f"Debugging failed PoV: {pov_path}")
 
         # Create debug context from the analysis
         harness_info = f"Fuzzer: {state.harness.harness_name} in {state.harness.file_path}"
@@ -236,59 +273,64 @@ When writing new PoVs:
         # Add more specific context if analysis is available
         analysis_section = f"\n{state.analysis}\n" if state.analysis.strip() else "\nNo detailed analysis available.\n"
         
-        debug_context = f"""This PoV was just generated to exploit a potential vulnerability in the target program.
+        debug_context = f"""This PoV was generated to exploit a potential vulnerability but FAILED to crash the program when tested.
 
 **Target Information:**
 {harness_info}
 
 **Vulnerability Analysis:**{analysis_section}
 **Debugging Goals:**
-Before testing whether this PoV crashes the program, analyze its execution to understand:
+This PoV was tested and did NOT cause a crash. Analyze its execution to understand why:
 
-1. **Execution Path**: Is the vulnerable code path being executed?
-2. **Input Processing**: How is the PoV input being parsed and processed?
-3. **Exploitation Conditions**: Are the necessary conditions for exploitation being met?
+1. **Execution Path**: Is the vulnerable code path being executed at all?
+2. **Input Processing**: How is the PoV input being parsed and processed? Is it being rejected or modified?
+3. **Exploitation Conditions**: Are the necessary conditions for exploitation being met? What's missing?
 4. **Program State**: What is the actual state of the program at critical points (buffer sizes, pointers, validation checks)?
 5. **Vulnerability Trigger**: Is the vulnerability actually being triggered? If not, what's preventing it?
-6. **Expected vs Actual**: Does the program behavior match our expectations from the analysis?
+6. **Expected vs Actual**: Why doesn't the program behavior match our expectations from the analysis?
 
-This proactive debugging will help us:
-- Confirm the PoV is targeting the right code
-- Identify why it might fail before running tests
-- Gather insights to improve subsequent iterations
+This debugging will help us:
+- Understand why the PoV failed to crash
+- Identify what conditions are needed for successful exploitation
+- Gather insights to improve the next iteration's PoV generation
 """
 
-        # Run debug subagent_interactive
+        # Run debug subagent
         try:
-            # Use a separate directory for debug output (not in output_dir which is for seed files)
-            # Use UUID to create a unique identifier to avoid collisions
+            # Use a separate directory for debug output
             debug_uuid = uuid.uuid4().hex[:8]
-            debug_output_dir = state.current_dir.parent / "agentic_debug" / f"{debug_uuid}_iter{state.pov_iteration}"
-            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s", pov_path, debug_output_dir)
-            debug_result = self.debug_subagent_interactive.debug(
+            debug_output_dir = state.current_dir.parent / "agentic_debug" / f"{debug_uuid}_iter{previous_iteration}_failed"
+            logger.info("Calling debug subagent with pov_path=%s, output_dir=%s, current_dir=%s", pov_path, debug_output_dir, state.current_dir)
+            debug_result = self.debug_subagent_unified.debug(
                 harness=state.harness,
                 pov_input_path=pov_path,
                 debug_context=debug_context,
                 output_dir=debug_output_dir,
+                current_dir=state.current_dir,
             )
-            logger.info("Debug subagent_interactive returned: analysis_len=%d, debug_commands_len=%d, output_len=%d, reflection_len=%d, attempts=%d", 
+            logger.info("Debug subagent returned: analysis_len=%d, debug_commands_len=%d, output_len=%d, reflection_len=%d, attempts=%d", 
                        len(debug_result.analysis), 
                        len(debug_result.debug_commands),
                        len(debug_result.debug_output),
                        len(debug_result.reflection),
                        len(debug_result.attempts))
 
-            # Format debug insights - only include the summary/reflection
-            # The calling agent doesn't need the script or raw output details
-            debug_insights = f"""## Proactive Debug Session for iteration {state.pov_iteration}
+            # Format debug insights - focus on why the PoV failed
+            # Use previous_iteration since that's when the PoV was actually tested
+            debug_insights = f"""## Debug Session for Failed PoV (iteration {previous_iteration})
+
+**PoV Status:** This PoV was tested and did NOT cause a crash.
 
 **Debug Summary:**
 {debug_result.reflection}
 
-The PoV validation will now test if this actually crashes.
+**Key Findings:**
+- Why didn't this PoV crash the program?
+- What conditions need to be met for successful exploitation?
+- What should we change in the next iteration?
 """
 
-            logger.info("Proactive debug session completed")
+            logger.info("Debug session completed for failed PoV")
 
             return Command(
                 update={
@@ -297,7 +339,7 @@ The PoV validation will now test if this actually crashes.
             )
 
         except Exception as e:
-            logger.error(f"Error during proactive debugging: {e}")
+            logger.error(f"Error during debugging of failed PoV: {e}")
             # Don't fail the whole workflow if debugging fails
             return Command(
                 update={
@@ -308,7 +350,7 @@ The PoV validation will now test if this actually crashes.
 
     @override
     def _build_workflow(self) -> StateGraph:  # type: ignore[override]
-        """Build workflow with proactive debugging before testing"""
+        """Build workflow with debugging only when PoVs fail"""
         workflow = StateGraph(self.TaskStateClass)
 
         workflow.add_node("gather_context", self._gather_context)
@@ -317,8 +359,8 @@ The PoV validation will now test if this actually crashes.
         workflow.add_node("analyze_bug", self._analyze_bug)
         workflow.add_node("write_pov", self._write_pov)
         workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)
-        workflow.add_node("debug_pov", self._debug_generated_pov)  # Run BEFORE testing
         workflow.add_node("test_povs", self._test_povs)
+        workflow.add_node("debug_failed_povs", self._debug_failed_povs)  # Run AFTER testing, only if failed
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")
@@ -333,37 +375,39 @@ The PoV validation will now test if this actually crashes.
 
         workflow.add_edge("analyze_bug", "write_pov")
         workflow.add_edge("write_pov", "execute_python_funcs")
-        # After executing POV functions, debug them before testing
-        workflow.add_edge("execute_python_funcs", "debug_pov")
-        # After debugging, test the POVs
-        workflow.add_edge("debug_pov", "test_povs")
-
-        # After testing PoVs, decide whether to continue
-        def should_continue_or_end(state: VulnDiscoveryDebugState) -> str:
+        workflow.add_edge("execute_python_funcs", "test_povs")
+        
+        # After testing PoVs, decide whether to debug (if failed) or end/retry
+        def after_test_povs(state: VulnDiscoveryDebugState) -> str:
             # If we found valid PoVs, we're done
             if state.valid_pov_count > 0:
                 return "end"
             # If we've reached max iterations, we're done
             if state.pov_iteration >= self.MAX_POV_ITERATIONS:
                 return "end"
-            # Otherwise, retry with insights from debugging
-            return "retry"
+            # Otherwise, debug the failed PoVs before retrying
+            return "debug"
 
         workflow.add_conditional_edges(
             "test_povs",
-            should_continue_or_end,
+            after_test_povs,
             {
-                "retry": "analyze_bug",
+                "debug": "debug_failed_povs",
                 "end": END,
             },
         )
+        
+        # After debugging, retry with insights
+        workflow.add_edge("debug_failed_povs", "analyze_bug")
 
         return workflow
 
     def recursion_limit(self) -> int:
         context_steps = 2
         pov_steps = 4
-        debug_steps = 1  # Add debug step
+        debug_steps = 1  # Debug step only runs when PoVs fail
+        # Debug only runs when valid_pov_count == 0, so it's conditional
+        # We'll include it in the limit to be safe
         return (
             1
             + context_steps * self.MAX_CONTEXT_ITERATIONS

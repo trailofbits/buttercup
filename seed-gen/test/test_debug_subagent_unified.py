@@ -70,6 +70,14 @@ def mock_reproduce_multiple(mock_task, tmp_path):
 
 
 @pytest.fixture
+def current_dir(tmp_path):
+    """Create and return a current_dir for test scaffolding"""
+    current_dir_path = tmp_path / "current"
+    current_dir_path.mkdir(parents=True, exist_ok=True)
+    return current_dir_path
+
+
+@pytest.fixture
 def mock_gdb_session():
     """Create a mock InteractiveGDBDocker session"""
     session = MagicMock(spec=InteractiveGDBDocker)
@@ -165,6 +173,7 @@ def test_debug_unified_batch_mode_basic_workflow(
     mock_challenge_task_responses,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test basic batch mode workflow."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -279,6 +288,7 @@ def test_debug_unified_batch_mode_basic_workflow(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         assert isinstance(result, DebugResult)
@@ -304,6 +314,7 @@ def test_debug_unified_interactive_mode_basic_workflow(
     mock_gdb_session,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test basic interactive mode workflow."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -390,6 +401,7 @@ def test_debug_unified_interactive_mode_basic_workflow(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         assert isinstance(result, DebugResult)
@@ -422,6 +434,7 @@ def test_debug_unified_hybrid_mode_batch_first_then_interactive(
     mock_gdb_session,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test hybrid mode: batch first, then interactive if PoV not valid."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -551,6 +564,7 @@ def test_debug_unified_hybrid_mode_batch_first_then_interactive(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         assert isinstance(result, DebugResult)
@@ -581,6 +595,7 @@ def test_debug_unified_hybrid_mode_batch_succeeds_no_interactive(
     mock_challenge_task_responses,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test hybrid mode: if batch mode validates PoV, don't run interactive."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -688,6 +703,7 @@ def test_debug_unified_hybrid_mode_batch_succeeds_no_interactive(
                 pov_input_path=pov_input_path,
                 debug_context=debug_context,
                 output_dir=tmp_path / "debug_output",
+                current_dir=current_dir,
             )
 
         # Should have batch results but no interactive (since PoV was valid)
@@ -717,6 +733,7 @@ def test_debug_unified_hybrid_mode_llm_says_no_interactive(
     mock_gdb_session,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test hybrid mode: LLM decides not to run interactive follow-up."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -811,6 +828,7 @@ def test_debug_unified_hybrid_mode_llm_says_no_interactive(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         # Should have batch results but no interactive (since LLM said "no")
@@ -841,6 +859,7 @@ def test_debug_unified_skip_validation(
     mock_challenge_task_responses,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test skip_validation mode."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -915,6 +934,7 @@ def test_debug_unified_skip_validation(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         # Should complete without validation step
@@ -929,6 +949,7 @@ def test_debug_unified_error_handling(
     mock_codequery_responses,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test error handling in debug workflow."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -960,6 +981,7 @@ def test_debug_unified_error_handling(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         # Should return error result
@@ -979,6 +1001,7 @@ def test_debug_unified_state_management_batch(
     mock_challenge_task_responses,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test state management in batch mode."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -1055,6 +1078,7 @@ def test_debug_unified_state_management_batch(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         # Verify state was properly populated
@@ -1073,6 +1097,7 @@ def test_debug_unified_state_management_interactive(
     mock_gdb_session,
     mock_reproduce_multiple,
     tmp_path,
+    current_dir,
 ):
     """Test state management in interactive mode."""
     pov_input_path = tmp_path / "pov_input.bin"
@@ -1088,6 +1113,23 @@ def test_debug_unified_state_management_interactive(
         mock_span = MagicMock()
         mock_tracer.return_value.start_as_current_span.return_value.__enter__.return_value = mock_span
 
+        # Mock process_commands to return output lines (list of strings)
+        # This is what InteractiveGDBDocker.process_commands returns
+        def mock_process_commands(commands):
+            # Return mock output lines for each command
+            output_lines = []
+            for cmd in commands:
+                if cmd.startswith("break "):
+                    output_lines.append("^done,bkpt={number=\"1\",addr=\"0x123456\"}")
+                elif cmd == "run":
+                    output_lines.append("*running")
+                    output_lines.append("^running")
+                    output_lines.append("*stopped,reason=\"exited-normally\"")
+                else:
+                    output_lines.append("^done")
+            return output_lines
+        
+        mock_gdb_session.process_commands = Mock(side_effect=mock_process_commands)
         mock_gdb_class.return_value = mock_gdb_session
 
         context_messages = [AIMessage(content="Context", tool_calls=[])]
@@ -1139,6 +1181,7 @@ def test_debug_unified_state_management_interactive(
             pov_input_path=pov_input_path,
             debug_context=debug_context,
             output_dir=tmp_path / "debug_output",
+            current_dir=current_dir,
         )
 
         # Verify state was properly populated

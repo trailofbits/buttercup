@@ -116,13 +116,15 @@ class DebugTaskState(BaseTaskState):
     )
     analysis: str = Field(description="The analysis of the debugging task", default="")
     debug_script: str = Field(description="The GDB debug script to execute (batch mode)", default="")
-    debug_output: str = Field(description="Output from running the debug session", default="")
+    debug_script_output: str = Field(description="Output from running the debug session", default="")
     debug_commands: list[str] = Field(description="List of GDB commands executed (interactive mode)", default_factory=list)
+    debug_interactive_output: str = Field(description="Output from running the interactive debug session", default="")
     reflection: str = Field(description="Reflection on what happened during execution and how it relates to the vulnerability", default="")
     pov_valid: bool = Field(description="Whether the PoV is valid (causes a crash)", default=False)
     debug_iteration: int = Field(description="Count of debug iterations", default=0)
     debug_attempts: Annotated[list[DebugAttempt], operator.add] = Field(default_factory=list)
     needs_interactive_follow_up: bool = Field(description="Whether interactive debugging follow-up is needed (hybrid mode)", default=False)
+    current_dir: Path = Field(description="Directory to scratchpad files")
 
     def format_debug_attempts(self) -> str:
         """Format debug attempts for prompts"""
@@ -141,7 +143,7 @@ class DebugSubagentUnified:
     MAX_DEBUG_ITERATIONS = 2
     MAX_CONTEXT_ITERATIONS = 3
     MAX_CONTEXT_ITERATIONS_AGAIN = 2
-    MAX_INTERACTIVE_COMMANDS = 10  # Depth of interactive debug loop
+    MAX_INTERACTIVE_COMMANDS = 20  # Depth of interactive debug loop
     # Each context iteration can have multiple tool calls (get_context -> tools)
     # Estimate ~5 tool calls per context iteration to be safe
     ESTIMATED_TOOLS_PER_CONTEXT = 5
@@ -191,7 +193,8 @@ class DebugSubagentUnified:
         harness: HarnessInfo,
         pov_input_path: Path,
         debug_context: str,
-        output_dir: Path | None = None,
+        output_dir: Path,
+        current_dir: Path,
     ) -> DebugResult:
         """Debug a PoV input using the configured mode.
 
@@ -204,17 +207,18 @@ class DebugSubagentUnified:
         Returns:
             DebugResult with debug information and validation status
         """
-        return self._debug_workflow(harness, pov_input_path, debug_context, output_dir)
+        return self._debug_workflow(harness, pov_input_path, debug_context, output_dir, current_dir)
 
     def _debug_workflow(
         self,
         harness: HarnessInfo,
         pov_input_path: Path,
         debug_context: str,
-        output_dir: Path | None,
+        output_dir: Path,
+        current_dir: Path,
     ) -> DebugResult:
         """Run the debug workflow based on the configured mode"""
-        return self._run_debug_workflow(harness, pov_input_path, debug_context, output_dir)
+        return self._run_debug_workflow(harness, pov_input_path, debug_context, output_dir, current_dir)
 
 
     def _run_debug_workflow(
@@ -222,7 +226,8 @@ class DebugSubagentUnified:
         harness: HarnessInfo,
         pov_input_path: Path,
         debug_context: str,
-        output_dir: Path | None,
+        output_dir: Path,
+        current_dir: Path,
     ) -> DebugResult:
         """Run the debug workflow (either batch or interactive)"""
         logger.info(
@@ -232,18 +237,19 @@ class DebugSubagentUnified:
             self.mode.value,
         )
 
-        # Create temporary output directory if not provided
-        if output_dir is None:
-            output_dir = Path(tempfile.mkdtemp(prefix="debug-"))
-
         try:
             logger.info("Creating debug state")
+            logger.info(f"debug_subagent_unified: current_dir provided: {current_dir}")
+            if not current_dir or not Path(current_dir).exists():
+                logger.error(f"Provided current_dir does not exist: {current_dir}")
+                raise FileNotFoundError(f"Provided current_dir does not exist: {current_dir}")
             state = DebugTaskState(
                 harness=harness,
                 task=self.task,
                 output_dir=output_dir,
                 pov_input_path=pov_input_path,
                 debug_context=debug_context,
+                current_dir=current_dir,
             )
             logger.info("Debug state created successfully")
 
@@ -282,19 +288,24 @@ class DebugSubagentUnified:
 
                 # Get values from state (final_state is a dict)
                 debug_script = final_state.get("debug_script", "") or ""
-                debug_output = final_state.get("debug_output", "") or ""
+                debug_script_output = final_state.get("debug_script_output", "") or ""
+                debug_interactive_output = final_state.get("debug_interactive_output", "") or ""
                 debug_commands = final_state.get("debug_commands", [])
                 analysis = final_state.get("analysis", "") or ""
                 reflection = final_state.get("reflection", "") or ""
                 pov_valid = final_state.get("pov_valid", False)
                 debug_attempts = final_state.get("debug_attempts", [])
 
+                # Use interactive output if available (for interactive/hybrid modes), otherwise use script output (for batch mode)
+                debug_output = debug_interactive_output if debug_interactive_output else debug_script_output
+
                 logger.info(
                     "Debug state extracted: analysis_len=%d, script_len=%d, commands=%d, output_len=%d, reflection_len=%d, attempts=%d",
                     len(analysis),
                     len(debug_script),
                     len(debug_commands),
-                    len(debug_output),
+                    len(debug_script_output),
+                    len(debug_interactive_output),
                     len(reflection),
                     len(debug_attempts),
                 )
@@ -306,6 +317,11 @@ class DebugSubagentUnified:
                         (output_dir / "debug_script.gdb").write_text(debug_script)
                     if debug_commands:
                         (output_dir / "debug_commands.txt").write_text("\n".join(debug_commands))
+                    if debug_script_output:
+                        (output_dir / "debug_script_output.txt").write_text(debug_script_output)
+                    if debug_interactive_output:
+                        (output_dir / "debug_interactive_output.txt").write_text(debug_interactive_output)
+                    # Write unified debug_output.txt (contains either script or interactive output)
                     if debug_output:
                         (output_dir / "debug_output.txt").write_text(debug_output)
                     if analysis:
@@ -339,7 +355,7 @@ class DebugSubagentUnified:
             return DebugResult(
                 debug_commands=[],
                 pov_valid=False,
-                debug_output=f"Error: {str(err)}",
+                debug_output=f"Error: {str(err)}",  # Use debug_output field name
                 analysis="",
                 reflection="",
                 debug_script="",
@@ -356,7 +372,7 @@ Here is the previous debug attempt:
 </previous_debug_attempt>
 Here is the previous debug output:
 <previous_debug_output>
-{state.debug_output}
+{state.debug_script_output}
 </previous_debug_output>
 Please gather more context about the codebase that will help with debugging.
 """
@@ -439,7 +455,7 @@ Please gather more context about the codebase that will help with debugging.
         logger.info("Running debug script")
         if not state.debug_script:
             logger.warning("No debug script to run")
-            return Command(update={"debug_output": "No debug script provided"})
+            return Command(update={"debug_script_output": "No debug script provided"})
 
         # Write debug script to a temporary file
         # NOTE: We do NOT delete this file. Docker needs it to remain accessible
@@ -466,7 +482,7 @@ Please gather more context about the codebase that will help with debugging.
         
         if not debug_script_path.exists():
             logger.error(f"Failed to create debug script file at {debug_script_path}")
-            return Command(update={"debug_output": f"Error: Failed to create debug script file"})
+            return Command(update={"debug_script_output": f"Error: Failed to create debug script file"})
         
         logger.info(f"Created debug script file: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
 
@@ -474,19 +490,19 @@ Please gather more context about the codebase that will help with debugging.
             # Run the debug script using exec_docker_cmd with debug container
             # Verify the file exists and is readable before passing to Docker
             if not debug_script_path.exists():
-                return Command(update={"debug_output": f"Error: Debug script file not found at {debug_script_path}"})
+                return Command(update={"debug_script_output": f"Error: Debug script file not found at {debug_script_path}"})
             if not debug_script_path.is_file():
-                return Command(update={"debug_output": f"Error: Debug script path is not a file: {debug_script_path}"})
+                return Command(update={"debug_script_output": f"Error: Debug script path is not a file: {debug_script_path}"})
             
             logger.info(f"Debug script file verified: {debug_script_path} (size: {debug_script_path.stat().st_size} bytes)")
             
-            debug_output = self._execute_debug_script(debug_script_path, state.pov_input_path, state.harness.harness_name)
+            debug_script_output = self._execute_debug_script(debug_script_path, state.pov_input_path, state.harness.harness_name)
             try:
                 debug_script_path.unlink()
                 logger.info(f"Removed debug script file: {debug_script_path}")
             except Exception as e:
                 logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
-            return Command(update={"debug_output": debug_output})
+            return Command(update={"debug_script_output": debug_script_output})
         except Exception as e:
             logger.error(f"Error running debug script: {e}")
             try:
@@ -494,7 +510,7 @@ Please gather more context about the codebase that will help with debugging.
                 logger.info(f"Removed debug script file: {debug_script_path}")
             except Exception as e:
                 logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
-            return Command(update={"debug_output": f"Error: {str(e)}"})
+            return Command(update={"debug_script_output": f"Error: {str(e)}"})
         # Note: We intentionally do NOT delete the debug_script_path here
         # because Docker might still be accessing it via the mount
 
@@ -503,15 +519,16 @@ Please gather more context about the codebase that will help with debugging.
         logger.info("Starting interactive debug session")
         
         try:
-            debug_output, debug_commands, debug_reasoning = self._execute_interactive_debug(state.pov_input_path, state)
+            debug_interactive_output, debug_commands, debug_reasoning = self._execute_interactive_debug(state.pov_input_path, state)
             return Command(update={
-                "debug_output": debug_output,
+                "debug_interactive_output": debug_interactive_output,
                 "debug_commands": debug_commands,
             })
         except Exception as e:
+            raise e
             logger.error(f"Error running interactive debug: {e}")
             return Command(update={
-                "debug_output": f"Error: {str(e)}",
+                "debug_interactive_output": f"Error: {str(e)}",
                 "debug_commands": [],
             })
 
@@ -520,14 +537,25 @@ Please gather more context about the codebase that will help with debugging.
         logger.info("Reflecting on debug output")
         # For interactive mode, there's no debug_script, so provide a placeholder
         debug_script = state.debug_script
-        if not debug_script and state.debug_commands:
-            debug_script = "Interactive GDB session - commands executed interactively\n" + "\n".join(state.debug_commands)
+        if not debug_script:
+            debug_script = ""
+        debug_commands = state.debug_commands
+        if not debug_commands:
+            debug_commands = ""
+        debug_interactive_output = state.debug_interactive_output
+        if not debug_interactive_output:
+            debug_interactive_output = ""
+        debug_script_output = state.debug_script_output
+        if not debug_script_output:
+            debug_script_output = ""
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "analysis": state.analysis,
-            "debug_output": state.debug_output,
+            "debug_script_output": debug_script_output,
+            "debug_interactive_output": debug_interactive_output,
             "debug_script": debug_script,
+            "debug_commands": debug_commands,
         }
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -1172,152 +1200,147 @@ Please gather more context about the codebase that will help with debugging.
             logger.info(f"  Seed file path in container: {pov_input_container_path}")
             logger.info(f"  Seed file should be accessible at: {pov_input_container_path}")
 
-            scratchpad_dir = state.current_dir / "interactive_debug"
-            scratchpad_dir.mkdir(parents=True, exist_ok=True)
-            mount_dirs[scratchpad_dir] = Path("/scripts")
-            gdb_session = InteractiveGDBDocker(
-                container_image=debug_container_image,
-                mount_dirs=mount_dirs,
-                binary_path=binary_path,
-                input_path=pov_input_container_path,
-                scratchpad_dir=scratchpad_dir,
-            )
-            
-            try:
-                # Start the GDB session
-                gdb_session.run()
-                logger.info("GDB session started")
+            with tempfile.TemporaryDirectory(dir=state.current_dir) as scratchpad_dir_str:
+                mount_dirs[Path(scratchpad_dir_str)] = Path("/scripts")
+                gdb_session = InteractiveGDBDocker(
+                    container_image=debug_container_image,
+                    mount_dirs=mount_dirs,
+                    binary_path=binary_path,
+                    input_path=pov_input_container_path,
+                    scratchpad_dir=Path(scratchpad_dir_str),
+                )
                 
-                # Initial setup commands
-                setup_commands = [
-                    "set breakpoint pending on",
-                    "set print elements 0",
-                    "set print pretty on",
-                    "set pagination off",
-                    "set verbose off",
-                ]
-                
-                all_output_lines: list[str] = []
-                executed_commands: list[str] = []
-                debug_reasoning: list[str] = []
-                # Run setup commands
-                for cmd in setup_commands:
-                    logger.info(f"Setup: {cmd}")
-                    result = gdb_session.console(cmd, timeout=5.0)
-                    all_output_lines.extend(result.lines)
-                    executed_commands.append(cmd)
-                
-                # Interactive loop with LLM (depth 10)
-                command_count = 0
-                session_history: list[str] = []
-                
-                while command_count < self.MAX_INTERACTIVE_COMMANDS:
-                    # Build prompt for next command
-                    history_text = "\n\n".join(session_history[-5:]) if session_history else "No commands executed yet"
+                try:
+                    # Start the GDB session
+                    gdb_session.run()
+                    logger.info("GDB session started")
                     
-                    # Get harness from state if available, otherwise use task
-                    harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
-                    if state.debug_script:
-                        prev_debug_attempt = f""" We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
-                        Here is the previous debug attempt:
-                        <previous_debug_attempt>
-                        {state.debug_script}
-                        </previous_debug_attempt>
-                        Here is the previous debug output:
-                        <previous_debug_output>
-                        {state.debug_output}
-                        </previous_debug_output>
-                        """
-                    else:
-                        prev_debug_attempt = ""
-                    prompt_vars = {
-                        "harness": harness_str,
-                        "debug_context": state.debug_context if hasattr(state, 'debug_context') else "Interactive debugging session",
-                        "analysis": state.analysis if hasattr(state, 'analysis') and state.analysis else "Use GDB to investigate program execution",
-                        "session_history": history_text,
-                        "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
-                        "prev_debug_attempt": prev_debug_attempt,
-                    }
-                    
-                    # Prompt LLM for next command
-                    next_command_prompt = ChatPromptTemplate.from_messages([
-                        ("system", DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT),
-                        ("human", DEBUG_INTERACTIVE_COMMAND_USER_PROMPT),
-                    ])
-                    
-                    chain = next_command_prompt | self.task.llm | StrOutputParser()
-                    llm_response = chain.invoke(prompt_vars)
-                    debug_reasoning.append(llm_response)
-                    # Extract command from string response (StrOutputParser returns a string)
-                    # Try to extract code block, otherwise use the response as-is
-                    try:
-                        # extract_code expects AIMessage, but we have a string
-                        # Create a temporary AIMessage for extraction
-                        temp_msg = AIMessage(content=llm_response)
-                        next_command = extract_code(temp_msg)
-                    except Exception:
-                        # If extraction fails, try simple regex for code blocks
-                        code_match = re.search(r"```(?:gdb)?\n(.*?)```", llm_response, re.DOTALL)
-                        if code_match:
-                            next_command = code_match.group(1).strip()
-                        else:
-                            # No code block, use the response directly (might be "quit" or a command)
-                            next_command = llm_response.strip()
-                    
-                    if not next_command or next_command.lower() in ["quit", "done", "exit", "q"]:
-                        logger.info("LLM indicated debugging complete")
-                        break
-                    
-                    # Split multi-line commands and execute each line individually
-                    # Filter out comment lines (they cause errors in GDB MI)
-                    command_lines = [
-                        line.strip() 
-                        for line in next_command.split("\n") 
-                        if line.strip() and not line.strip().startswith('#')
+                    # Initial setup commands
+                    setup_commands = [
+                        "set breakpoint pending on",
+                        "set print elements 0",
+                        "set print pretty on",
+                        "set pagination off",
+                        "set verbose off",
                     ]
-                    logger.info(f"Executing GDB command(s) [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {len(command_lines)} line(s)")
-                    logger.debug(f"Command lines: {command_lines}")
                     
-                    all_command_outputs: list[str] = []
-                    all_command_errors: list[str] = []
-                    found_quit = False
+                    all_output_lines: list[str] = []
+                    executed_commands: list[str] = []
+                    debug_reasoning: list[str] = []
+                    # Run setup commands
+                    for cmd in setup_commands:
+                        logger.info(f"Setup: {cmd}")
+                        result = gdb_session.console(cmd, timeout=5.0)
+                        all_output_lines.extend(result.lines)
+                        executed_commands.append(cmd)
                     
-                    result = gdb_session.process_commands(command_lines)
-                    all_output_lines.extend(result)
-                    executed_commands.extend(command_lines)
-                    command_count += len(command_lines)
-                    # Log the block of commands being sent and output received
-                    logger.info(f"Sent GDB command block:\n{command_lines}")
-                    logger.info(f"Received GDB output:\n{result}")
+                    # Interactive loop with LLM (depth 10)
+                    command_count = 0
+                    session_history: list[str] = []
                     
-                    # Combine all outputs for session history
-                    combined_output = "\n".join(all_command_outputs)
-                    if all_command_errors:
-                        combined_output += "\n" + "\n".join(all_command_errors)
+                    while command_count < self.MAX_INTERACTIVE_COMMANDS:
+                        # Build prompt for next command
+                        history_text = "\n\n".join(session_history[-5:]) if session_history else "No commands executed yet"
+                        
+                        # Get harness from state if available, otherwise use task
+                        harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
+                        if state.debug_script:
+                            prev_debug_attempt = f""" We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
+                            Here is the previous debug attempt:
+                            <previous_debug_attempt>
+                            {state.debug_script}
+                            </previous_debug_attempt>
+                            Here is the previous debug output:
+                            <previous_debug_output>
+                            {state.debug_script_output}
+                            </previous_debug_output>
+                            """
+                        else:
+                            prev_debug_attempt = ""
+                        prompt_vars = {
+                            "harness": harness_str,
+                            "debug_context": state.debug_context if hasattr(state, 'debug_context') else "Interactive debugging session",
+                            "analysis": state.analysis if hasattr(state, 'analysis') and state.analysis else "Use GDB to investigate program execution",
+                            "session_history": history_text,
+                            "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
+                            "prev_debug_attempt": prev_debug_attempt,
+                        }
+                        
+                        # Prompt LLM for next command
+                        next_command_prompt = ChatPromptTemplate.from_messages([
+                            ("system", DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT),
+                            ("human", DEBUG_INTERACTIVE_COMMAND_USER_PROMPT),
+                        ])
+                        
+                        chain = next_command_prompt | self.task.llm | StrOutputParser()
+                        llm_response = chain.invoke(prompt_vars)
+                        debug_reasoning.append(llm_response)
+                        # Extract command from string response (StrOutputParser returns a string)
+                        # Try to extract code block, otherwise use the response as-is
+                        try:
+                            # extract_code expects AIMessage, but we have a string
+                            # Create a temporary AIMessage for extraction
+                            temp_msg = AIMessage(content=llm_response)
+                            next_command = extract_code(temp_msg)
+                        except Exception:
+                            # If extraction fails, try simple regex for code blocks
+                            code_match = re.search(r"```(?:gdb)?\n(.*?)```", llm_response, re.DOTALL)
+                            if code_match:
+                                next_command = code_match.group(1).strip()
+                            else:
+                                # No code block, use the response directly (might be "quit" or a command)
+                                next_command = llm_response.strip()
+                        
+                        if not next_command or next_command.lower() in ["quit", "done", "exit", "q"]:
+                            logger.info("LLM indicated debugging complete")
+                            break
+                        
+                        # Split multi-line commands and execute each line individually
+                        # Filter out comment lines (they cause errors in GDB MI)
+                        command_lines = [
+                            line.strip() 
+                            for line in next_command.split("\n") 
+                            if line.strip() and not line.strip().startswith('#')
+                        ]
+                        logger.info(f"Executing GDB command(s) [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {len(command_lines)} line(s)")
+                        logger.debug(f"Command lines: {command_lines}")
+                        
+                        all_command_outputs: list[str] = []
+                        all_command_errors: list[str] = []
+                        found_quit = False
+                        
+                        result = gdb_session.process_commands(command_lines)
+                        all_output_lines.extend(result)
+                        executed_commands.extend(command_lines)
+                        command_count += len(command_lines)
+                        # Log the block of commands being sent and output received
+                        logger.info(f"Sent GDB command block:\n{command_lines}")
+                        logger.info(f"Received GDB output:\n{result}")
+                        
+                        # Combine all outputs for session history
+                        combined_output = "\n".join(all_command_outputs)
+                        if all_command_errors:
+                            combined_output += "\n" + "\n".join(all_command_errors)
+                        
+                        if combined_output:
+                            session_history.append(combined_output)
+                        
+                        # If we hit quit in a command line, break out of the main loop
+                        if found_quit:
+                            break
                     
-                    if combined_output:
-                        session_history.append(combined_output)
+                    # Finalize output
+                    debug_output = "\n".join(all_output_lines)
+                    logger.info(f"Interactive debug session completed: {command_count} commands executed")
                     
-                    # If we hit quit in a command line, break out of the main loop
-                    if found_quit:
-                        break
-                
-                # Finalize output
-                debug_output = "\n".join(all_output_lines)
-                logger.info(f"Interactive debug session completed: {command_count} commands executed")
-                
-                return debug_output, executed_commands, debug_reasoning
-                
-            finally:
-                # Clean up
-                try:
-                    gdb_session.close()
-                except Exception as e:
-                    logger.warning(f"Error closing GDB session: {e}")
-                try:
-                    scratchpad_dir.rmdir()
-                except Exception as e:
-                    logger.warning(f"Error removing scratchpad directory: {e}")
+                    return debug_output, executed_commands, debug_reasoning
+                    
+                finally:
+                    # Clean up
+                    try:
+                        gdb_session.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing GDB session: {e}")
 
     def _validate_pov(self, state: DebugTaskState) -> Command:
         """Validate if the PoV causes a crash"""
@@ -1339,7 +1362,7 @@ Please gather more context about the codebase that will help with debugging.
                 debug_attempt = DebugAttempt(
                     analysis=state.analysis,
                     debug_script=debug_script,
-                    debug_output=state.debug_output,
+                    debug_output=state.debug_script_output,
                     pov_valid=pov_valid,
                 )
 
@@ -1359,7 +1382,7 @@ Please gather more context about the codebase that will help with debugging.
             debug_attempt = DebugAttempt(
                 analysis=state.analysis,
                 debug_script=debug_script,
-                debug_output=state.debug_output,
+                debug_output=state.debug_script_output,
                 pov_valid=False,
             )
             return Command(
@@ -1400,7 +1423,7 @@ Please gather more context about the codebase that will help with debugging.
             # Hybrid mode workflow
             workflow.add_node("needs_interactive_follow_up", self._needs_interactive_follow_up)
             workflow.add_node("gather_context_again", self._get_context)
-            workflow.add_node("tools_*again", tool_node)
+            workflow.add_node("tools_again", tool_node)
         if mode == DebugMode.INTERACTIVE or mode == DebugMode.HYBRID:
             # Interactive mode workflow
             workflow.add_node("run_interactive_debug", self._run_interactive_debug)
@@ -1431,7 +1454,7 @@ Please gather more context about the codebase that will help with debugging.
             workflow.add_edge("run_debug_script", "needs_interactive_follow_up")
             workflow.add_conditional_edges(
                 "needs_interactive_follow_up",
-                self._continue_context_retrieval_again,
+                self._continue_interactive_follow_up,
                 {
                     True: "gather_context_again",
                     False: "reflect_debug",
@@ -1534,7 +1557,7 @@ Please gather more context about the codebase that will help with debugging.
             "debug_context": state.debug_context,
             "analysis": state.analysis,
             "debug_script": state.debug_script,
-            "debug_output": state.debug_output,
+            "debug_output": state.debug_script_output,
             "pov_valid": state.pov_valid,
             "previous_attempts": state.format_debug_attempts(),
         }

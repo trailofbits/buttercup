@@ -572,14 +572,14 @@ class Task:
 
         code_snippets = [CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body, start_line=caller.bodies[0].start_line, end_line=caller.bodies[0].end_line) for caller in callers]
         call_result = ToolCallResult(call=call, results=code_snippets)
-        return Command("""
+        return Command(
             update={
                 "messages": [
                     ToolMessage(f"Found {len(code_snippets)} callers of function {function_name}", tool_call_id=tool_call_id),
                 ],
                 "retrieved_context": {call: call_result},
             },
-        """)
+        )
 
 
 class BaseTaskState(BaseModel):

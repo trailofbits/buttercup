@@ -166,6 +166,8 @@ class DockerInteractive:
 
         start_time = time.time()
         end_time = start_time + timeout
+        # Use a smaller polling interval for faster synchronization (10ms instead of 100ms)
+        poll_interval = 0.0005
         while time.time() < end_time:
             remaining_time = end_time - time.time()
             if remaining_time <= 0:
@@ -175,7 +177,7 @@ class DockerInteractive:
                 lines.extend(int_lines)
                 break
             try:
-                line = self.out_q.get(timeout=min(remaining_time, 0.1))
+                line = self.out_q.get(timeout=min(remaining_time, poll_interval))
             except queue.Empty:
                 continue
             lines.append(line)

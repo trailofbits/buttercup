@@ -210,6 +210,7 @@ CRITICAL REQUIREMENTS:
 2. Do NOT use local variables in breakpoint conditions - check them inside `commands` blocks instead
 3. Set breakpoints on functions before calling `run`
 4. Use `commands` blocks to check conditions and output information
+5. Dont write anything that prints too much output, you will be limited to 20000 characters in the output.
 
 Output only the GDB script code, wrapped in a code block with language "gdb" or "text".
 Make sure the script outputs detailed information using `printf` or `print` statements so we can understand execution flow.
@@ -253,15 +254,25 @@ The original analysis/motivation for the debug script:
 {analysis}
 </analysis>
 
-The GDB script that was executed:
+The GDB script that was executed (if any, batch mode only):
 <debug_script>
 {debug_script}
 </debug_script>
 
 The debug output from running the script:
 <debug_output>
-{debug_output}
+{debug_script_output}
 </debug_output>
+
+The commands executed interactively (if any, interactive mode only):
+<debug_interactive_commands>
+{debug_commands}
+</debug_interactive_commands>
+
+The output from running the interactive commands:
+<debug_interactive_output>
+{debug_interactive_output}
+</debug_interactive_output>
 
 Create a concise summary that includes:
 
