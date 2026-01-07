@@ -522,7 +522,6 @@ Please gather more context about the codebase that will help with debugging.
                 "debug_commands": debug_commands,
             })
         except Exception as e:
-            raise e
             logger.error(f"Error running interactive debug: {e}")
             return Command(update={
                 "debug_interactive_output": f"Error: {str(e)}",
@@ -882,7 +881,12 @@ Please gather more context about the codebase that will help with debugging.
                 binary_path = f"/out/{harness_name_for_path}"
                 logger.info(f"  Using build_dir for /out mount (fallback): {build_dir}")
             
-            
+            source_path = task.get_source_path()
+            if source_path and source_path.exists():
+                mount_dirs[source_path] = Path("/src")
+                logger.info(f"  Mounting source code: {source_path} -> /src")
+            else:
+                logger.warning(f"Source code path not found or doesn't exist: {source_path}")
             logger.debug(f"Final mount configuration:")
             for src, dst in mount_dirs.items():
                 src_resolved = src.resolve() if hasattr(src, 'resolve') else Path(str(src)).resolve()
@@ -1114,6 +1118,13 @@ Please gather more context about the codebase that will help with debugging.
                 mount_dirs[build_dir] = Path("/out")
                 binary_path = f"/out/{harness_name}"
             
+            source_path = task.get_source_path()
+            if source_path and source_path.exists():
+                mount_dirs[source_path] = Path("/src")
+                logger.info(f"  Mounting source code: {source_path} -> /src")
+            else:
+                logger.warning(f"Source code path not found or doesn't exist: {source_path}")
+            
             logger.info(f"Mount directories:")
             for host_path, container_path in mount_dirs.items():
                 logger.info(f"  {host_path} -> {container_path}")
@@ -1284,6 +1295,7 @@ Please gather more context about the codebase that will help with debugging.
                             "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
                             "prev_debug_attempt": prev_debug_attempt,
                         }
+                        logger.debug("history_text: %s", history_text)
                         
                         # Prompt LLM for next command
                         next_command_prompt = ChatPromptTemplate.from_messages([
@@ -1293,6 +1305,7 @@ Please gather more context about the codebase that will help with debugging.
                         
                         chain = next_command_prompt | self.task.llm | StrOutputParser()
                         llm_response = chain.invoke(prompt_vars)
+                        logger.debug("llm_response: %s", llm_response)
                         debug_reasoning.append(llm_response)
                         # Extract command from string response (StrOutputParser returns a string)
                         # Try to extract code block, otherwise use the response as-is
@@ -1324,9 +1337,12 @@ Please gather more context about the codebase that will help with debugging.
                         logger.info(f"Executing GDB command(s) [{command_count + 1}/{self.MAX_INTERACTIVE_COMMANDS}]: {len(command_lines)} line(s)")
                         logger.debug(f"Command lines: {command_lines}")
                         
-                        all_command_outputs: list[str] = []
-                        all_command_errors: list[str] = []
                         found_quit = False
+                        #checking for quit in the command lines
+                        for command in command_lines:
+                            if command.lower() in ["quit", "done", "exit", "q"]:
+                                found_quit = True
+                                break
                         
                         result = gdb_session.process_commands(command_lines)
                         all_output_lines.extend(result)
@@ -1336,13 +1352,9 @@ Please gather more context about the codebase that will help with debugging.
                         logger.info(f"Sent GDB command block:\n{command_lines}")
                         logger.info(f"Received GDB output:\n{result}")
                         
-                        # Combine all outputs for session history
-                        combined_output = "\n".join(all_command_outputs)
-                        if all_command_errors:
-                            combined_output += "\n" + "\n".join(all_command_errors)
                         
-                        if combined_output:
-                            session_history.append(combined_output)
+                        if result:
+                            session_history.append("\n".join(result))
                         
                         # If we hit quit in a command line, break out of the main loop
                         if found_quit:

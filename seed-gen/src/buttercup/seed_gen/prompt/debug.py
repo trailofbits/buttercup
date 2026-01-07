@@ -314,6 +314,15 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
 - Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers
 - If you've gathered enough information, respond with 'quit'
 - Be aware that symbol names may not be avaliable, or may be modified by the compiler. This is especially true for functions, so USE THE FILE NAMES AND LINE NUMBERS INSTEAD OF FUNCTION NAMES from the CodeSnippet objects in the retrieved context to determine these.
+- We have set the session up such that the seed file is already loaded as an arg, and the correct binary is indicated. Dont attempt to load more args as the path may be wrong.
+- We have also added the quality of life settings already:
+```gdb
+set breakpoint pending on
+set print elements 0
+set print pretty on
+set pagination off
+set verbose off
+```
 """
 
 DEBUG_INTERACTIVE_COMMAND_USER_PROMPT = """Harness:
