@@ -40,11 +40,16 @@ class CrashSet:
         return self.set.add(key)
 
 
-def parse_stacktrace(stacktrace: str, symbolized: bool = False) -> CrashInfo:
+def parse_stacktrace(stacktrace: str, symbolized: bool = False, fuzz_target: str | None = None) -> CrashInfo:
     # Strip ANSI escape codes from stacktrace as parse_stacktrace doesn't like them
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     stacktrace = ansi_escape.sub("", stacktrace)
-    parser = StackParser(symbolized=symbolized, detect_ooms_and_hangs=True, detect_v8_runtime_errors=False)
+    parser = StackParser(
+        symbolized=symbolized,
+        detect_ooms_and_hangs=True,
+        detect_v8_runtime_errors=False,
+        fuzz_target=fuzz_target,
+    )
     prs = parser.parse(stacktrace)
     return prs
 
@@ -53,8 +58,8 @@ def get_crash_data_from_crash_info(crash_info: CrashInfo) -> str:
     return crash_info.crash_state
 
 
-def get_crash_data(stacktrace: str, symbolized: bool = False) -> str:
-    prs = parse_stacktrace(stacktrace, symbolized)
+def get_crash_data(stacktrace: str, symbolized: bool = False, fuzz_target: str | None = None) -> str:
+    prs = parse_stacktrace(stacktrace, symbolized, fuzz_target=fuzz_target)
     logger.info(f"Crash data: {prs.crash_state}")
     return get_crash_data_from_crash_info(prs)
 
@@ -68,5 +73,5 @@ def get_inst_key(stacktrace: str) -> str:
 
 # Convenience function for getting crash tokens. For a given crash we expect only one of these two functions
 # to return a trace, this makes sure we get something.
-def get_crash_token(stacktrace: str) -> str:
-    return get_crash_data(stacktrace) + get_inst_key(stacktrace)
+def get_crash_token(stacktrace: str, fuzz_target: str | None = None) -> str:
+    return get_crash_data(stacktrace, fuzz_target=fuzz_target) + get_inst_key(stacktrace)
