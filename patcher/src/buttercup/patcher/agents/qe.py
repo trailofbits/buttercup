@@ -132,6 +132,21 @@ class QEAgent(PatcherAgentBase):
                     None,
                 )
 
+            # Copy external harnesses if needed (for public OSS-Fuzz projects)
+            if not built_challenge.copy_external_harnesses():
+                logger.warning(
+                    "Failed to copy external harnesses for Challenge Task %s with sanitizer %s (%s)",
+                    built_challenge.name,
+                    sanitizer,
+                    built_challenge.task_dir,
+                )
+                return (
+                    True,
+                    False,
+                    CommandResult(success=False, output=b"", error=b"External harness copy failed"),
+                    None,
+                )
+
             logger.info(
                 "Rebuilding Challenge Task %s with sanitizer %s (%s)",
                 built_challenge.name,
