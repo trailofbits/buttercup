@@ -217,6 +217,13 @@ class VulnBaseTask(Task):
 
         file_size = pov.stat().st_size
         task_id = self.challenge_task.task_meta.task_id
+        if file_size == 0:
+            logger.warning(
+                "Not submitting 0-byte PoV for %s (harness: %s)",
+                task_id,
+                self.harness_name,
+            )
+            return
         if file_size > self.crash_submit.max_pov_size:
             logger.warning(
                 "Not submitting PoV (%s bytes) that exceeds max PoV size (%s bytes) for %s",
@@ -227,7 +234,17 @@ class VulnBaseTask(Task):
             return
 
         stacktrace = result.stacktrace()
-        ctoken = stack_parsing.get_crash_token(stacktrace)
+        ctoken = stack_parsing.get_crash_token(stacktrace, fuzz_target=self.harness_name)
+        if not ctoken:
+            # Fallback: use input file hash as crash token if stacktrace parsing failed
+            with open(pov, "rb") as f:
+                input_hash = f.read(1024)  # Use first 1KB for token
+            ctoken = f"unknown_crash_{self.harness_name}_{input_hash[:64].hex()}"
+            logger.warning(
+                "Empty crash token for %s, using fallback (stacktrace length: %d)",
+                task_id,
+                len(stacktrace) if stacktrace else 0,
+            )
         dst = self.crash_submit.crash_dir.copy_file(pov, ctoken, build.sanitizer)
         if self.crash_submit.crash_set.add(
             self.package_name,

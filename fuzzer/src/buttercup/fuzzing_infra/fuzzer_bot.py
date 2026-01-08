@@ -96,10 +96,72 @@ class FuzzerBot(TaskLoop):
                         task.harness_name,
                         count_limit=self.crash_dir_count_limit,
                     )
+                    # Log fuzzer stats for diagnostics
+                    stats = result.stats if hasattr(result, "stats") else {}
+                    corpus_crash_count = stats.get("corpus_crash_count", 0) if stats else 0
+                    startup_crash_count = stats.get("startup_crash_count", 0) if stats else 0
+                    if corpus_crash_count > 0 or startup_crash_count > 0:
+                        logger.warning(
+                            "Detected potential startup/corpus crashes for %s (harness: %s): "
+                            "corpus_crash_count=%d, startup_crash_count=%d. "
+                            "This may indicate harness initialization issues (e.g., port binding failures, "
+                            "missing dependencies, or resource conflicts).",
+                            task.task_id,
+                            task.harness_name,
+                            corpus_crash_count,
+                            startup_crash_count,
+                        )
+
                     for crash_ in result.crashes:
                         crash: engine.Crash = crash_
 
                         file_size = Path(crash.input_path).stat().st_size
+                        is_startup_crash = crash.crash_time == 0
+
+                        # Check if this is a timeout or OOM - log for visibility, tracer will verify reproducibility
+                        stacktrace_lower = (crash.stacktrace or "").lower()
+                        is_timeout = "libfuzzer: timeout" in stacktrace_lower or "alarm:" in stacktrace_lower
+                        is_oom = "out-of-memory" in stacktrace_lower or "out of memory" in stacktrace_lower
+
+                        if is_timeout:
+                            logger.info(
+                                "Submitting timeout crash for %s (harness: %s). Tracer will verify if reproducible.",
+                                task.task_id,
+                                task.harness_name,
+                            )
+
+                        if is_oom:
+                            logger.info(
+                                "Submitting OOM crash for %s (harness: %s). Tracer will verify if reproducible.",
+                                task.task_id,
+                                task.harness_name,
+                            )
+
+                        if file_size == 0:
+                            diagnostic_msg = (
+                                "This typically indicates a startup crash where the harness crashed "
+                                "before processing any input. Common causes: "
+                                "(1) Port binding failures in network harnesses - use dynamic port assignment, "
+                                "(2) Missing shared libraries or dependencies, "
+                                "(3) Resource exhaustion or conflicts between harness iterations."
+                            )
+                            logger.warning(
+                                "Discarding 0-byte crash file for %s (harness: %s, crash_time: %s). %s",
+                                task.task_id,
+                                task.harness_name,
+                                crash.crash_time,
+                                diagnostic_msg,
+                            )
+                            continue
+
+                        if is_startup_crash and file_size > 0:
+                            logger.info(
+                                "Crash at time 0 with non-empty input for %s (harness: %s, size: %d bytes). "
+                                "This may be a corpus crash during initialization.",
+                                task.task_id,
+                                task.harness_name,
+                                file_size,
+                            )
                         if file_size > self.max_pov_size:
                             logger.warning(
                                 "Discarding crash (%s bytes) that exceeds max PoV size (%s bytes) for %s",
@@ -109,7 +171,20 @@ class FuzzerBot(TaskLoop):
                             )
                             continue
 
-                        cdata = stack_parsing.get_crash_token(crash.stacktrace)
+                        cdata = stack_parsing.get_crash_token(crash.stacktrace, fuzz_target=task.harness_name)
+                        if not cdata:
+                            # Fallback: use input file hash as crash token if stacktrace parsing failed
+                            with open(crash.input_path, "rb") as f:
+                                input_hash = f.read(1024)  # Use first 1KB for token
+                            cdata = f"unknown_crash_{task.harness_name}_{input_hash[:64].hex()}"
+                            logger.warning(
+                                "Empty crash token for %s, using fallback (stacktrace length: %d)",
+                                task.task_id,
+                                len(crash.stacktrace) if crash.stacktrace else 0,
+                            )
+                            logger.debug(
+                                "Stacktrace preview: %s", crash.stacktrace[:2000] if crash.stacktrace else "None"
+                            )
                         dst = crash_dir.copy_file(crash.input_path, cdata, build.sanitizer)
                         if crash_set.add(
                             task.package_name,
