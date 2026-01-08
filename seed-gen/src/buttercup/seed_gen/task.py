@@ -93,7 +93,12 @@ class Task:
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
+    # Tool output limits
     MAX_TYPE_DEFS = 5
+    MAX_CALLERS = 20
+    MAX_GREP_OUTPUT_CHARS = 10000
+    MAX_BATCH_CALLS = 10
+    
     _harness_source_cache: ClassVar[dict[str, str]] = {}
 
     def __post_init__(self) -> None:
@@ -499,16 +504,43 @@ class Task:
                 },
             )
         grep_output = grep_cmd_res.output.decode("utf-8")
+        
+        # Enforce a character limit to prevent overwhelming the LLM context
+        truncated = False
+        truncation_msg = ""
+        
+        if len(grep_output) > state.task.MAX_GREP_OUTPUT_CHARS:
+            # Count total lines before truncation
+            total_lines = len(grep_output.splitlines())
+            
+            # Truncate to first MAX_GREP_OUTPUT_CHARS characters
+            grep_output = grep_output[:state.task.MAX_GREP_OUTPUT_CHARS]
+            
+            # Find the last complete line to avoid cutting mid-line
+            last_newline = grep_output.rfind('\n')
+            if last_newline > 0:
+                grep_output = grep_output[:last_newline]
+            
+            shown_lines = len(grep_output.splitlines())
+            truncated = True
+            truncation_msg = f"\n\n... OUTPUT TRUNCATED ...\nShowing first {shown_lines} of {total_lines} lines (first {len(grep_output)} of {len(grep_cmd_res.output)} characters)\nToo many matches - refine your search pattern for more specific results."
+            grep_output += truncation_msg
+        
         # For grep results, we create a single CodeSnippet with the grep output
         # Since grep can match multiple files, we use a generic path or the provided path
         result_path = path if path else Path(".")
         results = [CodeSnippet(file_path=result_path, code=grep_output, start_line=1, end_line=len(grep_output.splitlines()) if grep_output else 1)]
         call_result = ToolCallResult(call=call, results=results)
+        
+        message = f"Found matches for pattern {pattern}"
+        if truncated:
+            message += f" (truncated - showing first ~{state.task.MAX_GREP_OUTPUT_CHARS} characters)"
+        
         return Command(
             update={
                 "messages": [
                     ToolMessage(
-                        f"Found matches for pattern {pattern}",
+                        message,
                         tool_call_id=tool_call_id,
                     ),
                 ],
@@ -523,16 +555,15 @@ class Task:
         function_name: str,
     ) -> list[Function]:
         """Get the callers of a function"""
-        max_callers = 20
         callers = self.codequery.get_callers(function_name)
-        if len(callers) > max_callers:
+        if len(callers) > self.MAX_CALLERS:
             logger.info(
                 "Found %d callers for %s, truncating to %d",
                 len(callers),
                 function_name,
-                max_callers,
+                self.MAX_CALLERS,
             )
-            callers = callers[:max_callers]
+            callers = callers[:self.MAX_CALLERS]
         return callers  # type: ignore[no-any-return]
 
     @staticmethod
@@ -673,9 +704,8 @@ def batch_tool(
     """
     assert isinstance(state, BaseTaskState)
     logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
-    max_calls_in_batch = 10
     results = []
-    for call in tool_calls.calls[:max_calls_in_batch]:
+    for call in tool_calls.calls[:state.task.MAX_BATCH_CALLS]:
         if call.tool_name == "get_function_definition" and "function_name" in call.arguments:
             function_name = call.arguments["function_name"]
             result = Task._get_function_definition(function_name, state, tool_call_id)

@@ -323,6 +323,7 @@ set print pretty on
 set pagination off
 set verbose off
 ```
+
 """
 
 DEBUG_INTERACTIVE_COMMAND_USER_PROMPT = """Harness:
@@ -330,6 +331,9 @@ DEBUG_INTERACTIVE_COMMAND_USER_PROMPT = """Harness:
 
 Session history:
 {session_history}
+
+Previous command output:
+{prev_cmd_output}
 
 Commands remaining: {commands_remaining}
 

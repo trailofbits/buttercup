@@ -724,12 +724,21 @@ class ChallengeTask:
         logger.info(f"Existing CXXFLAGS: {existing_cxxflags}")
         
         # Replace -gline-tables-only with -ggdb -fno-inline for CFLAGS
+        # Also replace any optimization flags with -O0
         if "-gline-tables-only" in existing_cflags:
-            debug_env["CFLAGS"] = existing_cflags.replace("-gline-tables-only", "-ggdb -fno-inline")
+            # Replace -gline-tables-only and any -O* flags
+            flags = existing_cflags.replace("-gline-tables-only", "-ggdb -fno-inline")
+            flags = re.sub(r'-O[0-9sglz]*', '-O0', flags)
+            debug_env["CFLAGS"] = flags.strip()
         elif "-g" in existing_cflags:
-            debug_env["CFLAGS"] = re.sub(r'-g[^\s]*', '', existing_cflags).strip() + " -ggdb -fno-inline"
+            # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
+            flags = re.sub(r'-g[^\s]*', '', existing_cflags)
+            flags = re.sub(r'-O[0-9sglz]*', '-O0', flags)
+            debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
-            base_flags = "-O1 -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
+            # Replace any -O* flags with -O0
+            base_flags = "-O0 -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
+            base_flags = re.sub(r'-O[0-9sglz]*', '-O0', base_flags)
             debug_env["CFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
         
         # Replace -gline-tables-only with -ggdb -fno-inline for CXXFLAGS

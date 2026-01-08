@@ -1270,10 +1270,11 @@ Please gather more context about the codebase that will help with debugging.
                     
                     while command_count < self.MAX_INTERACTIVE_COMMANDS:
                         # Build prompt for next command
-                        history_text = "\n\n".join(session_history[-5:]) if session_history else "No commands executed yet"
+                        history_text = "\n\n".join(session_history[-30:]) if session_history else "No commands executed yet"
                         
                         # Get harness from state if available, otherwise use task
                         harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
+                        prev_cmd_output = "\n".join(all_output_lines[-30:]) if all_output_lines else "No commands executed yet"
                         if state.debug_script:
                             prev_debug_attempt = f""" We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
                             Here is the previous debug attempt:
@@ -1294,6 +1295,7 @@ Please gather more context about the codebase that will help with debugging.
                             "session_history": history_text,
                             "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
                             "prev_debug_attempt": prev_debug_attempt,
+                            "prev_cmd_output": prev_cmd_output,
                         }
                         logger.debug("history_text: %s", history_text)
                         
@@ -1347,7 +1349,7 @@ Please gather more context about the codebase that will help with debugging.
                         result = gdb_session.process_commands(command_lines)
                         all_output_lines.extend(result)
                         executed_commands.extend(command_lines)
-                        command_count += len(command_lines)
+                        command_count += 1
                         # Log the block of commands being sent and output received
                         logger.info(f"Sent GDB command block:\n{command_lines}")
                         logger.info(f"Received GDB output:\n{result}")
@@ -1355,6 +1357,8 @@ Please gather more context about the codebase that will help with debugging.
                         
                         if result:
                             session_history.append("\n".join(result))
+
+                        logger.info(f"Session history: {session_history}")
                         
                         # If we hit quit in a command line, break out of the main loop
                         if found_quit:
