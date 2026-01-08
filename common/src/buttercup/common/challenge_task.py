@@ -27,6 +27,88 @@ from buttercup.common.utils import copyanything, get_diffs
 
 logger = logging.getLogger(__name__)
 
+# Patterns that indicate a file is a harness/fuzzing file (should not be patched)
+HARNESS_PATH_PATTERNS = (
+    "/fuzz/",
+    "/fuzzer/",
+    "/fuzzing/",
+    "/fuzzers/",
+    "Fuzz",
+    "_fuzz",
+    "_fuzzer",
+    "harness",
+)
+
+
+def is_harness_file_path(file_path: str | Path) -> bool:
+    """Check if a file path appears to be a harness/fuzzing file.
+
+    Harness files should never be patched - they are test infrastructure,
+    not the actual project code that contains vulnerabilities.
+
+    Args:
+        file_path: The file path to check (can be absolute or relative)
+
+    Returns:
+        True if the file appears to be a harness file, False otherwise.
+    """
+    path_str = str(file_path)
+
+    # Check for common harness path patterns
+    for pattern in HARNESS_PATH_PATTERNS:
+        if pattern in path_str:
+            return True
+
+    return False
+
+
+def filter_harness_files_from_diff(diff_content: str) -> tuple[str, list[str]]:
+    """Filter out harness file changes from a unified diff.
+
+    Args:
+        diff_content: The full content of a unified diff file.
+
+    Returns:
+        A tuple of (filtered_diff, list_of_removed_harness_files).
+        The filtered_diff has harness file hunks removed.
+        list_of_removed_harness_files contains the paths of files that were filtered out.
+    """
+    removed_files: list[str] = []
+    filtered_hunks: list[str] = []
+    current_hunk: list[str] = []
+    current_file: str | None = None
+    is_harness = False
+
+    for line in diff_content.splitlines(keepends=True):
+        # Detect start of a new file's diff
+        if line.startswith("diff --git "):
+            # Save the previous hunk if it's not a harness file
+            if current_hunk and not is_harness:
+                filtered_hunks.extend(current_hunk)
+            elif current_file and is_harness:
+                removed_files.append(current_file)
+
+            # Start a new hunk
+            current_hunk = [line]
+            # Extract file path from "diff --git a/path b/path"
+            match = re.search(r"diff --git a/(.*?) b/", line)
+            if match:
+                current_file = match.group(1)
+                is_harness = is_harness_file_path(current_file)
+            else:
+                current_file = None
+                is_harness = False
+        else:
+            current_hunk.append(line)
+
+    # Don't forget the last hunk
+    if current_hunk and not is_harness:
+        filtered_hunks.extend(current_hunk)
+    elif current_file and is_harness:
+        removed_files.append(current_file)
+
+    return "".join(filtered_hunks), removed_files
+
 
 @contextmanager
 def create_tmp_dir(
@@ -373,6 +455,71 @@ class ChallengeTask:
         OSS-Fuzz project into the source tree.
         """
         return len(self.get_external_harness_sources()) > 0
+
+    def copy_external_harnesses(self) -> bool:
+        """Copy external harness sources from OSS-Fuzz project to source directory.
+
+        For public OSS-Fuzz projects, harnesses live in projects/<project>/<dir>/
+        in the fuzz-tooling repository. These need to be copied to the source
+        directory so they're available when the source is mounted during build.
+
+        Returns:
+            True if copying succeeded or no external harnesses detected,
+            False if copying failed.
+        """
+        external_sources = self.task_meta.metadata.get("external_harness_sources", [])
+        logger.debug(f"[task {self.task_meta.task_id}] Metadata: {self.task_meta.metadata}")
+
+        if not external_sources:
+            logger.debug(f"[task {self.task_meta.task_id}] No external harness sources in metadata")
+            return True
+
+        logger.info(f"[task {self.task_meta.task_id}] Copying external harness sources: {external_sources}")
+
+        try:
+            oss_fuzz_path = self.get_oss_fuzz_path()
+            source_path = self.get_source_path()
+            project_name = self.project_name
+
+            logger.debug(f"[task {self.task_meta.task_id}] OSS-Fuzz path: {oss_fuzz_path}")
+            logger.debug(f"[task {self.task_meta.task_id}] Source path: {source_path}")
+            logger.debug(f"[task {self.task_meta.task_id}] Project name: {project_name}")
+
+            for src_dir, dest_dir in external_sources:
+                # Source: fuzz-tooling/<oss-fuzz>/projects/<project>/<src_dir>/
+                harness_src = oss_fuzz_path / "projects" / project_name / src_dir
+
+                if not harness_src.exists():
+                    logger.warning(f"[task {self.task_meta.task_id}] External harness source not found: {harness_src}")
+                    continue
+
+                # Destination: src/<focus>/<dest_dir>/
+                harness_dst = source_path / dest_dir
+
+                logger.info(f"[task {self.task_meta.task_id}] Copying {harness_src} -> {harness_dst}")
+
+                # Remove existing directory if present (will be replaced)
+                if harness_dst.exists():
+                    logger.debug(f"[task {self.task_meta.task_id}] Removing existing {harness_dst}")
+                    shutil.rmtree(harness_dst)
+
+                # Copy harnesses
+                shutil.copytree(harness_src, harness_dst)
+
+                # Verify copy
+                if harness_dst.exists():
+                    files = list(harness_dst.iterdir())
+                    logger.info(
+                        f"[task {self.task_meta.task_id}] Successfully copied {len(files)} files to {harness_dst}"
+                    )
+                else:
+                    logger.error(f"[task {self.task_meta.task_id}] Copy failed - destination doesn't exist!")
+                    return False
+
+            return True
+        except Exception as e:
+            logger.exception(f"[task {self.task_meta.task_id}] Failed to copy external harnesses: {e}")
+            return False
 
     @property
     def task_dir(self) -> Path:
@@ -890,7 +1037,11 @@ class ChallengeTask:
 
     @read_write_decorator
     def apply_patch_diff(self, diff_file: Path | None = None) -> bool:
-        """Apply the  patch diff to the source code."""
+        """Apply the patch diff to the source code.
+
+        Note: Harness/fuzzing files are automatically filtered out from patches.
+        These files should never be patched - only the actual source code should be modified.
+        """
         try:
             if diff_file is None:
                 # Find all .patch and .diff files in the directory
@@ -906,20 +1057,55 @@ class ChallengeTask:
 
                 logger.info(f"[task {self.task_dir}] Applying diff file: {diff_file}")
 
-                # Use git apply command to apply the patch
-                subprocess.run(
-                    [
-                        "git",
-                        "-C",
-                        str(self.get_source_path()),
-                        "apply",
-                        str(diff_file),
-                    ],
-                    text=True,
-                    check=True,
-                    timeout=10,
-                    capture_output=True,
-                )
+                # Read the diff content and filter out harness files
+                diff_content = diff_file.read_text()
+                filtered_diff, removed_files = filter_harness_files_from_diff(diff_content)
+
+                if removed_files:
+                    logger.warning(f"[task {self.task_dir}] Filtered out harness files from patch: {removed_files}")
+
+                if not filtered_diff.strip():
+                    logger.warning(
+                        f"[task {self.task_dir}] Patch only contained harness file changes, nothing to apply"
+                    )
+                    continue
+
+                # Write the filtered diff to a temporary file if we removed any harness files
+                if removed_files:
+                    with tempfile.NamedTemporaryFile(mode="w", suffix=".patch", delete=False) as f:
+                        f.write(filtered_diff)
+                        filtered_diff_path = Path(f.name)
+                    try:
+                        subprocess.run(
+                            [
+                                "git",
+                                "-C",
+                                str(self.get_source_path()),
+                                "apply",
+                                str(filtered_diff_path),
+                            ],
+                            text=True,
+                            check=True,
+                            timeout=10,
+                            capture_output=True,
+                        )
+                    finally:
+                        filtered_diff_path.unlink(missing_ok=True)
+                else:
+                    # No harness files to filter, apply original diff
+                    subprocess.run(
+                        [
+                            "git",
+                            "-C",
+                            str(self.get_source_path()),
+                            "apply",
+                            str(diff_file),
+                        ],
+                        text=True,
+                        check=True,
+                        timeout=10,
+                        capture_output=True,
+                    )
 
                 logger.info(f"[task {self.task_dir}] Successfully applied patch {diff_file}")
 

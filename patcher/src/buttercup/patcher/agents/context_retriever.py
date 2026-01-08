@@ -59,7 +59,13 @@ from buttercup.patcher.agents.tools import (
     grep,
     ls,
 )
-from buttercup.patcher.utils import TruncatePosition, find_file_in_source_dir, get_challenge, truncate_output
+from buttercup.patcher.utils import (
+    TruncatePosition,
+    find_file_in_source_dir,
+    get_challenge,
+    is_harness_file_path,
+    truncate_output,
+)
 
 # ruff: noqa: E501
 
@@ -509,7 +515,7 @@ def track_snippet(
             end_line=end_line,
             code="\n".join(get_lines_output),
             description=code_snippet_description,
-            can_patch=find_file_in_source_dir(challenge, path) is not None,
+            can_patch=find_file_in_source_dir(challenge, path) is not None and not is_harness_file_path(path),
         )
         code_snippets = [code_snippet]
 

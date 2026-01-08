@@ -11,7 +11,13 @@ from langgraph.prebuilt import InjectedState
 
 from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.patcher.agents.common import BaseCtxState, CodeSnippetKey, ContextCodeSnippet
-from buttercup.patcher.utils import find_file_in_source_dir, get_challenge, get_codequery, truncate_output
+from buttercup.patcher.utils import (
+    find_file_in_source_dir,
+    get_challenge,
+    get_codequery,
+    is_harness_file_path,
+    truncate_output,
+)
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
 
@@ -128,7 +134,8 @@ def _add_functions_code_snippets(
             end_line=body.end_line,
             code=body.body,
             description=f"Implementation of function {function.name}{suffix} in {function.file_path.as_posix()}",
-            can_patch=find_file_in_source_dir(challenge, function.file_path) is not None,
+            can_patch=find_file_in_source_dir(challenge, function.file_path) is not None
+            and not is_harness_file_path(function.file_path),
         )
         for function in functions
         for body in function.bodies
@@ -148,7 +155,8 @@ def _add_type_definitions_code_snippets(
             start_line=type_def.definition_line,
             end_line=type_def.definition_line + len(type_def.definition.splitlines()),
             description=f"Definition of type {type_def.name}",
-            can_patch=find_file_in_source_dir(challenge, type_def.file_path) is not None,
+            can_patch=find_file_in_source_dir(challenge, type_def.file_path) is not None
+            and not is_harness_file_path(type_def.file_path),
         )
         for type_def in type_definitions
     ]

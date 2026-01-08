@@ -18,7 +18,41 @@ from buttercup.program_model.codequery import CodeQueryPersistent
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 
+# Patterns that indicate a file is a harness/fuzzing file (should not be patched)
+HARNESS_PATH_PATTERNS = (
+    "/fuzz/",
+    "/fuzzer/",
+    "/fuzzing/",
+    "/fuzzers/",
+    "Fuzz",
+    "_fuzz",
+    "_fuzzer",
+    "harness",
+)
+
 CHAIN_CALL_TYPE = Callable[[Callable, Runnable, dict[str, Any], RunnableConfig | None, Any], Any]
+
+
+def is_harness_file_path(file_path: str | Path) -> bool:
+    """Check if a file path appears to be a harness/fuzzing file.
+
+    Harness files should never be patched - they are test infrastructure,
+    not the actual project code that contains vulnerabilities.
+
+    Args:
+        file_path: The file path to check (can be absolute or relative)
+
+    Returns:
+        True if the file appears to be a harness file, False otherwise.
+    """
+    path_str = str(file_path)
+
+    # Check for common harness path patterns
+    for pattern in HARNESS_PATH_PATTERNS:
+        if pattern in path_str:
+            return True
+
+    return False
 
 
 class PatchInputPoV(BaseModel):

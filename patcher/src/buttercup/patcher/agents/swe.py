@@ -40,7 +40,7 @@ from buttercup.patcher.agents.common import (
     PatchStatus,
     PatchStrategy,
 )
-from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, pick_temperature
+from buttercup.patcher.utils import PatchOutput, find_file_in_source_dir, is_harness_file_path, pick_temperature
 
 # ruff: noqa: E501
 
@@ -479,6 +479,15 @@ class SWEAgent(PatcherAgentBase):
     ) -> PatchOutput | None:
         if not code_snippet.is_valid():
             logger.warning("Invalid code snippet: %s (%d)", code_snippet.key, idx)
+            return None
+
+        # Reject patches for harness/fuzzing files - these should never be patched
+        if code_snippet.key.file_path and is_harness_file_path(code_snippet.key.file_path):
+            logger.warning(
+                "Rejecting patch for harness file: %s (%d) - harness files should not be patched",
+                code_snippet.key.file_path,
+                idx,
+            )
             return None
 
         code_snippet_key = self._get_code_snippet_key(code_snippet, orig_code_snippets)
