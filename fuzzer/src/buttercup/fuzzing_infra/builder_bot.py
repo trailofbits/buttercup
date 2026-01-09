@@ -145,6 +145,9 @@ class BuilderBot:
 
             # log telemetry
             tracer = trace.get_tracer(__name__)
+            
+            
+            # Regular build for FUZZER, COVERAGE, TRACER_NO_DIFF, PATCH
             with tracer.start_as_current_span("build_fuzzers_with_cache") as span:
                 set_crs_attributes(
                     span,
@@ -166,28 +169,6 @@ class BuilderBot:
                     return True
 
                 span.set_status(Status(StatusCode.OK))
-
-            # Build debug binaries (language-agnostic)
-            # This builds binaries/JARs with debug symbols without overwriting production ones
-            # For C++: Sets CFLAGS/CXXFLAGS for full debug symbols
-            # For Java/other: CFLAGS/CXXFLAGS are ignored (no effect)
-            try:
-                logger.info(
-                    f"Building debug binaries for project {msg.task_id} | {msg.engine} | {msg.sanitizer}"
-                )
-                debug_build_res = task.build_fuzzers_with_debug_symbols(
-                    engine=msg.engine,
-                    sanitizer=msg.sanitizer,
-                )
-                if debug_build_res.success:
-                    logger.info(f"Successfully built debug binaries for {msg.task_id}")
-                else:
-                    logger.warning(
-                        f"Failed to build debug binaries for {msg.task_id}: {debug_build_res.error}"
-                    )
-            except Exception as e:
-                # Don't fail the build if debug binary build fails
-                logger.warning(f"Error building debug binaries for {msg.task_id}: {e}")
 
             task.commit()
             logger.info(

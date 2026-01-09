@@ -125,6 +125,7 @@ class DebugTaskState(BaseTaskState):
     debug_attempts: Annotated[list[DebugAttempt], operator.add] = Field(default_factory=list)
     needs_interactive_follow_up: bool = Field(description="Whether interactive debugging follow-up is needed (hybrid mode)", default=False)
     current_dir: Path = Field(description="Directory to scratchpad files")
+    reproduce_multiple: ReproduceMultiple = Field(description="Build manager for accessing binaries")
 
     def format_debug_attempts(self) -> str:
         """Format debug attempts for prompts"""
@@ -250,6 +251,7 @@ class DebugSubagentUnified:
                 pov_input_path=pov_input_path,
                 debug_context=debug_context,
                 current_dir=current_dir,
+                reproduce_multiple=self.reproduce_multiple,
             )
             logger.info("Debug state created successfully")
 
@@ -501,6 +503,11 @@ Please gather more context about the codebase that will help with debugging.
                 logger.info(f"Removed debug script file: {debug_script_path}")
             except Exception as e:
                 logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
+            # Truncate debug_script_output if necessary to 10k characters
+            MAX_DEBUG_SCRIPT_OUTPUT_CHARS = 10000
+            if isinstance(debug_script_output, str) and len(debug_script_output) > MAX_DEBUG_SCRIPT_OUTPUT_CHARS:
+                logger.warning(f"debug_script_output length ({len(debug_script_output)}) exceeds {MAX_DEBUG_SCRIPT_OUTPUT_CHARS} characters; truncating.")
+                debug_script_output = debug_script_output[:MAX_DEBUG_SCRIPT_OUTPUT_CHARS] + "\n\n... (truncated)"
             return Command(update={"debug_script_output": debug_script_output})
         except Exception as e:
             logger.error(f"Error running debug script: {e}")
@@ -989,7 +996,7 @@ Please gather more context about the codebase that will help with debugging.
                     
                     while command_count < self.MAX_INTERACTIVE_COMMANDS:
                         # Build prompt for next command
-                        history_text = "\n\n".join(session_history[-30:]) if session_history else "No commands executed yet"
+                        history_text = "\n\n".join(session_history[-100:]) if session_history else "No commands executed yet"
                         
                         # Get harness from state if available, otherwise use task
                         harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
@@ -1004,6 +1011,7 @@ Please gather more context about the codebase that will help with debugging.
                             <previous_debug_output>
                             {state.debug_script_output}
                             </previous_debug_output>
+                            You are restarting fresh, this is just for context.
                             """
                         else:
                             prev_debug_attempt = ""
@@ -1064,7 +1072,7 @@ Please gather more context about the codebase that will help with debugging.
                             if command.lower() in ["quit", "done", "exit", "q"]:
                                 found_quit = True
                                 break
-                        
+                        session_history.append(f"executing commands: {"\n".join(command_lines)}")
                         result = gdb_session.process_commands(command_lines)
                         all_output_lines.extend(result)
                         executed_commands.extend(command_lines)
@@ -1072,10 +1080,19 @@ Please gather more context about the codebase that will help with debugging.
                         # Log the block of commands being sent and output received
                         logger.info(f"Sent GDB command block:\n{command_lines}")
                         logger.info(f"Received GDB output:\n{result}")
-                        
-                        
+                        # limiting the output to 5k characters to avoid overwhelming the LLM
+                        total_output_length = 0
+                        total_lines = 0
+                        for line in result:
+                            total_output_length += len(line)
+                            if total_output_length < 5000:
+                                total_lines += 1
+                            else:
+                                break
                         if result:
-                            session_history.append("\n".join(result))
+                            session_history.append("\n".join(result[:total_lines]))
+                            if total_lines < len(result):
+                                session_history.append("... (truncated)")
 
                         logger.info(f"Session history: {session_history}")
                         

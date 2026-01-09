@@ -173,6 +173,8 @@ class Scheduler:
         build_types = [
             (BuildType.COVERAGE, "coverage", True),
         ]
+        # This is for building the debug binaries, the actual sanitizer target will be set to none
+        build_types.append((BuildType.FUZZER_DEBUG, "debug", True))
 
         for san in sanitizers:
             build_types.append((BuildType.FUZZER, san, True))

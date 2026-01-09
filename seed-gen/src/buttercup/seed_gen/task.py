@@ -74,7 +74,7 @@ class ToolCallResult(BaseModel):
 
 class ToolCall(BaseModel):
     tool_name: str
-    arguments: dict[str, str | None]
+    arguments: dict[str, str | list[str] | None]
 
 
 class BatchToolCalls(BaseModel):
@@ -585,7 +585,20 @@ class Task:
         harness_name = state.harness.harness_name if hasattr(state, 'harness') else task.harness_name
         
         # Get binary path - need to access reproduce_multiple
-        reproduce_multiple = task.challenge_task.get_reproduce_multiple()
+        # This is available in debug task states
+        if not hasattr(state, 'reproduce_multiple'):
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            "Symbol lookup tool not available in this task context (no reproduce_multiple in state)",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        
+        reproduce_multiple = state.reproduce_multiple
         
         try:
             with reproduce_multiple.open() as mult:
@@ -675,65 +688,39 @@ class Task:
                     )
                 
                 output = result.output.decode("utf-8", errors="ignore")
+                logger.info(f"GDB output: {output}")
                 
-                # Parse the output to extract function names
-                # GDB runs multiple info functions commands, so we organize output by pattern
+                # Parse the output to extract function symbols
+                # Strip out GDB headers and just return the function definitions
                 all_functions = []
-                current_pattern_idx = 0
-                pattern_results = {pattern: [] for pattern in function_patterns}
-                current_pattern = function_patterns[0] if function_patterns else ""
                 
                 for line in output.splitlines():
-                    # Detect when GDB moves to the next pattern by looking for "All functions matching"
-                    if line.startswith("All functions matching"):
-                        # Extract the pattern from the line if possible
-                        match = re.search(r"All functions matching '([^']+)'", line)
-                        if match and current_pattern_idx < len(function_patterns) - 1:
-                            current_pattern_idx += 1
-                            current_pattern = function_patterns[current_pattern_idx]
-                        continue
-                    
-                    # Skip header and empty lines
-                    if line.startswith("File ") or not line.strip():
+                    # Skip GDB headers and metadata
+                    if line.startswith("All functions matching") or \
+                       line.startswith("File ") or \
+                       line.startswith("Non-debugging symbols:") or \
+                       not line.strip():
                         continue
                     
                     # Extract lines that look like function definitions
                     # Format is typically: line_num:   return_type function_name(args);
-                    # Or just: return_type function_name(args);
-                    if '(' in line or 'function' in line.lower():
+                    if '(' in line:
                         func_line = line.strip()
-                        pattern_results[current_pattern].append(func_line)
                         all_functions.append(func_line)
                 
                 # Limit output to prevent overwhelming context
                 MAX_SYMBOLS = 100
-                truncated_msg = ""
                 total_found = len(all_functions)
                 
-                if total_found > MAX_SYMBOLS:
-                    # Truncate proportionally across patterns
-                    truncated_msg = f"\n\n... {total_found - MAX_SYMBOLS} more matches not shown. Refine your patterns for more specific results."
-                    all_functions = all_functions[:MAX_SYMBOLS]
-                
                 if all_functions:
-                    # Organize output by pattern if multiple patterns were searched
-                    if len(function_patterns) > 1:
-                        symbol_lines = []
-                        for pattern in function_patterns:
-                            funcs = pattern_results[pattern]
-                            if funcs:
-                                # Show first N matches for this pattern
-                                funcs_to_show = funcs[:50]
-                                symbol_lines.append(f"=== Pattern: {pattern} ({len(funcs)} matches) ===")
-                                symbol_lines.extend(funcs_to_show)
-                                if len(funcs) > 50:
-                                    symbol_lines.append(f"... {len(funcs) - 50} more matches for this pattern")
-                                symbol_lines.append("")  # Blank line between patterns
-                        symbol_output = "\n".join(symbol_lines).rstrip() + truncated_msg
-                    else:
-                        symbol_output = "\n".join(all_functions) + truncated_msg
+                    # Show first N matches
+                    funcs_to_show = all_functions[:MAX_SYMBOLS]
+                    symbol_output = "\n".join(funcs_to_show)
                     
-                    message = f"Found {total_found} matching symbols across {len(function_patterns)} pattern(s)"
+                    if total_found > MAX_SYMBOLS:
+                        symbol_output += f"\n\n... {total_found - MAX_SYMBOLS} more matches not shown. Refine your patterns for more specific results."
+                    
+                    message = f"Found {total_found} matching symbols for pattern(s): {', '.join(function_patterns)}"
                     if total_found > MAX_SYMBOLS:
                         message += f" (showing first {MAX_SYMBOLS})"
                 else:
@@ -770,8 +757,8 @@ class Task:
                             tool_call_id=tool_call_id,
                         ),
                     ],
-                },
-            )
+            },
+        )
 
     def _do_get_callers(
         self,
@@ -984,9 +971,12 @@ def batch_tool(
             file_path = call.arguments.get("file_path")  # Optional, can be None
             result = Task._grep(pattern, file_path, state, tool_call_id)
             results.append(result)
-        elif call.tool_name == "lookup_symbols" and "function_pattern" in call.arguments:
-            function_pattern = call.arguments["function_pattern"]
-            result = Task._lookup_symbols(function_pattern, state, tool_call_id)
+        elif call.tool_name == "lookup_symbols" and "function_patterns" in call.arguments:
+            function_patterns = call.arguments["function_patterns"]
+            # Ensure it's a list (might be a single string or already a list)
+            if isinstance(function_patterns, str):
+                function_patterns = [function_patterns]
+            result = Task._lookup_symbols(function_patterns, state, tool_call_id)
             results.append(result)
         else:
             logger.warning("Invalid tool call: %s args: %s", call.tool_name, call.arguments)

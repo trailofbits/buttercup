@@ -26,6 +26,7 @@ enum BuildType {
     COVERAGE = 1;
     TRACER_NO_DIFF = 2;
     PATCH = 3;
+    FUZZER_DEBUG = 4;
 }
 
 message SourceDetail {

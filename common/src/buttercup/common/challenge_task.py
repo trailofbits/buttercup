@@ -606,6 +606,16 @@ class ChallengeTask:
         env: dict[str, str] | None = None,
         env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
+
+        if sanitizer == "debug":
+            return self.build_fuzzers_with_debug_symbols(
+                use_source_dir=use_source_dir,
+                architecture=architecture,
+                engine=engine,
+                sanitizer="none",
+                env=env,
+                env_helper=env_helper,
+            )
         logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
             self.project_name,
@@ -655,29 +665,28 @@ class ChallengeTask:
         env: dict[str, str] | None = None,
         env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
-        """Build fuzzers with debug symbols.
+        """Build fuzzers with debug symbols (FUZZER_DEBUG build type).
         
         **Language Agnostic**: This method works for any language. For C++ projects,
         it sets CFLAGS/CXXFLAGS to include full debug symbols. For Java or other languages,
         setting CFLAGS/CXXFLAGS has no effect (which is fine).
         
-        **Isolation**: This method builds in a separate output directory (/out/debug).
+        **Build Type**: This creates a FUZZER_DEBUG build that outputs to /out (same as
+        FUZZER and COVERAGE builds). It's stored separately in the build map by build_type.
+        
         The source directory is never modified (build process only reads from it).
-        This ensures:
-        1. The original source directory is never modified
-        2. Debug binaries don't overwrite production binaries
         
         Process:
-        1. Sets OUT=/out/debug environment variable (separate output directory)
-        2. For C++: Overrides CFLAGS/CXXFLAGS to use -ggdb -fno-inline instead of -gline-tables-only
-        3. For Java/other: CFLAGS/CXXFLAGS are ignored (no effect)
-        4. Builds the fuzzers using the original source directory
+        1. For C++: Overrides CFLAGS/CXXFLAGS to use -ggdb -fno-inline and -O1
+        2. For Java/other: CFLAGS/CXXFLAGS are ignored (no effect)
+        3. Sets sanitizer=None to disable sanitizer instrumentation (cleaner debugging)
+        4. Builds the fuzzers using the original source directory to /out
         
         Args:
             use_source_dir: Whether to use source directory
             architecture: Target architecture
             engine: Fuzzing engine
-            sanitizer: Sanitizer to use
+            sanitizer: Sanitizer to use (typically None for debug builds)
             env: Environment variables (will be merged with CFLAGS/CXXFLAGS overrides)
             env_helper: Environment variables for the helper process
             
@@ -697,23 +706,13 @@ class ChallengeTask:
         if not source_path.exists():
             raise ChallengeTaskError(f"Source directory not found at {source_path}")
         
-        # Create debug output directory on host before build
-        # The container mounts /out to build_dir, so /out/debug in container
-        # maps to build_dir / "debug" on the host
-        build_dir = self.get_build_dir()
-        if build_dir:
-            debug_output_dir = build_dir / "debug"
-            debug_output_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created debug output directory: {debug_output_dir}")
-        else:
-            logger.warning("Could not determine build directory, debug output directory may not exist in container")
-        
         # Prepare environment variables
         debug_env = env.copy() if env else {}
         
-        # Set output directory to /out/debug (separate from production builds)
-        # This ensures debug binaries don't overwrite production ones
-        debug_env["OUT"] = "/out/debug"
+        # For FUZZER_DEBUG build type, output goes to /out (same as other builds)
+        # The build_type distinguishes it from other builds in the build map
+        # Note: We don't set OUT="/out/debug" here because this build is meant to
+        # be a full replacement build (like coverage), not an auxiliary debug build
         
         # Override CFLAGS/CXXFLAGS for full debug symbols
         # For C++ projects, this enables full debug symbols (-ggdb -fno-inline)
@@ -728,17 +727,17 @@ class ChallengeTask:
         if "-gline-tables-only" in existing_cflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cflags.replace("-gline-tables-only", "-ggdb -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-O0', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
             debug_env["CFLAGS"] = flags.strip()
         elif "-g" in existing_cflags:
             # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
             flags = re.sub(r'-g[^\s]*', '', existing_cflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-O0', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
             debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
             # Replace any -O* flags with -O0
-            base_flags = "-O0 -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-O0', base_flags)
+            base_flags = "-O1 -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
+            base_flags = re.sub(r'-O[0-9sglz]*', '-O1', base_flags)
             debug_env["CFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
         
         # Replace -gline-tables-only with -ggdb -fno-inline for CXXFLAGS
@@ -746,17 +745,17 @@ class ChallengeTask:
         if "-gline-tables-only" in existing_cxxflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cxxflags.replace("-gline-tables-only", "-ggdb -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-O0', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
             debug_env["CXXFLAGS"] = flags.strip()
         elif "-g" in existing_cxxflags:
             # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
             flags = re.sub(r'-g[^\s]*', '', existing_cxxflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-O0', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
             debug_env["CXXFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
             # Replace any -O* flags with -O0
-            base_flags = "-O0 -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-O0', base_flags)
+            base_flags = "-O1 -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
+            base_flags = re.sub(r'-O[0-9sglz]*', '-O1', base_flags)
             debug_env["CXXFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
         
         logger.info(f"CFLAGS override: {debug_env.get('CFLAGS', 'not set')}")
@@ -777,7 +776,7 @@ class ChallengeTask:
             kwargs["mount_path"] = f"/src/{self.focus}"
         
         # Build using the original source directory
-        # The build process only reads from source and writes to /out/debug
+        # The build process only reads from source and writes to /out (same as other builds)
         source_subpath = self.get_source_subpath()
         assert source_subpath is not None
         cmd = self._get_helper_cmd(
@@ -788,21 +787,7 @@ class ChallengeTask:
         )
         
         logger.info(f"Building with debug symbols using source directory: {source_path}")
-        result = self._run_helper_cmd(cmd, env_helper=env_helper)
-        
-        # Post-build validation: Check if debug binaries were written to expected location
-        if result.success and build_dir:
-            debug_dir = build_dir / "debug"
-            if debug_dir.exists() and any(debug_dir.iterdir()):
-                logger.info(f"Debug binaries successfully written to {debug_dir}")
-            else:
-                logger.warning(
-                    f"Debug build succeeded but binaries not found in {debug_dir}. "
-                    f"Project '{self.project_name}' may not respect $OUT environment variable. "
-                    f"Check build.sh for hardcoded output paths like '/out' instead of '$OUT'."
-                )
-        
-        return result
+        return self._run_helper_cmd(cmd, env_helper=env_helper)
 
     @read_write_decorator
     def build_fuzzers_with_cache(

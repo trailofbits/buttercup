@@ -6,7 +6,7 @@ from pathlib import Path
 
 from buttercup.common.build_selection import SelectedBuild, select_build_for_harness
 from buttercup.common.challenge_task import ChallengeTask, ReproduceResult
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,14 @@ class ReproduceMultiple:
         if self.builds_cache is None:
             raise RuntimeError("Build cache is not populated")
         for build, task in zip(self.build_outputs, self.builds_cache, strict=False):
+            # Skip FUZZER_DEBUG builds when testing PoVs - they don't have sanitizers
+            # and won't detect bugs. FUZZER_DEBUG is only for interactive debugging.
+            if build.build_type == BuildType.FUZZER_DEBUG:
+                logger.debug(
+                    f"Skipping FUZZER_DEBUG build for PoV testing (task_id: {build.task_id}). "
+                    f"Debug builds don't have sanitizers and won't detect bugs."
+                )
+                continue
             yield (build, task.reproduce_pov(harness_name, pov))
 
     def get_first_crash(self, pov: Path, harness_name: str) -> tuple[BuildOutput, ReproduceResult] | None:

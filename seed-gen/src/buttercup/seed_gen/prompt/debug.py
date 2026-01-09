@@ -20,6 +20,7 @@ Use these tools to gather context about:
 - Code paths that the PoV input should trigger
 - Variables and data structures relevant to exploitation
 - Validation checks and bounds that might affect exploitation
+- Ensure you get the actual symbol names for any functions that may be needed to debug the PoV.
 
 Focus on gathering information that will help understand:
 1. How the input flows through the program
@@ -307,9 +308,20 @@ Debug goal: {debug_context}
 
 Analysis: {analysis}
 
+Old debug attempt (no state carries over, you are restarting a fresh debug session):
 {prev_debug_attempt}
 
 Based on the session history, suggest the NEXT GDB command or set of commands to run. 
+
+**DEBUGGING WORKFLOW**:
+- If the program hasn't been started yet (session history is empty or shows no `run` command):
+  1. First set breakpoints where you want to inspect state (e.g., `break LLVMFuzzerTestOneInput` or `break png_handle_iCCP`)
+  2. Then use `run` with NO ARGUMENTS to start the program (args are already configured)
+  3. Wait for it to hit a breakpoint before inspecting variables - you CANNOT inspect variables before the program starts!
+- Once the program is running and has hit a breakpoint, you can inspect variables, memory, call stacks, etc.
+- If the program exited or crashed, you may need to restart with `run` and different breakpoints
+
+**COMMAND GUIDELINES**:
 - Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
 - The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
 - Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers, info functions <pattern>
@@ -317,7 +329,7 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
 - Be aware that symbol names may not be avaliable, or may be modified by the compiler. This is especially true for functions.
 - To find actual symbol names in the binary, you can use the GDB command: `info functions <pattern>` (e.g., `info functions png_inflate`)
 - If this function lookup fails, use the file name and line number from the CodeSnippet objects in the retrieved context to set breakpoints (e.g., `break file.c:123`), but be aware that this may not always be accurate
-- We have set the session up such that the seed file is already loaded as an arg, and the correct binary is indicated. Dont attempt to load more args as the path may be wrong.
+- **CRITICAL**: The binary and seed file are already configured via --args. Use `run` with NO ARGUMENTS. Do NOT use `run <file>` as this will override the pre-configured arguments and cause the fuzzer to receive invalid input data.
 - We have also added the quality of life settings already:
 ```gdb
 set breakpoint pending on
@@ -350,6 +362,7 @@ Consider:
 2. Are there unanswered questions or unclear results from the batch script output?
 3. Would interactive debugging (where you can dynamically explore based on what you see) help clarify the situation?
 4. Is the PoV validation status clear, or do we need more investigation?
+5. Unless you know for sure why the PoV is not crashing, respond with "yes" to continue with interactive debugging.
 
 Respond with ONLY "yes" or "no" (lowercase, no quotes, no punctuation, no explanation).
 - "yes" if an interactive debugging session would be beneficial

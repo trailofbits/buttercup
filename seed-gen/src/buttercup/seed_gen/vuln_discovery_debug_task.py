@@ -243,12 +243,21 @@ When writing new PoVs:
         logger.info("Searching for PoVs with pattern: %s (using previous iteration %d, current is %d)", 
                    search_pattern, previous_iteration, state.pov_iteration)
         
-        failed_povs = []
-        for pov_file in state.output_dir.glob(search_pattern):
+        # Sort by modification time (newest first) to get the most recently generated PoVs
+        # This prevents picking up stale files from previous runs
+        failed_povs = sorted(
+            state.output_dir.glob(search_pattern),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
+        
+        for pov_file in failed_povs:
             # Check if this PoV actually failed (not valid)
             # We can't easily check this here, so we'll debug the first one
-            logger.info("Found potential failed PoV: %s (size: %d bytes)", pov_file.name, pov_file.stat().st_size if pov_file.exists() else 0)
-            failed_povs.append(pov_file)
+            logger.info("Found potential failed PoV: %s (size: %d bytes, mtime: %.2f)", 
+                       pov_file.name, 
+                       pov_file.stat().st_size if pov_file.exists() else 0,
+                       pov_file.stat().st_mtime if pov_file.exists() else 0)
         
         logger.info("Total failed PoVs found: %d", len(failed_povs))
         

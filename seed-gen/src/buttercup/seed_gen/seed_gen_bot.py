@@ -88,7 +88,7 @@ class SeedGenBot(TaskLoop):
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
-        return [BuildType.FUZZER]
+        return [BuildType.FUZZER, BuildType.FUZZER_DEBUG]
 
     def sample_task(self, task: WeightedHarness, is_delta: bool) -> str:
         """Sample a task to run
@@ -213,7 +213,8 @@ class SeedGenBot(TaskLoop):
             elif task_choice == TaskName.VULN_DISCOVERY.value:
                 sarif_store = SARIFStore(self.redis)
                 sarifs = sarif_store.get_by_task_id(challenge_task.task_meta.task_id)
-                fbuilds = builds[BuildType.FUZZER]
+                # Include both FUZZER and FUZZER_DEBUG builds
+                fbuilds = builds[BuildType.FUZZER] + builds.get(BuildType.FUZZER_DEBUG, [])
                 reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
                 crash_submit = CrashSubmit(
                     crash_queue=self.crash_queue,

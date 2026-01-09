@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,10 @@ def select_build_for_harness(
     """Select the best build that contains the specified harness.
     
     Selection priority:
-    1. Preferred sanitizer build with harness (default: address)
-    2. Any build with harness
-    3. First build (fallback)
+    1. FUZZER_DEBUG build with harness (best for debugging - has debug symbols, no sanitizer)
+    2. Preferred sanitizer build with harness (default: address)
+    3. Any build with harness
+    4. First build (fallback)
     
     Args:
         build_outputs: List of build outputs
@@ -46,7 +47,24 @@ def select_build_for_harness(
     if not builds_cache:
         return None
     
-    # First, try to find preferred sanitizer build with the harness
+    # First, try to find FUZZER_DEBUG build (best for debugging)
+    for build, cached_task in zip(build_outputs, builds_cache, strict=False):
+        if build.build_type == BuildType.FUZZER_DEBUG:
+            if _has_harness_in_build(cached_task, harness_name, is_debug_build=True):
+                logger.info(
+                    f"Using FUZZER_DEBUG build with harness '{harness_name}' "
+                    f"(task_id: {build.task_id})"
+                )
+                binary_path, binary_name = resolve_actual_binary(cached_task, harness_name, using_debug=True, is_fuzzer_debug=True)
+                return SelectedBuild(
+                    build_output=build,
+                    task=cached_task,
+                    using_debug=True,
+                    binary_path=binary_path,
+                    binary_name=binary_name,
+                )
+    
+    # Second, try to find preferred sanitizer build with the harness
     for build, cached_task in zip(build_outputs, builds_cache, strict=False):
         if build.sanitizer == prefer_sanitizer:
             if _has_harness(cached_task, harness_name):
@@ -117,6 +135,32 @@ def _has_harness(task: ChallengeTask, harness_name: str) -> bool:
     )
 
 
+def _has_harness_in_build(task: ChallengeTask, harness_name: str, is_debug_build: bool = False) -> bool:
+    """Check if task has the specified harness in a specific build type.
+    
+    Args:
+        task: ChallengeTask with the build
+        harness_name: Name of the harness
+        is_debug_build: If True, check in /out (FUZZER_DEBUG build), 
+                       otherwise check in /out or /out/debug (legacy)
+    """
+    build_dir = task.get_build_dir()
+    if not build_dir or not build_dir.exists():
+        return False
+    
+    if is_debug_build:
+        # FUZZER_DEBUG builds output to /out (same as regular builds)
+        return (build_dir / harness_name).exists()
+    else:
+        # Legacy: check both /out and /out/debug
+        regular_binary_path = build_dir / harness_name
+        debug_binary_path = task.get_debug_binary_path(harness_name)
+        return (
+            regular_binary_path.exists()
+            or (debug_binary_path and debug_binary_path.exists())
+        )
+
+
 def _has_debug_binary(task: ChallengeTask, harness_name: str) -> bool:
     """Check if task has debug binary for the harness"""
     debug_binary_path = task.get_debug_binary_path(harness_name)
@@ -127,6 +171,7 @@ def resolve_actual_binary(
     task: ChallengeTask,
     harness_name: str,
     using_debug: bool,
+    is_fuzzer_debug: bool = False,
 ) -> tuple[Path, str]:
     """Resolve the actual binary path, handling wrapper scripts.
     
@@ -137,6 +182,7 @@ def resolve_actual_binary(
         task: ChallengeTask with the build
         harness_name: Name of the harness
         using_debug: Whether to use debug binary
+        is_fuzzer_debug: If True, this is a FUZZER_DEBUG build (binary in /out, not /out/debug)
         
     Returns:
         Tuple of (binary_path, binary_name)
@@ -147,7 +193,9 @@ def resolve_actual_binary(
     
     # Get initial binary path
     if using_debug:
-        harness_binary_path = task.get_debug_binary_path(harness_name)
+        # FUZZER_DEBUG builds output to /out (same as regular builds)
+        harness_binary_path = build_dir / harness_name
+        
         if not harness_binary_path or not harness_binary_path.exists():
             raise ValueError(f"Debug binary not found for harness: {harness_name}")
     else:

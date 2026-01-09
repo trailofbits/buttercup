@@ -12,6 +12,7 @@ class BuildType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COVERAGE: _ClassVar[BuildType]
     TRACER_NO_DIFF: _ClassVar[BuildType]
     PATCH: _ClassVar[BuildType]
+    FUZZER_DEBUG: _ClassVar[BuildType]
 
 class SubmissionResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
