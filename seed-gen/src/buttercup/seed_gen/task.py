@@ -26,6 +26,7 @@ from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
+from buttercup.common.reproduce_multiple import ReproduceMultiple
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ class Task:
         self.llm_with_tools = self.llm.bind_tools(self.tools)
 
     def get_debug_tools(self) -> list[BaseTool]:
-        """Get tools for debug subagents, including grep."""
+        """Get tools for debug subagents, including grep and symbol lookup."""
         return [
             get_function_definition,
             get_type_definition,
@@ -127,6 +128,7 @@ class Task:
             cat,
             get_callers,
             grep,
+            lookup_symbols,
         ]
 
     @staticmethod
@@ -550,6 +552,227 @@ class Task:
             },
         )
 
+    @staticmethod
+    def _lookup_symbols(
+        function_patterns: list[str],
+        state: "BaseTaskState",
+        tool_call_id: str,
+    ) -> Command:
+        """Look up function symbols in the binary using GDB"""
+        # Limit to 20 patterns
+        if len(function_patterns) > 20:
+            function_patterns = function_patterns[:20]
+            logger.warning("Limiting symbol lookup to first 20 patterns")
+        
+        logger.info("Tool call: lookup_symbols for patterns %s", function_patterns)
+        call = f'lookup_symbols({function_patterns})'
+        
+        # Check cache to avoid redundant lookups
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Symbol lookup for {function_patterns} already retrieved",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        
+        # Get task and harness info
+        task = state.task
+        harness_name = state.harness.harness_name if hasattr(state, 'harness') else task.harness_name
+        
+        # Get binary path - need to access reproduce_multiple
+        reproduce_multiple = task.challenge_task.get_reproduce_multiple()
+        
+        try:
+            with reproduce_multiple.open() as mult:
+                if not mult.builds_cache:
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    "Build cache not available for symbol lookup",
+                                    tool_call_id=tool_call_id,
+                                ),
+                            ],
+                        },
+                    )
+                
+                cached_task = mult.builds_cache[0]
+                build_dir = cached_task.get_build_dir()
+                if not build_dir or not build_dir.exists():
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    "Build directory not found for symbol lookup",
+                                    tool_call_id=tool_call_id,
+                                ),
+                            ],
+                        },
+                    )
+                
+                # Try debug binary first, fallback to regular
+                debug_binary = cached_task.get_debug_binary_path(harness_name)
+                if debug_binary and debug_binary.exists():
+                    binary_path = debug_binary
+                    using_debug = True
+                else:
+                    binary_path = build_dir / harness_name
+                    using_debug = False
+                    if not binary_path.exists():
+                        return Command(
+                            update={
+                                "messages": [
+                                    ToolMessage(
+                                        f"Binary not found at {binary_path}",
+                                        tool_call_id=tool_call_id,
+                                    ),
+                                ],
+                            },
+                        )
+                
+                # Mount directories for GDB
+                project_name = build_dir.name
+                out_dir = build_dir.parent
+                mount_dirs = {out_dir: Path("/builds")}
+                
+                if using_debug:
+                    container_binary = f"/builds/{project_name}/debug/{harness_name}"
+                else:
+                    container_binary = f"/builds/{project_name}/{harness_name}"
+                
+                # Run GDB with commands passed directly via -ex flags
+                # This avoids needing to mount a script file and dealing with docker-in-docker complexity
+                gdb_cmd = ["gdb", "-batch"]
+                
+                # Add an info functions command for each pattern
+                for pattern in function_patterns:
+                    gdb_cmd.extend(["-ex", f"info functions {pattern}"])
+                
+                gdb_cmd.extend(["-ex", "quit", container_binary])
+                
+                result = cached_task.exec_docker_cmd(
+                    gdb_cmd,
+                    mount_dirs=mount_dirs,
+                    container_image="gcr.io/oss-fuzz-base/base-runner-debug",
+                )
+                
+                if not result.success:
+                    error_msg = result.error.decode('utf-8', errors='ignore')[:500] if result.error else "Unknown error"
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    f"GDB symbol lookup failed: {error_msg}",
+                                    tool_call_id=tool_call_id,
+                                ),
+                            ],
+                        },
+                    )
+                
+                output = result.output.decode("utf-8", errors="ignore")
+                
+                # Parse the output to extract function names
+                # GDB runs multiple info functions commands, so we organize output by pattern
+                all_functions = []
+                current_pattern_idx = 0
+                pattern_results = {pattern: [] for pattern in function_patterns}
+                current_pattern = function_patterns[0] if function_patterns else ""
+                
+                for line in output.splitlines():
+                    # Detect when GDB moves to the next pattern by looking for "All functions matching"
+                    if line.startswith("All functions matching"):
+                        # Extract the pattern from the line if possible
+                        match = re.search(r"All functions matching '([^']+)'", line)
+                        if match and current_pattern_idx < len(function_patterns) - 1:
+                            current_pattern_idx += 1
+                            current_pattern = function_patterns[current_pattern_idx]
+                        continue
+                    
+                    # Skip header and empty lines
+                    if line.startswith("File ") or not line.strip():
+                        continue
+                    
+                    # Extract lines that look like function definitions
+                    # Format is typically: line_num:   return_type function_name(args);
+                    # Or just: return_type function_name(args);
+                    if '(' in line or 'function' in line.lower():
+                        func_line = line.strip()
+                        pattern_results[current_pattern].append(func_line)
+                        all_functions.append(func_line)
+                
+                # Limit output to prevent overwhelming context
+                MAX_SYMBOLS = 100
+                truncated_msg = ""
+                total_found = len(all_functions)
+                
+                if total_found > MAX_SYMBOLS:
+                    # Truncate proportionally across patterns
+                    truncated_msg = f"\n\n... {total_found - MAX_SYMBOLS} more matches not shown. Refine your patterns for more specific results."
+                    all_functions = all_functions[:MAX_SYMBOLS]
+                
+                if all_functions:
+                    # Organize output by pattern if multiple patterns were searched
+                    if len(function_patterns) > 1:
+                        symbol_lines = []
+                        for pattern in function_patterns:
+                            funcs = pattern_results[pattern]
+                            if funcs:
+                                # Show first N matches for this pattern
+                                funcs_to_show = funcs[:50]
+                                symbol_lines.append(f"=== Pattern: {pattern} ({len(funcs)} matches) ===")
+                                symbol_lines.extend(funcs_to_show)
+                                if len(funcs) > 50:
+                                    symbol_lines.append(f"... {len(funcs) - 50} more matches for this pattern")
+                                symbol_lines.append("")  # Blank line between patterns
+                        symbol_output = "\n".join(symbol_lines).rstrip() + truncated_msg
+                    else:
+                        symbol_output = "\n".join(all_functions) + truncated_msg
+                    
+                    message = f"Found {total_found} matching symbols across {len(function_patterns)} pattern(s)"
+                    if total_found > MAX_SYMBOLS:
+                        message += f" (showing first {MAX_SYMBOLS})"
+                else:
+                    symbol_output = "No matching symbols found. The functions may not exist, or try different patterns."
+                    message = "No matching symbols found"
+                
+                # Create a code snippet with the results
+                results = [CodeSnippet(
+                    file_path=Path(f"symbols_{harness_name}"),
+                    code=symbol_output,
+                    start_line=1,
+                    end_line=len(symbol_output.splitlines())
+                )]
+                call_result = ToolCallResult(call=call, results=results)
+                
+                return Command(
+                    update={
+                        "messages": [
+                            ToolMessage(
+                                message,
+                                tool_call_id=tool_call_id,
+                            ),
+                        ],
+                        "retrieved_context": {call: call_result},
+                    },
+                )
+        except Exception as e:
+            logger.error(f"Error during symbol lookup: {e}")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Symbol lookup failed with error: {str(e)}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+
     def _do_get_callers(
         self,
         function_name: str,
@@ -684,6 +907,39 @@ def get_type_definition(
 
 
 @tool
+def lookup_symbols(
+    function_patterns: list[str],
+    *,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Look up function symbols in the binary using GDB's info functions command.
+    
+    This helps find the actual symbol names when functions might be mangled (C++)
+    or modified by compiler instrumentation (coverage, sanitizers).
+    
+    Use this tool when you need to set breakpoints on functions but aren't sure of
+    the exact symbol name in the binary. This is especially useful for:
+    - C++ functions that may be name-mangled
+    - Functions modified by sanitizer instrumentation
+    - Functions with compiler-added prefixes/suffixes
+    
+    Args:
+        function_patterns: List of function names or regex patterns to search for (max 20).
+                          Examples: ["png_inflate", "decode_*", ".*process.*"]
+    
+    Returns:
+        List of matching function symbols as they appear in the binary
+    
+    Examples:
+        lookup_symbols(["png_inflate"])  # Find functions with "png_inflate" in name
+        lookup_symbols(["^png_", "^decode_"])  # Multiple patterns
+    """
+    assert isinstance(state, BaseTaskState)
+    return Task._lookup_symbols(function_patterns, state, tool_call_id)
+
+
+@tool
 def batch_tool(
     tool_calls: BatchToolCalls,
     *,
@@ -727,6 +983,10 @@ def batch_tool(
             pattern = call.arguments["pattern"]
             file_path = call.arguments.get("file_path")  # Optional, can be None
             result = Task._grep(pattern, file_path, state, tool_call_id)
+            results.append(result)
+        elif call.tool_name == "lookup_symbols" and "function_pattern" in call.arguments:
+            function_pattern = call.arguments["function_pattern"]
+            result = Task._lookup_symbols(function_pattern, state, tool_call_id)
             results.append(result)
         else:
             logger.warning("Invalid tool call: %s args: %s", call.tool_name, call.arguments)

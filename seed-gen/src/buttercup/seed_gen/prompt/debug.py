@@ -12,6 +12,7 @@ You have access to tools that let you:
 - Get callers of functions
 - Grep for text in files
 - Batch multiple tool calls
+- **Look up function symbols in the binary** (lookup_symbols) - use this to find actual symbol names when functions might be mangled or modified by compiler. Can look up multiple patterns at once (up to 20)
 
 Use these tools to gather context about:
 - The harness function and how it processes input
@@ -311,9 +312,11 @@ Analysis: {analysis}
 Based on the session history, suggest the NEXT GDB command or set of commands to run. 
 - Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
 - The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
-- Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers
+- Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers, info functions <pattern>
 - If you've gathered enough information, respond with 'quit'
-- Be aware that symbol names may not be avaliable, or may be modified by the compiler. This is especially true for functions, so USE THE FILE NAMES AND LINE NUMBERS INSTEAD OF FUNCTION NAMES from the CodeSnippet objects in the retrieved context to determine these.
+- Be aware that symbol names may not be avaliable, or may be modified by the compiler. This is especially true for functions.
+- To find actual symbol names in the binary, you can use the GDB command: `info functions <pattern>` (e.g., `info functions png_inflate`)
+- If this function lookup fails, use the file name and line number from the CodeSnippet objects in the retrieved context to set breakpoints (e.g., `break file.c:123`), but be aware that this may not always be accurate
 - We have set the session up such that the seed file is already loaded as an arg, and the correct binary is indicated. Dont attempt to load more args as the path may be wrong.
 - We have also added the quality of life settings already:
 ```gdb
@@ -331,9 +334,6 @@ DEBUG_INTERACTIVE_COMMAND_USER_PROMPT = """Harness:
 
 Session history:
 {session_history}
-
-Previous command output:
-{prev_cmd_output}
 
 Commands remaining: {commands_remaining}
 
