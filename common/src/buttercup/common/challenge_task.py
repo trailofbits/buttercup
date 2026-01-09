@@ -790,6 +790,18 @@ class ChallengeTask:
         logger.info(f"Building with debug symbols using source directory: {source_path}")
         result = self._run_helper_cmd(cmd, env_helper=env_helper)
         
+        # Post-build validation: Check if debug binaries were written to expected location
+        if result.success and build_dir:
+            debug_dir = build_dir / "debug"
+            if debug_dir.exists() and any(debug_dir.iterdir()):
+                logger.info(f"Debug binaries successfully written to {debug_dir}")
+            else:
+                logger.warning(
+                    f"Debug build succeeded but binaries not found in {debug_dir}. "
+                    f"Project '{self.project_name}' may not respect $OUT environment variable. "
+                    f"Check build.sh for hardcoded output paths like '/out' instead of '$OUT'."
+                )
+        
         return result
 
     @read_write_decorator
