@@ -589,7 +589,9 @@ class Task:
         
         try:
             with reproduce_multiple.open() as mult:
-                if not mult.builds_cache:
+                # Select best build for the harness
+                selected = mult.select_build_for_harness(harness_name)
+                if selected is None:
                     return Command(
                         update={
                             "messages": [
@@ -601,7 +603,7 @@ class Task:
                         },
                     )
                 
-                cached_task = mult.builds_cache[0]
+                cached_task = selected.task
                 build_dir = cached_task.get_build_dir()
                 if not build_dir or not build_dir.exists():
                     return Command(
@@ -615,14 +617,12 @@ class Task:
                         },
                     )
                 
-                # Try debug binary first, fallback to regular
-                debug_binary = cached_task.get_debug_binary_path(harness_name)
-                if debug_binary and debug_binary.exists():
-                    binary_path = debug_binary
-                    using_debug = True
+                # Use the selected build's binary determination
+                using_debug = selected.using_debug
+                if using_debug:
+                    binary_path = cached_task.get_debug_binary_path(harness_name)
                 else:
                     binary_path = build_dir / harness_name
-                    using_debug = False
                     if not binary_path.exists():
                         return Command(
                             update={

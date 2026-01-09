@@ -590,52 +590,14 @@ Please gather more context about the codebase that will help with debugging.
         """
         # Get a writable copy of the task
         with self.reproduce_multiple.open() as mult:
-            if mult.builds_cache is None or not mult.builds_cache:
-                raise ValueError("Build cache not available")
-            
-            # Use the harness name from the PoV's harness (not self.task.harness_name)
-            # This ensures we debug with the same harness the PoV was generated for
-            
             # Select a build that contains the harness binary
             # Prefer address sanitizer builds, but verify the harness exists in the selected build
-            # All builds for the same project share the same build directory,
-            # but we prefer asan since it's most common and provides better crash detection
-            task = None
-            selected_build = None
+            selected = mult.select_build_for_harness(harness_name)
+            if selected is None:
+                raise ValueError("Build cache not available")
             
-            # First, try to find an address sanitizer build with the harness
-            for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
-                if build.sanitizer == "address":
-                    build_dir = cached_task.get_build_dir()
-                    if build_dir and build_dir.exists():
-                        # Check if harness exists (debug or regular binary)
-                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
-                        regular_binary_path = build_dir / harness_name
-                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
-                            task = cached_task
-                            selected_build = build
-                            logger.info(f"Using address sanitizer build with harness '{harness_name}' (task_id: {build.task_id})")
-                            break
-            
-            # If no asan build with harness found, try any build with the harness
-            if task is None:
-                for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
-                    build_dir = cached_task.get_build_dir()
-                    if build_dir and build_dir.exists():
-                        # Check if harness exists (debug or regular binary)
-                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
-                        regular_binary_path = build_dir / harness_name
-                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
-                            task = cached_task
-                            selected_build = build
-                            logger.info(f"Using build with harness '{harness_name}' (task_id: {build.task_id}, sanitizer: {build.sanitizer})")
-                            break
-            
-            # If still no build found, fallback to first build (will fail later if harness doesn't exist)
-            if task is None:
-                task = mult.builds_cache[0]
-                selected_build = mult.build_outputs[0]
-                logger.warning(f"No build found with harness '{harness_name}', using first build (task_id: {selected_build.task_id}). This may fail if harness doesn't exist.")
+            task = selected.task
+            selected_build = selected.build_output
             
             # Determine the debug container image
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
@@ -666,111 +628,16 @@ Please gather more context about the codebase that will help with debugging.
                 files_in_build = list(build_dir.iterdir())[:10]  # First 10 files
                 logger.info(f"Files in build_dir: {[f.name for f in files_in_build]}")
             
-            # Try to use debug binary first (with full debug symbols), fallback to regular binary
-            debug_binary_path = task.get_debug_binary_path(harness_name)
-            using_debug_binary = False
-            if debug_binary_path and debug_binary_path.exists():
-                harness_binary_path = debug_binary_path
-                using_debug_binary = True
-                logger.info(f"Using debug binary with full symbols: {harness_binary_path}")
-            else:
-                # Fallback to regular production binary
-                harness_binary_path = build_dir / harness_name
-                if not harness_binary_path.exists():
-                    available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
-                    raise ValueError(
-                        f"Harness binary '{harness_name}' not found in {build_dir}. "
-                        f"Available files: {available_files}"
-                    )
-                logger.info(f"Using regular production binary (debug binary not available): {harness_binary_path}")
+            # Use the resolved binary from the selected build
+            # The selection process already resolved the actual binary (handling wrappers, etc.)
+            if selected.binary_path is None or selected.binary_name is None:
+                raise ValueError(f"Failed to resolve binary path for harness '{harness_name}'")
             
-            # Ensure the binary has execute permissions
-            current_perms = harness_binary_path.stat().st_mode
-            harness_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            using_debug_binary = selected.using_debug
+            harness_binary_path = selected.binary_path
+            harness_name_for_path = selected.binary_name
             
-            # Read first 4 bytes to check if it's an ELF binary (magic: 7f 45 4c 46)
-            try:
-                with open(harness_binary_path, 'rb') as f:
-                    magic = f.read(4)
-                    is_elf = magic == b'\x7fELF'
-            except Exception:
-                is_elf = False
-            
-            binary_size = harness_binary_path.stat().st_size
-            logger.info(f"Found harness binary: {harness_binary_path}")
-            logger.info(f"  Permissions: {oct(harness_binary_path.stat().st_mode)}")
-            logger.info(f"  Size: {binary_size} bytes")
-            logger.info(f"  Is ELF binary: {is_elf}")
-            
-            
-            # If the file is not an ELF binary or is suspiciously small, it might be a wrapper script
-            # Try to find the actual binary. Wrapper scripts often have suffixes like _nalloc, _asan, etc.
-            # The actual binary is usually the base harness name without the suffix
-            actual_binary_path = harness_binary_path
-            actual_binary_name = harness_name
-            if not is_elf or binary_size < 1024:
-                logger.warning(
-                    f"File '{harness_name}' appears to be a wrapper script (size={binary_size}, is_elf={is_elf}). "
-                    f"Searching for actual ELF binary..."
-                )
-                
-                # Try to find the actual binary by looking for ELF files in the build directory
-                # Priority: 1) Base name without suffix, 2) Any ELF file with base name as prefix
-                base_name = harness_name
-                # Remove common sanitizer suffixes
-                for suffix in ['_nalloc', '_asan', '_msan', '_ubsan', '_tsan', '_hwasan']:
-                    if base_name.endswith(suffix):
-                        base_name = base_name[:-len(suffix)]
-                        break
-                
-                # First, try the base name directly
-                candidate_path = build_dir / base_name
-                if candidate_path.exists() and candidate_path.is_file():
-                    try:
-                        with open(candidate_path, 'rb') as f:
-                            candidate_magic = f.read(4)
-                            candidate_is_elf = candidate_magic == b'\x7fELF'
-                        candidate_size = candidate_path.stat().st_size
-                        if candidate_is_elf and candidate_size > 1024:
-                            logger.info(
-                                f"Found actual binary: {base_name} (size={candidate_size}, is_elf={candidate_is_elf}). "
-                                f"Using this instead of wrapper '{harness_name}'."
-                            )
-                            actual_binary_path = candidate_path
-                            actual_binary_name = base_name
-                            # Set execute permissions
-                            current_perms = actual_binary_path.stat().st_mode
-                            actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-                    except Exception as e:
-                        logger.debug(f"Error checking candidate {base_name}: {e}")
-                
-                # If base name didn't work, search for any ELF file with base name as prefix
-                if actual_binary_path == harness_binary_path and build_dir.is_dir():
-                    for candidate in build_dir.iterdir():
-                        if candidate.is_file() and candidate != harness_binary_path:
-                            if candidate.name.startswith(base_name):
-                                try:
-                                    with open(candidate, 'rb') as f:
-                                        candidate_magic = f.read(4)
-                                        candidate_is_elf = candidate_magic == b'\x7fELF'
-                                    candidate_size = candidate.stat().st_size
-                                    if candidate_is_elf and candidate_size > 1024:
-                                        logger.info(
-                                            f"Found actual binary: {candidate.name} (size={candidate_size}, is_elf={candidate_is_elf}). "
-                                            f"Using this instead of wrapper '{harness_name}'."
-                                        )
-                                        actual_binary_path = candidate
-                                        actual_binary_name = candidate.name
-                                        # Set execute permissions
-                                        current_perms = actual_binary_path.stat().st_mode
-                                        actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-                                        break
-                                except Exception:
-                                    pass
-            
-            # Use the actual binary (or original if it was already valid)
-            harness_binary_path = actual_binary_path
-            harness_name_for_path = actual_binary_name
+            logger.info(f"Using {'debug' if using_debug_binary else 'regular'} binary: {harness_binary_path}")
             
             # Mount files for Docker
             # Use unique paths to avoid conflicts with existing directories in the container
@@ -1004,58 +871,20 @@ Please gather more context about the codebase that will help with debugging.
             
             # Select a build that contains the harness binary
             # Prefer address sanitizer builds, but verify the harness exists in the selected build
-            # All builds for the same project share the same build directory,
-            # but we prefer asan since it's most common and provides better crash detection
-            task = None
-            selected_build = None
+            selected = mult.select_build_for_harness(harness_name)
+            if selected is None:
+                raise ValueError("Build cache not available")
             
-            # First, try to find an address sanitizer build with the harness
-            for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
-                if build.sanitizer == "address":
-                    build_dir = cached_task.get_build_dir()
-                    if build_dir and build_dir.exists():
-                        # Check if harness exists (debug or regular binary)
-                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
-                        regular_binary_path = build_dir / harness_name
-                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
-                            task = cached_task
-                            selected_build = build
-                            logger.info(f"Using address sanitizer build with harness '{harness_name}' (task_id: {build.task_id})")
-                            break
-            
-            # If no asan build with harness found, try any build with the harness
-            if task is None:
-                for build, cached_task in zip(mult.build_outputs, mult.builds_cache, strict=False):
-                    build_dir = cached_task.get_build_dir()
-                    if build_dir and build_dir.exists():
-                        # Check if harness exists (debug or regular binary)
-                        debug_binary_path = cached_task.get_debug_binary_path(harness_name)
-                        regular_binary_path = build_dir / harness_name
-                        if (debug_binary_path and debug_binary_path.exists()) or regular_binary_path.exists():
-                            task = cached_task
-                            selected_build = build
-                            logger.info(f"Using build with harness '{harness_name}' (task_id: {build.task_id}, sanitizer: {build.sanitizer})")
-                            break
-            
-            # If still no build found, fallback to first build (will fail later if harness doesn't exist)
-            if task is None:
-                task = mult.builds_cache[0]
-                selected_build = mult.build_outputs[0]
-                logger.warning(f"No build found with harness '{harness_name}', using first build (task_id: {selected_build.task_id}). This may fail if harness doesn't exist.")
+            task = selected.task
+            selected_build = selected.build_output
+            using_debug_binary = selected.using_debug
             
             debug_container_image = "gcr.io/oss-fuzz-base/base-runner-debug"
 
             # Resolve paths
-            logger.info(f"Pre-resolve PoV input path: {pov_input_path} (is_absolute: {pov_input_path.is_absolute()})")
             pov_input_path = pov_input_path.resolve()
-            logger.info(f"Post-resolve PoV input path: {pov_input_path}")
             
             # Verify PoV input file exists and is accessible
-            logger.info(f"Verifying PoV input file before Docker mount:")
-            logger.info(f"  Path: {pov_input_path}")
-            logger.info(f"  Exists: {pov_input_path.exists()}")
-            logger.info(f"  Is file: {pov_input_path.is_file()}")
-            logger.info(f"  Is directory: {pov_input_path.is_dir()}")
             if not pov_input_path.exists():
                 raise ValueError(f"PoV input file does not exist: {pov_input_path}")
             if not pov_input_path.is_file():
@@ -1069,45 +898,28 @@ Please gather more context about the codebase that will help with debugging.
             if not build_dir or not build_dir.exists():
                 raise ValueError(f"Build directory not found or doesn't exist: {build_dir}")
             
-            # Try to use debug binary first, fallback to regular binary
-            debug_binary_path = task.get_debug_binary_path(harness_name)
-            using_debug_binary = False
-            if debug_binary_path and debug_binary_path.exists():
-                harness_binary_path = debug_binary_path
-                using_debug_binary = True
-                logger.info(f"Using debug binary with full symbols: {harness_binary_path}")
-            else:
-                harness_binary_path = build_dir / harness_name
-                if not harness_binary_path.exists():
-                    available_files = [f.name for f in build_dir.iterdir()] if build_dir.is_dir() else []
-                    raise ValueError(
-                        f"Harness binary '{harness_name}' not found in {build_dir}. "
-                        f"Available files: {available_files}"
-                    )
-                logger.info(f"Using regular production binary (debug binary not available): {harness_binary_path}")
+            # Use the resolved binary from the selected build
+            # The selection process already resolved the actual binary (handling wrappers, etc.)
+            if selected.binary_path is None or selected.binary_name is None:
+                raise ValueError(f"Failed to resolve binary path for harness '{harness_name}'")
             
-            # Ensure binary has execute permissions
-            current_perms = harness_binary_path.stat().st_mode
-            harness_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            using_debug_binary = selected.using_debug
+            harness_binary_path = selected.binary_path
+            harness_name_for_path = selected.binary_name
+            
+            logger.info(f"Using {'debug' if using_debug_binary else 'regular'} binary: {harness_binary_path}")
             
             # Determine binary path in container
             project_name = build_dir.name
             if using_debug_binary:
-                binary_path = f"/out/{project_name}/debug/{harness_name}"
+                binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
             else:
-                binary_path = f"/out/{project_name}/{harness_name}"
+                binary_path = f"/out/{project_name}/{harness_name_for_path}"
             
             # Set up mount directories
             pov_input_parent = pov_input_path.parent
             pov_input_container_path = f"/work/{pov_input_path.name}"
             out_dir = build_dir.parent
-            
-            logger.info(f"Container paths (targets in container):")
-            logger.info(f"  PoV input: {pov_input_container_path}")
-            logger.info(f"  Binary: {binary_path}")
-            logger.info(f"  PoV input parent (host): {pov_input_parent}")
-            logger.info(f"  PoV input parent (container): /work")
-            logger.info(f"  PoV input file name: {pov_input_path.name}")
             
             mount_dirs = {
                 pov_input_parent: Path("/work"),
@@ -1116,7 +928,7 @@ Please gather more context about the codebase that will help with debugging.
                 mount_dirs[out_dir] = Path("/out")
             else:
                 mount_dirs[build_dir] = Path("/out")
-                binary_path = f"/out/{harness_name}"
+                binary_path = f"/out/{harness_name_for_path}"
             
             source_path = task.get_source_path()
             if source_path and source_path.exists():
@@ -1129,99 +941,6 @@ Please gather more context about the codebase that will help with debugging.
             for host_path, container_path in mount_dirs.items():
                 logger.info(f"  {host_path} -> {container_path}")
 
-            # Read first 4 bytes to check if it's an ELF binary (magic: 7f 45 4c 46)
-            try:
-                with open(harness_binary_path, 'rb') as f:
-                    magic = f.read(4)
-                    is_elf = magic == b'\x7fELF'
-            except Exception:
-                is_elf = False
-            
-            binary_size = harness_binary_path.stat().st_size
-            logger.info(f"Found harness binary: {harness_binary_path}")
-            logger.info(f"  Permissions: {oct(harness_binary_path.stat().st_mode)}")
-            logger.info(f"  Size: {binary_size} bytes")
-            logger.info(f"  Is ELF binary: {is_elf}")
-            
-            
-            # If the file is not an ELF binary or is suspiciously small, it might be a wrapper script
-            # Try to find the actual binary. Wrapper scripts often have suffixes like _nalloc, _asan, etc.
-            # The actual binary is usually the base harness name without the suffix
-            actual_binary_path = harness_binary_path
-            actual_binary_name = harness_name
-            if not is_elf or binary_size < 1024:
-                logger.warning(
-                    f"File '{harness_name}' appears to be a wrapper script (size={binary_size}, is_elf={is_elf}). "
-                    f"Searching for actual ELF binary..."
-                )
-                
-                # Try to find the actual binary by looking for ELF files in the build directory
-                # Priority: 1) Base name without suffix, 2) Any ELF file with base name as prefix
-                base_name = harness_name
-                # Remove common sanitizer suffixes
-                for suffix in ['_nalloc', '_asan', '_msan', '_ubsan', '_tsan', '_hwasan']:
-                    if base_name.endswith(suffix):
-                        base_name = base_name[:-len(suffix)]
-                        break
-                
-                # First, try the base name directly
-                candidate_path = build_dir / base_name
-                if candidate_path.exists() and candidate_path.is_file():
-                    try:
-                        with open(candidate_path, 'rb') as f:
-                            candidate_magic = f.read(4)
-                            candidate_is_elf = candidate_magic == b'\x7fELF'
-                        candidate_size = candidate_path.stat().st_size
-                        if candidate_is_elf and candidate_size > 1024:
-                            logger.info(
-                                f"Found actual binary: {base_name} (size={candidate_size}, is_elf={candidate_is_elf}). "
-                                f"Using this instead of wrapper '{harness_name}'."
-                            )
-                            actual_binary_path = candidate_path
-                            actual_binary_name = base_name
-                            # Set execute permissions
-                            current_perms = actual_binary_path.stat().st_mode
-                            actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-                    except Exception as e:
-                        logger.debug(f"Error checking candidate {base_name}: {e}")
-                
-                # If base name didn't work, search for any ELF file with base name as prefix
-                if actual_binary_path == harness_binary_path and build_dir.is_dir():
-                    for candidate in build_dir.iterdir():
-                        if candidate.is_file() and candidate != harness_binary_path:
-                            if candidate.name.startswith(base_name):
-                                try:
-                                    with open(candidate, 'rb') as f:
-                                        candidate_magic = f.read(4)
-                                        candidate_is_elf = candidate_magic == b'\x7fELF'
-                                    candidate_size = candidate.stat().st_size
-                                    if candidate_is_elf and candidate_size > 1024:
-                                        logger.info(
-                                            f"Found actual binary: {candidate.name} (size={candidate_size}, is_elf={candidate_is_elf}). "
-                                            f"Using this instead of wrapper '{harness_name}'."
-                                        )
-                                        actual_binary_path = candidate
-                                        actual_binary_name = candidate.name
-                                        # Set execute permissions
-                                        current_perms = actual_binary_path.stat().st_mode
-                                        actual_binary_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-                                        break
-                                except Exception:
-                                    pass
-            
-            # Use the actual binary (or original if it was already valid)
-            harness_binary_path = actual_binary_path
-            harness_name_for_path = actual_binary_name
-
-            project_name = build_dir.name
-            binary_path = actual_binary_name
-            # Binary path in container: /out/<project_name>/<actual_binary_name>
-            # If using debug binary, it's in /out/<project_name>/debug/<actual_binary_name>
-            # Use the actual binary name (which may differ from harness_name if it was a wrapper)
-            if using_debug_binary:
-                binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
-            else:
-                binary_path = f"/out/{project_name}/{harness_name_for_path}"
             # Create InteractiveGDBDocker session
             logger.info("Creating interactive GDB session")
             logger.info(f"GDB command will be: gdb -q --interpreter=mi2 --args {binary_path} {pov_input_container_path}")
