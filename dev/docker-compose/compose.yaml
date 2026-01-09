@@ -184,13 +184,22 @@ services:
     build:
       context: ../../
       dockerfile: ./seed-gen/Dockerfile
-    command: ["seed-gen", "server"]
+    command: >
+      /bin/sh -c 'timeout=120; interval=2; max=$$((timeout/interval)); i=0;
+      while [ ! -s "$$LITELLM_API_KEY_FILE" ] && [ $$i -lt $$max ]; do
+        echo "Waiting for LiteLLM key... ($$i/$$max)"; sleep $$interval; i=$$((i+1));
+      done;
+      if [ ! -s "$$LITELLM_API_KEY_FILE" ]; then
+        echo "Timed out waiting for LiteLLM key"; exit 1;
+      fi;
+      export LITELLM_API_KEY=$$(cat "$$LITELLM_API_KEY_FILE"); exec seed-gen server'
     deploy:
       replicas: 4
       mode: replicated
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../node_data_storage/:/node_data
+      - litellm-user-keys-output:/secrets:ro
     env_file:
       - env.dev.compose
       - .env
@@ -198,6 +207,7 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LITELLM_API_KEY_FILE=/secrets/llm-user_api_key
     depends_on:
       redis:
         condition: service_healthy
@@ -210,10 +220,19 @@ services:
     build:
       context: ../../
       dockerfile: ./patcher/Dockerfile
-    command: ["buttercup-patcher", "serve"]
+    command: >
+      /bin/sh -c 'timeout=120; interval=2; max=$$((timeout/interval)); i=0;
+      while [ ! -s "$$LITELLM_API_KEY_FILE" ] && [ $$i -lt $$max ]; do
+        echo "Waiting for LiteLLM key... ($$i/$$max)"; sleep $$interval; i=$$((i+1));
+      done;
+      if [ ! -s "$$LITELLM_API_KEY_FILE" ]; then
+        echo "Timed out waiting for LiteLLM key"; exit 1;
+      fi;
+      export LITELLM_API_KEY=$$(cat "$$LITELLM_API_KEY_FILE"); exec buttercup-patcher serve'
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../node_data_storage/:/node_data
+      - litellm-user-keys-output:/secrets:ro
     env_file:
       - env.dev.compose
       - .env
@@ -221,6 +240,7 @@ services:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LITELLM_API_KEY_FILE=/secrets/llm-user_api_key
     depends_on:
       redis:
         condition: service_healthy
@@ -245,6 +265,33 @@ services:
     depends_on:
       litellm-db:
         condition: service_healthy
+
+  # One-time service to create LiteLLM user API keys (mirrors k8s Job)
+  litellm-user-keys-setup:
+    image: curlimages/curl:8.3.0
+    user: "0"
+    restart: "no"
+    command: >
+      /bin/sh -c 'if [ -s /output/llm-user_api_key ]; then echo "API key already present, skipping creation"; exit 0; fi; \
+        echo "Waiting for LiteLLM..."; \
+        until curl -sSf "$$LITELLM_URL/health/readiness" >/dev/null 2>&1; do sleep 2; done; \
+        echo "Creating key for llm-user"; \
+        resp=$$(curl -sS -X POST "$$LITELLM_URL/key/generate" -H "Authorization: Bearer $$LITELLM_MASTER_KEY" -H "Content-Type: application/json" -d "{\"user\":\"llm-user\",\"max_budget\":$${LITELLM_MAX_BUDGET:-100}}" -o -); \
+        key=$$(echo "$$resp" | sed -n "s/.*\"key\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p"); \
+        if [ -z "$$key" ]; then echo "Failed to obtain key"; echo "response: $$resp"; exit 1; fi; \
+        printf "%s" "$$key" > /output/llm-user_api_key && echo "Key saved to /output/llm-user_api_key"'
+    env_file:
+      - .env
+    environment:
+      - LITELLM_URL=http://litellm:8080
+      - LITELLM_MASTER_KEY=${BUTTERCUP_LITELLM_KEY}
+      - LITELLM_MAX_BUDGET=${LITELLM_MAX_BUDGET:-100}
+    volumes:
+      - ../../crs_scratch:/crs_scratch
+      - litellm-user-keys-output:/output
+    depends_on:
+      litellm:
+        condition: service_started
 
   litellm-db:
     image: postgres:17.2
@@ -281,3 +328,4 @@ volumes:
   graphdb_data:
     driver: local
   shared-tmp:
+  litellm-user-keys-output:
