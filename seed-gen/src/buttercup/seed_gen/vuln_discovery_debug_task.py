@@ -9,15 +9,21 @@ import logging
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import override
+from typing import Annotated, override
+
+from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_core.messages import ToolMessage
+from langchain_core.tools import BaseTool, tool
+from langchain_core.tools.base import InjectedToolCallId
 
 from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt import InjectedState, ToolNode
 from langgraph.types import Command
 import tempfile
-from pydantic import Field
-
+from pydantic import BaseModel, Field
+import time
 from buttercup.seed_gen.debug_subagent_unified import DebugSubagentUnified
+from buttercup.seed_gen.task import BaseTaskState, CodeSnippet, ToolCallResult
 from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT,
     VULN_DELTA_ANALYZE_BUG_USER_PROMPT,
@@ -31,6 +37,8 @@ from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_FULL_GET_CONTEXT_USER_PROMPT,
     VULN_FULL_WRITE_POV_SYSTEM_PROMPT,
     VULN_FULL_WRITE_POV_USER_PROMPT,
+    VULN_DEBUG_FAILED_POVS_SYSTEM_PROMPT,
+    VULN_DEBUG_FAILED_POVS_USER_PROMPT,
 )
 from buttercup.seed_gen.utils import get_diff_content
 from buttercup.seed_gen.vuln_base_task import VulnBaseState, VulnBaseTask
@@ -68,6 +76,7 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
 
     def __post_init__(self) -> None:
         super().__post_init__()
+        self.start_time = None
         # Initialize debug subagent - validation will be skipped since we test PoVs first
         self.debug_subagent_unified = DebugSubagentUnified(
             task=self, 
@@ -75,11 +84,17 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
             mode="hybrid",
             skip_validation=True  # Skip validation since we already tested the PoV
         )
+        # Create the debug_pov tool for this task
+        self.debug_pov_tool = self._create_debug_pov_tool()
+        self.debug_pov_tools = [self.debug_pov_tool]
 
     @override
     def _gather_context(self, state: VulnDiscoveryDebugState) -> Command:  # type: ignore[override]
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
+        if self.start_time is None:
+            self.start_time = time.time()
+            logger.info("Start time: %s", self.start_time)
 
         # Determine if we're in delta mode by checking if diff_content exists
         is_delta = bool(state.diff_content)
@@ -142,15 +157,16 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
             system_prompt = VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT
             user_prompt = VULN_FULL_ANALYZE_BUG_USER_PROMPT
 
-        # Append debug insights if available
-        if state.debug_insights:
+        # Append debug insights if available (from retrieved_context, like other tools)
+        debug_insights = self._format_debug_insights(state)
+        if debug_insights:
             system_prompt += f"""
 
 ## DEBUG INSIGHTS FROM PREVIOUS ITERATION
 
 When analyzing the vulnerability, consider these insights from GDB debugging of failed PoVs:
 
-{state.debug_insights}
+{debug_insights}
 
 Use these insights to:
 1. Understand why previous PoVs didn't crash
@@ -186,15 +202,16 @@ Use these insights to:
             system_prompt = VULN_FULL_WRITE_POV_SYSTEM_PROMPT
             user_prompt = VULN_FULL_WRITE_POV_USER_PROMPT
 
-        # Add debug insights to PoV writing if available
-        if state.debug_insights:
+        # Add debug insights to PoV writing if available (from retrieved_context)
+        debug_insights = self._format_debug_insights(state)
+        if debug_insights:
             system_prompt += f"""
 
 ## DEBUG INSIGHTS
 
 Previous PoVs were debugged with GDB. Here's what we learned:
 
-{state.debug_insights}
+{debug_insights}
 
 When writing new PoVs:
 1. Address the issues identified in debugging
@@ -206,160 +223,226 @@ When writing new PoVs:
         return res
 
     def _debug_failed_povs(self, state: VulnDiscoveryDebugState) -> Command:
-        """Debug failed PoVs after testing to understand why they didn't crash"""
-        # Note: _test_povs increments pov_iteration, so we need to use previous_iteration
-        # to find files that were just moved
-        previous_iteration = state.pov_iteration - 1
-        logger.info("Debugging failed PoVs from iteration %d (current iteration is %d)", 
-                   previous_iteration, state.pov_iteration)
-        logger.info("Current state: valid_pov_count=%d, pov_iteration=%d", state.valid_pov_count, state.pov_iteration)
+        """Debug failed PoVs after testing to understand why they didn't crash. Should make a tool call"""
+        logger.info("Debugging failed PoVs")
         
-        # Only debug if all PoVs failed (valid_pov_count == 0)
-        if state.valid_pov_count > 0:
-            logger.info("Some PoVs succeeded, skipping debug")
-            return Command(update={})
-
-        # Log output directory details
-        logger.info("Searching for failed PoVs in output_dir: %s", state.output_dir)
-        logger.info("Output dir exists: %s", state.output_dir.exists())
-        logger.info("Output dir is directory: %s", state.output_dir.is_dir() if state.output_dir.exists() else "N/A")
+        # Get the most recent PoV functions code (what was just tested)
+        latest_pov_functions = ""
+        if state.pov_attempts:
+            latest_pov_functions = state.pov_attempts[-1].pov_functions
         
-        if state.output_dir.exists():
-            all_files = list(state.output_dir.iterdir())
-            logger.info("All files in output_dir (%d total): %s", len(all_files), [f.name for f in all_files])
-            
-            # Log all .seed files regardless of pattern
-            all_seed_files = list(state.output_dir.glob("*.seed"))
-            logger.info("All .seed files in output_dir (%d total): %s", len(all_seed_files), [f.name for f in all_seed_files])
-        else:
-            logger.warning("Output directory does not exist: %s", state.output_dir)
-            return Command(update={})
-
-        # Find failed PoVs in output_dir (they were moved there by _test_povs)
-        # IMPORTANT: _test_povs increments pov_iteration before returning, so we need to use
-        # the previous iteration number (pov_iteration - 1) to find files that were just moved
-        # Files are moved with pattern: iter{old_pov_iteration}_{original_name}
-        search_pattern = f"iter{previous_iteration}_*.seed"
-        logger.info("Searching for PoVs with pattern: %s (using previous iteration %d, current is %d)", 
-                   search_pattern, previous_iteration, state.pov_iteration)
+        # Prepare prompt variables
+        prompt_vars = {
+            "harness": str(state.harness),
+            "previous_attempts": state.format_pov_attempts(),
+            "analysis": state.analysis,
+            "latest_pov_functions": latest_pov_functions,
+        }
         
-        # Sort by modification time (newest first) to get the most recently generated PoVs
-        # This prevents picking up stale files from previous runs
-        failed_povs = sorted(
-            state.output_dir.glob(search_pattern),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True
+        # Create prompt and call LLM with debug_pov tool
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", VULN_DEBUG_FAILED_POVS_SYSTEM_PROMPT),
+                ("human", VULN_DEBUG_FAILED_POVS_USER_PROMPT),
+            ],
         )
         
-        for pov_file in failed_povs:
-            # Check if this PoV actually failed (not valid)
-            # We can't easily check this here, so we'll debug the first one
-            logger.info("Found potential failed PoV: %s (size: %d bytes, mtime: %.2f)", 
-                       pov_file.name, 
-                       pov_file.stat().st_size if pov_file.exists() else 0,
-                       pov_file.stat().st_mtime if pov_file.exists() else 0)
+        # Bind the debug_pov tool to the LLM
+        llm_with_debug_tool = self.llm.bind_tools(self.debug_pov_tools)
+        chain = prompt | llm_with_debug_tool
         
-        logger.info("Total failed PoVs found: %d", len(failed_povs))
+        # Invoke with prompt variables and existing messages for context
+        response = chain.invoke(prompt_vars)
         
-        if not failed_povs:
-            logger.warning("No failed PoVs found to debug in output_dir")
-            logger.warning("Expected pattern: iter%d_*.seed (previous iteration, current is %d)", 
-                         previous_iteration, state.pov_iteration)
-            logger.warning("This might indicate:")
-            logger.warning("  1. PoVs were not moved to output_dir by _test_povs")
-            logger.warning("  2. PoVs were moved with a different naming pattern")
-            logger.warning("  3. PoVs were moved to a different location")
-            logger.warning("  4. No PoVs were generated in this iteration")
-            return Command(update={})
+        # Return command that will trigger the tool call
+        return Command(
+            update={
+                "messages": [response],
+            },
+        )
 
-        # Debug the first failed PoV (could be extended to debug multiple)
-        pov_path = failed_povs[0]
-        logger.info(f"Debugging failed PoV: {pov_path}")
+    def _format_debug_insights(self, state: VulnDiscoveryDebugState) -> str:
+        """Format debug insights from retrieved_context, similar to format_retrieved_context"""
+        debug_insights = ""
+        for call, call_result in state.retrieved_context.items():
+            if "debug_pov" in call.lower():
+                # Format the debug result
+                debug_insights += f"{call_result}\n"
+        return debug_insights
 
-        # Create debug context from the analysis
-        harness_info = f"Fuzzer: {state.harness.harness_name} in {state.harness.file_path}"
-        logger.info(f"Harness info: {harness_info}")
+    def _create_debug_pov_tool(self) -> BaseTool:
+        """Create the debug_pov tool for this task instance"""
+        task_instance = self
         
-        # Add more specific context if analysis is available
-        analysis_section = f"\n{state.analysis}\n" if state.analysis.strip() else "\nNo detailed analysis available.\n"
+        @tool
+        def debug_pov(
+            testcase_name: str,
+            debug_context: str,
+            output_dir: str | None = None,
+            current_dir: str | None = None,
+            *,
+            state: Annotated[BaseModel, InjectedState],
+            tool_call_id: Annotated[str, InjectedToolCallId],
+        ) -> Command:
+            """Debug a PoV (Proof of Vulnerability) input using GDB-based debugging.
+            
+            This tool runs the unified debug agent to analyze why a PoV input may have failed
+            to crash the program. It provides detailed insights about execution paths, program
+            state, and exploitation conditions.
+            
+            Args:
+                testcase_name: Name of the testcase to debug (e.g., "pov_1"). The tool will search
+                               through output_dir to find the most recent .seed file containing this name.
+                debug_context: Contextual information about what to test and verify during debugging
+                output_dir: Optional directory to write debug results to (defaults to agentic_debug subdirectory)
+                current_dir: Optional directory for temporary files (defaults to a temporary directory)
+            
+            Notes:
+                - This tool is only available for tasks that have reproduce_multiple (VulnBaseTask)
+                - The tool searches state.output_dir for .seed files containing the testcase_name
+                - If multiple matches are found, the most recently modified file is selected
+                - The debug agent will analyze the PoV execution and provide insights about why it may have failed
+                - Results include analysis, debug commands executed, debug output, and reflection
+            """
+            assert isinstance(state, BaseTaskState)
+            return task_instance._debug_pov_impl(testcase_name, debug_context, output_dir, current_dir, state, tool_call_id)
         
-        debug_context = f"""This PoV was generated to exploit a potential vulnerability but FAILED to crash the program when tested.
+        return debug_pov
 
-**Target Information:**
-{harness_info}
-
-**POV input:**
-{pov_path.name}
-
-**Vulnerability Analysis:**{analysis_section}
-**Debugging Goals:**
-This PoV was tested and did NOT cause a crash. Analyze its execution to understand why:
-
-1. **Execution Path**: Is the vulnerable code path being executed at all?
-2. **Input Processing**: How is the PoV input being parsed and processed? Is it being rejected or modified?
-3. **Exploitation Conditions**: Are the necessary conditions for exploitation being met? What's missing?
-4. **Program State**: What is the actual state of the program at critical points (buffer sizes, pointers, validation checks)?
-5. **Vulnerability Trigger**: Is the vulnerability actually being triggered? If not, what's preventing it?
-6. **Expected vs Actual**: Why doesn't the program behavior match our expectations from the analysis?
-
-This debugging will help us:
-- Understand why the PoV failed to crash
-- Identify what conditions are needed for successful exploitation
-- Gather insights to improve the next iteration's PoV generation
-"""
-
-        # Run debug subagent
-        try:
-            # Use a separate directory for debug output
-            debug_uuid = uuid.uuid4().hex[:8]
-            debug_output_dir = state.current_dir.parent / "agentic_debug" / f"{debug_uuid}_iter{previous_iteration}_failed"
-            with tempfile.TemporaryDirectory(dir=state.current_dir ) as current_dir:
-                logger.info("Calling debug subagent with pov_path=%s, output_dir=%s, current_dir=%s", pov_path, debug_output_dir, state.current_dir)
-                debug_result = self.debug_subagent_unified.debug(
-                    harness=state.harness,
-                    pov_input_path=pov_path,
-                    debug_context=debug_context,
-                    output_dir=debug_output_dir,
-                    current_dir=Path(current_dir),
-                )
-            logger.info("Debug subagent returned: analysis_len=%d, debug_commands_len=%d, output_len=%d, reflection_len=%d, attempts=%d", 
-                       len(debug_result.analysis), 
-                       len(debug_result.debug_commands),
-                       len(debug_result.debug_output),
-                       len(debug_result.reflection),
-                       len(debug_result.attempts))
-
-            # Format debug insights - focus on why the PoV failed
-            # Use previous_iteration since that's when the PoV was actually tested
-            debug_insights = f"""## Debug Session for Failed PoV (iteration {previous_iteration})
-
-**PoV Status:** This PoV was tested and did NOT cause a crash.
-
-**Debug Summary:**
-{debug_result.reflection}
-
-**Key Findings:**
-- Why didn't this PoV crash the program?
-- What conditions need to be met for successful exploitation?
-- What should we change in the next iteration?
-"""
-
-            logger.info("Debug session completed for failed PoV")
-
+    def _debug_pov_impl(
+        self,
+        testcase_name: str,
+        debug_context: str,
+        output_dir: str | None,
+        current_dir: str | None,
+        state: BaseTaskState,
+        tool_call_id: str,
+    ) -> Command:
+        """Implementation of debug_pov tool - calls unified debug agent"""
+        logger.info("Tool call: debug_pov for testcase %s", testcase_name)
+        
+        call = f'debug_pov("{testcase_name}", "{debug_context}")'
+        
+        # Check cache to avoid redundant debug calls
+        if call in state.retrieved_context:
             return Command(
                 update={
-                    "debug_insights": state.debug_insights + "\n\n" + debug_insights,
-                }
+                    "messages": [
+                        ToolMessage(
+                            f"Debug results for {testcase_name} already retrieved",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
             )
-
-        except Exception as e:
-            logger.error(f"Error during debugging of failed PoV: {e}")
-            # Don't fail the whole workflow if debugging fails
+        
+        # Get harness from state
+        harness = state.harness
+        
+        # Search for the most recent PoV file matching the testcase name in output_dir
+        if not state.output_dir.exists():
             return Command(
                 update={
-                    "debug_insights": state.debug_insights
-                    + f"\n\n## Debug Error\n\nFailed to debug PoV: {str(e)}",
-                }
+                    "messages": [
+                        ToolMessage(
+                            f"Output directory does not exist: {state.output_dir}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        
+        # Find all .seed files in output_dir that contain the testcase name
+        matching_files = [
+            f for f in state.output_dir.glob("*.seed")
+            if testcase_name in f.name
+        ]
+        
+        if not matching_files:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"No PoV files found matching testcase name '{testcase_name}' in {state.output_dir}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        
+        # Sort by modification time (newest first) and pick the most recent
+        pov_path = sorted(
+            matching_files,
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )[0]
+        
+        logger.info("Found matching PoV file: %s (mtime: %.2f)", pov_path.name, pov_path.stat().st_mtime)
+        
+        # Set up output and current directories
+        if output_dir:
+            debug_output_dir = Path(output_dir)
+        else:
+            # Use a default location relative to state.output_dir
+            debug_uuid = uuid.uuid4().hex[:8]
+            debug_output_dir = state.output_dir.parent / "agentic_debug" / f"{debug_uuid}_tool_debug"
+        
+        if current_dir:
+            debug_current_dir = Path(current_dir)
+        elif hasattr(state, 'current_dir') and state.current_dir:
+            # Use state's current_dir if available
+            debug_current_dir = state.current_dir
+        else:
+            # Use a temporary directory
+            debug_current_dir = Path(tempfile.mkdtemp())
+        
+        try:
+            # Call the debug agent (we already have it initialized in __post_init__)
+            debug_result = self.debug_subagent_unified.debug(
+                harness=harness,
+                pov_input_path=pov_path,
+                debug_context=debug_context,
+                output_dir=debug_output_dir,
+                current_dir=debug_current_dir,
+            )
+            
+            # Format the debug results
+            debug_output = f"""## Debug Session Results
+**Reflection:**
+{debug_result.reflection}
+"""
+            
+            # Create a code snippet with the results
+            results = [CodeSnippet(
+                file_path=Path(f"debug_{pov_path.name}"),
+                code=debug_output,
+                start_line=1,
+                end_line=len(debug_output.splitlines())
+            )]
+            call_result = ToolCallResult(call=call, results=results)
+            
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Debug session completed for {pov_path.name}. PoV valid: {debug_result.pov_valid}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                    "retrieved_context": {call: call_result},
+                },
+            )
+        except Exception as e:
+            logger.error(f"Error during debug: {e}", exc_info=True)
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Debug failed with error: {str(e)}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
             )
 
     @override
@@ -374,7 +457,8 @@ This debugging will help us:
         workflow.add_node("write_pov", self._write_pov)
         workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)
         workflow.add_node("test_povs", self._test_povs)
-        workflow.add_node("debug_failed_povs", self._debug_failed_povs)  # Run AFTER testing, only if failed
+        workflow.add_node("debug_failed_povs", self._debug_failed_povs)
+        workflow.add_node("debug_povs", ToolNode(self.debug_pov_tools, name="debug_povs"))
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")
@@ -410,9 +494,9 @@ This debugging will help us:
                 "end": END,
             },
         )
+        workflow.add_edge("debug_failed_povs", "debug_povs")
+        workflow.add_edge("debug_povs", "analyze_bug")
         
-        # After debugging, retry with insights
-        workflow.add_edge("debug_failed_povs", "analyze_bug")
 
         return workflow
 

@@ -27,6 +27,8 @@ from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
 from buttercup.common.reproduce_multiple import ReproduceMultiple
+import tempfile
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +132,7 @@ class Task:
             grep,
             lookup_symbols,
         ]
+    
 
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
@@ -1079,3 +1082,5 @@ def grep(
     """
     assert isinstance(state, BaseTaskState)
     return Task._grep(pattern, file_path, state, tool_call_id)
+
+

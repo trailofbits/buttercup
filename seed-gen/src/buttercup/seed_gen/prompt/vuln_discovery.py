@@ -96,6 +96,7 @@ Retrieved context about the codebase:
 {retrieved_context}
 </retrieved_context>
 
+Include in the context the source code of the test case, as well as specifics (function names, intended code paths, etc.) about what you think should happen.
 The test harness is:
 {harness}
 
@@ -113,6 +114,7 @@ Previous attempts at test cases that failed to trigger the vulnerability:
 <previous_attempts>
 {previous_attempts}
 </previous_attempts>
+
 
 You will analyze a diff to identify the security vulnerability it introduced in a program. You are provided:
 1. Retrieved context about the codebase.
@@ -211,6 +213,63 @@ Remember:
 - Avoid verbose or unnecessary code comments.
 
 The python functions are:
+"""
+
+VULN_DEBUG_FAILED_POVS_SYSTEM_PROMPT = """
+You are an expert security engineer debugging failed proof-of-vulnerability (PoV) test cases.
+
+Your task is to select a failed test case and provide debugging context to help understand why it didn't trigger the vulnerability. You will use the debug_pov tool to initiate debugging.
+"""
+
+VULN_DEBUG_FAILED_POVS_USER_PROMPT = """
+The test harness is:
+{harness}
+
+Previous attempts at test cases that failed to trigger the vulnerability:
+<previous_attempts>
+{previous_attempts}
+</previous_attempts>
+
+The latest analysis of the vulnerability:
+<latest_analysis>
+{analysis}
+</latest_analysis>
+
+The most recent test case functions that were just tested (and failed):
+<latest_pov_functions>
+{latest_pov_functions}
+</latest_pov_functions>
+
+You have just attempted to trigger a vulnerability with test cases, but none of them caused a crash or triggered a sanitizer. Now you need to debug one of these failed test cases to understand why it didn't work.
+
+**Your task:**
+1. Review the latest_pov_functions above and identify which test case function you want to debug
+2. Select the testcase_name (the function name from the code, e.g., "test_buffer_overflow" or "pov_1")
+3. Write a clear, focused debug_context that explains:
+   - What the test case was trying to do
+   - What you expected to happen (what vulnerability should have been triggered)
+   - What specific aspects of execution you want the debugger to investigate
+   - Key questions about why the vulnerability wasn't triggered
+
+**Important notes about debug_context:**
+- This context will be the PRIMARY information the debug agent sees
+- The debug agent can also gather its own context using tools (code queries, symbol lookups, etc.)
+- Be specific about what to investigate: execution paths, program state, input processing, validation checks, etc.
+- Focus on understanding why the vulnerability wasn't triggered rather than just describing what the test case does
+
+**Example debug_context:**
+"This test case was designed to trigger a buffer overflow by sending an oversized username. The input should overflow a 256-byte buffer in the authentication handler. Please investigate:
+1. Is the vulnerable code path being executed?
+2. How is the input being parsed and processed?
+3. What is the actual buffer size at runtime?
+4. Are there validation checks preventing the overflow?
+5. What is the program state when the buffer write would occur?"
+
+You must call the debug_pov tool with:
+- testcase_name: The name of the test case function to debug (e.g., "test_buffer_overflow")
+- debug_context: Your detailed context explaining what to investigate
+
+Your response:
 """
 
 VULN_DELTA_GET_CONTEXT_SYSTEM_PROMPT = """
@@ -443,4 +502,61 @@ Remember:
 - Avoid verbose or unnecessary code comments.
 
 The python functions are:
+"""
+
+VULN_DEBUG_FAILED_POVS_SYSTEM_PROMPT = """
+You are an expert security engineer debugging failed proof-of-vulnerability (PoV) test cases.
+
+Your task is to select a failed test case and provide debugging context to help understand why it didn't trigger the vulnerability. You will use the debug_pov tool to initiate debugging.
+"""
+
+VULN_DEBUG_FAILED_POVS_USER_PROMPT = """
+The test harness is:
+{harness}
+
+Previous attempts at test cases that failed to trigger the vulnerability:
+<previous_attempts>
+{previous_attempts}
+</previous_attempts>
+
+The latest analysis of the vulnerability:
+<latest_analysis>
+{analysis}
+</latest_analysis>
+
+The most recent test case functions that were just tested (and failed):
+<latest_pov_functions>
+{latest_pov_functions}
+</latest_pov_functions>
+
+You have just attempted to trigger a vulnerability with test cases, but none of them caused a crash or triggered a sanitizer. Now you need to debug one of these failed test cases to understand why it didn't work.
+
+**Your task:**
+1. Review the latest_pov_functions above and identify which test case function you want to debug
+2. Select the testcase_name (the function name from the code, e.g., "test_buffer_overflow" or "pov_1")
+3. Write a clear, focused debug_context that explains:
+   - What the test case was trying to do
+   - What you expected to happen (what vulnerability should have been triggered)
+   - What specific aspects of execution you want the debugger to investigate
+   - Key questions about why the vulnerability wasn't triggered
+
+**Important notes about debug_context:**
+- This context will be the PRIMARY information the debug agent sees
+- The debug agent can also gather its own context using tools (code queries, symbol lookups, etc.)
+- Be specific about what to investigate: execution paths, program state, input processing, validation checks, etc.
+- Focus on understanding why the vulnerability wasn't triggered rather than just describing what the test case does
+
+**Example debug_context:**
+"This test case was designed to trigger a buffer overflow by sending an oversized username. The input should overflow a 256-byte buffer in the authentication handler. Please investigate:
+1. Is the vulnerable code path being executed?
+2. How is the input being parsed and processed?
+3. What is the actual buffer size at runtime?
+4. Are there validation checks preventing the overflow?
+5. What is the program state when the buffer write would occur?"
+
+You must call the debug_pov tool with:
+- testcase_name: The name of the test case function to debug (e.g., "test_buffer_overflow")
+- debug_context: Your detailed context explaining what to investigate
+
+Your response:
 """

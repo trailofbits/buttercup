@@ -29,6 +29,7 @@ from opentelemetry import trace
 from pydantic import Field
 
 from buttercup.common.challenge_task import ChallengeTaskError
+from buttercup.common.datastructures.msg_pb2 import BuildType
 from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
@@ -685,11 +686,15 @@ Please gather more context about the codebase that will help with debugging.
             # build_dir is .../build/out/<project_name>, so project_name is the last component
             project_name = build_dir.name
             # Binary path in container: /out/<project_name>/<actual_binary_name>
-            # If using debug binary, it's in /out/<project_name>/debug/<actual_binary_name>
+            # FUZZER_DEBUG builds output to /out/<project_name>/ (same as regular builds)
+            # Legacy debug builds (from get_debug_binary_path) are in /out/<project_name>/debug/
             # Use the actual binary name (which may differ from harness_name if it was a wrapper)
-            if using_debug_binary:
+            is_fuzzer_debug = selected_build.build_type == BuildType.FUZZER_DEBUG
+            if using_debug_binary and not is_fuzzer_debug:
+                # Legacy debug builds in /out/<project_name>/debug/
                 binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
             else:
+                # Regular builds and FUZZER_DEBUG builds both in /out/<project_name>/
                 binary_path = f"/out/{project_name}/{harness_name_for_path}"
             
             # Mount the parent of build_dir (which is .../build/out) to /out in container
@@ -918,9 +923,14 @@ Please gather more context about the codebase that will help with debugging.
             
             # Determine binary path in container
             project_name = build_dir.name
-            if using_debug_binary:
+            # FUZZER_DEBUG builds output to /out/<project_name>/ (same as regular builds)
+            # Legacy debug builds (from get_debug_binary_path) are in /out/<project_name>/debug/
+            is_fuzzer_debug = selected_build.build_type == BuildType.FUZZER_DEBUG
+            if using_debug_binary and not is_fuzzer_debug:
+                # Legacy debug builds in /out/<project_name>/debug/
                 binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
             else:
+                # Regular builds and FUZZER_DEBUG builds both in /out/<project_name>/
                 binary_path = f"/out/{project_name}/{harness_name_for_path}"
             
             # Set up mount directories

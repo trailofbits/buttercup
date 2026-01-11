@@ -16,7 +16,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from opentelemetry import trace
 from pydantic import Field
-
+import time
 from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import CrashDir
@@ -179,6 +179,11 @@ class VulnBaseTask(Task):
                 ):
                     logger.info(
                         "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
+                        # logging the rest of the state, how long this took, and the function and analysis of the pov
+                        f"State: {state}",
+                        f"Time taken: {time.time() - self.start_time} seconds",
+                        f"Function: {state.generated_functions}",
+                        f"Analysis: {state.analysis}",
                         self.challenge_task.task_meta.task_id,
                         self.package_name,
                         self.harness_name,
