@@ -25,7 +25,7 @@ def select_build_for_harness(
     build_outputs: list[BuildOutput],
     builds_cache: list[ChallengeTask],
     harness_name: str,
-    prefer_sanitizer: str = "address",
+    prefer_sanitizer: str = "debug",
 ) -> SelectedBuild | None:
     """Select the best build that contains the specified harness.
     

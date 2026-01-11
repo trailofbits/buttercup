@@ -6,6 +6,7 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import tempfile
 import uuid
@@ -625,10 +626,13 @@ class ChallengeTask:
             env,
             use_source_dir,
         )
+        # Convert "debug" to "none" for oss-fuzz helper compatibility
+        sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
+        
         kwargs = {
             "architecture": architecture,
             "engine": engine,
-            "sanitizer": sanitizer,
+            "sanitizer": sanitizer_for_helper,
             "e": env,
         }
         if self.workdir_from_dockerfile() == Path("/src"):
@@ -727,17 +731,17 @@ class ChallengeTask:
         if "-gline-tables-only" in existing_cflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cflags.replace("-gline-tables-only", "-ggdb -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
             debug_env["CFLAGS"] = flags.strip()
         elif "-g" in existing_cflags:
             # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
             flags = re.sub(r'-g[^\s]*', '', existing_cflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
             debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
             # Replace any -O* flags with -O0
-            base_flags = "-O1 -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-O1', base_flags)
+            base_flags = "-Og -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
+            base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
             debug_env["CFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
         
         # Replace -gline-tables-only with -ggdb -fno-inline for CXXFLAGS
@@ -745,17 +749,17 @@ class ChallengeTask:
         if "-gline-tables-only" in existing_cxxflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cxxflags.replace("-gline-tables-only", "-ggdb -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
             debug_env["CXXFLAGS"] = flags.strip()
         elif "-g" in existing_cxxflags:
             # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
             flags = re.sub(r'-g[^\s]*', '', existing_cxxflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-O1', flags)
+            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
             debug_env["CXXFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
             # Replace any -O* flags with -O0
-            base_flags = "-O1 -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-O1', base_flags)
+            base_flags = "-Og -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
+            base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
             debug_env["CXXFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
         
         logger.info(f"CFLAGS override: {debug_env.get('CFLAGS', 'not set')}")
@@ -766,10 +770,13 @@ class ChallengeTask:
             "For Java/other languages, these flags are ignored."
         )
         
+        # Convert "debug" to "none" for oss-fuzz helper compatibility
+        sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
+        
         kwargs = {
             "architecture": architecture,
             "engine": engine,
-            "sanitizer": sanitizer,
+            "sanitizer": sanitizer_for_helper,
             "e": debug_env,
         }
         if self.workdir_from_dockerfile() == Path("/src"):
@@ -852,12 +859,15 @@ class ChallengeTask:
         sanitizer: str | None = None,
         env: dict[str, str] | None = None,
     ) -> CommandResult:
+        # Convert "debug" to "none" for oss-fuzz helper compatibility
+        sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
+        
         logger.info(
             "Checking build for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
             self.project_name,
             architecture,
             engine,
-            sanitizer,
+            sanitizer_for_helper,
             env,
         )
         cmd = self._get_helper_cmd(
@@ -865,7 +875,7 @@ class ChallengeTask:
             self.project_name,
             architecture=architecture,
             engine=engine,
-            sanitizer=sanitizer,
+            sanitizer=sanitizer_for_helper,
             e=env,
         )
 
@@ -891,6 +901,19 @@ class ChallengeTask:
             architecture,
             env,
         )
+        
+        # Ensure the fuzzer binary has execute permissions
+        # This is needed because some builds (especially when copied) may not preserve permissions
+        build_dir = self.get_build_dir()
+        if build_dir and build_dir.exists():
+            fuzzer_path = build_dir / fuzzer_name
+            if fuzzer_path.exists():
+                try:
+                    current_perms = fuzzer_path.stat().st_mode
+                    fuzzer_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                except Exception as e:
+                    logger.warning(f"Failed to set execute permissions on {fuzzer_path}: {e}")
+        
         kwargs: dict[str, Any] = {
             "architecture": architecture,
             "e": env,
@@ -930,6 +953,9 @@ class ChallengeTask:
         sanitizer: str | None = None,
         env: dict[str, str] | None = None,
     ) -> CommandResult:
+        # Convert "debug" to "none" for oss-fuzz helper compatibility
+        sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
+        
         logger.info(
             "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | "
             "corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
@@ -939,14 +965,14 @@ class ChallengeTask:
             corpus_dir,
             architecture,
             engine,
-            sanitizer,
+            sanitizer_for_helper,
             env,
         )
         kwargs = {
             "corpus-dir": corpus_dir,
             "architecture": architecture,
             "engine": engine,
-            "sanitizer": sanitizer,
+            "sanitizer": sanitizer_for_helper,
             "e": env,
         }
         cmd = self._get_helper_cmd(
