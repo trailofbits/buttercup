@@ -75,15 +75,16 @@ class SeedGenBot(TaskLoop):
         self.MIN_SEED_INIT_RUNS = int(os.getenv("BUTTERCUP_MIN_SEED_INIT_RUNS", self.MIN_SEED_INIT_RUNS))
         self.MIN_VULN_DISCOVERY_RUNS = int(os.getenv("BUTTERCUP_MIN_VULN_DISCOVERY_RUNS", self.MIN_VULN_DISCOVERY_RUNS))
         
-        # Option to use debug-enabled vuln discovery
-        self.use_debug_vuln_discovery = os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
+        # Note: BUTTERCUP_USE_DEBUG_VULN_DISCOVERY is read at runtime in run_task, not here
+        # This is just for initial logging
+        initial_debug_setting = os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
         
         logger.info(f"Task probabilities (FULL): seed-init={self.TASK_SEED_INIT_PROB_FULL}, "
                    f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_FULL}, seed-explore={self.TASK_SEED_EXPLORE_PROB_FULL}")
         logger.info(f"Task probabilities (DELTA): seed-init={self.TASK_SEED_INIT_PROB_DELTA}, "
                    f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_DELTA}, seed-explore={self.TASK_SEED_EXPLORE_PROB_DELTA}")
         logger.info(f"Min runs: seed-init={self.MIN_SEED_INIT_RUNS}, vuln-discovery={self.MIN_VULN_DISCOVERY_RUNS}")
-        logger.info(f"Use debug vuln discovery: {self.use_debug_vuln_discovery}")
+        logger.info(f"BUTTERCUP_USE_DEBUG_VULN_DISCOVERY (initial): {initial_debug_setting} (read at runtime in run_task)")
         
         super().__init__(redis, timer_seconds)
 
@@ -228,7 +229,9 @@ class SeedGenBot(TaskLoop):
                     max_pov_size=self.max_pov_size,
                 )
                 with reproduce_multiple.open() as mult:
-                    if self.use_debug_vuln_discovery:
+                    # Read debug mode from environment variable (can be changed live without redeploying)
+                    use_debug_vuln_discovery = os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
+                    if use_debug_vuln_discovery:
                         # Use the unified debug-enabled task (works for both delta and full)
                         logger.info("Using VulnDiscoveryDebugTask with integrated debugging")
                         vuln_discovery: VulnBaseTask = VulnDiscoveryDebugTask(

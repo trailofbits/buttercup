@@ -505,10 +505,12 @@ Please gather more context about the codebase that will help with debugging.
             except Exception as e:
                 logger.warning(f"Failed to remove debug script file {debug_script_path}: {e}")
             # Truncate debug_script_output if necessary to 10k characters
-            MAX_DEBUG_SCRIPT_OUTPUT_CHARS = 10000
-            if isinstance(debug_script_output, str) and len(debug_script_output) > MAX_DEBUG_SCRIPT_OUTPUT_CHARS:
-                logger.warning(f"debug_script_output length ({len(debug_script_output)}) exceeds {MAX_DEBUG_SCRIPT_OUTPUT_CHARS} characters; truncating.")
-                debug_script_output = debug_script_output[:MAX_DEBUG_SCRIPT_OUTPUT_CHARS] + "\n\n... (truncated)"
+            MAX_DEBUG_SCRIPT_OUTPUT_CHARS_START = 10000
+            MAX_DEBUG_SCRIPT_OUTPUT_CHARS_END = 10000
+            
+            if isinstance(debug_script_output, str) and len(debug_script_output) > MAX_DEBUG_SCRIPT_OUTPUT_CHARS_START + MAX_DEBUG_SCRIPT_OUTPUT_CHARS_END:
+                logger.warning(f"debug_script_output length ({len(debug_script_output)}) exceeds {MAX_DEBUG_SCRIPT_OUTPUT_CHARS_START} characters; truncating.")
+                debug_script_output = debug_script_output[:MAX_DEBUG_SCRIPT_OUTPUT_CHARS_START] + "\n\n... (truncated) \n\n..." + debug_script_output[-MAX_DEBUG_SCRIPT_OUTPUT_CHARS_END:]
             return Command(update={"debug_script_output": debug_script_output})
         except Exception as e:
             logger.error(f"Error running debug script: {e}")
@@ -1090,12 +1092,12 @@ Please gather more context about the codebase that will help with debugging.
                         # Log the block of commands being sent and output received
                         logger.info(f"Sent GDB command block:\n{command_lines}")
                         logger.info(f"Received GDB output:\n{result}")
-                        # limiting the output to 5k characters to avoid overwhelming the LLM
+                        # limiting the output to 3k characters to avoid overwhelming the LLM
                         total_output_length = 0
                         total_lines = 0
                         for line in result:
                             total_output_length += len(line)
-                            if total_output_length < 5000:
+                            if total_output_length < 3000:
                                 total_lines += 1
                             else:
                                 break

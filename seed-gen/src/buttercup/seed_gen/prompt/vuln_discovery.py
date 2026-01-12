@@ -96,7 +96,6 @@ Retrieved context about the codebase:
 {retrieved_context}
 </retrieved_context>
 
-Include in the context the source code of the test case, as well as specifics (function names, intended code paths, etc.) about what you think should happen.
 The test harness is:
 {harness}
 
