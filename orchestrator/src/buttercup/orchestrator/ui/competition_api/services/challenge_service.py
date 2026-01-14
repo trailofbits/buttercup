@@ -93,8 +93,12 @@ class ChallengeService:
                 )
                 logger.info(f"Cloned {repo_url} to {sub_path}")
             except Exception:
-                sanitized_command = f"git clone {repo_url} {sub_path}"
-                raise Exception(f"Failed to clone repository. Sanitized command: {sanitized_command}")
+                if clone_url == repo_url:
+                    raise
+                else:
+                    # Sanitize command if it contains PAT
+                    sanitized_command = f"git clone {repo_url} {sub_path}"
+                    raise Exception(f"Failed to clone repository. Sanitized command: {sanitized_command}")
 
             # Checkout the specified ref
             logger.info(f"Checking out ref: {cur_ref}")
