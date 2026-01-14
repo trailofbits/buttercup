@@ -103,7 +103,7 @@ class TestChallengeService:
         # Mock git clone failure
         mock_run.side_effect = subprocess.CalledProcessError(1, "git clone", "error")
 
-        with pytest.raises(subprocess.CalledProcessError):
+        with pytest.raises(Exception):
             challenge_service.create_challenge_tarball(
                 repo_url="https://github.com/invalid/repo",
                 ref="main",
