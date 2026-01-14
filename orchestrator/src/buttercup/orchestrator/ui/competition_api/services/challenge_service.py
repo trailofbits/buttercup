@@ -103,6 +103,20 @@ class ChallengeService:
             )
             logger.info(f"Git checkout output: {result.stdout}")
 
+            # Pull Git LFS files if the repository uses LFS
+            logger.info("Pulling Git LFS files (if any)")
+            result = subprocess.run(
+                ["git", "lfs", "pull"],
+                cwd=sub_path,
+                capture_output=True,
+                text=True,
+                check=False,  # Don't fail if LFS is not used or not installed
+            )
+            if result.returncode == 0:
+                logger.info(f"Git LFS pull output: {result.stdout}")
+            else:
+                logger.debug(f"Git LFS pull failed or not needed: {result.stderr}")
+
             # Pull LFS files if any exist
             logger.info("Pulling LFS files if any")
             result = subprocess.run(

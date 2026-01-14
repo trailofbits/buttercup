@@ -681,7 +681,7 @@ class ChallengeTask:
         The source directory is never modified (build process only reads from it).
         
         Process:
-        1. For C++: Overrides CFLAGS/CXXFLAGS to use -ggdb -fno-inline and -O1
+        1. For C++: Overrides CFLAGS/CXXFLAGS to use -ggdb -gdwarf-4 -fno-inline and -Og
         2. For Java/other: CFLAGS/CXXFLAGS are ignored (no effect)
         3. Sets sanitizer=None to disable sanitizer instrumentation (cleaner debugging)
         4. Builds the fuzzers using the original source directory to /out
@@ -719,48 +719,48 @@ class ChallengeTask:
         # be a full replacement build (like coverage), not an auxiliary debug build
         
         # Override CFLAGS/CXXFLAGS for full debug symbols
-        # For C++ projects, this enables full debug symbols (-ggdb -fno-inline)
+        # For C++ projects, this enables full debug symbols (-ggdb -gdwarf-4 -fno-inline)
         # For Java/other projects, these flags are ignored (no effect)
         existing_cflags = debug_env.get("CFLAGS", "")
         existing_cxxflags = debug_env.get("CXXFLAGS", "")
         logger.info(f"Existing CFLAGS: {existing_cflags}")
         logger.info(f"Existing CXXFLAGS: {existing_cxxflags}")
         
-        # Replace -gline-tables-only with -ggdb -fno-inline for CFLAGS
-        # Also replace any optimization flags with -O0
+        # Replace -gline-tables-only with -ggdb -gdwarf-4 -fno-inline for CFLAGS
+        # Also replace any optimization flags with -Og
         if "-gline-tables-only" in existing_cflags:
             # Replace -gline-tables-only and any -O* flags
-            flags = existing_cflags.replace("-gline-tables-only", "-ggdb -fno-inline")
+            flags = existing_cflags.replace("-gline-tables-only", "-ggdb -gdwarf-4 -fno-inline")
             flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
             debug_env["CFLAGS"] = flags.strip()
         elif "-g" in existing_cflags:
-            # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
+            # Remove all -g* flags, replace -O* flags with -Og, then add -ggdb -gdwarf-4 -fno-inline
             flags = re.sub(r'-g[^\s]*', '', existing_cflags)
             flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
-            debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
+            debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -gdwarf-4 -fno-inline".strip()
         else:
-            # Replace any -O* flags with -O0
+            # Replace any -O* flags with -Og
             base_flags = "-Og -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
             base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
-            debug_env["CFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
+            debug_env["CFLAGS"] = f"{base_flags} -ggdb -gdwarf-4 -fno-inline".strip()
         
-        # Replace -gline-tables-only with -ggdb -fno-inline for CXXFLAGS
-        # Also replace any optimization flags with -O0
+        # Replace -gline-tables-only with -ggdb -gdwarf-4 -fno-inline for CXXFLAGS
+        # Also replace any optimization flags with -Og
         if "-gline-tables-only" in existing_cxxflags:
             # Replace -gline-tables-only and any -O* flags
-            flags = existing_cxxflags.replace("-gline-tables-only", "-ggdb -fno-inline")
+            flags = existing_cxxflags.replace("-gline-tables-only", "-ggdb -gdwarf-4 -fno-inline")
             flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
             debug_env["CXXFLAGS"] = flags.strip()
         elif "-g" in existing_cxxflags:
-            # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
+            # Remove all -g* flags, replace -O* flags with -Og, then add -ggdb -gdwarf-4 -fno-inline
             flags = re.sub(r'-g[^\s]*', '', existing_cxxflags)
             flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
-            debug_env["CXXFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
+            debug_env["CXXFLAGS"] = f"{flags.strip()} -ggdb -gdwarf-4 -fno-inline".strip()
         else:
-            # Replace any -O* flags with -O0
+            # Replace any -O* flags with -Og
             base_flags = "-Og -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
             base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
-            debug_env["CXXFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
+            debug_env["CXXFLAGS"] = f"{base_flags} -ggdb -gdwarf-4 -fno-inline".strip()
         
         logger.info(f"CFLAGS override: {debug_env.get('CFLAGS', 'not set')}")
         logger.info(f"CXXFLAGS override: {debug_env.get('CXXFLAGS', 'not set')}")

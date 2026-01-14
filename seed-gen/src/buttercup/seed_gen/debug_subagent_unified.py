@@ -145,7 +145,7 @@ class DebugSubagentUnified:
     MAX_DEBUG_ITERATIONS = 2
     MAX_CONTEXT_ITERATIONS = 3
     MAX_CONTEXT_ITERATIONS_AGAIN = 2
-    MAX_INTERACTIVE_COMMANDS = 20  # Depth of interactive debug loop
+    MAX_INTERACTIVE_COMMANDS = 10  # Depth of interactive debug loop
     # Each context iteration can have multiple tool calls (get_context -> tools)
     # Estimate ~5 tool calls per context iteration to be safe
     ESTIMATED_TOOLS_PER_CONTEXT = 5
@@ -367,7 +367,8 @@ class DebugSubagentUnified:
     def _get_context(self, state: DebugTaskState) -> Command:
         """Get context about the codebase for debugging"""
         logger.info("Getting context for debugging")
-        prev_debug_attempt = """ We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
+        if state.debug_script:
+            prev_debug_attempt = f""" We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
 Here is the previous debug attempt:
 <previous_debug_attempt>
 {state.debug_script}
@@ -378,6 +379,8 @@ Here is the previous debug output:
 </previous_debug_output>
 Please gather more context about the codebase that will help with debugging.
 """
+        else:
+            prev_debug_attempt = ""
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
@@ -385,11 +388,12 @@ Please gather more context about the codebase that will help with debugging.
             "prev_debug_attempt": prev_debug_attempt,
         }
         # Use custom llm_with_debug_tools that includes grep
-        prompt = [
+        prompt = ChatPromptTemplate.from_messages([
             ("system", DEBUG_GET_CONTEXT_SYSTEM_PROMPT),
-            ("human", DEBUG_GET_CONTEXT_USER_PROMPT.format(**prompt_vars)),
-        ]
-        res = self.llm_with_debug_tools.invoke([*prompt, *state.messages])
+            ("human", DEBUG_GET_CONTEXT_USER_PROMPT),
+        ])
+        formatted_prompt = prompt.invoke(prompt_vars)
+        res = self.llm_with_debug_tools.invoke([*formatted_prompt.to_messages(), *state.messages])
         cmd: Command = Command(
             update={
                 "messages": [res],
@@ -401,11 +405,20 @@ Please gather more context about the codebase that will help with debugging.
     def _analyze_debug(self, state: DebugTaskState) -> Command:
         """Analyze the debugging task and plan the debug script"""
         logger.info("Analyzing debug task")
+        
+        # Get PoV information
+        pov_path = str(state.pov_input_path) if hasattr(state, 'pov_input_path') else "unknown"
+        pov_size = state.pov_input_path.stat().st_size if hasattr(state, 'pov_input_path') and state.pov_input_path.exists() else 0
+        
+        # Get build info
+        
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "retrieved_context": state.format_retrieved_context(),
             "previous_attempts": state.format_debug_attempts(),
+            "pov_path": pov_path,
+            "pov_size": pov_size,
         }
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -420,12 +433,20 @@ Please gather more context about the codebase that will help with debugging.
     def _write_debug_script(self, state: DebugTaskState) -> Command:
         """Write a GDB debug script (batch mode only)"""
         logger.info("Writing debug script")
+        
+        # Get PoV information
+        pov_path = str(state.pov_input_path) if hasattr(state, 'pov_input_path') else "unknown"
+        pov_size = state.pov_input_path.stat().st_size if hasattr(state, 'pov_input_path') and state.pov_input_path.exists() else 0
+        
+        
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
             "analysis": state.analysis,
             "retrieved_context": state.format_retrieved_context(),
             "previous_attempts": state.format_debug_attempts(),
+            "pov_path": pov_path,
+            "pov_size": pov_size,
         }
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -554,6 +575,11 @@ Please gather more context about the codebase that will help with debugging.
         debug_script_output = state.debug_script_output
         if not debug_script_output:
             debug_script_output = ""
+        
+        # Get PoV information
+        pov_path = str(state.pov_input_path) if hasattr(state, 'pov_input_path') else "unknown"
+        pov_size = state.pov_input_path.stat().st_size if hasattr(state, 'pov_input_path') and state.pov_input_path.exists() else 0
+        
         prompt_vars = {
             "harness": str(state.harness),
             "debug_context": state.debug_context,
@@ -562,6 +588,8 @@ Please gather more context about the codebase that will help with debugging.
             "debug_interactive_output": debug_interactive_output,
             "debug_script": debug_script,
             "debug_commands": debug_commands,
+            "pov_path": pov_path,
+            "pov_size": pov_size,
         }
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -584,7 +612,7 @@ Please gather more context about the codebase that will help with debugging.
         IMPORTANT: Debug Symbol Support
         --------------------------------
         This method attempts to use debug binaries (built with build_fuzzers_with_debug_symbols())
-        which have FULL debug symbols (`-ggdb -fno-inline`). If debug binaries are not available,
+        which have FULL debug symbols (`-ggdb -gdwarf-4 -fno-inline`). If debug binaries are not available,
         it falls back to regular production binaries which are compiled with `-gline-tables-only`
         (minimal debug information).
         
@@ -603,6 +631,7 @@ Please gather more context about the codebase that will help with debugging.
             # Select a build that contains the harness binary
             # Prefer address sanitizer builds, but verify the harness exists in the selected build
             selected = mult.select_build_for_harness(harness_name)
+            logger.info(f"Selected build path: {selected.binary_path}")
             if selected is None:
                 raise ValueError("Build cache not available")
             
@@ -691,13 +720,7 @@ Please gather more context about the codebase that will help with debugging.
             # FUZZER_DEBUG builds output to /out/<project_name>/ (same as regular builds)
             # Legacy debug builds (from get_debug_binary_path) are in /out/<project_name>/debug/
             # Use the actual binary name (which may differ from harness_name if it was a wrapper)
-            is_fuzzer_debug = selected_build.build_type == BuildType.FUZZER_DEBUG
-            if using_debug_binary and not is_fuzzer_debug:
-                # Legacy debug builds in /out/<project_name>/debug/
-                binary_path = f"/out/{project_name}/debug/{harness_name_for_path}"
-            else:
-                # Regular builds and FUZZER_DEBUG builds both in /out/<project_name>/
-                binary_path = f"/out/{project_name}/{harness_name_for_path}"
+            binary_path = f"/out/{project_name}/{harness_name_for_path}"
             
             # Mount the parent of build_dir (which is .../build/out) to /out in container
             # This matches the pattern used in debug_subagent_task.py
@@ -764,8 +787,11 @@ Please gather more context about the codebase that will help with debugging.
             
             source_path = task.get_source_path()
             if source_path and source_path.exists():
-                mount_dirs[source_path] = Path("/src")
-                logger.info(f"  Mounting source code: {source_path} -> /src")
+                # Mount source at the WORKDIR from Dockerfile to match the build environment
+                # This is the path that was used during compilation (e.g., "/src/FreeRDP")
+                workdir = task.workdir_from_dockerfile()
+                mount_dirs[source_path] = workdir
+                logger.info(f"  Mounting source code: {source_path} -> {workdir}")
             else:
                 logger.warning(f"Source code path not found or doesn't exist: {source_path}")
             logger.debug(f"Final mount configuration:")
@@ -951,8 +977,11 @@ Please gather more context about the codebase that will help with debugging.
             
             source_path = task.get_source_path()
             if source_path and source_path.exists():
-                mount_dirs[source_path] = Path("/src")
-                logger.info(f"  Mounting source code: {source_path} -> /src")
+                # Mount source at the WORKDIR from Dockerfile to match the build environment
+                # This is the path that was used during compilation (e.g., "/src/FreeRDP")
+                workdir = task.workdir_from_dockerfile()
+                mount_dirs[source_path] = workdir
+                logger.info(f"  Mounting source code: {source_path} -> {workdir}")
             else:
                 logger.warning(f"Source code path not found or doesn't exist: {source_path}")
             
@@ -1008,25 +1037,30 @@ Please gather more context about the codebase that will help with debugging.
                     
                     while command_count < self.MAX_INTERACTIVE_COMMANDS:
                         # Build prompt for next command
-                        history_text = "\n\n".join(session_history[-100:]) if session_history else "No commands executed yet"
+                        history_text = "\n\n".join(session_history) if session_history else "No commands executed yet"
                         
                         # Get harness from state if available, otherwise use task
                         harness_str = str(state.harness) if hasattr(state, 'harness') and state.harness else str(self.task.harness_name)
                         prev_cmd_output = "\n".join(all_output_lines[-30:]) if all_output_lines else "No commands executed yet"
                         if state.debug_script:
                             prev_debug_attempt = f""" We attempted a batch debug session before, and determined that more context and a new interactive debug session are needed to answer the query.
-                            Here is the previous debug attempt:
-                            <previous_debug_attempt>
-                            {state.debug_script}
-                            </previous_debug_attempt>
-                            Here is the previous debug output:
-                            <previous_debug_output>
-                            {state.debug_script_output}
-                            </previous_debug_output>
-                            You are restarting fresh, this is just for context.
-                            """
+Here is the previous debug attempt:
+<previous_debug_attempt>
+{state.debug_script}
+</previous_debug_attempt>
+Here is the previous debug output:
+<previous_debug_output>
+{state.debug_script_output}
+</previous_debug_output>
+You are restarting fresh, this is just for context.
+"""
                         else:
                             prev_debug_attempt = ""
+                        
+                        # Get PoV and build info for prompt
+                        pov_path = str(state.pov_input_path) if hasattr(state, 'pov_input_path') else "unknown"
+                        pov_size = state.pov_input_path.stat().st_size if hasattr(state, 'pov_input_path') and state.pov_input_path.exists() else 0
+                        
                         prompt_vars = {
                             "harness": harness_str,
                             "debug_context": state.debug_context if hasattr(state, 'debug_context') else "Interactive debugging session",
@@ -1035,6 +1069,8 @@ Please gather more context about the codebase that will help with debugging.
                             "commands_remaining": self.MAX_INTERACTIVE_COMMANDS - command_count,
                             "prev_debug_attempt": prev_debug_attempt,
                             "prev_cmd_output": prev_cmd_output,
+                            "pov_path": pov_path,
+                            "pov_size": pov_size,
                         }
                         logger.debug("history_text: %s", history_text)
                         
@@ -1084,7 +1120,9 @@ Please gather more context about the codebase that will help with debugging.
                             if command.lower() in ["quit", "done", "exit", "q"]:
                                 found_quit = True
                                 break
-                        session_history.append(f"executing commands: {"\n".join(command_lines)}")
+                        session_history.append("<cmd set start>\n")
+                        session_history.append("\n".join(command_lines))
+                        session_history.append("<cmd set end>\n")
                         result = gdb_session.process_commands(command_lines)
                         all_output_lines.extend(result)
                         executed_commands.extend(command_lines)
@@ -1097,14 +1135,21 @@ Please gather more context about the codebase that will help with debugging.
                         total_lines = 0
                         for line in result:
                             total_output_length += len(line)
-                            if total_output_length < 3000:
+                            if total_output_length < 4000:
                                 total_lines += 1
                             else:
                                 break
+                        total_lines += 1
+                        lines_removed = len(result) - total_lines
                         if result:
+                            session_history.append("<output start>\n")
                             session_history.append("\n".join(result[:total_lines]))
-                            if total_lines < len(result):
-                                session_history.append("... (truncated)")
+                            if lines_removed > 10:
+                                session_history.append("... (truncated) --- ")
+                                session_history.append("\n".join(result[-10:]))
+                            elif lines_removed > 0:
+                                session_history.append("\n".join(result[-lines_removed:]))
+                        session_history.append("<output end>\n")
 
                         logger.info(f"Session history: {session_history}")
                         
@@ -1113,10 +1158,9 @@ Please gather more context about the codebase that will help with debugging.
                             break
                     
                     # Finalize output
-                    debug_output = "\n".join(all_output_lines)
                     logger.info(f"Interactive debug session completed: {command_count} commands executed")
                     
-                    return debug_output, executed_commands, debug_reasoning
+                    return "\n" + "\n".join(session_history), executed_commands, debug_reasoning
                     
                 finally:
                     # Clean up

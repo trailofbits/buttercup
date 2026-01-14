@@ -356,6 +356,10 @@ Service-specific environment variables that utilize the standardized variables
 - name: BUTTERCUP_MIN_VULN_DISCOVERY_RUNS
   value: {{ .Values.minVulnDiscoveryRuns | quote }}
 {{- end }}
+{{- if and (hasKey .Values "harnessWhitelist") (ne .Values.harnessWhitelist "") (not (contains "${" .Values.harnessWhitelist)) }}
+- name: BUTTERCUP_HARNESS_WHITELIST
+  value: {{ .Values.harnessWhitelist | quote }}
+{{- end }}
 {{- end }}
 
 {{- define "buttercup.buildBotEnv" }}

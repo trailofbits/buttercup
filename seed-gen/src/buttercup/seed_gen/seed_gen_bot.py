@@ -86,10 +86,45 @@ class SeedGenBot(TaskLoop):
         logger.info(f"Min runs: seed-init={self.MIN_SEED_INIT_RUNS}, vuln-discovery={self.MIN_VULN_DISCOVERY_RUNS}")
         logger.info(f"BUTTERCUP_USE_DEBUG_VULN_DISCOVERY (initial): {initial_debug_setting} (read at runtime in run_task)")
         
+        # Log harness whitelist configuration
+        whitelist_str = os.getenv("BUTTERCUP_HARNESS_WHITELIST", "").strip()
+        if whitelist_str:
+            whitelist = [name.strip() for name in whitelist_str.split(",") if name.strip()]
+            logger.info(f"Harness whitelist enabled with {len(whitelist)} entries: {whitelist}")
+        else:
+            logger.info("Harness whitelist not configured (all harnesses allowed)")
+        
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
         return [BuildType.FUZZER, BuildType.FUZZER_DEBUG]
+
+    def _is_harness_whitelisted(self, harness_name: str) -> bool:
+        """Check if a harness is in the whitelist.
+        
+        The whitelist is read from the BUTTERCUP_HARNESS_WHITELIST environment variable,
+        which should be a comma-separated list of harness names (or substrings to match).
+        
+        If the environment variable is not set or empty, all harnesses are allowed.
+        
+        Args:
+            harness_name: The name of the harness to check
+            
+        Returns:
+            True if the harness is whitelisted (or whitelist is empty), False otherwise
+        """
+        whitelist_str = os.getenv("BUTTERCUP_HARNESS_WHITELIST", "").strip()
+        if not whitelist_str:
+            # No whitelist configured, allow all harnesses
+            return True
+        
+        whitelist = [name.strip() for name in whitelist_str.split(",") if name.strip()]
+        if not whitelist:
+            # Empty whitelist after parsing, allow all
+            return True
+        
+        # Check if harness_name matches any whitelist entry (substring match)
+        return any(entry in harness_name for entry in whitelist)
 
     def sample_task(self, task: WeightedHarness, is_delta: bool) -> str:
         """Sample a task to run
@@ -153,7 +188,16 @@ class SeedGenBot(TaskLoop):
         task: WeightedHarness,
         builds: dict[BuildTypeHint, list[BuildOutput]],
     ) -> None:
+        # Check if harness is whitelisted
+        if not self._is_harness_whitelisted(task.harness_name):
+            logger.info(
+                f"Skipping harness {task.harness_name} | {task.package_name} | {task.task_id} "
+                f"(not in whitelist)"
+            )
+            return
+        
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
+        logger.info(f"Build directory: {build_dir}")
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
         project_yaml = ProjectYaml(ro_challenge_task, task.package_name)
         task_id = ro_challenge_task.task_meta.task_id

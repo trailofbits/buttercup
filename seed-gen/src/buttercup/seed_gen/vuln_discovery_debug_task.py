@@ -139,6 +139,22 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
 
         is_delta = bool(state.diff_content)
 
+        # Format debug insights if available (from retrieved_context, like other tools)
+        debug_insights = self._format_debug_insights(state)
+        if debug_insights:
+            debug_insights_section = f"""## DEBUG INSIGHTS FROM PREVIOUS ITERATION
+
+When analyzing the vulnerability, consider these insights from GDB debugging of failed PoVs:
+
+{debug_insights}
+
+Use these insights to:
+1. Understand why previous PoVs didn't crash
+2. Identify what conditions are needed for exploitation
+3. Adjust your analysis to account for actual runtime behavior"""
+        else:
+            debug_insights_section = ""
+
         base_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
@@ -147,6 +163,7 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
             "previous_attempts": state.format_pov_attempts(),
+            "debug_insights_section": debug_insights_section,
         }
 
         if is_delta:
@@ -156,23 +173,6 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
         else:
             system_prompt = VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT
             user_prompt = VULN_FULL_ANALYZE_BUG_USER_PROMPT
-
-        # Append debug insights if available (from retrieved_context, like other tools)
-        debug_insights = self._format_debug_insights(state)
-        if debug_insights:
-            system_prompt += f"""
-
-## DEBUG INSIGHTS FROM PREVIOUS ITERATION
-
-When analyzing the vulnerability, consider these insights from GDB debugging of failed PoVs:
-
-{debug_insights}
-
-Use these insights to:
-1. Understand why previous PoVs didn't crash
-2. Identify what conditions are needed for exploitation
-3. Adjust your analysis to account for actual runtime behavior
-"""
 
         res = self._analyze_bug_base(system_prompt, user_prompt, base_vars)
         return res
@@ -184,6 +184,22 @@ Use these insights to:
 
         is_delta = bool(state.diff_content)
 
+        # Format debug insights if available (from retrieved_context)
+        debug_insights = self._format_debug_insights(state)
+        if debug_insights:
+            debug_insights_section = f"""## DEBUG INSIGHTS
+
+Previous PoVs were debugged with GDB. Here's what we learned:
+
+{debug_insights}
+
+When writing new PoVs:
+1. Address the issues identified in debugging
+2. Ensure the conditions needed for exploitation are met
+3. Adjust input generation based on actual runtime behavior"""
+        else:
+            debug_insights_section = ""
+
         base_vars = {
             "analysis": state.analysis,
             "harness": str(state.harness),
@@ -192,6 +208,7 @@ Use these insights to:
             "pov_examples": self.get_pov_examples(),
             "fuzzer_name": self.get_fuzzer_name(),
             "previous_attempts": state.format_pov_attempts(),
+            "debug_insights_section": debug_insights_section,
         }
 
         if is_delta:
@@ -201,23 +218,6 @@ Use these insights to:
         else:
             system_prompt = VULN_FULL_WRITE_POV_SYSTEM_PROMPT
             user_prompt = VULN_FULL_WRITE_POV_USER_PROMPT
-
-        # Add debug insights to PoV writing if available (from retrieved_context)
-        debug_insights = self._format_debug_insights(state)
-        if debug_insights:
-            system_prompt += f"""
-
-## DEBUG INSIGHTS
-
-Previous PoVs were debugged with GDB. Here's what we learned:
-
-{debug_insights}
-
-When writing new PoVs:
-1. Address the issues identified in debugging
-2. Ensure the conditions needed for exploitation are met
-3. Adjust input generation based on actual runtime behavior
-"""
 
         res = self._write_pov_base(system_prompt, user_prompt, base_vars)
         return res
@@ -231,12 +231,31 @@ When writing new PoVs:
         if state.pov_attempts:
             latest_pov_functions = state.pov_attempts[-1].pov_functions
         
+        # Format debug insights from previous debug sessions
+        debug_insights = self._format_debug_insights(state)
+        if debug_insights:
+            debug_insights_section = f"""## PREVIOUS DEBUG INSIGHTS
+
+Here are insights from previous GDB debugging sessions of failed PoVs:
+
+{debug_insights}
+
+Use these insights to:
+1. Avoid repeating the same debug investigations
+2. Build on what was already learned
+3. Focus on new aspects or issues that weren't fully resolved
+4. Address specific obstacles identified in previous debug sessions
+5. Create a more targeted debug_context that addresses gaps from previous attempts"""
+        else:
+            debug_insights_section = "No previous debug insights available (this is the first debug session)."
+        
         # Prepare prompt variables
         prompt_vars = {
             "harness": str(state.harness),
             "previous_attempts": state.format_pov_attempts(),
             "analysis": state.analysis,
             "latest_pov_functions": latest_pov_functions,
+            "debug_insights_section": debug_insights_section,
         }
         
         # Create prompt and call LLM with debug_pov tool
@@ -335,6 +354,27 @@ When writing new PoVs:
                     ],
                 },
             )
+        
+        # Enhance debug_context with previous debug insights if available
+        # This ensures the debug subagent has full context even if the LLM didn't include it
+        if isinstance(state, VulnDiscoveryDebugState):
+            previous_insights = self._format_debug_insights(state)
+            if previous_insights:
+                enhanced_context = f"""{debug_context}
+
+## CONTEXT FROM PREVIOUS DEBUG SESSIONS
+
+The following insights were gathered from previous debug sessions. Use them to inform your investigation:
+
+{previous_insights}
+
+Focus your debugging efforts on:
+1. Aspects not fully covered in previous sessions
+2. Unresolved questions from previous attempts
+3. New hypotheses based on previous findings
+4. Specific obstacles identified in previous debugging"""
+                debug_context = enhanced_context
+                logger.info("Enhanced debug_context with %d chars of previous insights", len(previous_insights))
         
         # Get harness from state
         harness = state.harness
@@ -503,7 +543,7 @@ When writing new PoVs:
     def recursion_limit(self) -> int:
         context_steps = 2
         pov_steps = 4
-        debug_steps = 1  # Debug step only runs when PoVs fail
+        debug_steps = 3  # Debug step only runs when PoVs fail
         # Debug only runs when valid_pov_count == 0, so it's conditional
         # We'll include it in the limit to be safe
         return (

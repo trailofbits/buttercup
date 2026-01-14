@@ -2,8 +2,7 @@
 DEBUG_GET_CONTEXT_SYSTEM_PROMPT = """
 You are an expert debugger and security engineer. Your job is to gather relevant context about the codebase to help understand how a proof-of-vulnerability (PoV) input will execute.
 
-You are given a proof-of-vulnerability (PoV) input and a harness function that processes it. The harness function is part of a binary that has been compiled with different sanitizors to detect
-bad memory accesses and other vulnerabilities. The goal is to get one of these sanitizors to trigger with a POV input. 
+You are given a proof-of-vulnerability (PoV) input and a harness function that processes it. To test the vuln, the input has been run against various sanitizers, but the binary you are using does not have these sanitizers (since they were confirmed not to trigger)
 
 You have access to tools that let you:
 - Get function definitions
@@ -20,7 +19,7 @@ Use these tools to gather context about:
 - Code paths that the PoV input should trigger
 - Variables and data structures relevant to exploitation
 - Validation checks and bounds that might affect exploitation
-- Ensure you get the actual symbol names for any functions that may be needed to debug the PoV.
+- Ensure you get the actual symbol names for any functions that may be needed to debug the PoV (if you want to set a breakpoint on a function, get its real name).
 
 Focus on gathering information that will help understand:
 1. How the input flows through the program
@@ -70,6 +69,11 @@ DEBUG_ANALYZE_USER_PROMPT = """
 The test harness is:
 {harness}
 
+The PoV input file:
+- Path: {pov_path}
+- Size: {pov_size} bytes
+
+
 The debugging context/instructions are:
 {debug_context}
 
@@ -90,7 +94,7 @@ Analyze the debugging task:
 4. What GDB commands will verify the PoV is executing as intended?
 5. What conditions might prevent exploitation and how can we detect them?
 
-Provide a clear analysis that will guide the creation of a proactive GDB debug script. Be no more verbose than nessary to understand the strategy.
+Provide a clear analysis that will guide the creation of a proactive GDB debug script. Be no more verbose than necessary to understand the strategy.
 """
 
 DEBUG_WRITE_SCRIPT_SYSTEM_PROMPT = """
@@ -170,10 +174,15 @@ DEBUG_WRITE_SCRIPT_USER_PROMPT = """
 The test harness is:
 {harness}
 
+The PoV input file:
+- Path: {pov_path}
+- Size: {pov_size} bytes
+
+
 The debugging context/instructions are:
 {debug_context}
 
-Your analysis:
+Your analysis (of the debugging strategy, NOT the original vulnerability):
 <analysis>
 {analysis}
 </analysis>
@@ -212,7 +221,9 @@ CRITICAL REQUIREMENTS:
 2. Do NOT use local variables in breakpoint conditions - check them inside `commands` blocks instead
 3. Set breakpoints on functions before calling `run`
 4. Use `commands` blocks to check conditions and output information
-5. Dont write anything that prints too much output, you will be limited to 20000 characters in the output.
+5. Don't write anything that prints too much output; limit output to 20,000 characters.
+6. Values may be optimized out by the compiler. Write your script to handle this gracefully and continue running. Potentially prioritize dumping registers for variables that seem like they may live there.
+7. Python scripting is not supported in this version of GDB.
 
 Output only the GDB script code, wrapped in a code block with language "gdb" or "text".
 Make sure the script outputs detailed information using `printf` or `print` statements so we can understand execution flow.
@@ -248,10 +259,14 @@ DEBUG_REFLECT_USER_PROMPT = """
 The test harness is:
 {harness}
 
+The PoV input file:
+- Path: {pov_path}
+- Size: {pov_size} bytes
+
 The original debugging context/question was:
 {debug_context}
 
-The original analysis/motivation for the debug script:
+The analysis of the debugging strategy (NOT the original vulnerability):
 <analysis>
 {analysis}
 </analysis>
@@ -304,6 +319,7 @@ Remember: This summary will be read by another agent that does NOT have access t
 
 DEBUG_INTERACTIVE_COMMAND_SYSTEM_PROMPT = """You are debugging a program with GDB to understand why a PoV input doesn't crash as expected.
 
+
 Debug goal: {debug_context}
 
 Analysis: {analysis}
@@ -323,12 +339,13 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
 
 **COMMAND GUIDELINES**:
 - Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
+- Be economical with the number of turns you take. You have a limited number of turns, and as soon as you have enough information to end the debugging session, do so.
 - The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
 - Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers, info functions <pattern>
 - If you've gathered enough information, respond with 'quit'
-- Be aware that symbol names may not be avaliable, or may be modified by the compiler. This is especially true for functions.
-- To find actual symbol names in the binary, you can use the GDB command: `info functions <pattern>` (e.g., `info functions png_inflate`)
-- If this function lookup fails, use the file name and line number from the CodeSnippet objects in the retrieved context to set breakpoints (e.g., `break file.c:123`), but be aware that this may not always be accurate
+- Be aware that symbol names may not be available, or may be modified by the compiler. 
+- If this function breakpoint fail, use info function or use the file name and line number from the CodeSnippet objects in the retrieved context to set breakpoints (e.g., `break file.c:123`), but be aware that this may not always be accurate
+- Variables may be optimized out. If that is the case, dumping registers and dissassembling may indicate the value you want.
 - **CRITICAL**: The binary and seed file are already configured via --args. Use `run` with NO ARGUMENTS. Do NOT use `run <file>` as this will override the pre-configured arguments and cause the fuzzer to receive invalid input data.
 - We have also added the quality of life settings already:
 ```gdb
@@ -344,10 +361,15 @@ set verbose off
 DEBUG_INTERACTIVE_COMMAND_USER_PROMPT = """Harness:
 {harness}
 
+PoV input file:
+- Path: {pov_path}
+- Size: {pov_size} bytes
+
+
 Session history:
 {session_history}
 
-Commands remaining: {commands_remaining}
+Commands remaining (this is how many more turns you have, MUST HAVE VALID RESULTS BY THE END): {commands_remaining}
 
 Next GDB command(s):
 """

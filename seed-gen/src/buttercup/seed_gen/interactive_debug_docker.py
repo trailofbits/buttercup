@@ -112,7 +112,7 @@ class InteractiveGDBDocker(DockerInteractive):
             elif line.startswith("*"):
                 newlines.append(line)
             elif not line[:1] in "^~@*&=":
-                newlines.append("runtime output: " + line)
+                newlines.append(line)
                 
 
         cmd_result.lines = newlines

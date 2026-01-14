@@ -69,6 +69,10 @@ litellm:
 ui:
   enabled: true
 
+seed-gen:
+  harnessWhitelist: "${BUTTERCUP_HARNESS_WHITELIST}"
+  useDebugVulnDiscovery: ${BUTTERCUP_USE_DEBUG_VULN_DISCOVERY}
+
 competition-api:
   enabled: false
 
