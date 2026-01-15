@@ -34,6 +34,51 @@ class ChallengeService:
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.base_url = base_url
 
+    def _pull_lfs_files(self, repo_path: Path, context: str) -> None:
+        """Pull LFS files if the repository uses LFS.
+
+        For GitHub repositories, LFS authentication uses the same credentials
+        embedded in the remote URL during clone. This works because Git stores
+        the full URL (including credentials) in .git/config, and LFS reads from there.
+
+        Args:
+            repo_path: Path to the git repository
+            context: Description for logging (e.g., "repo@ref")
+
+        Raises:
+            subprocess.CalledProcessError: If LFS files exist but pull fails
+        """
+        # Check if repo has LFS files tracked
+        ls_result = subprocess.run(
+            ["git", "lfs", "ls-files"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+        )
+
+        # git-lfs not installed or not available
+        if ls_result.returncode != 0:
+            logger.debug(f"[{context}] git-lfs not available: {ls_result.stderr.strip()}")
+            return
+
+        # No LFS files in this repo
+        if not ls_result.stdout.strip():
+            logger.debug(f"[{context}] No LFS files in repository")
+            return
+
+        # LFS files exist - must pull them
+        lfs_file_count = len(ls_result.stdout.strip().splitlines())
+        logger.info(f"[{context}] Pulling {lfs_file_count} LFS file(s)")
+
+        result = subprocess.run(
+            ["git", "lfs", "pull"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,  # Fail if LFS pull fails - we need these files
+        )
+        logger.info(f"[{context}] LFS pull complete: {result.stdout.strip()}")
+
     def create_challenge_tarball(
         self,
         repo_url: str,
@@ -111,6 +156,9 @@ class ChallengeService:
             )
             logger.info(f"Git checkout output: {result.stdout}")
 
+            # Pull LFS files if repository uses LFS
+            self._pull_lfs_files(sub_path, f"{repo_url}@{cur_ref}")
+
             # Create tarball
             tarball_path = self.storage_dir / f"{tarball_name}.tar.gz"
 
@@ -148,6 +196,10 @@ class ChallengeService:
                         check=True,
                     )
                     logger.info(f"Git checkout output: {result.stdout}")
+
+                    # Pull LFS files if repository uses LFS
+                    self._pull_lfs_files(sub_path, f"{repo_url}@{ref}")
+
                     shutil.copytree(sub_path, ref_sub_path, ignore=shutil.ignore_patterns(".git", ".aixcc"))
 
                     # Create a git-diff file between the two directories (base_sub_path and ref_sub_path)

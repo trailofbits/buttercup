@@ -445,3 +445,117 @@ class TestChallengeService:
         assert broadcast.broadcasts[0].sarif == complex_sarif
         assert broadcast.broadcasts[0].task_id == task_id
         assert broadcast.broadcasts[0].metadata == {}
+
+
+class TestPullLfsFiles:
+    """Test cases for the _pull_lfs_files method."""
+
+    @pytest.fixture
+    def temp_storage_dir(self):
+        """Create a temporary storage directory for testing."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            yield Path(temp_dir)
+
+    @pytest.fixture
+    def challenge_service(self, temp_storage_dir):
+        """Create a ChallengeService instance with temporary storage."""
+        return ChallengeService(temp_storage_dir, "http://localhost:8000")
+
+    @pytest.fixture
+    def mock_repo_path(self, temp_storage_dir):
+        """Create a mock repository path."""
+        repo_path = temp_storage_dir / "mock-repo"
+        repo_path.mkdir()
+        return repo_path
+
+    @patch("subprocess.run")
+    def test_no_lfs_files_in_repo(self, mock_run, challenge_service, mock_repo_path):
+        """Test that git lfs pull is not called when no LFS files exist."""
+        # git lfs ls-files returns empty (no LFS files)
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+
+        challenge_service._pull_lfs_files(mock_repo_path, "test-repo@main")
+
+        # Should only call git lfs ls-files, not git lfs pull
+        assert mock_run.call_count == 1
+        mock_run.assert_called_once_with(
+            ["git", "lfs", "ls-files"],
+            cwd=mock_repo_path,
+            capture_output=True,
+            text=True,
+        )
+
+    @patch("subprocess.run")
+    def test_lfs_files_exist_pull_succeeds(self, mock_run, challenge_service, mock_repo_path):
+        """Test successful LFS pull when LFS files exist."""
+        # First call: git lfs ls-files returns files
+        # Second call: git lfs pull succeeds
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout="abc123 * large-file.bin\ndef456 * data/model.pkl\n", stderr=""),
+            MagicMock(returncode=0, stdout="Downloading LFS objects: 100% (2/2)", stderr=""),
+        ]
+
+        challenge_service._pull_lfs_files(mock_repo_path, "test-repo@main")
+
+        # Should call both ls-files and pull
+        assert mock_run.call_count == 2
+        mock_run.assert_any_call(
+            ["git", "lfs", "ls-files"],
+            cwd=mock_repo_path,
+            capture_output=True,
+            text=True,
+        )
+        mock_run.assert_any_call(
+            ["git", "lfs", "pull"],
+            cwd=mock_repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    @patch("subprocess.run")
+    def test_lfs_files_exist_pull_fails(self, mock_run, challenge_service, mock_repo_path):
+        """Test that CalledProcessError is raised when LFS pull fails."""
+        # First call: git lfs ls-files returns files
+        # Second call: git lfs pull fails
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout="abc123 * large-file.bin\n", stderr=""),
+            subprocess.CalledProcessError(1, "git lfs pull", stderr="Authentication failed"),
+        ]
+
+        with pytest.raises(subprocess.CalledProcessError):
+            challenge_service._pull_lfs_files(mock_repo_path, "test-repo@main")
+
+    @patch("subprocess.run")
+    def test_git_lfs_not_installed(self, mock_run, challenge_service, mock_repo_path):
+        """Test graceful handling when git-lfs is not installed."""
+        # git lfs ls-files fails because git-lfs is not installed
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="git: 'lfs' is not a git command. See 'git --help'.",
+        )
+
+        # Should not raise, just return
+        challenge_service._pull_lfs_files(mock_repo_path, "test-repo@main")
+
+        # Should only call ls-files (which fails), not pull
+        assert mock_run.call_count == 1
+
+    @patch("subprocess.run")
+    def test_lfs_pull_logs_file_count(self, mock_run, challenge_service, mock_repo_path, caplog):
+        """Test that the correct number of LFS files is logged."""
+        import logging
+
+        # Three LFS files
+        lfs_output = "abc123 * file1.bin\ndef456 * file2.bin\nghi789 * file3.bin\n"
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=lfs_output, stderr=""),
+            MagicMock(returncode=0, stdout="Done", stderr=""),
+        ]
+
+        with caplog.at_level(logging.INFO):
+            challenge_service._pull_lfs_files(mock_repo_path, "test-repo@v1.0")
+
+        assert "Pulling 3 LFS file(s)" in caplog.text
+        assert "test-repo@v1.0" in caplog.text
