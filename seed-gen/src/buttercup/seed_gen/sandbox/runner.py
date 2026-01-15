@@ -29,15 +29,17 @@ def exec_seed_funcs(seed_func_path: Path, output_dir: Path) -> None:
     if module is None:
         logging.error("Failed to load module")
         return
-    
+
     funcs = list(inspect.getmembers(module, inspect.isfunction))
     logging.debug(f"Found {len(funcs)} functions in module: {[name for name, _ in funcs]}")
-    
+
     for func_name, func in funcs:
         try:
             logging.info(f"Executing function: {func_name}")
             seed = func()
-            logging.debug(f"Function {func_name} returned {len(seed) if isinstance(seed, bytes) else 'non-bytes'} bytes")
+            logging.debug(
+                f"Function {func_name} returned {len(seed) if isinstance(seed, bytes) else 'non-bytes'} bytes"
+            )
             filename = f"{func_name}.seed"
             path = output_dir / filename
             logging.debug(f"Writing seed to {path}")

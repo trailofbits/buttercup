@@ -89,19 +89,19 @@ class ReproduceMultiple:
         prefer_sanitizer: str = "address",
     ) -> SelectedBuild | None:
         """Select the best build that contains the specified harness.
-        
+
         This is a convenience wrapper around build_selection.select_build_for_harness.
-        
+
         Args:
             harness_name: Name of the harness binary to find
             prefer_sanitizer: Preferred sanitizer type (default: "address")
-            
+
         Returns:
             SelectedBuild with build_output and task, or None if no builds available
         """
         if self.builds_cache is None or not self.builds_cache:
             return None
-        
+
         return select_build_for_harness(
             self.build_outputs,
             self.builds_cache,

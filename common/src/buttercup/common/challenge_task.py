@@ -258,24 +258,24 @@ class ChallengeTask:
 
     def get_debug_binary_path(self, harness_name: str) -> Path | None:
         """Get the path to a debug binary/JAR.
-        
+
         Returns path to binaries/JARs built with build_fuzzers_with_debug_symbols().
         All debug builds use the /out/debug output directory, so binaries are at:
         .../build/out/<project>/debug/<harness_name>
-        
+
         For C++: The binary will be an ELF executable
         For Java: The binary will be a JAR file (with .jar extension)
-        
+
         Args:
             harness_name: Name of the harness (e.g., 'libpng_read_fuzzer')
-            
+
         Returns:
             Path to the debug binary/JAR or None if build_dir doesn't exist
         """
         build_dir = self.get_build_dir()
         if build_dir is None:
             return None
-        
+
         # Debug builds use /out/debug, so binaries are in build_dir / "debug"
         return build_dir / "debug" / harness_name
 
@@ -607,7 +607,6 @@ class ChallengeTask:
         env: dict[str, str] | None = None,
         env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
-
         if sanitizer == "debug":
             return self.build_fuzzers_with_debug_symbols(
                 use_source_dir=use_source_dir,
@@ -628,7 +627,7 @@ class ChallengeTask:
         )
         # Convert "debug" to "none" for oss-fuzz helper compatibility
         sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
-        
+
         kwargs = {
             "architecture": architecture,
             "engine": engine,
@@ -670,22 +669,22 @@ class ChallengeTask:
         env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         """Build fuzzers with debug symbols (FUZZER_DEBUG build type).
-        
+
         **Language Agnostic**: This method works for any language. For C++ projects,
         it sets CFLAGS/CXXFLAGS to include full debug symbols. For Java or other languages,
         setting CFLAGS/CXXFLAGS has no effect (which is fine).
-        
+
         **Build Type**: This creates a FUZZER_DEBUG build that outputs to /out (same as
         FUZZER and COVERAGE builds). It's stored separately in the build map by build_type.
-        
+
         The source directory is never modified (build process only reads from it).
-        
+
         Process:
         1. For C++: Overrides CFLAGS/CXXFLAGS to use -ggdb -fno-inline and -O1
         2. For Java/other: CFLAGS/CXXFLAGS are ignored (no effect)
         3. Sets sanitizer=None to disable sanitizer instrumentation (cleaner debugging)
         4. Builds the fuzzers using the original source directory to /out
-        
+
         Args:
             use_source_dir: Whether to use source directory
             architecture: Target architecture
@@ -693,10 +692,10 @@ class ChallengeTask:
             sanitizer: Sanitizer to use (typically None for debug builds)
             env: Environment variables (will be merged with CFLAGS/CXXFLAGS overrides)
             env_helper: Environment variables for the helper process
-            
+
         Returns:
             CommandResult from the build process
-            
+
         Raises:
             ChallengeTaskError: If source directory doesn't exist
         """
@@ -704,20 +703,20 @@ class ChallengeTask:
             "Building fuzzers with debug symbols for project %s",
             self.project_name,
         )
-        
+
         # Get source directory path
         source_path = self.get_source_path()
         if not source_path.exists():
             raise ChallengeTaskError(f"Source directory not found at {source_path}")
-        
+
         # Prepare environment variables
         debug_env = env.copy() if env else {}
-        
+
         # For FUZZER_DEBUG build type, output goes to /out (same as other builds)
         # The build_type distinguishes it from other builds in the build map
         # Note: We don't set OUT="/out/debug" here because this build is meant to
         # be a full replacement build (like coverage), not an auxiliary debug build
-        
+
         # Override CFLAGS/CXXFLAGS for full debug symbols
         # For C++ projects, this enables full debug symbols (-ggdb -fno-inline)
         # For Java/other projects, these flags are ignored (no effect)
@@ -725,54 +724,53 @@ class ChallengeTask:
         existing_cxxflags = debug_env.get("CXXFLAGS", "")
         logger.info(f"Existing CFLAGS: {existing_cflags}")
         logger.info(f"Existing CXXFLAGS: {existing_cxxflags}")
-        
+
         # Replace -gline-tables-only with -ggdb -fno-inline for CFLAGS
         # Also replace any optimization flags with -O0
         if "-gline-tables-only" in existing_cflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cflags.replace("-gline-tables-only", "-ggdb -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CFLAGS"] = flags.strip()
         elif "-g" in existing_cflags:
             # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
-            flags = re.sub(r'-g[^\s]*', '', existing_cflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-g[^\s]*", "", existing_cflags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
             # Replace any -O* flags with -O0
             base_flags = "-Og -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
+            base_flags = re.sub(r"-O[0-9sglz]*", "-Og", base_flags)
             debug_env["CFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
-        
+
         # Replace -gline-tables-only with -ggdb -fno-inline for CXXFLAGS
         # Also replace any optimization flags with -O0
         if "-gline-tables-only" in existing_cxxflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cxxflags.replace("-gline-tables-only", "-ggdb -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CXXFLAGS"] = flags.strip()
         elif "-g" in existing_cxxflags:
             # Remove all -g* flags, replace -O* flags with -O0, then add -ggdb -fno-inline
-            flags = re.sub(r'-g[^\s]*', '', existing_cxxflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-g[^\s]*", "", existing_cxxflags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CXXFLAGS"] = f"{flags.strip()} -ggdb -fno-inline".strip()
         else:
             # Replace any -O* flags with -O0
             base_flags = "-Og -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
+            base_flags = re.sub(r"-O[0-9sglz]*", "-Og", base_flags)
             debug_env["CXXFLAGS"] = f"{base_flags} -ggdb -fno-inline".strip()
-        
+
         logger.info(f"CFLAGS override: {debug_env.get('CFLAGS', 'not set')}")
         logger.info(f"CXXFLAGS override: {debug_env.get('CXXFLAGS', 'not set')}")
         logger.info("OUT set to /out/debug (separate output directory)")
         logger.debug(
-            "Note: CFLAGS/CXXFLAGS only affect C++ projects. "
-            "For Java/other languages, these flags are ignored."
+            "Note: CFLAGS/CXXFLAGS only affect C++ projects. For Java/other languages, these flags are ignored."
         )
-        
+
         # Convert "debug" to "none" for oss-fuzz helper compatibility
         sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
-        
+
         kwargs = {
             "architecture": architecture,
             "engine": engine,
@@ -781,7 +779,7 @@ class ChallengeTask:
         }
         if self.workdir_from_dockerfile() == Path("/src"):
             kwargs["mount_path"] = f"/src/{self.focus}"
-        
+
         # Build using the original source directory
         # The build process only reads from source and writes to /out (same as other builds)
         source_subpath = self.get_source_subpath()
@@ -792,7 +790,7 @@ class ChallengeTask:
             str((self.task_dir / source_subpath).absolute()) if use_source_dir else None,
             **kwargs,
         )
-        
+
         logger.info(f"Building with debug symbols using source directory: {source_path}")
         return self._run_helper_cmd(cmd, env_helper=env_helper)
 
@@ -861,7 +859,7 @@ class ChallengeTask:
     ) -> CommandResult:
         # Convert "debug" to "none" for oss-fuzz helper compatibility
         sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
-        
+
         logger.info(
             "Checking build for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
             self.project_name,
@@ -901,7 +899,7 @@ class ChallengeTask:
             architecture,
             env,
         )
-        
+
         # Ensure the fuzzer binary has execute permissions
         # This is needed because some builds (especially when copied) may not preserve permissions
         build_dir = self.get_build_dir()
@@ -913,7 +911,7 @@ class ChallengeTask:
                     fuzzer_path.chmod(current_perms | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
                 except Exception as e:
                     logger.warning(f"Failed to set execute permissions on {fuzzer_path}: {e}")
-        
+
         kwargs: dict[str, Any] = {
             "architecture": architecture,
             "e": env,
@@ -955,7 +953,7 @@ class ChallengeTask:
     ) -> CommandResult:
         # Convert "debug" to "none" for oss-fuzz helper compatibility
         sanitizer_for_helper = "none" if sanitizer == "debug" else sanitizer
-        
+
         logger.info(
             "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | "
             "corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",

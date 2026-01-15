@@ -3,6 +3,7 @@ import logging
 import operator
 import random
 import shutil
+import time
 from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,7 +17,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from opentelemetry import trace
 from pydantic import Field
-import time
+
 from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import CrashDir
@@ -323,7 +324,7 @@ class VulnBaseTask(Task):
         logger.info("Doing vuln-discovery for challenge %s (mode: %s)", self.package_name, mode)
         # Initialize start_time if not already set (e.g., by subclasses in __post_init__)
         if not hasattr(self, "start_time") or self.start_time is None:
-            self.start_time = time.time()
+            self.start_time: float = time.time()
         try:
             state = self._init_state(out_dir, current_dir)
             workflow = self._build_workflow()

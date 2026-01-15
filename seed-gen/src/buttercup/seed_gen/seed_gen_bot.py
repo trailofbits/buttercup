@@ -62,30 +62,46 @@ class SeedGenBot(TaskLoop):
         self.crash_dir_count_limit = crash_dir_count_limit
         self.max_corpus_seed_size = max_corpus_seed_size
         self.max_pov_size = max_pov_size
-        
+
         # Read probability overrides from environment variables
         self.TASK_SEED_INIT_PROB_FULL = float(os.getenv("BUTTERCUP_SEED_INIT_PROB_FULL", self.TASK_SEED_INIT_PROB_FULL))
-        self.TASK_VULN_DISCOVERY_PROB_FULL = float(os.getenv("BUTTERCUP_VULN_DISCOVERY_PROB_FULL", self.TASK_VULN_DISCOVERY_PROB_FULL))
-        self.TASK_SEED_EXPLORE_PROB_FULL = float(os.getenv("BUTTERCUP_SEED_EXPLORE_PROB_FULL", self.TASK_SEED_EXPLORE_PROB_FULL))
-        
-        self.TASK_SEED_INIT_PROB_DELTA = float(os.getenv("BUTTERCUP_SEED_INIT_PROB_DELTA", self.TASK_SEED_INIT_PROB_DELTA))
-        self.TASK_VULN_DISCOVERY_PROB_DELTA = float(os.getenv("BUTTERCUP_VULN_DISCOVERY_PROB_DELTA", self.TASK_VULN_DISCOVERY_PROB_DELTA))
-        self.TASK_SEED_EXPLORE_PROB_DELTA = float(os.getenv("BUTTERCUP_SEED_EXPLORE_PROB_DELTA", self.TASK_SEED_EXPLORE_PROB_DELTA))
-        
+        self.TASK_VULN_DISCOVERY_PROB_FULL = float(
+            os.getenv("BUTTERCUP_VULN_DISCOVERY_PROB_FULL", self.TASK_VULN_DISCOVERY_PROB_FULL)
+        )
+        self.TASK_SEED_EXPLORE_PROB_FULL = float(
+            os.getenv("BUTTERCUP_SEED_EXPLORE_PROB_FULL", self.TASK_SEED_EXPLORE_PROB_FULL)
+        )
+
+        self.TASK_SEED_INIT_PROB_DELTA = float(
+            os.getenv("BUTTERCUP_SEED_INIT_PROB_DELTA", self.TASK_SEED_INIT_PROB_DELTA)
+        )
+        self.TASK_VULN_DISCOVERY_PROB_DELTA = float(
+            os.getenv("BUTTERCUP_VULN_DISCOVERY_PROB_DELTA", self.TASK_VULN_DISCOVERY_PROB_DELTA)
+        )
+        self.TASK_SEED_EXPLORE_PROB_DELTA = float(
+            os.getenv("BUTTERCUP_SEED_EXPLORE_PROB_DELTA", self.TASK_SEED_EXPLORE_PROB_DELTA)
+        )
+
         self.MIN_SEED_INIT_RUNS = int(os.getenv("BUTTERCUP_MIN_SEED_INIT_RUNS", self.MIN_SEED_INIT_RUNS))
         self.MIN_VULN_DISCOVERY_RUNS = int(os.getenv("BUTTERCUP_MIN_VULN_DISCOVERY_RUNS", self.MIN_VULN_DISCOVERY_RUNS))
-        
+
         # Note: BUTTERCUP_USE_DEBUG_VULN_DISCOVERY is read at runtime in run_task, not here
         # This is just for initial logging
         initial_debug_setting = os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
-        
-        logger.info(f"Task probabilities (FULL): seed-init={self.TASK_SEED_INIT_PROB_FULL}, "
-                   f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_FULL}, seed-explore={self.TASK_SEED_EXPLORE_PROB_FULL}")
-        logger.info(f"Task probabilities (DELTA): seed-init={self.TASK_SEED_INIT_PROB_DELTA}, "
-                   f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_DELTA}, seed-explore={self.TASK_SEED_EXPLORE_PROB_DELTA}")
+
+        logger.info(
+            f"Task probabilities (FULL): seed-init={self.TASK_SEED_INIT_PROB_FULL}, "
+            f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_FULL}, seed-explore={self.TASK_SEED_EXPLORE_PROB_FULL}"
+        )
+        logger.info(
+            f"Task probabilities (DELTA): seed-init={self.TASK_SEED_INIT_PROB_DELTA}, "
+            f"vuln-discovery={self.TASK_VULN_DISCOVERY_PROB_DELTA}, seed-explore={self.TASK_SEED_EXPLORE_PROB_DELTA}"
+        )
         logger.info(f"Min runs: seed-init={self.MIN_SEED_INIT_RUNS}, vuln-discovery={self.MIN_VULN_DISCOVERY_RUNS}")
-        logger.info(f"BUTTERCUP_USE_DEBUG_VULN_DISCOVERY (initial): {initial_debug_setting} (read at runtime in run_task)")
-        
+        logger.info(
+            f"BUTTERCUP_USE_DEBUG_VULN_DISCOVERY (initial): {initial_debug_setting} (read at runtime in run_task)"
+        )
+
         super().__init__(redis, timer_seconds)
 
     def required_builds(self) -> list[BuildTypeHint]:
@@ -230,7 +246,9 @@ class SeedGenBot(TaskLoop):
                 )
                 with reproduce_multiple.open() as mult:
                     # Read debug mode from environment variable (can be changed live without redeploying)
-                    use_debug_vuln_discovery = os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
+                    use_debug_vuln_discovery = (
+                        os.getenv("BUTTERCUP_USE_DEBUG_VULN_DISCOVERY", "false").lower() == "true"
+                    )
                     if use_debug_vuln_discovery:
                         # Use the unified debug-enabled task (works for both delta and full)
                         logger.info("Using VulnDiscoveryDebugTask with integrated debugging")

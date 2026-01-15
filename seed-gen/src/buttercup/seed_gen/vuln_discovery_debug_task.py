@@ -6,25 +6,25 @@ and incorporates those insights into the next iteration.
 """
 
 import logging
+import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, override
 
-from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.messages import ToolMessage
+from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_core.tools import BaseTool, tool
 from langchain_core.tools.base import InjectedToolCallId
-
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import InjectedState, ToolNode
 from langgraph.types import Command
-import tempfile
 from pydantic import BaseModel, Field
-import time
+
 from buttercup.seed_gen.debug_subagent_unified import DebugSubagentUnified
-from buttercup.seed_gen.task import BaseTaskState, CodeSnippet, ToolCallResult
 from buttercup.seed_gen.prompt.vuln_discovery import (
+    VULN_DEBUG_FAILED_POVS_SYSTEM_PROMPT,
+    VULN_DEBUG_FAILED_POVS_USER_PROMPT,
     VULN_DELTA_ANALYZE_BUG_SYSTEM_PROMPT,
     VULN_DELTA_ANALYZE_BUG_USER_PROMPT,
     VULN_DELTA_GET_CONTEXT_SYSTEM_PROMPT,
@@ -37,9 +37,8 @@ from buttercup.seed_gen.prompt.vuln_discovery import (
     VULN_FULL_GET_CONTEXT_USER_PROMPT,
     VULN_FULL_WRITE_POV_SYSTEM_PROMPT,
     VULN_FULL_WRITE_POV_USER_PROMPT,
-    VULN_DEBUG_FAILED_POVS_SYSTEM_PROMPT,
-    VULN_DEBUG_FAILED_POVS_USER_PROMPT,
 )
+from buttercup.seed_gen.task import BaseTaskState, CodeSnippet, ToolCallResult
 from buttercup.seed_gen.utils import get_diff_content
 from buttercup.seed_gen.vuln_base_task import VulnBaseState, VulnBaseTask
 
@@ -50,12 +49,8 @@ class VulnDiscoveryDebugState(VulnBaseState):
     """Extended state with debug information"""
 
     diff_content: str = Field(description="The content of the diff being analyzed", default="")
-    debug_insights: str = Field(
-        description="Insights from GDB debugging about why PoVs are failing", default=""
-    )
-    should_debug: bool = Field(
-        description="Whether we should debug failed PoVs in this iteration", default=False
-    )
+    debug_insights: str = Field(description="Insights from GDB debugging about why PoVs are failing", default="")
+    should_debug: bool = Field(description="Whether we should debug failed PoVs in this iteration", default=False)
 
 
 @dataclass
@@ -76,13 +71,11 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.start_time = None
         # Initialize debug subagent - validation will be skipped since we test PoVs first
         self.debug_subagent_unified = DebugSubagentUnified(
-            task=self, 
+            task=self,
             reproduce_multiple=self.reproduce_multiple,
             mode="hybrid",
-            skip_validation=True  # Skip validation since we already tested the PoV
         )
         # Create the debug_pov tool for this task
         self.debug_pov_tool = self._create_debug_pov_tool()
@@ -92,10 +85,6 @@ class VulnDiscoveryDebugTask(VulnBaseTask):
     def _gather_context(self, state: VulnDiscoveryDebugState) -> Command:  # type: ignore[override]
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
-        if self.start_time is None:
-            self.start_time = time.time()
-            logger.info("Start time: %s", self.start_time)
-
         # Determine if we're in delta mode by checking if diff_content exists
         is_delta = bool(state.diff_content)
 
@@ -225,12 +214,12 @@ When writing new PoVs:
     def _debug_failed_povs(self, state: VulnDiscoveryDebugState) -> Command:
         """Debug failed PoVs after testing to understand why they didn't crash. Should make a tool call"""
         logger.info("Debugging failed PoVs")
-        
+
         # Get the most recent PoV functions code (what was just tested)
         latest_pov_functions = ""
         if state.pov_attempts:
             latest_pov_functions = state.pov_attempts[-1].pov_functions
-        
+
         # Prepare prompt variables
         prompt_vars = {
             "harness": str(state.harness),
@@ -238,7 +227,7 @@ When writing new PoVs:
             "analysis": state.analysis,
             "latest_pov_functions": latest_pov_functions,
         }
-        
+
         # Create prompt and call LLM with debug_pov tool
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -246,14 +235,14 @@ When writing new PoVs:
                 ("human", VULN_DEBUG_FAILED_POVS_USER_PROMPT),
             ],
         )
-        
+
         # Bind the debug_pov tool to the LLM
         llm_with_debug_tool = self.llm.bind_tools(self.debug_pov_tools)
         chain = prompt | llm_with_debug_tool
-        
+
         # Invoke with prompt variables and existing messages for context
         response = chain.invoke(prompt_vars)
-        
+
         # Return command that will trigger the tool call
         return Command(
             update={
@@ -273,7 +262,7 @@ When writing new PoVs:
     def _create_debug_pov_tool(self) -> BaseTool:
         """Create the debug_pov tool for this task instance"""
         task_instance = self
-        
+
         @tool
         def debug_pov(
             testcase_name: str,
@@ -285,18 +274,18 @@ When writing new PoVs:
             tool_call_id: Annotated[str, InjectedToolCallId],
         ) -> Command:
             """Debug a PoV (Proof of Vulnerability) input using GDB-based debugging.
-            
+
             This tool runs the unified debug agent to analyze why a PoV input may have failed
             to crash the program. It provides detailed insights about execution paths, program
             state, and exploitation conditions.
-            
+
             Args:
                 testcase_name: Name of the testcase to debug (e.g., "pov_1"). The tool will search
                                through output_dir to find the most recent .seed file containing this name.
                 debug_context: Contextual information about what to test and verify during debugging
                 output_dir: Optional directory to write debug results to (defaults to agentic_debug subdirectory)
                 current_dir: Optional directory for temporary files (defaults to a temporary directory)
-            
+
             Notes:
                 - This tool is only available for tasks that have reproduce_multiple (VulnBaseTask)
                 - The tool searches state.output_dir for .seed files containing the testcase_name
@@ -305,8 +294,10 @@ When writing new PoVs:
                 - Results include analysis, debug commands executed, debug output, and reflection
             """
             assert isinstance(state, BaseTaskState)
-            return task_instance._debug_pov_impl(testcase_name, debug_context, output_dir, current_dir, state, tool_call_id)
-        
+            return task_instance._debug_pov_impl(
+                testcase_name, debug_context, output_dir, current_dir, state, tool_call_id
+            )
+
         return debug_pov
 
     def _debug_pov_impl(
@@ -320,9 +311,9 @@ When writing new PoVs:
     ) -> Command:
         """Implementation of debug_pov tool - calls unified debug agent"""
         logger.info("Tool call: debug_pov for testcase %s", testcase_name)
-        
+
         call = f'debug_pov("{testcase_name}", "{debug_context}")'
-        
+
         # Check cache to avoid redundant debug calls
         if call in state.retrieved_context:
             return Command(
@@ -335,10 +326,10 @@ When writing new PoVs:
                     ],
                 },
             )
-        
+
         # Get harness from state
         harness = state.harness
-        
+
         # Search for the most recent PoV file matching the testcase name in output_dir
         if not state.output_dir.exists():
             return Command(
@@ -351,13 +342,10 @@ When writing new PoVs:
                     ],
                 },
             )
-        
+
         # Find all .seed files in output_dir that contain the testcase name
-        matching_files = [
-            f for f in state.output_dir.glob("*.seed")
-            if testcase_name in f.name
-        ]
-        
+        matching_files = [f for f in state.output_dir.glob("*.seed") if testcase_name in f.name]
+
         if not matching_files:
             return Command(
                 update={
@@ -369,16 +357,12 @@ When writing new PoVs:
                     ],
                 },
             )
-        
+
         # Sort by modification time (newest first) and pick the most recent
-        pov_path = sorted(
-            matching_files,
-            key=lambda p: p.stat().st_mtime,
-            reverse=True
-        )[0]
-        
+        pov_path = sorted(matching_files, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+
         logger.info("Found matching PoV file: %s (mtime: %.2f)", pov_path.name, pov_path.stat().st_mtime)
-        
+
         # Set up output and current directories
         if output_dir:
             debug_output_dir = Path(output_dir)
@@ -386,16 +370,16 @@ When writing new PoVs:
             # Use a default location relative to state.output_dir
             debug_uuid = uuid.uuid4().hex[:8]
             debug_output_dir = state.output_dir.parent / "agentic_debug" / f"{debug_uuid}_tool_debug"
-        
+
         if current_dir:
             debug_current_dir = Path(current_dir)
-        elif hasattr(state, 'current_dir') and state.current_dir:
+        elif hasattr(state, "current_dir") and state.current_dir:
             # Use state's current_dir if available
             debug_current_dir = state.current_dir
         else:
             # Use a temporary directory
             debug_current_dir = Path(tempfile.mkdtemp())
-        
+
         try:
             # Call the debug agent (we already have it initialized in __post_init__)
             debug_result = self.debug_subagent_unified.debug(
@@ -405,22 +389,24 @@ When writing new PoVs:
                 output_dir=debug_output_dir,
                 current_dir=debug_current_dir,
             )
-            
+
             # Format the debug results
             debug_output = f"""## Debug Session Results
 **Reflection:**
 {debug_result.reflection}
 """
-            
+
             # Create a code snippet with the results
-            results = [CodeSnippet(
-                file_path=Path(f"debug_{pov_path.name}"),
-                code=debug_output,
-                start_line=1,
-                end_line=len(debug_output.splitlines())
-            )]
+            results = [
+                CodeSnippet(
+                    file_path=Path(f"debug_{pov_path.name}"),
+                    code=debug_output,
+                    start_line=1,
+                    end_line=len(debug_output.splitlines()),
+                )
+            ]
             call_result = ToolCallResult(call=call, results=results)
-            
+
             return Command(
                 update={
                     "messages": [
@@ -446,7 +432,7 @@ When writing new PoVs:
             )
 
     @override
-    def _build_workflow(self) -> StateGraph:  # type: ignore[override]
+    def _build_workflow(self) -> StateGraph:
         """Build workflow with debugging only when PoVs fail"""
         workflow = StateGraph(self.TaskStateClass)
 
@@ -474,7 +460,7 @@ When writing new PoVs:
         workflow.add_edge("analyze_bug", "write_pov")
         workflow.add_edge("write_pov", "execute_python_funcs")
         workflow.add_edge("execute_python_funcs", "test_povs")
-        
+
         # After testing PoVs, decide whether to debug (if failed) or end/retry
         def after_test_povs(state: VulnDiscoveryDebugState) -> str:
             # If we found valid PoVs, we're done
@@ -496,7 +482,6 @@ When writing new PoVs:
         )
         workflow.add_edge("debug_failed_povs", "debug_povs")
         workflow.add_edge("debug_povs", "analyze_bug")
-        
 
         return workflow
 
@@ -506,11 +491,7 @@ When writing new PoVs:
         debug_steps = 1  # Debug step only runs when PoVs fail
         # Debug only runs when valid_pov_count == 0, so it's conditional
         # We'll include it in the limit to be safe
-        return (
-            1
-            + context_steps * self.MAX_CONTEXT_ITERATIONS
-            + (pov_steps + debug_steps) * self.MAX_POV_ITERATIONS
-        )
+        return 1 + context_steps * self.MAX_CONTEXT_ITERATIONS + (pov_steps + debug_steps) * self.MAX_POV_ITERATIONS
 
     @override
     def _init_state(self, out_dir: Path, current_dir: Path) -> VulnDiscoveryDebugState:
@@ -538,4 +519,3 @@ When writing new PoVs:
             current_dir=current_dir,
         )
         return state
-

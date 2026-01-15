@@ -31,7 +31,7 @@ def sandbox_exec_funcs(functions: str, output_dir: Path) -> None:
             logger.debug("Files in wasm_outdir (%d): %s", len(files_in_wasm), [f.name for f in files_in_wasm])
         else:
             logger.warning("wasm_outdir does not exist!")
-        
+
         copied_count = 0
         for pov_file in wasm_outdir.iterdir():
             if pov_file.is_file() and not pov_file.is_symlink():
@@ -42,4 +42,6 @@ def sandbox_exec_funcs(functions: str, output_dir: Path) -> None:
         logger.debug("Copied %d files to output_dir", copied_count)
         if output_dir.exists():
             files_in_output = list(output_dir.iterdir())
-            logger.debug("Files in output_dir after copy (%d): %s", len(files_in_output), [f.name for f in files_in_output])
+            logger.debug(
+                "Files in output_dir after copy (%d): %s", len(files_in_output), [f.name for f in files_in_output]
+            )

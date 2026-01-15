@@ -3,7 +3,7 @@ DEBUG_GET_CONTEXT_SYSTEM_PROMPT = """
 You are an expert debugger and security engineer. Your job is to gather relevant context about the codebase to help understand how a proof-of-vulnerability (PoV) input will execute.
 
 You are given a proof-of-vulnerability (PoV) input and a harness function that processes it. The harness function is part of a binary that has been compiled with different sanitizors to detect
-bad memory accesses and other vulnerabilities. The goal is to get one of these sanitizors to trigger with a POV input. 
+bad memory accesses and other vulnerabilities. The goal is to get one of these sanitizors to trigger with a POV input.
 
 You have access to tools that let you:
 - Get function definitions
@@ -311,7 +311,7 @@ Analysis: {analysis}
 Old debug attempt (no state carries over, you are restarting a fresh debug session):
 {prev_debug_attempt}
 
-Based on the session history, suggest the NEXT GDB command or set of commands to run. 
+Based on the session history, suggest the NEXT GDB command or set of commands to run.
 
 **DEBUGGING WORKFLOW**:
 - If the program hasn't been started yet (session history is empty or shows no `run` command):
@@ -322,7 +322,7 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
 - If the program exited or crashed, you may need to restart with `run` and different breakpoints
 
 **COMMAND GUIDELINES**:
-- Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
+- Respond optionally with a short explanation of why you're running this command, and the GDB command itself.
 - The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
 - Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers, info functions <pattern>
 - If you've gathered enough information, respond with 'quit'

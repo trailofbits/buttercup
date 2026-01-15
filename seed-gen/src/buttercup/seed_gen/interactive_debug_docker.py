@@ -1,25 +1,26 @@
-from buttercup.common.docker_interactive import DockerInteractive, CommandResult
+import queue
 import re
-from pathlib import Path
 import signal
 import time
-import queue
-import subprocess
-from typing import Callable
-import tempfile
+from collections.abc import Callable
+from pathlib import Path
+
+from buttercup.common.docker_interactive import CommandResult, DockerInteractive
 
 _MI_STOP_RE = re.compile(r"^\*stopped\b")  # MI async stop record
 _MI_RESULT_RE = re.compile(r"^\d+\^(done|error|running)\b")
 
+
 class InteractiveGDBDockerError(Exception):
     """Base class for InteractiveGDBDocker errors."""
+
+
 _tok_prefix = re.compile(r"^\d+(?=[\^*+=~@&])")  # digits before a MI record marker
+
 
 def strip_tok_prefix(line: str) -> str:
     return _tok_prefix.sub("", line)
 
-from typing import Callable
-import re
 
 def mi_completion(token: int) -> Callable[[list[str]], bool]:
     # Tokened result record for *this* command.
@@ -62,8 +63,15 @@ def mi_completion(token: int) -> Callable[[list[str]], bool]:
 
 
 class InteractiveGDBDocker(DockerInteractive):
-    def __init__(self, container_image: str, mount_dirs: dict[Path, Path], binary_path: str, input_path: str, global_timeout: float = 600.0, scratchpad_dir: Path = None):
-        
+    def __init__(
+        self,
+        container_image: str,
+        mount_dirs: dict[Path, Path],
+        binary_path: str,
+        input_path: str,
+        global_timeout: float = 600.0,
+        scratchpad_dir: Path | None = None,
+    ):
         # Ensure scratchpad_dir is mounted as /scratchpad if provided and not already present
         if scratchpad_dir is not None:
             scratchpad_mountpoint = Path("/scratchpad")
@@ -84,12 +92,10 @@ class InteractiveGDBDocker(DockerInteractive):
         )
         self.scratchpad_dir = scratchpad_dir
         self._tok = 1
-    
+
     def unescape_mi(self, s: str) -> str:
-        return (s.replace(r"\n", "\n")
-                .replace(r"\t", "\t")
-                .replace(r"\\", "\\")
-                .replace(r"\"", '"'))
+        return s.replace(r"\n", "\n").replace(r"\t", "\t").replace(r"\\", "\\").replace(r"\"", '"')
+
     def mi(self, mi_cmd: str, timeout: float = 10.0) -> CommandResult:
         tok = self._tok
         self._tok += 1
@@ -99,27 +105,26 @@ class InteractiveGDBDocker(DockerInteractive):
     def console(self, cmd: str, timeout: float = 10.0) -> CommandResult:
         esc = cmd.replace("\\", "\\\\").replace('"', '\\"')
         cmd_result = self.mi(f'-interpreter-exec console "{esc}"', timeout=timeout)
-        newlines = []
+        newlines: list[str] = []
         for line in cmd_result.lines:
             line = strip_tok_prefix(line)
             if (line.startswith('~"') or line.startswith('@"') or line.startswith('&"')) and line.endswith('"'):
                 line = self.unescape_mi(line[2:-1])  # decode C escapes
-                
+
             if line.startswith("~"):
                 newlines.append(line)
             elif line.startswith("@"):
                 newlines.append("inferior output: " + line)
             elif line.startswith("*"):
                 newlines.append(line)
-            elif not line[:1] in "^~@*&=":
+            elif line[:1] not in "^~@*&=":
                 newlines.append("runtime output: " + line)
-                
 
         cmd_result.lines = newlines
         return cmd_result
 
     def process_commands(self, commands: list[str]) -> list[str]:
-
+        lines: list[str] = []
         if self.scratchpad_dir is not None:
             # Write commands to a file in the scratchpad (host path)
             scratchpad = Path(self.scratchpad_dir)
@@ -133,15 +138,16 @@ class InteractiveGDBDocker(DockerInteractive):
             # Source the file using the CONTAINER path
             # The scratchpad is always mounted at /scratchpad in the container
             container_script_path = "/scratchpad/cmdset.gdb"
-            cmd_result = self.console(f'source {container_script_path}')
+            cmd_result = self.console(f"source {container_script_path}")
 
-            return cmd_result.lines
+            lines.extend(cmd_result.lines)
+            return lines
         else:
-            cmd_result = []
             for cmd in commands:
-                cmd_result.append(self.console(cmd))
-            return cmd_result
-        
+                cmd_result = self.console(cmd)
+                lines.extend(cmd_result.lines)
+            return lines
+
     def interrupt(self) -> list[str]:
         """
         Best-effort interrupt for a GDB session running in a docker container.
@@ -165,7 +171,7 @@ class InteractiveGDBDocker(DockerInteractive):
         cname = self.container_name
 
         def saw(prefix: str, lines: list[str]) -> bool:
-            return any(l.startswith(prefix) for l in lines)
+            return any(line.startswith(prefix) for line in lines)
 
         def drain_for(seconds: float, max_lines: int = 200) -> list[str]:
             """Drain output for up to `seconds` or until max_lines reached."""
@@ -283,5 +289,4 @@ class InteractiveGDBDocker(DockerInteractive):
                 out.append(f"(interrupt) docker rm -f failed: {e!r}")
             out.extend(drain_for(0.8))
             return out
-
- 
+        return out

@@ -15,7 +15,6 @@ from buttercup.common.challenge_task import (
     CommandResult,
     ReproduceResult,
 )
-from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.common.task_meta import TaskMeta
 
 # ruff: noqa: E501, W291
@@ -1782,15 +1781,15 @@ def cpp_task_dir(tmp_path: Path) -> Path:
     tmp_path = tmp_path / "cpp-project-task"
     oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
     source = tmp_path / "src" / "my-source"
-    
+
     oss_fuzz.mkdir(parents=True, exist_ok=True)
     source.mkdir(parents=True, exist_ok=True)
-    
+
     # Create project.yaml for C++ project
     project_yaml_path = oss_fuzz / "projects" / "cpp_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: cpp\n")
-    
+
     # Create build.sh with C++ binary output
     build_sh = source / "build.sh"
     build_sh.write_text("""#!/bin/bash
@@ -1798,12 +1797,12 @@ set -e
 $CXX $CXXFLAGS -o $OUT/fuzzer_target fuzzer_target.cc
 """)
     build_sh.chmod(0o755)
-    
+
     # Create helper.py
     helper_path = oss_fuzz / "infra/helper.py"
     helper_path.parent.mkdir(parents=True, exist_ok=True)
     helper_path.write_text("import sys;\nsys.exit(0)\n")
-    
+
     # Create task metadata
     TaskMeta(
         project_name="cpp_project",
@@ -1811,7 +1810,7 @@ $CXX $CXXFLAGS -o $OUT/fuzzer_target fuzzer_target.cc
         task_id="cpp-task-id",
         metadata={"task_id": "cpp-task-id", "round_id": "testing", "team_id": "tob"},
     ).save(tmp_path)
-    
+
     return tmp_path
 
 
@@ -1821,15 +1820,15 @@ def java_task_dir(tmp_path: Path) -> Path:
     tmp_path = tmp_path / "java-project-task"
     oss_fuzz = tmp_path / "fuzz-tooling" / "my-oss-fuzz"
     source = tmp_path / "src" / "my-source"
-    
+
     oss_fuzz.mkdir(parents=True, exist_ok=True)
     source.mkdir(parents=True, exist_ok=True)
-    
+
     # Create project.yaml for Java project
     project_yaml_path = oss_fuzz / "projects" / "java_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: java\n")
-    
+
     # Create build.sh with Java JAR output
     build_sh = source / "build.sh"
     build_sh.write_text("""#!/bin/bash
@@ -1838,12 +1837,12 @@ javac -d $OUT FuzzerTarget.java
 jar cf $OUT/fuzzer_target.jar -C $OUT FuzzerTarget.class
 """)
     build_sh.chmod(0o755)
-    
+
     # Create helper.py
     helper_path = oss_fuzz / "infra/helper.py"
     helper_path.parent.mkdir(parents=True, exist_ok=True)
     helper_path.write_text("import sys;\nsys.exit(0)\n")
-    
+
     # Create task metadata
     TaskMeta(
         project_name="java_project",
@@ -1851,7 +1850,7 @@ jar cf $OUT/fuzzer_target.jar -C $OUT FuzzerTarget.class
         task_id="java-task-id",
         metadata={"task_id": "java-task-id", "round_id": "testing", "team_id": "tob"},
     ).save(tmp_path)
-    
+
     return tmp_path
 
 
@@ -1873,22 +1872,20 @@ def java_challenge_task(java_task_dir: Path) -> ChallengeTask:
     )
 
 
-def test_build_fuzzers_with_debug_symbols_uses_original_source(
-    cpp_challenge_task: ChallengeTask, mock_subprocess
-):
+def test_build_fuzzers_with_debug_symbols_uses_original_source(cpp_challenge_task: ChallengeTask, mock_subprocess):
     """Test that build_fuzzers_with_debug_symbols uses the original source directory."""
     result = cpp_challenge_task.build_fuzzers_with_debug_symbols(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
     mock_subprocess.assert_called_once()
-    
+
     # Verify the command uses the original source directory
     args, kwargs = mock_subprocess.call_args
     cmd = args[0]
-    
+
     # The source path should be in the command (not a temp directory)
     source_path = cpp_challenge_task.get_source_path()
     source_arg = None
@@ -1896,82 +1893,76 @@ def test_build_fuzzers_with_debug_symbols_uses_original_source(
         if i > 0 and cmd[i - 1] == "cpp_project" and str(source_path) in arg:
             source_arg = arg
             break
-    
+
     assert source_arg is not None, f"Could not find source directory in command: {cmd}"
     # Should NOT contain debug_build temp directory
     assert "debug_build" not in source_arg
 
 
-def test_build_fuzzers_with_debug_symbols_source_not_modified(
-    cpp_challenge_task: ChallengeTask, mock_subprocess
-):
+def test_build_fuzzers_with_debug_symbols_source_not_modified(cpp_challenge_task: ChallengeTask, mock_subprocess):
     """Test that build_fuzzers_with_debug_symbols does NOT modify source directory."""
     original_build_sh = cpp_challenge_task.get_source_path() / "build.sh"
     original_content = original_build_sh.read_text()
     original_mtime = original_build_sh.stat().st_mtime
-    
+
     result = cpp_challenge_task.build_fuzzers_with_debug_symbols(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
-    
+
     # Verify original build.sh was NOT modified
     assert original_build_sh.read_text() == original_content
     # Verify mtime hasn't changed (file wasn't written to)
     assert original_build_sh.stat().st_mtime == original_mtime
-    
+
     # Verify no temp directories were created
     temp_dirs = list(cpp_challenge_task.task_dir.glob("debug_build_*"))
     assert len(temp_dirs) == 0, f"Temp directories should not be created: {temp_dirs}"
 
 
-def test_build_fuzzers_with_debug_symbols_java_sets_out_env(
-    java_challenge_task: ChallengeTask, mock_subprocess
-):
+def test_build_fuzzers_with_debug_symbols_java_sets_out_env(java_challenge_task: ChallengeTask, mock_subprocess):
     """Test that build_fuzzers_with_debug_symbols sets OUT=/out/debug for Java."""
     result = java_challenge_task.build_fuzzers_with_debug_symbols(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
     mock_subprocess.assert_called_once()
-    
+
     # Check that -e OUT=/out/debug was passed
     args, kwargs = mock_subprocess.call_args
     cmd = args[0]
-    
+
     # Find the -e OUT=/out/debug flag
     out_flag_found = False
     for i, arg in enumerate(cmd):
         if arg == "-e" and i + 1 < len(cmd) and cmd[i + 1] == "OUT=/out/debug":
             out_flag_found = True
             break
-    
+
     assert out_flag_found, "OUT=/out/debug environment variable not found in command"
 
 
-def test_build_fuzzers_with_debug_symbols_cpp_sets_cflags(
-    cpp_challenge_task: ChallengeTask, mock_subprocess
-):
+def test_build_fuzzers_with_debug_symbols_cpp_sets_cflags(cpp_challenge_task: ChallengeTask, mock_subprocess):
     """Test that build_fuzzers_with_debug_symbols sets CFLAGS/CXXFLAGS for C++."""
     result = cpp_challenge_task.build_fuzzers_with_debug_symbols(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
     mock_subprocess.assert_called_once()
-    
+
     # Check that -e CFLAGS and -e CXXFLAGS were passed with -ggdb
     args, kwargs = mock_subprocess.call_args
     cmd = args[0]
-    
+
     cflags_found = False
     cxxflags_found = False
-    
+
     for i, arg in enumerate(cmd):
         if arg == "-e" and i + 1 < len(cmd):
             env_var = cmd[i + 1]
@@ -1979,27 +1970,25 @@ def test_build_fuzzers_with_debug_symbols_cpp_sets_cflags(
                 cflags_found = True
             if env_var.startswith("CXXFLAGS=") and "-ggdb" in env_var:
                 cxxflags_found = True
-    
+
     assert cflags_found, "CFLAGS with -ggdb not found in command"
     assert cxxflags_found, "CXXFLAGS with -ggdb not found in command"
 
 
-def test_build_fuzzers_with_debug_symbols_language_agnostic(
-    challenge_task: ChallengeTask, mock_subprocess
-):
+def test_build_fuzzers_with_debug_symbols_language_agnostic(challenge_task: ChallengeTask, mock_subprocess):
     """Test that build_fuzzers_with_debug_symbols works for any language."""
     # Create a project.yaml with language: c (not cpp or java)
     oss_fuzz_path = challenge_task.get_oss_fuzz_path()
     project_yaml_path = oss_fuzz_path / "projects" / "example_project" / "project.yaml"
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
     project_yaml_path.write_text("language: c\n")
-    
+
     # Should work for C projects too (CFLAGS will be set but may not be used)
     result = challenge_task.build_fuzzers_with_debug_symbols(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
     # Verify OUT=/out/debug was set
     mock_subprocess.assert_called_once()
@@ -2020,34 +2009,32 @@ def test_build_fuzzers_with_debug_symbols_handles_build_failure(
             output=b"Build failed",
             error=b"Error",
         )
-        
+
         result = cpp_challenge_task.build_fuzzers_with_debug_symbols(
             engine="libfuzzer",
             sanitizer="address",
         )
-        
+
         assert result.success is False
         # Verify source directory is still intact (no temp directories created)
         temp_dirs = list(cpp_challenge_task.task_dir.glob("debug_build_*"))
         assert len(temp_dirs) == 0, f"No temp directories should be created: {temp_dirs}"
 
 
-def test_build_fuzzers_with_debug_symbols_original_source_unchanged(
-    cpp_challenge_task: ChallengeTask, mock_subprocess
-):
+def test_build_fuzzers_with_debug_symbols_original_source_unchanged(cpp_challenge_task: ChallengeTask, mock_subprocess):
     """Test that original source directory is never modified."""
     source_path = cpp_challenge_task.get_source_path()
     build_sh_path = source_path / "build.sh"
     original_content = build_sh_path.read_text()
     original_mtime = build_sh_path.stat().st_mtime
-    
+
     result = cpp_challenge_task.build_fuzzers_with_debug_symbols(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
-    
+
     # Verify original build.sh is unchanged
     assert build_sh_path.read_text() == original_content
     # Verify mtime hasn't changed (file wasn't written to)
@@ -2062,14 +2049,14 @@ def test_build_fuzzers_with_debug_symbols_uses_original_source_in_command(
         engine="libfuzzer",
         sanitizer="address",
     )
-    
+
     assert result.success is True
     mock_subprocess.assert_called_once()
-    
+
     # Verify the command uses the original source directory
     args, kwargs = mock_subprocess.call_args
     cmd = args[0]
-    
+
     # The source path argument comes after "build_fuzzers" and project_name
     # Command structure: python infra/helper.py build_fuzzers <project> <source_path> [flags...]
     source_path = cpp_challenge_task.get_source_path()
@@ -2079,7 +2066,7 @@ def test_build_fuzzers_with_debug_symbols_uses_original_source_in_command(
         if i > 0 and cmd[i - 1] == "cpp_project" and "/" in arg:
             source_arg = arg
             break
-    
+
     assert source_arg is not None, f"Could not find source directory in command: {cmd}"
     # Should use original source, not a temp directory
     assert str(source_path) in source_arg or str(source_path.absolute()) in source_arg
@@ -2099,35 +2086,35 @@ def test_build_fuzzers_with_debug_symbols_cpp_integration(libjpeg_oss_fuzz_task_
         # First build the image
         result = libjpeg_oss_fuzz_task_rw.build_image(pull_latest_base_image=False)
         assert result.success is True, f"Build image failed: {result.error}"
-        
+
         # Get original build.sh content
         build_sh_path = libjpeg_oss_fuzz_task_rw.get_source_path() / "build.sh"
         if build_sh_path.exists():
             original_content = build_sh_path.read_text()
         else:
             original_content = None
-        
+
         # Build with debug symbols
         result = libjpeg_oss_fuzz_task_rw.build_fuzzers_with_debug_symbols(
             engine="libfuzzer",
             sanitizer="address",
             architecture="x86_64",
         )
-        
+
         assert result.success is True, f"Build with debug symbols failed: {result.error}"
-        
+
         # Verify original build.sh is unchanged (if it existed)
         if original_content is not None:
             assert build_sh_path.read_text() == original_content
-        
+
         # Verify debug binaries were created (they should have _debug suffix)
         build_dir = libjpeg_oss_fuzz_task_rw.get_build_dir()
-        if build_dir and build_dir.exists():
-            # Check for debug binaries
-            debug_binaries = list(build_dir.glob("*_debug"))
-            # Note: The actual binary names depend on the project's build.sh
-            # We just verify the build succeeded and original source is untouched
-            assert True  # Build succeeded, which is the main test
+        assert build_dir is not None, "Build directory should be set"
+        assert build_dir.exists(), f"Build directory should exist: {build_dir}"
+
+        # Check for debug binaries (OSS-Fuzz creates binaries with _debug suffix)
+        debug_binaries = list(build_dir.glob("*"))
+        assert len(debug_binaries) > 0, f"No debug binaries found in {build_dir}. Files: {list(build_dir.iterdir())}"
     finally:
         # Restore original DOCKER_HOST if it was set
         if docker_host_backup is not None:
@@ -2151,32 +2138,32 @@ def test_build_fuzzers_with_debug_symbols_cleanup_after_failure(
         # Build image first
         result = libjpeg_oss_fuzz_task_rw.build_image(pull_latest_base_image=False)
         assert result.success is True
-        
+
         # Create a broken build.sh that will cause build to fail
         build_sh_path = libjpeg_oss_fuzz_task_rw.get_source_path() / "build.sh"
         if not build_sh_path.exists():
             # Create a minimal build.sh if it doesn't exist
             build_sh_path.write_text("#!/bin/bash\nexit 1\n")
             build_sh_path.chmod(0o755)
-        
+
         original_content = build_sh_path.read_text()
-        
+
         # Try to build (will fail)
         result = libjpeg_oss_fuzz_task_rw.build_fuzzers_with_debug_symbols(
             engine="libfuzzer",
             sanitizer="address",
             architecture="x86_64",
         )
-        
+
         # Build should fail, but original source should be unchanged
         if original_content:
             assert build_sh_path.read_text() == original_content
-        
+
         # Check that no temp directories are left behind
         # Note: Cleanup might fail if Docker connection issues occur, so we manually clean up
         import shutil
         import time
-        
+
         temp_dirs = list(libjpeg_oss_fuzz_task_rw.task_dir.glob("debug_build_*"))
         if temp_dirs:
             # Try to manually clean up if automatic cleanup failed
@@ -2194,7 +2181,7 @@ def test_build_fuzzers_with_debug_symbols_cleanup_after_failure(
                     break
                 if attempt < 2:
                     time.sleep(0.5)  # Wait before retry
-        
+
         # After manual cleanup attempt, check if any remain
         # Note: In test environments with Docker issues, cleanup can be flaky.
         # The cleanup code in build_fuzzers_with_debug_symbols has retry logic,
@@ -2205,6 +2192,7 @@ def test_build_fuzzers_with_debug_symbols_cleanup_after_failure(
             # Log a warning but don't fail the test - cleanup is best-effort in test environments
             # The important thing is that the original source was not modified (checked above)
             import warnings
+
             warnings.warn(
                 f"Temp directories not cleaned up (test environment issue): {temp_dirs_after}. "
                 "This is expected in test environments with Docker connection issues. logic and will work in production."
