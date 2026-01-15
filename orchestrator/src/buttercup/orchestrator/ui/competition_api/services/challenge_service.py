@@ -58,7 +58,7 @@ class ChallengeService:
 
         # git-lfs not installed or not available
         if ls_result.returncode != 0:
-            logger.debug(f"[{context}] git-lfs not available: {ls_result.stderr.strip()}")
+            logger.warning(f"[{context}] git-lfs not available: {ls_result.stderr.strip()}")
             return
 
         # No LFS files in this repo
