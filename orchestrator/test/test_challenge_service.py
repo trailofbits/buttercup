@@ -110,6 +110,20 @@ class TestChallengeService:
                 tarball_name="test-repo",
             )
 
+    @patch("subprocess.run")
+    def test_create_challenge_tarball_git_failure_with_pat(self, mock_run, challenge_service, monkeypatch):
+        """Test tarball creation with git failure."""
+        # Mock git clone failure
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git clone", "error")
+        monkeypatch.setenv("GITHUB_PAT", "1234567890")
+        monkeypatch.setenv("GITHUB_USERNAME", "testuser")
+
+        with pytest.raises(Exception) as exc_info:
+            challenge_service.create_challenge_tarball(
+                repo_url="https://github.com/invalid/repo", ref="main", tarball_name="test-repo"
+            )
+        assert "Failed to clone repository. Sanitized command:" in str(exc_info.value)
+
     def test_serve_tarball_success(self, challenge_service):
         """Test successful tarball serving."""
         # Create a dummy tarball file
