@@ -61,9 +61,28 @@ def mock_reproduce_multiple(mock_task, tmp_path):
     reproduce_multiple = ReproduceMultiple(tmp_path, [build_output])
 
     with patch.object(reproduce_multiple, "open") as mock_open:
+        from buttercup.common.build_selection import SelectedBuild
+        
         mock_context = MagicMock()
         mock_context.builds_cache = [mock_task.challenge_task]
+        mock_context.build_outputs = [build_output]
         mock_context.get_crashes = Mock(return_value=iter([]))
+        
+        # Mock select_build_for_harness to return a SelectedBuild with the mocked task
+        def mock_select_build_for_harness(harness_name: str, prefer_sanitizer: str = "address"):
+            # Get build_dir from the task to construct binary_path
+            build_dir = mock_task.challenge_task.get_build_dir() if hasattr(mock_task.challenge_task, 'get_build_dir') else tmp_path / "build" / "out" / "test_project"
+            binary_path = build_dir / harness_name if build_dir else None
+            return SelectedBuild(
+                build_output=build_output,
+                task=mock_task.challenge_task,
+                using_debug=False,
+                binary_path=binary_path,
+                binary_name=harness_name,
+            )
+        
+        mock_context.select_build_for_harness = Mock(side_effect=mock_select_build_for_harness)
+        
         mock_open.return_value.__enter__.return_value = mock_context
         mock_open.return_value.__exit__.return_value = None
         yield reproduce_multiple

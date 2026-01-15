@@ -321,6 +321,9 @@ class VulnBaseTask(Task):
         """Do vuln-discovery task"""
         mode = "delta" if self.challenge_task.is_delta_mode() else "full"
         logger.info("Doing vuln-discovery for challenge %s (mode: %s)", self.package_name, mode)
+        # Initialize start_time if not already set (e.g., by subclasses in __post_init__)
+        if not hasattr(self, "start_time") or self.start_time is None:
+            self.start_time = time.time()
         try:
             state = self._init_state(out_dir, current_dir)
             workflow = self._build_workflow()
