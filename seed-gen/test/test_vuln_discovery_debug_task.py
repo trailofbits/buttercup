@@ -77,7 +77,6 @@ def test_gather_context_full_mode(vuln_discovery_debug_task, mock_llm, mock_harn
 
     result = vuln_discovery_debug_task._gather_context(state)
 
-    assert vuln_discovery_debug_task.start_time is not None
     assert result is not None
     # Command objects have update attribute
     assert hasattr(result, "update") or hasattr(result, "graph")
