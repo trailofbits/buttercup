@@ -107,7 +107,7 @@ class VulnBaseTask(Task):
 
     MAX_POV_ITERATIONS: ClassVar[int] = 3
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
-    start_time: float | None = None
+    start_time: float = Field(default=0.0)
 
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:

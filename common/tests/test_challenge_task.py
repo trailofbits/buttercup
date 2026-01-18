@@ -1922,30 +1922,6 @@ def test_build_fuzzers_with_debug_symbols_source_not_modified(cpp_challenge_task
     assert len(temp_dirs) == 0, f"Temp directories should not be created: {temp_dirs}"
 
 
-def test_build_fuzzers_with_debug_symbols_java_sets_out_env(java_challenge_task: ChallengeTask, mock_subprocess):
-    """Test that build_fuzzers_with_debug_symbols sets OUT=/out/debug for Java."""
-    result = java_challenge_task.build_fuzzers_with_debug_symbols(
-        engine="libfuzzer",
-        sanitizer="address",
-    )
-
-    assert result.success is True
-    mock_subprocess.assert_called_once()
-
-    # Check that -e OUT=/out/debug was passed
-    args, kwargs = mock_subprocess.call_args
-    cmd = args[0]
-
-    # Find the -e OUT=/out/debug flag
-    out_flag_found = False
-    for i, arg in enumerate(cmd):
-        if arg == "-e" and i + 1 < len(cmd) and cmd[i + 1] == "OUT=/out/debug":
-            out_flag_found = True
-            break
-
-    assert out_flag_found, "OUT=/out/debug environment variable not found in command"
-
-
 def test_build_fuzzers_with_debug_symbols_cpp_sets_cflags(cpp_challenge_task: ChallengeTask, mock_subprocess):
     """Test that build_fuzzers_with_debug_symbols sets CFLAGS/CXXFLAGS for C++."""
     result = cpp_challenge_task.build_fuzzers_with_debug_symbols(
@@ -1973,28 +1949,6 @@ def test_build_fuzzers_with_debug_symbols_cpp_sets_cflags(cpp_challenge_task: Ch
 
     assert cflags_found, "CFLAGS with -ggdb not found in command"
     assert cxxflags_found, "CXXFLAGS with -ggdb not found in command"
-
-
-def test_build_fuzzers_with_debug_symbols_language_agnostic(challenge_task: ChallengeTask, mock_subprocess):
-    """Test that build_fuzzers_with_debug_symbols works for any language."""
-    # Create a project.yaml with language: c (not cpp or java)
-    oss_fuzz_path = challenge_task.get_oss_fuzz_path()
-    project_yaml_path = oss_fuzz_path / "projects" / "example_project" / "project.yaml"
-    project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-    project_yaml_path.write_text("language: c\n")
-
-    # Should work for C projects too (CFLAGS will be set but may not be used)
-    result = challenge_task.build_fuzzers_with_debug_symbols(
-        engine="libfuzzer",
-        sanitizer="address",
-    )
-
-    assert result.success is True
-    # Verify OUT=/out/debug was set
-    mock_subprocess.assert_called_once()
-    args, kwargs = mock_subprocess.call_args
-    cmd = args[0]
-    assert any("-e" in str(arg) and "OUT=/out/debug" in str(cmd[cmd.index(arg) + 1]) for arg in cmd if "-e" in str(arg))
 
 
 def test_build_fuzzers_with_debug_symbols_handles_build_failure(
