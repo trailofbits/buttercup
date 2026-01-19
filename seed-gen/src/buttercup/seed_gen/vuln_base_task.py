@@ -184,9 +184,9 @@ class VulnBaseTask(Task):
                 ):
                     # Calculate time taken if start_time is available
                     time_taken = "N/A"
-                    if hasattr(self, 'start_time') and self.start_time is not None:
+                    if hasattr(self, "start_time") and self.start_time is not None:
                         time_taken = f"{time.time() - self.start_time:.2f} seconds"
-                    
+
                     logger.info(
                         "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s | time: %s | state: %s )",  # noqa: E501
                         self.challenge_task.task_meta.task_id,

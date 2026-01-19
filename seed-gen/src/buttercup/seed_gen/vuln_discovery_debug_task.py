@@ -219,7 +219,7 @@ When writing new PoVs:
         latest_pov_functions = ""
         if state.pov_attempts:
             latest_pov_functions = state.pov_attempts[-1].pov_functions
-        
+
         # Format debug insights from previous debug sessions
         debug_insights = self._format_debug_insights(state)
         if debug_insights:
@@ -237,7 +237,7 @@ Use these insights to:
 5. Create a more targeted debug_context that addresses gaps from previous attempts"""
         else:
             debug_insights_section = "No previous debug insights available (this is the first debug session)."
-        
+
         # Prepare prompt variables
         prompt_vars = {
             "harness": str(state.harness),
@@ -345,7 +345,7 @@ Use these insights to:
                     ],
                 },
             )
-        
+
         # Enhance debug_context with previous debug insights if available
         # This ensures the debug subagent has full context even if the LLM didn't include it
         if isinstance(state, VulnDiscoveryDebugState):
@@ -366,7 +366,7 @@ Focus your debugging efforts on:
 4. Specific obstacles identified in previous debugging"""
                 debug_context = enhanced_context
                 logger.info("Enhanced debug_context with %d chars of previous insights", len(previous_insights))
-        
+
         # Get harness from state
         harness = state.harness
 

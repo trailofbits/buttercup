@@ -665,9 +665,9 @@ of {len(grep_cmd_res.output)} characters)."""
                 project_name = build_dir.name
                 out_dir = build_dir.parent
                 mount_dirs = {out_dir: Path("/builds")}
-                
+
                 container_binary = f"/builds/{project_name}/{harness_name}"
-                
+
                 # Run GDB with commands passed directly via -ex flags
                 # This avoids needing to mount a script file and dealing with docker-in-docker complexity
                 gdb_cmd = ["gdb", "-batch"]

@@ -366,11 +366,13 @@ def submit_task(task_name: str, **kwargs: Any) -> None:
     except Exception as e:
         print(f"Error submitting task: {e}")
 
+
 def run_sqlite3_challenge() -> None:
     """Run the sqlite3 challenge."""
     delta_set_duration = 2 * HOURS
 
     submit_task("sq_delta_02", duration=delta_set_duration)
+
 
 def sim1() -> None:
     """Simulate round 1."""

@@ -339,11 +339,11 @@ Based on the session history, suggest the NEXT GDB command or set of commands to
 - If the program exited or crashed, you may need to restart with `run` and different breakpoints
 
 **COMMAND GUIDELINES**:
-- Respond optionally with a short explanation of why you're running this command, and the GDB command itself. 
+- Respond optionally with a short explanation of why you're running this command, and the GDB command itself.
 - The gdb command or set of commands should be wrapped in ```gdb and ``` to be parsed as a single command.
 - Common commands: break <function>, run, continue, bt, print <var>, x/<format> <addr>, info registers, info functions <pattern>
 - If you've gathered enough information, respond with 'quit'
-- Be aware that symbol names may not be available, or may be modified by the compiler. 
+- Be aware that symbol names may not be available, or may be modified by the compiler.
 - If this function breakpoint fail, use info function or use the file name and line number from the CodeSnippet objects in the retrieved context to set breakpoints (e.g., `break file.c:123`), but be aware that this may not always be accurate
 - Variables may be optimized out. If that is the case, dumping registers and dissassembling may indicate the value you want.
 - **CRITICAL**: The binary and seed file are already configured via --args. Use `run` with NO ARGUMENTS. Do NOT use `run <file>` as this will override the pre-configured arguments and cause the fuzzer to receive invalid input data.
