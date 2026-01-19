@@ -724,43 +724,43 @@ class ChallengeTask:
         existing_cxxflags = debug_env.get("CXXFLAGS", "")
         logger.info(f"Existing CFLAGS: {existing_cflags}")
         logger.info(f"Existing CXXFLAGS: {existing_cxxflags}")
-        
+
         # Replace -gline-tables-only with -ggdb -gdwarf-4 -fno-inline for CFLAGS
         # Also replace any optimization flags with -Og
         if "-gline-tables-only" in existing_cflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cflags.replace("-gline-tables-only", "-ggdb -gdwarf-4 -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CFLAGS"] = flags.strip()
         elif "-g" in existing_cflags:
             # Remove all -g* flags, replace -O* flags with -Og, then add -ggdb -gdwarf-4 -fno-inline
-            flags = re.sub(r'-g[^\s]*', '', existing_cflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-g[^\s]*", "", existing_cflags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CFLAGS"] = f"{flags.strip()} -ggdb -gdwarf-4 -fno-inline".strip()
         else:
             # Replace any -O* flags with -Og
             base_flags = "-Og -fno-omit-frame-pointer" if not existing_cflags else existing_cflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
+            base_flags = re.sub(r"-O[0-9sglz]*", "-Og", base_flags)
             debug_env["CFLAGS"] = f"{base_flags} -ggdb -gdwarf-4 -fno-inline".strip()
-        
+
         # Replace -gline-tables-only with -ggdb -gdwarf-4 -fno-inline for CXXFLAGS
         # Also replace any optimization flags with -Og
         if "-gline-tables-only" in existing_cxxflags:
             # Replace -gline-tables-only and any -O* flags
             flags = existing_cxxflags.replace("-gline-tables-only", "-ggdb -gdwarf-4 -fno-inline")
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CXXFLAGS"] = flags.strip()
         elif "-g" in existing_cxxflags:
             # Remove all -g* flags, replace -O* flags with -Og, then add -ggdb -gdwarf-4 -fno-inline
-            flags = re.sub(r'-g[^\s]*', '', existing_cxxflags)
-            flags = re.sub(r'-O[0-9sglz]*', '-Og', flags)
+            flags = re.sub(r"-g[^\s]*", "", existing_cxxflags)
+            flags = re.sub(r"-O[0-9sglz]*", "-Og", flags)
             debug_env["CXXFLAGS"] = f"{flags.strip()} -ggdb -gdwarf-4 -fno-inline".strip()
         else:
             # Replace any -O* flags with -Og
             base_flags = "-Og -fno-omit-frame-pointer" if not existing_cxxflags else existing_cxxflags
-            base_flags = re.sub(r'-O[0-9sglz]*', '-Og', base_flags)
+            base_flags = re.sub(r"-O[0-9sglz]*", "-Og", base_flags)
             debug_env["CXXFLAGS"] = f"{base_flags} -ggdb -gdwarf-4 -fno-inline".strip()
-        
+
         logger.info(f"CFLAGS override: {debug_env.get('CFLAGS', 'not set')}")
         logger.info(f"CXXFLAGS override: {debug_env.get('CXXFLAGS', 'not set')}")
         logger.info("OUT set to /out/debug (separate output directory)")

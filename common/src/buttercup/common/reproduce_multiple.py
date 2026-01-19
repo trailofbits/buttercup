@@ -43,12 +43,15 @@ class ReproduceMultiple:
     ) -> Generator[tuple[BuildOutput, ReproduceResult], None, None]:
         if self.builds_cache is None:
             raise RuntimeError("Build cache is not populated")
-        
+
         # Log all available builds before testing
         logger.info(f"Testing PoV '{pov.name}' against {len(self.build_outputs)} builds for harness '{harness_name}'")
         for i, build in enumerate(self.build_outputs):
-            logger.info(f"  Build {i}: sanitizer={build.sanitizer}, engine={build.engine}, type={BuildType.Name(build.build_type)}, task_id={build.task_id}")
-        
+            logger.info(
+                f"""  Build {i}: sanitizer={build.sanitizer}, engine={build.engine},
+                type={BuildType.Name(build.build_type)}, task_id={build.task_id}"""
+            )
+
         for build, task in zip(self.build_outputs, self.builds_cache, strict=False):
             # Skip FUZZER_DEBUG builds when testing PoVs - they don't have sanitizers
             # and won't detect bugs. FUZZER_DEBUG is only for interactive debugging.
@@ -58,10 +61,13 @@ class ReproduceMultiple:
                     f"Debug builds don't have sanitizers and won't detect bugs."
                 )
                 continue
-            
+
             logger.info(f"Testing PoV '{pov.name}' with sanitizer={build.sanitizer}, engine={build.engine}")
             result = task.reproduce_pov(harness_name, pov)
-            logger.info(f"  Result: did_run={result.did_run()}, did_crash={result.did_crash()}, returncode={result.command_result.returncode if result.command_result else 'N/A'}")
+            logger.info(
+                f"""  Result: did_run={result.did_run()}, did_crash={result.did_crash()},
+                returncode={result.command_result.returncode if result.command_result else "N/A"}"""
+            )
             yield (build, result)
 
     def get_first_crash(self, pov: Path, harness_name: str) -> tuple[BuildOutput, ReproduceResult] | None:
