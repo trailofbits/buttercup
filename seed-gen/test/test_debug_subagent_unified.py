@@ -474,7 +474,7 @@ def test_debug_unified_interactive_mode_basic_workflow(
             # We don't care about these, just return a dummy message
             if llm_call_count[0] <= 3:
                 return AIMessage(content="Context gathering", tool_calls=[])
-            
+
             # Call 4 is for analysis step
             if llm_call_count[0] == 4:
                 return analysis_message
