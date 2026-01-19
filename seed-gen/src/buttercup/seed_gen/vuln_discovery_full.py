@@ -1,4 +1,5 @@
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import override
@@ -24,10 +25,17 @@ class VulnDiscoveryFullTask(VulnBaseTask):
     VULN_DISCOVERY_MAX_POV_COUNT = 5
     MAX_CONTEXT_ITERATIONS = 8
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.start_time = None
+
     @override
     def _gather_context(self, state: VulnBaseState) -> Command:  # type: ignore[override]
         """Gather context about the diff and harness"""
         logger.info("Gathering context")
+        if self.start_time is None:
+            self.start_time = time.time()
+            logger.info("Start time: %s", self.start_time)
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
@@ -55,6 +63,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
             "previous_attempts": state.format_pov_attempts(),
+            "debug_insights_section": "",
         }
         res = self._analyze_bug_base(
             VULN_FULL_ANALYZE_BUG_SYSTEM_PROMPT,
@@ -74,6 +83,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
             "pov_examples": self.get_pov_examples(),
             "fuzzer_name": self.get_fuzzer_name(),
             "previous_attempts": state.format_pov_attempts(),
+            "debug_insights_section": "",
         }
         res = self._write_pov_base(
             VULN_FULL_WRITE_POV_SYSTEM_PROMPT,

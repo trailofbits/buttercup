@@ -366,6 +366,11 @@ def submit_task(task_name: str, **kwargs: Any) -> None:
     except Exception as e:
         print(f"Error submitting task: {e}")
 
+def run_sqlite3_challenge() -> None:
+    """Run the sqlite3 challenge."""
+    delta_set_duration = 2 * HOURS
+
+    submit_task("sq_delta_02", duration=delta_set_duration)
 
 def sim1() -> None:
     """Simulate round 1."""
@@ -576,6 +581,9 @@ name = The name of the challenge to run:
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
+
+    sqlite3_parser = subparsers.add_parser("sqlite3", help="Run the sqlite3 challenge")
+    sqlite3_parser.set_defaults(func=lambda args: run_sqlite3_challenge())
 
     sim1_parser = subparsers.add_parser("sim1", help="Simulate round 1")
     sim1_parser.set_defaults(func=lambda args: sim1())

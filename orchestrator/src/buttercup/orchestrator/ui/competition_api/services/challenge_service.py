@@ -111,6 +111,34 @@ class ChallengeService:
             )
             logger.info(f"Git checkout output: {result.stdout}")
 
+            # Pull Git LFS files if the repository uses LFS
+            logger.info("Pulling Git LFS files (if any)")
+            result = subprocess.run(
+                ["git", "lfs", "pull"],
+                cwd=sub_path,
+                capture_output=True,
+                text=True,
+                check=False,  # Don't fail if LFS is not used or not installed
+            )
+            if result.returncode == 0:
+                logger.info(f"Git LFS pull output: {result.stdout}")
+            else:
+                logger.debug(f"Git LFS pull failed or not needed: {result.stderr}")
+
+            # Pull LFS files if any exist
+            logger.info("Pulling LFS files if any")
+            result = subprocess.run(
+                ["git", "lfs", "pull"],
+                cwd=sub_path,
+                capture_output=True,
+                text=True,
+                check=False,  # Don't fail if git-lfs is not installed or no LFS files
+            )
+            if result.returncode == 0:
+                logger.info(f"Git LFS pull output: {result.stdout}")
+            else:
+                logger.debug(f"Git LFS pull skipped or failed: {result.stderr}")
+
             # Create tarball
             tarball_path = self.storage_dir / f"{tarball_name}.tar.gz"
 
@@ -148,6 +176,18 @@ class ChallengeService:
                         check=True,
                     )
                     logger.info(f"Git checkout output: {result.stdout}")
+
+                    # Pull LFS files if any exist
+                    result = subprocess.run(
+                        ["git", "lfs", "pull"],
+                        cwd=sub_path,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    if result.returncode == 0:
+                        logger.info(f"Git LFS pull output: {result.stdout}")
+
                     shutil.copytree(sub_path, ref_sub_path, ignore=shutil.ignore_patterns(".git", ".aixcc"))
 
                     # Create a git-diff file between the two directories (base_sub_path and ref_sub_path)

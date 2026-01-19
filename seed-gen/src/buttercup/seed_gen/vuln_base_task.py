@@ -182,19 +182,21 @@ class VulnBaseTask(Task):
                     final_path,
                     self.harness_name,
                 ):
+                    # Calculate time taken if start_time is available
+                    time_taken = "N/A"
+                    if hasattr(self, 'start_time') and self.start_time is not None:
+                        time_taken = f"{time.time() - self.start_time:.2f} seconds"
+                    
                     logger.info(
-                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
-                        # logging the rest of the state, how long this took, and the function and analysis of the pov
-                        f"State: {state}",
-                        f"Time taken: {time.time() - self.start_time} seconds",
-                        f"Function: {state.generated_functions}",
-                        f"Analysis: {state.analysis}",
+                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s | time: %s | state: %s )",  # noqa: E501
                         self.challenge_task.task_meta.task_id,
                         self.package_name,
                         self.harness_name,
                         build.sanitizer,
                         self.challenge_task.is_delta_mode(),
                         state.pov_iteration,
+                        time_taken,
+                        str(state),
                     )
                     if self.crash_submit is not None:
                         self.submit_valid_pov(final_path, build, result)
