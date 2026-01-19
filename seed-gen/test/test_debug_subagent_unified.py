@@ -495,6 +495,26 @@ def test_debug_unified_interactive_mode_basic_workflow(
         mock_task.challenge_task.get_build_dir = Mock(return_value=build_dir)
         mock_task.challenge_task.get_debug_binary_path = Mock(return_value=None)
 
+        # Mock process_commands to return output lines (list of strings)
+        # This is what InteractiveGDBDocker.process_commands returns
+        def mock_process_commands(commands):
+            # Return mock output lines for each command
+            output_lines = []
+            for cmd in commands:
+                if cmd.startswith("break "):
+                    output_lines.append('^done,bkpt={number="1",addr="0x123456"}')
+                elif cmd == "run":
+                    output_lines.append("*running")
+                    output_lines.append("^running")
+                    output_lines.append('*stopped,reason="exited-normally"')
+                elif cmd == "bt":
+                    output_lines.append('^done,stack=[frame={level="0",addr="0x123456",func="main"}]')
+                else:
+                    output_lines.append("^done")
+            return output_lines
+
+        mock_gdb_session.process_commands = Mock(side_effect=mock_process_commands)
+
         agent._continue_debug = lambda state: False
 
         result = agent.debug(
