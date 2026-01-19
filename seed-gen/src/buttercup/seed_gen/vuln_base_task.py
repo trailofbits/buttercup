@@ -107,7 +107,7 @@ class VulnBaseTask(Task):
 
     MAX_POV_ITERATIONS: ClassVar[int] = 3
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
-    start_time: float = Field(default=0.0)
+    start_time: float | None = None
 
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
@@ -169,6 +169,9 @@ class VulnBaseTask(Task):
         """Test the PoVs"""
         # Note: due to reproduce_multiple, this node cannot be parallelized
         logger.info("Testing PoVs")
+        # Ensure start_time is initialized
+        if self.start_time is None:
+            self.start_time = time.time()
         new_valid_povs = 0
         for pov in state.current_dir.iterdir():
             final_name = f"iter{state.pov_iteration}_{pov.name}"  # avoid name conflicts

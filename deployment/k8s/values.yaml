@@ -95,7 +95,7 @@ volumes:
     enabled: true
     # When using AKS, specify the appropriate storage class for ReadWriteMany support
     storageClass: ""  # Empty string will use cluster default
-    size: "32Gi"
+    size: "10Gi"
     accessMode: ReadWriteMany
   ui_db:
     enabled: true
@@ -160,7 +160,7 @@ task-downloader:
   enabled: true
 
 scheduler:
-  enabled: true 
+  enabled: true
 
 program-model:
   enabled: true
@@ -172,34 +172,35 @@ build-bot:
   logLevel: "DEBUG"
 
 fuzzer-bot:
-  enabled: true 
+  enabled: true
 
 coverage-bot:
   enabled: true
 
 tracer-bot:
-  enabled: false
+  enabled: true
 
 seed-gen:
   enabled: true
   logMaxLineLength: 10240
   maxCorpusSeedSize: 65536  # 64 KiB
   # Debug vuln discovery configuration
-  useDebugVulnDiscovery: true
-  vulnDiscoveryProbFull: 1.0
-  vulnDiscoveryProbDelta: 1.0
-  seedInitProbFull: 0.0
-  seedInitProbDelta: 0.0
-  seedExploreProbFull: 0.0
-  seedExploreProbDelta: 0.0
+  # Set useDebugVulnDiscovery to true to enable debug vuln discovery
+  useDebugVulnDiscovery: false 
+  vulnDiscoveryProbFull: .4
+  vulnDiscoveryProbDelta: .4
+  seedInitProbFull: .4
+  seedInitProbDelta: .4
+  seedExploreProbFull: .2
+  seedExploreProbDelta: .2
   minSeedInitRuns: 0
   minVulnDiscoveryRuns: 0
 
 patcher:
-  enabled: false
+  enabled: true
 
 competition-api:
-  enabled: false
+  enabled: true
 
 # Registry cache configuration
 registry-cache:
