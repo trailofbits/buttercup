@@ -463,24 +463,31 @@ def test_debug_unified_interactive_mode_basic_workflow(
         mock_llm_with_tools = MagicMock()
         mock_llm_with_tools.invoke = Mock(return_value=context_messages[0])
         mock_task.llm_with_tools = mock_llm_with_tools
+        mock_task.llm = mock_llm
 
         # Track LLM calls
         llm_call_count = [0]
 
         def simplified_llm_invoke(*args, **kwargs):
             llm_call_count[0] += 1
-            if llm_call_count[0] == 1:
+            # Calls 1-3 are from context gathering (through llm_with_debug_tools)
+            # We don't care about these, just return a dummy message
+            if llm_call_count[0] <= 3:
+                return AIMessage(content="Context gathering", tool_calls=[])
+            
+            # Call 4 is for analysis step
+            if llm_call_count[0] == 4:
                 return analysis_message
 
-            # Interactive commands
-            interactive_start = 2
-            interactive_end = 1 + len(interactive_commands)
+            # Interactive commands start from call 5
+            interactive_start = 5
+            interactive_end = 4 + len(interactive_commands)
             if interactive_start <= llm_call_count[0] <= interactive_end:
                 cmd_idx = llm_call_count[0] - interactive_start
                 if cmd_idx < len(interactive_commands):
                     return AIMessage(content=interactive_commands[cmd_idx])
 
-            # Reflection
+            # After interactive commands, return reflection
             return AIMessage(content="Reflection on debug session")
 
         mock_llm.invoke.side_effect = simplified_llm_invoke
@@ -1284,6 +1291,16 @@ def test_debug_unified_state_management_interactive(
         mock_llm.bind_tools = Mock(return_value=mock_llm_with_debug_tools)
 
         agent = DebugSubagentUnified(mock_task, mock_reproduce_multiple, mode="interactive")
+
+        # Mock the agent's llm_with_debug_tools to avoid context gathering calls affecting the LLM call count
+        mock_agent_llm_with_tools = MagicMock()
+        mock_agent_llm_with_tools.invoke = Mock(
+            return_value=AIMessage(
+                content="Context gathering complete",
+                tool_calls=[],
+            )
+        )
+        agent.llm_with_debug_tools = mock_agent_llm_with_tools
 
         # Override llm_with_debug_tools after agent creation to use our mock
         agent.llm_with_debug_tools = mock_llm_with_debug_tools
