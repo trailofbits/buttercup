@@ -91,13 +91,38 @@ class RunnerProxy:
 
             try:
                 stdout, stderr = process.communicate(timeout=subprocess_timeout)
-                if process.returncode != 0:
+
+                # Log the return code with interpretation
+                returncode = process.returncode
+                if returncode != 0:
+                    # Interpret common exit codes
+                    if returncode > 128:
+                        signal_num = returncode - 128
+                        try:
+                            signal_name = signal.Signals(signal_num).name
+                        except ValueError:
+                            signal_name = f"signal {signal_num}"
+                        logger.warning(
+                            f"{task_type} process terminated by {signal_name} "
+                            f"(exit code {returncode} = 128 + {signal_num})"
+                        )
+                    elif returncode == 1:
+                        logger.warning(f"{task_type} process exited with code 1 (general error)")
+                    elif returncode == 77:
+                        logger.warning(f"{task_type} process exited with code 77 (libFuzzer: no corpus)")
+                    elif returncode == 124:
+                        logger.warning(f"{task_type} process exited with code 124 (timeout)")
+                    else:
+                        logger.warning(f"{task_type} process exited with code {returncode}")
+
                     error_msg = stderr.decode("utf-8") if stderr else "Unknown subprocess error"
                     logger.error(f"{task_type} task failed: {error_msg}")
                     return {
                         "status": "failed",
-                        "error": f"Task failed: {error_msg}",
+                        "error": f"Task failed (exit code {returncode}): {error_msg}",
                     }
+                else:
+                    logger.debug(f"{task_type} process exited successfully (code 0)")
             except subprocess.TimeoutExpired:
                 logger.error(f"{task_type} task timed out after {subprocess_timeout} seconds")
                 if process.poll() is None:
@@ -197,6 +222,34 @@ class RunnerProxy:
         """Convert dictionary result back to FuzzResult object"""
         # Handle both "logs" and "error" keys for backward compatibility
         logs = result_dict.get("logs", result_dict.get("error", ""))
+        stats = result_dict.get("stats", {})
+        crashes = result_dict.get("crashes", [])
+
+        # Log detailed stats for debugging harness issues
+        logger.info(
+            f"Fuzzer result: num_crashes={len(crashes)}, "
+            f"timed_out={result_dict.get('timed_out', False)}, "
+            f"time_executed={result_dict.get('time_executed', 0.0):.2f}s"
+        )
+        if stats:
+            oom_count = stats.get("oom_count", 0)
+            timeout_count = stats.get("timeout_count", 0)
+            crash_count = stats.get("crash_count", 0)
+            startup_crash_count = stats.get("startup_crash_count", 0)
+
+            if oom_count > 0:
+                logger.warning(f"Fuzzer detected OOM: oom_count={oom_count}")
+            if timeout_count > 0:
+                logger.warning(f"Fuzzer detected timeouts: timeout_count={timeout_count}")
+            if startup_crash_count > 0:
+                logger.warning(f"Fuzzer detected startup crashes: startup_crash_count={startup_crash_count}")
+
+            logger.info(
+                f"Fuzzer stats summary: crash_count={crash_count}, oom_count={oom_count}, "
+                f"timeout_count={timeout_count}, startup_crash_count={startup_crash_count}, "
+                f"edge_coverage={stats.get('edge_coverage', 0)}/{stats.get('edges_total', 0)}"
+            )
+
         return FuzzResult(
             logs=logs,
             crashes=[
@@ -206,9 +259,9 @@ class RunnerProxy:
                     reproduce_args=crash.get("reproduce_args", []),
                     crash_time=crash.get("crash_time", 0.0),
                 )
-                for crash in result_dict.get("crashes", [])
+                for crash in crashes
             ],
-            stats=result_dict.get("stats", {}),
+            stats=stats,
             time_executed=result_dict.get("time_executed", 0.0),
             timed_out=result_dict.get("timed_out", False),
             command=result_dict.get("command", ""),

@@ -107,7 +107,7 @@ def test_run_fuzzer_failure(mock_popen, fuzz_config):
 
     # Run fuzzer and expect failure
     res = runner_proxy.run_fuzzer(fuzz_config)
-    assert "Task failed: Fuzzer crashed" in res.logs
+    assert "Task failed (exit code 1): Fuzzer crashed" in res.logs
     assert res.crashes == []
     assert res.command == ""
 
