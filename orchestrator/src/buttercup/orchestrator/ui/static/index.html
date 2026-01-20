@@ -109,20 +109,25 @@
                     <input type="text" id="task-name" name="name" placeholder="Optional custom name">
                 </div>
                 <div class="form-group">
-                    <label for="challenge-repo-url">Challenge Repository URL:</label>
-                    <input type="url" id="challenge-repo-url" name="challenge_repo_url" required 
-                           placeholder="https://github.com/user/repo.git">
+                    <label for="challenge-repo-url">Challenge Repository URL (optional for full mode):</label>
+                    <input type="url" id="challenge-repo-url" name="challenge_repo_url"
+                           placeholder="https://github.com/user/repo.git (leave empty to extract from OSS-Fuzz)">
                 </div>
                 <div class="form-group">
-                    <label for="challenge-repo-head-ref">Challenge Repository Head Ref:</label>
-                    <input type="text" id="challenge-repo-head-ref" name="challenge_repo_head_ref" required
-                           placeholder="main or commit hash">
+                    <label for="challenge-repo-head-ref">Challenge Repository Head Ref (optional for full mode):</label>
+                    <input type="text" id="challenge-repo-head-ref" name="challenge_repo_head_ref"
+                           placeholder="main or commit hash (leave empty to extract from OSS-Fuzz)">
                 </div>
                 <div class="form-group">
                     <label for="challenge-repo-base-ref">Challenge Repository Base Ref:</label>
                     <input type="text" id="challenge-repo-base-ref" name="challenge_repo_base_ref"
                            placeholder="Optional base ref for delta analysis">
                 </div>
+                <p class="form-note">
+                    <strong>Note:</strong> For full mode, you can leave Challenge Repository fields empty.
+                    The source will be extracted from the OSS-Fuzz Docker container.
+                    For delta mode (with base ref), all challenge repository fields are required.
+                </p>
                 <div class="form-group">
                     <label for="fuzz-tooling-url">Fuzz Tooling URL:</label>
                     <input type="url" id="fuzz-tooling-url" name="fuzz_tooling_url" required

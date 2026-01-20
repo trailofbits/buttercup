@@ -595,13 +595,38 @@ function fillExampleValues() {
 
 async function handleTaskSubmission(event) {
     event.preventDefault();
-    
+
     const formData = new FormData(elements.taskForm);
-    const taskData = Object.fromEntries(formData.entries());
-    
-    // Convert checkbox and number values
-    taskData.harnesses_included = formData.has('harnesses_included');
-    taskData.duration = parseInt(taskData.duration);
+
+    // Build task data with required fields
+    const taskData = {
+        fuzz_tooling_url: formData.get('fuzz_tooling_url'),
+        fuzz_tooling_ref: formData.get('fuzz_tooling_ref'),
+        fuzz_tooling_project_name: formData.get('fuzz_tooling_project_name'),
+        duration: parseInt(formData.get('duration')),
+        harnesses_included: formData.has('harnesses_included'),
+    };
+
+    // Only include optional fields if they have values
+    const name = formData.get('name');
+    if (name && name.trim()) {
+        taskData.name = name.trim();
+    }
+
+    const challengeRepoUrl = formData.get('challenge_repo_url');
+    if (challengeRepoUrl && challengeRepoUrl.trim()) {
+        taskData.challenge_repo_url = challengeRepoUrl.trim();
+    }
+
+    const challengeRepoHeadRef = formData.get('challenge_repo_head_ref');
+    if (challengeRepoHeadRef && challengeRepoHeadRef.trim()) {
+        taskData.challenge_repo_head_ref = challengeRepoHeadRef.trim();
+    }
+
+    const challengeRepoBaseRef = formData.get('challenge_repo_base_ref');
+    if (challengeRepoBaseRef && challengeRepoBaseRef.trim()) {
+        taskData.challenge_repo_base_ref = challengeRepoBaseRef.trim();
+    }
     
     // Get submit button and show loading state
     const submitBtn = elements.taskForm.querySelector('button[type="submit"]');

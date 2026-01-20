@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from buttercup.common.telemetry import crs_instance_id
 from buttercup.orchestrator.ui.competition_api.models.types import (
@@ -96,13 +96,24 @@ class DashboardStats(BaseModel):
 class Challenge(BaseModel):
     name: str | None = None
 
-    challenge_repo_url: str
-    challenge_repo_head_ref: str
+    challenge_repo_url: str | None = None
+    challenge_repo_head_ref: str | None = None
     fuzz_tooling_url: str
     fuzz_tooling_ref: str
     fuzz_tooling_project_name: str
     duration: int
     challenge_repo_base_ref: str | None = None
+
+    @model_validator(mode="after")
+    def validate_delta_mode_requirements(self) -> Challenge:
+        """Delta mode requires challenge_repo_url and challenge_repo_head_ref."""
+        if self.challenge_repo_base_ref is not None:
+            if not self.challenge_repo_url or not self.challenge_repo_head_ref:
+                raise ValueError(
+                    "Delta mode (challenge_repo_base_ref provided) requires "
+                    "challenge_repo_url and challenge_repo_head_ref"
+                )
+        return self
 
 
 # NOTE: Make this dynamic and modifiable through the UI/API
@@ -121,6 +132,14 @@ challenges = [
         challenge_repo_url="https://github.com/pnggroup/libpng",
         challenge_repo_head_ref="2b978915d82377df13fcbb1fb56660195ded868a",
         challenge_repo_base_ref="640204280f8109d7165f95d2b177f89baf20b253",
+        fuzz_tooling_url="https://github.com/google/oss-fuzz",
+        fuzz_tooling_ref="master",
+        fuzz_tooling_project_name="libpng",
+        duration=1800,
+    ),
+    # OSS-Fuzz only mode - source extracted from built container
+    Challenge(
+        name="upstream-libpng-ossfuzz-only",
         fuzz_tooling_url="https://github.com/google/oss-fuzz",
         fuzz_tooling_ref="master",
         fuzz_tooling_project_name="libpng",
