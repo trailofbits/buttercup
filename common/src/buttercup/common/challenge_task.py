@@ -268,10 +268,11 @@ class ChallengeTask:
         except Exception as e:
             raise ChallengeTaskError(f"Python executable couldn't be run: {self.python_path}") from e
 
-    def _workdir_from_lines(self, lines: list[str], default: Path = Path("/src")) -> Path:
+    @staticmethod
+    def _workdir_from_lines(lines: list[str], default: Path = Path("/src")) -> Path:
         """Gets the WORKDIR from the given lines."""
         for line in reversed(lines):  # reversed to get last WORKDIR.
-            match = re.match(self.WORKDIR_REGEX, line)
+            match = re.match(ChallengeTask.WORKDIR_REGEX, line)
             if match:
                 workdir = match.group(1)
                 workdir = workdir.replace("$SRC", "/src")

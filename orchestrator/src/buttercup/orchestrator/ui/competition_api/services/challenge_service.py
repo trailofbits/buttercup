@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-import re
 import shutil
 import subprocess
 import tarfile
@@ -16,6 +15,7 @@ from typing import Any
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
     SARIFBroadcast,
     SARIFBroadcastDetail,
@@ -112,25 +112,7 @@ class ChallengeService:
             sub_path.mkdir(parents=True, exist_ok=True)
 
             # Clone the repository
-            logger.info(f"Cloning {repo_url} to {sub_path}")
-
-            clone_url, original_url = self._get_authenticated_url(repo_url)
-
-            try:
-                result = subprocess.run(
-                    ["git", "clone", clone_url, sub_path],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                logger.info(f"Cloned {repo_url} to {sub_path}")
-            except Exception:
-                if clone_url == original_url:
-                    raise
-                else:
-                    # Sanitize command if it contains PAT
-                    sanitized_command = f"git clone {original_url} {sub_path}"
-                    raise Exception(f"Failed to clone repository. Sanitized command: {sanitized_command}")
+            self._clone_repository(repo_url, sub_path)
 
             # Checkout the specified ref
             logger.info(f"Checking out ref: {cur_ref}")
@@ -245,6 +227,33 @@ class ChallengeService:
         focus_dir = focus_dir.removesuffix(".git")  # Remove .git suffix
         return focus_dir
 
+    def _clone_repository(self, repo_url: str, dest_path: Path) -> None:
+        """Clone a git repository with optional authentication.
+
+        Handles GitHub PAT authentication and sanitizes error messages
+        to avoid leaking credentials.
+
+        Args:
+            repo_url: The repository URL to clone
+            dest_path: Destination path for the clone
+        """
+        logger.info(f"Cloning {repo_url} to {dest_path}")
+        clone_url, original_url = self._get_authenticated_url(repo_url)
+
+        try:
+            subprocess.run(
+                ["git", "clone", clone_url, str(dest_path)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except Exception:
+            if clone_url == original_url:
+                raise
+            # Sanitize error message if it contains PAT
+            sanitized_command = f"git clone {original_url} {dest_path}"
+            raise Exception(f"Failed to clone repository. Sanitized command: {sanitized_command}")
+
     def _get_authenticated_url(self, repo_url: str) -> tuple[str, str]:
         """Get an authenticated URL for cloning if GitHub credentials are available.
 
@@ -269,29 +278,6 @@ class ChallengeService:
             return auth_url, repo_url
         return repo_url, repo_url
 
-    def _parse_workdir_from_dockerfile(self, dockerfile_path: Path, project_name: str) -> Path:
-        """Parse WORKDIR from Dockerfile, returns default /src/project_name if not found."""
-        workdir_regex = re.compile(r"^\s*WORKDIR\s+([^\s]+)", re.IGNORECASE)
-        default = Path("/src") / project_name
-
-        try:
-            with open(dockerfile_path) as f:
-                lines = f.readlines()
-
-            # Find the last WORKDIR directive
-            for line in reversed(lines):
-                match = workdir_regex.match(line)
-                if match:
-                    workdir = match.group(1).replace("$SRC", "/src")
-                    workdir = Path(workdir)
-                    if not workdir.is_absolute():
-                        workdir = Path("/src") / workdir
-                    return workdir
-        except FileNotFoundError:
-            logger.warning(f"Dockerfile not found at {dockerfile_path}, using default WORKDIR")
-
-        return default
-
     def extract_source_from_container(
         self,
         oss_fuzz_path: Path,
@@ -305,7 +291,13 @@ class ChallengeService:
         """
         # 1. Parse WORKDIR from Dockerfile
         dockerfile_path = oss_fuzz_path / "projects" / project_name / "Dockerfile"
-        workdir = self._parse_workdir_from_dockerfile(dockerfile_path, project_name)
+        default_workdir = Path("/src") / project_name
+        try:
+            lines = dockerfile_path.read_text().splitlines()
+            workdir = ChallengeTask._workdir_from_lines(lines, default=default_workdir)
+        except FileNotFoundError:
+            logger.warning(f"Dockerfile not found at {dockerfile_path}, using default WORKDIR")
+            workdir = default_workdir
         focus_dir = workdir.parts[-1]  # e.g., /src/libxml2 -> libxml2
         logger.info(f"Parsed WORKDIR: {workdir}, focus_dir: {focus_dir}")
 
@@ -392,6 +384,57 @@ class ChallengeService:
         logger.info(f"Created tarball: {new_tarball_path}")
         return sha256_hash
 
+    def _create_challenge_tarball_from_oss_fuzz(
+        self,
+        fuzz_tooling_url: str,
+        fuzz_tooling_ref: str,
+        fuzz_tooling_project_name: str,
+        tarball_name: str,
+    ) -> tuple[str, str]:
+        """Extract source from OSS-Fuzz container and create a tarball.
+
+        Args:
+            fuzz_tooling_url: URL of the OSS-Fuzz repository
+            fuzz_tooling_ref: Git reference for the OSS-Fuzz repository
+            fuzz_tooling_project_name: Name of the project in OSS-Fuzz
+            tarball_name: Name for the tarball file
+
+        Returns:
+            Tuple of (focus_dir, sha256_hash)
+        """
+        logger.info(f"OSS-Fuzz only mode: extracting source from container for project {fuzz_tooling_project_name}")
+
+        with tempfile.TemporaryDirectory(dir=self.storage_dir) as temp_dir:
+            oss_fuzz_path = Path(temp_dir) / "oss-fuzz"
+
+            # Clone OSS-Fuzz repo
+            self._clone_repository(fuzz_tooling_url, oss_fuzz_path)
+
+            result = subprocess.run(
+                ["git", "checkout", fuzz_tooling_ref],
+                cwd=oss_fuzz_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                logger.error(f"Git checkout failed: {result.stderr}")
+                raise RuntimeError(f"Failed to checkout ref {fuzz_tooling_ref}: {result.stderr}")
+
+            # Extract source from container
+            focus_dir, extracted_path = self.extract_source_from_container(oss_fuzz_path, fuzz_tooling_project_name)
+
+            # Create tarball from extracted source
+            challenge_sha256 = self._create_tarball_from_path(
+                extracted_path,
+                tarball_name,
+            )
+
+            # Clean up extracted path
+            shutil.rmtree(extracted_path, ignore_errors=True)
+
+        return focus_dir, challenge_sha256
+
     def create_task_for_challenge(
         self,
         challenge_repo_url: str | None,
@@ -437,68 +480,22 @@ class ChallengeService:
                 tarball_name=challenge_tarball_name,
                 base_ref=challenge_repo_base_ref,
             )
-
-            # Create fuzz tooling tarball
-            logger.info(f"Creating fuzz tooling repository tarball for {fuzz_tooling_url} with ref {fuzz_tooling_ref}")
-            _, fuzz_tooling_sha256, _ = self.create_challenge_tarball(
-                repo_url=fuzz_tooling_url,
-                ref=fuzz_tooling_ref,
-                tarball_name=fuzz_tooling_tarball_name,
-            )
         else:
-            # New OSS-Fuzz only flow: extract source from built container
-            logger.info(f"OSS-Fuzz only mode: extracting source from container for project {fuzz_tooling_project_name}")
-
-            with tempfile.TemporaryDirectory(dir=self.storage_dir) as temp_dir:
-                oss_fuzz_path = Path(temp_dir) / "oss-fuzz"
-
-                # Clone OSS-Fuzz repo
-                logger.info(f"Cloning OSS-Fuzz repo from {fuzz_tooling_url}")
-                clone_url, original_url = self._get_authenticated_url(fuzz_tooling_url)
-                try:
-                    subprocess.run(
-                        ["git", "clone", clone_url, str(oss_fuzz_path)],
-                        check=True,
-                        capture_output=True,
-                    )
-                except Exception:
-                    if clone_url == original_url:
-                        raise
-                    else:
-                        # Sanitize command if it contains PAT
-                        sanitized_command = f"git clone {original_url} {oss_fuzz_path}"
-                        raise Exception(f"Failed to clone repository. Sanitized command: {sanitized_command}")
-
-                result = subprocess.run(
-                    ["git", "checkout", fuzz_tooling_ref],
-                    cwd=oss_fuzz_path,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if result.returncode != 0:
-                    logger.error(f"Git checkout failed: {result.stderr}")
-                    raise RuntimeError(f"Failed to checkout ref {fuzz_tooling_ref}: {result.stderr}")
-
-                # Extract source from container
-                focus_dir, extracted_path = self.extract_source_from_container(oss_fuzz_path, fuzz_tooling_project_name)
-
-                # Create tarball from extracted source
-                challenge_sha256 = self._create_tarball_from_path(
-                    extracted_path,
-                    challenge_tarball_name,
-                )
-
-                # Clean up extracted path
-                shutil.rmtree(extracted_path, ignore_errors=True)
-
-            # Create fuzz tooling tarball (from the same cloned repo or fresh clone)
-            logger.info(f"Creating fuzz tooling repository tarball for {fuzz_tooling_url} with ref {fuzz_tooling_ref}")
-            _, fuzz_tooling_sha256, _ = self.create_challenge_tarball(
-                repo_url=fuzz_tooling_url,
-                ref=fuzz_tooling_ref,
-                tarball_name=fuzz_tooling_tarball_name,
+            # OSS-Fuzz only flow: extract source from built container
+            focus_dir, challenge_sha256 = self._create_challenge_tarball_from_oss_fuzz(
+                fuzz_tooling_url=fuzz_tooling_url,
+                fuzz_tooling_ref=fuzz_tooling_ref,
+                fuzz_tooling_project_name=fuzz_tooling_project_name,
+                tarball_name=challenge_tarball_name,
             )
+
+        # Create fuzz tooling tarball
+        logger.info(f"Creating fuzz tooling repository tarball for {fuzz_tooling_url} with ref {fuzz_tooling_ref}")
+        _, fuzz_tooling_sha256, _ = self.create_challenge_tarball(
+            repo_url=fuzz_tooling_url,
+            ref=fuzz_tooling_ref,
+            tarball_name=fuzz_tooling_tarball_name,
+        )
 
         # Create source details
         sources = [
