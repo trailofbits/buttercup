@@ -1,5 +1,6 @@
 # Config to maximize use a 16 CPU (32 thread), 128 GB machine without scaling LLM usage.
-# Requires the following specs for minikube (update them in deployment/env):
+# To use, update the following values in deployment/env:
+# export BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-upstream-minikube-16cpu-128gb.template"
 # export MINIKUBE_CPU=30
 # export MINIKUBE_MEMORY_GB=120
 # export MINIKUBE_DISK_GB=160
