@@ -298,7 +298,11 @@ class ChallengeService:
         except FileNotFoundError:
             logger.warning(f"Dockerfile not found at {dockerfile_path}, using default WORKDIR")
             workdir = default_workdir
-        focus_dir = workdir.parts[-1]  # e.g., /src/libxml2 -> libxml2
+        # If WORKDIR is just /src, use project_name as focus_dir
+        if workdir == Path("/src"):
+            focus_dir = project_name
+        else:
+            focus_dir = workdir.parts[-1]  # e.g., /src/libxml2 -> libxml2
         logger.info(f"Parsed WORKDIR: {workdir}, focus_dir: {focus_dir}")
 
         # 2. Build the Docker image using OSS-Fuzz's helper.py
