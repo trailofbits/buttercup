@@ -16,6 +16,8 @@ spec:
         app: ui
     spec:
       {{- include "buttercup.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+        {{- include "buttercup.waitForDocker" . | nindent 8 }}
       containers:
       - name: ui
         image: "{{ .Values.global.orchestratorImage.repository }}:{{ .Values.global.orchestratorImage.tag }}"
@@ -27,12 +29,14 @@ spec:
         env:
         {{- include "buttercup.uiEnv" . | nindent 8 }}
         {{- include "buttercup.env.telemetry" . | nindent 8 }}
+        {{- include "buttercup.env.dockerSocket" . | nindent 8 }}
         volumeMounts:
           - name: data-volume
             mountPath: /data/data-volume
           - name: run-data-volume
             mountPath: /tmp/buttercup-run-data
           {{- include "buttercup.volumeMounts.ui_db" . | nindent 10 }}
+          {{- include "buttercup.dockerSocketVolumeMount" . | nindent 10 }}
         command: ["buttercup-ui"]
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
@@ -61,4 +65,5 @@ spec:
           emptyDir: {}
         {{- end }}
         {{- include "buttercup.volumes.ui_db" . | nindent 8 }}
+        {{- include "buttercup.dockerSocketVolume" . | nindent 8 }}
 {{- end }} 

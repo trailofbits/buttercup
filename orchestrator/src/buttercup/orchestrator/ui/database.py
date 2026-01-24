@@ -36,8 +36,8 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String)
     duration: Mapped[int] = mapped_column(Integer)
     deadline: Mapped[datetime] = mapped_column(DateTime)
-    challenge_repo_url: Mapped[str] = mapped_column(String)
-    challenge_repo_head_ref: Mapped[str] = mapped_column(String)
+    challenge_repo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    challenge_repo_head_ref: Mapped[str | None] = mapped_column(String, nullable=True)
     challenge_repo_base_ref: Mapped[str | None] = mapped_column(String, nullable=True)
     fuzz_tooling_url: Mapped[str] = mapped_column(String)
     fuzz_tooling_ref: Mapped[str] = mapped_column(String)
@@ -278,8 +278,8 @@ class DatabaseManager:
         status: str,
         duration: int,
         deadline: datetime,
-        challenge_repo_url: str,
-        challenge_repo_head_ref: str,
+        challenge_repo_url: str | None,
+        challenge_repo_head_ref: str | None,
         challenge_repo_base_ref: str | None,
         fuzz_tooling_url: str,
         fuzz_tooling_ref: str,

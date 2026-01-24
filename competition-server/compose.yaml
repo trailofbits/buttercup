@@ -36,6 +36,8 @@ services:
   #     - shared-tmp:/tmp
 
   scantron:
+    profiles:
+      - competition-server
     image: ghcr.io/tob-challenges/example-crs-architecture/competition-test-api:v1.4-rc1
     platform: linux/amd64
     privileged: true

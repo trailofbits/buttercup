@@ -28,7 +28,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_BASE} AS runtime
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y git curl && \
+    apt-get install -y git git-lfs curl && \
+    git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
 RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true

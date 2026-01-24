@@ -1,4 +1,6 @@
+import json
 import logging
+import subprocess
 from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
@@ -114,6 +116,16 @@ class DeleteSettings(BaseModel):
     item_id: Annotated[str | None, Field(description="Item ID")] = None
 
 
+class ExtractPovsSettings(BaseModel):
+    output_dir: CliPositionalArg[Path] = Field(
+        description="Output directory for extracted PoVs, stack traces, and patches"
+    )
+    task_id: str = Field(default="", description="Filter by task ID (optional)")
+    passed_only: bool = Field(default=False, description="Only extract vulnerabilities with PASSED PoV result")
+    namespace: str = Field(default="crs", description="Kubernetes namespace")
+    pod_label: str = Field(default="app=scheduler", description="Label selector for pod to copy files from")
+
+
 class Settings(BaseSettings):
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
@@ -126,6 +138,7 @@ class Settings(BaseSettings):
     read_harnesses: CliSubCommand[ReadHarnessWeightSettings]
     read_builds: CliSubCommand[ReadBuildsSettings]
     read_submissions: CliSubCommand[ReadSubmissionsSettings]
+    extract_povs: CliSubCommand[ExtractPovsSettings]
 
     class Config:
         env_prefix = "BUTTERCUP_MSG_PUBLISHER_"
@@ -134,6 +147,209 @@ class Settings(BaseSettings):
         nested_model_default_partial_update = True
         env_nested_delimiter = "__"
         extra = "allow"
+
+
+def get_pod_name(namespace: str, label: str) -> str | None:
+    """Get the name of a pod matching the label selector."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", namespace, "-l", label, "-o", "jsonpath={.items[0].metadata.name}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        pod_name = result.stdout.strip()
+        return pod_name if pod_name else None
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to get pod name: {e.stderr}")
+        return None
+
+
+def kubectl_cp(namespace: str, pod_name: str, remote_path: str, local_path: Path) -> bool:
+    """Copy a file from a pod using kubectl cp."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "cp", "-n", namespace, f"{pod_name}:{remote_path}", str(local_path)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            logger.warning(f"kubectl cp failed for {remote_path}: {result.stderr}")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"kubectl cp exception for {remote_path}: {e}")
+        return False
+
+
+def extract_povs(redis: Redis, command: ExtractPovsSettings) -> None:
+    """Extract PoVs, stack traces, and patches into a directory structure.
+
+    Directory structure:
+        output_dir/
+            project_name/
+                task_id/
+                    vuln_NNN/
+                        crashes/
+                            crash_001/
+                                pov.bin
+                                stacktrace.txt
+                                tracer_stacktrace.txt
+                                metadata.json
+                        patches/
+                            patch_001.patch
+                            patch_002.patch
+                        metadata.json
+    """
+    SUBMISSIONS_KEY = "submissions"
+    raw_submissions: list = redis.lrange(SUBMISSIONS_KEY, 0, -1)
+    registry = TaskRegistry(redis)
+
+    if not raw_submissions:
+        logger.info("No submissions found")
+        return
+
+    # Get pod name for kubectl cp
+    pod_name = get_pod_name(command.namespace, command.pod_label)
+    if not pod_name:
+        logger.error(f"No pod found matching label '{command.pod_label}' in namespace '{command.namespace}'")
+        return
+
+    logger.info(f"Using pod '{pod_name}' for file extraction")
+
+    output_dir = command.output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"Found {len(raw_submissions)} submissions, extracting to {output_dir}")
+
+    vuln_counter: dict[str, int] = {}  # task_id -> vulnerability counter
+    stats = {"povs_copied": 0, "povs_failed": 0}
+
+    for i, raw in enumerate(raw_submissions):
+        try:
+            submission = SubmissionEntry.FromString(raw)
+
+            if submission.stop:
+                logger.debug(f"Skipping stopped submission {i}")
+                continue
+
+            if not submission.crashes:
+                logger.debug(f"Skipping submission {i} with no crashes")
+                continue
+
+            # Get task info from the first crash
+            first_crash = submission.crashes[0].crash.crash
+            task_id = first_crash.target.task_id
+
+            if command.task_id and task_id != command.task_id:
+                logger.debug(f"Skipping submission {i} for task {task_id}")
+                continue
+
+            # Check if any crash passed (if passed_only filter is set)
+            if command.passed_only:
+                has_passed = any(c.result == SubmissionResult.PASSED for c in submission.crashes)
+                if not has_passed:
+                    logger.debug(f"Skipping submission {i} - no PASSED crashes")
+                    continue
+
+            # Get task metadata
+            task = registry.get(task_id)
+            project_name = task.project_name if task else "unknown"
+
+            # Create vulnerability directory
+            if task_id not in vuln_counter:
+                vuln_counter[task_id] = 0
+            vuln_counter[task_id] += 1
+            vuln_num = vuln_counter[task_id]
+
+            vuln_dir = output_dir / project_name / task_id / f"vuln_{vuln_num:03d}"
+            crashes_dir = vuln_dir / "crashes"
+            patches_dir = vuln_dir / "patches"
+
+            crashes_dir.mkdir(parents=True, exist_ok=True)
+            patches_dir.mkdir(parents=True, exist_ok=True)
+
+            # Extract crashes
+            for crash_idx, crash_with_id in enumerate(submission.crashes, start=1):
+                crash = crash_with_id.crash
+                crash_dir = crashes_dir / f"crash_{crash_idx:03d}"
+                crash_dir.mkdir(parents=True, exist_ok=True)
+
+                # Copy PoV file using kubectl cp
+                pov_remote_path = crash.crash.crash_input_path
+                pov_local_path = crash_dir / "pov.bin"
+
+                if kubectl_cp(command.namespace, pod_name, pov_remote_path, pov_local_path):
+                    stats["povs_copied"] += 1
+                else:
+                    stats["povs_failed"] += 1
+                    # Store the path for reference
+                    (crash_dir / "pov_path.txt").write_text(pov_remote_path)
+
+                # Write stacktrace
+                if crash.crash.stacktrace:
+                    (crash_dir / "stacktrace.txt").write_text(crash.crash.stacktrace)
+
+                # Write tracer stacktrace
+                if crash.tracer_stacktrace:
+                    (crash_dir / "tracer_stacktrace.txt").write_text(crash.tracer_stacktrace)
+
+                # Write crash metadata
+                crash_metadata = {
+                    "competition_pov_id": crash_with_id.competition_pov_id,
+                    "result": SubmissionResult.Name(crash_with_id.result) if crash_with_id.result else "NONE",
+                    "harness_name": crash.crash.harness_name,
+                    "crash_token": crash.crash.crash_token,
+                    "crash_input_path": crash.crash.crash_input_path,
+                    "sanitizer": crash.crash.target.sanitizer,
+                    "engine": crash.crash.target.engine,
+                }
+                (crash_dir / "metadata.json").write_text(json.dumps(crash_metadata, indent=2))
+
+            # Extract patches (skip empty patch trackers - these are placeholders that never received content)
+            patch_num = 0
+            for patch_entry in submission.patches:
+                if not patch_entry.patch:
+                    continue  # Skip empty patch trackers
+                patch_num += 1
+                patch_file = patches_dir / f"patch_{patch_num:03d}.patch"
+                patch_file.write_text(patch_entry.patch)
+
+                # Write patch metadata
+                patch_metadata = {
+                    "internal_patch_id": patch_entry.internal_patch_id,
+                    "competition_patch_id": patch_entry.competition_patch_id,
+                    "result": SubmissionResult.Name(patch_entry.result) if patch_entry.result else "NONE",
+                }
+                (patches_dir / f"patch_{patch_num:03d}_metadata.json").write_text(json.dumps(patch_metadata, indent=2))
+
+            # Write vulnerability metadata
+            vuln_metadata = {
+                "task_id": task_id,
+                "project_name": project_name,
+                "num_crashes": len(submission.crashes),
+                "num_patches": patch_num,  # Only count non-empty patches
+                "num_bundles": len(submission.bundles),
+                "patch_idx": submission.patch_idx,
+                "stopped": submission.stop,
+            }
+            (vuln_dir / "metadata.json").write_text(json.dumps(vuln_metadata, indent=2))
+
+            logger.info(
+                f"Extracted vulnerability {vuln_num} for {project_name}/{task_id}: "
+                f"{len(submission.crashes)} crashes, {patch_num} patches"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to process submission {i}: {e}")
+            continue
+
+    # Print summary
+    total_vulns = sum(vuln_counter.values())
+    logger.info(f"Extraction complete: {total_vulns} vulnerabilities across {len(vuln_counter)} tasks")
+    logger.info(f"PoV files: {stats['povs_copied']} copied, {stats['povs_failed']} failed")
+    for task_id, count in vuln_counter.items():
+        logger.info(f"  {task_id}: {count} vulnerabilities")
 
 
 def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
@@ -304,6 +520,8 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
 
         print()
         logger.info("Done")
+    elif isinstance(command, ExtractPovsSettings):
+        extract_povs(redis, command)
     elif isinstance(command, ListSettings):
         print("Available queues:")
         print("\n".join([f"- {name}" for name in get_queue_names()]))

@@ -946,3 +946,18 @@ button.reject-button {
     max-height: 200px;
     overflow-y: auto;
 }
+
+/* Form note style */
+.form-note {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #1565c0;
+}
+
+.form-note strong {
+    color: #0d47a1;
+}

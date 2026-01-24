@@ -1,13 +1,13 @@
 include:
- - ../../competition-server/compose.yaml
- - ../../competition-server/signoz/compose.yaml
+  - ../../competition-server/compose.yaml
+  - ../../competition-server/signoz/compose.yaml
 
 services:
   # ugh the only solution i can come up with is a dind instance paired with every single build-bot we will need like k8s groups or something
   dind:
     expose:
       - "2375"
-    image: docker:24-dind
+    image: docker:29-dind
     command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false", "--storage-driver=overlay2"]
     restart: always
     privileged: true  # This must run with privlege to support nested virtualization within the public Linux CP for `virtme-ng`
@@ -37,93 +37,14 @@ services:
       timeout: 3s
       retries: 5
 
-  stimulate-fuzzer-test:
-    build:
-      context: ../../
-      dockerfile: ./fuzzer/Dockerfile
-    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.stimulate_build_bot --build_type fuzzer --ossfuzz /crs_scratch/oss-fuzz --engine libfuzzer --sanitizer address --target_package ${TARGET_PACKAGE} --redis_url redis://redis:6379 --source_path /crs_scratch/${TARGET_PACKAGE} --task_id 123e4567-e89b-12d3-a456-426614174000
-    profiles:
-      - fuzzer-test
-    restart: no
-    volumes:
-      - ../../crs_scratch:/crs_scratch
-    depends_on:
-      redis:
-        condition: service_healthy
-      build-bot:
-        condition: service_started
-      fuzzer-bot:
-        condition: service_started
-      orchestrator-sim:
-        condition: service_started
-      coverage-bot:
-        condition: service_started
-      
-
-  orchestrator-sim:
-    build:
-      context: ../../
-      dockerfile: ./fuzzer/Dockerfile
-    command: /fuzzer/.venv/bin/python -m buttercup.fuzzing_infra.orchestrator --redis_url redis://redis:6379
-    profiles:
-      - fuzzer-test
-    volumes:
-      - ../../crs_scratch:/crs_scratch
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  graphdb:
-    image: janusgraph/janusgraph:latest
-    profiles:
-      - graphdb
-    environment:
-      - janusgraph.storage.backend=cql
-      - janusgraph.storage.hostname=graphdb-storage
-      - janusgraph.storage.cql.keyspace=janusgraph
-      - janusgraph.schema.init.strategy=json
-      - janusgraph.schema.init.json.file=/opt/janusgraph/conf/schema.json
-      - janusgraph.query.batch=true
-      - janusgraph.storage.batch-loading=true
-      - _JAVA_OPTIONS=-Xmx4g -Xms2g
-    healthcheck:
-      test: ["CMD-SHELL", "bin/gremlin.sh", "-e", "scripts/remote-connect.groovy"]
-      interval: 10s
-      timeout: 60s
-      retries: 4
-    ports:
-      - "127.0.0.1:8182:8182"
-    volumes:
-      - ../../crs_scratch:/crs_scratch
-      - ../../program-model/conf/janusgraph-server.yaml:/opt/janusgraph/conf/janusgraph-server.yaml
-      - ../../program-model/conf/schema.json:/opt/janusgraph/conf/schema.json
-    depends_on:
-      graphdb-storage:
-        condition: service_healthy
-
-  graphdb-storage:
-    image: cassandra:4.0.6
-    profiles:
-      - graphdb
-    environment:
-      - CASSANDRA_START_RPC=true
-    ports:
-      - "127.0.0.1:9042:9042"
-      - "127.0.0.1:9160:9160"
-    volumes:
-      - graphdb_data:/var/lib/cassandra/data
-    healthcheck:
-      test: ["CMD-SHELL", "nodetool", "status"]
-      interval: 10s
-      timeout: 60s
-      retries: 4
-
   program-model:
     build:
       context: ../../
       dockerfile: ./program-model/Dockerfile
     command: ["buttercup-program-model", "serve"]
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
@@ -145,7 +66,9 @@ services:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -157,11 +80,16 @@ services:
     build:
       context: ../../
       dockerfile: ./fuzzer/Dockerfile
+    deploy:
+      replicas: 4
+      mode: replicated
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -173,11 +101,16 @@ services:
     build:
       context: ../../
       dockerfile: ./fuzzer/Dockerfile
+    deploy:
+      replicas: 2
+      mode: replicated
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -189,7 +122,12 @@ services:
       context: ../../
       dockerfile: ./fuzzer/Dockerfile
     command: ["buttercup-fuzzer"]
-    env_file: env.dev.compose
+    deploy:
+      replicas: 8
+      mode: replicated
+    env_file:
+      - env.dev.compose
+      - .env
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../node_data_storage/:/node_data
@@ -205,7 +143,9 @@ services:
     volumes:
       - ../../tasks_storage:/tasks_storage
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -217,7 +157,9 @@ services:
     command: ["buttercup-task-server"]
     ports:
       - "127.0.0.1:8000:8000"
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -231,7 +173,9 @@ services:
       - ../../crs_scratch:/crs_scratch
       - ../../tasks_storage:/tasks_storage
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
     depends_on:
       redis:
         condition: service_healthy
@@ -240,15 +184,30 @@ services:
     build:
       context: ../../
       dockerfile: ./seed-gen/Dockerfile
-    command: ["seed-gen", "server"]
+    command: >
+      /bin/sh -c 'timeout=120; interval=2; max=$$((timeout/interval)); i=0;
+      while [ ! -s "$$LITELLM_API_KEY_FILE" ] && [ $$i -lt $$max ]; do
+        echo "Waiting for LiteLLM key... ($$i/$$max)"; sleep $$interval; i=$$((i+1));
+      done;
+      if [ ! -s "$$LITELLM_API_KEY_FILE" ]; then
+        echo "Timed out waiting for LiteLLM key"; exit 1;
+      fi;
+      export LITELLM_API_KEY=$$(cat "$$LITELLM_API_KEY_FILE"); exec seed-gen server'
+    deploy:
+      replicas: 4
+      mode: replicated
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+      - litellm-user-keys-output:/secrets:ro
+    env_file:
+      - env.dev.compose
+      - .env
     environment:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LITELLM_API_KEY_FILE=/secrets/llm-user_api_key
     depends_on:
       redis:
         condition: service_healthy
@@ -261,18 +220,32 @@ services:
     build:
       context: ../../
       dockerfile: ./patcher/Dockerfile
-    command: ["buttercup-patcher", "serve"]
+    command: >
+      /bin/sh -c 'timeout=120; interval=2; max=$$((timeout/interval)); i=0;
+      while [ ! -s "$$LITELLM_API_KEY_FILE" ] && [ $$i -lt $$max ]; do
+        echo "Waiting for LiteLLM key... ($$i/$$max)"; sleep $$interval; i=$$((i+1));
+      done;
+      if [ ! -s "$$LITELLM_API_KEY_FILE" ]; then
+        echo "Timed out waiting for LiteLLM key"; exit 1;
+      fi;
+      export LITELLM_API_KEY=$$(cat "$$LITELLM_API_KEY_FILE"); exec buttercup-patcher serve'
     volumes:
       - ../../crs_scratch:/crs_scratch
       - ../../node_data_storage/:/node_data
-    env_file: env.dev.compose
+      - litellm-user-keys-output:/secrets:ro
+    env_file:
+      - env.dev.compose
+      - .env
     environment:
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LITELLM_API_KEY_FILE=/secrets/llm-user_api_key
     depends_on:
       redis:
         condition: service_healthy
+      litellm:
+        condition: service_started
       dind:
         condition: service_started
 
@@ -292,6 +265,33 @@ services:
     depends_on:
       litellm-db:
         condition: service_healthy
+
+  # One-time service to create LiteLLM user API keys (mirrors k8s Job)
+  litellm-user-keys-setup:
+    image: curlimages/curl:8.3.0
+    user: "0"
+    restart: "no"
+    command: >
+      /bin/sh -c 'if [ -s /output/llm-user_api_key ]; then echo "API key already present, skipping creation"; exit 0; fi; \
+        echo "Waiting for LiteLLM..."; \
+        until curl -sSf "$$LITELLM_URL/health/readiness" >/dev/null 2>&1; do sleep 2; done; \
+        echo "Creating key for llm-user"; \
+        resp=$$(curl -sS -X POST "$$LITELLM_URL/key/generate" -H "Authorization: Bearer $$LITELLM_MASTER_KEY" -H "Content-Type: application/json" -d "{\"user\":\"llm-user\",\"max_budget\":$${LITELLM_MAX_BUDGET:-100}}" -o -); \
+        key=$$(echo "$$resp" | sed -n "s/.*\"key\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p"); \
+        if [ -z "$$key" ]; then echo "Failed to obtain key"; echo "response: $$resp"; exit 1; fi; \
+        printf "%s" "$$key" > /output/llm-user_api_key && echo "Key saved to /output/llm-user_api_key"'
+    env_file:
+      - .env
+    environment:
+      - LITELLM_URL=http://litellm:8080
+      - LITELLM_MASTER_KEY=${BUTTERCUP_LITELLM_KEY}
+      - LITELLM_MAX_BUDGET=${LITELLM_MAX_BUDGET:-100}
+    volumes:
+      - ../../crs_scratch:/crs_scratch
+      - litellm-user-keys-output:/output
+    depends_on:
+      litellm:
+        condition: service_started
 
   litellm-db:
     image: postgres:17.2
@@ -313,7 +313,9 @@ services:
     command: ["buttercup-ui"]
     ports:
       - "127.0.0.1:31323:1323"
-    env_file: env.dev.compose
+    env_file:
+      - env.dev.compose
+      - .env
 
 
 configs:
@@ -326,3 +328,4 @@ volumes:
   graphdb_data:
     driver: local
   shared-tmp:
+  litellm-user-keys-output:

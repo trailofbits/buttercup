@@ -71,6 +71,30 @@ class Runner:
 def run_fuzzer_command(args: argparse.Namespace, runner: Runner, fuzzconf: FuzzConfiguration) -> dict[str, typing.Any]:
     """Run fuzzer command"""
     result = runner.run_fuzzer(fuzzconf)
+
+    # Log detailed fuzzer result information
+    stats = result.stats or {}
+    logger.info(
+        f"Fuzzer completed: crashes={len(result.crashes)}, "
+        f"timed_out={result.timed_out}, time_executed={result.time_executed:.2f}s"
+    )
+    logger.info(
+        f"Fuzzer stats: crash_count={stats.get('crash_count', 0)}, "
+        f"oom_count={stats.get('oom_count', 0)}, "
+        f"timeout_count={stats.get('timeout_count', 0)}, "
+        f"startup_crash_count={stats.get('startup_crash_count', 0)}, "
+        f"leak_count={stats.get('leak_count', 0)}"
+    )
+    logger.info(
+        f"Fuzzer coverage: edge_coverage={stats.get('edge_coverage', 0)}/{stats.get('edges_total', 0)}, "
+        f"feature_coverage={stats.get('feature_coverage', 0)}, "
+        f"new_edges={stats.get('new_edges', 0)}, new_features={stats.get('new_features', 0)}"
+    )
+
+    if result.crashes:
+        for i, crash in enumerate(result.crashes):
+            logger.info(f"Crash {i + 1}: input_path={crash.input_path}, crash_time={crash.crash_time}")
+
     result_dict = {
         "logs": result.logs,
         "command": result.command,
