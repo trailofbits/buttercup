@@ -20,3 +20,15 @@ healthCheck:
   timeoutSeconds: 10
   # Allow 2 failures before restarting
   failureThreshold: 2
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 120

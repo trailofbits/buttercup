@@ -7,10 +7,27 @@ resources:
     cpu: 2000m
     memory: 8Gi
   requests:
-    cpu: 100m
-    memory: 1Gi
+    cpu: 500m
+    memory: 3Gi
 
 # POV Reproducer specific configuration
 povReproducer:
   sleepTime: 5.0
   maxRetries: 100000
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 90
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60

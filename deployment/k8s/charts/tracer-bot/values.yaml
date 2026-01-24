@@ -8,7 +8,7 @@ resources:
     memory: 4Gi
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 1536Mi
 
 # Number of replicas
 replicaCount: 1
@@ -24,3 +24,15 @@ healthCheck:
   timeoutSeconds: 10
   # Allow 2 failures before restarting
   failureThreshold: 2
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600
+    scaleUp:
+      stabilizationWindowSeconds: 120

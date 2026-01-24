@@ -6,7 +6,7 @@ resources:
     memory: 4Gi
   requests:
     cpu: 250m
-    memory: 256Mi
+    memory: 1536Mi
 
 timeout: 900
 timer: 5000
@@ -25,3 +25,23 @@ healthCheck:
   timeoutSeconds: 10
   # Allow 2 failures before restarting
   failureThreshold: 2
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60
