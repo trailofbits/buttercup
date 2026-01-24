@@ -6,8 +6,8 @@ resources:
     cpu: 2000m
     memory: 16Gi
   requests:
-    cpu: 500m
-    memory: 6Gi
+    cpu: 250m
+    memory: 256Mi
 
 # Autoscaling configuration
 autoscaling:
@@ -15,8 +15,10 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
   behavior:
     scaleDown:
+      # 600s: long-running coverage analysis should not be interrupted by premature scale-down
       stabilizationWindowSeconds: 600
     scaleUp:
       stabilizationWindowSeconds: 120

@@ -18,6 +18,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
   behavior:
     scaleDown:
+      # 600s: LLM-powered patching tasks are long-running and should not be interrupted
       stabilizationWindowSeconds: 600
     scaleUp:
       stabilizationWindowSeconds: 120

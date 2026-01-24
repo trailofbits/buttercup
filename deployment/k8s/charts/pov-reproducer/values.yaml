@@ -7,8 +7,8 @@ resources:
     cpu: 2000m
     memory: 8Gi
   requests:
-    cpu: 500m
-    memory: 3Gi
+    cpu: 100m
+    memory: 1Gi
 
 # POV Reproducer specific configuration
 povReproducer:
@@ -24,6 +24,7 @@ autoscaling:
   targetMemoryUtilizationPercentage: 75
   behavior:
     scaleDown:
+      # 300s: POV reproduction tasks are relatively short-lived
       stabilizationWindowSeconds: 300
     scaleUp:
       stabilizationWindowSeconds: 90

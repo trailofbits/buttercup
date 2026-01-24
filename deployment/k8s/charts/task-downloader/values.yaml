@@ -17,6 +17,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   behavior:
     scaleDown:
+      # 300s: download tasks are short-lived and can tolerate faster scale-down
       stabilizationWindowSeconds: 300
     scaleUp:
       stabilizationWindowSeconds: 180

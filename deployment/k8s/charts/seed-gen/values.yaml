@@ -29,6 +29,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 75
   behavior:
     scaleDown:
+      # 300s: seed generation tasks are relatively short-lived
       stabilizationWindowSeconds: 300
     scaleUp:
       stabilizationWindowSeconds: 120

@@ -217,3 +217,45 @@ Usage: {{- include "buttercup.apiKeySecretVolume" (dict "secretName" "litellm-ap
   secret:
     secretName: {{ .secretName }}
 {{- end -}}
+
+{{/*
+Define a shared HorizontalPodAutoscaler template for all services.
+Uses .Chart.Name to dynamically resolve the service name from each subchart.
+Usage (in subchart's hpa.yaml): {{ include "buttercup.hpa" . }}
+*/}}
+{{- define "buttercup.hpa" -}}
+{{- if and .Values.enabled .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-{{ .Chart.Name }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+  {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+  {{- with .Values.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end -}}

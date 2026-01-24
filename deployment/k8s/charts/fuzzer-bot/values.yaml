@@ -6,7 +6,7 @@ resources:
     memory: 4Gi
   requests:
     cpu: 250m
-    memory: 1536Mi
+    memory: 256Mi
 
 timeout: 900
 timer: 5000
@@ -32,8 +32,10 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
   behavior:
     scaleDown:
+      # 300s: shorter-lived fuzzing tasks can tolerate faster scale-down
       stabilizationWindowSeconds: 300
       policies:
       - type: Percent
