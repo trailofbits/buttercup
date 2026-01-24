@@ -38,6 +38,7 @@ jobs:
       seed-gen: ${{ steps.filter.outputs.seed-gen }}
       patcher: ${{ steps.filter.outputs.patcher }}
       run-all: ${{ steps.filter.outputs.workflow || steps.filter.outputs.global }}
+      protobuf: ${{ steps.filter.outputs.protobuf }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
@@ -60,6 +61,9 @@ jobs:
               - '.github/workflows/lint.yml'
             global:
               - 'Makefile'
+              - 'protoc.sh'
+              - '**/*.proto'
+            protobuf:
               - 'protoc.sh'
               - '**/*.proto'
 
@@ -131,8 +135,8 @@ jobs:
 
   check-protobuf:
     needs: changes
-    # Run if protobuf files changed or we need to run all
-    if: needs.changes.outputs.run-all == 'true' || contains(github.event.head_commit.modified, '.proto') || contains(github.event.head_commit.modified, 'protoc.sh')
+    # Run only if protobuf files or protoc.sh changed
+    if: needs.changes.outputs.protobuf == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
