@@ -116,7 +116,7 @@ class Downloader:
 
                 # Extract all members directly into tmp_task_dir
                 for member in tar.getmembers():
-                    tar.extract(member, path=destination)
+                    tar.extract(member, path=destination, filter="data")
 
             logger.info(f"[task {task_id}] Successfully extracted {source_file}")
             return True
@@ -124,7 +124,7 @@ class Downloader:
             logger.error(f"[task {task_id}] Failed to extract {source_file}: {e!s}")
             return False
 
-    def _download_and_extract_sources(self, task_id: str, tmp_task_dir: Path, sources: list) -> bool:
+    def _download_and_extract_sources(self, task_id: str, tmp_task_dir: Path, sources: list[SourceDetail]) -> bool:
         """Download and extract all sources for a task"""
         for source in sources:
             # Create temporary directory for download
@@ -179,7 +179,7 @@ class Downloader:
         # Create a local temporary directory for the download, rename to the proper name and upload
         # the dir as a .tgz file to the remote storage
         with node_local.scratch_dir() as temp_dir:
-            if not self._do_download(temp_dir, task):
+            if not self._do_download(temp_dir.path, task):
                 return False
 
             renamed_dir = node_local.rename_atomically(temp_dir.path, download_path)
@@ -194,7 +194,7 @@ class Downloader:
         logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
         # Download and extract all sources
-        success = self._download_and_extract_sources(task.task_id, tmp_task_dir_path, task.sources)
+        success = self._download_and_extract_sources(task.task_id, tmp_task_dir_path, list(task.sources))
         if not success:
             logger.error(f"Failed to download and extract sources for task {task.task_id}")
             return False

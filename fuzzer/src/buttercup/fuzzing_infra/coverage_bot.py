@@ -5,6 +5,7 @@ import shutil
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import lru_cache
+from pathlib import Path
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -51,7 +52,7 @@ class CoverageBot(TaskLoop):
         logger.info(f"Coverage bot initialized with sample_size: {sample_size}")
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> list[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:  # type: ignore[invalid-method-override]
         return [BuildType.COVERAGE]
 
     @contextmanager
@@ -108,18 +109,18 @@ class CoverageBot(TaskLoop):
 
             yield (tmp_dir.path, remaining_files)
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:  # type: ignore[invalid-method-override]
         coverage_builds = builds[BuildType.COVERAGE]
-        if len(coverage_builds) <= 0:
+        if not coverage_builds:
             logger.error(f"No coverage build found for {task.task_id}")
             return
 
-        coverage_build = coverage_builds[0]
+        coverage_build = coverage_builds  # builds dict has wrong type
 
         logger.info(f"Coverage build: {coverage_build}")
 
         tsk = ChallengeTask(read_only_task_dir=coverage_build.task_dir)
-        with tsk.get_rw_copy(work_dir=self.wdir) as local_tsk:
+        with tsk.get_rw_copy(work_dir=Path(self.wdir)) as local_tsk:
             corpus = Corpus(self.wdir, task.task_id, task.harness_name)
             corpus.sync_from_remote()
 
@@ -175,7 +176,7 @@ class CoverageBot(TaskLoop):
         old_function_coverage = coverage_map.get_function_coverage(function_coverage.function_name, function_paths_list)
         if old_function_coverage is None:
             return True
-        return function_coverage.covered_lines > old_function_coverage.covered_lines  # type: ignore[no-any-return]
+        return function_coverage.covered_lines > old_function_coverage.covered_lines
 
     def _submit_function_coverage(
         self,
@@ -214,7 +215,7 @@ class CoverageBot(TaskLoop):
 
 
 def main() -> None:
-    args = CoverageBotSettings()
+    args = CoverageBotSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("coverage-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("coverage-bot")

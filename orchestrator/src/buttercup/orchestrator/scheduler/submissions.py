@@ -68,9 +68,9 @@ def _map_submission_status_to_result(status: TypesSubmissionStatus) -> Submissio
 def _task_id(e: SubmissionEntry | TracedCrash) -> str:
     """Get the task_id from the SubmissionEntry or TracedCrash."""
     if isinstance(e, TracedCrash):
-        return e.crash.target.task_id  # type: ignore[no-any-return]
+        return e.crash.target.task_id
     if isinstance(e, SubmissionEntry):
-        return e.crashes[0].crash.crash.target.task_id  # type: ignore[no-any-return]
+        return e.crashes[0].crash.crash.target.task_id
     raise ValueError(f"Unknown submission entry type: {type(e)}")
 
 
@@ -179,7 +179,7 @@ def _get_first_successful_pov_id(e: SubmissionEntry) -> str | None:
     """
     pov = _get_first_successful_pov(e)
     if pov:
-        return pov.competition_pov_id  # type: ignore[no-any-return]
+        return pov.competition_pov_id
     return None
 
 
@@ -247,7 +247,9 @@ class CompetitionAPI:
 
         Note: this is cached because the task metadata is immutable.
         """
-        return dict(self.task_registry.get(task_id).metadata)
+        task = self.task_registry.get(task_id)
+        assert task is not None, f"Task {task_id} not found"
+        return dict(task.metadata)
 
     def submit_pov(self, crash: TracedCrash) -> tuple[str | None, SubmissionResult]:
         """Submit a vulnerability (POV) to the competition API.
@@ -265,13 +267,13 @@ class CompetitionAPI:
         """
         try:
             # Read crash input file contents and encode as base64
-            with node_local.lopen(crash.crash.crash_input_path, "rb") as f:
+            with node_local.lopen(Path(crash.crash.crash_input_path), "rb") as f:
                 crash_data = base64.b64encode(f.read()).decode()
 
             # Create submission payload from crash data
             submission = TypesPOVSubmission(
                 architecture=TypesArchitecture(ARCHITECTURE),
-                engine=crash.crash.target.engine,
+                engine=crash.crash.target.engine,  # type: ignore[invalid-argument-type]  # protobuf type mismatch
                 fuzzer_name=crash.crash.harness_name,
                 sanitizer=crash.crash.target.sanitizer,
                 testcase=crash_data,
@@ -496,7 +498,7 @@ class CompetitionAPI:
         assert sarif_id
 
         submission = TypesBundleSubmission(
-            bundle_id=bundle_id,
+            bundle_id=bundle_id,  # type: ignore[unknown-argument]  # stale proto field
             pov_id=pov_id,
             patch_id=patch_id,
             broadcast_sarif_id=sarif_id,
@@ -1232,12 +1234,12 @@ class Submissions:
                     _advance_patch_idx(e)
                     updated = True
                 case SubmissionResult.ERRORED:
-                    patch.competition_patch_id = None
+                    patch.competition_patch_id = None  # type: ignore[invalid-assignment]  # field should be Optional
                     log_entry(e, i=i, msg="Patch errored. Will try again. Attempts={e.patch_submission_attempts}")
                     _increase_submission_attempts(e)
                     updated = True
                 case SubmissionResult.DEADLINE_EXCEEDED:
-                    patch.competition_patch_id = None
+                    patch.competition_patch_id = None  # type: ignore[invalid-assignment]  # field should be Optional
                     log_entry(e, i=i, msg="Patch deadline exceeded. Will stop trying.")
                     # NOTE: Not increasing patch index as we don't want another patch to be generated
                     updated = True
@@ -1380,7 +1382,7 @@ class Submissions:
 
         # If we don't have a PoV, we can't bundle, this should never happen.
         if not competition_pov_id:
-            logger.error(f"No competition PoV ID found for submission {e.submission_id}")
+            logger.error(f"No competition PoV ID found for submission {e.id}")  # type: ignore[unresolved-attribute]
             return False
 
         # Update the bundle with the current patch
@@ -1437,7 +1439,7 @@ class Submissions:
         # Find a SARIF that matches a passed PoV
         for sarif in self._get_available_sarifs_for_matching(_task_id(e)):
             for crash in e.crashes:
-                match_result = match(sarif, crash.crash)
+                match_result = match(sarif, crash.crash)  # type: ignore[invalid-argument-type]
                 if match_result:
                     log_entry(
                         e,
@@ -1596,7 +1598,7 @@ class Submissions:
     def _pov_reproduce_status_request(self, e: SubmissionEntry, patch_idx: int) -> list[POVReproduceResponse | None]:
         patch = e.patches[patch_idx]
         task_id = _task_id(e)
-        return self._pov_reproduce_patch_status(patch, e.crashes, task_id)
+        return self._pov_reproduce_patch_status(patch, e.crashes, task_id)  # type: ignore[invalid-argument-type]
 
     def _check_all_povs_are_mitigated(self, i: int, e: SubmissionEntry, patch_idx: int) -> bool | None:
         """Test if patch at patch_idx mitigates all POVs by running them against patched builds.
@@ -1677,7 +1679,7 @@ class Submissions:
             if not maybe_patch.competition_patch_id:
                 continue
 
-            patch_mitigates_povs = self._pov_reproduce_patch_status(maybe_patch, e.crashes, _task_id(e))
+            patch_mitigates_povs = self._pov_reproduce_patch_status(maybe_patch, e.crashes, _task_id(e))  # type: ignore[invalid-argument-type]
             if any(status is None for status in patch_mitigates_povs):
                 # Wait until we have evaluated all our PoVs against the already submitted patch
                 # there are still pending evaluations
@@ -1731,7 +1733,7 @@ class Submissions:
                     if i == j:
                         continue
 
-                    pov_reproduce_statuses = self._pov_reproduce_patch_status(current_patch, e2.crashes, task_id)
+                    pov_reproduce_statuses = self._pov_reproduce_patch_status(current_patch, e2.crashes, task_id)  # type: ignore[invalid-argument-type]
                     if any(status is not None and not status.did_crash for status in pov_reproduce_statuses):
                         # This patch mitigates at least one PoV from e2, we should merge the entries
                         # TODO: Does it need to mitigate all PoVs? I think not as the patch could be a partial fix.

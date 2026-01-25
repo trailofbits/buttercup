@@ -60,7 +60,7 @@ class QEAgent(PatcherAgentBase):
                 self.input.internal_patch_id,
             )
             try:
-                return challenge.apply_patch_diff(Path(patch_file.name))  # type: ignore[no-any-return]
+                return challenge.apply_patch_diff(Path(patch_file.name))
             except ChallengeTaskError:
                 if logger.getEffectiveLevel() == logging.DEBUG:
                     logger.exception("Failed to apply patch to Challenge Task %s", self.challenge.name)
@@ -79,7 +79,7 @@ class QEAgent(PatcherAgentBase):
         except ChallengeTaskError:
             msg = f"Failed to run build_fuzzers on Challenge Task {challenge.name} with patch and sanitizer {sanitizer}"
             logger.warning(msg)
-            return CommandResult(success=False, output=msg, error="")
+            return CommandResult(success=False, output=msg.encode(), error=b"")
 
         if not cp_output.success:
             logger.warning("Failed to build Challenge Task %s with patch and sanitizer %s", challenge.name, sanitizer)
@@ -98,7 +98,7 @@ class QEAgent(PatcherAgentBase):
     def _get_sanitizers(self) -> list[str]:
         """Get the sanitizers for the challenge task"""
         project_yaml = ProjectYaml(self.challenge, self.challenge.project_name)
-        return project_yaml.sanitizers  # type: ignore[no-any-return]
+        return project_yaml.sanitizers
 
     def _build_with_sanitizer(
         self,
@@ -160,7 +160,7 @@ class QEAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.RUN_POV.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal["run_pov", "reflection"]]:
         """Node in the LangGraph that builds a patch"""
         logger.info("Rebuilding Challenge Task %s with patch", self.challenge.name)
         configuration = PatcherConfig.from_configurable(config)
@@ -302,7 +302,7 @@ class QEAgent(PatcherAgentBase):
         sanitizers = self._get_sanitizers()
         for pov in povs:
             try:
-                crash_dir = CrashDir(configuration.work_dir, self.input.task_id, pov.harness_name)
+                crash_dir = CrashDir(str(configuration.work_dir), self.input.task_id, pov.harness_name)
                 for sanitizer in sanitizers:
                     crashes_for_token = crash_dir.list_crashes_for_token(pov.pov_token, sanitizer, get_remote=True)
                     if not crashes_for_token:
@@ -341,7 +341,7 @@ class QEAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.RUN_TESTS.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal["run_tests", "reflection"]]:
         """Node in the LangGraph that runs a PoV against a currently built patch"""
         configuration = PatcherConfig.from_configurable(config)
         logger.info("Testing PoVs on Challenge Task %s rebuilt with patch", self.challenge.name)
@@ -481,7 +481,7 @@ class QEAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.REFLECTION.value, END]]:  # type: ignore[name-defined]
+    ) -> Command[Literal["reflection", "__end__"]]:
         """Node in the LangGraph that runs tests against a currently built patch"""
         logger.info(
             "[%s / %s] Running tests on Challenge Task %s rebuilt with patch",

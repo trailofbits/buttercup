@@ -15,8 +15,8 @@ try:
 except ImportError:
     logger.warning("OpenTelemetry is not installed, skipping telemetry")
 
-    Span: type = Any  # type: ignore[no-redef]
-    Tracer: type = Any  # type: ignore[no-redef]
+    Span: type = Any
+    Tracer: type = Any
 
     _opentelemetry_enabled = False
 

@@ -365,7 +365,7 @@ CODE_SNIPPET_SUMMARY_TMPL = """<code_snippet>
 class ReflectionResult(BaseModel):
     """Reflection result"""
 
-    failure_reason: str | None = Field(description="Specific reason the patch failed")
+    failure_reason: str | None = Field(None, description="Specific reason the patch failed")
     failure_category: (
         Literal[
             "incomplete_fix",
@@ -467,7 +467,7 @@ class ReflectionAgent(PatcherAgentBase):
         result = result[start:end].strip()
 
         # Extract each field
-        def extract_field(field: str) -> str | list[str] | None:
+        def extract_field(field: str) -> str | None:
             start_tag = f"<{field}>"
             end_tag = f"</{field}>"
             start = result.find(start_tag) + len(start_tag)
@@ -479,12 +479,12 @@ class ReflectionAgent(PatcherAgentBase):
                 return None
             return content
 
-        return ReflectionResult(
+        return ReflectionResult(  # ty doesn't understand field coercion
             failure_reason=extract_field("failure_reason"),
-            failure_category=extract_field("failure_category"),
+            failure_category=extract_field("failure_category"),  # type: ignore[invalid-argument-type]
             pattern_identified=extract_field("pattern_identified"),
-            partial_success=extract_field("partial_success"),
-            next_component=extract_field("next_component"),
+            partial_success=extract_field("partial_success"),  # type: ignore[invalid-argument-type]
+            next_component=extract_field("next_component"),  # type: ignore[invalid-argument-type]
             component_guidance=extract_field("component_guidance"),
         )
 
@@ -679,7 +679,7 @@ class ReflectionAgent(PatcherAgentBase):
                     "relevant_code_snippets": state.relevant_code_snippets,
                     "code_snippet_requests": [
                         CodeSnippetRequest(
-                            request=result.component_guidance,
+                            request=result.component_guidance or "",
                         ),
                     ],
                 },

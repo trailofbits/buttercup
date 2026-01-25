@@ -392,13 +392,13 @@ class FuzzyJavaImportsResolver:
         """Parse the type definition to find the field type name"""
         type_body = t.definition.encode("utf-8")
         type_name = self.codequery.ts.get_field_type_name(type_body, field_name)
-        return type_name  # type: ignore[no-any-return]
+        return type_name
 
     def get_method_return_type_name(self, t: TypeDefinition, method_name: str) -> str | None:
         """Parse the type definition to find the method return type name"""
         type_body = t.definition.encode("utf-8")
         type_name = self.codequery.ts.get_method_return_type_name(type_body, method_name)
-        return type_name  # type: ignore[no-any-return]
+        return type_name
 
     def get_type_from_file(self, file_path: Path, type_name: str) -> TypeDefinition | None:
         """Get the type definition given a type name and a file path
@@ -411,7 +411,7 @@ class FuzzyJavaImportsResolver:
         if not types:
             return None
         # Return first type found
-        return types[0]  # type: ignore[no-any-return]
+        return types[0]
 
     def filter_callees(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         callee_groups = defaultdict(list)

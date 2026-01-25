@@ -138,7 +138,7 @@ class RunnerProxy:
                 output_str = stdout.decode("utf-8").strip()
                 logger.debug(f"Subprocess output: {output_str}")
 
-                return json.loads(output_str)  # type: ignore[no-any-return]
+                return json.loads(output_str)
             except json.JSONDecodeError as parse_error:
                 logger.error(f"Failed to parse JSON output for task {task_type}: {parse_error}")
                 logger.error(f"Raw output: {output_str}")

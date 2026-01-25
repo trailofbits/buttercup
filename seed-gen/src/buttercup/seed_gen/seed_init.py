@@ -81,7 +81,7 @@ class SeedInitTask(SeedBaseTask):
                     "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
                 },
             )
-            chain.invoke(state)  # type: ignore[arg-type]
+            chain.invoke(state)
 
     def do_task(self, output_dir: Path) -> None:
         """Do seed-init task"""

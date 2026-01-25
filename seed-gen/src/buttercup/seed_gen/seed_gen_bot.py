@@ -8,7 +8,6 @@ from redis import Redis
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.project_yaml import ProjectYaml
@@ -62,7 +61,7 @@ class SeedGenBot(TaskLoop):
         self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> list[BuildTypeHint]:
+    def required_builds(self) -> list[BuildType]:
         return [BuildType.FUZZER]
 
     def sample_task(self, task: WeightedHarness, is_delta: bool) -> str:
@@ -125,7 +124,7 @@ class SeedGenBot(TaskLoop):
     def run_task(
         self,
         task: WeightedHarness,
-        builds: dict[BuildTypeHint, list[BuildOutput]],
+        builds: dict[BuildType, list[BuildOutput]],
     ) -> None:
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
@@ -134,7 +133,7 @@ class SeedGenBot(TaskLoop):
 
         with (
             tempfile.TemporaryDirectory(dir=self.wdir / task_id, prefix="seedgen-") as temp_dir_str,
-            ro_challenge_task.get_rw_copy(work_dir=temp_dir_str) as challenge_task,
+            ro_challenge_task.get_rw_copy(work_dir=Path(temp_dir_str)) as challenge_task,
         ):
             logger.info(
                 f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}",
@@ -251,7 +250,7 @@ class SeedGenBot(TaskLoop):
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 
-            copied_files = corp.copy_corpus(out_dir)
+            copied_files = corp.copy_corpus(str(out_dir))
             logger.info("Copied %d files to corpus %s", len(copied_files), corp.corpus_dir)
             logger.info(
                 f"Seed-gen finished for {task.harness_name} | {task.package_name} | {task.task_id}",

@@ -22,10 +22,12 @@ MAX_OUTPUT_LENGTH = 10000
 
 def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, output: str | None = None) -> str:
     if output is None:
-        output = cmd_res.output.decode("utf-8")
+        output = cmd_res.output.decode("utf-8") if cmd_res.output else ""
 
     if isinstance(command, list):
         command = " ".join(command)
+
+    error_str = cmd_res.error.decode("utf-8") if cmd_res.error else ""
 
     return f"""<command_output>
 <command>{command}</command>
@@ -34,7 +36,7 @@ def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, outpu
 {truncate_output(output, MAX_OUTPUT_LENGTH)}
 </stdout>
 <stderr>
-{truncate_output(cmd_res.error, MAX_OUTPUT_LENGTH)}
+{truncate_output(error_str, MAX_OUTPUT_LENGTH)}
 </stderr>
 </command_output>"""
 

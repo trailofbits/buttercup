@@ -25,11 +25,11 @@ def prepare_task(command: ProcessCommand) -> IndexRequest:
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
     command = get_subcommand(settings)
     setup_package_logger("program-model", __name__, settings.log_level, settings.log_max_line_length)
     if isinstance(command, ServeCommand):
-        init_telemetry("program-model")  # type: ignore[unreachable]
+        init_telemetry("program-model")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         with ProgramModel(
             sleep_time=command.sleep_time,
@@ -40,7 +40,7 @@ def main() -> None:
         ) as program_model:
             program_model.serve()
     elif isinstance(command, ProcessCommand):
-        task = prepare_task(command)  # type: ignore[unreachable]
+        task = prepare_task(command)
         with ProgramModel(
             wdir=settings.scratch_dir,
             python=command.python,

@@ -50,7 +50,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
         )
         reflection_agent = ReflectionAgent(self.challenge, self.input, chain_call=self.chain_call)
         input_processing_agent = InputProcessingAgent(self.challenge, self.input, chain_call=self.chain_call)
-        self.model_name = swe_agent.default_llm.model_name
+        self.model_name = swe_agent.default_llm.model_name  # type: ignore[unresolved-attribute]
 
         workflow = StateGraph(
             PatcherAgentState,

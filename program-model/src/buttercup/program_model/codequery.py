@@ -432,8 +432,8 @@ class CodeQuery:
                 key=lambda x: x[1],
                 reverse=True,
             )
-            fuzzy_matches = [f for f, _ in fuzzy_matches]
-            results.extend(fuzzy_matches)
+            fuzzy_matches_extracted: list[CQSearchResult] = [f for f, _ in fuzzy_matches]
+            results.extend(fuzzy_matches_extracted)
 
         res: set[Function] = set()
         results_by_file = groupby(results, key=lambda x: x.file)
@@ -448,7 +448,7 @@ class CodeQuery:
                 continue
 
             for function in functions_found:
-                f = self.ts.get_function(function, file)
+                f = self.ts.get_function(function, Path(file) if isinstance(file, str) else file)  # type: ignore[call-arg]
                 if not f:
                     continue
                 if line_number:
@@ -750,8 +750,8 @@ class CodeQuery:
                 key=lambda x: x[1],
                 reverse=True,
             )
-            fuzzy_matches = [t for t, _ in fuzzy_matches]
-            results.extend(fuzzy_matches)
+            fuzzy_matches_extracted: list[CQSearchResult] = [t for t, _ in fuzzy_matches]
+            results.extend(fuzzy_matches_extracted)
 
         res: set[TypeDefinition] = set()
         results_by_file = groupby(results, key=lambda x: x.file)
@@ -776,7 +776,7 @@ class CodeQuery:
 
             if function_name:
                 # Get the function definition to find its scope
-                function = self.ts.get_function(function_name, file)
+                function = self.ts.get_function(function_name, Path(file) if isinstance(file, str) else file)  # type: ignore[call-arg]
                 if function:
                     # Filter type definitions to only include those within the function's scope
                     filtered_typedefs = {}

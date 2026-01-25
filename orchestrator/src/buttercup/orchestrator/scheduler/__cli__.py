@@ -20,7 +20,7 @@ def _prepare_ready_task(command: ProcessReadyTaskCommand) -> Task:
     return Task(
         task_id=command.task_id,
         task_type=command.task_type,
-        task_status=command.task_status,
+        task_status=command.task_status,  # type: ignore[unknown-argument]  # stale proto field
     )
 
 
@@ -28,18 +28,18 @@ def _prepare_build_output(command: ProcessBuildOutputCommand) -> BuildOutput:
     return BuildOutput(
         engine=command.engine,
         sanitizer=command.sanitizer,
-        output_ossfuzz_path=command.output_ossfuzz_path,
-        source_path=command.source_path,
+        output_ossfuzz_path=command.output_ossfuzz_path,  # type: ignore[unknown-argument]  # stale proto field
+        source_path=command.source_path,  # type: ignore[unknown-argument]  # stale proto field
     )
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[missing-argument]
     setup_package_logger("scheduler", __name__, settings.log_level, settings.log_max_line_length)
     logger.debug(f"Settings: {settings}")
     command = get_subcommand(settings)
     if isinstance(command, ServeCommand):
-        init_telemetry("scheduler")  # type: ignore[unreachable]
+        init_telemetry("scheduler")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         scheduler = Scheduler(
             settings.tasks_storage_dir,
@@ -55,12 +55,12 @@ def main() -> None:
         )
         scheduler.serve()
     elif isinstance(command, ProcessReadyTaskCommand):
-        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)  # type: ignore[unreachable]
+        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)
         task = _prepare_ready_task(command)
         build_request = scheduler.process_ready_task(task)
         print(build_request)
     elif isinstance(command, ProcessBuildOutputCommand):
-        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)  # type: ignore[unreachable]
+        scheduler = Scheduler(settings.tasks_storage_dir, settings.scratch_dir)
         build_output = _prepare_build_output(command)
         targets = scheduler.process_build_output(build_output)
         print(targets)

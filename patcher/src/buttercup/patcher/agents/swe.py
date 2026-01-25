@@ -24,7 +24,6 @@ from langchain_core.runnables import (
     RunnableConfig,
 )
 from langchain_core.tools import tool
-from langchain_openai.chat_models.base import BaseChatOpenAI
 from langgraph.prebuilt import InjectedState, create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field, ValidationError
@@ -242,9 +241,11 @@ class CodeSnippetChange(BaseModel):
 
     key: CodeSnippetKey = Field(description="The key of the code snippet")
     old_code: str | None = Field(
+        None,
         description="The old piece of code, as-is, with spaces, trailing/leading whitespaces, etc.",
     )
     code: str | None = Field(
+        None,
         description="The fixed piece of code snippet, as-is, with spaces, trailing/leading whitespaces, etc.",
     )
 
@@ -288,7 +289,7 @@ class CodeSnippetChange(BaseModel):
 class CodeSnippetChanges(BaseModel):
     """Code snippet changes"""
 
-    items: list[CodeSnippetChange] | None = Field(description="List of code snippet changes")
+    items: list[CodeSnippetChange] | None = Field(None, description="List of code snippet changes")
 
     @classmethod
     def parse(cls, msg: str) -> CodeSnippetChanges:
@@ -321,7 +322,7 @@ class CreateUPatchInput(BaseModel):
 class SWEAgent(PatcherAgentBase):
     """Software Engineer LLM agent, handling the creation of patches."""
 
-    default_llm: BaseChatOpenAI = field(init=False)
+    default_llm: Runnable = field(init=False)
     llm: Runnable = field(init=False)
     create_patch_chain: Runnable = field(init=False)
     patch_strategy_chain: Runnable = field(init=False)
@@ -601,12 +602,7 @@ class SWEAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[  # type: ignore[name-defined]
-        Literal[
-            PatcherAgentName.BUILD_PATCH.value,
-            PatcherAgentName.REFLECTION.value,
-        ]
-    ]:
+    ) -> Command[Literal["reflection", "build_patch"]]:
         """Node in the LangGraph that generates a patch (in diff format)"""
         logger.info(
             "[%s / %s] Creating a patch for Challenge Task %s",
@@ -631,7 +627,7 @@ class SWEAgent(PatcherAgentBase):
                 failure_analysis=last_patch_attempt.analysis.failure_analysis if last_patch_attempt.analysis else "",
             )
 
-        patch_str: str = self.chain_call(
+        patch_str: str = self.chain_call(  # type: ignore[missing-argument,unknown-argument]
             lambda x, y: x + y,
             self.code_snippets_chain,
             {
@@ -646,8 +642,8 @@ class SWEAgent(PatcherAgentBase):
                 if state.execution_info.reflection_decision == PatcherAgentName.CREATE_PATCH
                 else "",
             },
-            default="",  # type: ignore[call-arg]
-            config=RunnableConfig(
+            default="",  # type: ignore[unknown-argument]
+            config=RunnableConfig(  # type: ignore[unknown-argument]
                 configurable={
                     "llm_temperature": pick_temperature(),
                 },
@@ -717,7 +713,7 @@ class SWEAgent(PatcherAgentBase):
         strategy = patch_strategy_str
 
         # Extract each field
-        def extract_field(field: str) -> str | list[str] | None:
+        def extract_field(field: str) -> str | None:
             start_tag = f"<{field}>"
             end_tag = f"</{field}>"
             start = strategy.find(start_tag) + len(start_tag)
@@ -744,12 +740,7 @@ class SWEAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[  # type: ignore[name-defined]
-        Literal[
-            PatcherAgentName.CREATE_PATCH.value,
-            PatcherAgentName.REFLECTION.value,
-        ]
-    ]:
+    ) -> Command[Literal["create_patch", "reflection"]]:
         logger.info(
             "[%s / %s] Selecting a patch strategy for Challenge Task %s",
             state.context.task_id,

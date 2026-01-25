@@ -24,7 +24,7 @@ from buttercup.fuzzing_infra.runner_proxy import Conf, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
 if TYPE_CHECKING:
-    from clusterfuzz.fuzz import engine
+    from clusterfuzz.fuzz import engine  # type: ignore[unresolved-import]
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +49,10 @@ class FuzzerBot(TaskLoop):
         self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> list[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:  # type: ignore[invalid-method-override]
         return [BuildType.FUZZER]
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]) -> None:  # type: ignore[invalid-method-override]
         with scratch_dir() as td:
             logger.info(f"Running fuzzer for {task.harness_name} | {task.package_name} | {task.task_id}")
 
@@ -66,6 +66,7 @@ class FuzzerBot(TaskLoop):
                 corp = Corpus(self.crs_scratch_dir, task.task_id, task.harness_name)
 
                 build_dir = local_tsk.get_build_dir()
+                assert build_dir is not None, "build_dir is required for fuzzing"
                 fuzz_conf = FuzzConfiguration(
                     corp.path,
                     str(build_dir / task.harness_name),
@@ -139,7 +140,7 @@ class FuzzerBot(TaskLoop):
 
 
 def main() -> None:
-    args = FuzzerBotSettings()
+    args = FuzzerBotSettings()  # type: ignore[missing-argument]
     setup_package_logger("fuzzer-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("fuzzer")
 

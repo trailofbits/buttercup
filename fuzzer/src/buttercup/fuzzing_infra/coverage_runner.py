@@ -377,6 +377,7 @@ class CoverageRunner:
             return None
 
         build_dir = self.tool.get_build_dir()
+        assert build_dir is not None, "build_dir is required for java coverage"
         jacoco_path = build_dir / "dumps" / f"{harness_name}.xml"
         if not jacoco_path.exists():
             logger.error(
@@ -430,6 +431,7 @@ class CoverageRunner:
 
         # after we run coverage we need to find the profdata report then convert it to json, and load it
         package_path = self.tool.get_build_dir()
+        assert package_path is not None, "build_dir is required for coverage"
         profdata_path = package_path / "dumps" / "merged.profdata"
         if not profdata_path.exists():
             logger.error(

@@ -227,8 +227,11 @@ class VulnBaseTask(Task):
             return
 
         stacktrace = result.stacktrace()
+        if stacktrace is None:
+            logger.warning("No stacktrace available for crash, skipping submission")
+            return
         ctoken = stack_parsing.get_crash_token(stacktrace)
-        dst = self.crash_submit.crash_dir.copy_file(pov, ctoken, build.sanitizer)
+        dst = self.crash_submit.crash_dir.copy_file(str(pov), ctoken, build.sanitizer)
         if self.crash_submit.crash_set.add(
             self.package_name,
             self.harness_name,
@@ -338,7 +341,7 @@ class VulnBaseTask(Task):
                         "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
                     },
                 )
-                chain.invoke(state)  # type: ignore[arg-type]
+                chain.invoke(state)
 
         except Exception as err:
             logger.exception(

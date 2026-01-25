@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[missing-argument]
     setup_package_logger("ui", __name__, settings.log_level)
     init_telemetry("ui")
     logger.info(f"Starting UI with settings: {settings}")

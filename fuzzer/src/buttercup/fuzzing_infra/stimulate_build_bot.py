@@ -23,8 +23,8 @@ def main() -> None:
     req = BuildRequest(
         engine=args.engine,
         sanitizer=args.sanitizer,
-        ossfuzz=args.ossfuzz,
-        source_path=args.source_path,
+        ossfuzz=args.ossfuzz,  # type: ignore[unknown-argument]  # stale proto field
+        source_path=args.source_path,  # type: ignore[unknown-argument]  # stale proto field
         task_id=args.task_id,
         build_type=args.build_type,
     )
@@ -32,8 +32,8 @@ def main() -> None:
     coverage_req = BuildRequest(
         engine=args.engine,
         sanitizer="coverage",
-        ossfuzz=args.ossfuzz,
-        source_path=args.source_path,
+        ossfuzz=args.ossfuzz,  # type: ignore[unknown-argument]  # stale proto field
+        source_path=args.source_path,  # type: ignore[unknown-argument]  # stale proto field
         task_id=args.task_id,
         build_type=BuildType.COVERAGE,
     )

@@ -152,7 +152,7 @@ def get_settings() -> Settings:
     """Get application settings singleton."""
     global _settings
     if _settings is None:
-        _settings = Settings()
+        _settings = Settings()  # type: ignore[missing-argument]
     return _settings
 
 
@@ -227,7 +227,8 @@ def get_artifact(task_id: str, artifact_type: str, artifact_id: str) -> Any:
         task_dir = run_dir / task_id / artifact_type
         if artifact_type == "bundles":
             file_path = task_dir / f"{artifact_id}.json"
-            return json.load(file_path.open("r", encoding="utf-8"))
+            with file_path.open("r", encoding="utf-8") as f:
+                return json.load(f)
         if artifact_type == "patches":
             file_path = task_dir / f"{artifact_id}.patch"
             return file_path.read_text()
@@ -236,7 +237,8 @@ def get_artifact(task_id: str, artifact_type: str, artifact_id: str) -> Any:
             return file_path.read_bytes()
         if artifact_type == "sarifs":
             file_path = task_dir / f"{artifact_id}.sarif"
-            return json.load(file_path.open("r", encoding="utf-8"))
+            with file_path.open("r", encoding="utf-8") as f:
+                return json.load(f)
         logger.error(f"Unknown artifact type: {artifact_type}")
         return None
     except Exception:
@@ -461,7 +463,7 @@ def task_to_task_info(task: Task) -> TaskInfo:
             else None,
         }
 
-        return TaskInfo(**task_data)
+        return TaskInfo(**task_data)  # type: ignore[invalid-argument-type]  # dynamic dict construction
     except Exception as e:
         logger.error(f"Error in task_to_task_info for task {getattr(task, 'task_id', 'unknown')}: {e}", exc_info=True)
         raise

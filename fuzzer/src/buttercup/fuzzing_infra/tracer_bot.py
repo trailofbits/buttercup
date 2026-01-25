@@ -60,7 +60,7 @@ class TracerBot:
             logger.warning(f"No tracer info found for {item.deserialized.target.task_id}")
             return True
 
-        if tinfo.is_valid:
+        if tinfo.is_valid and tinfo.stacktrace is not None:
             logger.info(f"Valid tracer info found for {item.deserialized.target.task_id}")
             prsed = stack_parsing.parse_stacktrace(tinfo.stacktrace)
             output = prsed.crash_stacktrace
@@ -81,7 +81,7 @@ class TracerBot:
 
 
 def main() -> None:
-    args = TracerSettings()
+    args = TracerSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("tracer-bot", __name__, "DEBUG", None)
     init_telemetry("tracer-bot")

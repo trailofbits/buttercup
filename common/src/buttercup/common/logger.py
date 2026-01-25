@@ -1,3 +1,4 @@
+import atexit
 import os
 
 try:
@@ -6,7 +7,7 @@ try:
     if os.environ.get("OTEL_EXPORTER_OTLP_PROTOCOL") == "grpc":
         from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
     else:
-        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter  # type: ignore
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 
     from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
     from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
@@ -97,6 +98,9 @@ def setup_package_logger(
         logging.basicConfig(
             handlers=handlers,
         )
+
+        # Ensure all logging handlers are properly closed at program exit
+        atexit.register(logging.shutdown)
 
         _package_logger = logging.getLogger(PACKAGE_LOGGER_NAME)
         _package_logger.setLevel(log_level.upper())

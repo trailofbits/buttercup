@@ -49,7 +49,7 @@ class FinalCorpus:
         n = 0
         if self._push_remotely:
             n = len(self._push_remotely)
-            self._corpus.sync_specific_files_to_remote(self._push_remotely)
+            self._corpus.sync_specific_files_to_remote(list(self._push_remotely))
             self._push_remotely.clear()
         return n
 
@@ -228,6 +228,7 @@ class MergerBot:
             tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 build_dir = local_tsk.get_build_dir()
+                assert build_dir is not None, "build_dir is required for merge"
 
                 # Run merge from local_dir to remote_dir to find which files add coverage
                 fuzz_conf = FuzzConfiguration(
@@ -389,7 +390,7 @@ class MergerBot:
 
 
 def main() -> None:
-    args = FuzzerBotSettings()
+    args = FuzzerBotSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("corpus-merger", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("merger-bot")

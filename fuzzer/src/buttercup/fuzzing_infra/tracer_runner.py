@@ -48,7 +48,7 @@ class TracerRunner:
             return None
 
         logger.info("Checking if task %s crashed", self.tsk_id)
-        with diff_task.get_rw_copy(work_dir=self.wdir) as local_diff_task:
+        with diff_task.get_rw_copy(work_dir=Path(self.wdir)) as local_diff_task:
             # log telemetry
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("reproduce_pov") as span:
@@ -83,9 +83,10 @@ class TracerRunner:
             return self._create_tracer_info(info_with_diff)
 
         logger.info("Checking if task %s crashed without diffs", self.tsk_id)
+        assert build_output_no_diffs is not None, "build_output_no_diffs checked above"
         no_diff_task = ChallengeTask(read_only_task_dir=build_output_no_diffs.task_dir)
 
-        with no_diff_task.get_rw_copy(work_dir=self.wdir) as local_no_diff_task:
+        with no_diff_task.get_rw_copy(work_dir=Path(self.wdir)) as local_no_diff_task:
             # log telemetry
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("reproduce_pov_no_diff") as span:

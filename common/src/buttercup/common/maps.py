@@ -27,7 +27,7 @@ class RedisMap(Generic[MsgType]):
 
         msg = self.msg_builder()
         msg.ParseFromString(it)
-        return msg  # type: ignore[no-any-return]
+        return msg
 
     def set(self, key: str, value: MsgType) -> None:
         self.redis.hset(self.hash_name, key, value.SerializeToString())

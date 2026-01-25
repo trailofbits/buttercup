@@ -15,14 +15,13 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import langgraph.errors
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import get_executor_for_config
 from langchain_core.tools import tool
 from langchain_core.tools.base import InjectedToolCallId
-from langchain_openai.chat_models.base import BaseChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END
 from langgraph.prebuilt import InjectedState
@@ -629,6 +628,8 @@ def test_instructions(
         instructions_str += "\n".join(instructions)
         instructions_str += "\n"
 
+        assert state.challenge_task_dir_ro is not None, "challenge_task_dir_ro is required"
+
         with tempfile.NamedTemporaryFile(dir=state.work_dir, delete=False) as f:
             f.write(instructions_str.encode("utf-8"))
             f.flush()
@@ -655,13 +656,18 @@ def test_instructions(
 {sh_cmd_res.returncode}
 </return_code>
 <output>
-{truncate_output(sh_cmd_res.output.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START)}
+{truncate_output(sh_cmd_res.output.decode("utf-8") if sh_cmd_res.output else "", MAX_OUTPUT_LENGTH, TruncatePosition.START)}
 </output>
 <error>
-{truncate_output(sh_cmd_res.error.decode("utf-8"), MAX_OUTPUT_LENGTH, TruncatePosition.START)}
+{truncate_output(sh_cmd_res.error.decode("utf-8") if sh_cmd_res.error else "", MAX_OUTPUT_LENGTH, TruncatePosition.START)}
 </error>
     """
-        if sh_cmd_res.success and _are_test_instructions_valid(instructions_str, sh_cmd_res.output, sh_cmd_res.error):
+        if (
+            sh_cmd_res.success
+            and sh_cmd_res.output is not None
+            and sh_cmd_res.error is not None
+            and _are_test_instructions_valid(instructions_str, sh_cmd_res.output, sh_cmd_res.error)
+        ):
             res_instructions = instructions_str
             msg = f"""Test instructions passed:
 <result>
@@ -703,9 +709,9 @@ class ContextRetrieverAgent(PatcherAgentBase):
     find_tests: bool = True
 
     agent: Runnable = field(init=False)
-    llm: BaseChatOpenAI = field(init=False)
-    cheap_llm: BaseChatOpenAI = field(init=False)
-    cheap_fallback_llms: list[BaseChatOpenAI] = field(init=False)
+    llm: Runnable = field(init=False)
+    cheap_llm: Runnable = field(init=False)
+    cheap_fallback_llms: list[Runnable] = field(init=False)
     initial_snippets_chain: Runnable = field(init=False)
     find_tests_agent: Runnable = field(init=False)
 
@@ -798,7 +804,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         ]
         self.find_tests_agent = default_find_tests_agent.with_fallbacks(fallback_find_tests_agents)
 
-    def _prompt(self, state: CodeSnippetManagerState) -> list[AnyMessage]:
+    def _prompt(self, state: CodeSnippetManagerState) -> list[BaseMessage]:
         challenge = get_challenge(state.challenge_task_dir)
         ls_cwd = challenge.exec_docker_cmd(["ls", "-la"])
         if ls_cwd.success:
@@ -828,10 +834,10 @@ class ContextRetrieverAgent(PatcherAgentBase):
                     CWD=challenge.workdir_from_dockerfile(),
                 ),
             ),
-            *state.messages,  # type: ignore[list-item]
+            *state.messages,
         ]
 
-    def _find_tests_prompt(self, state: FindTestsState) -> list[AnyMessage]:
+    def _find_tests_prompt(self, state: FindTestsState) -> list[BaseMessage]:
         challenge = get_challenge(state.challenge_task_dir, state.challenge_task_dir_ro)
 
         ls_cwd = challenge.exec_docker_cmd(["ls", "-la"])
@@ -872,7 +878,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
 {truncate_output(ls_src, MAX_OUTPUT_LENGTH)}
 </ls_src>""",
             ),
-            *state.messages,  # type: ignore[list-item]
+            *state.messages,
             AIMessage(content="""<project_analysis>"""),
         ]
 
@@ -1122,10 +1128,12 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal["root_cause_analysis"]]:
         """Get the initial context for the diff analysis."""
         configuration = PatcherConfig.from_configurable(config)
-        stacktraces = [parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs]
+        stacktraces = [
+            parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs if pov.sanitizer_output is not None
+        ]
 
         # Request code snippet for the first two functions in the stacktrace
         logger.info("[%s] Getting initial context from stacktrace", self.challenge.task_meta.task_id)
@@ -1223,7 +1231,7 @@ class ContextRetrieverAgent(PatcherAgentBase):
         self,
         state: PatcherAgentState,
         config: RunnableConfig,
-    ) -> Command[Literal[PatcherAgentName.ROOT_CAUSE_ANALYSIS.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal["root_cause_analysis"]]:
         """Determine instructions to run tests in the challenge task."""
         configuration = PatcherConfig.from_configurable(config)
         logger.info(

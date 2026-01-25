@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @lru_cache
 def get_settings() -> TaskServerSettings:
-    return TaskServerSettings()
+    return TaskServerSettings()  # type: ignore[missing-argument]
 
 
 @lru_cache

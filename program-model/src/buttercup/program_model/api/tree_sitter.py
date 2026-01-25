@@ -349,7 +349,7 @@ class CodeTS:
     def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
-        return self.get_functions_in_code(code, file_path)
+        return self.get_functions_in_code(code, file_path)  # type: ignore[call-arg]
 
     def _get_code_no_preproc(self, code: bytes) -> bytes:
         """Remove preprocessor directives from the code"""

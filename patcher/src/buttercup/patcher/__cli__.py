@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[missing-argument]
     command = get_subcommand(settings)
     setup_package_logger("patcher", __name__, settings.log_level, settings.log_max_line_length)
 
@@ -26,7 +26,7 @@ def main() -> None:
     logger.debug("Settings: %s", settings)
     init_telemetry("patcher")
     if isinstance(command, ServeCommand):
-        logger.info("Serving...")  # type: ignore[unreachable]
+        logger.info("Serving...")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
@@ -37,7 +37,7 @@ def main() -> None:
         )
         patcher.serve()
     elif isinstance(command, ProcessCommand):
-        logger.info("Processing task")  # type: ignore[unreachable]
+        logger.info("Processing task")
         patch_input = PatchInput(
             task_id=command.task_id,
             internal_patch_id=command.internal_patch_id,
@@ -49,7 +49,7 @@ def main() -> None:
                     sanitizer=command.sanitizer,
                     pov=Path(command.crash_input_path),
                     pov_token=f"token-{Path(command.crash_input_path).name}",
-                    sanitizer_output=Path(command.stacktrace_path).read_bytes(),
+                    sanitizer_output=Path(command.stacktrace_path).read_text(),
                 ),
             ],
         )
@@ -63,7 +63,7 @@ def main() -> None:
         if patch is not None:
             print(patch)
     elif isinstance(command, ProcessMsgCommand):
-        logger.info("Processing message")  # type: ignore[unreachable]
+        logger.info("Processing message")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,

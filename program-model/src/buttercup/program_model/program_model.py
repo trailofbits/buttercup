@@ -47,7 +47,7 @@ class ProgramModel:
             self.output_queue = queue_factory.create(QueueNames.INDEX_OUTPUT)
             self.registry = TaskRegistry(self.redis)
 
-    def __enter__(self):  # type: ignore[no-untyped-def]
+    def __enter__(self):
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -62,7 +62,7 @@ class ProgramModel:
             logger.info(f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery")
             challenge = ChallengeTask(
                 read_only_task_dir=args.task_dir,
-                python_path=self.python,
+                python_path=self.python or "python3",
             )
             with challenge.get_rw_copy(work_dir=self.wdir) as local_challenge:
                 # Apply the diff if it exists

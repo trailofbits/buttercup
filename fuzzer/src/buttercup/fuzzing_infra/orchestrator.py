@@ -13,7 +13,6 @@ from buttercup.common.queues import (
     QueueFactory,
     QueueNames,
     ReliableQueue,
-    RQItem,
 )
 
 logger = setup_package_logger("fuzzer-orchestrator", __name__)
@@ -28,7 +27,7 @@ def loop(
 ) -> None:
     while True:
         time.sleep(sleep_time_seconds)
-        output: RQItem = output_queue.pop()
+        output = output_queue.pop()
         if output is not None:
             deser_output: BuildOutput = output.deserialized
             build_dir = os.path.join(

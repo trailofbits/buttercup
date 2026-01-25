@@ -13,8 +13,8 @@ from buttercup.common.maps import CoverageMap, FunctionCoverage, HarnessWeights
 
 # Add matplotlib import for visualization
 try:
-    import matplotlib.dates as mdates
-    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates  # type: ignore[unresolved-import]
+    import matplotlib.pyplot as plt  # type: ignore[unresolved-import]
 
     MATPLOTLIB_AVAILABLE = True
 except ImportError:

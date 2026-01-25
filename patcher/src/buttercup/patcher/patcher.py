@@ -109,7 +109,7 @@ class Patcher:
         povs = [
             PatchInputPoV(
                 challenge_task_dir=Path(crash.crash.target.task_dir),
-                pov=node_local.make_locally_available(crash.crash.crash_input_path),
+                pov=node_local.make_locally_available(Path(crash.crash.crash_input_path)),
                 pov_token=crash.crash.crash_token,
                 sanitizer=crash.crash.target.sanitizer,
                 engine=crash.crash.target.engine,

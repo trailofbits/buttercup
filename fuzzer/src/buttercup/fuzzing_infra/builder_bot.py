@@ -124,7 +124,7 @@ class BuilderBot:
                 python_path=self.python,
             )
 
-        with origin_task.get_rw_copy(work_dir=self.wdir) as task:
+        with origin_task.get_rw_copy(work_dir=Path(self.wdir)) as task:
             if not self._apply_challenge_diff(task, msg):
                 if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
                     logger.error(
@@ -194,7 +194,7 @@ class BuilderBot:
 
 
 def main() -> None:
-    args = BuilderBotSettings()
+    args = BuilderBotSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("builder-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("builder-bot")

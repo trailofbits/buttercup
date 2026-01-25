@@ -39,7 +39,7 @@ class FunctionSelector:
             harness.task_id,
         )
 
-        return coverage_map.list_function_coverage()  # type: ignore[no-any-return]
+        return coverage_map.list_function_coverage()
 
     @staticmethod
     def calculate_function_probabilities(

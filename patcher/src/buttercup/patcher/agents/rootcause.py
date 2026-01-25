@@ -187,7 +187,9 @@ class RootCauseAgent(PatcherAgentBase):
         diff_content = "\n".join(diff.read_text() for diff in self.challenge.get_diffs())
         # Truncate diff content to the same as max stacktrace length
         diff_content = truncate_output(diff_content, max_length=MAX_DIFF_LENGTH, truncate_position=TruncatePosition.END)
-        stacktraces = [parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs]
+        stacktraces = [
+            parse_stacktrace(pov.sanitizer_output) for pov in state.context.povs if pov.sanitizer_output is not None
+        ]
         stacktraces_strs = get_stacktraces_from_povs(state.context.povs)
 
         last_patch_attempt = state.get_last_patch_attempt()
@@ -338,7 +340,7 @@ class RootCauseAgent(PatcherAgentBase):
     def analyze_vulnerability(
         self,
         state: PatcherAgentState,
-    ) -> Command[Literal[PatcherAgentName.PATCH_STRATEGY.value, PatcherAgentName.REFLECTION.value]]:  # type: ignore[name-defined]
+    ) -> Command[Literal["patch_strategy_node", "reflection"]]:
         """Analyze the diff analysis and the code to understand the
         vulnerability in the current code.
         """

@@ -172,6 +172,8 @@ def truncate_output(
     if truncate_position == TruncatePosition.END:
         return output[:max_length] + "\n[...TRUNCATED...]\n"
 
+    return output  # unreachable but satisfies type checker
+
 
 @lru_cache(maxsize=100)
 def get_challenge(task_dir: Path, task_dir_ro: Path | None = None) -> ChallengeTask:
