@@ -32,6 +32,53 @@ repos:
         types_or: [python, pyi]
         args: [--fix, --exit-non-zero-on-fix]
 
+  # ShellCheck - Shell script linting (all .sh files)
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # shfmt - Shell script formatting (all .sh files)
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        args: [-i, '4', -ci]
+
+  # actionlint - GitHub Actions workflow linting
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.10
+    hooks:
+      - id: actionlint
+
+  # zizmor - GitHub Actions security analysis
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v1.22.0
+    hooks:
+      - id: zizmor
+        args: [--min-severity=low, --min-confidence=medium]
+
+  # hadolint - Dockerfile linting
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.14.0
+    hooks:
+      - id: hadolint
+        args: [--failure-threshold, warning]
+
+  # ty - Astral type checking (local hook)
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type checking
+        entry: >-
+          bash -c 'for dir in common orchestrator fuzzer fuzzer_runner patcher program-model seed-gen; do
+          if [[ "$1" == "$dir/"* ]]; then cd "$dir" && uv run ty check src/; exit $?; fi; done' --
+        language: system
+        types: [python]
+        files: ^(common|orchestrator|fuzzer|fuzzer_runner|patcher|program-model|seed-gen)/src/
+        pass_filenames: true
+
 # Global exclusions for files that should never be checked
 exclude: |
   (?x)^(

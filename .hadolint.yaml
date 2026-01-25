@@ -1,0 +1,12 @@
+# Hadolint configuration for Buttercup
+# https://github.com/hadolint/hadolint
+
+ignored:
+  # Pin versions in apt-get install - impractical for multi-arch builds where
+  # versions vary by base image and architecture; base image provides reproducibility
+  - DL3008
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - gcr.io
