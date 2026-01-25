@@ -37,8 +37,8 @@ dev = [
     "pytest-cov ~=6.0.0",
     "pytest-asyncio ~=0.25.2",
     # Linting and type checking
-    "ruff ~=0.12.8",
-    "mypy ~=1.17.1",
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
     # Type stubs
     "types-redis ~=4.6.0",
     # Additional tools
@@ -56,25 +56,16 @@ Issues = "https://github.com/trailofbits/buttercup/issues"
 # don't attempt code coverage for the CLI entrypoints
 omit = ["src/seed_gen/_cli.py"]
 
-[tool.mypy]
-plugins = ["pydantic.mypy"]
-mypy_path = "src"
-packages = "buttercup"
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-show_error_codes = true
-sqlite_cache = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
+
+[tool.ty.rules]
+unresolved-import = "error"
+unresolved-attribute = "error"
 
 [tool.ruff]
 line-length = 120
@@ -95,3 +86,6 @@ ignore = [
 exclude = ["env", "test", "src/seed_gen/_cli.py"]
 ignore-semiprivate = true
 fail-under = 100
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
