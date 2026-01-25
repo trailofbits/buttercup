@@ -19,6 +19,7 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings
 RUN chmod a+r /etc/apt/keyrings/docker.asc
 
 # Add the repository to Apt sources:
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
   $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
@@ -32,6 +33,7 @@ FROM base-image AS builder
 WORKDIR /app
 
 # Install dependencies for fuzzer-bot
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
@@ -43,13 +45,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd fuzzer && uv sync --frozen --no-install-project --no-editable && cd .. \
     && cd fuzzer_runner && uv sync --frozen --no-install-project --no-editable && cd ..
 
-ADD common /app/common
-ADD fuzzer /app/fuzzer
-ADD fuzzer_runner /app/fuzzer_runner
+COPY common /app/common
+COPY fuzzer /app/fuzzer
+COPY fuzzer_runner /app/fuzzer_runner
 
-
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd fuzzer && uv sync --frozen --no-editable
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd fuzzer_runner && uv sync --frozen --no-editable
 
