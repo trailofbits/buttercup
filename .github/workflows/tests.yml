@@ -11,8 +11,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    permissions:
+      contents: read
     strategy:
       fail-fast: false  # Continue running other components even if one fails
       matrix:
@@ -35,12 +40,15 @@ jobs:
           - component: fuzzer
             coverage_module: buttercup.fuzzer
             python: "3.12"
+          - component: fuzzer_runner
+            coverage_module: buttercup.fuzzer_runner
+            python: "3.12"
 
     runs-on: ubuntu-latest
     # Removed if: matrix.should_run since we're not using path filtering right now
     services:
       redis:
-        image: redis
+        image: redis@sha256:e647cfe134bf5e8e74e620f66346f93418acfc240b71dd85640325cb7cd01402  # 7.4
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -50,16 +58,16 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           submodules: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
 
       - name: Setup uv cache
-        uses: actions/cache@v4
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
         with:
           path: |
             ~/.cache/uv
@@ -82,14 +90,14 @@ jobs:
           make install-cscope
 
       - name: Install minimal dependencies
-        if: matrix.component != 'program-model' && matrix.component != 'seed-gen' && matrix.component != 'patcher' && matrix.component != 'fuzzer'
+        if: matrix.component != 'program-model' && matrix.component != 'seed-gen' && matrix.component != 'patcher' && matrix.component != 'fuzzer' && matrix.component != 'fuzzer_runner'
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
-      
-      # Fuzzer only needs ripgrep, no codequery
+
+      # Fuzzer and fuzzer_runner only need ripgrep, no codequery
       - name: Install fuzzer dependencies
-        if: matrix.component == 'fuzzer'
+        if: matrix.component == 'fuzzer' || matrix.component == 'fuzzer_runner'
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
@@ -106,12 +114,12 @@ jobs:
           uv sync --all-extras --frozen
           # Install test reporting tools in isolated environment
           # This avoids adding them to every component's dependencies
-          uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
+          uv pip install --isolated 'pytest-html>=4.1.1' 'pytest-cov>=6.0.0'
         working-directory: ${{ matrix.component }}
 
       - name: Run tests on ${{ matrix.component }} component
         run: |
-          uv run --frozen pytest -svv ${{ matrix.pytest_args }} \
+          uv run --frozen pytest -svv \
             --junit-xml=test-results.xml \
             --html=test-report.html \
             --self-contained-html \
@@ -123,12 +131,24 @@ jobs:
           PYTHON_WASM_BUILD_PATH: "python-3.12.0.wasm"
         working-directory: ${{ matrix.component }}
 
+      - name: Audit dependencies for vulnerabilities
+        if: always()
+        run: |
+          uv pip install --isolated pip-audit
+          # Ignore CVEs with no available fix:
+          # - CVE-2025-67221: orjson DoS via deeply nested JSON (no fix available)
+          # - CVE-2026-0994: protobuf DoS via json_format.ParseDict (no fix available)
+          uv run pip-audit --strict --desc \
+            --ignore-vuln CVE-2025-67221 \
+            --ignore-vuln CVE-2026-0994
+        working-directory: ${{ matrix.component }}
+
       - name: Generate test summary
         if: always()
         run: |
-          echo "### Test Results: ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f ${{ matrix.component }}/test-results.xml ]; then
+          echo "### Test Results: ${{ matrix.component }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "${{ matrix.component }}/test-results.xml" ]; then
             python -c "
           import xml.etree.ElementTree as ET
           tree = ET.parse('${{ matrix.component }}/test-results.xml')
@@ -144,14 +164,14 @@ jobs:
           print(f'- **Errors**: {errors}')
           print(f'- **Skipped**: {skipped}')
           print(f'- **Duration**: {float(time):.2f}s')
-          " >> $GITHUB_STEP_SUMMARY
+          " >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No test results found" >> $GITHUB_STEP_SUMMARY
+            echo "No test results found" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: test-results-${{ matrix.component }}-py${{ matrix.python }}
           path: |
@@ -165,18 +185,20 @@ jobs:
 
   # Consolidated coverage upload after all tests complete
   coverage-upload:
+    permissions:
+      contents: read
     needs: [test]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Download all coverage reports
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         with:
           pattern: test-results-*
           path: coverage-reports
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
         with:
           directory: coverage-reports
           files: '*/coverage.xml,**/coverage.xml'

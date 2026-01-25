@@ -11,6 +11,7 @@ on:
       - "common/**"
       - "orchestrator/**"
       - "fuzzer/**"
+      - "fuzzer_runner/**"
       - "program-model/**"
       - "seed-gen/**"
       - "patcher/**"
@@ -26,21 +27,29 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # Detect which components need linting based on changed files
   changes:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       common: ${{ steps.filter.outputs.common }}
       orchestrator: ${{ steps.filter.outputs.orchestrator }}
       fuzzer: ${{ steps.filter.outputs.fuzzer }}
+      fuzzer_runner: ${{ steps.filter.outputs.fuzzer_runner }}
       program-model: ${{ steps.filter.outputs.program-model }}
       seed-gen: ${{ steps.filter.outputs.seed-gen }}
       patcher: ${{ steps.filter.outputs.patcher }}
       run-all: ${{ steps.filter.outputs.workflow || steps.filter.outputs.global }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36  # v3.0.2
         id: filter
         with:
           filters: |
@@ -50,6 +59,8 @@ jobs:
               - 'orchestrator/**'
             fuzzer:
               - 'fuzzer/**'
+            fuzzer_runner:
+              - 'fuzzer_runner/**'
             program-model:
               - 'program-model/**'
             seed-gen:
@@ -64,6 +75,8 @@ jobs:
               - '**/*.proto'
 
   matrix-generator:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: changes
     outputs:
@@ -74,22 +87,25 @@ jobs:
         run: |
           components=()
           if [[ "${{ needs.changes.outputs.run-all }}" == "true" ]]; then
-            components=("common" "orchestrator" "fuzzer" "program-model" "seed-gen" "patcher")
+            components=("common" "orchestrator" "fuzzer" "fuzzer_runner" "program-model" "seed-gen" "patcher")
           else
             [[ "${{ needs.changes.outputs.common }}" == "true" ]] && components+=("common")
             [[ "${{ needs.changes.outputs.orchestrator }}" == "true" ]] && components+=("orchestrator")
             [[ "${{ needs.changes.outputs.fuzzer }}" == "true" ]] && components+=("fuzzer")
+            [[ "${{ needs.changes.outputs.fuzzer_runner }}" == "true" ]] && components+=("fuzzer_runner")
             [[ "${{ needs.changes.outputs.program-model }}" == "true" ]] && components+=("program-model")
             [[ "${{ needs.changes.outputs.seed-gen }}" == "true" ]] && components+=("seed-gen")
             [[ "${{ needs.changes.outputs.patcher }}" == "true" ]] && components+=("patcher")
           fi
           if [[ ${#components[@]} -eq 0 ]]; then
-            echo 'matrix={"component":[]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"component":[]}' >> "$GITHUB_OUTPUT"
           else
-            echo "matrix={\"component\":[$(printf '"%s",' "${components[@]}" | sed 's/,$//')]}" >> $GITHUB_OUTPUT
+            echo "matrix={\"component\":[$(printf '"%s",' "${components[@]}" | sed 's/,$//')]}" >> "$GITHUB_OUTPUT"
           fi
 
   lint:
+    permissions:
+      contents: read
     needs: [changes, matrix-generator]
     strategy:
       fail-fast: false # Continue running other components even if one fails
@@ -97,15 +113,15 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
 
       - name: Setup uv cache
-        uses: actions/cache@v4
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
         with:
           path: |
             ~/.cache/uv
@@ -125,17 +141,19 @@ jobs:
           uv run ruff check --output-format=github
         working-directory: ${{ matrix.component }}
 
-      - name: Run mypy on ${{ matrix.component }}
-        run: uv run mypy
+      - name: Run ty on ${{ matrix.component }}
+        run: uv run ty check src/
         working-directory: ${{ matrix.component }}
 
   check-protobuf:
+    permissions:
+      contents: read
     needs: changes
     # Run if protobuf files changed or we need to run all
     if: needs.changes.outputs.run-all == 'true' || contains(github.event.head_commit.modified, '.proto') || contains(github.event.head_commit.modified, 'protoc.sh')
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 

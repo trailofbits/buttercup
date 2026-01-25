@@ -30,15 +30,18 @@ concurrency:
 jobs:
   # Integration tests - run on schedule, manual trigger, or labeled PRs
   test-integration:
+    permissions:
+      contents: read
     # Run if:
     # - Scheduled run
     # - Manual dispatch with run_integration=true
+    # - Push to main branch
     # - PR with 'integration-tests' label
     if: |
-      github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration == 'true') ||
-      contains(github.event.pull_request.labels.*.name, 'integration-tests')
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'integration-tests'))
     
     strategy:
       fail-fast: false
@@ -60,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       redis:
-        image: redis
+        image: redis@sha256:e647cfe134bf5e8e74e620f66346f93418acfc240b71dd85640325cb7cd01402  # 7.4
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -70,7 +73,7 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           submodules: true
@@ -78,9 +81,11 @@ jobs:
       - name: Check if component should be tested
         id: should_test
         if: github.event_name == 'workflow_dispatch'
+        env:
+          INPUT_COMPONENTS: ${{ github.event.inputs.components }}
+          MATRIX_COMPONENT: ${{ matrix.component }}
         run: |
-          components="${{ github.event.inputs.components }}"
-          if [[ -z "$components" ]] || [[ "$components" == *"${{ matrix.component }}"* ]]; then
+          if [[ -z "$INPUT_COMPONENTS" ]] || [[ "$INPUT_COMPONENTS" == *"$MATRIX_COMPONENT"* ]]; then
             echo "test=true" >> $GITHUB_OUTPUT
           else
             echo "test=false" >> $GITHUB_OUTPUT
@@ -88,11 +93,11 @@ jobs:
 
       - name: Install uv
         if: steps.should_test.outputs.test != 'false'
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
 
       - name: Setup uv cache
         if: steps.should_test.outputs.test != 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7  # v5.0.2
         with:
           path: |
             ~/.cache/uv
@@ -126,7 +131,7 @@ jobs:
         if: steps.should_test.outputs.test != 'false'
         run: |
           uv sync --all-extras --frozen
-          uv pip install --isolated pytest-html>=4.1.1 pytest-cov>=6.0.0
+          uv pip install --isolated 'pytest-html>=4.1.1' 'pytest-cov>=6.0.0'
         working-directory: ${{ matrix.component }}
 
       - name: Run program-model libpng integration test
@@ -189,7 +194,7 @@ jobs:
 
       - name: Upload integration test results
         if: always() && steps.should_test.outputs.test != 'false'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: integration-test-results-${{ matrix.component }}-py${{ matrix.python }}
           path: |
