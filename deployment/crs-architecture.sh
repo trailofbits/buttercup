@@ -139,10 +139,15 @@ up() {
 					FUZZER_BUILD_ARGS=""
 				fi
 
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $PATCHER_BUILD_ARGS -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $PROGRAM_MODEL_BUILD_ARGS -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
 				;;
 		esac
@@ -161,7 +166,7 @@ up() {
 		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT" || echo -e "${GRN}ghcr secret already exists${NC}"
 
 	echo -e "${BLU}Creating CRS_INSTANCE_ID${NC}"
-	CRS_INSTANCE_ID=$(echo $RANDOM | md5sum | head -c 20)
+	CRS_INSTANCE_ID=$(echo "$RANDOM" | md5sum | head -c 20)
 	kubectl create configmap crs-instance-id \
 		--namespace "$BUTTERCUP_NAMESPACE" \
 		--from-literal=crs-instance-id="$CRS_INSTANCE_ID" || echo -e "${GRN}crs-instance-id configmap already exists${NC}"
@@ -222,7 +227,7 @@ fi
 	if [ "$TAILSCALE_ENABLED" = "true" ]; then
 		kubectl apply -k k8s/base/tailscale-connections/
 		echo -e "${BLU}Waiting for ingress hostname DNS registration${NC}"
-		timeout 5m bash -c "until kubectl get ingress -n "$BUTTERCUP_NAMESPACE" buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' | grep -q '.'; do sleep 1; done" || echo -e "${BLU}Error: Ingress hostname failed to be to set within 5 minutes${NC}"
+		timeout 5m bash -c 'until kubectl get ingress -n '"$BUTTERCUP_NAMESPACE"' buttercup-task-server -o jsonpath='"'"'{.status.loadBalancer.ingress[0].hostname}'"'"' | grep -q "."; do sleep 1; done' || echo -e "${BLU}Error: Ingress hostname failed to be to set within 5 minutes${NC}"
 		INGRESS_HOSTNAME=$(kubectl get ingress -n "$BUTTERCUP_NAMESPACE" buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 		echo -e "${GRN}Your ingress DNS hostname is $INGRESS_HOSTNAME${NC}"
 	fi

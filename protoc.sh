@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # this is a hack because i dont want to cut a new release of clusterfuzz that 
 # supports later versions of grpc
-localpath="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+localpath="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit ; pwd -P )"
 echo "$localpath"
 echo "$localpath/common/protos"
 protoc \
     --pyi_out="$localpath/common/src/buttercup/common/datastructures/" \
     --python_out "$localpath/common/src/buttercup/common/datastructures/" \
     -I"$localpath/common/protos" \
-    $localpath/common/protos/*.proto
+    "$localpath"/common/protos/*.proto
