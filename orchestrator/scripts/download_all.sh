@@ -41,7 +41,7 @@ find "$input_dir" -type d -name "*-delta-1" | while read -r dir; do
     # Look at the first dir inside the src_tar to guess the focus
     focus=$(tar -tf "$src_tar" | head -n 1)
     # remove any trailing slashes
-    focus=$(echo "$focus" | sed 's:/*$::')
+    focus="${focus%/}"
     
     if [ -z "$src_tar" ] || [ ! -f "$fuzz_tar" ] || [ -z "$diff_tar" ]; then
         echo "Error: Missing required files in $dir_name"
@@ -61,5 +61,5 @@ find "$input_dir" -type d -name "*-delta-1" | while read -r dir; do
         --diff_url "$diff_url" \
         --project_name "$project_name" \
         --focus "$focus" \
-        $dir_name
+        "$dir_name"
 done
