@@ -6,14 +6,14 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
-from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.patcher.agents.common import BaseCtxState, CodeSnippetKey, ContextCodeSnippet
 from buttercup.patcher.utils import find_file_in_source_dir, get_challenge, get_codequery, truncate_output
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.utils.common import Function, TypeDefinition
 
 logger = logging.getLogger(__name__)
 

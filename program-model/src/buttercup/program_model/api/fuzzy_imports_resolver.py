@@ -3,6 +3,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from buttercup.common.challenge_task import ChallengeTask
+
 from buttercup.program_model.utils.common import Function, TypeDefinition
 
 

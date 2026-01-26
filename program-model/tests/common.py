@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language
+
 from buttercup.program_model.codequery import CodeQuery
 from buttercup.program_model.utils.common import (
     Function,

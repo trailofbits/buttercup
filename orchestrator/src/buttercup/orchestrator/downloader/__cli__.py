@@ -1,11 +1,11 @@
 import requests
 import requests.adapters
+from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task
+from buttercup.common.logger import setup_package_logger
 from pydantic_settings import get_subcommand
 from redis import Redis
 from requests_file import FileAdapter
 
-from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task
-from buttercup.common.logger import setup_package_logger
 from buttercup.orchestrator.downloader.config import (
     DownloaderProcessCommand,
     DownloaderServeCommand,

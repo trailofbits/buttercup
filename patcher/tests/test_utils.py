@@ -4,10 +4,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from langchain_core.runnables import RunnableConfig
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.task_meta import TaskMeta
+from langchain_core.runnables import RunnableConfig
+
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.patcher.utils import find_file_in_source_dir
 

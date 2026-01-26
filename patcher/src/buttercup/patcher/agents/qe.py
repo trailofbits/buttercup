@@ -8,16 +8,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from langchain_core.runnables import RunnableConfig
-from langchain_core.runnables.config import get_executor_for_config
-from langgraph.constants import END
-from langgraph.types import Command
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError, CommandResult
 from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.corpus import CrashDir
 from buttercup.common.project_yaml import ProjectYaml
+from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.config import get_executor_for_config
+from langgraph.constants import END
+from langgraph.types import Command
+
 from buttercup.patcher.agents.common import (
     PatchAttempt,
     PatcherAgentBase,

@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import pytest
-
 from buttercup.common.challenge_task import ChallengeTask
+
 from buttercup.program_model.codequery import CodeQuery
 
 from ..common import (

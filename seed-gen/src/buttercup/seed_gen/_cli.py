@@ -6,10 +6,6 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from pydantic_settings import get_subcommand
-from redis import Redis
-
-import buttercup.seed_gen.cli_load_dotenv  # noqa: F401
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.logger import setup_package_logger
@@ -17,6 +13,10 @@ from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.telemetry import init_telemetry
 from buttercup.program_model.codequery import CodeQueryPersistent
+from pydantic_settings import get_subcommand
+from redis import Redis
+
+import buttercup.seed_gen.cli_load_dotenv  # noqa: F401
 from buttercup.seed_gen.config import ProcessCommand, Settings
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_gen_bot import SeedGenBot

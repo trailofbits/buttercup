@@ -2,8 +2,6 @@ import logging
 import time
 from uuid import UUID
 
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import (
     SourceDetail as SourceDetailProto,
 )
@@ -17,6 +15,8 @@ from buttercup.common.datastructures.msg_pb2 import (
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.orchestrator.task_server.models.types import (
     SARIFBroadcast,
     SourceType,

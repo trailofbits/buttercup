@@ -2,8 +2,6 @@ import argparse
 import os
 import time
 
-from redis import Redis
-
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
 from buttercup.common.logger import setup_package_logger
@@ -14,6 +12,7 @@ from buttercup.common.queues import (
     QueueNames,
     ReliableQueue,
 )
+from redis import Redis
 
 logger = setup_package_logger("fuzzer-orchestrator", __name__)
 DEFAULT_WEIGHT = 1.0

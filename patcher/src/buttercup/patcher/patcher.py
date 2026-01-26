@@ -7,17 +7,17 @@ from functools import reduce
 from pathlib import Path
 from typing import Any
 
-from langchain_community.cache import SQLiteCache
-from langchain_core.globals import set_llm_cache
-from langchain_core.runnables import Runnable, RunnableConfig
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+from langchain_community.cache import SQLiteCache
+from langchain_core.globals import set_llm_cache
+from langchain_core.runnables import Runnable, RunnableConfig
+from redis import Redis
+
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
 from buttercup.patcher.utils import PatchInput, PatchInputPoV, PatchOutput
 

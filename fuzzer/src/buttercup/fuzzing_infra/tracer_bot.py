@@ -2,8 +2,6 @@ import logging
 import os
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common import node_local, stack_parsing
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
 from buttercup.common.logger import setup_package_logger
@@ -11,6 +9,8 @@ from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import init_telemetry
 from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from redis import Redis
+
 from buttercup.fuzzing_infra.settings import TracerSettings
 from buttercup.fuzzing_infra.tracer_runner import TracerRunner
 

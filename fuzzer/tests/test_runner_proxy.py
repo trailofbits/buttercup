@@ -4,8 +4,8 @@ import time
 from unittest.mock import Mock, patch
 
 import pytest
-
 from buttercup.common.types import FuzzConfiguration
+
 from buttercup.fuzzing_infra.runner_proxy import Conf, Crash, FuzzResult, RunnerProxy
 
 

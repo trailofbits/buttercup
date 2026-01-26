@@ -8,12 +8,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.task_meta import TaskMeta
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableSequence
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.task_meta import TaskMeta
 from buttercup.patcher.agents.common import (
     CodeSnippetKey,
     ContextCodeSnippet,

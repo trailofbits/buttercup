@@ -7,7 +7,6 @@ from typing import Any, NamedTuple, cast
 
 import cxxfilt
 from bs4 import BeautifulSoup, Tag
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
 

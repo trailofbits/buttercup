@@ -5,6 +5,7 @@ from pathlib import Path
 from buttercup.common import stack_parsing
 from buttercup.common.clusterfuzz_parser.slice import StackFrame
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
+
 from buttercup.orchestrator.task_server.models.types import SARIFBroadcastDetail
 
 logger = logging.getLogger(__name__)

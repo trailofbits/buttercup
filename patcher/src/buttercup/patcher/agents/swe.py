@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import langgraph.errors
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
@@ -28,7 +29,6 @@ from langgraph.prebuilt import InjectedState, create_react_agent
 from langgraph.types import Command
 from pydantic import BaseModel, Field, ValidationError
 
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.agents.common import (
     CodeSnippetKey,
     CodeSnippetRequest,

@@ -1,11 +1,11 @@
 import logging
 
-from pydantic_settings import get_subcommand
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import IndexRequest
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.telemetry import init_telemetry
+from pydantic_settings import get_subcommand
+from redis import Redis
+
 from buttercup.program_model.program_model import ProgramModel
 from buttercup.program_model.settings import (
     ProcessCommand,

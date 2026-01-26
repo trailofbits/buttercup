@@ -3,10 +3,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import IndexOutput, IndexRequest
@@ -19,6 +15,10 @@ from buttercup.common.queues import (
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.common.utils import serve_loop
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.program_model.codequery import CodeQueryPersistent
 
 logger = logging.getLogger(__name__)

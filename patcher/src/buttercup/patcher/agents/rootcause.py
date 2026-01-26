@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import Annotated, Literal
 
 import langgraph.errors
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
+from buttercup.common.stack_parsing import parse_stacktrace
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -18,8 +20,6 @@ from langgraph.types import Command
 from pydantic import BaseModel, ValidationError
 from unidiff import PatchSet
 
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
-from buttercup.common.stack_parsing import parse_stacktrace
 from buttercup.patcher.agents.common import (
     MAX_STACKTRACE_LENGTH,
     CodeSnippetRequest,

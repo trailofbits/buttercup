@@ -2,11 +2,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-from redis import Redis
-
 from buttercup.common.constants import ADDRESS_SANITIZER
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
 from buttercup.common.sets import FailedToAcquireLock
+from redis import Redis
+
 from buttercup.fuzzing_infra.corpus_merger import BaseCorpus, MergerBot, PartitionedCorpus
 
 

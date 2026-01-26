@@ -7,10 +7,6 @@ from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.constants import ADDRESS_SANITIZER
@@ -22,6 +18,10 @@ from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS, FailedToAcquireLock, MergedCorpusSetLock
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.fuzzing_infra.runner_proxy import Conf, FuzzConfiguration, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 

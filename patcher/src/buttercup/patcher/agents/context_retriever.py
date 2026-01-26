@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import langgraph.errors
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.llm import ButtercupLLM, create_default_llm
+from buttercup.common.stack_parsing import CrashInfo, parse_stacktrace
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -30,9 +33,6 @@ from langgraph.types import Command
 from pydantic import Field, ValidationError
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from buttercup.common.stack_parsing import CrashInfo, parse_stacktrace
 from buttercup.patcher.agents.common import (
     BaseCtxState,
     CodeSnippetKey,

@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import ClassVar
 
 import rapidfuzz
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
 from buttercup.program_model.api.fuzzy_imports_resolver import (
     FuzzyCImportsResolver,
     FuzzyJavaImportsResolver,

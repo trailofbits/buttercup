@@ -2,10 +2,9 @@ import logging
 import random
 
 import numpy as np
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import FunctionCoverage, WeightedHarness
 from buttercup.common.maps import CoverageMap
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 

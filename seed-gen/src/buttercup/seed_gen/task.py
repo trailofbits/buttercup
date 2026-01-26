@@ -7,6 +7,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, ClassVar
 
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
+from buttercup.common.project_yaml import ProjectYaml
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, ToolMessage
@@ -18,11 +23,6 @@ from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
-from buttercup.common.project_yaml import ProjectYaml
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code

@@ -11,6 +11,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.clusterfuzz_parser import CrashInfo
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -20,9 +23,6 @@ from langgraph.managed import RemainingSteps
 from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
 from pydantic import BaseModel, Field
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.clusterfuzz_parser import CrashInfo
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.utils import (
     CHAIN_CALL_TYPE,
     PatchInput,

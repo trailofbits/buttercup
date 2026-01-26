@@ -1,15 +1,15 @@
 import logging
 from pathlib import Path
 
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
+from buttercup.common.telemetry import init_telemetry
 from google.protobuf.text_format import Parse
 from pydantic_settings import get_subcommand
 from redis import Redis
 
 import buttercup.patcher.cli_load_dotenv  # noqa: F401
-from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
-from buttercup.common.telemetry import init_telemetry
 from buttercup.patcher.config import ProcessCommand, ProcessMsgCommand, ServeCommand, Settings
 from buttercup.patcher.patcher import Patcher
 from buttercup.patcher.utils import PatchInput, PatchInputPoV

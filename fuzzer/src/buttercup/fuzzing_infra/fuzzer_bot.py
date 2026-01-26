@@ -3,10 +3,6 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from opentelemetry import trace
-from opentelemetry.trace.status import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus, CrashDir
@@ -20,6 +16,10 @@ from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.types import FuzzConfiguration
 from buttercup.common.utils import setup_periodic_zombie_reaper
+from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
+from redis import Redis
+
 from buttercup.fuzzing_infra.runner_proxy import Conf, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 

@@ -6,10 +6,6 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
@@ -36,6 +32,10 @@ from buttercup.common.sets import PoVReproduceStatus
 from buttercup.common.stack_parsing import get_crash_data, get_inst_key
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.orchestrator.competition_api_client.api import BroadcastSarifAssessmentApi, BundleApi, PatchApi, PovApi
 from buttercup.orchestrator.competition_api_client.api_client import ApiClient
 from buttercup.orchestrator.competition_api_client.models.types_architecture import TypesArchitecture

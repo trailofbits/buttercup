@@ -7,6 +7,7 @@ from pathlib import Path
 
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
 from buttercup.common.sarif_store import SARIFBroadcastDetail
+
 from buttercup.orchestrator.scheduler.sarif_matcher import match
 
 

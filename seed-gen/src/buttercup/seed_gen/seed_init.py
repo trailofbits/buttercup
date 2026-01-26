@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import override
 
+from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 from opentelemetry import trace
 
-from buttercup.common.llm import get_langfuse_callbacks
-from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.seed_gen.prompt.seed_init import (
     PYTHON_SEED_INIT_SYSTEM_PROMPT,
     PYTHON_SEED_INIT_USER_PROMPT,

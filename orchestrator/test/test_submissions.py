@@ -5,7 +5,6 @@ from typing import Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-
 from buttercup.common.clusterfuzz_parser.crash_comparer import CrashComparer
 from buttercup.common.constants import ARCHITECTURE
 from buttercup.common.datastructures.msg_pb2 import (
@@ -22,6 +21,7 @@ from buttercup.common.datastructures.msg_pb2 import (
     TracedCrash,
 )
 from buttercup.common.task_registry import TaskRegistry
+
 from buttercup.orchestrator.competition_api_client.models.types_bundle_submission_response import (
     TypesBundleSubmissionResponse,
 )

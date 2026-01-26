@@ -6,16 +6,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import requests
-from redis import Redis
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
 from buttercup.common import node_local
 from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task, TaskDownload, TaskReady
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue
 from buttercup.common.task_meta import TaskMeta
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+from redis import Redis
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 from buttercup.orchestrator.utils import response_stream_to_file
 
 logger = logging.getLogger(__name__)

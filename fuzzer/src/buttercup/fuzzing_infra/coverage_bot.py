@@ -7,10 +7,6 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus
@@ -21,6 +17,10 @@ from buttercup.common.logger import setup_package_logger
 from buttercup.common.maps import CoverageMap
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import setup_periodic_zombie_reaper
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.fuzzing_infra.coverage_runner import CoverageRunner, CoveredFunction
 from buttercup.fuzzing_infra.settings import CoverageBotSettings
 

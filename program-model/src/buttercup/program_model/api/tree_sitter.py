@@ -7,10 +7,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from tree_sitter_language_pack import get_language, get_parser
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
+from tree_sitter_language_pack import get_language, get_parser
+
 from buttercup.program_model.utils.common import (
     Function,
     FunctionBody,

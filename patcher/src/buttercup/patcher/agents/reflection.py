@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from itertools import groupby
 from typing import Literal
 
+from buttercup.common.llm import ButtercupLLM, create_default_llm
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -21,7 +22,6 @@ from langgraph.constants import END
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from buttercup.common.llm import ButtercupLLM, create_default_llm
 from buttercup.patcher.agents.common import (
     CodeSnippetRequest,
     PatchAnalysis,

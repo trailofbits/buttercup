@@ -2,10 +2,10 @@ import logging
 from functools import lru_cache
 
 import redis
-from redis import Redis
-
 from buttercup.common.queues import QueueFactory, QueueNames, ReliableQueue
 from buttercup.common.sarif_store import SARIFStore
+from redis import Redis
+
 from buttercup.orchestrator.task_server.config import TaskServerSettings
 
 logger = logging.getLogger(__name__)

@@ -4,8 +4,6 @@ import random
 import tempfile
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus, CrashDir
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
@@ -16,6 +14,8 @@ from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.program_model.codequery import CodeQueryPersistent
+from redis import Redis
+
 from buttercup.seed_gen.function_selector import FunctionSelector
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask

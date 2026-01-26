@@ -8,15 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, ClassVar
 
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts.chat import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig
-from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
-from langgraph.types import Command
-from opentelemetry import trace
-from pydantic import Field
-
 from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import CrashDir
@@ -28,6 +19,15 @@ from buttercup.common.reproduce_multiple import ReproduceMultiple, ReproduceResu
 from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
+from langgraph.types import Command
+from opentelemetry import trace
+from pydantic import Field
+
 from buttercup.seed_gen.prompt.vuln_discovery import (
     C_CWE_LIST,
     COMMON_CWE_LIST,
