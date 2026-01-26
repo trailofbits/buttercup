@@ -110,8 +110,10 @@ def get_mock_popen(returncode: int, stdout: list[bytes], stderr: list[bytes]):
         mock_process.poll.side_effect = [None, None, returncode]
         mock_process.wait.return_value = returncode
 
-        # Make Popen return our mock process
+        # Make Popen return our mock process and work as context manager
         mock_popen.return_value = mock_process
+        mock_popen.return_value.__enter__ = MagicMock(return_value=mock_process)
+        mock_popen.return_value.__exit__ = MagicMock(return_value=False)
         yield mock_popen
 
 
