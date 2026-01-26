@@ -37,13 +37,10 @@ TEMPDIR=$(mktemp -d)
 
 # Install required tools
 $PYTHON_CMD -m venv "$TEMPDIR/venv"
-. $TEMPDIR/venv/bin/activate
+. "$TEMPDIR/venv/bin/activate"
 
 # Install fastapi-codegen and other dependencies
-pip install git+https://github.com/trail-of-forks/fastapi-code-generator
-pip install uvicorn
-pip install fastapi
-pip install pyyaml
+uv pip install --isolated git+https://github.com/trail-of-forks/fastapi-code-generator uvicorn fastapi pyyaml
 
 # Convert YAML to JSON first
 echo "Converting YAML to JSON..."

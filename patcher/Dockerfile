@@ -29,6 +29,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
@@ -39,10 +40,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=patcher/pyproject.toml,target=patcher/pyproject.toml \
     cd patcher && uv sync --frozen --no-install-project --no-editable
 
-ADD common /app/common
-ADD program-model /app/program-model
-ADD patcher /app/patcher
+COPY common /app/common
+COPY program-model /app/program-model
+COPY patcher /app/patcher
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd patcher && uv sync --frozen --no-editable
 
@@ -50,6 +52,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM runtime-base AS cscope-builder
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
 COPY external/buttercup-cscope /cscope
+# hadolint ignore=DL3003
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM runtime-base AS runtime

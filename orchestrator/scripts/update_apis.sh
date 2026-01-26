@@ -30,23 +30,23 @@ cp -rv example-crs-architecture/docs/ "$OUTPUT_DIR/src/buttercup/orchestrator/do
 
 TEMPDIR=$(mktemp -d)
 $PYTHON_CMD -m venv "$TEMPDIR/venv"
-. $TEMPDIR/venv/bin/activate
+. "$TEMPDIR/venv/bin/activate"
 
 # Update competition API client
 # Run docker with current user to ensure correct file permissions
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)
-docker run --rm --user $USER_ID:$GROUP_ID -v "$(realpath example-crs-architecture/docs/api):/local" -v "$OUTPUT_DIR/src/buttercup/orchestrator:/out" openapitools/openapi-generator-cli generate \
+docker run --rm --user "$USER_ID:$GROUP_ID" -v "$(realpath example-crs-architecture/docs/api):/local" -v "$OUTPUT_DIR/src/buttercup/orchestrator:/out" openapitools/openapi-generator-cli generate \
     -i /local/competition-swagger-v1.4.0.json \
     -g python \
     -o /out \
     --package-name competition_api_client
 
-sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/competition_api_client.models,/buttercup.orchestrator.competition_api_client.models,/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/^import competition_api_client/import buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.py')
-sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
-sed -i.bak 's/^import competition_api_client./import buttercup.orchestrator.competition_api_client./' $(find $OUTPUT_DIR/src/buttercup/orchestrator -name '*.md')
+find "$OUTPUT_DIR/src/buttercup/orchestrator" -name '*.py' -exec sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' {} +
+find "$OUTPUT_DIR/src/buttercup/orchestrator" -name '*.py' -exec sed -i.bak 's/competition_api_client.models,/buttercup.orchestrator.competition_api_client.models,/' {} +
+find "$OUTPUT_DIR/src/buttercup/orchestrator" -name '*.py' -exec sed -i.bak 's/^import competition_api_client/import buttercup.orchestrator.competition_api_client/' {} +
+find "$OUTPUT_DIR/src/buttercup/orchestrator" -name '*.md' -exec sed -i.bak 's/^from competition_api_client/from buttercup.orchestrator.competition_api_client/' {} +
+find "$OUTPUT_DIR/src/buttercup/orchestrator" -name '*.md' -exec sed -i.bak 's/^import competition_api_client./import buttercup.orchestrator.competition_api_client./' {} +
 
 mkdir -p "$OUTPUT_DIR/docs"
 mkdir -p "$OUTPUT_DIR/test"
@@ -56,9 +56,7 @@ rm -rf "$OUTPUT_DIR/src/buttercup/orchestrator/docs"
 rm -rf "$OUTPUT_DIR/src/buttercup/orchestrator/test"
 
 # Update task_server APIs
-pip install git+https://github.com/trail-of-forks/fastapi-code-generator
-pip install uvicorn
-pip install fastapi
+uv pip install --isolated git+https://github.com/trail-of-forks/fastapi-code-generator uvicorn fastapi
 
 TEMPDIR=$(mktemp -d)
 curl -o "$TEMPDIR/openapi.json" -X POST https://converter.swagger.io/api/convert -H "Content-Type: application/json" --data-binary "@example-crs-architecture/docs/api/crs-swagger-v1.4.0.json"

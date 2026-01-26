@@ -1,0 +1,6 @@
+# Shellcheck configuration for Buttercup
+shell=bash
+
+# Globally disable SC1091 (source file not followed)
+# These are dynamically sourced or external files
+disable=SC1091

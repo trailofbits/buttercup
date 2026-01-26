@@ -59,3 +59,10 @@ common/common/datastructures/fuzzer_msg*
 crs_scratch/*
 tasks_storage/*
 node_data_storage/*
+
+# Serena runtime files (keep .serena/project.yml tracked)
+.serena/memories/
+.serena/*.log
+
+# WASM runtimes (downloaded for seed-gen sandbox tests)
+.wasm/
