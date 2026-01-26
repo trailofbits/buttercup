@@ -17,6 +17,9 @@ make lint                                   # Format, lint, and type-check all c
 
 # Example: lint the patcher component
 make lint-component COMPONENT=patcher
+
+# Regenerate protobuf files (MUST run from common venv for correct grpcio-tools)
+cd common && uv run ../protoc.sh
 ```
 
 ### Testing

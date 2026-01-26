@@ -84,18 +84,27 @@ jobs:
     steps:
       - name: Generate matrix
         id: set-matrix
+        env:
+          RUN_ALL: ${{ needs.changes.outputs.run-all }}
+          CHANGED_COMMON: ${{ needs.changes.outputs.common }}
+          CHANGED_ORCHESTRATOR: ${{ needs.changes.outputs.orchestrator }}
+          CHANGED_FUZZER: ${{ needs.changes.outputs.fuzzer }}
+          CHANGED_FUZZER_RUNNER: ${{ needs.changes.outputs.fuzzer_runner }}
+          CHANGED_PROGRAM_MODEL: ${{ needs.changes.outputs.program-model }}
+          CHANGED_SEED_GEN: ${{ needs.changes.outputs.seed-gen }}
+          CHANGED_PATCHER: ${{ needs.changes.outputs.patcher }}
         run: |
           components=()
-          if [[ "${{ needs.changes.outputs.run-all }}" == "true" ]]; then
+          if [[ "$RUN_ALL" == "true" ]]; then
             components=("common" "orchestrator" "fuzzer" "fuzzer_runner" "program-model" "seed-gen" "patcher")
           else
-            [[ "${{ needs.changes.outputs.common }}" == "true" ]] && components+=("common")
-            [[ "${{ needs.changes.outputs.orchestrator }}" == "true" ]] && components+=("orchestrator")
-            [[ "${{ needs.changes.outputs.fuzzer }}" == "true" ]] && components+=("fuzzer")
-            [[ "${{ needs.changes.outputs.fuzzer_runner }}" == "true" ]] && components+=("fuzzer_runner")
-            [[ "${{ needs.changes.outputs.program-model }}" == "true" ]] && components+=("program-model")
-            [[ "${{ needs.changes.outputs.seed-gen }}" == "true" ]] && components+=("seed-gen")
-            [[ "${{ needs.changes.outputs.patcher }}" == "true" ]] && components+=("patcher")
+            [[ "$CHANGED_COMMON" == "true" ]] && components+=("common")
+            [[ "$CHANGED_ORCHESTRATOR" == "true" ]] && components+=("orchestrator")
+            [[ "$CHANGED_FUZZER" == "true" ]] && components+=("fuzzer")
+            [[ "$CHANGED_FUZZER_RUNNER" == "true" ]] && components+=("fuzzer_runner")
+            [[ "$CHANGED_PROGRAM_MODEL" == "true" ]] && components+=("program-model")
+            [[ "$CHANGED_SEED_GEN" == "true" ]] && components+=("seed-gen")
+            [[ "$CHANGED_PATCHER" == "true" ]] && components+=("patcher")
           fi
           if [[ ${#components[@]} -eq 0 ]]; then
             echo 'matrix={"component":[]}' >> "$GITHUB_OUTPUT"
@@ -157,18 +166,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install protoc
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
+        with:
+          enable-cache: true
 
       - name: Generate protobufs
         run: |
-          # Generate fresh protobufs
-          ./protoc.sh
+          # Generate fresh protobufs (must run from common venv for correct grpcio-tools)
+          cd common && uv run ../protoc.sh
 
           # Check if any files were modified
-          if ! git diff --quiet common/src/buttercup/common/datastructures; then
+          if ! git diff --quiet src/buttercup/common/datastructures; then
             echo "Error: Generated protobufs differ from committed files"
             exit 1
           fi
