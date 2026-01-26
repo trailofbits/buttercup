@@ -89,13 +89,6 @@ model_list:
       tpm: 150000000
       rpm: 30000
 
-  - model_name: claude-3.5-sonnet
-    litellm_params:
-      model: anthropic/claude-3-5-sonnet-20241022
-      api_key: os.environ/ANTHROPIC_API_KEY
-      tpm: 400000
-      rpm: 4000
-
   - model_name: claude-3.7-sonnet
     litellm_params:
       model: anthropic/claude-3-7-sonnet-20250219
@@ -106,6 +99,12 @@ model_list:
   - model_name: claude-4-sonnet
     litellm_params:
       model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+      tpm: 400000
+
+  - model_name: claude-4.5-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5-20250929
       api_key: os.environ/ANTHROPIC_API_KEY
       tpm: 400000
 

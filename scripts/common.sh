@@ -534,7 +534,7 @@ configure_local_api_keys() {
     # Anthropic API Key (Optional)
     print_linebreak
     print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
-    print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
+    print_status "The seed generation component performs best with Anthropic models (Claude 4.5/4 Sonnet)."
     print_status "Generate your API key at: https://console.anthropic.com/settings/keys"
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
