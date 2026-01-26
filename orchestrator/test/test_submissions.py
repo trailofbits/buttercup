@@ -413,8 +413,8 @@ class TestCompetitionAPI:
             assert result[0] == "test-pov-123"
             assert result[1] == SubmissionResult.ACCEPTED
 
-            # Verify file was read correctly
-            mock_lopen.assert_called_once_with(sample_crash.crash.crash_input_path, "rb")
+            # Verify file was read correctly (lopen is called with Path, not str)
+            mock_lopen.assert_called_once_with(Path(sample_crash.crash.crash_input_path), "rb")
 
             # Verify API was called with correct parameters
             mock_pov_api.v1_task_task_id_pov_post.assert_called_once()

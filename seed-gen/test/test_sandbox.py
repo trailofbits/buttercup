@@ -2,6 +2,8 @@ import os
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 
 expected_seeds = [
@@ -14,6 +16,10 @@ def read_seeds(outdir: Path) -> list[bytes]:
     return [file.read_bytes() for file in outdir.iterdir()]
 
 
+@pytest.mark.skipif(
+    not os.environ.get("PYTHON_WASM_BUILD_PATH"),
+    reason="PYTHON_WASM_BUILD_PATH environment variable not set",
+)
 def test_sandbox_exec_funcs():
     file_path = os.path.abspath(__file__)
     test_file = Path(file_path).parent / "data/example_seed_funcs.py"

@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from redis import Redis
 
@@ -14,8 +14,6 @@ class TestMergerBot(unittest.TestCase):
     def setUp(self):
         self.redis_mock = Mock(spec=Redis)
         self.runner_mock = Mock()
-        # Make merge_corpus an async mock since it's now an async method
-        self.runner_mock.merge_corpus = AsyncMock()
         self.corpus_mock = Mock()
         self.lock_mock = MagicMock()
 
@@ -711,6 +709,8 @@ class TestFinalCorpus(unittest.TestCase):
         # Test data
         push_remotely = {"file1", "file2"}
         delete_locally = {"file3", "file4"}
+        # Save expected files before the call (set is cleared during push_remotely())
+        expected_files = list(push_remotely)
 
         # Create FinalCorpus instance
         final_corpus = FinalCorpus(corpus_instance, push_remotely, delete_locally)
@@ -719,7 +719,9 @@ class TestFinalCorpus(unittest.TestCase):
         result = final_corpus.push_remotely()
 
         # Test that corpus.sync_specific_files_to_remote was called with the right files
-        corpus_instance.sync_specific_files_to_remote.assert_called_once_with(push_remotely)
+        # The code converts the set to a list before calling sync_specific_files_to_remote
+        actual_call_args = corpus_instance.sync_specific_files_to_remote.call_args[0][0]
+        self.assertEqual(sorted(actual_call_args), sorted(expected_files))
 
         # Verify result
         self.assertEqual(result, 2)  # Should return the number of files pushed
