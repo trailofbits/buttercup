@@ -86,9 +86,9 @@ jobs:
           MATRIX_COMPONENT: ${{ matrix.component }}
         run: |
           if [[ -z "$INPUT_COMPONENTS" ]] || [[ "$INPUT_COMPONENTS" == *"$MATRIX_COMPONENT"* ]]; then
-            echo "test=true" >> $GITHUB_OUTPUT
+            echo "test=true" >> "$GITHUB_OUTPUT"
           else
-            echo "test=false" >> $GITHUB_OUTPUT
+            echo "test=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install uv
@@ -131,7 +131,7 @@ jobs:
         if: steps.should_test.outputs.test != 'false'
         run: |
           uv sync --all-extras --frozen
-          uv pip install --isolated 'pytest-html>=4.1.1' 'pytest-cov>=6.0.0'
+          uv pip install 'pytest-html>=4.1.1' 'pytest-cov>=6.0.0'
         working-directory: ${{ matrix.component }}
 
       - name: Run program-model libpng integration test
@@ -168,13 +168,16 @@ jobs:
 
       - name: Generate integration test summary
         if: always() && steps.should_test.outputs.test != 'false'
+        env:
+          COMPONENT: ${{ matrix.component }}
         run: |
-          echo "### Integration Test Results: ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f ${{ matrix.component }}/integration-test-results.xml ]; then
+          echo "### Integration Test Results: ${COMPONENT}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "${COMPONENT}/integration-test-results.xml" ]; then
             python -c "
           import xml.etree.ElementTree as ET
-          tree = ET.parse('${{ matrix.component }}/integration-test-results.xml')
+          import os
+          tree = ET.parse(os.environ['COMPONENT'] + '/integration-test-results.xml')
           root = tree.getroot()
           tests = root.get('tests', '0')
           failures = root.get('failures', '0')
@@ -187,9 +190,9 @@ jobs:
           print(f'- **Errors**: {errors}')
           print(f'- **Skipped**: {skipped}')
           print(f'- **Duration**: {float(time):.2f}s')
-          " >> $GITHUB_STEP_SUMMARY
+          " >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No integration test results found" >> $GITHUB_STEP_SUMMARY
+            echo "No integration test results found" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload integration test results

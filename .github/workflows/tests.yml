@@ -112,9 +112,9 @@ jobs:
       - name: Setup ${{ matrix.component }} component
         run: |
           uv sync --all-extras --frozen
-          # Install test reporting tools in isolated environment
+          # Install test reporting tools into the project venv
           # This avoids adding them to every component's dependencies
-          uv pip install --isolated 'pytest-html>=4.1.1' 'pytest-cov>=6.0.0'
+          uv pip install 'pytest-html>=4.1.1' 'pytest-cov>=6.0.0'
         working-directory: ${{ matrix.component }}
 
       - name: Run tests on ${{ matrix.component }} component
@@ -134,11 +134,13 @@ jobs:
       - name: Audit dependencies for vulnerabilities
         if: always()
         run: |
-          uv pip install --isolated pip-audit
           # Ignore CVEs with no available fix:
           # - CVE-2025-67221: orjson DoS via deeply nested JSON (no fix available)
           # - CVE-2026-0994: protobuf DoS via json_format.ParseDict (no fix available)
-          uv run pip-audit --strict --desc \
+          # Use --skip-editable to ignore local packages not on PyPI
+          # Use uvx to run pip-audit in an isolated environment
+          uvx pip-audit --strict --desc \
+            --skip-editable \
             --ignore-vuln CVE-2025-67221 \
             --ignore-vuln CVE-2026-0994
         working-directory: ${{ matrix.component }}
