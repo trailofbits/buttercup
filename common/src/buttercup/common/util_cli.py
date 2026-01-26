@@ -13,8 +13,10 @@ from redis import Redis
 from buttercup.common.datastructures.msg_pb2 import (
     BuildOutput,
     BuildType,
+    Crash,
     SubmissionEntry,
     SubmissionResult,
+    TracedCrash,
     WeightedHarness,
 )
 from buttercup.common.logger import setup_package_logger
@@ -126,6 +128,13 @@ class ExtractPovsSettings(BaseModel):
     pod_label: str = Field(default="app=scheduler", description="Label selector for pod to copy files from")
 
 
+class ExtractCrashesSettings(BaseModel):
+    output_dir: CliPositionalArg[Path] = Field(description="Output directory for extracted intermediate crashes")
+    task_id: str = Field(default="", description="Filter by task ID (optional)")
+    namespace: str = Field(default="crs", description="Kubernetes namespace")
+    pod_label: str = Field(default="app=scheduler", description="Label selector for pod to copy files from")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="BUTTERCUP_MSG_PUBLISHER_",
@@ -148,6 +157,10 @@ class Settings(BaseSettings):
     read_builds: CliSubCommand[ReadBuildsSettings]
     read_submissions: CliSubCommand[ReadSubmissionsSettings]
     extract_povs: CliSubCommand[ExtractPovsSettings]
+    extract_crashes: Annotated[
+        CliSubCommand[ExtractCrashesSettings],
+        Field(description="Extract intermediate crashes from crash and tracer queues"),
+    ]
 
 
 def get_pod_name(namespace: str, label: str) -> str | None:
@@ -176,6 +189,10 @@ def kubectl_cp(namespace: str, pod_name: str, remote_path: str, local_path: Path
         )
         if result.returncode != 0:
             logger.warning(f"kubectl cp failed for {remote_path}: {result.stderr}")
+            return False
+        # kubectl cp can return 0 even if source doesn't exist, so verify the file was created
+        if not local_path.exists():
+            logger.warning(f"kubectl cp returned 0 but file not created for {remote_path}")
             return False
         return True
     except Exception as e:
@@ -353,6 +370,152 @@ def extract_povs(redis: Redis, command: ExtractPovsSettings) -> None:
         logger.info(f"  {task_id}: {count} vulnerabilities")
 
 
+def extract_crashes(redis: Redis, command: ExtractCrashesSettings) -> None:
+    """Extract intermediate crashes from Redis queues into a directory structure.
+
+    Directory structure:
+        output_dir/
+            <project_name>/
+                <task_id>/
+                    crash/
+                        crash_0001/
+                            entry.txt
+                            stacktrace.txt
+                            pov.bin
+                        ...
+                    traced_crash/
+                        traced_0001/
+                            entry.txt
+                            stacktrace.txt
+                            tracer_stacktrace.txt
+                            pov.bin
+                        ...
+    """
+    from google.protobuf import text_format
+
+    output_dir = command.output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    registry = TaskRegistry(redis)
+
+    # Get pod name for kubectl cp
+    pod_name = get_pod_name(command.namespace, command.pod_label)
+    if not pod_name:
+        logger.error(f"No pod found matching label '{command.pod_label}' in namespace '{command.namespace}'")
+        return
+
+    logger.info(f"Using pod '{pod_name}' for file extraction")
+
+    stats = {"crash": 0, "traced": 0, "povs_copied": 0, "povs_failed": 0, "povs_empty_path": 0}
+    # Track per-task counters for naming
+    task_counters: dict[str, dict[str, int]] = {}
+
+    def get_task_info(task_id: str) -> tuple[str, str]:
+        """Get project_name for a task_id, return (project_name, task_id)."""
+        task = registry.get(task_id)
+        project_name = task.project_name if task else "unknown"
+        return project_name, task_id
+
+    def get_counter(task_id: str, queue_type: str) -> int:
+        """Get and increment counter for a task/queue combination."""
+        if task_id not in task_counters:
+            task_counters[task_id] = {}
+        if queue_type not in task_counters[task_id]:
+            task_counters[task_id][queue_type] = 0
+        task_counters[task_id][queue_type] += 1
+        return task_counters[task_id][queue_type]
+
+    def copy_pov(pov_path: str, dest_path: Path) -> bool:
+        """Copy a PoV file from the pod."""
+        if kubectl_cp(command.namespace, pod_name, pov_path, dest_path):
+            stats["povs_copied"] += 1
+            return True
+        else:
+            stats["povs_failed"] += 1
+            # Store the path for reference
+            dest_path.with_suffix(".path.txt").write_text(pov_path)
+            return False
+
+    # Helper to filter by task_id if specified
+    def matches_task_id(task_id: str) -> bool:
+        if not command.task_id:
+            return True
+        return task_id == command.task_id
+
+    # Extract from CRASH queue
+    crash_queue_name = QueueNames.CRASH.value
+    crash_entries = redis.xrange(crash_queue_name)
+    for entry_id, entry_data in crash_entries:
+        try:
+            msg = Crash()
+            msg.ParseFromString(entry_data[b"item"])
+            task_id = msg.target.task_id
+            if not matches_task_id(task_id):
+                continue
+
+            project_name, _ = get_task_info(task_id)
+            counter = get_counter(task_id, "crash")
+            stats["crash"] += 1
+
+            crash_dir = output_dir / project_name / task_id / "crash" / f"crash_{counter:04d}"
+            crash_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write entry
+            entry_file = crash_dir / "entry.txt"
+            entry_file.write_text(f"# Stream ID: {entry_id.decode()}\n{text_format.MessageToString(msg)}")
+
+            # Write stacktrace
+            if msg.stacktrace:
+                (crash_dir / "stacktrace.txt").write_text(msg.stacktrace)
+
+            # Copy PoV
+            if msg.crash_input_path:
+                copy_pov(msg.crash_input_path, crash_dir / "pov.bin")
+
+        except Exception as e:
+            logger.warning(f"Failed to parse crash entry {entry_id}: {e}")
+
+    # Extract from TRACED_VULNERABILITIES queue
+    traced_queue_name = QueueNames.TRACED_VULNERABILITIES.value
+    traced_entries = redis.xrange(traced_queue_name)
+    for entry_id, entry_data in traced_entries:
+        try:
+            msg = TracedCrash()
+            msg.ParseFromString(entry_data[b"item"])
+            task_id = msg.crash.target.task_id
+            if not matches_task_id(task_id):
+                continue
+
+            project_name, _ = get_task_info(task_id)
+            counter = get_counter(task_id, "traced")
+            stats["traced"] += 1
+
+            traced_dir = output_dir / project_name / task_id / "traced_crash" / f"traced_{counter:04d}"
+            traced_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write entry
+            entry_file = traced_dir / "entry.txt"
+            entry_file.write_text(f"# Stream ID: {entry_id.decode()}\n{text_format.MessageToString(msg)}")
+
+            # Write stacktraces
+            if msg.crash.stacktrace:
+                (traced_dir / "stacktrace.txt").write_text(msg.crash.stacktrace)
+            if msg.tracer_stacktrace:
+                (traced_dir / "tracer_stacktrace.txt").write_text(msg.tracer_stacktrace)
+
+            # Copy PoV
+            if msg.crash.crash_input_path:
+                copy_pov(msg.crash.crash_input_path, traced_dir / "pov.bin")
+
+        except Exception as e:
+            logger.warning(f"Failed to parse traced crash entry {entry_id}: {e}")
+
+    logger.info(f"Extraction complete to {output_dir}")
+    logger.info(f"  Crashes: {stats['crash']}")
+    logger.info(f"  Traced vulnerabilities: {stats['traced']}")
+    logger.info(f"  PoVs copied: {stats['povs_copied']}, failed: {stats['povs_failed']}")
+
+
 def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
     if command is None:
         return
@@ -523,6 +686,8 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
         logger.info("Done")
     elif isinstance(command, ExtractPovsSettings):
         extract_povs(redis, command)
+    elif isinstance(command, ExtractCrashesSettings):
+        extract_crashes(redis, command)
     elif isinstance(command, ListSettings):
         print("Available queues:")
         print("\n".join([f"- {name}" for name in get_queue_names()]))
