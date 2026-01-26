@@ -134,6 +134,14 @@ cd <component> && uv lock --upgrade
 - Line length: 120 characters
 - Pydantic models for data validation
 
+### Code Navigation
+
+- Use `get_symbols_overview` before reading full files to understand structure
+- Use `find_symbol` to locate classes/functions across components
+- Use `find_referencing_symbols` to trace message flow between services
+- Use `search_for_pattern` for non-code files (YAML, proto, configs)
+- Prefer symbol-based edits (`replace_symbol_body`, `insert_after_symbol`) over line-based edits
+
 ## Deployment Architecture
 
 The system runs as Kubernetes microservices with Helm charts in `/deployment/k8s/`:

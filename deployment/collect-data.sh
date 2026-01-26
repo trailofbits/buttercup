@@ -4,7 +4,7 @@
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RUN_DIR="run_data_${TIMESTAMP}"
 mkdir -p "${RUN_DIR}"
-cd "${RUN_DIR}"
+cd "${RUN_DIR}" || exit 1
 
 echo "Collecting all data post-run"
 # Get cluster info
@@ -21,7 +21,7 @@ echo -e "\nPods in crs namespace:"
 kubectl get pods -n crs
 
 # Ask for confirmation
-read -p "Is this the correct cluster to collect run data from? (y/N) " confirm
+read -r -p "Is this the correct cluster to collect run data from? (y/N) " confirm
 if [[ $confirm != [yY] ]]; then
     echo "Aborting data collection"
     exit 1

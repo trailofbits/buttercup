@@ -112,7 +112,7 @@ export -f process_pod
 running_jobs=0
 for pod in $pods; do
   # Wait if we've reached the maximum number of parallel jobs
-  while [ $running_jobs -ge $MAX_PARALLEL ]; do
+  while [ "$running_jobs" -ge "$MAX_PARALLEL" ]; do
     # Wait for any background job to complete
     wait -n
     running_jobs=$((running_jobs - 1))

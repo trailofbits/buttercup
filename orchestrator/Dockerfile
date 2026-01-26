@@ -11,6 +11,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
@@ -18,9 +19,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=orchestrator/pyproject.toml,target=orchestrator/pyproject.toml \
     cd orchestrator && uv sync --frozen --no-install-project --no-editable
 
-ADD common /app/common
-ADD orchestrator /app/orchestrator
+COPY common /app/common
+COPY orchestrator /app/orchestrator
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd orchestrator && uv sync --frozen --no-editable
 

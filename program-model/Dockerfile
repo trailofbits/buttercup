@@ -18,6 +18,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=/common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=/common/pyproject.toml \
@@ -37,6 +38,7 @@ FROM base AS cscope-builder
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY external/buttercup-cscope /cscope
+# hadolint ignore=DL3003
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM base AS runtime

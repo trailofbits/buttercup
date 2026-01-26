@@ -1,0 +1,66 @@
+languages:
+  - python
+
+encoding: utf-8
+ignore_all_files_in_gitignore: true
+
+roots:
+  - common
+  - orchestrator
+  - fuzzer
+  - fuzzer_runner
+  - patcher
+  - program-model
+  - seed-gen
+
+ignore:
+  - ".git"
+  - ".venv"
+  - "__pycache__"
+  - "*.egg-info"
+  - "*.pyc"
+  - "build"
+  - "dist"
+  - ".ruff_cache"
+  - ".mypy_cache"
+  - ".pytest_cache"
+  - ".hypothesis"
+  - "htmlcov"
+  - ".idea"
+  - ".vscode"
+  - ".worktrees"
+  - "crs_scratch"
+  - "tasks_storage"
+  - "external"
+  - "**/node_modules"
+  - "**/uv.lock"
+  - "**/*.pb2.py"
+  - "litellm/**"
+  - "deployment/k8s/**"
+  - "competition-server/**"
+
+allow_write: true
+
+excluded_tools:
+  - onboarding
+  - check_onboarding_performed
+  - list_dir
+  - find_file
+  - write_memory
+  - read_memory
+  - list_memories
+  - delete_memory
+  - edit_memory
+
+initial_prompt: |
+  This project has a comprehensive CLAUDE.md with architecture, development
+  commands, and component-specific patterns. Refer to it for project context
+  rather than using onboarding or memories.
+
+  Tool usage patterns for this multi-component codebase:
+  - Use get_symbols_overview before reading files to understand structure
+  - Use find_symbol to locate definitions across the 7 component packages
+  - Use find_referencing_symbols to trace Redis message handlers and protobuf usage
+  - Prefer replace_symbol_body over line-based edits for precision
+  - Use search_for_pattern for YAML configs and proto files (not indexed by LSP)
+  - Call think_about_collected_information after exploring before making changes

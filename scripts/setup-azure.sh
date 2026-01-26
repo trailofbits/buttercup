@@ -19,8 +19,10 @@ setup_service_principal() {
     print_status "Setting up Azure Service Principal..."
     
     # Get current subscription
-    local subscription_id=$(az account show --query id -o tsv)
-    local subscription_name=$(az account show --query name -o tsv)
+    local subscription_id
+    local subscription_name
+    subscription_id=$(az account show --query id -o tsv)
+    subscription_name=$(az account show --query name -o tsv)
     
     print_status "Current subscription: $subscription_name ($subscription_id)"
 
@@ -32,7 +34,7 @@ setup_service_principal() {
     RESOURCE_GROUP_NAME="${TF_VAR_resource_group_name:-}"
     if [ -z "$RESOURCE_GROUP_NAME" ] || [ "$RESOURCE_GROUP_NAME" = "<your-resource-group-name>" ]; then
         print_status "Please specify the resource group where all Azure resources will be deployed:"
-        read -p "Enter resource group name (e.g., buttercup-crs-rg): " RESOURCE_GROUP_NAME
+        read -r -p "Enter resource group name (e.g., buttercup-crs-rg): " RESOURCE_GROUP_NAME
 
         if [ -z "$RESOURCE_GROUP_NAME" ]; then
             print_error "Resource group name is required"
@@ -43,7 +45,7 @@ setup_service_principal() {
     fi
     RESOURCE_GROUP_LOCATION="${TF_VAR_resource_group_location:-}"
     if [ -z "$RESOURCE_GROUP_LOCATION" ] || [ "$RESOURCE_GROUP_LOCATION" = "<your-resource-group-location>" ]; then
-        read -p "Enter resource group location (default: eastus): " RESOURCE_GROUP_LOCATION
+        read -r -p "Enter resource group location (default: eastus): " RESOURCE_GROUP_LOCATION
         if [ -z "$RESOURCE_GROUP_LOCATION" ]; then
             RESOURCE_GROUP_LOCATION="eastus"
             print_status "No value provided. Using default: $RESOURCE_GROUP_LOCATION"
@@ -85,17 +87,22 @@ setup_service_principal() {
 
     # Only prompt to create a new service principal if TF_VAR_ARM_CLIENT_ID and TF_VAR_ARM_CLIENT_SECRET are not set
     if [ -z "$TF_VAR_ARM_CLIENT_ID" ] || [ "$TF_VAR_ARM_CLIENT_ID" = "<your-client-id>" ] || [ -z "$TF_VAR_ARM_CLIENT_SECRET" ] || [ "$TF_VAR_ARM_CLIENT_SECRET" = "<your-client-secret>" ]; then
-        read -p "Do you want to create a new service principal? (y/N): " -n 1 -r
+        read -r -p "Do you want to create a new service principal? (y/N): " -n 1
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            local sp_name="ButtercupCRS-$(date +%Y%m%d-%H%M%S)"
+            local sp_name
+            sp_name="ButtercupCRS-$(date +%Y%m%d-%H%M%S)"
             print_status "Creating service principal: $sp_name"
 
-            local sp_output=$(az ad sp create-for-rbac --name "$sp_name" --role Contributor --scopes "/subscriptions/$subscription_id/resourceGroups/$RESOURCE_GROUP_NAME" --output json)
+            local sp_output
+            sp_output=$(az ad sp create-for-rbac --name "$sp_name" --role Contributor --scopes "/subscriptions/$subscription_id/resourceGroups/$RESOURCE_GROUP_NAME" --output json)
 
-            local app_id=$(echo "$sp_output" | jq -r '.appId')
-            local password=$(echo "$sp_output" | jq -r '.password')
-            local tenant_id=$(echo "$sp_output" | jq -r '.tenant')
+            local app_id
+            local password
+            local tenant_id
+            app_id=$(echo "$sp_output" | jq -r '.appId')
+            password=$(echo "$sp_output" | jq -r '.password')
+            tenant_id=$(echo "$sp_output" | jq -r '.tenant')
 
             print_success "Service principal created successfully"
             echo
@@ -184,9 +191,10 @@ setup_remote_state() {
         # Use the same resource group as specified in setup_service_principal
         local state_rg="$RESOURCE_GROUP_NAME"
         # Generate a short random suffix (4 alphanumeric chars)
-        local rand_suffix=$(LC_CTYPE=C tr -dc 'a-z0-9' </dev/urandom | head -c 4)
+        local rand_suffix
+        rand_suffix=$(LC_CTYPE=C tr -dc 'a-z0-9' </dev/urandom | head -c 4)
         local default_storage_account="buttercuptf${rand_suffix}"
-        read -p "Enter storage account name (default: $default_storage_account): " storage_account
+        read -r -p "Enter storage account name (default: $default_storage_account): " storage_account
         if [[ -z "$storage_account" ]]; then
             storage_account="$default_storage_account"
             print_status "No storage account name provided. Using default: $storage_account"
@@ -229,7 +237,7 @@ setup_aks_resources() {
     portable_sed "s|^[# ]*export CLUSTER_TYPE=.*|export CLUSTER_TYPE=\"aks\"|" deployment/env
 
     # Set VM size
-    read -p "Enter the VM size for the AKS cluster (default: Standard_L8s): " vm_size
+    read -r -p "Enter the VM size for the AKS cluster (default: Standard_L8s): " vm_size
     if [[ -z "$vm_size" ]]; then
         vm_size="Standard_L8s"
         print_status "No value provided. Using default: $vm_size"
@@ -262,7 +270,7 @@ setup_aks_resources() {
     fi
 
     # Prompt for number of user nodes, default to 3
-    read -p "Enter the number of user nodes for the AKS cluster (default: 3): " usr_node_count
+    read -r -p "Enter the number of user nodes for the AKS cluster (default: 3): " usr_node_count
     if [[ -z "$usr_node_count" ]]; then
         usr_node_count=3
         print_status "No value provided. Using default: $usr_node_count"
@@ -282,10 +290,11 @@ setup_tailscale() {
         print_status "Configure a OAuth Client at https://login.tailscale.com/admin/settings/oauth"
         print_status "Make sure to configure Tailscale DNS and to enable HTTPS Certificates at https://login.tailscale.com/admin/dns"
 
-        read -p "Enter the OAuth Client ID: " oauth_client_id
-        read -s -p "Enter the OAuth Client Secret: " oauth_client_secret
-        read -p "Enter the Tailscale Operator Tag: " tailscale_op_tag
-        read -p "Enter the Tailscale Domain: " tailscale_domain
+        read -r -p "Enter the OAuth Client ID: " oauth_client_id
+        read -rs -p "Enter the OAuth Client Secret: " oauth_client_secret
+        echo
+        read -r -p "Enter the Tailscale Operator Tag: " tailscale_op_tag
+        read -r -p "Enter the Tailscale Domain: " tailscale_domain
 
         portable_sed "s|^[# ]*export TAILSCALE_ENABLED=.*|export TAILSCALE_ENABLED=\"true\"|" deployment/env
         portable_sed "s|^[# ]*export TS_CLIENT_ID=.*|export TS_CLIENT_ID=\"$oauth_client_id\"|" deployment/env
