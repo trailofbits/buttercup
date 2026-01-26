@@ -11,12 +11,12 @@ from buttercup.common.clusterfuzz_env import environment
 logs = logging.getLogger(__name__)
 
 EXTRA_BUILD_DIR = '__extra_build'
+DEBUG_BUILD_DIR = 'debug'
 
 ALLOWED_FUZZ_TARGET_EXTENSIONS = ['', '.exe', '.par']
 FUZZ_TARGET_SEARCH_BYTES = b'LLVMFuzzerTestOneInput'
 VALID_TARGET_NAME_REGEX = re.compile(r'^[a-zA-Z0-9@_.-]+$')
 BLOCKLISTED_TARGET_NAME_REGEX = re.compile(r'^(jazzer_driver.*)$')
-EXTRA_BUILD_DIR = '__extra_build'
 
 
 
@@ -90,8 +90,9 @@ def get_fuzz_targets(path):
 
   for root, _, files in walk(path):
     for filename in files:
-      if os.path.basename(root) == EXTRA_BUILD_DIR:
-        # Ignore extra binaries.
+      root_basename = os.path.basename(root)
+      if root_basename == EXTRA_BUILD_DIR or root_basename == DEBUG_BUILD_DIR:
+        # Ignore extra binaries and debug builds.
         continue
 
       file_path = os.path.join(root, filename)

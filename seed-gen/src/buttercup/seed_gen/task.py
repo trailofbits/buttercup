@@ -41,10 +41,14 @@ class CodeSnippet(BaseModel):
 
     file_path: Path
     code: str
+    start_line: int
+    end_line: int
 
     def __str__(self) -> str:
         return f"""<code_snippet>
 <file_path>{self.file_path}</file_path>
+<start_line>{self.start_line}</start_line>
+<end_line>{self.end_line}</end_line>
 <code>
 {self.code}
 </code>
@@ -69,7 +73,7 @@ class ToolCallResult(BaseModel):
 
 class ToolCall(BaseModel):
     tool_name: str
-    arguments: dict[str, str]
+    arguments: dict[str, str | list[str] | None]
 
 
 class BatchToolCalls(BaseModel):
@@ -89,7 +93,12 @@ class Task:
 
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
 
+    # Tool output limits
     MAX_TYPE_DEFS = 5
+    MAX_CALLERS = 20
+    MAX_GREP_OUTPUT_CHARS = 10000
+    MAX_BATCH_CALLS = 10
+
     _harness_source_cache: ClassVar[dict[str, str]] = {}
 
     def __post_init__(self) -> None:
@@ -108,6 +117,18 @@ class Task:
             get_callers,
         ]
         self.llm_with_tools = self.llm.bind_tools(self.tools)
+
+    def get_debug_tools(self) -> list[BaseTool]:
+        """Get tools for debug subagents, including grep and symbol lookup."""
+        return [
+            get_function_definition,
+            get_type_definition,
+            batch_tool,
+            cat,
+            get_callers,
+            grep,
+            lookup_symbols,
+        ]
 
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
@@ -312,7 +333,12 @@ class Task:
         function_def = state.task.get_function_def(function_name, fuzzy=False)
         if function_def:
             results = [
-                CodeSnippet(file_path=function_def.file_path, code=function_def.bodies[0].body),
+                CodeSnippet(
+                    file_path=function_def.file_path,
+                    code=function_def.bodies[0].body,
+                    start_line=function_def.bodies[0].start_line,
+                    end_line=function_def.bodies[0].end_line,
+                ),
             ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
@@ -361,7 +387,15 @@ class Task:
             )
         type_defs = state.task._do_get_type_defs(type_name)
         if len(type_defs) > 0:
-            results = [CodeSnippet(file_path=type_def.file_path, code=type_def.definition) for type_def in type_defs]
+            results = [
+                CodeSnippet(
+                    file_path=type_def.file_path,
+                    code=type_def.definition,
+                    start_line=type_def.definition_line,
+                    end_line=type_def.definition_line + len(type_def.definition.splitlines()),
+                )
+                for type_def in type_defs
+            ]
             call_result = ToolCallResult(call=call, results=results)
             return Command(
                 update={
@@ -422,7 +456,7 @@ class Task:
                 },
             )
         cat_output = cat_cmd_res.output.decode("utf-8")
-        results = [CodeSnippet(file_path=path, code=cat_output)]
+        results = [CodeSnippet(file_path=path, code=cat_output, start_line=1, end_line=len(cat_output.splitlines()))]
         call_result = ToolCallResult(call=call, results=results)
         return Command(
             update={
@@ -438,21 +472,323 @@ class Task:
             },
         )
 
+    @staticmethod
+    def _grep(
+        pattern: str,
+        file_path: str | None,
+        state: "BaseTaskState",
+        tool_call_id: str,
+    ) -> Command:
+        """Implementation of grep tool"""
+        logger.info("Tool call: grep for pattern %s in %s", pattern, file_path)
+        path = Path(file_path) if file_path else None
+        call = f'grep("{pattern}", "{file_path}")' if file_path else f'grep("{pattern}")'
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Grep results for pattern {pattern} already retrieved",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        args = ["grep", "-C", "5", "-nHrE", pattern]
+        if path:
+            args.append(str(path))
+        grep_cmd_res = state.task.challenge_task.exec_docker_cmd(args)
+        if not grep_cmd_res.success:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Could not search for pattern {pattern} in {path if path else 'project'}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+        grep_output = grep_cmd_res.output.decode("utf-8")
+
+        # Enforce a character limit to prevent overwhelming the LLM context
+        truncated = False
+        truncation_msg = ""
+
+        if len(grep_output) > state.task.MAX_GREP_OUTPUT_CHARS:
+            # Count total lines before truncation
+            total_lines = len(grep_output.splitlines())
+
+            # Truncate to first MAX_GREP_OUTPUT_CHARS characters
+            grep_output = grep_output[: state.task.MAX_GREP_OUTPUT_CHARS]
+
+            # Find the last complete line to avoid cutting mid-line
+            last_newline = grep_output.rfind("\n")
+            if last_newline > 0:
+                grep_output = grep_output[:last_newline]
+
+            shown_lines = len(grep_output.splitlines())
+            truncated = True
+            truncation_msg = f"""\n\n... OUTPUT TRUNCATED ...\n
+Showing first {shown_lines} of {total_lines} lines (first {len(grep_output)}
+of {len(grep_cmd_res.output)} characters)."""
+            grep_output += truncation_msg
+
+        # For grep results, we create a single CodeSnippet with the grep output
+        # Since grep can match multiple files, we use a generic path or the provided path
+        result_path = path if path else Path(".")
+        results = [
+            CodeSnippet(
+                file_path=result_path,
+                code=grep_output,
+                start_line=1,
+                end_line=len(grep_output.splitlines()) if grep_output else 1,
+            )
+        ]
+        call_result = ToolCallResult(call=call, results=results)
+
+        message = f"Found matches for pattern {pattern}"
+        if truncated:
+            message += f" (truncated - showing first ~{state.task.MAX_GREP_OUTPUT_CHARS} characters)"
+
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        message,
+                        tool_call_id=tool_call_id,
+                    ),
+                ],
+                "retrieved_context": {
+                    call: call_result,
+                },
+            },
+        )
+
+    @staticmethod
+    def _lookup_symbols(
+        function_patterns: list[str],
+        state: "BaseTaskState",
+        tool_call_id: str,
+    ) -> Command:
+        """Look up function symbols in the binary using GDB"""
+        # Limit to 20 patterns
+        if len(function_patterns) > 20:
+            function_patterns = function_patterns[:20]
+            logger.warning("Limiting symbol lookup to first 20 patterns")
+
+        logger.info("Tool call: lookup_symbols for patterns %s", function_patterns)
+        call = f"lookup_symbols({function_patterns})"
+
+        # Check cache to avoid redundant lookups
+        if call in state.retrieved_context:
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Symbol lookup for {function_patterns} already retrieved",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+
+        # Get task and harness info
+        task = state.task
+        harness_name = state.harness.harness_name if hasattr(state, "harness") else task.harness_name
+
+        # Get binary path - need to access reproduce_multiple
+        # This is available in debug task states
+        if not hasattr(state, "reproduce_multiple"):
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            "Symbol lookup tool not available in this task context (no reproduce_multiple in state)",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+
+        reproduce_multiple = state.reproduce_multiple
+
+        try:
+            with reproduce_multiple.open() as mult:
+                # Select best build for the harness
+                selected = mult.select_build_for_harness(harness_name)
+                if selected is None:
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    "Build cache not available for symbol lookup",
+                                    tool_call_id=tool_call_id,
+                                ),
+                            ],
+                        },
+                    )
+
+                cached_task = selected.task
+                build_dir = cached_task.get_build_dir()
+                if not build_dir or not build_dir.exists():
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    "Build directory not found for symbol lookup",
+                                    tool_call_id=tool_call_id,
+                                ),
+                            ],
+                        },
+                    )
+
+                # Use the selected build's binary determination
+                using_debug = selected.using_debug
+                if using_debug:
+                    binary_path = cached_task.get_debug_binary_path(harness_name)
+                else:
+                    binary_path = build_dir / harness_name
+                    if not binary_path.exists():
+                        return Command(
+                            update={
+                                "messages": [
+                                    ToolMessage(
+                                        f"Binary not found at {binary_path}",
+                                        tool_call_id=tool_call_id,
+                                    ),
+                                ],
+                            },
+                        )
+
+                # Mount directories for GDB
+                project_name = build_dir.name
+                out_dir = build_dir.parent
+                mount_dirs = {out_dir: Path("/builds")}
+
+                container_binary = f"/builds/{project_name}/{harness_name}"
+
+                # Run GDB with commands passed directly via -ex flags
+                # This avoids needing to mount a script file and dealing with docker-in-docker complexity
+                gdb_cmd = ["gdb", "-batch"]
+
+                # Add an info functions command for each pattern
+                for pattern in function_patterns:
+                    gdb_cmd.extend(["-ex", f"info functions {pattern}"])
+
+                gdb_cmd.extend(["-ex", "quit", container_binary])
+
+                result = cached_task.exec_docker_cmd(
+                    gdb_cmd,
+                    mount_dirs=mount_dirs,
+                    container_image="gcr.io/oss-fuzz-base/base-runner-debug",
+                )
+
+                if not result.success:
+                    error_msg = result.error.decode("utf-8", errors="ignore")[:500] if result.error else "Unknown error"
+                    return Command(
+                        update={
+                            "messages": [
+                                ToolMessage(
+                                    f"GDB symbol lookup failed: {error_msg}",
+                                    tool_call_id=tool_call_id,
+                                ),
+                            ],
+                        },
+                    )
+
+                output = result.output.decode("utf-8", errors="ignore")
+                logger.info(f"GDB output: {output}")
+
+                # Parse the output to extract function symbols
+                # Strip out GDB headers and just return the function definitions
+                all_functions = []
+
+                for line in output.splitlines():
+                    # Skip GDB headers and metadata
+                    if (
+                        line.startswith("All functions matching")
+                        or line.startswith("File ")
+                        or line.startswith("Non-debugging symbols:")
+                        or not line.strip()
+                    ):
+                        continue
+
+                    # Extract lines that look like function definitions
+                    # Format is typically: line_num:   return_type function_name(args);
+                    if "(" in line:
+                        func_line = line.strip()
+                        all_functions.append(func_line)
+
+                # Limit output to prevent overwhelming context
+                MAX_SYMBOLS = 100
+                total_found = len(all_functions)
+
+                if all_functions:
+                    # Show first N matches
+                    funcs_to_show = all_functions[:MAX_SYMBOLS]
+                    symbol_output = "\n".join(funcs_to_show)
+
+                    if total_found > MAX_SYMBOLS:
+                        symbol_output += f"""\n\n... {total_found - MAX_SYMBOLS} more matches not shown.
+Refine your patterns for more specific results."""
+
+                    message = f"Found {total_found} matching symbols for pattern(s): {', '.join(function_patterns)}"
+                    if total_found > MAX_SYMBOLS:
+                        message += f" (showing first {MAX_SYMBOLS})"
+                else:
+                    symbol_output = "No matching symbols found. The functions may not exist, or try different patterns."
+                    message = "No matching symbols found"
+
+                # Create a code snippet with the results
+                results = [
+                    CodeSnippet(
+                        file_path=Path(f"symbols_{harness_name}"),
+                        code=symbol_output,
+                        start_line=1,
+                        end_line=len(symbol_output.splitlines()),
+                    )
+                ]
+                call_result = ToolCallResult(call=call, results=results)
+
+                return Command(
+                    update={
+                        "messages": [
+                            ToolMessage(
+                                message,
+                                tool_call_id=tool_call_id,
+                            ),
+                        ],
+                        "retrieved_context": {call: call_result},
+                    },
+                )
+        except Exception as e:
+            logger.error(f"Error during symbol lookup: {e}")
+            return Command(
+                update={
+                    "messages": [
+                        ToolMessage(
+                            f"Symbol lookup failed with error: {str(e)}",
+                            tool_call_id=tool_call_id,
+                        ),
+                    ],
+                },
+            )
+
     def _do_get_callers(
         self,
         function_name: str,
     ) -> list[Function]:
         """Get the callers of a function"""
-        max_callers = 20
         callers = self.codequery.get_callers(function_name)
-        if len(callers) > max_callers:
+        if len(callers) > self.MAX_CALLERS:
             logger.info(
                 "Found %d callers for %s, truncating to %d",
                 len(callers),
                 function_name,
-                max_callers,
+                self.MAX_CALLERS,
             )
-            callers = callers[:max_callers]
+            callers = callers[: self.MAX_CALLERS]
         return callers  # type: ignore[no-any-return]
 
     @staticmethod
@@ -490,19 +826,24 @@ class Task:
             )
         callers = state.task._do_get_callers(function_name)
 
-        code_snippets = [CodeSnippet(file_path=caller.file_path, code=caller.bodies[0].body) for caller in callers]
+        code_snippets = [
+            CodeSnippet(
+                file_path=caller.file_path,
+                code=caller.bodies[0].body,
+                start_line=caller.bodies[0].start_line,
+                end_line=caller.bodies[0].end_line,
+            )
+            for caller in callers
+        ]
         call_result = ToolCallResult(call=call, results=code_snippets)
         return Command(
             update={
                 "messages": [
                     ToolMessage(
-                        f"Found {len(code_snippets)} callers of function {function_name}",
-                        tool_call_id=tool_call_id,
+                        f"Found {len(code_snippets)} callers of function {function_name}", tool_call_id=tool_call_id
                     ),
                 ],
-                "retrieved_context": {
-                    call: call_result,
-                },
+                "retrieved_context": {call: call_result},
             },
         )
 
@@ -518,6 +859,9 @@ class BaseTaskState(BaseModel):
     )
     generated_functions: str = Field(description="The generated seed functions", default="")
     context_iteration: int = Field(description="Count of context retrieval iterations", default=0)
+    context_iteration_again: int = Field(
+        description="Count of context retrieval iterations for the second time", default=0
+    )
     task: Task = Field(description="The task instance")
     output_dir: Path = Field(description="Directory to save generated seeds")
 
@@ -577,6 +921,39 @@ def get_type_definition(
 
 
 @tool
+def lookup_symbols(
+    function_patterns: list[str],
+    *,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Look up function symbols in the binary using GDB's info functions command.
+
+    This helps find the actual symbol names when functions might be mangled (C++)
+    or modified by compiler instrumentation (coverage, sanitizers).
+
+    Use this tool when you need to set breakpoints on functions but aren't sure of
+    the exact symbol name in the binary. This is especially useful for:
+    - C++ functions that may be name-mangled
+    - Functions modified by sanitizer instrumentation
+    - Functions with compiler-added prefixes/suffixes
+
+    Args:
+        function_patterns: List of function names or regex patterns to search for (max 20).
+                          Examples: ["png_inflate", "decode_*", ".*process.*"]
+
+    Returns:
+        List of matching function symbols as they appear in the binary
+
+    Examples:
+        lookup_symbols(["png_inflate"])  # Find functions with "png_inflate" in name
+        lookup_symbols(["^png_", "^decode_"])  # Multiple patterns
+    """
+    assert isinstance(state, BaseTaskState)
+    return Task._lookup_symbols(function_patterns, state, tool_call_id)
+
+
+@tool
 def batch_tool(
     tool_calls: BatchToolCalls,
     *,
@@ -597,26 +974,45 @@ def batch_tool(
     """
     assert isinstance(state, BaseTaskState)
     logger.info("Tool call: batch_tool for %d calls", len(tool_calls.calls))
-    max_calls_in_batch = 10
     results = []
-    for call in tool_calls.calls[:max_calls_in_batch]:
+    for call in tool_calls.calls[: state.task.MAX_BATCH_CALLS]:
         if call.tool_name == "get_function_definition" and "function_name" in call.arguments:
             function_name = call.arguments["function_name"]
-            result = Task._get_function_definition(function_name, state, tool_call_id)
-            results.append(result)
+            if isinstance(function_name, str):
+                result = Task._get_function_definition(function_name, state, tool_call_id)
+                results.append(result)
         elif call.tool_name == "get_type_definition" and "type_name" in call.arguments:
             type_name = call.arguments["type_name"]
-            result = Task._get_type_definition(type_name, state, tool_call_id)
-            results.append(result)
+            if isinstance(type_name, str):
+                result = Task._get_type_definition(type_name, state, tool_call_id)
+                results.append(result)
         elif call.tool_name == "cat" and "file_path" in call.arguments:
             file_path = call.arguments["file_path"]
-            result = Task._cat(file_path, state, tool_call_id)
-            results.append(result)
+            if isinstance(file_path, str):
+                result = Task._cat(file_path, state, tool_call_id)
+                results.append(result)
         elif call.tool_name == "get_callers" and "function_name" in call.arguments and "file_path" in call.arguments:
             function_name = call.arguments["function_name"]
             file_path = call.arguments["file_path"]
-            result = Task._get_callers(function_name, file_path, state, tool_call_id)
-            results.append(result)
+            if isinstance(function_name, str) and isinstance(file_path, str):
+                result = Task._get_callers(function_name, file_path, state, tool_call_id)
+                results.append(result)
+        elif call.tool_name == "grep" and "pattern" in call.arguments:
+            pattern = call.arguments["pattern"]
+            if not isinstance(pattern, str):
+                continue
+            file_path = call.arguments.get("file_path")  # Optional, can be None
+            if isinstance(file_path, str) or file_path is None:
+                result = Task._grep(pattern, file_path, state, tool_call_id)
+                results.append(result)
+        elif call.tool_name == "lookup_symbols" and "function_patterns" in call.arguments:
+            function_patterns = call.arguments["function_patterns"]
+            # Ensure it's a list (might be a single string or already a list)
+            if isinstance(function_patterns, str):
+                function_patterns = [function_patterns]
+            if isinstance(function_patterns, list):
+                result = Task._lookup_symbols(function_patterns, state, tool_call_id)
+                results.append(result)
         else:
             logger.warning("Invalid tool call: %s args: %s", call.tool_name, call.arguments)
 
@@ -692,3 +1088,29 @@ def get_callers(
     """
     assert isinstance(state, BaseTaskState)
     return Task._get_callers(function_name, file_path, state, tool_call_id)
+
+
+@tool
+def grep(
+    pattern: str,
+    file_path: str | None = None,
+    *,
+    state: Annotated[BaseModel, InjectedState],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command:
+    """Grep for a string and return a 5-line context around the match, together with line numbers.
+
+    If no file_path is provided, search the entire project. Prefer using this tool over cat when
+    you need to search for specific patterns.
+
+    Args:
+        pattern: The pattern to search for (regular expression)
+        file_path: Optional path to a specific file or directory to search in
+
+    Notes:
+        - If no file_path is provided, the entire project will be searched
+        - The search returns 5 lines of context around each match
+        - Line numbers are included in the output
+    """
+    assert isinstance(state, BaseTaskState)
+    return Task._grep(pattern, file_path, state, tool_call_id)

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from buttercup.common.clusterfuzz_utils import EXTRA_BUILD_DIR, get_fuzz_targets
+from buttercup.common.clusterfuzz_utils import DEBUG_BUILD_DIR, EXTRA_BUILD_DIR, get_fuzz_targets
 
 
 class TestGetFuzzTargets(unittest.TestCase):
@@ -56,6 +56,20 @@ class TestGetFuzzTargets(unittest.TestCase):
 
         self.assertEqual(found_targets, [valid_target])
         self.assertNotIn(extra_build_target, found_targets)
+
+    def test_ignore_debug_build_directory(self):
+        # Create a valid fuzz target in main directory
+        valid_target = os.path.join(self.test_dir, "test_fuzzer")
+        self.create_file(valid_target, b"LLVMFuzzerTestOneInput")
+
+        # Create a fuzz target in debug directory
+        debug_build_target = os.path.join(self.test_dir, DEBUG_BUILD_DIR, "debug_fuzzer")
+        self.create_file(debug_build_target, b"LLVMFuzzerTestOneInput")
+
+        found_targets = get_fuzz_targets(self.test_dir)
+
+        self.assertEqual(found_targets, [valid_target])
+        self.assertNotIn(debug_build_target, found_targets)
 
     def test_empty_directory(self):
         # Test with an empty directory

@@ -175,7 +175,7 @@ fuzzer-bot:
   enabled: true
 
 coverage-bot:
-  enabled: true
+  enabled: false
 
 tracer-bot:
   enabled: true
@@ -184,6 +184,20 @@ seed-gen:
   enabled: true
   logMaxLineLength: 10240
   maxCorpusSeedSize: 65536  # 64 KiB
+  # Debug vuln discovery configuration
+  # Set useDebugVulnDiscovery to true to enable debug vuln discovery
+  useDebugVulnDiscovery: false 
+  vulnDiscoveryProbFull: .4
+  vulnDiscoveryProbDelta: .4
+  seedInitProbFull: .4
+  seedInitProbDelta: .4
+  seedExploreProbFull: .2
+  seedExploreProbDelta: .2
+  minSeedInitRuns: 0
+  minVulnDiscoveryRuns: 0
+  # Harness whitelist - comma-separated list of harness names/substrings to allow
+  # If not set or empty, all harnesses are allowed
+  # harnessWhitelist: "TestFuzzCryptoCertificateDataSetPEM, libpng_read_fuzzer, curl_fuzzer_ws"
 
 patcher:
   enabled: true
@@ -216,6 +230,15 @@ litellm-helm:
 
   # Number of workers for the LiteLLM service
   replicaCount: 1
+
+  # Resource limits for LiteLLM container to prevent OOMKilled errors
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
 
   # Set the service port
   service:

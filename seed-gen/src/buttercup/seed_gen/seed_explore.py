@@ -123,6 +123,8 @@ class SeedExploreTask(SeedBaseTask):
         function_snippet = CodeSnippet(
             file_path=function_def.file_path,
             code=function_def.bodies[0].body,
+            start_line=function_def.bodies[0].start_line,
+            end_line=function_def.bodies[0].end_line,
         )
 
         harness = self.get_harness_source()

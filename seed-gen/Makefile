@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-PY_IMPORT = seed_gen
+PY_IMPORT = buttercup.seed_gen
 
 ALL_PY_SRCS := $(shell find src -name '*.py') \
 	$(shell find test -name '*.py')
@@ -70,8 +70,8 @@ reformat:
 .PHONY: test tests
 test tests: $(VENV)/pyvenv.cfg
 	. $(VENV_BIN)/activate && \
-		pytest --cov=$(PY_IMPORT) $(T) $(TEST_ARGS) && \
-		python -m coverage report -m $(COV_ARGS)
+		uv run pytest --cov=$(PY_IMPORT) $(T) $(TEST_ARGS) && \
+		uv run python -m coverage report -m $(COV_ARGS)
 
 .PHONY: doc
 doc:

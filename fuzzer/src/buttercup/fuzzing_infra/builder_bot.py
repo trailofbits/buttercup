@@ -145,6 +145,8 @@ class BuilderBot:
 
             # log telemetry
             tracer = trace.get_tracer(__name__)
+
+            # Regular build for FUZZER, COVERAGE, TRACER_NO_DIFF, PATCH
             with tracer.start_as_current_span("build_fuzzers_with_cache") as span:
                 set_crs_attributes(
                     span,

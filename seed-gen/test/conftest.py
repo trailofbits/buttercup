@@ -1,5 +1,6 @@
 """Shared test fixtures and utilities for seed-gen tests."""
 
+import os
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, Mock
@@ -9,6 +10,12 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.messages.tool import ToolCall
 from redis import Redis
+
+# Set PYTHON_WASM_BUILD_PATH before any imports that might need it
+# This prevents KeyError when importing modules that reference it at module level
+if "PYTHON_WASM_BUILD_PATH" not in os.environ:
+    # Use a dummy path - tests that actually need WASM should set this properly
+    os.environ["PYTHON_WASM_BUILD_PATH"] = "/tmp/dummy-python.wasm"
 
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
@@ -320,6 +327,7 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
+    """Configure pytest."""
     config.addinivalue_line("markers", "integration: mark test as an integration test")
 
 

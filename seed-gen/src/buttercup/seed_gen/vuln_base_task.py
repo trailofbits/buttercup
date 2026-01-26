@@ -3,6 +3,7 @@ import logging
 import operator
 import random
 import shutil
+import time
 from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,7 +68,7 @@ class VulnBaseState(BaseTaskState):
     )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
     current_dir: Path = Field(
-        description="Directory to store most recent seeds before they are tested",
+        description="Directory to store most recent files before they are tested",
     )
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)
@@ -106,6 +107,7 @@ class VulnBaseTask(Task):
 
     MAX_POV_ITERATIONS: ClassVar[int] = 3
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
+    start_time: float | None = None
 
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
@@ -167,6 +169,9 @@ class VulnBaseTask(Task):
         """Test the PoVs"""
         # Note: due to reproduce_multiple, this node cannot be parallelized
         logger.info("Testing PoVs")
+        # Ensure start_time is initialized
+        if self.start_time is None:
+            self.start_time = time.time()
         new_valid_povs = 0
         for pov in state.current_dir.iterdir():
             final_name = f"iter{state.pov_iteration}_{pov.name}"  # avoid name conflicts
@@ -177,14 +182,21 @@ class VulnBaseTask(Task):
                     final_path,
                     self.harness_name,
                 ):
+                    # Calculate time taken if start_time is available
+                    time_taken = "N/A"
+                    if hasattr(self, "start_time") and self.start_time is not None:
+                        time_taken = f"{time.time() - self.start_time:.2f} seconds"
+
                     logger.info(
-                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
+                        "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s | time: %s | state: %s )",  # noqa: E501
                         self.challenge_task.task_meta.task_id,
                         self.package_name,
                         self.harness_name,
                         build.sanitizer,
                         self.challenge_task.is_delta_mode(),
                         state.pov_iteration,
+                        time_taken,
+                        str(state),
                     )
                     if self.crash_submit is not None:
                         self.submit_valid_pov(final_path, build, result)
@@ -316,6 +328,9 @@ class VulnBaseTask(Task):
         """Do vuln-discovery task"""
         mode = "delta" if self.challenge_task.is_delta_mode() else "full"
         logger.info("Doing vuln-discovery for challenge %s (mode: %s)", self.package_name, mode)
+        # Initialize start_time if not already set (e.g., by subclasses in __post_init__)
+        if not hasattr(self, "start_time") or self.start_time is None:
+            self.start_time: float = time.time()
         try:
             state = self._init_state(out_dir, current_dir)
             workflow = self._build_workflow()

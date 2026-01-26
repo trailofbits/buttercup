@@ -320,6 +320,46 @@ Service-specific environment variables that utilize the standardized variables
   value: {{ int .Values.maxCorpusSeedSize | quote }}
 - name: BUTTERCUP_SEED_GEN_SERVER__MAX_POV_SIZE
   value: {{ int .Values.global.maxPovSize | quote }}
+{{- if hasKey .Values "useDebugVulnDiscovery" }}
+- name: BUTTERCUP_USE_DEBUG_VULN_DISCOVERY
+  value: {{ .Values.useDebugVulnDiscovery | quote }}
+{{- end }}
+{{- if hasKey .Values "vulnDiscoveryProbFull" }}
+- name: BUTTERCUP_VULN_DISCOVERY_PROB_FULL
+  value: {{ .Values.vulnDiscoveryProbFull | quote }}
+{{- end }}
+{{- if hasKey .Values "vulnDiscoveryProbDelta" }}
+- name: BUTTERCUP_VULN_DISCOVERY_PROB_DELTA
+  value: {{ .Values.vulnDiscoveryProbDelta | quote }}
+{{- end }}
+{{- if hasKey .Values "seedInitProbFull" }}
+- name: BUTTERCUP_SEED_INIT_PROB_FULL
+  value: {{ .Values.seedInitProbFull | quote }}
+{{- end }}
+{{- if hasKey .Values "seedInitProbDelta" }}
+- name: BUTTERCUP_SEED_INIT_PROB_DELTA
+  value: {{ .Values.seedInitProbDelta | quote }}
+{{- end }}
+{{- if hasKey .Values "seedExploreProbFull" }}
+- name: BUTTERCUP_SEED_EXPLORE_PROB_FULL
+  value: {{ .Values.seedExploreProbFull | quote }}
+{{- end }}
+{{- if hasKey .Values "seedExploreProbDelta" }}
+- name: BUTTERCUP_SEED_EXPLORE_PROB_DELTA
+  value: {{ .Values.seedExploreProbDelta | quote }}
+{{- end }}
+{{- if hasKey .Values "minSeedInitRuns" }}
+- name: BUTTERCUP_MIN_SEED_INIT_RUNS
+  value: {{ .Values.minSeedInitRuns | quote }}
+{{- end }}
+{{- if hasKey .Values "minVulnDiscoveryRuns" }}
+- name: BUTTERCUP_MIN_VULN_DISCOVERY_RUNS
+  value: {{ .Values.minVulnDiscoveryRuns | quote }}
+{{- end }}
+{{- if and (hasKey .Values "harnessWhitelist") (ne .Values.harnessWhitelist "") (not (contains "${" .Values.harnessWhitelist)) }}
+- name: BUTTERCUP_HARNESS_WHITELIST
+  value: {{ .Values.harnessWhitelist | quote }}
+{{- end }}
 {{- end }}
 
 {{- define "buttercup.buildBotEnv" }}

@@ -3,11 +3,11 @@ replicaCount: 1
 
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 2000m
+    memory: 8Gi
   requests:
-    cpu: 200m
-    memory: 256Mi
+    cpu: 500m
+    memory: 1Gi
 
 # Health check configuration
 healthCheck:
