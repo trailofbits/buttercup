@@ -227,3 +227,78 @@ def test_input_dir_copy_corpus_all_files_too_large(temp_dir, mock_node_local):
     # Should return empty list
     assert copied_files == []
     assert input_dir.local_corpus_count() == 0
+
+
+def test_copy_corpus_only_local(temp_dir):
+    """Test that copy_corpus copies only to node-local (not remote)."""
+    remote_path = os.path.join(temp_dir, "remote")
+    with patch("buttercup.common.node_local.remote_path", return_value=remote_path):
+        input_dir = InputDir(temp_dir, "test_corpus")
+
+        src_dir = os.path.join(temp_dir, "src_corpus")
+        os.makedirs(src_dir, exist_ok=True)
+
+        # Create a test file
+        file_path = os.path.join(src_dir, "test_file")
+        with open(file_path, "wb") as f:
+            f.write(b"test content")
+
+        copied_files = input_dir.copy_corpus(src_dir)
+
+        # File should exist locally
+        assert len(copied_files) == 1
+        assert os.path.exists(copied_files[0])
+
+        # Remote file should not exist
+        remote_file = os.path.join(remote_path, os.path.basename(copied_files[0]))
+        assert not os.path.exists(remote_file)
+
+
+def test_copy_file_only_local(temp_dir):
+    """Test that copy_file with only_local=True skips remote copy."""
+    remote_path = os.path.join(temp_dir, "remote")
+    with patch("buttercup.common.node_local.remote_path", return_value=remote_path):
+        input_dir = InputDir(temp_dir, "test_corpus")
+
+        src_dir = os.path.join(temp_dir, "src_corpus")
+        os.makedirs(src_dir, exist_ok=True)
+
+        # Create a test file
+        file_path = os.path.join(src_dir, "test_file")
+        with open(file_path, "wb") as f:
+            f.write(b"test content")
+
+        # Copy file with only_local=True
+        dst = input_dir.copy_file(file_path, only_local=True)
+
+        # File should exist locally
+        assert os.path.exists(dst)
+
+        # Remote file should not exist
+        remote_file = os.path.join(remote_path, os.path.basename(dst))
+        assert not os.path.exists(remote_file)
+
+
+def test_copy_file_with_remote(temp_dir):
+    """Test that copy_file with only_local=False copies to both local and remote."""
+    remote_path = os.path.join(temp_dir, "remote")
+    with patch("buttercup.common.node_local.remote_path", return_value=remote_path):
+        input_dir = InputDir(temp_dir, "test_corpus")
+
+        src_dir = os.path.join(temp_dir, "src_corpus")
+        os.makedirs(src_dir, exist_ok=True)
+
+        # Create a test file
+        file_path = os.path.join(src_dir, "test_file")
+        with open(file_path, "wb") as f:
+            f.write(b"test content")
+
+        # Copy file with only_local=False (explicit)
+        dst = input_dir.copy_file(file_path, only_local=False)
+
+        # File should exist locally
+        assert os.path.exists(dst)
+
+        # Same file should exist in remote
+        remote_file = os.path.join(remote_path, os.path.basename(dst))
+        assert os.path.exists(remote_file)

@@ -37,18 +37,21 @@ class InputDir:
     def basename(self) -> str:
         return os.path.basename(self.path)
 
-    def copy_file(self, src_file: str) -> str:
+    def copy_file(self, src_file: str, only_local: bool = False) -> str:
         with open(src_file, "rb") as f:
             nm = hash_file(f)
             dst = os.path.join(self.path, nm)
-            dst_remote = os.path.join(self.remote_path, nm)
-            os.makedirs(self.remote_path, exist_ok=True)
-            # Make the file available both node-local and remote
+            # Copy to local corpus
             shutil.copy(src_file, dst)
-            shutil.copy(dst, dst_remote)
+            if not only_local:
+                dst_remote = os.path.join(self.remote_path, nm)
+                os.makedirs(self.remote_path, exist_ok=True)
+                # Copy to remote corpus
+                shutil.copy(dst, dst_remote)
             return dst
 
     def copy_corpus(self, src_dir: str) -> list[str]:
+        """Copy files from src_dir to local corpus only."""
         files = []
         for file in os.listdir(src_dir):
             file_path = os.path.join(src_dir, file)
@@ -60,7 +63,7 @@ class InputDir:
                     self.copy_corpus_max_size,
                 )
                 continue
-            files.append(self.copy_file(file_path))
+            files.append(self.copy_file(file_path, only_local=True))
         return files
 
     def local_corpus_size(self) -> int:
