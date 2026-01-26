@@ -26,6 +26,113 @@ The standard `azure` networking profile is used.
 - Access credentials to the competition Tailscale tailnet.
 - Minikube installed, if you want to test the full CRS locally (linux/amd64 system recommended).
 
+## Local Minikube Deployment
+
+This section covers deploying the CRS locally using minikube on macOS or Linux.
+
+### Local Prerequisites
+
+- **Docker Desktop** (macOS/Windows) or Docker Engine (Linux)
+- **minikube**: `brew install minikube` (macOS) or see [minikube install docs](https://minikube.sigs.k8s.io/docs/start/)
+- **helm**: `brew install helm` (macOS)
+- **kubectl**: `brew install kubectl` (macOS)
+
+### Docker Desktop Resource Configuration
+
+Docker Desktop has default resource limits that are typically too low for the full CRS deployment.
+
+**To configure Docker Desktop resources (macOS):**
+1. Open Docker Desktop > Settings > Resources
+2. Allocate at least:
+   - CPUs: 4-6 (depending on your machine)
+   - Memory: 8-12 GB (10GB recommended for full deployment)
+   - Disk: 80+ GB
+3. Click "Apply & Restart"
+
+**Important**: Minikube cannot use more resources than Docker Desktop allocates. If `env.template` specifies `MINIKUBE_CPU=6` and `MINIKUBE_MEMORY_GB=10`, but Docker Desktop only has 4 CPUs and 8GB RAM, minikube will fail to start or pods will remain Pending.
+
+### Quick Start
+
+```bash
+cd deployment
+cp env.template env
+
+# Edit env to configure:
+# - MINIKUBE_CPU/MINIKUBE_MEMORY_GB (match your Docker Desktop resources)
+# - OPENAI_API_KEY and/or ANTHROPIC_API_KEY
+# - Comment out GHCR_AUTH if building locally
+
+make up
+```
+
+### Common Errors and Solutions
+
+#### "Exiting due to RSRC_INSUFFICIENT_CORES" or memory errors
+
+**Cause**: Minikube is requesting more resources than Docker Desktop has available.
+
+**Solution**: Either increase Docker Desktop resources or reduce minikube resources in `env`:
+```bash
+export MINIKUBE_CPU=4
+export MINIKUBE_MEMORY_GB=7
+```
+
+#### Pods stuck in Pending state
+
+**Cause**: Kubernetes cannot schedule pods due to insufficient CPU or memory.
+
+**Solution**: This is expected with limited resources. Check which pods are pending:
+```bash
+kubectl get pods -n crs | grep Pending
+kubectl describe pod <pod-name> -n crs | grep -A5 Events
+```
+
+For local development, core services (redis, task-server, scheduler) should run. Fuzzer bots and multiple replicas may remain Pending.
+
+#### Base64 decode errors with GHCR_AUTH
+
+**Cause**: `GHCR_AUTH` is set to the placeholder value `<your-ghcr-base64-auth>`.
+
+**Solution**: Either set a valid base64-encoded GitHub token or comment out the line:
+```bash
+# export GHCR_AUTH="<your-ghcr-base64-auth>"
+```
+
+For local builds, GHCR authentication is not required.
+
+### Resource Expectations
+
+With 8GB RAM allocated to Docker Desktop:
+
+| Resource Setting | Expected Result |
+|-----------------|-----------------|
+| MINIKUBE_MEMORY_GB=10 | Minikube fails to start |
+| MINIKUBE_MEMORY_GB=7 | Minikube starts, some pods Pending |
+| MINIKUBE_MEMORY_GB=6 | More pods Pending, core services run |
+
+### macOS ARM64 (Apple Silicon) Notes
+
+- Minikube uses QEMU emulation for amd64 images on ARM64 Macs
+- Some components may run slower due to emulation overhead
+- The `gcr.io/oss-fuzz-base/base-runner` image is amd64-only
+- For best performance, use a linux/amd64 machine or cloud VM
+
+### Verifying the Deployment
+
+```bash
+# Check all pods
+kubectl get pods -n crs
+
+# Check core services are running
+kubectl get pods -n crs | grep -E "(redis|task-server|scheduler)"
+
+# View logs for a specific service
+kubectl logs -n crs -l app=scheduler --tail=50
+
+# Port forward to access the API locally
+kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
+```
+
 ### Azure
 
 #### Login to Azure

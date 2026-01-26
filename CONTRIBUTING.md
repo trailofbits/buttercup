@@ -12,8 +12,8 @@ make setup-local      # Automated setup
 make deploy           # Start environment
 
 # Setup development tools (optional but recommended)
-pip install pre-commit
-pre-commit install    # Auto-runs checks on commit
+cargo install prek    # Fast Rust-based git hooks
+prek install          # Auto-runs checks on commit
 ```
 
 ## Development Workflow
@@ -31,9 +31,49 @@ make undeploy                # Clean up resources
 
 ### Code Quality
 
-- **Tools:** `ruff` (formatting/linting), `mypy` (type checking)
-- **Pre-commit:** Automatically validates code, configs, and line endings
-- **Manual checks:** `pre-commit run --all-files`
+- **Tools:** `ruff` (formatting/linting), `ty` (type checking)
+- **Git hooks:** `prek` automatically validates code, configs, and line endings on commit
+- **Manual checks:** `prek run` or `make lint`
+
+### Test Prerequisites
+
+**Redis** (required for unit tests):
+```bash
+# Start Redis with Docker
+docker run -d -p 6379:6379 --name buttercup-redis redis:7.4
+
+# Or on macOS with Homebrew
+brew install redis && brew services start redis
+```
+
+**System dependencies** (varies by component):
+
+| Component | Dependencies |
+|-----------|-------------|
+| common, orchestrator | `ripgrep` |
+| fuzzer, fuzzer_runner | `ripgrep` |
+| program-model, patcher, seed-gen | `ripgrep`, `codequery`, `universal-ctags`, custom cscope |
+
+```bash
+# macOS
+brew install ripgrep codequery universal-ctags autoconf automake
+git submodule update --init external/buttercup-cscope
+make install-cscope
+
+# IMPORTANT: universal-ctags must be in PATH before BSD ctags (macOS default).
+# BSD ctags is incompatible with cscope/codequery. Add to ~/.zshrc or ~/.bashrc:
+export PATH="/opt/homebrew/bin:$PATH"
+
+# Ubuntu/Debian
+sudo apt-get install -y ripgrep codequery universal-ctags autoconf automake
+git submodule update --init external/buttercup-cscope
+make install-cscope
+```
+
+**seed-gen only** - requires WASM Python build path:
+```bash
+export PYTHON_WASM_BUILD_PATH="python-3.12.0.wasm"
+```
 
 ### Testing Strategy
 
@@ -45,8 +85,16 @@ make undeploy                # Clean up resources
 2. **Integration Tests** (15-30 min): Daily or with `integration-tests` label
    ```bash
    # Requires: codequery, ripgrep, cscope (for program-model, patcher, seed-gen)
-   cd <component> && uv run pytest --runintegration
+   # Requires: NODE_DATA_DIR env var pointing to writable scratch directory
+   NODE_DATA_DIR=/tmp/buttercup_test uv run pytest --runintegration
    ```
+
+   **macOS limitations:** Some integration tests require Docker builds that only work on
+   x86_64 Linux (CI). Tests that work locally on macOS ARM64:
+   - `common/tests/test_reliable_queue.py` - Redis queue tests
+   - `program-model/tests/test_tree_sitter.py` - Tree-sitter parsing
+   - `patcher/tests/test_utils.py`, `test_context_retriever.py` - Patcher utilities
+   - `seed-gen/test/test_find_harness.py` - Harness finding (some skipped)
 
 3. **Full System** (90+ min): Weekly or with `full-integration` label
    ```bash
@@ -60,6 +108,7 @@ make undeploy                # Clean up resources
 | `/common/` | Shared utilities, protobufs, Redis queues |
 | `/orchestrator/` | Task coordination, scheduling, API client |
 | `/fuzzer/` | Vulnerability discovery bots |
+| `/fuzzer_runner/` | Fuzzer execution runner |
 | `/program-model/` | Code analysis (CodeQuery, Tree-sitter) |
 | `/patcher/` | LLM-powered patch generation |
 | `/seed-gen/` | Intelligent input generation |
@@ -69,7 +118,7 @@ make undeploy                # Clean up resources
 1. **Branch** from main: `git checkout -b feature/your-feature`
 2. **Code** following existing patterns and conventions
 3. **Test** your changes at appropriate level
-4. **Commit** (pre-commit runs automatically if installed)
+4. **Commit** (prek hooks run automatically if installed)
 5. **Push** and create PR with clear description
 
 ### Python Dependencies
@@ -106,8 +155,8 @@ kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 ## Getting Help
 
 - **Environment issues?** Run `make validate` to check if your setup is ready
-- **Component won't build?** Check if you need codequery, ripgrep, or cscope installed
-- **Tests failing?** Verify dependencies with `cd <component> && uv sync`
+- **Tests failing?** Ensure Redis is running (see [Test Prerequisites](#test-prerequisites)) and dependencies are installed with `cd <component> && uv sync`
+- **Missing system tools?** See the [Test Prerequisites](#test-prerequisites) table for component-specific dependencies
 
 ## Resources
 
