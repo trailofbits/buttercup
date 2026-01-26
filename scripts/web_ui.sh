@@ -33,7 +33,7 @@ else
     cleanup() {
         echo ""
         echo "Stopping port-forward..."
-        kill $PORT_FORWARD_PID 2>/dev/null
+        kill "$PORT_FORWARD_PID" 2>/dev/null
         echo "Port-forward stopped. Goodbye!"
         exit 0
     }
@@ -57,5 +57,5 @@ fi
 
 if [ -n "$PORT_FORWARD_PID" ]; then
     # Keep the script running
-    wait $PORT_FORWARD_PID
+    wait "$PORT_FORWARD_PID"
 fi

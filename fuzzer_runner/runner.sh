@@ -9,4 +9,4 @@ else
     exit 1
 fi
 
-buttercup-fuzzer-runner $@ # we use $@ to pass all the arguments to the python script
+buttercup-fuzzer-runner "$@" # we use "$@" to pass all the arguments to the python script

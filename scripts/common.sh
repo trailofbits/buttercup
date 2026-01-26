@@ -65,7 +65,7 @@ install_docker() {
     if ! command_exists docker; then
         curl -fsSL https://get.docker.com | sh
         print_status "Adding user to Docker group (sudo required)..."
-        sudo usermod -aG docker $USER
+        sudo usermod -aG docker "$USER"
         print_success "Docker installed successfully"
         print_warning "You need to log out and back in for Docker group changes to take effect"
     else
@@ -83,7 +83,7 @@ install_uv() {
     if ! command_exists uv; then
         curl -fsSL https://astral.sh/uv/install.sh | sh
         print_status "Sourcing uv environment..."
-        source $HOME/.local/bin/env
+        source "$HOME/.local/bin/env"
         print_success "uv installed successfully"
     else
         print_success "uv is already installed"
@@ -224,7 +224,8 @@ check_azure_cli() {
     print_status "Checking Azure CLI..."
     if command_exists az; then
         if az account show >/dev/null 2>&1; then
-            local subscription=$(az account show --query name -o tsv)
+            local subscription
+            subscription=$(az account show --query name -o tsv)
             print_success "Azure CLI is logged in (subscription: $subscription)"
         else
             print_warning "Azure CLI is installed but not logged in"
@@ -257,7 +258,7 @@ setup_config_file() {
     else
         print_warning "Configuration file already exists"
         if [ "$overwrite_existing" = "true" ]; then
-            read -p "Do you want to overwrite it? (y/N): " -n 1 -r
+            read -r -p "Do you want to overwrite it? (y/N): " -n 1
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 cp deployment/env.template deployment/env
@@ -298,7 +299,7 @@ prompt_for_update() {
     local is_secret="${5:-false}"
     
     if [ -n "$current_value" ] && [ "$current_value" != "$default_value" ]; then
-        echo -n "$display_name is already configured. Set a new value? (y/N): "
+        printf "%s is already configured. Set a new value? (y/N): " "$display_name"
         read -r response
         if [[ "$response" =~ ^[Yy]$ ]]; then
             return 0  # Proceed with update
@@ -317,12 +318,12 @@ read_and_set_config() {
     local prompt_text="$3"
     local is_secret="${4:-false}"
     local value
-    
+
     if [ "$is_secret" = true ]; then
-        read -s -p "$prompt_text" value
+        read -rs -p "$prompt_text" value
         echo
     else
-        read -p "$prompt_text" value
+        read -r -p "$prompt_text" value
     fi
     
     # Only update if value is not empty
@@ -334,9 +335,9 @@ read_and_set_config() {
 
 # Helper function for GHCR configuration
 configure_ghcr_optional() {
-    read -p "Enter your GitHub username (press Enter to skip): " ghcr_username
+    read -r -p "Enter your GitHub username (press Enter to skip): " ghcr_username
     if [ -n "$ghcr_username" ]; then
-        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
+        read -rs -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
         echo
         
         # Compute GHCR_AUTH
@@ -352,9 +353,9 @@ configure_ghcr_optional() {
 
 # Helper function for Docker Hub configuration
 configure_docker_hub() {
-    read -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
+    read -r -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
     if [ -n "$docker_username" ]; then
-        read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+        read -rs -p "Enter your Docker Hub Personal Access Token: " docker_pat
         echo
         
         # Set Docker credentials (handles both commented and uncommented lines)
@@ -411,12 +412,12 @@ configure_simple_api_key() {
     local prompt_text="$2"
     local is_secret="${3:-true}"
     local value
-    
+
     if [ "$is_secret" = true ]; then
-        read -s -p "$prompt_text" value
+        read -rs -p "$prompt_text" value
         echo
     else
-        read -p "$prompt_text" value
+        read -r -p "$prompt_text" value
     fi
     
     if [ -n "$value" ]; then
@@ -438,9 +439,9 @@ configure_simple_api_key() {
 # Wrapper functions for specific configurations
 
 configure_docker_hub_optional() {
-    read -p "Enter your Docker Hub username (press Enter to skip): " docker_username
+    read -r -p "Enter your Docker Hub username (press Enter to skip): " docker_username
     if [ -n "$docker_username" ]; then
-        read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+        read -rs -p "Enter your Docker Hub Personal Access Token: " docker_pat
         echo
         
         # Set Docker credentials
@@ -456,10 +457,10 @@ configure_docker_hub_optional() {
 }
 
 configure_otel_wrapper() {
-    read -p "Enter OTEL endpoint URL (press Enter to skip): " otel_endpoint
+    read -r -p "Enter OTEL endpoint URL (press Enter to skip): " otel_endpoint
     if [ -n "$otel_endpoint" ]; then
-        read -p "Enter OTEL protocol (http/grpc): " otel_protocol
-        read -s -p "Enter OTEL token (including Basic or Bearer, optional, press Enter to skip): " otel_token
+        read -r -p "Enter OTEL protocol (http/grpc): " otel_protocol
+        read -rs -p "Enter OTEL token (including Basic or Bearer, optional, press Enter to skip): " otel_token
         echo
         
         # Update the env file
@@ -480,10 +481,10 @@ configure_otel_wrapper() {
 }
 
 configure_langfuse_wrapper() {
-    read -p "Enter LangFuse host URL (press Enter to skip): " langfuse_host
+    read -r -p "Enter LangFuse host URL (press Enter to skip): " langfuse_host
     if [ -n "$langfuse_host" ]; then
-        read -p "Enter LangFuse public key: " langfuse_public_key
-        read -s -p "Enter LangFuse secret key: " langfuse_secret_key
+        read -r -p "Enter LangFuse public key: " langfuse_public_key
+        read -rs -p "Enter LangFuse secret key: " langfuse_secret_key
         echo
         
         # Update the env file
@@ -503,7 +504,7 @@ configure_langfuse_wrapper() {
 }
 
 configure_llm_budget_wrapper() {
-    read -p "Enter LLM budget (press Enter for \$100 default): " budget_value
+    read -r -p "Enter LLM budget (press Enter for \$100 default): " budget_value
     if [ -n "$budget_value" ]; then
         # Set the budget value
         portable_sed "s|.*export LITELLM_MAX_BUDGET=.*|export LITELLM_MAX_BUDGET=\"$budget_value\"|" deployment/env
@@ -600,7 +601,8 @@ generate_litellm_master_key() {
 
     print_linebreak
     print_status "Configuring LiteLLM master key..."
-    local litellm_master_key=$(openssl rand -hex 16)
+    local litellm_master_key
+    litellm_master_key=$(openssl rand -hex 16)
     portable_sed "s|.*export LITELLM_MASTER_KEY=.*|export LITELLM_MASTER_KEY=\"$litellm_master_key\"|" deployment/env
     print_success "LiteLLM master key configured successfully"
 }
@@ -617,10 +619,14 @@ generate_crs_key_id_token() {
 
     print_linebreak
     print_status "Configuring CRS key ID/token..."
-    local auth_tool_output=$(pushd orchestrator && uv run python3 ./src/buttercup/orchestrator/task_server/auth_tool.py --env)
-    local crs_key_id=$(echo "$auth_tool_output" | grep "BUTTERCUP_TASK_SERVER_API_KEY_ID" | cut -d'=' -f2-)
-    local crs_key_token=$(echo "$auth_tool_output" | grep "^API_TOKEN" | cut -d'=' -f2-)
-    local crs_key_token_hash=$(echo "$auth_tool_output" | grep "^BUTTERCUP_TASK_SERVER_API_TOKEN_HASH" | cut -d'=' -f2-)
+    local auth_tool_output
+    local crs_key_id
+    local crs_key_token
+    local crs_key_token_hash
+    auth_tool_output=$(pushd orchestrator && uv run python3 ./src/buttercup/orchestrator/task_server/auth_tool.py --env)
+    crs_key_id=$(echo "$auth_tool_output" | grep "BUTTERCUP_TASK_SERVER_API_KEY_ID" | cut -d'=' -f2-)
+    crs_key_token=$(echo "$auth_tool_output" | grep "^API_TOKEN" | cut -d'=' -f2-)
+    crs_key_token_hash=$(echo "$auth_tool_output" | grep "^BUTTERCUP_TASK_SERVER_API_TOKEN_HASH" | cut -d'=' -f2-)
 
     portable_sed "s|.*export CRS_KEY_ID=.*|export CRS_KEY_ID=\"$crs_key_id\"|" deployment/env
     portable_sed "s|.*export CRS_KEY_TOKEN=.*|export CRS_KEY_TOKEN=\"$crs_key_token\"|" deployment/env

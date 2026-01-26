@@ -12,9 +12,9 @@ rm -rf tasks_storage
 tar xvf tasks_storage.tar
 
 # Decompress
-for fn in `find tasks_storage -name *.tgz`; do
+find tasks_storage -name '*.tgz' | while IFS= read -r fn; do
     dst="${fn%.tgz}"
-    mkdir $dst
-    tar xvzf $fn -C $dst
-    rm $fn
+    mkdir "$dst"
+    tar xvzf "$fn" -C "$dst"
+    rm "$fn"
 done
