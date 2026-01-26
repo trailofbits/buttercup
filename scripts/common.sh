@@ -549,12 +549,14 @@ configure_local_api_keys() {
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
     print_status "Only needed if Buttercup will access private repositories or packages."
+    # shellcheck disable=SC2153  # GHCR_AUTH is an external env var, not a misspelling of ghcr_auth
     configure_service "GHCR_AUTH" "GitHub authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" false "configure_ghcr_optional"
     
     # Docker Hub credentials (optional)
     print_linebreak
     print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
     print_status "Recommended for reliable builds, but not strictly required for operation."
+    # shellcheck disable=SC2153  # DOCKER_USERNAME is an external env var, not a misspelling
     configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
     
     # Validate that at least one LLM API key is configured

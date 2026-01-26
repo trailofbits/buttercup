@@ -32,9 +32,8 @@ jobs:
 
       - name: Security audit GitHub Actions
         run: |
-          # Install zizmor
-          uv pip install --isolated zizmor
-          zizmor .github/workflows/
+          # Run zizmor in an isolated environment using uvx
+          uvx zizmor .github/workflows/
 
       - name: Check YAML files
         run: |
@@ -69,14 +68,32 @@ jobs:
 
       - name: Check for merge conflicts
         run: |
-          ! grep -rE '^(<{7}|>{7}|={7})' --include='*.py' --include='*.yaml' --include='*.yml' --include='*.toml' --include='*.json' . || exit 1
+          # Match exact git merge conflict markers:
+          # - <<<<<<< (followed by space, e.g., "<<<<<<< HEAD")
+          # - ======= (exactly 7 equals at end of line)
+          # - >>>>>>> (followed by space, e.g., ">>>>>>> branch-name")
+          ! grep -rE '^(<{7} |>{7} |={7}$)' --include='*.py' --include='*.yaml' --include='*.yml' --include='*.toml' --include='*.json' . || exit 1
 
       - name: Lint shell scripts
         run: |
           shellcheck --version
-          find . -name '*.sh' -type f ! -path './.git/*' ! -path '*/.venv/*' -print0 | xargs -0 shellcheck
+          # Exclude external directories (node_data_storage contains cloned repos, external has vendored code)
+          find . -name '*.sh' -type f \
+            ! -path './.git/*' \
+            ! -path '*/.venv/*' \
+            ! -path './node_data_storage/*' \
+            ! -path './external/*' \
+            -print0 | xargs -0 shellcheck
 
       - name: Lint Dockerfiles
         run: |
-          hadolint --version
-          find . -name 'Dockerfile*' -type f ! -path './.git/*' -print0 | xargs -0 hadolint
+          # Install hadolint
+          curl -sL -o hadolint "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64"
+          chmod +x hadolint
+          ./hadolint --version
+          # Exclude external directories (node_data_storage contains cloned repos, external has vendored code)
+          find . -name 'Dockerfile*' -type f \
+            ! -path './.git/*' \
+            ! -path './node_data_storage/*' \
+            ! -path './external/*' \
+            -print0 | xargs -0 ./hadolint
