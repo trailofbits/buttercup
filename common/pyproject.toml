@@ -9,7 +9,7 @@ dependencies = [
     "pydantic-settings ~=2.7.1",
     "pymongo ~=4.10.1",
     "redis ~=5.2.1",
-    "langchain-core ~=0.3.74",
+    "langchain-core ~=0.3.81",
     "langchain-openai ~=0.3.30",
     "langchain ~=0.3.27",
     "langfuse ~=2.59.2",
@@ -47,8 +47,8 @@ dev = [
     "pytest-cov ~=6.0.0",
     "dirty-equals ~=0.9.0",
     # Linting and type checking
-    "ruff ~=0.12.8",
-    "mypy ~=1.17.1",
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
     # Type stubs
     "types-requests ~=2.32.0",
     "types-PyYAML",
@@ -93,28 +93,19 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
-[tool.mypy]
-plugins = ["pydantic.mypy"]
-mypy_path = "src"
-packages = "buttercup"
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-show_error_codes = true
-sqlite_cache = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
 exclude = [
     "src/buttercup/common/clusterfuzz_parser",
     "src/buttercup/common/clusterfuzz_env",
-    "src/buttercup/common/clusterfuzz_utils",
+    "src/buttercup/common/clusterfuzz_utils.py",
     "src/buttercup/common/datastructures",
 ]
+
+[tool.ty.rules]
+unresolved-import = "error"
+unresolved-attribute = "error"
