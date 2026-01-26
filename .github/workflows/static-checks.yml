@@ -1,0 +1,82 @@
+name: Static Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b  # v7.2.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Lint GitHub Actions
+        run: |
+          # Install actionlint
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+      - name: Security audit GitHub Actions
+        run: |
+          # Install zizmor
+          uv pip install --isolated zizmor
+          zizmor .github/workflows/
+
+      - name: Check YAML files
+        run: |
+          python3 -c "
+          import yaml
+          from pathlib import Path
+          for f in Path('.').rglob('*.yaml'):
+              if 'deployment/k8s' not in str(f):
+                  list(yaml.safe_load_all(f.read_text()))
+          for f in Path('.').rglob('*.yml'):
+              if 'deployment/k8s' not in str(f):
+                  list(yaml.safe_load_all(f.read_text()))
+          "
+
+      - name: Check TOML files
+        run: |
+          python3 -c "
+          import tomllib
+          from pathlib import Path
+          for f in Path('.').rglob('*.toml'):
+              tomllib.load(f.open('rb'))
+          "
+
+      - name: Check JSON files
+        run: |
+          python3 -c "
+          import json
+          from pathlib import Path
+          for f in Path('.').rglob('*.json'):
+              json.load(f.open())
+          "
+
+      - name: Check for merge conflicts
+        run: |
+          ! grep -rE '^(<{7}|>{7}|={7})' --include='*.py' --include='*.yaml' --include='*.yml' --include='*.toml' --include='*.json' . || exit 1
+
+      - name: Lint shell scripts
+        run: |
+          shellcheck --version
+          find . -name '*.sh' -type f ! -path './.git/*' ! -path '*/.venv/*' -print0 | xargs -0 shellcheck
+
+      - name: Lint Dockerfiles
+        run: |
+          hadolint --version
+          find . -name 'Dockerfile*' -type f ! -path './.git/*' -print0 | xargs -0 hadolint

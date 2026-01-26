@@ -19,7 +19,7 @@ dependencies = [
     "rich ~=13.9.4",
     "sqlalchemy ~=2.0.0",
     "typing-extensions ~=4.12.2",
-    "urllib3 ~=2.3.0",
+    "urllib3 ~=2.6.0",
     "uvicorn ~=0.34.0",
 ]
 
@@ -48,8 +48,8 @@ dev = [
     "responses ~=0.25.6",
     "httpx ~=0.28.1",
     # Linting and type checking
-    "ruff ~=0.12.8",
-    "mypy ~=1.17.1",
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
     # Type stubs
     "types-python-dateutil ~=2.9.0.20241206",
     "types-requests ~=2.32.0",
@@ -90,23 +90,21 @@ ignore = [
 "*/__cli__.py" = ["T201"]  # Allow print in CLI modules
 "*/auth_tool.py" = ["T201"]
 
-[tool.mypy]
-plugins = ["pydantic.mypy"]
-mypy_path = "src"
-packages = "buttercup"
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-show_error_codes = true
-sqlite_cache = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
-exclude = ['competition_api_client', 'ui/competition_api/models']
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
+exclude = [
+    "src/buttercup/orchestrator/competition_api_client",
+    "src/buttercup/orchestrator/ui/competition_api/models",
+]
+
+[tool.ty.rules]
+# Start permissive, tighten over time
+unresolved-import = "warn"
+unresolved-attribute = "warn"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

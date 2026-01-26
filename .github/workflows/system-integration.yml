@@ -58,7 +58,6 @@ env:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   integration:
@@ -69,7 +68,7 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'full-integration')
     runs-on: gha-ubuntu-8
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           submodules: true
@@ -88,20 +87,41 @@ jobs:
           echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE}" >> $GITHUB_ENV
 
       - name: Configure env file for minikube
+        env:
+          BUTTERCUP_NS: ${{ env.BUTTERCUP_NAMESPACE }}
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LF_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LF_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LF_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          OTEL_EP: ${{ secrets.OTEL_ENDPOINT }}
+          OTEL_TK: ${{ secrets.OTEL_TOKEN }}
         run: |
           cp ../.github/ci-env.template env
-
-          sed -i "/GHCR_AUTH=.*/d" env
-          sed -i "s|BUTTERCUP_NAMESPACE=.*|BUTTERCUP_NAMESPACE=${{ env.BUTTERCUP_NAMESPACE }}|" env
-          sed -i "s|OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}|" env
-          sed -i "s|ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|" env
-          sed -i "s|GEMINI_API_KEY=.*|GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}|" env
-          sed -i "s|LANGFUSE_HOST=.*|LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}|" env
-          sed -i "s|LANGFUSE_PUBLIC_KEY=.*|LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}|" env
-          sed -i "s|LANGFUSE_SECRET_KEY=.*|LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}|" env
-          sed -i "s|OTEL_ENDPOINT=.*|OTEL_ENDPOINT=${{ secrets.OTEL_ENDPOINT }}|" env
-          sed -i "s|OTEL_TOKEN=.*|OTEL_TOKEN=\"${{ secrets.OTEL_TOKEN }}\"|" env
-
+          # Remove GHCR_AUTH line and lines for values we'll append
+          sed -i "/^GHCR_AUTH=/d" env
+          sed -i "/^BUTTERCUP_NAMESPACE=/d" env
+          sed -i "/^OPENAI_API_KEY=/d" env
+          sed -i "/^ANTHROPIC_API_KEY=/d" env
+          sed -i "/^GEMINI_API_KEY=/d" env
+          sed -i "/^LANGFUSE_HOST=/d" env
+          sed -i "/^LANGFUSE_PUBLIC_KEY=/d" env
+          sed -i "/^LANGFUSE_SECRET_KEY=/d" env
+          sed -i "/^OTEL_ENDPOINT=/d" env
+          sed -i "/^OTEL_TOKEN=/d" env
+          # Append values safely using echo (avoids sed injection with special chars)
+          {
+            echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NS}"
+            echo "OPENAI_API_KEY=${OPENAI_KEY}"
+            echo "ANTHROPIC_API_KEY=${ANTHROPIC_KEY}"
+            echo "GEMINI_API_KEY=${GEMINI_KEY}"
+            echo "LANGFUSE_HOST=${LF_HOST}"
+            echo "LANGFUSE_PUBLIC_KEY=${LF_PUBLIC_KEY}"
+            echo "LANGFUSE_SECRET_KEY=${LF_SECRET_KEY}"
+            echo "OTEL_ENDPOINT=${OTEL_EP}"
+            echo "OTEL_TOKEN=${OTEL_TK}"
+          } >> "env"
         working-directory: deployment
 
       - name: Run CRS
