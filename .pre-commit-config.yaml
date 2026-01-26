@@ -73,7 +73,7 @@ repos:
         name: ty type checking
         entry: >-
           bash -c 'for dir in common orchestrator fuzzer fuzzer_runner patcher program-model seed-gen; do
-          if [[ "$1" == "$dir/"* ]]; then cd "$dir" && uv run ty check src/; exit $?; fi; done' --
+          if [[ "$1" == "$dir/"* ]]; then cd "$dir" && uvx ty check src/; exit $?; fi; done' --
         language: system
         types: [python]
         files: ^(common|orchestrator|fuzzer|fuzzer_runner|patcher|program-model|seed-gen)/src/
