@@ -2,6 +2,9 @@ version = 1
 revision = 3
 requires-python = "==3.12.*"
 
+[manifest]
+constraints = [{ name = "protobuf", specifier = "==3.20.3" }]
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
