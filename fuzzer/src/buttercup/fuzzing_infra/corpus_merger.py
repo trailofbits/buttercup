@@ -7,10 +7,6 @@ from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.constants import ADDRESS_SANITIZER
@@ -22,6 +18,10 @@ from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.sets import MERGING_LOCK_TIMEOUT_SECONDS, FailedToAcquireLock, MergedCorpusSetLock
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.fuzzing_infra.runner_proxy import Conf, FuzzConfiguration, RunnerProxy
 from buttercup.fuzzing_infra.settings import FuzzerBotSettings
 
@@ -49,7 +49,7 @@ class FinalCorpus:
         n = 0
         if self._push_remotely:
             n = len(self._push_remotely)
-            self._corpus.sync_specific_files_to_remote(self._push_remotely)
+            self._corpus.sync_specific_files_to_remote(list(self._push_remotely))
             self._push_remotely.clear()
         return n
 
@@ -228,6 +228,7 @@ class MergerBot:
             tsk = ChallengeTask(read_only_task_dir=build.task_dir, python_path=self.python)
             with tsk.get_rw_copy(work_dir=td) as local_tsk:
                 build_dir = local_tsk.get_build_dir()
+                assert build_dir is not None, "build_dir is required for merge"
 
                 # Run merge from local_dir to remote_dir to find which files add coverage
                 fuzz_conf = FuzzConfiguration(
@@ -389,7 +390,7 @@ class MergerBot:
 
 
 def main() -> None:
-    args = FuzzerBotSettings()
+    args = FuzzerBotSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("corpus-merger", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("merger-bot")

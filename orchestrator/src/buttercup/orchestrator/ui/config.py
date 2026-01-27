@@ -2,10 +2,17 @@ from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_UI_",
+        env_file=".env",
+        cli_parse_args=True,
+        extra="allow",
+    )
+
     # Server configuration
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     log_level: Annotated[str, Field(default="debug", description="Log level")]
@@ -45,9 +52,3 @@ class Settings(BaseSettings):
         str,
         Field(default="sqlite:///buttercup_ui.db", description="Database URL for storing submissions"),
     ]
-
-    class Config:
-        env_prefix = "BUTTERCUP_UI_"
-        env_file = ".env"
-        cli_parse_args = True
-        extra = "allow"

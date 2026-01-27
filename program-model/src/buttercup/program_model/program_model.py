@@ -3,10 +3,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import IndexOutput, IndexRequest
@@ -19,6 +15,10 @@ from buttercup.common.queues import (
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.common.utils import serve_loop
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.program_model.codequery import CodeQueryPersistent
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ class ProgramModel:
             self.output_queue = queue_factory.create(QueueNames.INDEX_OUTPUT)
             self.registry = TaskRegistry(self.redis)
 
-    def __enter__(self):  # type: ignore[no-untyped-def]
+    def __enter__(self):
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -62,7 +62,7 @@ class ProgramModel:
             logger.info(f"Processing task {args.package_name}/{args.task_id}/{args.task_dir} with codequery")
             challenge = ChallengeTask(
                 read_only_task_dir=args.task_dir,
-                python_path=self.python,
+                python_path=self.python or "python3",
             )
             with challenge.get_rw_copy(work_dir=self.wdir) as local_challenge:
                 # Apply the diff if it exists

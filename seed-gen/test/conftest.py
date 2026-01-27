@@ -5,17 +5,17 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock
 
 import pytest
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
-from langchain_core.messages.tool import ToolCall
-from redis import Redis
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQueryPersistent
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.messages.tool import ToolCall
+from redis import Redis
+
 from buttercup.seed_gen.find_harness import HarnessInfo
 
 

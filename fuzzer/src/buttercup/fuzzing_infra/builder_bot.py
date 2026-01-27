@@ -3,10 +3,6 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildRequest, BuildType
@@ -15,6 +11,10 @@ from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, Reliab
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import serve_loop
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+from redis import Redis
+
 from buttercup.fuzzing_infra.settings import BuilderBotSettings
 
 logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ class BuilderBot:
                 python_path=self.python,
             )
 
-        with origin_task.get_rw_copy(work_dir=self.wdir) as task:
+        with origin_task.get_rw_copy(work_dir=Path(self.wdir)) as task:
             if not self._apply_challenge_diff(task, msg):
                 if self._build_requests_queue.times_delivered(rqit.item_id) > self.max_tries:
                     logger.error(
@@ -194,7 +194,7 @@ class BuilderBot:
 
 
 def main() -> None:
-    args = BuilderBotSettings()
+    args = BuilderBotSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("builder-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("builder-bot")

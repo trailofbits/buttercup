@@ -82,7 +82,6 @@ class Function:
         return True
 
 
-@dataclass
 class TypeDefinitionType(str, Enum):
     """Enum to store type definition type."""
 

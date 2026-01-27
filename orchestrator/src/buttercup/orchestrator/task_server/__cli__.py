@@ -4,7 +4,7 @@ from buttercup.orchestrator.task_server.config import TaskServerSettings
 
 
 def main() -> None:
-    settings = TaskServerSettings()
+    settings = TaskServerSettings()  # type: ignore[missing-argument]
     uvicorn.run(
         "buttercup.orchestrator.task_server.server:app",
         host=settings.host,

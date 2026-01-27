@@ -1,11 +1,10 @@
 import logging
 from dataclasses import dataclass, field
 
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import TaskDelete
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 

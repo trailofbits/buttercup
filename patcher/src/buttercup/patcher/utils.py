@@ -8,13 +8,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.program_model.codequery import CodeQueryPersistent
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import BaseModel
-
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.program_model.codequery import CodeQueryPersistent
 
 VALID_PATCH_EXTENSIONS = (".c", ".h", ".in", ".java")
 
@@ -171,6 +170,8 @@ def truncate_output(
         return output[: max_length // 2] + "\n[...TRUNCATED...]\n" + output[-max_length // 2 :]
     if truncate_position == TruncatePosition.END:
         return output[:max_length] + "\n[...TRUNCATED...]\n"
+
+    return output  # unreachable but satisfies type checker
 
 
 @lru_cache(maxsize=100)

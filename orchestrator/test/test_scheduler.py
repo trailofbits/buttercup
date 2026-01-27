@@ -3,8 +3,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import (
     BuildOutput,
     BuildType,
@@ -19,6 +17,8 @@ from buttercup.common.maps import BuildMap
 from buttercup.common.queues import QueueFactory, RQItem
 from buttercup.common.task_meta import TaskMeta
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.orchestrator.scheduler.scheduler import Scheduler
 from buttercup.orchestrator.scheduler.submissions import Submissions
 

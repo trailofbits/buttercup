@@ -8,15 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, ClassVar
 
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts.chat import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig
-from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
-from langgraph.types import Command
-from opentelemetry import trace
-from pydantic import Field
-
 from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import CrashDir
@@ -28,6 +19,15 @@ from buttercup.common.reproduce_multiple import ReproduceMultiple, ReproduceResu
 from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
+from langgraph.types import Command
+from opentelemetry import trace
+from pydantic import Field
+
 from buttercup.seed_gen.prompt.vuln_discovery import (
     C_CWE_LIST,
     COMMON_CWE_LIST,
@@ -227,8 +227,11 @@ class VulnBaseTask(Task):
             return
 
         stacktrace = result.stacktrace()
+        if stacktrace is None:
+            logger.warning("No stacktrace available for crash, skipping submission")
+            return
         ctoken = stack_parsing.get_crash_token(stacktrace)
-        dst = self.crash_submit.crash_dir.copy_file(pov, ctoken, build.sanitizer)
+        dst = self.crash_submit.crash_dir.copy_file(str(pov), ctoken, build.sanitizer)
         if self.crash_submit.crash_set.add(
             self.package_name,
             self.harness_name,
@@ -338,7 +341,7 @@ class VulnBaseTask(Task):
                         "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
                     },
                 )
-                chain.invoke(state)  # type: ignore[arg-type]
+                chain.invoke(state)
 
         except Exception as err:
             logger.exception(

@@ -5,10 +5,9 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 

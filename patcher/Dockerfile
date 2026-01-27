@@ -1,17 +1,17 @@
 ARG BASE_IMAGE=ubuntu:24.04
 
+# hadolint ignore=DL3006
 FROM $BASE_IMAGE AS python_base
 ARG PYTHON_VERSION=3.12
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y python$PYTHON_VERSION python$PYTHON_VERSION-dev
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       python$PYTHON_VERSION python$PYTHON_VERSION-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM python_base AS runtime-base
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
-    curl \
-    patch \
-    codequery \
-    rsync \
-    libncurses-dev \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates curl patch codequery rsync libncurses-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
@@ -50,16 +50,19 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 FROM runtime-base AS cscope-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y autoconf gcc make bison flex libncurses-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && apt-get install -y --no-install-recommends \
+       autoconf automake gcc make bison flex libncurses-dev \
+    && rm -rf /var/lib/apt/lists/*
 COPY external/buttercup-cscope /cscope
 # hadolint ignore=DL3003
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM runtime-base AS runtime
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y codequery rsync git && \
-    rm -rf /var/lib/apt/lists/*
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && apt-get install -y --no-install-recommends codequery rsync git \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=app:app /app/patcher/.venv /app/patcher/.venv
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope

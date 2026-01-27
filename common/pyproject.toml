@@ -53,6 +53,8 @@ dev = [
     "types-requests ~=2.32.0",
     "types-PyYAML",
     "types-redis ~=4.6.0",
+    # Protobuf code generation
+    "grpcio-tools ~=1.73.1",
 ]
 
 [tool.ruff]
