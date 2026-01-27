@@ -8,7 +8,10 @@ updates:
         patterns:
           - "*"
     schedule:
-      interval: daily
+      interval: weekly
+    # Supply chain security: delay updates to allow community vetting
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: github-actions
     directory: /
@@ -17,4 +20,7 @@ updates:
         patterns:
           - "*"
     schedule:
-      interval: daily
+      interval: weekly
+    # Supply chain security: delay updates to allow community vetting
+    cooldown:
+      default-days: 7

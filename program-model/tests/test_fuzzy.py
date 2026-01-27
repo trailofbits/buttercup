@@ -1,8 +1,8 @@
 """Fuzzy matching testing"""
 
 import pytest
-
 from buttercup.common.challenge_task import ChallengeTask
+
 from buttercup.program_model.codequery import CodeQuery
 
 

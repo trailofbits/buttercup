@@ -2,24 +2,17 @@ from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
-
-
-class Config:
-    cli_parse_args = True
-    nested_model_default_partial_update = True
-    env_nested_delimiter = "__"
-    extra = "allow"
-    env_prefix = "BUTTERCUP_FUZZER_"
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ButtercupBaseSettings(BaseSettings):
-    class Config:
-        cli_parse_args = True
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-        extra = "allow"
-        env_prefix = "BUTTERCUP_FUZZER_"
+    model_config = SettingsConfigDict(
+        cli_parse_args=True,
+        nested_model_default_partial_update=True,
+        env_nested_delimiter="__",
+        extra="allow",
+        env_prefix="BUTTERCUP_FUZZER_",
+    )
 
 
 class BuilderSettings(ButtercupBaseSettings):

@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import openai
+from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 from opentelemetry import trace
 from redis import Redis
 
-from buttercup.common.llm import get_langfuse_callbacks
-from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from buttercup.patcher.agents.common import PatcherAgentBase, PatcherAgentName, PatcherAgentState
 from buttercup.patcher.agents.config import PatcherConfig
 from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
@@ -50,7 +50,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
         )
         reflection_agent = ReflectionAgent(self.challenge, self.input, chain_call=self.chain_call)
         input_processing_agent = InputProcessingAgent(self.challenge, self.input, chain_call=self.chain_call)
-        self.model_name = swe_agent.default_llm.model_name
+        self.model_name = swe_agent.default_llm.model_name  # type: ignore[unresolved-attribute]
 
         workflow = StateGraph(
             PatcherAgentState,

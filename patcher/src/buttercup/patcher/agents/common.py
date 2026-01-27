@@ -11,6 +11,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.clusterfuzz_parser import CrashInfo
+from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -20,9 +23,6 @@ from langgraph.managed import RemainingSteps
 from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
 from pydantic import BaseModel, Field
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.clusterfuzz_parser import CrashInfo
-from buttercup.common.llm import ButtercupLLM, create_default_llm_with_temperature
 from buttercup.patcher.utils import (
     CHAIN_CALL_TYPE,
     PatchInput,
@@ -280,7 +280,7 @@ class CodeSnippetKey(BaseModel):
     """Code snippet key"""
 
     identifier: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    file_path: str | None = Field(description="The file path of the code snippet")
+    file_path: str | None = Field(None, description="The file path of the code snippet")
 
     def __hash__(self) -> int:
         """Hash the code snippet key"""
@@ -431,7 +431,7 @@ UNDERSTAND_CODE_SNIPPET_PROMPT = ChatPromptTemplate.from_messages(
 
 
 def _create_understand_code_snippet_chain() -> Runnable:
-    return (  # type: ignore[no-any-return]
+    return (
         UNDERSTAND_CODE_SNIPPET_PROMPT
         | create_default_llm_with_temperature(
             model_name=ButtercupLLM.OPENAI_GPT_4_1.value,

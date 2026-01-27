@@ -1,10 +1,17 @@
 from typing import Annotated
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, CliImplicitFlag
+from pydantic_settings import BaseSettings, CliImplicitFlag, SettingsConfigDict
 
 
 class TaskServerSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_TASK_SERVER_",
+        env_file=".env",
+        cli_parse_args=True,
+        extra="allow",
+    )
+
     # Server configuration
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
@@ -22,9 +29,3 @@ class TaskServerSettings(BaseSettings):
     competition_api_url: Annotated[str, Field(default="http://localhost:1323", description="Competition API URL")]
     competition_api_username: Annotated[str, Field(default="", description="Competition API username")]
     competition_api_password: Annotated[str, Field(default="", description="Competition API password")]
-
-    class Config:
-        env_prefix = "BUTTERCUP_TASK_SERVER_"
-        env_file = ".env"
-        cli_parse_args = True
-        extra = "allow"
