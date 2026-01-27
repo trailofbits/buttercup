@@ -9,6 +9,7 @@ dependencies = [
     "common",
     "clusterfuzz ==2.6.0",
     "pydantic ~=2.11.7",
+    "setuptools",  # Required for pkg_resources used by google-cloud-ndb (clusterfuzz dep)
 ]
 
 [project.urls]
