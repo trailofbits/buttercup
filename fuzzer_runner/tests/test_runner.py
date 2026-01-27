@@ -1,9 +1,9 @@
 """Tests for the fuzzer runner module."""
 
-import argparse
 from unittest.mock import MagicMock, patch
 
-from buttercup.fuzzer_runner.runner import Conf, Runner, merge_corpus_command, run_fuzzer_command
+from buttercup.fuzzer_runner.runner import Conf, Runner
+
 
 class TestRunner:
     """Tests for the Runner class."""
@@ -13,9 +13,8 @@ class TestRunner:
     @patch("os.makedirs")
     def test_run_fuzzer_initializes_engine(self, mock_makedirs, mock_scratch_cwd, mock_patched_temp_dir):
         """Test run_fuzzer"""
-        from clusterfuzz._internal.bot.fuzzers.libFuzzer import engine as libfuzzer_engine
-
         from buttercup.common.types import FuzzConfiguration
+        from clusterfuzz._internal.bot.fuzzers.libFuzzer import engine as libfuzzer_engine
 
         mock_patched_temp_dir.return_value.__enter__ = MagicMock()
         mock_patched_temp_dir.return_value.__exit__ = MagicMock(return_value=False)
@@ -35,8 +34,9 @@ class TestRunner:
         mock_result.time_executed = 1.0
         mock_result.timed_out = False
 
-        with patch.object(libfuzzer_engine.Engine, "prepare", return_value=mock_opts), patch.object(
-            libfuzzer_engine.Engine, "fuzz", return_value=mock_result
+        with (
+            patch.object(libfuzzer_engine.Engine, "prepare", return_value=mock_opts),
+            patch.object(libfuzzer_engine.Engine, "fuzz", return_value=mock_result),
         ):
             conf = Conf(timeout=60)
             runner = Runner(conf)
@@ -57,9 +57,8 @@ class TestRunner:
     @patch("buttercup.fuzzer_runner.runner.scratch_cwd")
     def test_merge_corpus_initializes_engine(self, mock_scratch_cwd, mock_patched_temp_dir, mock_scratch_dir):
         """Test merge_corpus."""
-        from clusterfuzz._internal.bot.fuzzers.libFuzzer import engine as libfuzzer_engine
-
         from buttercup.common.types import FuzzConfiguration
+        from clusterfuzz._internal.bot.fuzzers.libFuzzer import engine as libfuzzer_engine
 
         mock_patched_temp_dir.return_value.__enter__ = MagicMock()
         mock_patched_temp_dir.return_value.__exit__ = MagicMock(return_value=False)
