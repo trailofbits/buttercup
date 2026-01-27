@@ -10,7 +10,7 @@ dependencies = [
     "common[full]",
     "langchain-community ~=0.3.27",
     "langgraph ~=0.6.6",
-    "langgraph-checkpoint ~=2.1.1",
+    "langgraph-checkpoint >=3.0.0",
     "openai ~=1.100.2",
     "program-model",
     "pydantic-settings ~=2.7.1",
