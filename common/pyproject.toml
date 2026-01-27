@@ -19,7 +19,8 @@ dependencies = [
 [project.optional-dependencies]
 full = [
     "protobuf>=5.0",
-    "openlit ~=1.36.0",
+    # openlit 1.36.6+ breaks langgraph ToolNode
+    "openlit >=1.36.0,<1.36.6",
 ]
 
 
