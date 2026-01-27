@@ -19,7 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 full = [
     "protobuf>=5.0",
-    "openlit ==1.35.0",
+    "openlit ~=1.36.0",
 ]
 
 

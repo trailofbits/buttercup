@@ -10,7 +10,7 @@ dependencies = [
     "argon2-cffi ~=21.3.0",
     "common[full]",
     "fastapi ~=0.115.6",
-    "pydantic ~=2.10.5",
+    "pydantic ~=2.11.0",
     "pydantic-settings ~=2.7.1",
     "python-dateutil ~=2.9.0",
     "pyyaml ~=6.0.1",
