@@ -3,8 +3,6 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 from buttercup.common.datastructures.msg_pb2 import (
@@ -23,6 +21,8 @@ from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+from redis import Redis
+
 from buttercup.orchestrator.api_client_factory import create_api_client
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
 from buttercup.orchestrator.scheduler.status_checker import StatusChecker
@@ -96,7 +96,7 @@ class Scheduler:
         """
         if self.task_registry is None:
             return False
-        return self.task_registry.should_stop_processing(task_or_id, self.cached_cancelled_ids)  # type: ignore[no-any-return]
+        return self.task_registry.should_stop_processing(task_or_id, self.cached_cancelled_ids)
 
     def __post_init__(self) -> None:
         if self.redis is not None:

@@ -6,14 +6,14 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
-from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.patcher.agents.common import BaseCtxState, CodeSnippetKey, ContextCodeSnippet
 from buttercup.patcher.utils import find_file_in_source_dir, get_challenge, get_codequery, truncate_output
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.utils.common import Function, TypeDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,12 @@ MAX_OUTPUT_LENGTH = 10000
 
 def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, output: str | None = None) -> str:
     if output is None:
-        output = cmd_res.output.decode("utf-8")
+        output = cmd_res.output.decode("utf-8") if cmd_res.output else ""
 
     if isinstance(command, list):
         command = " ".join(command)
+
+    error_str = cmd_res.error.decode("utf-8") if cmd_res.error else ""
 
     return f"""<command_output>
 <command>{command}</command>
@@ -34,7 +36,7 @@ def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, outpu
 {truncate_output(output, MAX_OUTPUT_LENGTH)}
 </stdout>
 <stderr>
-{truncate_output(cmd_res.error, MAX_OUTPUT_LENGTH)}
+{truncate_output(error_str, MAX_OUTPUT_LENGTH)}
 </stderr>
 </command_output>"""
 

@@ -10,6 +10,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import ConfigurableField, Runnable
 from langchain_openai.chat_models import ChatOpenAI
 from langfuse.callback import CallbackHandler
+from pydantic import SecretStr
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +140,6 @@ def create_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the given configuration."""
     return ChatOpenAI(
         openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
-        openai_api_key=os.environ["BUTTERCUP_LITELLM_KEY"],
+        openai_api_key=SecretStr(os.environ["BUTTERCUP_LITELLM_KEY"]),
         **kwargs,
     )

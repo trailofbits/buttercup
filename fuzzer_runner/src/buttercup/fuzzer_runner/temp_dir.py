@@ -6,9 +6,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from clusterfuzz._internal.system import environment, shell
-
 from buttercup.common.node_local import TmpDir, scratch_dir
+from clusterfuzz._internal.system import environment, shell
 
 logger = logging.getLogger(__name__)
 

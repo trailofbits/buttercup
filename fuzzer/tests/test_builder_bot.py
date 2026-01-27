@@ -2,10 +2,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildRequest, BuildType
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.fuzzing_infra.builder_bot import BuilderBot
 
 

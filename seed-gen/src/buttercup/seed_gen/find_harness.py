@@ -6,12 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import rapidfuzz
-from pydantic import BaseModel
-from redis import Redis
-
 from buttercup.common.maps import CoverageMap
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
+from pydantic import BaseModel
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 

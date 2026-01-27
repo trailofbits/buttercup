@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from google.protobuf.text_format import Parse
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, CliPositionalArg, CliSubCommand, get_subcommand
+from pydantic_settings import BaseSettings, CliPositionalArg, CliSubCommand, SettingsConfigDict, get_subcommand
 from redis import Redis
 
 from buttercup.common.datastructures.msg_pb2 import (
@@ -127,6 +127,15 @@ class ExtractPovsSettings(BaseModel):
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_MSG_PUBLISHER_",
+        env_file=".env",
+        cli_parse_args=True,
+        nested_model_default_partial_update=True,
+        env_nested_delimiter="__",
+        extra="allow",
+    )
+
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
     send_queue: CliSubCommand[SendSettings]
@@ -139,14 +148,6 @@ class Settings(BaseSettings):
     read_builds: CliSubCommand[ReadBuildsSettings]
     read_submissions: CliSubCommand[ReadSubmissionsSettings]
     extract_povs: CliSubCommand[ExtractPovsSettings]
-
-    class Config:
-        env_prefix = "BUTTERCUP_MSG_PUBLISHER_"
-        env_file = ".env"
-        cli_parse_args = True
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-        extra = "allow"
 
 
 def get_pod_name(namespace: str, label: str) -> str | None:
@@ -528,7 +529,7 @@ def handle_subcommand(redis: Redis, command: BaseModel | None) -> None:
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
     setup_package_logger("util-cli", __name__, settings.log_level)
 
     redis = Redis.from_url(settings.redis_url, decode_responses=False)

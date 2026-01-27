@@ -4,10 +4,10 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import Task
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.orchestrator.scratch_cleaner.scratch_cleaner import ScratchCleaner
 
 

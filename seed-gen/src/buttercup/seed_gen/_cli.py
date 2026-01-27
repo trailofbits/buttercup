@@ -6,10 +6,6 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from pydantic_settings import get_subcommand
-from redis import Redis
-
-import buttercup.seed_gen.cli_load_dotenv  # noqa: F401
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import BuildOutput
 from buttercup.common.logger import setup_package_logger
@@ -17,6 +13,10 @@ from buttercup.common.project_yaml import ProjectYaml
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.telemetry import init_telemetry
 from buttercup.program_model.codequery import CodeQueryPersistent
+from pydantic_settings import get_subcommand
+from redis import Redis
+
+import buttercup.seed_gen.cli_load_dotenv  # noqa: F401
 from buttercup.seed_gen.config import ProcessCommand, Settings
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_gen_bot import SeedGenBot
@@ -56,13 +56,13 @@ def command_process(settings: Settings) -> None:
     if not isinstance(command, ProcessCommand):
         return
 
-    command_outdir = command.output_dir  # type: ignore[unreachable]
+    command_outdir = command.output_dir
 
     init_telemetry("seed-gen")
     ro_challenge_task = ChallengeTask(read_only_task_dir=command.challenge_task_dir)
     with (
         tempfile.TemporaryDirectory(dir=settings.wdir, prefix="seedgen-") as temp_dir_str,
-        ro_challenge_task.get_rw_copy(work_dir=temp_dir_str) as challenge_task,
+        ro_challenge_task.get_rw_copy(work_dir=Path(temp_dir_str)) as challenge_task,
     ):
         temp_dir = Path(temp_dir_str)
         out_dir = temp_dir / "out"
@@ -143,7 +143,7 @@ def command_process(settings: Settings) -> None:
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
     setup_package_logger(
         "seed-gen",
         __name__,
@@ -152,6 +152,6 @@ def main() -> None:
     )
     command = get_subcommand(settings)
     if isinstance(command, ProcessCommand):
-        command_process(settings)  # type: ignore[unreachable]
+        command_process(settings)
     else:
         command_server(settings)

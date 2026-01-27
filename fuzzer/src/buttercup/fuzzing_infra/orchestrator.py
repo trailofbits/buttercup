@@ -2,8 +2,6 @@ import argparse
 import os
 import time
 
-from redis import Redis
-
 from buttercup.common.clusterfuzz_utils import get_fuzz_targets
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
 from buttercup.common.logger import setup_package_logger
@@ -13,8 +11,8 @@ from buttercup.common.queues import (
     QueueFactory,
     QueueNames,
     ReliableQueue,
-    RQItem,
 )
+from redis import Redis
 
 logger = setup_package_logger("fuzzer-orchestrator", __name__)
 DEFAULT_WEIGHT = 1.0
@@ -28,7 +26,7 @@ def loop(
 ) -> None:
     while True:
         time.sleep(sleep_time_seconds)
-        output: RQItem = output_queue.pop()
+        output = output_queue.pop()
         if output is not None:
             deser_output: BuildOutput = output.deserialized
             build_dir = os.path.join(

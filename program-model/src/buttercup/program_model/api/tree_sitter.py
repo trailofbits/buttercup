@@ -7,10 +7,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from tree_sitter_language_pack import get_language, get_parser
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
+from tree_sitter_language_pack import get_language, get_parser
+
 from buttercup.program_model.utils.common import (
     Function,
     FunctionBody,
@@ -349,7 +349,7 @@ class CodeTS:
     def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
-        return self.get_functions_in_code(code, file_path)
+        return self.get_functions_in_code(code, file_path)  # type: ignore[call-arg]
 
     def _get_code_no_preproc(self, code: bytes) -> bytes:
         """Remove preprocessor directives from the code"""

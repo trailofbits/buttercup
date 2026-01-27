@@ -4,8 +4,6 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, POVReproduceRequest
@@ -13,6 +11,7 @@ from buttercup.common.maps import BuildMap
 from buttercup.common.sets import PoVReproduceStatus
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 

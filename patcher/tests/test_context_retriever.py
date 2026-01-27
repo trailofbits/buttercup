@@ -9,6 +9,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
+from buttercup.common.task_meta import TaskMeta
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.messages.tool import ToolCall
@@ -18,8 +20,6 @@ from langgraph.types import Command
 from pydantic import BaseModel
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTask, CommandResult
-from buttercup.common.task_meta import TaskMeta
 from buttercup.patcher.agents.common import (
     CodeSnippetKey,
     CodeSnippetRequest,

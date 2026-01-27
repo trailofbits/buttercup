@@ -299,18 +299,19 @@ def task_registry_cli() -> None:
     from typing import Annotated
 
     from pydantic import Field
-    from pydantic_settings import BaseSettings
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 
     class TaskRegistrySettings(BaseSettings):
+        model_config = SettingsConfigDict(
+            env_prefix="BUTTERCUP_TASK_REGISTRY_",
+            env_file=".env",
+            cli_parse_args=True,
+            extra="allow",
+        )
+
         redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
 
-        class Config:
-            env_prefix = "BUTTERCUP_TASK_REGISTRY_"
-            env_file = ".env"
-            cli_parse_args = True
-            extra = "allow"
-
-    settings = TaskRegistrySettings()
+    settings = TaskRegistrySettings()  # type: ignore[call-arg]
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     registry = TaskRegistry(redis)
 

@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_BASE} AS runtime
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y git git-lfs curl && \
+    apt-get install -y --no-install-recommends ca-certificates git git-lfs curl && \
     git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
