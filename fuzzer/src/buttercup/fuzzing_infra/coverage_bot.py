@@ -109,13 +109,13 @@ class CoverageBot(TaskLoop):
 
             yield (tmp_dir.path, remaining_files)
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]) -> None:  # type: ignore[invalid-method-override]
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]) -> None:  # type: ignore[invalid-method-override]
         coverage_builds = builds[BuildType.COVERAGE]
         if not coverage_builds:
             logger.error(f"No coverage build found for {task.task_id}")
             return
 
-        coverage_build = coverage_builds  # builds dict has wrong type
+        coverage_build = coverage_builds[0]
 
         logger.info(f"Coverage build: {coverage_build}")
 

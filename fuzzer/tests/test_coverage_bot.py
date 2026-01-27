@@ -273,3 +273,142 @@ def test_submit_function_coverage_multiple_functions(coverage_bot, redis_client)
     # Create a set of function names for easier verification
     function_names = {coverage.function_name for coverage in stored_coverages}
     assert function_names == {"function1", "function2"}
+
+
+def test_run_task_with_coverage_build(coverage_bot):
+    """Test that run_task correctly handles builds dict with list[BuildOutput] values."""
+    from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
+
+    # Create a mock WeightedHarness task
+    task = WeightedHarness()
+    task.task_id = "test_task_id"
+    task.harness_name = "test_harness"
+    task.package_name = "test_package"
+    task.weight = 1.0
+
+    # Create a mock BuildOutput with the required task_dir attribute
+    build_output = BuildOutput()
+    build_output.task_id = "test_task_id"
+    build_output.task_dir = "/tmp/test_task_dir"
+    build_output.build_type = BuildType.COVERAGE
+
+    # The builds dict should have list[BuildOutput] as values, as per the base class signature
+    # dict[BuildType, list[BuildOutput]]
+    builds = {BuildType.COVERAGE: [build_output]}
+
+    # Mock all the dependencies that run_task uses
+    with (
+        patch("buttercup.fuzzing_infra.coverage_bot.ChallengeTask") as mock_challenge_task,
+        patch("buttercup.fuzzing_infra.coverage_bot.Corpus") as mock_corpus_class,
+        patch("buttercup.fuzzing_infra.coverage_bot.CoverageRunner") as mock_runner_class,
+        patch("buttercup.fuzzing_infra.coverage_bot.trace"),
+    ):
+        # Setup mock ChallengeTask
+        mock_task_instance = MagicMock()
+        mock_task_instance.task_meta.metadata = {}
+        mock_task_instance.project_name = "test_project"
+        mock_challenge_task.return_value = mock_task_instance
+
+        # Setup mock local task from get_rw_copy
+        mock_local_task = MagicMock()
+        mock_local_task.task_meta.metadata = {}
+        mock_local_task.project_name = "test_project"
+        mock_task_instance.get_rw_copy.return_value.__enter__.return_value = mock_local_task
+
+        # Setup mock Corpus
+        mock_corpus = MagicMock()
+        mock_corpus.path = "/tmp/corpus"
+        mock_corpus.local_corpus_size.return_value = 10
+        mock_corpus_class.return_value = mock_corpus
+
+        # Setup mock sample_corpus to return test files
+        with patch.object(coverage_bot, "_sample_corpus") as mock_sample_corpus:
+            mock_sample_corpus.return_value.__enter__.return_value = ("/tmp/sampled", ["file1", "file2"])
+
+            # Setup mock CoverageRunner
+            mock_runner = MagicMock()
+            mock_runner.run.return_value = [
+                CoveredFunction(names="test_func", total_lines=100, covered_lines=50, function_paths=["path1"]),
+            ]
+            mock_runner_class.return_value = mock_runner
+
+            coverage_bot.run_task(task, builds)
+
+            # Verify ChallengeTask was called with the correct task_dir from the build_output
+            mock_challenge_task.assert_called_once_with(read_only_task_dir="/tmp/test_task_dir")
+
+
+def test_run_task_with_empty_coverage_builds(coverage_bot):
+    """Test that run_task handles empty coverage builds list gracefully."""
+    from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness
+
+    task = WeightedHarness()
+    task.task_id = "test_task_id"
+    task.harness_name = "test_harness"
+    task.package_name = "test_package"
+
+    # Empty list of builds
+    builds = {BuildType.COVERAGE: []}
+
+    # This should return early without raising an error
+    coverage_bot.run_task(task, builds)
+
+
+def test_run_task_with_multiple_coverage_builds(coverage_bot):
+    """Test that run_task uses the first build when multiple coverage builds exist."""
+    from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
+
+    task = WeightedHarness()
+    task.task_id = "test_task_id"
+    task.harness_name = "test_harness"
+    task.package_name = "test_package"
+    task.weight = 1.0
+
+    # Create multiple BuildOutput objects
+    build_output_1 = BuildOutput()
+    build_output_1.task_id = "test_task_id"
+    build_output_1.task_dir = "/tmp/first_task_dir"
+    build_output_1.build_type = BuildType.COVERAGE
+
+    build_output_2 = BuildOutput()
+    build_output_2.task_id = "test_task_id"
+    build_output_2.task_dir = "/tmp/second_task_dir"
+    build_output_2.build_type = BuildType.COVERAGE
+
+    # Multiple builds in the list
+    builds = {BuildType.COVERAGE: [build_output_1, build_output_2]}
+
+    with (
+        patch("buttercup.fuzzing_infra.coverage_bot.ChallengeTask") as mock_challenge_task,
+        patch("buttercup.fuzzing_infra.coverage_bot.Corpus") as mock_corpus_class,
+        patch("buttercup.fuzzing_infra.coverage_bot.CoverageRunner") as mock_runner_class,
+        patch("buttercup.fuzzing_infra.coverage_bot.trace"),
+    ):
+        mock_task_instance = MagicMock()
+        mock_task_instance.task_meta.metadata = {}
+        mock_task_instance.project_name = "test_project"
+        mock_challenge_task.return_value = mock_task_instance
+
+        mock_local_task = MagicMock()
+        mock_local_task.task_meta.metadata = {}
+        mock_local_task.project_name = "test_project"
+        mock_task_instance.get_rw_copy.return_value.__enter__.return_value = mock_local_task
+
+        mock_corpus = MagicMock()
+        mock_corpus.path = "/tmp/corpus"
+        mock_corpus.local_corpus_size.return_value = 10
+        mock_corpus_class.return_value = mock_corpus
+
+        with patch.object(coverage_bot, "_sample_corpus") as mock_sample_corpus:
+            mock_sample_corpus.return_value.__enter__.return_value = ("/tmp/sampled", ["file1"])
+
+            mock_runner = MagicMock()
+            mock_runner.run.return_value = [
+                CoveredFunction(names="test_func", total_lines=100, covered_lines=50, function_paths=["path1"]),
+            ]
+            mock_runner_class.return_value = mock_runner
+
+            coverage_bot.run_task(task, builds)
+
+            # Verify it used the FIRST build's task_dir
+            mock_challenge_task.assert_called_once_with(read_only_task_dir="/tmp/first_task_dir")
