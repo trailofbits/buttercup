@@ -25,6 +25,11 @@ packages = ["src/buttercup"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv]
+# Must match OSS-Fuzz protobuf version for compatibility
+# See: https://github.com/google/oss-fuzz/blob/master/infra/base-images/base-builder/Dockerfile
+constraint-dependencies = ["protobuf==3.20.3"]
+
 [tool.uv.sources]
 common = { path = "../common", editable = true }
 
