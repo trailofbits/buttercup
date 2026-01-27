@@ -7,6 +7,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, ClassVar
 
+from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
+from buttercup.common.project_yaml import ProjectYaml
+from buttercup.program_model.codequery import CodeQueryPersistent
+from buttercup.program_model.utils.common import Function, TypeDefinition
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, ToolMessage
@@ -18,11 +23,6 @@ from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from redis import Redis
 
-from buttercup.common.challenge_task import ChallengeTask
-from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_callbacks
-from buttercup.common.project_yaml import ProjectYaml
-from buttercup.program_model.codequery import CodeQueryPersistent
-from buttercup.program_model.utils.common import Function, TypeDefinition
 from buttercup.seed_gen.find_harness import HarnessInfo, get_harness_source
 from buttercup.seed_gen.sandbox.sandbox import sandbox_exec_funcs
 from buttercup.seed_gen.utils import extract_code
@@ -112,7 +112,7 @@ class Task:
     @staticmethod
     def get_llm(llm: ButtercupLLM, fallback_llms: list[ButtercupLLM]) -> BaseChatModel:
         llm_callbacks = get_langfuse_callbacks()
-        llm = create_default_llm(
+        chat_model = create_default_llm(
             model_name=llm.value,
             callbacks=llm_callbacks,
         )
@@ -120,7 +120,7 @@ class Task:
         for fallback_llm in fallback_llms:
             fallback = create_default_llm(model_name=fallback_llm.value, callbacks=llm_callbacks)
             fallbacks.append(fallback)
-        return llm.with_fallbacks(fallbacks)  # type: ignore[no-any-return]
+        return chat_model.with_fallbacks(fallbacks)  # type: ignore[return-value]
 
     def get_harness_source(self) -> HarnessInfo | None:
         return get_harness_source(self.redis, self.codequery, self.harness_name)
@@ -287,7 +287,7 @@ class Task:
             type_defs = type_defs[: self.MAX_TYPE_DEFS]
         else:
             logger.info("Got %d type defs for %s", len(type_defs), type_name)
-        return type_defs  # type: ignore[no-any-return]
+        return type_defs
 
     @staticmethod
     def _get_function_definition(
@@ -421,7 +421,7 @@ class Task:
                     ],
                 },
             )
-        cat_output = cat_cmd_res.output.decode("utf-8")
+        cat_output = cat_cmd_res.output.decode("utf-8") if cat_cmd_res.output else ""
         results = [CodeSnippet(file_path=path, code=cat_output)]
         call_result = ToolCallResult(call=call, results=results)
         return Command(
@@ -453,7 +453,7 @@ class Task:
                 max_callers,
             )
             callers = callers[:max_callers]
-        return callers  # type: ignore[no-any-return]
+        return callers
 
     @staticmethod
     def _get_callers(
@@ -626,14 +626,11 @@ def batch_tool(
     for i, result in enumerate(results):
         if isinstance(result, Command):
             # TODO: We should check for dict type here
-            if "messages" in result.update:  # type: ignore[operator]
-                result_combined = "\n".join(
-                    message.content
-                    for message in result.update["messages"]  # type: ignore[index]
-                )
+            if "messages" in result.update:
+                result_combined = "\n".join(message.content for message in result.update["messages"])
                 combined_message += f"Batched call {i}:\n{result_combined}\n"
-            if "retrieved_context" in result.update:  # type: ignore[operator]
-                combined_context.update(result.update["retrieved_context"])  # type: ignore[index]
+            if "retrieved_context" in result.update:
+                combined_context.update(result.update["retrieved_context"])
 
     # Anthropic API expects 1 tool message per tool call ID
     return Command(

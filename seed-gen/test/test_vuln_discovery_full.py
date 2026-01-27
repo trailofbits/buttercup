@@ -3,11 +3,11 @@
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash
+from buttercup.common.reproduce_multiple import ReproduceResult
 from langchain_core.messages import AIMessage
 from langchain_core.messages.tool import ToolCall
 
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash
-from buttercup.common.reproduce_multiple import ReproduceResult
 from buttercup.seed_gen.vuln_discovery_full import VulnDiscoveryFullTask
 from test.conftest import (
     mock_sandbox_exec_funcs,

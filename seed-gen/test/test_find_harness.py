@@ -7,13 +7,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from redis import Redis
-
-import buttercup.seed_gen.find_harness
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.maps import FunctionCoverage
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
+from redis import Redis
+
+import buttercup.seed_gen.find_harness
 from buttercup.seed_gen.find_harness import (
     find_jazzer_harnesses,
     find_libfuzzer_harnesses,

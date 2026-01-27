@@ -5,16 +5,12 @@ from pathlib import Path
 from typing import Annotated
 
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, CliPositionalArg, CliSubCommand
+from pydantic_settings import BaseSettings, CliPositionalArg, CliSubCommand, SettingsConfigDict
 
 
 class DownloaderServeCommand(BaseModel):
     sleep_time: Annotated[float, Field(default=1.0, description="Sleep time between checks in seconds")]
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
-
-    class Config:
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
 
 
 class TaskType(str, Enum):
@@ -47,22 +43,19 @@ class DownloaderProcessCommand(BaseModel):
     project_name: str = Field(description="Project name")
     focus: str = Field(description="Focus")
 
-    class Config:
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-
 
 class DownloaderSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_DOWNLOADER_",
+        env_file=".env",
+        cli_parse_args=True,
+        nested_model_default_partial_update=True,
+        env_nested_delimiter="__",
+        extra="allow",
+    )
+
     download_dir: Annotated[Path, Field(default="/tmp/task_downloads", description="Directory for downloaded files")]
     log_level: Annotated[str, Field(default="info", description="Log level")]
     log_max_line_length: Annotated[int | None, Field(default=None, description="Log max line length")]
     serve: CliSubCommand[DownloaderServeCommand]
     process: CliSubCommand[DownloaderProcessCommand]
-
-    class Config:
-        env_prefix = "BUTTERCUP_DOWNLOADER_"
-        env_file = ".env"
-        cli_parse_args = True
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-        extra = "allow"

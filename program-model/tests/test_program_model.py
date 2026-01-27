@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import IndexRequest
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.program_model.program_model import ProgramModel
 
 

@@ -14,13 +14,26 @@ from pathlib import Path
 from wasmtime import Config, Engine, Linker, Module, Store, WasiConfig
 
 # Download: https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
-PYTHON_WASM_BUILD_PATH = os.environ["PYTHON_WASM_BUILD_PATH"]
+PYTHON_WASM_BUILD_PATH_ENV = "PYTHON_WASM_BUILD_PATH"
 
 MEMORY_LIMIT_BYTES = 50 * 1024 * 1024
 
 
+def _get_python_wasm_path() -> str:
+    """Get the Python WASM build path from environment variable."""
+    path = os.environ.get(PYTHON_WASM_BUILD_PATH_ENV)
+    if not path:
+        raise RuntimeError(
+            f"Environment variable {PYTHON_WASM_BUILD_PATH_ENV} is not set. "
+            "Download the Python WASM build from: "
+            "https://github.com/vmware-labs/webassembly-language-runtimes/releases"
+        )
+    return path
+
+
 def wasm_run_script(root_dir: Path, script_path: Path, script_args: list[str]) -> None:
     """Run python script in WASM in root dir"""
+    python_wasm_path = _get_python_wasm_path()
     # setup up wasmtime
     engine_config = Config()
     engine_config.consume_fuel = False
@@ -28,7 +41,7 @@ def wasm_run_script(root_dir: Path, script_path: Path, script_args: list[str]) -
     engine = Engine(engine_config)
     linker = Linker(engine)
     linker.define_wasi()
-    python_module = Module.from_file(linker.engine, PYTHON_WASM_BUILD_PATH)
+    python_module = Module.from_file(linker.engine, python_wasm_path)
     shutil.copy(script_path, root_dir)
     script_root_path = Path("/") / script_path.name
     config = WasiConfig()

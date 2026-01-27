@@ -2,10 +2,17 @@ from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_SCRATCH_CLEANER_",
+        env_file=".env",
+        cli_parse_args=True,
+        extra="allow",
+    )
+
     # Server configuration
     redis_url: Annotated[str, Field(default="redis://localhost:6379", description="Redis URL")]
     log_level: Annotated[str, Field(default="debug", description="Log level")]
@@ -15,9 +22,3 @@ class Settings(BaseSettings):
         Field(default=1800, description="Time in seconds after which to delete old task directories"),
     ]
     scratch_dir: Annotated[Path, Field(default=Path("/node-local/scratch"), description="Scratch directory")]
-
-    class Config:
-        env_prefix = "BUTTERCUP_SCRATCH_CLEANER_"
-        env_file = ".env"
-        cli_parse_args = True
-        extra = "allow"

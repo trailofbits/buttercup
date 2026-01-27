@@ -239,7 +239,8 @@ class ChallengeTask:
         subpath = subpath_method()
         if subpath is None:
             if raise_on_none:
-                raise ChallengeTaskError(f"Path not found: {subpath_method.__name__}")
+                method_name = getattr(subpath_method, "__name__", repr(subpath_method))
+                raise ChallengeTaskError(f"Path not found: {method_name}")
             return None
         return self.task_dir / subpath
 
@@ -384,42 +385,41 @@ class ChallengeTask:
                 logger.debug("Env helper: %s", env_helper)
                 env_helper = {**os.environ, **env_helper}
             logger.debug(f"Running command (cwd={cwd}): {' '.join(cmd)}")
-            process = subprocess.Popen(  # noqa: S603
+            with subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 cwd=cwd,
                 env=env_helper,
-            )
+            ) as process:
+                # Poll process for new output until finished
+                stdout = b""
+                stderr = b""
+                current_output_line = b""
+                current_error_line = b""
+                while True:
+                    stdout_line = process.stdout.readline() if process.stdout else b""
+                    stderr_line = process.stderr.readline() if process.stderr else b""
+                    if stdout_line:
+                        current_output_line = self._log_output_line(current_output_line, stdout_line, log)
+                        stdout += stdout_line
 
-            # Poll process for new output until finished
-            stdout = b""
-            stderr = b""
-            current_output_line = b""
-            current_error_line = b""
-            while True:
-                stdout_line = process.stdout.readline() if process.stdout else b""
-                stderr_line = process.stderr.readline() if process.stderr else b""
-                if stdout_line:
-                    current_output_line = self._log_output_line(current_output_line, stdout_line, log)
-                    stdout += stdout_line
+                    if stderr_line:
+                        current_error_line = self._log_output_line(current_error_line, stderr_line, log)
+                        stderr += stderr_line
 
-                if stderr_line:
-                    current_error_line = self._log_output_line(current_error_line, stderr_line, log)
-                    stderr += stderr_line
+                    # Break if process has finished and we've read all output
+                    if not stdout_line and not stderr_line and process.poll() is not None:
+                        break
 
-                # Break if process has finished and we've read all output
-                if not stdout_line and not stderr_line and process.poll() is not None:
-                    break
+                returncode = process.wait()
 
-            returncode = process.wait()
-
-            return CommandResult(
-                success=returncode == 0,
-                returncode=returncode,
-                error=stderr,
-                output=stdout,
-            )
+                return CommandResult(
+                    success=returncode == 0,
+                    returncode=returncode,
+                    error=stderr,
+                    output=stdout,
+                )
         except subprocess.CalledProcessError as e:
             logger.error(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
             return CommandResult(

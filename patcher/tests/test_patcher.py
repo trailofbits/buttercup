@@ -4,12 +4,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from redis import Redis
-
 from buttercup.common.challenge_task import ChallengeTask, TaskMeta
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, ConfirmedVulnerability, Crash, Task, TracedCrash
 from buttercup.common.queues import RQItem
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.patcher.agents.common import (
     CodeSnippetRequest,
     PatchAttempt,

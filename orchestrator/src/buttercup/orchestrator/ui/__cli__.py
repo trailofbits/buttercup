@@ -1,9 +1,9 @@
 import logging
 
 import uvicorn
-
 from buttercup.common.logger import setup_package_logger
 from buttercup.common.telemetry import init_telemetry
+
 from buttercup.orchestrator.ui.config import Settings
 
 # Import the generated FastAPI app
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[missing-argument]
     setup_package_logger("ui", __name__, settings.log_level)
     init_telemetry("ui")
     logger.info(f"Starting UI with settings: {settings}")

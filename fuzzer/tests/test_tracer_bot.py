@@ -2,10 +2,10 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-from redis import Redis
-
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, Crash, Task
 from buttercup.common.task_registry import TaskRegistry
+from redis import Redis
+
 from buttercup.fuzzing_infra.tracer_bot import TracerBot
 
 

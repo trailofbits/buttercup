@@ -2,8 +2,6 @@ import logging
 import os
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common import node_local, stack_parsing
 from buttercup.common.datastructures.msg_pb2 import TracedCrash
 from buttercup.common.logger import setup_package_logger
@@ -11,6 +9,8 @@ from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.telemetry import init_telemetry
 from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from redis import Redis
+
 from buttercup.fuzzing_infra.settings import TracerSettings
 from buttercup.fuzzing_infra.tracer_runner import TracerRunner
 
@@ -60,7 +60,7 @@ class TracerBot:
             logger.warning(f"No tracer info found for {item.deserialized.target.task_id}")
             return True
 
-        if tinfo.is_valid:
+        if tinfo.is_valid and tinfo.stacktrace is not None:
             logger.info(f"Valid tracer info found for {item.deserialized.target.task_id}")
             prsed = stack_parsing.parse_stacktrace(tinfo.stacktrace)
             output = prsed.crash_stacktrace
@@ -81,7 +81,7 @@ class TracerBot:
 
 
 def main() -> None:
-    args = TracerSettings()
+    args = TracerSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("tracer-bot", __name__, "DEBUG", None)
     init_telemetry("tracer-bot")

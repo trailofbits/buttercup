@@ -33,8 +33,8 @@ dev = [
     "pytest-cov ~=6.0.0",
     "pytest-xdist ~=3.6.1",
     # Linting and type checking
-    "ruff ~=0.12.8",
-    "mypy ~=1.17.1",
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
     # Type stubs
     "types-python-dateutil ~=2.9.0.20241206",
 ]
@@ -63,23 +63,17 @@ ignore = [
 common = { path = "../common", editable = true }
 program-model = { path = "../program-model", editable = true }
 
-[tool.mypy]
-plugins = ['pydantic.mypy']
-mypy_path = "src"
-packages = "buttercup"
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-show_error_codes = true
-sqlite_cache = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
-exclude = []
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
+
+[tool.ty.rules]
+# Start permissive, tighten over time
+unresolved-import = "warn"
+unresolved-attribute = "warn"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

@@ -12,10 +12,10 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from buttercup.common.challenge_task import ChallengeTask
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
-from buttercup.common.challenge_task import ChallengeTask
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
     SARIFBroadcast,
     SARIFBroadcastDetail,

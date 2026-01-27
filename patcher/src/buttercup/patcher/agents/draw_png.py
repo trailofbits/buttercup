@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-import graphviz
+import graphviz  # type: ignore[unresolved-import]
 
 
 def draw_state_machine(output_path: Path | None = None) -> None:

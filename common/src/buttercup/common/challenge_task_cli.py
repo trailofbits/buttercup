@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, get_subcommand
+from pydantic_settings import BaseSettings, CliImplicitFlag, CliSubCommand, SettingsConfigDict, get_subcommand
 
 from buttercup.common.challenge_task import ChallengeTask, CommandResult, ReproduceResult
 from buttercup.common.constants import ARCHITECTURE
@@ -44,6 +44,15 @@ class ReproducePovCommand(BaseModel):
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="BUTTERCUP_CHALLENGE_TASK_",
+        env_file=".env",
+        cli_parse_args=True,
+        nested_model_default_partial_update=True,
+        env_nested_delimiter="__",
+        extra="allow",
+    )
+
     task_dir: Path
     python_path: Path = Path("python")
     rw: CliImplicitFlag[bool] = False
@@ -53,14 +62,6 @@ class Settings(BaseSettings):
     build_fuzzers: CliSubCommand[BuildFuzzersCommand]
     check_build: CliSubCommand[CheckBuildCommand]
     reproduce_pov: CliSubCommand[ReproducePovCommand]
-
-    class Config:
-        env_prefix = "BUTTERCUP_CHALLENGE_TASK_"
-        env_file = ".env"
-        cli_parse_args = True
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-        extra = "allow"
 
 
 def handle_subcommand(task: ChallengeTask, subcommand: BaseModel | None) -> CommandResult | ReproduceResult:
@@ -114,7 +115,7 @@ def get_task_copy(task: ChallengeTask, use_copy: bool = False) -> Iterator[Chall
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
     setup_package_logger("challenge-task-cli", __name__, "DEBUG")
     if settings.rw:
         task = ChallengeTask(

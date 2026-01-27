@@ -5,12 +5,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableSequence
 from langgraph.types import Command
 
-from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
 from buttercup.patcher.agents.common import (
     PatchAttempt,
     PatcherAgentName,
