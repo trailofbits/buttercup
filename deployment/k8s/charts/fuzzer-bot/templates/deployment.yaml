@@ -30,15 +30,18 @@ spec:
           periodSeconds: {{ .Values.healthCheck.periodSeconds | default 300 }}
           timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 10 }}
           failureThreshold: {{ .Values.healthCheck.failureThreshold | default 2 }}
-        env: 
+        env:
         {{- include "buttercup.commonEnv" . | nindent 8 }}
         {{- include "buttercup.fuzzerBotEnv" . | nindent 8 }}
+        {{- include "buttercup.env.corpusTmpfs" . | nindent 8 }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
         {{- include "buttercup.standardVolumeMounts" (dict "usesTasksStorage" false) | nindent 8 }}
         {{- include "buttercup.nodeLocalVolumeMount" . | nindent 8 }}
+        {{- include "buttercup.corpusTmpfsVolumeMount" . | nindent 8 }}
       volumes:
       {{- include "buttercup.volumes.scratch" . | nindent 6 }}
       {{- include "buttercup.nodeLocalVolume" . | nindent 6 }}
+      {{- include "buttercup.corpusTmpfsVolume" . | nindent 6 }}
 {{- end }}

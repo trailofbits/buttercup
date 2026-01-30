@@ -217,3 +217,33 @@ Usage: {{- include "buttercup.apiKeySecretVolume" (dict "secretName" "litellm-ap
   secret:
     secretName: {{ .secretName }}
 {{- end -}}
+
+{{/*
+Corpus Tmpfs Volume Mount Helper
+Conditionally adds the volume mount for tmpfs corpus storage if enabled globally.
+Expects the root context '.' to be passed.
+Usage: {{- include "buttercup.corpusTmpfsVolumeMount" . | nindent 10 }}
+*/}}
+{{- define "buttercup.corpusTmpfsVolumeMount" -}}
+{{- if .Values.global.volumes.corpusTmpfs.enabled }}
+- name: corpus-tmpfs
+  mountPath: {{ .Values.global.volumes.corpusTmpfs.mountPath }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Corpus Tmpfs Volume Definition Helper
+Conditionally adds the volume definition for tmpfs corpus storage if enabled globally.
+Uses hostPath to mount a node-level tmpfs (shared across all pods on the node).
+PREREQUISITE: The hostPath must be a tmpfs mount on the node (e.g., /dev/shm or custom tmpfs).
+Expects the root context '.' to be passed.
+Usage: {{- include "buttercup.corpusTmpfsVolume" . | nindent 8 }}
+*/}}
+{{- define "buttercup.corpusTmpfsVolume" -}}
+{{- if .Values.global.volumes.corpusTmpfs.enabled }}
+- name: corpus-tmpfs
+  hostPath:
+    path: {{ .Values.global.volumes.corpusTmpfs.hostPath }}
+    type: {{ .Values.global.volumes.corpusTmpfs.type }}
+{{- end }}
+{{- end -}}

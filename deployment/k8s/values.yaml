@@ -81,6 +81,15 @@ global:
       hostPath: /node_data_storage
       type: DirectoryOrCreate
       mountPath: /node_data
+    # Optional tmpfs volume for fuzzing corpus storage (per-node, shared across pods)
+    # When enabled, corpus data is stored in RAM for improved I/O performance
+    corpusTmpfs:
+      enabled: false
+      # /dev/shm is tmpfs by default on Linux - no host setup required
+      hostPath: /dev/shm/buttercup-corpus
+      type: DirectoryOrCreate
+      # Mount path inside containers
+      mountPath: /corpus_tmpfs
 
 # Volume configurations
 volumes:

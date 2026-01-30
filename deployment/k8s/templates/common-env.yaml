@@ -61,6 +61,13 @@ Define common variables by categories
 {{- end }}
 {{- end }}
 
+{{- define "buttercup.env.corpusTmpfs" }}
+{{- if .Values.global.volumes.corpusTmpfs.enabled }}
+- name: CORPUS_TMPFS_PATH
+  value: "{{ .Values.global.volumes.corpusTmpfs.mountPath }}"
+{{- end }}
+{{- end }}
+
 {{- define "buttercup.env.redis" }}
 - name: REDIS_URL
   value: {{ include "buttercup.core.redisUrl" . }}

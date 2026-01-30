@@ -18,6 +18,37 @@ logger = logging.getLogger(__name__)
 # TODO: this file is one of the few files that uses os.path.join. Switch to Path.
 
 
+def _get_corpus_storage_path(wdir: str, corpus_subpath: str) -> tuple[str, Path]:
+    """Calculate the local storage path and remote path for corpus.
+
+    When tmpfs is enabled, the local path is on tmpfs but the remote path
+    is still calculated relative to NODE_DATA_DIR.
+
+    Args:
+        wdir: The working directory (typically NODE_DATA_DIR)
+        corpus_subpath: The corpus subdirectory (e.g., "{task_id}/buttercup_corpus_{harness}")
+
+    Returns:
+        Tuple of (local_path, remote_path)
+    """
+    tmpfs_path = node_local.get_corpus_tmpfs_path()
+
+    if tmpfs_path:
+        # Store corpus on tmpfs
+        local_path = os.path.join(str(tmpfs_path), corpus_subpath)
+        # Remote path is still calculated relative to NODE_DATA_DIR structure
+        # We compute it as if the corpus were stored in wdir
+        canonical_path = os.path.join(wdir, corpus_subpath)
+        remote_path = node_local.remote_path(Path(canonical_path))
+        logger.debug(f"Using tmpfs for corpus: local={local_path}, remote={remote_path}")
+    else:
+        # Standard behavior - store corpus in wdir
+        local_path = os.path.join(wdir, corpus_subpath)
+        remote_path = node_local.remote_path(Path(local_path))
+
+    return local_path, remote_path
+
+
 def hash_file(fl: BinaryIO) -> str:
     h = hashlib.new("sha256")
     bts = fl.read(100)
@@ -28,9 +59,34 @@ def hash_file(fl: BinaryIO) -> str:
 
 
 class InputDir:
-    def __init__(self, wdir: str, name: str, copy_corpus_max_size: int | None = None):
-        self.path = os.path.join(wdir, name)
-        self.remote_path = node_local.remote_path(Path(self.path))
+    def __init__(
+        self,
+        wdir: str,
+        name: str,
+        copy_corpus_max_size: int | None = None,
+        *,
+        override_local_path: str | None = None,
+        override_remote_path: Path | None = None,
+    ):
+        """Initialize an InputDir for corpus/crash storage.
+
+        Args:
+            wdir: Working directory (typically NODE_DATA_DIR)
+            name: Subdirectory name within wdir
+            copy_corpus_max_size: Maximum size for copied corpus files
+            override_local_path: If provided, use this as the local path instead of wdir/name
+            override_remote_path: If provided, use this as the remote path
+        """
+        if override_local_path is not None:
+            self.path = override_local_path
+        else:
+            self.path = os.path.join(wdir, name)
+
+        if override_remote_path is not None:
+            self.remote_path = override_remote_path
+        else:
+            self.remote_path = node_local.remote_path(Path(self.path))
+
         self.copy_corpus_max_size = copy_corpus_max_size
         os.makedirs(self.path, exist_ok=True)
 
@@ -112,7 +168,9 @@ class InputDir:
             try:
                 with open(file_path, "rb") as f:
                     hash_filename = hash_file(f)
-                os.rename(file_path, os.path.join(path, hash_filename))
+                dst_path = os.path.join(path, hash_filename)
+                # Use shutil.move which handles cross-filesystem operations
+                shutil.move(file_path, dst_path)
                 hashed_files.append(hash_filename)
             except Exception as e:
                 # Likely already hashed by another pod
@@ -224,7 +282,17 @@ class Corpus(InputDir):
         self.task_id = task_id
         self.harness_name = harness_name
         self.corpus_dir = os.path.join(task_id, f"{CORPUS_DIR_NAME}_{harness_name}")
-        super().__init__(wdir, self.corpus_dir, copy_corpus_max_size=copy_corpus_max_size)
+
+        # Get the storage paths, potentially using tmpfs for the local path
+        local_path, remote_path = _get_corpus_storage_path(wdir, self.corpus_dir)
+
+        super().__init__(
+            wdir,
+            self.corpus_dir,
+            copy_corpus_max_size=copy_corpus_max_size,
+            override_local_path=local_path,
+            override_remote_path=remote_path,
+        )
 
     def remove_any_merged(self, redis: Redis) -> None:
         merged_corpus_set = MergedCorpusSet(redis, self.task_id, self.harness_name)

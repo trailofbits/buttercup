@@ -9,6 +9,8 @@ from buttercup.common.node_local import (
     TmpDir,
     _get_root_path,
     dir_to_remote_archive,
+    get_corpus_tmpfs_path,
+    is_corpus_tmpfs_enabled,
     local_scratch_file,
     lopen,
     remote_scratch_file,
@@ -501,3 +503,32 @@ class TestNodeLocal:
 
                 # Check the return value
                 assert result == mock_file
+
+
+class TestTmpfsCorpusConfiguration:
+    """Tests for tmpfs corpus configuration functions."""
+
+    @patch("buttercup.common.node_local.corpus_tmpfs_path", None)
+    def test_is_corpus_tmpfs_enabled_false(self):
+        """Test is_corpus_tmpfs_enabled when not configured."""
+        assert is_corpus_tmpfs_enabled() is False
+
+    @patch("buttercup.common.node_local.corpus_tmpfs_path", "/tmp/corpus")
+    def test_is_corpus_tmpfs_enabled_true(self):
+        """Test is_corpus_tmpfs_enabled when configured."""
+        assert is_corpus_tmpfs_enabled() is True
+
+    @patch("buttercup.common.node_local.corpus_tmpfs_path", None)
+    def test_get_corpus_tmpfs_path_not_set(self):
+        """Test get_corpus_tmpfs_path when not configured."""
+        assert get_corpus_tmpfs_path() is None
+
+    @patch("buttercup.common.node_local.corpus_tmpfs_path", "/tmp/corpus")
+    def test_get_corpus_tmpfs_path_set(self):
+        """Test get_corpus_tmpfs_path when configured."""
+        result = get_corpus_tmpfs_path()
+        assert result == Path("/tmp/corpus")
+
+
+# Cross-filesystem operation tests are in test_cross_filesystem.py
+# to avoid interference with the autouse mock_env_settings fixture.
