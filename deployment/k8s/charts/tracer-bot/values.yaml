@@ -24,3 +24,17 @@ healthCheck:
   timeoutSeconds: 10
   # Allow 2 failures before restarting
   failureThreshold: 2
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      # 600s: long-running trace analysis should not be interrupted by premature scale-down
+      stabilizationWindowSeconds: 600
+    scaleUp:
+      stabilizationWindowSeconds: 120

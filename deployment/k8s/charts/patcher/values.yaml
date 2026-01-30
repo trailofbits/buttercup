@@ -9,3 +9,16 @@ resources:
   requests:
     cpu: 200m
     memory: 256Mi
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  behavior:
+    scaleDown:
+      # 600s: LLM-powered patching tasks are long-running and should not be interrupted
+      stabilizationWindowSeconds: 600
+    scaleUp:
+      stabilizationWindowSeconds: 120

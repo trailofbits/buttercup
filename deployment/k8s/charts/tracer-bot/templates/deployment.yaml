@@ -6,7 +6,9 @@ metadata:
   labels:
     app: tracer-bot
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount | default 1 }}
+  {{- end }}
   selector:
     matchLabels:
       app: tracer-bot

@@ -14,3 +14,21 @@ resources:
 povReproducer:
   sleepTime: 5.0
   maxRetries: 100000
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      # 300s: POV reproduction tasks are relatively short-lived
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 90
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60

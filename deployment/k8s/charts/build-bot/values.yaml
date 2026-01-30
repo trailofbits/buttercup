@@ -11,3 +11,20 @@ resources:
 replicaCount: 4
 timer: 5000
 logLevel: "DEBUG"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      # 300s: build tasks are relatively short-lived and can tolerate faster scale-down
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Pods
+        value: 3
+        periodSeconds: 60

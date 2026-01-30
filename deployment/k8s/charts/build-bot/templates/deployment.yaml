@@ -6,7 +6,9 @@ metadata:
   labels:
     app: build-bot
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount | default 1 }}
+  {{- end }}
   selector:
     matchLabels:
       app: build-bot

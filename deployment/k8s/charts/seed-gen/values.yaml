@@ -20,3 +20,16 @@ healthCheck:
   timeoutSeconds: 10
   # Allow 2 failures before restarting
   failureThreshold: 2
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 75
+  behavior:
+    scaleDown:
+      # 300s: seed generation tasks are relatively short-lived
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 120

@@ -104,6 +104,18 @@ volumes:
     size: "1Gi"
     accessMode: ReadWriteOnce
 
+# Autoscaling Configuration
+# Each service can enable HPA by setting autoscaling.enabled=true in its values
+# Example:
+#   fuzzer-bot:
+#     autoscaling:
+#       enabled: true
+#       minReplicas: 1
+#       maxReplicas: 10
+# Prerequisites:
+#   - metrics-server must be installed in the cluster
+#   - For Minikube: minikube addons enable metrics-server
+#   - For AKS: metrics-server is pre-installed
 
 # Dind daemon chart configuration
 dind-daemon:
