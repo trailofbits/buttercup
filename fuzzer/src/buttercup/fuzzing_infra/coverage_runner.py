@@ -44,6 +44,26 @@ class CachedExpansionLines(NamedTuple):
     covered_lines: frozenset[int]
 
 
+@dataclass
+class FileLineCoverage:
+    """Coverage data for lines in a single file."""
+
+    file_id: int
+    file_path: str  # Container path from coverage
+    total_lines: set[int]
+    covered_lines: set[int]
+    is_primary: bool  # True if this is the function definition file
+
+
+@dataclass
+class MacroCallSite:
+    """Location where a macro with uncovered code is called."""
+
+    call_line: int  # Line in primary file where macro is called
+    macro_file_path: str  # File where macro is defined
+    uncovered_line_count: int  # How many lines inside macro are uncovered
+
+
 # Type aliases for complex data structures
 ExpansionMap = dict[ExpansionKey, list[Any]]
 CoordToFilenames = dict[RegionCoords, list[str]]
@@ -65,9 +85,51 @@ class CoveredFunction:
     """Coverage metrics for a single function."""
 
     names: str
-    total_lines: int
-    covered_lines: int
+    total_lines: int  # Aggregate count
+    covered_lines: int  # Aggregate count
     function_paths: list[str]
+    # Line-level data for partial coverage (only populated when 0 < coverage < 100%)
+    total_line_set: set[int] | None = None
+    covered_line_set: set[int] | None = None
+    function_start_line: int | None = None
+    function_end_line: int | None = None
+    # For partial coverage - per-file data
+    file_coverage: list[FileLineCoverage] | None = None
+    primary_file_id: int | None = None
+    # Macro call sites (line in primary file where macro is invoked)
+    macro_call_sites: list[MacroCallSite] | None = None
+
+
+def find_primary_file(regions: list[Any], filenames: list[str]) -> int:
+    """Find the file_id of the primary file (where function is defined).
+
+    The primary file is identified by:
+    1. File with the most REGION_KIND_CODE regions
+    2. Prefer .c/.cpp files over .h/.hpp files as tiebreaker
+    """
+    code_region_counts: dict[int, int] = {}
+
+    for region in regions:
+        if len(region) < 8:
+            continue
+        kind = region[7]
+        file_id = region[5] if len(region) > 5 else 0
+
+        if kind == REGION_KIND_CODE:
+            code_region_counts[file_id] = code_region_counts.get(file_id, 0) + 1
+
+    if not code_region_counts:
+        return 0
+
+    # Pick file with most code regions, prefer source over header
+    def file_sort_key(fid: int) -> tuple[int, bool]:
+        count = code_region_counts[fid]
+        is_source = False
+        if fid < len(filenames):
+            is_source = filenames[fid].endswith((".c", ".cpp", ".cc", ".cxx"))
+        return (count, is_source)
+
+    return max(code_region_counts.keys(), key=file_sort_key)
 
 
 class CoverageRunner:
@@ -127,28 +189,43 @@ class CoverageRunner:
                 regions = function["regions"]
                 filenames = function.get("filenames", [])
 
-                covered_lines: set[int] = set()
-                total_lines: set[int] = set()
-
-                self._process_regions(
-                    regions,
-                    total_lines,
-                    covered_lines,
-                    expansion_map,
-                    coord_to_filenames,
-                    filenames,
-                    expansion_lines_cache,
+                # Use new per-file tracking method
+                file_coverage, primary_file_id, macro_call_sites, total_lines, covered_lines = (
+                    self._process_regions_with_file_tracking(
+                        regions,
+                        filenames,
+                        expansion_map,
+                        coord_to_filenames,
+                        expansion_lines_cache,
+                    )
                 )
 
                 total_line_count = len(total_lines)
                 covered_line_count = len(covered_lines)
                 if covered_line_count > 0:
+                    # Check if this is partial coverage (0 < coverage < 100%)
+                    is_partial = 0 < covered_line_count < total_line_count
+
+                    # Get primary file coverage for start/end lines
+                    primary_coverage = file_coverage.get(primary_file_id) if primary_file_id is not None else None
+                    func_start = min(primary_coverage.total_lines) if primary_coverage else min(total_lines)
+                    func_end = max(primary_coverage.total_lines) if primary_coverage else max(total_lines)
+
                     function_coverage.append(
                         CoveredFunction(
                             name,
                             total_line_count,
                             covered_line_count,
                             function.get("filenames", []),
+                            # Include line sets for partial coverage only
+                            total_line_set=total_lines.copy() if is_partial else None,
+                            covered_line_set=covered_lines.copy() if is_partial else None,
+                            function_start_line=func_start if is_partial else None,
+                            function_end_line=func_end if is_partial else None,
+                            # New per-file tracking fields
+                            file_coverage=list(file_coverage.values()) if is_partial else None,
+                            primary_file_id=primary_file_id if is_partial else None,
+                            macro_call_sites=macro_call_sites if is_partial and macro_call_sites else None,
                         ),
                     )
 
@@ -356,6 +433,115 @@ class CoverageRunner:
         total_lines.update(lines)
         if execution_count > 0:
             covered_lines.update(lines)
+
+    def _process_regions_with_file_tracking(
+        self,
+        regions: list[Any],
+        filenames: list[str],
+        expansion_map: ExpansionMap,
+        coord_to_filenames: CoordToFilenames,
+        expansion_lines_cache: ExpansionLinesCache,
+    ) -> tuple[dict[int, FileLineCoverage], int, list[MacroCallSite], set[int], set[int]]:
+        """Process regions and group by file, also tracking macro call sites.
+
+        Returns:
+            - Dict of file_id -> FileLineCoverage (for CODE regions only)
+            - Primary file_id
+            - List of macro call sites with uncovered code
+            - Aggregate total_lines set (includes expansion lines)
+            - Aggregate covered_lines set (includes expansion lines)
+        """
+        # Track lines by file for CODE regions
+        lines_by_file: dict[int, tuple[set[int], set[int]]] = {}  # file_id -> (total, covered)
+        macro_call_sites: list[MacroCallSite] = []
+
+        # Aggregate sets (for backwards compatibility, includes expansion lines)
+        total_lines: set[int] = set()
+        covered_lines: set[int] = set()
+
+        filenames_set = set(filenames) if filenames else set()
+        primary_file_id = find_primary_file(regions, filenames)
+
+        for region in regions:
+            if len(region) < 5:
+                continue
+
+            region_kind = region[7] if len(region) > 7 else REGION_KIND_CODE
+            file_id = region[5] if len(region) > 5 else 0
+
+            if region_kind == REGION_KIND_CODE:
+                # Track in file-specific sets
+                if file_id not in lines_by_file:
+                    lines_by_file[file_id] = (set(), set())
+                file_total, file_covered = lines_by_file[file_id]
+                self._add_region_lines(region, file_total, file_covered)
+
+                # Also add to aggregate sets
+                self._add_region_lines(region, total_lines, covered_lines)
+
+            elif region_kind == REGION_KIND_EXPANSION:
+                # Process expansion for aggregate counts
+                coords = RegionCoords(region[0], region[1], region[2], region[3])
+                expansion_filenames = coord_to_filenames.get(coords, [])
+                for fn in expansion_filenames:
+                    if fn in filenames_set:
+                        key = ExpansionKey.from_coords(fn, coords)
+                        if key in expansion_map:
+                            # Get or compute expansion lines
+                            if key in expansion_lines_cache:
+                                cached = expansion_lines_cache[key]
+                                exp_total = cached.total_lines
+                                exp_covered = cached.covered_lines
+                            else:
+                                exp_total_set: set[int] = set()
+                                exp_covered_set: set[int] = set()
+                                self._process_expansion_lines(
+                                    expansion_map[key],
+                                    exp_total_set,
+                                    exp_covered_set,
+                                    expansion_map,
+                                    coord_to_filenames,
+                                    filenames_set,
+                                    expansion_lines_cache,
+                                )
+                                expansion_lines_cache[key] = CachedExpansionLines(
+                                    frozenset(exp_total_set),
+                                    frozenset(exp_covered_set),
+                                )
+                                exp_total = frozenset(exp_total_set)
+                                exp_covered = frozenset(exp_covered_set)
+
+                            # Add to aggregate counts
+                            total_lines.update(exp_total)
+                            covered_lines.update(exp_covered)
+
+                            # Track as macro call site if has uncovered code
+                            uncovered_count = len(exp_total - exp_covered)
+                            if uncovered_count > 0:
+                                call_line = region[0]  # Line where macro is called
+                                # Get the macro file path from the expansion
+                                macro_file_path = fn
+                                macro_call_sites.append(
+                                    MacroCallSite(
+                                        call_line=call_line,
+                                        macro_file_path=macro_file_path,
+                                        uncovered_line_count=uncovered_count,
+                                    )
+                                )
+                            break
+
+        # Convert to FileLineCoverage objects
+        file_coverage: dict[int, FileLineCoverage] = {}
+        for fid, (ftotal, fcovered) in lines_by_file.items():
+            file_coverage[fid] = FileLineCoverage(
+                file_id=fid,
+                file_path=filenames[fid] if fid < len(filenames) else "",
+                total_lines=ftotal,
+                covered_lines=fcovered,
+                is_primary=(fid == primary_file_id),
+            )
+
+        return file_coverage, primary_file_id, macro_call_sites, total_lines, covered_lines
 
     def run(self, harness_name: str, corpus_dir: str) -> list[CoveredFunction] | None:
         lang = ProjectYaml(self.tool, self.tool.project_name).unified_language

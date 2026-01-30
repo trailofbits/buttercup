@@ -10,11 +10,21 @@ from pathlib import Path
 from buttercup.common import node_local
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus
+from buttercup.common.coverage_utils import UncoveredRanges
 from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildType,
+    FunctionCoverage,
+    FunctionUncoveredLines,
+    WeightedHarness,
+)
+from buttercup.common.datastructures.msg_pb2 import (
+    MacroCallSite as MacroCallSiteProto,
+)
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.logger import setup_package_logger
-from buttercup.common.maps import CoverageMap
+from buttercup.common.maps import CoverageMap, UncoveredLinesMap
 from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
 from buttercup.common.utils import setup_periodic_zombie_reaper
 from opentelemetry import trace
@@ -195,8 +205,10 @@ class CoverageBot(TaskLoop):
 
         """
         coverage_map = CoverageMap(self.redis, harness_name, package_name, task_id)
+        uncovered_map = UncoveredLinesMap(self.redis, harness_name, package_name, task_id)
 
         updated_functions = 0
+        updated_uncovered = 0
         for function in func_coverage:
             function_coverage = FunctionCoverage()
             function_paths_set = set(function.function_paths)
@@ -211,7 +223,49 @@ class CoverageBot(TaskLoop):
             if CoverageBot._should_update_function_coverage(coverage_map, function_coverage):
                 coverage_map.set_function_coverage(function_coverage)
                 updated_functions += 1
+
+                # Submit uncovered lines data for partial coverage
+                if function.file_coverage is not None:
+                    # Find primary file coverage
+                    primary_coverage = next(
+                        (fc for fc in function.file_coverage if fc.is_primary),
+                        None,
+                    )
+
+                    if primary_coverage and primary_coverage.total_lines - primary_coverage.covered_lines:
+                        uncovered_ranges = UncoveredRanges.from_line_sets(
+                            primary_coverage.total_lines,
+                            primary_coverage.covered_lines,
+                            min(primary_coverage.total_lines),
+                            max(primary_coverage.total_lines),
+                        )
+
+                        if uncovered_ranges is not None:
+                            # Convert macro call sites to protobuf
+                            macro_sites = [
+                                MacroCallSiteProto(
+                                    call_line=m.call_line,
+                                    macro_file_path=m.macro_file_path,
+                                    uncovered_count=m.uncovered_line_count,
+                                )
+                                for m in (function.macro_call_sites or [])
+                            ]
+
+                            uncovered_data = FunctionUncoveredLines(
+                                function_name=function.names,
+                                function_paths=function_paths,
+                                primary_file_path=primary_coverage.file_path,
+                                total_lines=function.total_lines,
+                                covered_lines=function.covered_lines,
+                                uncovered=uncovered_ranges.to_protobuf(),
+                                macro_sites=macro_sites,
+                            )
+                            uncovered_map.set_uncovered_lines(uncovered_data)
+                            updated_uncovered += 1
+
         logger.info(f"Updated coverage for {updated_functions} functions in Redis")
+        if updated_uncovered > 0:
+            logger.info(f"Updated uncovered lines for {updated_uncovered} functions in Redis")
 
 
 def main() -> None:

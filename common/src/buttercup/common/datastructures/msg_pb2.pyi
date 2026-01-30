@@ -317,3 +317,43 @@ class POVReproduceResponse(_message.Message):
     request: POVReproduceRequest
     did_crash: bool
     def __init__(self, request: _Optional[_Union[POVReproduceRequest, _Mapping]] = ..., did_crash: bool = ...) -> None: ...
+
+class MacroCallSite(_message.Message):
+    __slots__ = ("call_line", "macro_file_path", "uncovered_count")
+    CALL_LINE_FIELD_NUMBER: _ClassVar[int]
+    MACRO_FILE_PATH_FIELD_NUMBER: _ClassVar[int]
+    UNCOVERED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    call_line: int
+    macro_file_path: str
+    uncovered_count: int
+    def __init__(self, call_line: _Optional[int] = ..., macro_file_path: _Optional[str] = ..., uncovered_count: _Optional[int] = ...) -> None: ...
+
+class UncoveredLines(_message.Message):
+    __slots__ = ("starts", "lengths", "function_start_line", "function_end_line")
+    STARTS_FIELD_NUMBER: _ClassVar[int]
+    LENGTHS_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_START_LINE_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_END_LINE_FIELD_NUMBER: _ClassVar[int]
+    starts: _containers.RepeatedScalarFieldContainer[int]
+    lengths: _containers.RepeatedScalarFieldContainer[int]
+    function_start_line: int
+    function_end_line: int
+    def __init__(self, starts: _Optional[_Iterable[int]] = ..., lengths: _Optional[_Iterable[int]] = ..., function_start_line: _Optional[int] = ..., function_end_line: _Optional[int] = ...) -> None: ...
+
+class FunctionUncoveredLines(_message.Message):
+    __slots__ = ("function_name", "function_paths", "primary_file_path", "total_lines", "covered_lines", "uncovered", "macro_sites")
+    FUNCTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_PATHS_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_FILE_PATH_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_LINES_FIELD_NUMBER: _ClassVar[int]
+    COVERED_LINES_FIELD_NUMBER: _ClassVar[int]
+    UNCOVERED_FIELD_NUMBER: _ClassVar[int]
+    MACRO_SITES_FIELD_NUMBER: _ClassVar[int]
+    function_name: str
+    function_paths: _containers.RepeatedScalarFieldContainer[str]
+    primary_file_path: str
+    total_lines: int
+    covered_lines: int
+    uncovered: UncoveredLines
+    macro_sites: _containers.RepeatedCompositeFieldContainer[MacroCallSite]
+    def __init__(self, function_name: _Optional[str] = ..., function_paths: _Optional[_Iterable[str]] = ..., primary_file_path: _Optional[str] = ..., total_lines: _Optional[int] = ..., covered_lines: _Optional[int] = ..., uncovered: _Optional[_Union[UncoveredLines, _Mapping]] = ..., macro_sites: _Optional[_Iterable[_Union[MacroCallSite, _Mapping]]] = ...) -> None: ...

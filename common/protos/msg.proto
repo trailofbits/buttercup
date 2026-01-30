@@ -198,3 +198,27 @@ message POVReproduceResponse {
     POVReproduceRequest request = 1;
     bool did_crash = 2;
 }
+
+// Uncovered lines tracking messages
+message MacroCallSite {
+    uint32 call_line = 1;        // Line in primary file where macro is called
+    string macro_file_path = 2;  // File where macro is defined
+    uint32 uncovered_count = 3;  // Lines inside macro that are uncovered
+}
+
+message UncoveredLines {
+    repeated uint32 starts = 1 [packed = true];   // Start line of each uncovered range
+    repeated uint32 lengths = 2 [packed = true];  // Length of each uncovered range
+    uint32 function_start_line = 3;
+    uint32 function_end_line = 4;
+}
+
+message FunctionUncoveredLines {
+    string function_name = 1;
+    repeated string function_paths = 2;
+    string primary_file_path = 3;  // The function definition file (container path)
+    uint32 total_lines = 4;
+    uint32 covered_lines = 5;
+    UncoveredLines uncovered = 6;  // Uncovered lines in primary file only
+    repeated MacroCallSite macro_sites = 7;  // Macro call sites with uncovered code
+}

@@ -5,7 +5,13 @@ from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from google.protobuf.message import Message
 from redis import Redis
 
-from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, FunctionCoverage, WeightedHarness
+from buttercup.common.datastructures.msg_pb2 import (
+    BuildOutput,
+    BuildType,
+    FunctionCoverage,
+    FunctionUncoveredLines,
+    WeightedHarness,
+)
 from buttercup.common.sets import RedisSet
 
 # ruff: noqa: UP046
@@ -43,6 +49,7 @@ HARNESS_WEIGHTS_MAP_NAME = "harness_weights"
 BUILD_MAP_NAME = "build_list"
 BUILD_SAN_MAP_NAME = "build_san_list"
 COVERAGE_MAP_PREFIX = "coverage_map"
+UNCOVERED_MAP_PREFIX = "uncovered_lines_map"
 
 
 # A build map makes it effecient to find for a given task_id + harness a build type
@@ -154,4 +161,45 @@ class CoverageMap:
         return self.mp.get(key_str)
 
     def list_function_coverage(self) -> list[FunctionCoverage]:
+        return list(iter(self.mp))
+
+
+class UncoveredLinesMap:
+    """Redis-backed map for storing uncovered lines data per function."""
+
+    def __init__(self, redis: Redis, harness_name: str, package_name: str, task_id: str):
+        self.redis = redis
+        self.harness_name = harness_name
+        self.package_name = package_name
+        self.task_id = task_id
+        hash_name = [
+            UNCOVERED_MAP_PREFIX,
+            harness_name,
+            package_name,
+            task_id,
+        ]
+        hash_name_str = dumps(hash_name, json_options=CANONICAL_JSON_OPTIONS)
+        self.mp: RedisMap[FunctionUncoveredLines] = RedisMap(redis, hash_name_str, FunctionUncoveredLines)
+
+    def set_uncovered_lines(self, uncovered_lines: FunctionUncoveredLines) -> None:
+        """Store uncovered lines data for a function."""
+        function_paths_list = list(uncovered_lines.function_paths)
+        key = [
+            uncovered_lines.function_name,
+            function_paths_list,
+        ]
+        key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
+        self.mp.set(key_str, uncovered_lines)
+
+    def get_uncovered_lines(self, function_name: str, function_paths: list[str]) -> FunctionUncoveredLines | None:
+        """Get uncovered lines data for a function."""
+        key = [
+            function_name,
+            function_paths,
+        ]
+        key_str = dumps(key, json_options=CANONICAL_JSON_OPTIONS)
+        return self.mp.get(key_str)
+
+    def list_uncovered_lines(self) -> list[FunctionUncoveredLines]:
+        """List all stored uncovered lines data."""
         return list(iter(self.mp))
