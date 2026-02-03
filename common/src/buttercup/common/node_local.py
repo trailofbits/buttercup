@@ -89,7 +89,12 @@ def rename_atomically(src: Path, dst: Path) -> Path | None:
 
 
 def _copy_and_delete(src: Path, dst: Path) -> Path | None:
-    """Copy a file/directory and delete the source. Used for cross-filesystem operations."""
+    """Copy a file/directory and delete the source. Used for cross-filesystem operations.
+
+    Note: Unlike os.rename, this intentionally returns None if dst already exists
+    rather than overwriting. This supports the "first pod wins" pattern used by
+    callers in distributed scenarios where concurrent pods may race to create the same file.
+    """
     try:
         if src.is_dir():
             # For directories, use copytree
@@ -114,35 +119,6 @@ def _copy_and_delete(src: Path, dst: Path) -> Path | None:
     except Exception as e:
         logger.error(f"Failed to copy {src} to {dst}: {e}")
         raise
-
-
-def move_file_cross_fs(src: Path | str, dst: Path | str) -> Path:
-    """Move a file, handling cross-filesystem operations.
-
-    Unlike os.rename, this works across filesystem boundaries by falling back
-    to copy+delete when necessary.
-
-    Args:
-        src: Source file path
-        dst: Destination file path
-
-    Returns:
-        The destination path
-    """
-    src = Path(src)
-    dst = Path(dst)
-    dst.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        os.rename(src, dst)
-    except OSError as e:
-        if e.errno == errno.EXDEV:
-            # Cross-filesystem move - copy then delete
-            shutil.copy2(src, dst)
-            os.unlink(src)
-        else:
-            raise
-    return dst
 
 
 def remote_path(local_path: NodeLocalPath) -> RemotePath:

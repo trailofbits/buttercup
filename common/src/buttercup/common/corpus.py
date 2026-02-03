@@ -166,6 +166,7 @@ class InputDir:
                 continue
             file_path = os.path.join(path, file)
             try:
+                assert os.path.isfile(file_path)
                 with open(file_path, "rb") as f:
                     hash_filename = hash_file(f)
                 dst_path = os.path.join(path, hash_filename)

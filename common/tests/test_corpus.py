@@ -461,22 +461,6 @@ class TestGetCorpusStoragePath:
 class TestCrossFilesystemOperations:
     """Tests for cross-filesystem file operations."""
 
-    def test_move_file_cross_fs_same_filesystem(self, temp_dir):
-        """Test move_file_cross_fs works on same filesystem."""
-        src = Path(temp_dir) / "src_file"
-        dst = Path(temp_dir) / "subdir" / "dst_file"
-
-        # Create source file
-        src.write_bytes(b"test content")
-
-        # Move file
-        result = node_local.move_file_cross_fs(src, dst)
-
-        assert result == dst
-        assert dst.exists()
-        assert not src.exists()
-        assert dst.read_bytes() == b"test content"
-
     def test_hash_corpus_with_shutil_move(self, temp_dir, mock_node_local):
         """Test that hash_corpus works correctly (uses shutil.move internally)."""
         input_dir = InputDir(temp_dir, "test_corpus")

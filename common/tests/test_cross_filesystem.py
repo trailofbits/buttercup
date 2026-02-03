@@ -14,7 +14,6 @@ import pytest
 
 from buttercup.common.node_local import (
     _copy_and_delete,
-    move_file_cross_fs,
     rename_atomically,
 )
 
@@ -27,67 +26,6 @@ def temp_dirs():
     yield {"dir1": Path(dir1), "dir2": Path(dir2)}
     shutil.rmtree(dir1, ignore_errors=True)
     shutil.rmtree(dir2, ignore_errors=True)
-
-
-class TestMoveFileCrossFs:
-    """Tests for move_file_cross_fs function."""
-
-    def test_same_filesystem(self, temp_dirs):
-        """Test move_file_cross_fs on same filesystem."""
-        src = temp_dirs["dir1"] / "test_file.txt"
-        dst = temp_dirs["dir1"] / "subdir" / "moved_file.txt"
-
-        # Create source file
-        src.write_bytes(b"test content")
-
-        # Move file
-        result = move_file_cross_fs(src, dst)
-
-        assert result == dst
-        assert dst.exists()
-        assert not src.exists()
-        assert dst.read_bytes() == b"test content"
-
-    def test_creates_parent_dirs(self, temp_dirs):
-        """Test that move_file_cross_fs creates parent directories."""
-        src = temp_dirs["dir1"] / "test_file.txt"
-        dst = temp_dirs["dir1"] / "a" / "b" / "c" / "moved_file.txt"
-
-        # Create source file
-        src.write_bytes(b"nested content")
-
-        # Move file
-        result = move_file_cross_fs(src, dst)
-
-        assert result == dst
-        assert dst.exists()
-        assert not src.exists()
-
-    def test_handles_exdev(self, temp_dirs):
-        """Test that move_file_cross_fs handles cross-device errors."""
-        src = temp_dirs["dir1"] / "test_file.txt"
-        dst = temp_dirs["dir2"] / "moved_file.txt"
-
-        # Create source file
-        src.write_bytes(b"cross-device content")
-
-        # Manually patch os.rename at runtime to simulate EXDEV
-        original_rename = os.rename
-
-        def mock_rename(s, d):
-            raise OSError(errno.EXDEV, "Invalid cross-device link")
-
-        os.rename = mock_rename
-        try:
-            # Move file should fall back to copy+delete
-            result = move_file_cross_fs(src, dst)
-
-            assert result == dst
-            assert dst.exists()
-            assert not src.exists()
-            assert dst.read_bytes() == b"cross-device content"
-        finally:
-            os.rename = original_rename
 
 
 class TestCopyAndDelete:
