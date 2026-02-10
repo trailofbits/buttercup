@@ -29,6 +29,8 @@ const elements = {
     closeDetailModal: document.getElementById('close-detail-modal'),
     taskForm: document.getElementById('task-form'),
     fillExampleBtn: document.getElementById('fill-example-btn'),
+    loadJsonBtn: document.getElementById('load-json-btn'),
+    loadJsonInput: document.getElementById('load-json-input'),
     cancelBtn: document.getElementById('cancel-btn'),
     tasksContainer: document.getElementById('tasks-container'),
     povsContainer: document.getElementById('povs-container'),
@@ -84,6 +86,13 @@ function setupEventListeners() {
         elements.fillExampleBtn.addEventListener('click', fillExampleValues);
     } else {
         console.error('fillExampleBtn element not found');
+    }
+
+    if (elements.loadJsonBtn && elements.loadJsonInput) {
+        elements.loadJsonBtn.addEventListener('click', () => {
+            elements.loadJsonInput.click();
+        });
+        elements.loadJsonInput.addEventListener('change', handleJsonFileLoad);
     }
     
     elements.refreshBtn.addEventListener('click', loadDashboard);
@@ -596,6 +605,60 @@ function fillExampleValues() {
         console.error('Error in fillExampleValues:', error);
         showNotification('Error filling example values: ' + error.message, 'error');
     }
+}
+
+function handleJsonFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            // Map JSON keys to form field IDs
+            const fieldMap = {
+                'name': 'task-name',
+                'challenge_repo_url': 'challenge-repo-url',
+                'challenge_repo_head_ref': 'challenge-repo-head-ref',
+                'challenge_repo_base_ref': 'challenge-repo-base-ref',
+                'fuzz_tooling_url': 'fuzz-tooling-url',
+                'fuzz_tooling_ref': 'fuzz-tooling-ref',
+                'fuzz_tooling_project_name': 'fuzz-tooling-project-name',
+                'duration': 'duration',
+            };
+
+            for (const [jsonKey, fieldId] of Object.entries(fieldMap)) {
+                if (data[jsonKey] !== undefined && data[jsonKey] !== null) {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = data[jsonKey];
+                    }
+                }
+            }
+
+            if (data.harnesses_included !== undefined) {
+                const checkbox = document.getElementById('harnesses-included');
+                if (checkbox) {
+                    checkbox.checked = !!data.harnesses_included;
+                }
+            }
+
+            showNotification(
+                `Loaded challenge from ${file.name}`,
+                'success',
+            );
+        } catch (err) {
+            showNotification(
+                `Failed to parse JSON file: ${err.message}`,
+                'error',
+            );
+        }
+    };
+    reader.readAsText(file);
+
+    // Reset so the same file can be loaded again
+    event.target.value = '';
 }
 
 async function handleTaskSubmission(event) {
