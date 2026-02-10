@@ -514,6 +514,11 @@ function renderTasks() {
             </div>
             <div class="task-status">
                 <span class="status-badge status-${task.status}">${task.status}</span>
+                ${task.status === 'active' ? `
+                    <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); cancelTask('${task.task_id}')">
+                        Cancel
+                    </button>
+                ` : ''}
             </div>
             <div class="task-stats">
                 <div class="stat-item">
@@ -731,6 +736,14 @@ function renderTaskDetail(task) {
                 </div>
             </div>
             
+            ${task.status === 'active' ? `
+            <div style="margin-top: 1rem;">
+                <button class="btn btn-danger" onclick="cancelTask('${task.task_id}')">
+                    Cancel Task
+                </button>
+            </div>
+            ` : ''}
+
             ${renderArtifacts('PoVs (Vulnerabilities)', task.povs || [], 'pov')}
             ${renderArtifacts('Patches', task.patches || [], 'patch')}
             ${renderArtifacts('Bundles', task.bundles || [], 'bundle')}
@@ -832,6 +845,36 @@ function renderArtifact(artifact, type) {
             ${content}
         </div>
     `;
+}
+
+// Cancel task
+async function cancelTask(taskId) {
+    if (!confirm('Are you sure you want to cancel this task?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks/${taskId}`, {
+            method: 'DELETE',
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showNotification(
+                result.message || 'Task cancellation requested',
+                null,
+                result.color,
+            );
+            loadDashboard();
+        } else {
+            const errorMessage = result.message || 'Failed to cancel task';
+            showNotification(`Error: ${errorMessage}`, 'error');
+        }
+    } catch (error) {
+        console.error('Cancel task error:', error);
+        showNotification('Error cancelling task', 'error');
+    }
 }
 
 // Approve patch
