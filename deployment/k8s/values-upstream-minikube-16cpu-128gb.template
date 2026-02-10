@@ -52,11 +52,15 @@ global:
     token: "${OTEL_TOKEN}"
     protocol: "${OTEL_PROTOCOL}"
 
+  volumes:
+    corpusTmpfs:
+      enabled: true
+
 redis:
   master:
     persistence:
-      enabled: true
-      storageClass: standard
+      enabled: false
+      medium: "Memory"
     resources:
       limits:
         cpu: 1000m

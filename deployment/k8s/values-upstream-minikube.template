@@ -30,6 +30,10 @@ global:
   signoz:
     deployed: ${DEPLOY_SIGNOZ}
 
+  volumes:
+    corpusTmpfs:
+      enabled: true
+
   crs:
     api_key_id: ${CRS_KEY_ID}
     api_key_token: ${CRS_KEY_TOKEN}
@@ -49,9 +53,17 @@ redis:
   master:
     persistence:
       enabled: false
+      medium: "Memory"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
 
 build-bot:
-  replicaCount: 3
+  replicaCount: 2
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
@@ -89,3 +101,36 @@ image-preloader:
 
 signoz:
   enabled: ${DEPLOY_SIGNOZ}
+
+
+
+coverage-bot:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 8Gi
+    requests:
+      cpu: 250m
+      memory: 2Gi
+
+fuzzer-bot:
+  enabled: true
+  replicaCount: 8
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+seed-gen:
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
