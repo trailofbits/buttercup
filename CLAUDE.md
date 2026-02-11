@@ -129,6 +129,12 @@ cd <component> && uv lock --upgrade
 - Mock external dependencies (Redis, LLM APIs, file system)
 - Integration tests use Docker containers
 - Test data stored in `<component>/tests/data/`
+- **Redis-dependent tests**: Several components (common, orchestrator, patcher, fuzzer, seed-gen) have tests that require a running Redis instance. Do not skip these tests. Start a temporary Redis container before running tests:
+  ```bash
+  docker run -d --name redis-temp -p 6379:6379 redis:latest
+  # Run tests...
+  docker stop redis-temp && docker rm redis-temp
+  ```
 
 ### Code Quality
 
