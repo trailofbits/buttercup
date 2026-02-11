@@ -59,17 +59,16 @@ redis:
   master:
     persistence:
       enabled: false
-      medium: "Memory" # prevent redis failures if Disk I/O is saturated
     resources:
       limits:
         cpu: 1000m
-        memory: 1Gi
+        memory: 4Gi
       requests:
         cpu: 250m
         memory: 512Mi
 
 build-bot:
-  replicaCount: 2
+  replicaCount: 3
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
@@ -108,7 +107,15 @@ image-preloader:
 signoz:
   enabled: ${DEPLOY_SIGNOZ}
 
-
+dind-daemon:
+  enabled: true
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 16Gi
+    requests:
+      cpu: 1000m
+      memory: 4Gi
 
 coverage-bot:
   enabled: true
@@ -116,7 +123,7 @@ coverage-bot:
   resources:
     limits:
       cpu: 1000m
-      memory: 8Gi
+      memory: 16Gi
     requests:
       cpu: 250m
       memory: 2Gi
@@ -141,4 +148,24 @@ seed-gen:
       memory: 4Gi
     requests:
       cpu: 500m
+      memory: 1Gi
+
+merger-bot:
+  enabled: true
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+pov-reproducer:
+  enabled: true
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 100m
       memory: 1Gi
