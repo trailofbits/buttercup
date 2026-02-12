@@ -4,6 +4,7 @@
 # export MINIKUBE_CPU=30
 # export MINIKUBE_MEMORY_GB=120
 # export MINIKUBE_DISK_GB=160
+# export MINIKUBE_SHM_SIZE_GB=60
 global:
   environment: "minikube"
   orchestratorImage:

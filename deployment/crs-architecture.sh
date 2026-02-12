@@ -106,6 +106,13 @@ up() {
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 
+				# Resize /dev/shm inside minikube for corpus tmpfs storage.
+				# Minikube docker driver defaults to 64MB, which is too small for fuzzing corpus data
+				if [ -n "${MINIKUBE_SHM_SIZE_GB:-}" ]; then
+					echo -e "${BLU}Resizing minikube /dev/shm to ${MINIKUBE_SHM_SIZE_GB}G${NC}"
+					docker exec minikube mount -o remount,size="${MINIKUBE_SHM_SIZE_GB}G" /dev/shm
+				fi
+
 				echo -e "${BLU}Building local docker images${NC}"
 				eval "$(minikube docker-env --shell bash)"
 
