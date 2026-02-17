@@ -32,16 +32,17 @@ This section covers deploying the CRS locally using minikube on macOS or Linux.
 
 ### Local Prerequisites
 
-- **Docker Desktop** (macOS/Windows) or Docker Engine (Linux)
+- **Docker Desktop** (macOS/Windows), **Colima** (macOS/Linux), or Docker Engine (Linux)
+- **docker-buildx**: Required for building images (`brew install docker-buildx` on macOS)
 - **minikube**: `brew install minikube` (macOS) or see [minikube install docs](https://minikube.sigs.k8s.io/docs/start/)
 - **helm**: `brew install helm` (macOS)
 - **kubectl**: `brew install kubectl` (macOS)
 
-### Docker Desktop Resource Configuration
+### Docker Resource Configuration
 
-Docker Desktop has default resource limits that are typically too low for the full CRS deployment.
+The Docker runtime must have enough resources allocated for the full CRS deployment.
 
-**To configure Docker Desktop resources (macOS):**
+**Docker Desktop (macOS/Windows):**
 1. Open Docker Desktop > Settings > Resources
 2. Allocate at least:
    - CPUs: 4-6 (depending on your machine)
@@ -49,7 +50,24 @@ Docker Desktop has default resource limits that are typically too low for the fu
    - Disk: 80+ GB
 3. Click "Apply & Restart"
 
-**Important**: Minikube cannot use more resources than Docker Desktop allocates. If `env.template` specifies `MINIKUBE_CPU=6` and `MINIKUBE_MEMORY_GB=10`, but Docker Desktop only has 4 CPUs and 8GB RAM, minikube will fail to start or pods will remain Pending.
+**Colima (macOS/Linux):**
+```bash
+colima start --cpu 6 --memory 10 --disk 80
+```
+
+After starting Colima, ensure the buildx plugin is linked:
+```bash
+brew install docker-buildx
+```
+
+`docker-buildx` is a Docker plugin. For Docker to find the plugin, add "cliPluginsExtraDirs" to ~/.docker/config.json:
+```json
+"cliPluginsExtraDirs": [
+  "/opt/homebrew/lib/docker/cli-plugins"
+]
+```
+
+**Important**: Minikube cannot use more resources than the Docker runtime allocates. If `env.template` specifies `MINIKUBE_CPU=6` and `MINIKUBE_MEMORY_GB=10`, but Docker only has 4 CPUs and 8GB RAM, minikube will fail to start or pods will remain Pending.
 
 ### Quick Start
 

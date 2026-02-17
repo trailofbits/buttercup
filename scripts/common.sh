@@ -807,12 +807,49 @@ check_brew() {
     fi
 }
 
+# Register Homebrew cli-plugins dir so Docker discovers plugins like
+# buildx. Prefers patching ~/.docker/config.json via jq; falls back
+# to a per-plugin symlink when jq is not installed.
+ensure_docker_cli_plugins_dir() {
+    local plugins_dir="/opt/homebrew/lib/docker/cli-plugins"
+    local config_file="$HOME/.docker/config.json"
+
+    if command_exists jq; then
+        mkdir -p "$(dirname "$config_file")"
+        if [ ! -f "$config_file" ]; then
+            echo '{}' > "$config_file"
+        fi
+        # Idempotent: appends only if the path isn't already listed
+        local tmp="${config_file}.tmp"
+        jq --arg d "$plugins_dir" \
+            '.cliPluginsExtraDirs = ((.cliPluginsExtraDirs // []) | if index($d) then . else . + [$d] end)' \
+            "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+    else
+        print_warning "jq not found — falling back to symlink for docker-buildx"
+        mkdir -p ~/.docker/cli-plugins
+        ln -sfn "$(brew --prefix docker-buildx)/lib/docker/cli-plugins/docker-buildx" \
+            ~/.docker/cli-plugins/docker-buildx
+    fi
+}
+
 install_docker_mac() {
     if command_exists docker; then
         print_success "Docker is already installed"
     else
         print_status "Installing Docker..."
         brew install --cask docker
+    fi
+
+    # Ensure docker-buildx is available (bundled with Docker Desktop,
+    # but must be installed separately for Colima users)
+    if ! docker buildx version >/dev/null 2>&1; then
+        print_status "Installing docker-buildx plugin..."
+        brew install docker-buildx
+        # Register Homebrew cli-plugins dir so Docker discovers buildx
+        ensure_docker_cli_plugins_dir
+        print_success "docker-buildx installed"
+    else
+        print_success "docker-buildx is available"
     fi
 }
 

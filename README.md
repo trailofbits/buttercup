@@ -28,6 +28,7 @@
 ### Supported Systems
 
 - **Linux x86_64** (fully supported)
+- **macOS** (local development supported via Docker Desktop or Colima)
 - **ARM64** (partial support for upstream Google OSS-Fuzz projects)
 
 ### Required System Packages
@@ -74,6 +75,14 @@ make setup-local
 This script will install all dependencies, configure the environment, and guide you through the setup process.
 
 **Note:** If you prefer manual setup, see the [Manual Setup Guide](guides/MANUAL_SETUP.md).
+
+1. Ensure Docker is running before deploying:
+
+```bash
+# Docker Desktop: start the application
+# Colima (macOS/Linux alternative):
+colima start --cpu 6 --memory 10 --disk 80
+```
 
 1. Start Buttercup locally
 
