@@ -12,7 +12,7 @@ from buttercup.common.llm import ButtercupLLM, create_default_llm, get_langfuse_
 from buttercup.common.project_yaml import ProjectYaml
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool, tool

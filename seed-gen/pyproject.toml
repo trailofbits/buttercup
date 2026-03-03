@@ -14,10 +14,14 @@ dependencies = [
     "program-model",
     "numpy ~=2.2.3",
     "rapidfuzz ~=3.12.2",
-    "langgraph ~=0.6.6",
+    "langgraph ~=1.0.8",
     "python-dotenv ~=1.0.1",
 ]
 requires-python = ">=3.12,<3.13"
+
+[tool.uv]
+# openlit pins langchain<0.4.0 but hasn't updated for langchain 1.x yet
+override-dependencies = ["langchain>=1.2.0"]
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }

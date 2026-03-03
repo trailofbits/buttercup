@@ -8,7 +8,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "common[full]",
     "redis ~=5.2.1",
-    "pydantic-settings ~=2.7.1",
+    "pydantic-settings ~=2.10.1",
     "beautifulsoup4 ~=4.13.3",
     "lxml ~=5.3.1",
     "cxxfilt>=0.3.0",
@@ -26,6 +26,10 @@ buttercup-tracer-bot = "buttercup.fuzzing_infra.tracer_bot:main"
 buttercup-corpus-sync = "buttercup.fuzzing_infra.corpus_sync:main"
 buttercup-corpus-merger = "buttercup.fuzzing_infra.corpus_merger:main"
 buttercup-fuzzer-utils = "buttercup.fuzzing_infra.utils_cli:main"
+
+[tool.uv]
+# openlit pins langchain<0.4.0 but hasn't updated for langchain 1.x yet
+override-dependencies = ["langchain>=1.2.0"]
 
 [tool.uv.sources]
 common = { path = "../common", editable = true }

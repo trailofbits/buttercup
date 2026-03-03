@@ -16,6 +16,10 @@ dependencies = [
 [project.scripts]
 buttercup-program-model = "buttercup.program_model.__cli__:main"
 
+[tool.uv]
+# openlit pins langchain<0.4.0 but hasn't updated for langchain 1.x yet
+override-dependencies = ["langchain>=1.2.0"]
+
 [tool.uv.sources]
 common = { path = "../common", editable = true }
 
