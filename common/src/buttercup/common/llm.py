@@ -81,11 +81,9 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
         try:
             from langfuse.langchain import CallbackHandler
 
-            langfuse_handler = CallbackHandler(
-                public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-                secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-                host=os.getenv("LANGFUSE_HOST"),
-            )
+            # langfuse 3.x reads LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY,
+            # and LANGFUSE_HOST from env vars automatically via get_client()
+            langfuse_handler = CallbackHandler()
             if langfuse_auth_check():
                 logger.info("Tracing with LangFuse enabled")
                 return [langfuse_handler]
