@@ -8,12 +8,12 @@ license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "common[full]",
-    "langchain-community ~=0.3.27",
-    "langgraph ~=0.6.6",
-    "langgraph-checkpoint >=3.0.0",
-    "openai ~=1.100.2",
+    "langchain-community ~=0.4.0",
+    "langgraph ~=1.0.10",
+    "langgraph-checkpoint >=4.0.0",
+    "openai >=1.109.1",
     "program-model",
-    "pydantic-settings ~=2.7.1",
+    "pydantic-settings ~=2.10.1",
     "python-dotenv ~=1.0.1",
     "unidiff ~=0.7.5",
 ]

@@ -5,11 +5,10 @@ from enum import Enum
 from typing import Any
 
 import requests
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import ConfigurableField, Runnable
 from langchain_openai.chat_models import ChatOpenAI
-from langfuse.callback import CallbackHandler
 from pydantic import SecretStr
 
 logger = logging.getLogger(__name__)
@@ -80,11 +79,9 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     """Get Langchain callbacks for monitoring LLM calls with LangFuse, if available."""
     if is_langfuse_available():
         try:
-            langfuse_handler = CallbackHandler(
-                public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-                secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-                host=os.getenv("LANGFUSE_HOST"),
-            )
+            from langfuse.langchain import CallbackHandler
+
+            langfuse_handler = CallbackHandler()
             if langfuse_auth_check():
                 logger.info("Tracing with LangFuse enabled")
                 return [langfuse_handler]

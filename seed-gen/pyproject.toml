@@ -14,7 +14,7 @@ dependencies = [
     "program-model",
     "numpy ~=2.2.3",
     "rapidfuzz ~=3.12.2",
-    "langgraph ~=0.6.6",
+    "langgraph ~=1.0.10",
     "python-dotenv ~=1.0.1",
 ]
 requires-python = ">=3.12,<3.13"
