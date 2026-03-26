@@ -137,12 +137,14 @@ jobs:
           # Ignore CVEs with no available fix:
           # - CVE-2025-67221: orjson DoS via deeply nested JSON (no fix available)
           # - CVE-2026-0994: protobuf DoS via json_format.ParseDict (no fix available)
+          # - CVE-2026-4539: pygments ReDoS in AdlLexer (no fix available)
           # Use --skip-editable to ignore local packages not on PyPI
           # Use uvx to run pip-audit in an isolated environment
           uvx pip-audit --strict --desc \
             --skip-editable \
             --ignore-vuln CVE-2025-67221 \
-            --ignore-vuln CVE-2026-0994
+            --ignore-vuln CVE-2026-0994 \
+            --ignore-vuln CVE-2026-4539
         working-directory: ${{ matrix.component }}
 
       - name: Generate test summary
