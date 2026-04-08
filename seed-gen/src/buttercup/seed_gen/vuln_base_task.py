@@ -1,4 +1,3 @@
-import json
 import logging
 import operator
 import random
@@ -16,7 +15,7 @@ from buttercup.common.llm import get_langfuse_callbacks
 from buttercup.common.project_yaml import Language
 from buttercup.common.queues import ReliableQueue
 from buttercup.common.reproduce_multiple import ReproduceMultiple, ReproduceResult
-from buttercup.common.sarif_store import SARIFBroadcastDetail
+from buttercup.common.sarif_store import Finding
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from langchain_core.output_parsers import StrOutputParser
@@ -61,8 +60,8 @@ class PoVAttempt:
 
 class VulnBaseState(BaseTaskState):
     analysis: str = Field(description="The analysis of the vulnerability", default="")
-    sarifs: list[SARIFBroadcastDetail] = Field(
-        description="SARIF broadcasts for the task",
+    findings: list[Finding] = Field(
+        description="Individual findings from SARIF reports",
         default_factory=list,
     )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
@@ -72,14 +71,20 @@ class VulnBaseState(BaseTaskState):
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)
 
-    def format_sarif_hints(self) -> str:
-        """Format SARIF hints for prompts"""
-        if not self.sarifs:
+    def format_finding_hints(self) -> str:
+        """Format finding hints for prompts in compact XML-like format."""
+        if not self.findings:
             return ""
 
         hints = []
-        for sarif in self.sarifs:
-            hints.append(json.dumps(sarif.sarif, indent=2))
+        for f in self.findings:
+            lines = f"{f.start_line}-{f.end_line}" if f.end_line != f.start_line else str(f.start_line)
+            hints.append(
+                f'<finding tool="{f.tool_name}" rule="{f.rule_id}" level="{f.level}">\n'
+                f'  <location file="{f.file_uri}" lines="{lines}"/>\n'
+                f"  <message>{f.message}</message>\n"
+                f"</finding>",
+            )
 
         return "\n\n".join(hints)
 
@@ -99,10 +104,12 @@ class CrashSubmit:
 @dataclass
 class VulnBaseTask(Task):
     reproduce_multiple: ReproduceMultiple
-    sarifs: list[SARIFBroadcastDetail]
+    findings: list[Finding]
     TaskStateClass: ClassVar[type[BaseTaskState]]
-    SARIF_PROBABILITY: ClassVar[float] = 0.5
     crash_submit: CrashSubmit | None = None
+
+    MAX_FINDINGS: ClassVar[int] = 10
+    MIN_FINDING_PROBABILITY: ClassVar[float] = 0.3
 
     MAX_POV_ITERATIONS: ClassVar[int] = 3
     MAX_CONTEXT_ITERATIONS: ClassVar[int]
@@ -350,12 +357,25 @@ class VulnBaseTask(Task):
                 str(err),
             )
 
-    def sample_sarifs(self) -> list[SARIFBroadcastDetail]:
-        """Sample SARIFs for the task"""
-        if random.random() <= VulnBaseTask.SARIF_PROBABILITY:
-            logger.info("Using %d SARIFs for challenge %s", len(self.sarifs), self.package_name)
-            return self.sarifs
-        return []
+    def sample_findings(self) -> list[Finding]:
+        """Sample findings from the pool with probability scaling by pool size.
+
+        Probability scales linearly from MIN_FINDING_PROBABILITY (at 1 finding)
+        to 1.0 (at 5+ findings). Samples up to MAX_FINDINGS randomly.
+        """
+        pool_size = len(self.findings)
+        if pool_size == 0:
+            return []
+
+        probability = min(1.0, self.MIN_FINDING_PROBABILITY + 0.14 * pool_size)
+        if random.random() > probability:
+            logger.info("Skipped findings for challenge %s (p=%.2f)", self.package_name, probability)
+            return []
+
+        k = min(pool_size, self.MAX_FINDINGS)
+        sampled = random.sample(self.findings, k)
+        logger.info("Using %d/%d findings for challenge %s", k, pool_size, self.package_name)
+        return sampled
 
     def get_pov_examples(self) -> str:
         """Get PoV examples for the task"""

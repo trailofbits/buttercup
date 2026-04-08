@@ -31,7 +31,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
-            "sarif_hints": state.format_sarif_hints(),
+            "sarif_hints": state.format_finding_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
@@ -50,7 +50,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         prompt_vars = {
             "harness": str(state.harness),
             "retrieved_context": state.format_retrieved_context(),
-            "sarif_hints": state.format_sarif_hints(),
+            "sarif_hints": state.format_finding_hints(),
             "vuln_files": self.get_vuln_files(),
             "fuzzer_name": self.get_fuzzer_name(),
             "cwe_list": self.get_cwe_list(),
@@ -91,7 +91,7 @@ class VulnDiscoveryFullTask(VulnBaseTask):
         state = VulnBaseState(
             harness=harness,
             task=self,
-            sarifs=self.sample_sarifs(),
+            findings=self.sample_findings(),
             output_dir=out_dir,
             current_dir=current_dir,
         )
