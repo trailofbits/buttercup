@@ -216,7 +216,7 @@ provides-extras = ["full"]
 dev = [
     { name = "dirty-equals", specifier = "~=0.9.0" },
     { name = "grpcio-tools", specifier = "~=1.73.1" },
-    { name = "pytest", specifier = "~=8.3.4" },
+    { name = "pytest", specifier = "~=9.0.3" },
     { name = "pytest-cov", specifier = "~=6.0.0" },
     { name = "ruff", specifier = "~=0.14.0" },
     { name = "ty" },
@@ -641,7 +641,7 @@ wheels = [
 
 [[package]]
 name = "langsmith"
-version = "0.6.5"
+version = "0.7.31"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -651,11 +651,12 @@ dependencies = [
     { name = "requests" },
     { name = "requests-toolbelt" },
     { name = "uuid-utils" },
+    { name = "xxhash" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/81/634d2b4614519a178d36117ac7151a3b8be0548f00e692c6e8c1701f968b/langsmith-0.6.5.tar.gz", hash = "sha256:4225e523a28cbd5a80e9aed70064ea06d68dafcb12db8cdf4bc60b83a9b0fe69", size = 953461, upload-time = "2026-01-26T19:32:52.288Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/11/696019490992db5c87774dc20515529ef42a01e1d770fb754ed6d9b12fb0/langsmith-0.7.31.tar.gz", hash = "sha256:331ee4f7c26bb5be4022b9859b7d7b122cbf8c9d01d9f530114c1914b0349ffb", size = 1178480, upload-time = "2026-04-14T17:55:41.242Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/6d/526fee48986499400075436728499307fa7c37fa88c9d5450b4500b640e3/langsmith-0.6.5-py3-none-any.whl", hash = "sha256:926609cb434c020f8e86b9083a0bd36325cb4ab0bf2ca47321f654d6c893a99a", size = 308483, upload-time = "2026-01-26T19:32:50.48Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/a1/a013cf458c301cda86a213dd153ce0a01c93f1ab5833f951e6a44c9763ce/langsmith-0.7.31-py3-none-any.whl", hash = "sha256:0291d49203f6e80dda011af1afda61eb0595a4d697adb684590a8805e1d61fb6", size = 373276, upload-time = "2026-04-14T17:55:39.677Z" },
 ]
 
 [[package]]
