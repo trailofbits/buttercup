@@ -10,7 +10,7 @@ dependencies = [
     "redis ~=5.2.1",
     "pydantic-settings ~=2.10.1",
     "beautifulsoup4 ~=4.13.3",
-    "lxml ~=5.3.1",
+    "lxml~=6.1.0",
     "cxxfilt>=0.3.0",
 ]
 

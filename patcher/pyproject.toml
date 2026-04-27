@@ -14,7 +14,7 @@ dependencies = [
     "openai >=1.109.1",
     "program-model",
     "pydantic-settings ~=2.10.1",
-    "python-dotenv ~=1.0.1",
+    "python-dotenv~=1.2.2",
     "unidiff ~=0.7.5",
 ]
 
