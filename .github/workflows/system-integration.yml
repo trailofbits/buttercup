@@ -98,30 +98,37 @@ jobs:
           OTEL_EP: ${{ secrets.OTEL_ENDPOINT }}
           OTEL_TK: ${{ secrets.OTEL_TOKEN }}
         run: |
-          cp ../.github/ci-env.template env
-          # Remove GHCR_AUTH line and lines for values we'll append
-          sed -i "/^GHCR_AUTH=/d" env
-          sed -i "/^BUTTERCUP_NAMESPACE=/d" env
-          sed -i "/^OPENAI_API_KEY=/d" env
-          sed -i "/^ANTHROPIC_API_KEY=/d" env
-          sed -i "/^GEMINI_API_KEY=/d" env
-          sed -i "/^LANGFUSE_HOST=/d" env
-          sed -i "/^LANGFUSE_PUBLIC_KEY=/d" env
-          sed -i "/^LANGFUSE_SECRET_KEY=/d" env
-          sed -i "/^OTEL_ENDPOINT=/d" env
-          sed -i "/^OTEL_TOKEN=/d" env
-          # Append values safely using echo (avoids sed injection with special chars)
-          {
-            echo "BUTTERCUP_NAMESPACE=${BUTTERCUP_NS}"
-            echo "OPENAI_API_KEY=${OPENAI_KEY}"
-            echo "ANTHROPIC_API_KEY=${ANTHROPIC_KEY}"
-            echo "GEMINI_API_KEY=${GEMINI_KEY}"
-            echo "LANGFUSE_HOST=${LF_HOST}"
-            echo "LANGFUSE_PUBLIC_KEY=${LF_PUBLIC_KEY}"
-            echo "LANGFUSE_SECRET_KEY=${LF_SECRET_KEY}"
-            echo "OTEL_ENDPOINT=${OTEL_EP}"
-            echo "OTEL_TOKEN=${OTEL_TK}"
-          } >> "env"
+          # The env file is consumed by deployment/crs-architecture.sh via
+          # `source ./env`, so every value must be shell-quoted. Unquoted
+          # values containing whitespace or metacharacters would otherwise be
+          # interpreted as commands at source time.
+          strip_var() {
+            # Match the assignment with or without a leading `export`,
+            # so template lines like `export KEY=replace-me` are removed.
+            sed -i -E "/^[[:space:]]*(export[[:space:]]+)?$1=/d" ./env
+          }
+          write_var() {
+            # printf %q produces a value that is safe to re-parse as bash
+            # input, defending against shell injection from secret contents.
+            printf 'export %s=%q\n' "$1" "$2" >> ./env
+          }
+
+          cp ../.github/ci-env.template ./env
+          for var in GHCR_AUTH BUTTERCUP_NAMESPACE \
+                     OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY \
+                     LANGFUSE_HOST LANGFUSE_PUBLIC_KEY LANGFUSE_SECRET_KEY \
+                     OTEL_ENDPOINT OTEL_TOKEN; do
+            strip_var "$var"
+          done
+          write_var BUTTERCUP_NAMESPACE  "$BUTTERCUP_NS"
+          write_var OPENAI_API_KEY       "$OPENAI_KEY"
+          write_var ANTHROPIC_API_KEY    "$ANTHROPIC_KEY"
+          write_var GEMINI_API_KEY       "$GEMINI_KEY"
+          write_var LANGFUSE_HOST        "$LF_HOST"
+          write_var LANGFUSE_PUBLIC_KEY  "$LF_PUBLIC_KEY"
+          write_var LANGFUSE_SECRET_KEY  "$LF_SECRET_KEY"
+          write_var OTEL_ENDPOINT        "$OTEL_EP"
+          write_var OTEL_TOKEN           "$OTEL_TK"
         working-directory: deployment
 
       - name: Run CRS
