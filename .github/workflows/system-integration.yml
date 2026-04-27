@@ -98,28 +98,15 @@ jobs:
           OTEL_EP: ${{ secrets.OTEL_ENDPOINT }}
           OTEL_TK: ${{ secrets.OTEL_TOKEN }}
         run: |
-          # The env file is consumed by deployment/crs-architecture.sh via
-          # `source ./env`, so every value must be shell-quoted. Unquoted
-          # values containing whitespace or metacharacters would otherwise be
-          # interpreted as commands at source time.
-          strip_var() {
-            # Match the assignment with or without a leading `export`,
-            # so template lines like `export KEY=replace-me` are removed.
-            sed -i -E "/^[[:space:]]*(export[[:space:]]+)?$1=/d" ./env
-          }
+          # The env file is sourced by deployment/crs-architecture.sh, so every
+          # value must be shell-quoted. printf %q produces a form bash can
+          # re-parse as the literal string, defending against shell injection
+          # from secret contents (whitespace, $(), backticks, quotes, etc.).
           write_var() {
-            # printf %q produces a value that is safe to re-parse as bash
-            # input, defending against shell injection from secret contents.
             printf 'export %s=%q\n' "$1" "$2" >> ./env
           }
 
           cp ../.github/ci-env.template ./env
-          for var in GHCR_AUTH BUTTERCUP_NAMESPACE \
-                     OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY \
-                     LANGFUSE_HOST LANGFUSE_PUBLIC_KEY LANGFUSE_SECRET_KEY \
-                     OTEL_ENDPOINT OTEL_TOKEN; do
-            strip_var "$var"
-          done
           write_var BUTTERCUP_NAMESPACE  "$BUTTERCUP_NS"
           write_var OPENAI_API_KEY       "$OPENAI_KEY"
           write_var ANTHROPIC_API_KEY    "$ANTHROPIC_KEY"
