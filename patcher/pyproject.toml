@@ -28,8 +28,8 @@ buttercup-patcher = "buttercup.patcher.__cli__:main"
 [dependency-groups]
 dev = [
     # Testing tools
-    "pytest ~=8.3.4",
-    "pytest-asyncio ~=0.25.2",
+    "pytest ~=9.0.3",
+    "pytest-asyncio ~=1.3.0",
     "pytest-cov ~=6.0.0",
     "pytest-xdist ~=3.6.1",
     # Linting and type checking
