@@ -19,7 +19,7 @@ dependencies = [
     "rich ~=13.9.4",
     "sqlalchemy ~=2.0.0",
     "typing-extensions ~=4.12.2",
-    "urllib3 ~=2.6.0",
+    "urllib3~=2.7.0",
     "uvicorn ~=0.34.0",
 ]
 
