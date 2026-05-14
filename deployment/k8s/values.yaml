@@ -363,6 +363,34 @@ litellm-helm:
           tpm: 150000000
           rpm: 30000
 
+      - model_name: openai-o4-mini
+        litellm_params:
+          model: openai/o4-mini
+          api_key: os.environ/OPENAI_API_KEY
+          tpm: 150000000
+          rpm: 30000
+
+      - model_name: openai-gpt-5
+        litellm_params:
+          model: openai/gpt-5
+          api_key: os.environ/OPENAI_API_KEY
+          tpm: 30000000
+          rpm: 10000
+
+      - model_name: openai-gpt-5-mini
+        litellm_params:
+          model: openai/gpt-5-mini
+          api_key: os.environ/OPENAI_API_KEY
+          tpm: 150000000
+          rpm: 30000
+
+      - model_name: openai-gpt-5-nano
+        litellm_params:
+          model: openai/gpt-5-nano
+          api_key: os.environ/OPENAI_API_KEY
+          tpm: 150000000
+          rpm: 30000
+
       - model_name: claude-3.7-sonnet
         litellm_params:
           model: anthropic/claude-3-7-sonnet-20250219
@@ -382,7 +410,37 @@ litellm-helm:
           api_key: os.environ/ANTHROPIC_API_KEY
           tpm: 1775000
 
-      - model_name: gemini-pro	
+      - model_name: claude-4-opus
+        litellm_params:
+          model: anthropic/claude-opus-4-20250514
+          api_key: os.environ/ANTHROPIC_API_KEY
+          tpm: 1775000
+
+      - model_name: claude-4.1-opus
+        litellm_params:
+          model: anthropic/claude-opus-4-1-20250805
+          api_key: os.environ/ANTHROPIC_API_KEY
+          tpm: 1775000
+
+      - model_name: claude-4.5-haiku
+        litellm_params:
+          model: anthropic/claude-haiku-4-5-20251001
+          api_key: os.environ/ANTHROPIC_API_KEY
+          tpm: 1775000
+
+      - model_name: claude-4.6-sonnet
+        litellm_params:
+          model: anthropic/claude-sonnet-4-6
+          api_key: os.environ/ANTHROPIC_API_KEY
+          tpm: 1775000
+
+      - model_name: claude-4.7-opus
+        litellm_params:
+          model: anthropic/claude-opus-4-7
+          api_key: os.environ/ANTHROPIC_API_KEY
+          tpm: 1775000
+
+      - model_name: gemini-pro
         litellm_params:
           model: gemini/gemini-pro
           api_key: os.environ/GEMINI_API_KEY
