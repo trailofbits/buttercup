@@ -82,8 +82,22 @@ install_uv() {
     print_status "Installing uv..."
     if ! command_exists uv; then
         curl -fsSL https://astral.sh/uv/install.sh | sh
-        print_status "Sourcing uv environment..."
-        source "$HOME/.local/bin/env"
+        print_status "Loading uv into PATH..."
+        # Newer uv installers drop a helper at $HOME/.local/bin/env; older
+        # ones do not. Source it when present and always ensure the install
+        # dir is on PATH so the freshly-installed binary is reachable.
+        if [ -f "$HOME/.local/bin/env" ]; then
+            # shellcheck disable=SC1091
+            source "$HOME/.local/bin/env"
+        fi
+        case ":$PATH:" in
+            *":$HOME/.local/bin:"*) ;;
+            *) export PATH="$HOME/.local/bin:$PATH" ;;
+        esac
+        if ! command_exists uv; then
+            print_error "uv install completed but 'uv' is not on PATH"
+            return 1
+        fi
         print_success "uv installed successfully"
     else
         print_success "uv is already installed"
