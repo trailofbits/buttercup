@@ -73,9 +73,19 @@ install_docker() {
     fi
     
     # Install buildx plugin (required for deploy target)
-    print_status "Installing Docker buildx plugin..."
-    sudo apt install -y docker-buildx-plugin
-    print_success "Docker buildx plugin installed"
+    if docker buildx version >/dev/null 2>&1; then
+        print_success "Docker buildx plugin is already installed"
+    else
+        print_status "Installing Docker buildx plugin..."
+        # Package name differs by source: Docker's official apt repo ships
+        # `docker-buildx-plugin`, while Ubuntu's repos ship `docker-buildx`.
+        if apt-cache show docker-buildx-plugin >/dev/null 2>&1; then
+            sudo apt install -y docker-buildx-plugin
+        else
+            sudo apt install -y docker-buildx
+        fi
+        print_success "Docker buildx plugin installed"
+    fi
 }
 
 install_uv() {
