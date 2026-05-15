@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import logging
-from buttercup.common.challenge_task import CommandResult, ChallengeTask
+from pathlib import Path
+from typing import Annotated
+
+from buttercup.common.challenge_task import ChallengeTask, CommandResult
 from buttercup.program_model.codequery import CodeQueryPersistent
 from buttercup.program_model.utils.common import Function, TypeDefinition
-from typing import Annotated
-from pathlib import Path
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
-from buttercup.patcher.utils import truncate_output, get_challenge, get_codequery, find_file_in_source_dir
-from buttercup.patcher.agents.common import BaseCtxState, ContextCodeSnippet, CodeSnippetKey
+
+from buttercup.patcher.agents.common import BaseCtxState, CodeSnippetKey, ContextCodeSnippet
+from buttercup.patcher.utils import find_file_in_source_dir, get_challenge, get_codequery, truncate_output
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +22,12 @@ MAX_OUTPUT_LENGTH = 10000
 
 def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, output: str | None = None) -> str:
     if output is None:
-        output = cmd_res.output.decode("utf-8")
+        output = cmd_res.output.decode("utf-8") if cmd_res.output else ""
 
     if isinstance(command, list):
         command = " ".join(command)
+
+    error_str = cmd_res.error.decode("utf-8") if cmd_res.error else ""
 
     return f"""<command_output>
 <command>{command}</command>
@@ -32,7 +36,7 @@ def _wrap_command_output(command: str | list[str], cmd_res: CommandResult, outpu
 {truncate_output(output, MAX_OUTPUT_LENGTH)}
 </stdout>
 <stderr>
-{truncate_output(cmd_res.error, MAX_OUTPUT_LENGTH)}
+{truncate_output(error_str, MAX_OUTPUT_LENGTH)}
 </stderr>
 </command_output>"""
 
@@ -63,7 +67,8 @@ def grep(
     """Grep for a string and return a 5-line context around the match, together \
     with line numbers. If no file_path is provided, search the entire project. \
     Prefer using this tool over cat. If you need to search several files, just \
-    call call this tool without any file_path."""
+    call call this tool without any file_path.
+    """
     path = Path(file_path) if file_path else None
     logger.info("Searching for %s in %s", pattern, path)
     args = ["grep", "-C", "5", "-nHrE", pattern]
@@ -76,7 +81,9 @@ def grep(
 
 @tool
 def cat(file_path: str, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might return a large amount of text."""
+    """Read the contents of a file. Use this tool only if grep and get_lines do not work as it might
+    return a large amount of text.
+    """
     path = Path(file_path)
     logger.info("Reading contents of %s", path)
     challenge = get_challenge(state.challenge_task_dir)
@@ -110,7 +117,9 @@ def _get_codequery_function(codequery: CodeQueryPersistent, name: str, path: Pat
 
 
 def _add_functions_code_snippets(
-    challenge: ChallengeTask, functions: list[Function], suffix: str = ""
+    challenge: ChallengeTask,
+    functions: list[Function],
+    suffix: str = "",
 ) -> list[ContextCodeSnippet]:
     return [
         ContextCodeSnippet(
@@ -129,7 +138,8 @@ def _add_functions_code_snippets(
 
 
 def _add_type_definitions_code_snippets(
-    challenge: ChallengeTask, type_definitions: list[TypeDefinition]
+    challenge: ChallengeTask,
+    type_definitions: list[TypeDefinition],
 ) -> list[ContextCodeSnippet]:
     return [
         ContextCodeSnippet(
@@ -175,11 +185,22 @@ def get_function_tool_impl(function_name: str, file_path: str | None, state: Bas
 
 @tool
 def get_function(function_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get a function's definition. If available, pass a file_path, \
+    """Get a function's definition. If available, pass an absolute file_path, \
     otherwise pass None. Use this when you want to get information about a \
     function. If not sure about the file path, pass None. Prefer using this \
     tool over any other and rely on others only if this tool fails or does \
-    not work."""
+    not work. If the function is a method, just pass the method name and, if
+    known, the file_path as usual. Do NOT pass the class name as part of the
+    function name.
+
+    Do NOT do this:
+    - `get_function("MyClass::add", "/src/example_project/test.cpp")`
+
+    Do this:
+    - `get_function("add", "/src/example_project/test2.c")`
+    - `get_function("add", None)`
+    - `get_function("add", "/src/example_project/test2.cpp")`
+    """
     code_snippets = get_function_tool_impl(function_name, file_path, state)
     output_str = "\n".join(str(code_snippet) for code_snippet in code_snippets)
     return output_str
@@ -187,7 +208,17 @@ def get_function(function_name: str, file_path: str | None, *, state: Annotated[
 
 @tool
 def get_callers(function_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get the callers of a function."""
+    """Get the callers of a function. If the function is a method, just pass the method name and, if
+    known, the absolute file_path as usual. Do NOT pass the class name as part of the function name.
+
+    Do NOT do this:
+    - `get_callers("MyClass::add", "/src/example_project/test.cpp")`
+
+    Do this:
+    - `get_callers("add", "/src/example_project/test2.c")`
+    - `get_callers("add", None)`
+    - `get_callers("add", "/src/example_project/test2.cpp")`
+    """
     path = Path(file_path) if file_path else None
     logger.info("Getting callers of %s in %s", function_name, path)
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
@@ -208,7 +239,17 @@ call `get_function` tool with the caller's name and file_path.
 
 @tool
 def get_callees(function_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get the callees of a function."""
+    """Get the callees of a function. If the function is a method, just pass the method name and, if
+    known, the absolute file_path as usual. Do NOT pass the class name as part of the function name.
+
+    Do NOT do this:
+    - `get_callees("MyClass::add", "/src/example_project/test.cpp")`
+
+    Do this:
+    - `get_callees("add", "/src/example_project/test2.c")`
+    - `get_callees("add", None)`
+    - `get_callees("add", "/src/example_project/test2.cpp")`
+    """
     path = Path(file_path) if file_path else None
     logger.info("Getting callees of %s in %s", function_name, path)
     codequery = get_codequery(state.challenge_task_dir, state.work_dir)
@@ -246,10 +287,11 @@ def get_type_tool_impl(type_name: str, file_path: str | None, state: BaseCtxStat
 
 @tool
 def get_type(type_name: str, file_path: str | None, *, state: Annotated[BaseCtxState, InjectedState]) -> str:
-    """Get a type/class/typedef/struct/enum/macro's definition. If available, pass a file_path, \
+    """Get a type/class/typedef/struct/enum/macro's definition. If available, pass an absolute file_path, \
     otherwise pass None. Use this when you want to get information about a type. \
     If not sure about the file path, pass None. Prefer using this tool over any \
-    other and rely on others only if this tool fails or does not work."""
+    other and rely on others only if this tool fails or does not work.
+    """
     code_snippets = get_type_tool_impl(type_name, file_path, state)
     output_str = "\n".join(str(code_snippet) for code_snippet in code_snippets)
     return output_str

@@ -8,7 +8,11 @@ let dashboardStats = {
     totalPatches: 0,
     totalBundles: 0
 };
+let dashboardConfig = {
+    crs_instance_id: null
+};
 let currentTab = 'tasks';
+let apiError = false;
 
 // API base URL - will be set dynamically
 const API_BASE = '';
@@ -16,30 +20,52 @@ const API_BASE = '';
 // DOM elements
 const elements = {
     submitTaskBtn: document.getElementById('submit-task-btn'),
-    submitExampleBtn: document.getElementById('submit-example-btn'),
     refreshBtn: document.getElementById('refresh-btn'),
     taskModal: document.getElementById('task-modal'),
     detailModal: document.getElementById('detail-modal'),
+    taskModalContent: document.querySelector('#task-modal .modal-content'),
+    detailModalContent: document.querySelector('#detail-modal .modal-content'),
     closeModal: document.getElementById('close-modal'),
     closeDetailModal: document.getElementById('close-detail-modal'),
     taskForm: document.getElementById('task-form'),
+    fillExampleBtn: document.getElementById('fill-example-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
     tasksContainer: document.getElementById('tasks-container'),
     povsContainer: document.getElementById('povs-container'),
     patchesContainer: document.getElementById('patches-container'),
     statusFilter: document.getElementById('status-filter'),
     activeTasks: document.getElementById('active-tasks'),
+    failedTasks: document.getElementById('failed-tasks'),
     totalPovs: document.getElementById('total-povs'),
     totalPatches: document.getElementById('total-patches'),
     totalBundles: document.getElementById('total-bundles'),
     detailTitle: document.getElementById('detail-title'),
     detailContent: document.getElementById('detail-content'),
     tabButtons: document.querySelectorAll('.tab-button'),
-    tabPanes: document.querySelectorAll('.tab-pane')
+    tabPanes: document.querySelectorAll('.tab-pane'),
+    notifications: document.getElementById('notifications')
 };
+
+// Debug: Check if elements are found
+console.log('DOM elements found:', {
+    submitTaskBtn: !!elements.submitTaskBtn,
+    refreshBtn: !!elements.refreshBtn,
+    fillExampleBtn: !!elements.fillExampleBtn,
+    taskModal: !!elements.taskModal,
+    notifications: !!elements.notifications
+});
 
 // Initialize the dashboard
 document.addEventListener('DOMContentLoaded', function() {
+    // Preserve button widths to prevent size changes during refresh
+    const buttons = ['refresh-btn', 'submit-task-btn'];
+    buttons.forEach(id => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.style.width = button.offsetWidth + 'px';
+        }
+    });
+    
     setupEventListeners();
     loadDashboard();
     
@@ -53,7 +79,12 @@ function setupEventListeners() {
         elements.taskModal.style.display = 'block';
     });
     
-    elements.submitExampleBtn.addEventListener('click', handleExampleTaskSubmission);
+    if (elements.fillExampleBtn) {
+        console.log('Setting up event listener for fillExampleBtn');
+        elements.fillExampleBtn.addEventListener('click', fillExampleValues);
+    } else {
+        console.error('fillExampleBtn element not found');
+    }
     
     elements.refreshBtn.addEventListener('click', loadDashboard);
     
@@ -95,11 +126,21 @@ function setupEventListeners() {
     });
     
     // Close modals when clicking outside
-    window.addEventListener('click', (event) => {
-        if (event.target === elements.taskModal) {
-            elements.taskModal.style.display = 'none';
+    let mousePressedOutside = false;
+    
+    window.addEventListener('mousedown', (event) => {
+        // Check if mouse was pressed outside both modal contents
+        if (!elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+            mousePressedOutside = true;
+        } else {
+            mousePressedOutside = false;
         }
-        if (event.target === elements.detailModal) {
+    });
+
+    window.addEventListener('mouseup', (event) => {
+        // Only close if mouse was pressed outside and released outside
+        if (mousePressedOutside && !elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+            elements.taskModal.style.display = 'none';
             elements.detailModal.style.display = 'none';
         }
     });
@@ -135,17 +176,49 @@ function switchTab(tabName) {
     }
 }
 
+// Load dashboard configuration
+async function loadConfig() {
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/config`);
+        if (response.ok) {
+            dashboardConfig = await response.json();
+            updatePageTitle();
+        } else {
+            console.warn('Config API not available');
+        }
+    } catch (error) {
+        console.warn('Config API not available, using defaults');
+    }
+}
+
+// Update page title with instance ID
+function updatePageTitle() {
+    const baseTitle = 'Buttercup CRS Dashboard';
+    const navTitle = document.querySelector('.nav-title');
+    const pageTitle = document.querySelector('title');
+    
+    if (dashboardConfig.crs_instance_id) {
+        const newTitle = `${baseTitle} (${dashboardConfig.crs_instance_id})`;
+        if (navTitle) navTitle.textContent = newTitle;
+        if (pageTitle) pageTitle.textContent = newTitle;
+    } else {
+        if (navTitle) navTitle.textContent = baseTitle;
+        if (pageTitle) pageTitle.textContent = baseTitle;
+    }
+}
+
 // Load dashboard data
 async function loadDashboard() {
     try {
         elements.refreshBtn.innerHTML = '<span class="spinner"></span>';
         
-        // Load tasks and stats in parallel
+        // Load tasks, stats, and config in parallel
         await Promise.all([
             loadTasks(),
             loadStats(),
             loadAllPovs(),
-            loadAllPatches()
+            loadAllPatches(),
+            loadConfig()
         ]);
         
         updateDashboard();
@@ -161,16 +234,20 @@ async function loadDashboard() {
 // Load tasks from API
 async function loadTasks() {
     try {
-        const response = await fetch(`${API_BASE}/v1/dashboard/tasks`);
+        // Add timestamp to prevent caching
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks?t=${Date.now()}`);
         if (response.ok) {
             tasks = await response.json();
+            apiError = false;
         } else {
-            // Fallback to mock data if API not available
-            tasks = getMockTasks();
+            console.warn('Tasks API returned error:', response.status);
+            tasks = [];
+            apiError = true;
         }
     } catch (error) {
-        console.warn('Tasks API not available, using mock data');
-        tasks = getMockTasks();
+        console.warn('Tasks API not available:', error.message);
+        tasks = [];
+        apiError = true;
     }
 }
 
@@ -262,12 +339,16 @@ function calculateStatsFromTasks() {
 
 // Update dashboard UI
 function updateDashboard() {
+    // Handle API error state
+    updateApiErrorBanner();
+
     // Update stats
     elements.activeTasks.textContent = dashboardStats.activeTasks;
+    elements.failedTasks.textContent = dashboardStats.failedTasks || 0;
     elements.totalPovs.textContent = dashboardStats.totalPovs;
     elements.totalPatches.textContent = dashboardStats.totalPatches;
     elements.totalBundles.textContent = dashboardStats.totalBundles;
-    
+
     // Update current tab content
     if (currentTab === 'tasks') {
         renderTasks();
@@ -275,6 +356,35 @@ function updateDashboard() {
         renderPovs();
     } else if (currentTab === 'patches') {
         renderPatches();
+    }
+}
+
+// Show or hide API error banner
+function updateApiErrorBanner() {
+    let banner = document.getElementById('api-error-banner');
+
+    if (apiError) {
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'api-error-banner';
+            banner.className = 'api-error-banner';
+            banner.innerHTML = `
+                <span class="error-icon">⚠️</span>
+                <span>Unable to connect to the server. The dashboard will automatically retry.</span>
+            `;
+            // Insert after the nav
+            const nav = document.querySelector('nav');
+            if (nav && nav.parentNode) {
+                nav.parentNode.insertBefore(banner, nav.nextSibling);
+            } else {
+                document.body.prepend(banner);
+            }
+        }
+        banner.style.display = 'flex';
+    } else {
+        if (banner) {
+            banner.style.display = 'none';
+        }
     }
 }
 
@@ -292,6 +402,11 @@ async function loadAndRenderPatches() {
 
 // Render PoVs list
 function renderPovs() {
+    if (!elements.povsContainer) {
+        console.error('PoVs container not found!');
+        return;
+    }
+    
     if (allPovs.length === 0) {
         elements.povsContainer.innerHTML = `
             <div class="no-data">
@@ -339,32 +454,49 @@ function renderPatches() {
                 <div class="artifact-meta">
                     <span>ID: ${item.patch.patch_id}</span>
                     <span>Size: ${(item.patch.patch || '').length} chars</span>
+                    <span class="status-badge status-${item.patch.status}">${item.patch.status}</span>
                 </div>
                 <div class="artifact-timestamp">${formatTimestamp(item.patch.timestamp)}</div>
             </div>
-            <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
-                Download
-            </button>
+            <div class="artifact-actions">
+                ${item.patch.status === 'accepted' ? `
+                    <button class="approve-button" onclick="event.stopPropagation(); approvePatch('${item.task_id}', '${item.patch.patch_id}')">
+                        Approve
+                    </button>
+                    <button class="reject-button" onclick="event.stopPropagation(); rejectPatch('${item.task_id}', '${item.patch.patch_id}')">
+                        Reject
+                    </button>
+                ` : ''}
+                <button class="download-button" onclick="event.stopPropagation(); downloadArtifact('patch', '${item.task_id}', '${item.patch.patch_id}')">
+                    Download
+                </button>
+            </div>
         </div>
     `).join('');
 }
 
 // Render tasks list
 function renderTasks() {
-    const filteredTasks = filterTasksByStatus();
+    if (!elements.tasksContainer) {
+        console.error('Tasks container not found!');
+        return;
+    }
+    
+    const filteredTasks = filterTasksByStatus(tasks);
     
     if (filteredTasks.length === 0) {
         elements.tasksContainer.innerHTML = `
             <div class="no-data">
-                <div class="no-data-icon">📋</div>
+                <div class="no-data-icon">📝</div>
                 <p>No tasks found</p>
+                <p class="no-data-subtitle">Create a new task to get started</p>
             </div>
         `;
         return;
     }
     
     elements.tasksContainer.innerHTML = filteredTasks.map(task => `
-        <div class="task-item" onclick="showTaskDetail('${task.task_id}')">
+        <div class="task-item ${task.crs_submission_status === 'failed' ? 'task-failed' : ''}" onclick="showTaskDetail('${task.task_id}')">
             <div class="task-info">
                 <div class="task-name">${task.name || task.project_name}</div>
                 <div class="task-id">ID: ${task.task_id}</div>
@@ -374,6 +506,11 @@ function renderTasks() {
                     <span>Created: ${formatTimestamp(task.created_at)}</span>
                     <span>Deadline: ${formatTimestamp(task.deadline)}</span>
                 </div>
+                ${task.crs_submission_error ? `
+                    <div class="crs-error-details">
+                        <strong>Error:</strong> ${task.crs_submission_error}
+                    </div>
+                ` : ''}
             </div>
             <div class="task-status">
                 <span class="status-badge status-${task.status}">${task.status}</span>
@@ -411,62 +548,85 @@ function filterTasks() {
 }
 
 // Handle task submission
-// Handle example task submission
-async function handleExampleTaskSubmission() {
-    const exampleTaskData = {
-        challenge_repo_url: "https://github.com/tob-challenges/example-libpng",
-        challenge_repo_base_ref: "5bf8da2d7953974e5dfbd778429c3affd461f51a",
-        challenge_repo_head_ref: "challenges/lp-delta-01",
-        fuzz_tooling_url: "https://github.com/google/oss-fuzz",
-        fuzz_tooling_ref: "master",
-        fuzz_tooling_project_name: "libpng",
-        duration: 1800
-    };
-    
-    // Get submit button and show loading state
-    const submitBtn = elements.submitExampleBtn;
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+// Fill form with example values
+function fillExampleValues() {
+    console.log('fillExampleValues function called');
     
     try {
-        const response = await fetch(`${API_BASE}/webhook/trigger_task`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(exampleTaskData)
-        });
+        // Fill in the form fields with example libpng values
+        const fields = {
+            'challenge-repo-url': 'https://github.com/tob-challenges/example-libpng',
+            'challenge-repo-base-ref': '5bf8da2d7953974e5dfbd778429c3affd461f51a',
+            'challenge-repo-head-ref': 'challenges/lp-delta-01',
+            'fuzz-tooling-url': 'https://github.com/google/oss-fuzz',
+            'fuzz-tooling-ref': 'master',
+            'fuzz-tooling-project-name': 'libpng',
+            'duration': '1800'
+        };
         
-        if (response.ok) {
-            const result = await response.json();
-            showNotification('Example libpng task submitted successfully!', 'success');
-            
-            // Refresh dashboard after a short delay
-            setTimeout(loadDashboard, 1000);
-        } else {
-            const error = await response.json();
-            showNotification(`Error: ${error.message || 'Failed to submit example task'}`, 'error');
+        for (const [fieldId, value] of Object.entries(fields)) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.value = value;
+                console.log(`Set ${fieldId} to ${value}`);
+            } else {
+                console.error(`Field ${fieldId} not found`);
+            }
         }
+        
+        // Handle checkbox separately
+        const harnessesIncluded = document.getElementById('harnesses-included');
+        if (harnessesIncluded) {
+            harnessesIncluded.checked = true;
+            console.log('Set harnesses-included to checked');
+        } else {
+            console.error('Field harnesses-included not found');
+        }
+        
+        // Show a brief notification that values were filled
+        showNotification('Example-libpng values filled in. You can now modify them as needed.', 'success');
+        console.log('Notification shown');
+        
     } catch (error) {
-        console.error('Error submitting example task:', error);
-        showNotification('Network error occurred', 'error');
-    } finally {
-        // Restore button state
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
+        console.error('Error in fillExampleValues:', error);
+        showNotification('Error filling example values: ' + error.message, 'error');
     }
 }
 
 async function handleTaskSubmission(event) {
     event.preventDefault();
-    
+
     const formData = new FormData(elements.taskForm);
-    const taskData = Object.fromEntries(formData.entries());
-    
-    // Convert checkbox and number values
-    taskData.harnesses_included = formData.has('harnesses_included');
-    taskData.duration = parseInt(taskData.duration);
+
+    // Build task data with required fields
+    const taskData = {
+        fuzz_tooling_url: formData.get('fuzz_tooling_url'),
+        fuzz_tooling_ref: formData.get('fuzz_tooling_ref'),
+        fuzz_tooling_project_name: formData.get('fuzz_tooling_project_name'),
+        duration: parseInt(formData.get('duration')),
+        harnesses_included: formData.has('harnesses_included'),
+    };
+
+    // Only include optional fields if they have values
+    const name = formData.get('name');
+    if (name && name.trim()) {
+        taskData.name = name.trim();
+    }
+
+    const challengeRepoUrl = formData.get('challenge_repo_url');
+    if (challengeRepoUrl && challengeRepoUrl.trim()) {
+        taskData.challenge_repo_url = challengeRepoUrl.trim();
+    }
+
+    const challengeRepoHeadRef = formData.get('challenge_repo_head_ref');
+    if (challengeRepoHeadRef && challengeRepoHeadRef.trim()) {
+        taskData.challenge_repo_head_ref = challengeRepoHeadRef.trim();
+    }
+
+    const challengeRepoBaseRef = formData.get('challenge_repo_base_ref');
+    if (challengeRepoBaseRef && challengeRepoBaseRef.trim()) {
+        taskData.challenge_repo_base_ref = challengeRepoBaseRef.trim();
+    }
     
     // Get submit button and show loading state
     const submitBtn = elements.taskForm.querySelector('button[type="submit"]');
@@ -483,17 +643,37 @@ async function handleTaskSubmission(event) {
             body: JSON.stringify(taskData)
         });
         
+        const result = await response.json();
+        console.log('Task submission response:', result);
+        console.log('Response message:', result.message);
+        console.log('Response color:', result.color);
+        
         if (response.ok) {
-            const result = await response.json();
-            showNotification('Task submitted successfully!', 'success');
-            elements.taskModal.style.display = 'none';
-            elements.taskForm.reset();
-            
-            // Refresh dashboard after a short delay
-            setTimeout(loadDashboard, 1000);
+            // Check if the response indicates a CRS submission failure or setup failure
+            if (result.message && (result.message.includes('failed to submit to CRS') || result.message.includes('failed during setup'))) {
+                console.log('Task creation/submission failed, showing error notification');
+                // Task was created but failed - show notification with proper color
+                showNotification(result.message, null, result.color);
+                elements.taskModal.style.display = 'none';
+                elements.taskForm.reset();
+                
+                // Force refresh failed tasks and main tasks list
+                setTimeout(async () => {
+                    await forceRefreshFailedTasks();
+                }, 1000);
+            } else {
+                // Complete success
+                showNotification(result.message || 'Task submitted successfully!', 'success');
+                elements.taskModal.style.display = 'none';
+                elements.taskForm.reset();
+                
+                // Refresh dashboard after a short delay
+                setTimeout(loadDashboard, 1000);
+            }
         } else {
-            const error = await response.json();
-            showNotification(`Error: ${error.message || 'Failed to submit task'}`, 'error');
+            // HTTP error - show error message
+            const errorMessage = result.message || result.detail || 'Failed to submit task';
+            showNotification(`Error: ${errorMessage}`, 'error');
         }
     } catch (error) {
         console.error('Error submitting task:', error);
@@ -534,28 +714,20 @@ function renderTaskDetail(task) {
             <div class="detail-section">
                 <h3>Task Information</h3>
                 <div class="detail-grid">
-                    <div class="detail-label">Task ID:</div>
-                    <div class="detail-value">${task.task_id}</div>
                     <div class="detail-label">Name:</div>
-                    <div class="detail-value">${task.name || 'N/A'}</div>
+                    <div class="detail-value">${task.name || task.project_name}</div>
+                    <div class="detail-label">ID:</div>
+                    <div class="detail-value">${task.task_id}</div>
                     <div class="detail-label">Project:</div>
                     <div class="detail-value">${task.project_name}</div>
                     <div class="detail-label">Status:</div>
                     <div class="detail-value">
                         <span class="status-badge status-${task.status}">${task.status}</span>
                     </div>
-                    <div class="detail-label">Duration:</div>
-                    <div class="detail-value">${formatDuration(task.duration)}</div>
                     <div class="detail-label">Created:</div>
                     <div class="detail-value">${formatTimestamp(task.created_at)}</div>
                     <div class="detail-label">Deadline:</div>
                     <div class="detail-value">${formatTimestamp(task.deadline)}</div>
-                    <div class="detail-label">Repository:</div>
-                    <div class="detail-value">${task.challenge_repo_url || 'N/A'}</div>
-                    <div class="detail-label">Head Ref:</div>
-                    <div class="detail-value">${task.challenge_repo_head_ref || 'N/A'}</div>
-                    <div class="detail-label">Base Ref:</div>
-                    <div class="detail-value">${task.challenge_repo_base_ref || 'N/A'}</div>
                 </div>
             </div>
             
@@ -662,6 +834,54 @@ function renderArtifact(artifact, type) {
     `;
 }
 
+// Approve patch
+async function approvePatch(taskId, patchId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/task/${taskId}/patch/${patchId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            showNotification('Patch approved successfully', 'success');
+            // Refresh the dashboard to show updated status
+            loadDashboard();
+        } else {
+            const errorData = await response.json();
+            showNotification(`Failed to approve patch: ${errorData.message || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Approve patch error:', error);
+        showNotification('Error approving patch', 'error');
+    }
+}
+
+// Reject patch
+async function rejectPatch(taskId, patchId) {
+    try {
+        const response = await fetch(`${API_BASE}/v1/task/${taskId}/patch/${patchId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.ok) {
+            showNotification('Patch rejected successfully', 'success');
+            // Refresh the dashboard to show updated status
+            loadDashboard();
+        } else {
+            const errorData = await response.json();
+            showNotification(`Failed to reject patch: ${errorData.message || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Reject patch error:', error);
+        showNotification('Error rejecting patch', 'error');
+    }
+}
+
 // Download artifact
 async function downloadArtifact(type, taskId, artifactId) {
     try {
@@ -733,7 +953,7 @@ async function showArtifactDetail(type, artifactId) {
 // Render artifact detail
 function renderArtifactDetail(detailData, type) {
     const artifact = detailData.pov || detailData.patch || detailData.bundle || detailData;
-    const artifactId = artifact.pov_id || artifact.patch_id || artifact.bundle_id;
+    const artifactId = artifact.id || artifact.bundle_id || artifact.pov_id || artifact.patch_id;
     
     let specificContent = '';
     
@@ -781,7 +1001,14 @@ function renderArtifactDetail(detailData, type) {
                     // Not base64, use as is
                 }
             }
+            const patchPreview = patchContent.length > 300 
+                ? patchContent.substring(0, 300) + '...' 
+                : patchContent;
             specificContent = `
+                <div class="detail-label">Status:</div>
+                <div class="detail-value">
+                    <span class="status-badge status-${artifact.status || 'accepted'}">${artifact.status || 'accepted'}</span>
+                </div>
                 <div class="detail-label">Patch Size:</div>
                 <div class="detail-value">${originalSize} characters (${patchContent.length} decoded)</div>
                 <div class="detail-label">Patch Content:</div>
@@ -812,10 +1039,18 @@ function renderArtifactDetail(detailData, type) {
                     ${specificContent}
                 </div>
                 ${detailData.task_id ? `
-                <div style="margin-top: 1.5rem;">
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="downloadArtifact('${type}', '${detailData.task_id}', '${artifactId}')">
                         Download ${type.toUpperCase()}
                     </button>
+                    ${type === 'patch' && (artifact.status || 'accepted') === 'accepted' ? `
+                        <button class="btn btn-success" onclick="approvePatch('${detailData.task_id}', '${artifactId}')">
+                            Approve Patch
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectPatch('${detailData.task_id}', '${artifactId}')">
+                            Reject Patch
+                        </button>
+                    ` : ''}
                 </div>
                 ` : ''}
             </div>
@@ -835,48 +1070,32 @@ function formatTimestamp(timestamp) {
     return new Date(timestamp).toLocaleString();
 }
 
-function showNotification(message, type = 'info') {
-    // Create a simple notification system
+function showNotification(message, type = 'info', color = null) {
+    // If color is provided from backend Message, use it to override type
+    if (color === 'error') {
+        type = 'error';
+    } else if (color === 'warning') {
+        type = 'warning';
+    } else if (color === 'success') {
+        type = 'success';
+    }
+    
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
     
-    // Add notification styles if not already added
-    if (!document.querySelector('style[data-notifications]')) {
-        const style = document.createElement('style');
-        style.setAttribute('data-notifications', 'true');
-        style.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 1rem 1.5rem;
-                border-radius: 4px;
-                color: white;
-                font-weight: 500;
-                z-index: 2000;
-                animation: slideIn 0.3s ease;
-            }
-            .notification-success { background-color: #4caf50; }
-            .notification-error { background-color: #f44336; }
-            .notification-info { background-color: #2196f3; }
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    // Add to notifications container
+    const container = document.getElementById('notifications') || document.body;
+    container.appendChild(notification);
     
-    document.body.appendChild(notification);
-    
-    // Remove notification after 5 seconds
+    // Auto-remove after 5 seconds
     setTimeout(() => {
-        notification.remove();
+        if (notification.parentNode) {
+            notification.remove();
+        }
     }, 5000);
 }
 
-// Mock data for development/fallback
 // Helper function to create hexdump preview
 function createHexdumpPreview(data, maxBytes = 128) {
     const bytes = [];
@@ -921,58 +1140,3 @@ function createHexdumpPreview(data, maxBytes = 128) {
     return result;
 }
 
-function getMockTasks() {
-    const now = new Date();
-    const deadline1 = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
-    const deadline2 = new Date(now.getTime() - 1 * 60 * 60 * 1000); // 1 hour ago
-    
-    return [
-        {
-            task_id: "12345678-1234-1234-1234-123456789abc",
-            name: "libpng-analysis",
-            project_name: "libpng",
-            status: "active",
-            duration: 1800,
-            created_at: new Date(now.getTime() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-            deadline: deadline1.toISOString(),
-            challenge_repo_url: "https://github.com/pnggroup/libpng",
-            challenge_repo_head_ref: "libpng16",
-            challenge_repo_base_ref: "v1.6.39",
-            povs: [
-                {
-                    pov_id: "pov-001",
-                    testcase: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-                    timestamp: new Date().toISOString()
-                }
-            ],
-            patches: [
-                {
-                    patch_id: "patch-001",
-                    patch: "--- a/png.c\n+++ b/png.c\n@@ -123,7 +123,7 @@\n    if (size > MAX_SIZE)\n-      return NULL;\n+      return png_error(png_ptr, \"Size too large\");",
-                    timestamp: new Date().toISOString()
-                }
-            ],
-            bundles: [
-                {
-                    bundle_id: "bundle-001",
-                    patches: ["patch-001"],
-                    timestamp: new Date().toISOString()
-                }
-            ]
-        },
-        {
-            task_id: "87654321-4321-4321-4321-cba987654321",
-            name: "libxml2-fuzzing",
-            project_name: "libxml2",
-            status: "expired",
-            duration: 1800,
-            created_at: new Date(now.getTime() - 90 * 60 * 1000).toISOString(), // 1.5 hours ago
-            deadline: deadline2.toISOString(),
-            challenge_repo_url: "https://github.com/GNOME/libxml2",
-            challenge_repo_head_ref: "master",
-            povs: [],
-            patches: [],
-            bundles: []
-        }
-    ];
-}

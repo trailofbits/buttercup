@@ -61,6 +61,13 @@ Define common variables by categories
 {{- end }}
 {{- end }}
 
+{{- define "buttercup.env.corpusTmpfs" }}
+{{- if .Values.global.volumes.corpusTmpfs.enabled }}
+- name: CORPUS_TMPFS_PATH
+  value: "{{ .Values.global.volumes.corpusTmpfs.mountPath }}"
+{{- end }}
+{{- end }}
+
 {{- define "buttercup.env.redis" }}
 - name: REDIS_URL
   value: {{ include "buttercup.core.redisUrl" . }}
@@ -78,19 +85,28 @@ Define Docker Host environment variable for Unix socket
 - name: BUTTERCUP_LITELLM_KEY
   valueFrom:
     secretKeyRef:
-      name: {{ .Release.Name }}-litellm-api-secrets
-      key: BUTTERCUP_LITELLM_KEY
+      name: {{ .secretName }}
+      key: {{ .secretKey }}
 - name: BUTTERCUP_LITELLM_HOSTNAME
   value: {{ include "buttercup.core.litellmEndpoint" . }}
 {{- end }}
 
 {{- define "buttercup.env.telemetry" }}
+{{- if .Values.global.signoz.deployed }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "http://{{ .Release.Name }}-signoz-otel-collector:4317"
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: "Authorization=Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: "grpc"
+{{- else }}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: "{{ .Values.global.otel.endpoint }}"
 - name: OTEL_EXPORTER_OTLP_HEADERS
-  value: "Authorization=Basic {{ .Values.global.otel.token }}"
+  value: "Authorization={{ .Values.global.otel.token }}"
 - name: OTEL_EXPORTER_OTLP_PROTOCOL
   value: "{{ .Values.global.otel.protocol | default "grpc" }}"
+{{- end }}
 - name: CRS_INSTANCE_ID
   valueFrom:
     configMapKeyRef:
@@ -135,7 +151,6 @@ Define persistent log directory environment variable
 Define common environment for all services
 */}}
 {{- define "buttercup.commonEnv" }}
-{{- include "buttercup.env.llm" . | nindent 0 }}
 {{- include "buttercup.env.telemetry" . | nindent 0 }}
 {{- include "buttercup.env.timeouts" . | nindent 0 }}
 {{- include "buttercup.env.dirs" . | nindent 0 }}
@@ -328,6 +343,8 @@ Service-specific environment variables that utilize the standardized variables
   value: "{{ include "buttercup.core.logMaxLineLength" . }}"
 - name: BUTTERCUP_FUZZER_MAX_POV_SIZE
   value: {{ int .Values.global.maxPovSize | quote }}
+- name: BUTTERCUP_FUZZER_RUNNER_PATH
+  value: "/app/fuzzer_runner/runner.sh"
 {{- end }}
 
 {{- define "buttercup.povReproducerEnv" }}
@@ -368,6 +385,8 @@ Service-specific environment variables that utilize the standardized variables
   value: "/tmp/buttercup-run-data"
 - name: BUTTERCUP_UI_EXTERNAL_HOST
   value: {{ .Values.service.external_host | default (printf "%s-ui.%s.svc.cluster.local" .Release.Name .Release.Namespace) | quote }}
+- name: BUTTERCUP_UI_DATABASE_URL
+  value: "sqlite:///{{ include "buttercup.dirs.ui_db_storage" . }}/buttercup_ui.db"
 - name: BUTTERCUP_UI_HOST
   value: {{ .Values.service.host | default "0.0.0.0" | quote }}
 - name: BUTTERCUP_UI_PORT

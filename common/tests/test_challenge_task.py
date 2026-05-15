@@ -1,18 +1,23 @@
-from pathlib import Path
-import pytest
-from unittest.mock import MagicMock, patch
-from dirty_equals import IsStr
-import subprocess
-import os
 import base64
+import os
+import platform
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+from dirty_equals import IsStr
+
 from buttercup.common.challenge_task import (
     ChallengeTask,
     ChallengeTaskError,
-    ReproduceResult,
     CommandResult,
+    ReproduceResult,
 )
 from buttercup.common.task_meta import TaskMeta
-import tempfile
+
+# ruff: noqa: E501, W291
 
 
 @pytest.fixture
@@ -105,8 +110,10 @@ def get_mock_popen(returncode: int, stdout: list[bytes], stderr: list[bytes]):
         mock_process.poll.side_effect = [None, None, returncode]
         mock_process.wait.return_value = returncode
 
-        # Make Popen return our mock process
+        # Make Popen return our mock process and work as context manager
         mock_popen.return_value = mock_process
+        mock_popen.return_value.__enter__ = MagicMock(return_value=mock_process)
+        mock_popen.return_value.__exit__ = MagicMock(return_value=False)
         yield mock_popen
 
 
@@ -373,7 +380,7 @@ def libjpeg_oss_fuzz_task_dir(tmp_path: Path) -> Path:
         metadata={"task_id": "task-id-libjpeg-turbo", "round_id": "testing", "team_id": "tob"},
     ).save(tmp_path)
 
-    yield tmp_path
+    return tmp_path
 
 
 @pytest.fixture
@@ -455,6 +462,121 @@ def test_real_reproduce_pov(libjpeg_oss_fuzz_task_rw: ChallengeTask, libjpeg_cra
         crash_path=libjpeg_crash_testcase,
     )
     assert result.did_crash(), "Reproduce POV failed"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "oss_fuzz_commit,description",
+    [
+        ("eb47f56bd15626ab4ae8727bc435148dd2f9857c^", "before_bug"),
+        ("eb47f56bd15626ab4ae8727bc435148dd2f9857c", "bug_introduced"),
+        ("HEAD", "current_head"),
+    ],
+)
+def test_helper_py_patching_across_commits(
+    tmp_path: Path, libjpeg_crash_testcase: Path, oss_fuzz_commit: str, description: str
+):
+    """Test helper.py patching across different OSS-Fuzz commits.
+
+    This test validates that helper.py patching works correctly across different
+    OSS-Fuzz commits:
+    - Before the bug: eb47f56^ (should work without needing reproduce_impl patch)
+    - Bug introduced: eb47f56bd15626ab4ae8727bc435148dd2f9857c (needs patching)
+    - Current HEAD: Latest OSS-Fuzz (needs patching)
+
+    The patching should ensure reproduce_pov runs successfully on all commits.
+    """
+    # Detect current architecture
+    current_arch = platform.machine()
+    # Normalize architecture names
+    if current_arch in ("arm64", "aarch64"):
+        current_arch = "aarch64"
+    elif current_arch in ("x86_64", "amd64"):
+        current_arch = "x86_64"
+
+    # Only test ARM64 on ARM64 platforms, x86_64 on x86_64 platforms
+    # For this test we use the current architecture
+
+    # Create task directory structure
+    task_dir = tmp_path / f"libjpeg-turbo-{description}"
+    task_dir.mkdir(parents=True)
+
+    oss_fuzz_dir = task_dir / "fuzz-tooling"
+    oss_fuzz_dir.mkdir(parents=True)
+    source_dir = task_dir / "src"
+    source_dir.mkdir(parents=True)
+
+    # Clone OSS-Fuzz at specific commit
+    subprocess.run(["git", "-C", str(oss_fuzz_dir), "clone", "https://github.com/google/oss-fuzz.git"], check=True)
+    subprocess.run(
+        ["git", "-C", str(oss_fuzz_dir / "oss-fuzz"), "checkout", oss_fuzz_commit],
+        check=True,
+    )
+
+    # Clone libjpeg-turbo source (same commit as existing test)
+    libjpeg_url = "https://github.com/libjpeg-turbo/libjpeg-turbo"
+    subprocess.run(["git", "-C", str(source_dir), "clone", libjpeg_url], check=True)
+    subprocess.run(
+        ["git", "-C", str(source_dir / "libjpeg-turbo"), "checkout", "6d91e950c871103a11bac2f10c63bf998796c719"],
+        check=True,
+    )
+
+    # Create task metadata
+    TaskMeta(
+        project_name="libjpeg-turbo",
+        focus="libjpeg-turbo",
+        task_id=f"task-id-libjpeg-turbo-{description}",
+        metadata={"task_id": f"task-id-libjpeg-turbo-{description}", "round_id": "testing", "team_id": "tob"},
+    ).save(task_dir)
+
+    # Create challenge task
+    task = ChallengeTask(
+        read_only_task_dir=task_dir,
+    )
+
+    # Get RW copy and test
+    with task.get_rw_copy(None) as local_task:
+        # Build image and fuzzers
+        result = local_task.build_image(pull_latest_base_image=False, architecture=current_arch)
+        assert result.success is True, f"Build image failed: {result.error}"
+
+        result = local_task.build_fuzzers(engine="libfuzzer", sanitizer="address", architecture=current_arch)
+        assert result.success is True, f"Build fuzzers failed: {result.error}"
+
+        # Reproduce the POV - this should work with patching (the fuzzer should run successfully)
+        # Note: We're testing that reproduce_pov runs without errors, not necessarily that
+        # this specific crash test case triggers a crash (compatibility may vary by version)
+        result = local_task.reproduce_pov(
+            fuzzer_name="libjpeg_turbo_fuzzer",
+            crash_path=libjpeg_crash_testcase,
+        )
+
+        # The key is that reproduce_pov should RUN successfully (did_run returns True)
+        # This confirms the patching fixed the reproduce_impl issue
+        assert result.did_run(), (
+            f"Reproduce POV did not run for commit {oss_fuzz_commit} ({description}). "
+            f"Patching may not have worked correctly. Output: {result.command_result.output[:500] if result.command_result.output else 'None'}"
+        )
+
+        # Verify that helper.py was patched correctly
+        helper_path = local_task.get_oss_fuzz_path() / "infra" / "helper.py"
+        assert helper_path.exists(), "helper.py not found"
+
+        helper_content = helper_path.read_text()
+
+        # Check for the common fix: architecture=architecture instead of err_result
+        # The fix should change: return run_function(run_args, err_result)
+        # To: return run_function(run_args, architecture=architecture)
+        assert "architecture=architecture" in helper_content, (
+            f"helper.py patching failed: 'architecture=architecture' not found in helper.py for commit {oss_fuzz_commit}"
+        )
+
+        # On ARM64, verify ARM64-specific patches were applied
+        if current_arch == "aarch64":
+            # Check for ARM64 manifest tags
+            assert ":manifest-arm64v8" in helper_content, (
+                f"helper.py patching failed: ARM64 manifest tags not found for commit {oss_fuzz_commit}"
+            )
 
 
 def test_copy_task(challenge_task_readonly: ChallengeTask, mock_subprocess):
@@ -717,7 +839,10 @@ def mock_node_local(monkeypatch, tmp_path: Path):
 @patch("buttercup.common.node_local._get_root_path")
 @patch("buttercup.common.node_local.remote_archive_to_dir")
 def test_challenge_task_with_node_local_storage_existing(
-    mock_remote_archive_to_dir, mock_get_root_path, mock_node_local_storage, task_dir
+    mock_remote_archive_to_dir,
+    mock_get_root_path,
+    mock_node_local_storage,
+    task_dir,
 ):
     """Test ChallengeTask behavior when using node_local and path exists."""
     mock_get_root_path.return_value = Path(mock_node_local_storage)
@@ -770,7 +895,10 @@ def test_challenge_task_with_node_local_storage_existing(
 @patch("buttercup.common.node_local._get_root_path")
 @patch("buttercup.common.node_local.remote_archive_to_dir")
 def test_challenge_task_with_node_local_storage_download(
-    mock_remote_archive_to_dir, mock_get_root_path, mock_node_local_storage, task_dir
+    mock_remote_archive_to_dir,
+    mock_get_root_path,
+    mock_node_local_storage,
+    task_dir,
 ):
     """Test ChallengeTask behavior when using node_local and path doesn't exist."""
     mock_get_root_path.return_value = Path(mock_node_local_storage)
@@ -866,7 +994,7 @@ def mock_node_local_storage(tmp_path: Path):
         metadata={"task_id": "task-id-challenge-task", "round_id": "testing", "team_id": "tob"},
     ).save(local_task_path)
 
-    yield node_data_dir
+    return node_data_dir
 
 
 @pytest.mark.integration
@@ -891,7 +1019,7 @@ def test_reproduce_result_stacktrace():
     # Test case 1: Short string (under 1MB limit)
     short_output = b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow"
     result1 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=short_output, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=short_output, error=None),
     )
     stacktrace1 = result1.stacktrace()
     assert stacktrace1 is not None
@@ -906,7 +1034,7 @@ def test_reproduce_result_stacktrace():
     )
 
     result2 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=large_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=large_content, error=None),
     )
     stacktrace2 = result2.stacktrace()
     assert stacktrace2 is not None
@@ -938,7 +1066,7 @@ def test_reproduce_result_stacktrace():
     exact_size_content = prefix + b"B" * (MAX_OUTPUT_LEN - len(prefix) - len(suffix)) + suffix
 
     result4 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=exact_size_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=exact_size_content, error=None),
     )
     stacktrace4 = result4.stacktrace()
     assert stacktrace4 is not None
@@ -954,7 +1082,7 @@ def test_reproduce_result_stacktrace():
     )
 
     result5 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=over_limit_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=over_limit_content, error=None),
     )
     stacktrace5 = result5.stacktrace()
     assert stacktrace5 is not None
@@ -969,7 +1097,7 @@ def test_reproduce_result_stacktrace():
     )
 
     result6 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=very_large_content, error=None)
+        command_result=CommandResult(success=False, returncode=1, output=very_large_content, error=None),
     )
     stacktrace6 = result6.stacktrace()
     assert stacktrace6 is not None
@@ -989,15 +1117,18 @@ def test_reproduce_result_methods():
     # Test case 1: Successful run, no crash
     result1 = ReproduceResult(
         command_result=CommandResult(
-            success=True, returncode=0, output=b"INFO: Seed: 12345\nRunning normally", error=None
-        )
+            success=True,
+            returncode=0,
+            output=b"INFO: Seed: 12345\nRunning normally",
+            error=None,
+        ),
     )
     assert result1.did_run() is True
     assert result1.did_crash() is False
 
     # Test case 2: Failed run, no crash (fuzzer didn't start)
     result2 = ReproduceResult(
-        command_result=CommandResult(success=False, returncode=1, output=b"Error: Could not start fuzzer", error=None)
+        command_result=CommandResult(success=False, returncode=1, output=b"Error: Could not start fuzzer", error=None),
     )
     assert result2.did_run() is False
     assert result2.did_crash() is False
@@ -1009,7 +1140,7 @@ def test_reproduce_result_methods():
             returncode=1,
             output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
             error=None,
-        )
+        ),
     )
     assert result3.did_run() is True
     assert result3.did_crash() is True
@@ -1021,7 +1152,7 @@ def test_reproduce_result_methods():
             returncode=1,
             output=None,
             error=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
-        )
+        ),
     )
     assert result4.did_run() is True
     assert result4.did_crash() is True
@@ -1029,8 +1160,11 @@ def test_reproduce_result_methods():
     # Test case 5: Run with None returncode
     result5 = ReproduceResult(
         command_result=CommandResult(
-            success=False, returncode=None, output=b"INFO: Seed: 12345\nRunning normally", error=None
-        )
+            success=False,
+            returncode=None,
+            output=b"INFO: Seed: 12345\nRunning normally",
+            error=None,
+        ),
     )
     assert result5.did_run() is True
     assert result5.did_crash() is False
@@ -1042,7 +1176,7 @@ def test_reproduce_result_methods():
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result6.did_run() is True
     assert result6.did_crash() is True  # Should detect crash due to crash token in stacktrace
@@ -1054,7 +1188,7 @@ def test_reproduce_result_methods():
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\nTimeout occurred\nNo crash detected",
             error=None,
-        )
+        ),
     )
     assert result7.did_run() is True
     assert result7.did_crash() is False  # Should not detect crash due to no crash token
@@ -1102,7 +1236,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\nTimeout occurred",
             error=b"",
-        )
+        ),
     )
     assert result8.did_run() is True
     assert result8.did_crash() is True  # Should detect crash due to crash token in error output
@@ -1114,7 +1248,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=None,
             error=None,
-        )
+        ),
     )
     assert result9.did_run() is False
     assert result9.did_crash() is False  # Should not detect crash due to no output and no crash token
@@ -1126,7 +1260,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result10.did_run() is True
     assert result10.did_crash() is False  # Should not detect crash due to no crash token
@@ -1138,7 +1272,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=201,  # FAILURE_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n==ERROR: AddressSanitizer: heap-buffer-overflow",
             error=None,
-        )
+        ),
     )
     assert result11.did_run() is True
     assert result11.did_crash() is False  # Should not detect crash due to FAILURE_ERR_RESULT
@@ -1150,7 +1284,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result12.did_run() is True
     assert result12.did_crash() is True  # Should detect crash due to UBSan error in stacktrace
@@ -1162,7 +1296,7 @@ subprocess command returned a non-zero exit status: 1"""
             returncode=124,  # TIMEOUT_ERR_RESULT
             output=b"INFO: Seed: 12345\nRunning normally\n" + output + b"\n" + output + b"\nTimeout occurred",
             error=None,
-        )
+        ),
     )
     assert result13.did_run() is True
     assert result13.did_crash() is True  # Should detect crash due to multiple crash patterns in stacktrace
@@ -1265,7 +1399,10 @@ def test_apply_patch_diff_git_apply_failure(challenge_task: ChallengeTask):
     with patch("subprocess.run") as mock_run:
         # Simulate git apply failure
         mock_run.side_effect = subprocess.CalledProcessError(
-            returncode=1, cmd=["patch", "-p1"], output="", stderr="patch does not apply"
+            returncode=1,
+            cmd=["patch", "-p1"],
+            output="",
+            stderr="patch does not apply",
         )
 
         with pytest.raises(ChallengeTaskError, match="Error applying diff"):

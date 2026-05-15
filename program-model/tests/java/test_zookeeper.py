@@ -1,22 +1,25 @@
 """CodeQuery primitives testing"""
 
 import pytest
-
 from buttercup.common.challenge_task import ChallengeTask
+
 from buttercup.program_model.codequery import CodeQuery
 from buttercup.program_model.utils.common import TypeDefinitionType
+
 from ..common import (
-    common_test_get_type_definitions,
-    common_test_get_functions,
-    common_test_get_callers,
-    common_test_get_callees,
-    common_test_get_type_usages,
+    TestCalleeInfo,
     TestCallerInfo,
     TestFunctionInfo,
-    TestCalleeInfo,
     TestTypeDefinitionInfo,
     TestTypeUsageInfo,
+    common_test_get_callees,
+    common_test_get_callers,
+    common_test_get_functions,
+    common_test_get_type_definitions,
+    common_test_get_type_usages,
 )
+
+# ruff: noqa: E501
 
 
 @pytest.mark.parametrize(
@@ -51,9 +54,7 @@ def test_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        zookeeper_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(zookeeper_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(
@@ -69,7 +70,7 @@ def test_get_functions(
                     name="dumpToLog",
                     file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
                     start_line=95,
-                )
+                ),
             ],
             1,
         ),
@@ -112,7 +113,7 @@ def test_get_callers(
                     name="logMessages",
                     file_path="/src/zookeeper/zookeeper-server/src/main/java/org/apache/zookeeper/server/util/MessageTracker.java",
                     start_line=103,
-                )
+                ),
             ],
             1,
         ),

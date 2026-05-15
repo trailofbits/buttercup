@@ -5,6 +5,10 @@ Define constants for directories that are used across multiple services
 /crs_scratch
 {{- end -}}
 
+{{- define "buttercup.dirs.ui_db_storage" -}}
+/ui_db_storage
+{{- end -}}
+
 {{/*
 Define imagePullSecrets for pod specs - using ghcr-auth to match Terraform
 */}}
@@ -28,12 +32,28 @@ Define the Redis init container template that can be included in multiple deploy
 {{- end -}}
 
 {{/*
-Define the LiteLLM health check init container template
+Define the LiteLLM health check init container template with secret passed via volume
 */}}
 {{- define "buttercup.waitForLiteLLM" -}}
 - name: wait-for-litellm
   image: curlimages/curl:8.6.0
-  command: ['sh', '-c', 'until curl --silent -f http://{{ .Release.Name }}-litellm:4000/health/readiness; do echo waiting for litellm; sleep 2; done;']
+  command:
+    - sh
+    - -c
+    - |
+      for i in $(seq 1 60); do
+        if curl --silent -f -H "Authorization: Bearer $(cat /etc/secrets/API_KEY)" -X POST http://{{ .Release.Name }}-litellm:4000/key/health; then
+          exit 0
+        fi
+        echo "waiting for litellm and key to be ready..."
+        sleep 2
+      done
+      echo "litellm or key not ready after 120s"
+      exit 1
+  volumeMounts:
+    - name: api-key-secret
+      mountPath: /etc/secrets
+      readOnly: true
 {{- end -}}
 
 {{/*
@@ -186,4 +206,44 @@ Define a wait-for-docker init container that checks if the Docker socket is avai
   command: ['sh', '-c', 'until [ -S {{ include "buttercup.core.dockerSocketPath" . }} ]; do echo waiting for docker socket; sleep 2; done;']
   volumeMounts:
   {{- include "buttercup.dockerSocketVolumeMount" . | nindent 2 }}
+{{- end -}}
+
+{{/*
+Define api-key-secret volume with configurable secret name
+Usage: {{- include "buttercup.apiKeySecretVolume" (dict "secretName" "litellm-api-user") | nindent 8 }}
+*/}}
+{{- define "buttercup.apiKeySecretVolume" -}}
+- name: api-key-secret
+  secret:
+    secretName: {{ .secretName }}
+{{- end -}}
+
+{{/*
+Corpus Tmpfs Volume Mount Helper
+Conditionally adds the volume mount for tmpfs corpus storage if enabled globally.
+Expects the root context '.' to be passed.
+Usage: {{- include "buttercup.corpusTmpfsVolumeMount" . | nindent 10 }}
+*/}}
+{{- define "buttercup.corpusTmpfsVolumeMount" -}}
+{{- if .Values.global.volumes.corpusTmpfs.enabled }}
+- name: corpus-tmpfs
+  mountPath: {{ .Values.global.volumes.corpusTmpfs.mountPath }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Corpus Tmpfs Volume Definition Helper
+Conditionally adds the volume definition for tmpfs corpus storage if enabled globally.
+Uses hostPath to mount a node-level tmpfs (shared across all pods on the node).
+PREREQUISITE: The hostPath must be a tmpfs mount on the node (e.g., /dev/shm or custom tmpfs).
+Expects the root context '.' to be passed.
+Usage: {{- include "buttercup.corpusTmpfsVolume" . | nindent 8 }}
+*/}}
+{{- define "buttercup.corpusTmpfsVolume" -}}
+{{- if .Values.global.volumes.corpusTmpfs.enabled }}
+- name: corpus-tmpfs
+  hostPath:
+    path: {{ .Values.global.volumes.corpusTmpfs.hostPath }}
+    type: {{ .Values.global.volumes.corpusTmpfs.type }}
+{{- end }}
 {{- end -}}

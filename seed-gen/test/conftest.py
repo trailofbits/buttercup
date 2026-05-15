@@ -5,17 +5,17 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock
 
 import pytest
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
-from langchain_core.messages.tool import ToolCall
-from redis import Redis
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.project_yaml import Language, ProjectYaml
 from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CodeQueryPersistent
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.messages.tool import ToolCall
+from redis import Redis
+
 from buttercup.seed_gen.find_harness import HarnessInfo
 
 
@@ -46,8 +46,8 @@ def mock_challenge_task(tmp_path):
 language: c
 """)
 
-    # Create a mock helper.py in infra/infra/helper.py
-    helper_path = task_dir / "fuzz-tooling" / "infra" / "infra" / "helper.py"
+    # Create a mock helper.py in projects/infra/helper.py
+    helper_path = task_dir / "fuzz-tooling" / "projects" / "infra" / "helper.py"
     helper_path.parent.mkdir(parents=True)
     helper_path.write_text("import sys; sys.exit(0)")
 
@@ -99,8 +99,8 @@ def mock_challenge_task_with_diff(tmp_path):
 language: c
 """)
 
-    # Create a mock helper.py in infra/infra/helper.py
-    helper_path = task_dir / "fuzz-tooling" / "infra" / "infra" / "helper.py"
+    # Create a mock helper.py in projects/infra/helper.py
+    helper_path = task_dir / "fuzz-tooling" / "projects" / "infra" / "helper.py"
     helper_path.parent.mkdir(parents=True)
     helper_path.write_text("import sys; sys.exit(0)")
 
@@ -218,7 +218,7 @@ def mock_llm_responses():
                     id="context_call_1",
                     name="get_function_definition",
                     args={"function_name": "target_function"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -228,7 +228,7 @@ def mock_llm_responses():
                     id="context_call_2",
                     name="cat",
                     args={"file_path": "/src/test.c"},
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -241,7 +241,7 @@ def mock_llm_responses():
                         "function_name": "target_function",
                         "file_path": "/src/test.c",
                     },
-                )
+                ),
             ],
         ),
         AIMessage(
@@ -261,10 +261,10 @@ def mock_llm_responses():
                                     "tool_name": "get_type_definition",
                                     "arguments": {"type_name": "buffer_t"},
                                 },
-                            ]
-                        }
+                            ],
+                        },
                     },
-                )
+                ),
             ],
         ),
     ]
@@ -280,21 +280,21 @@ def mock_codequery_responses():
                 name="target_function",
                 file_path=Path("/src/test.c"),
                 bodies=[MagicMock(body="int target_function(char* input) { /* function body */ }")],
-            )
+            ),
         ],
         "get_callers": [
             MagicMock(
                 file_path=Path("/src/main.c"),
                 bodies=[MagicMock(body='int main() { target_function("test"); return 0; }')],
                 name="main",
-            )
+            ),
         ],
         "get_types": [
             MagicMock(
                 name="buffer_t",
                 file_path=Path("/src/types.h"),
                 definition="typedef struct { char* data; size_t size; } buffer_t;",
-            )
+            ),
         ],
     }
 
@@ -304,14 +304,18 @@ def mock_challenge_task_responses():
     """Create mock challenge task responses."""
     return {
         "exec_docker_cmd": MagicMock(
-            success=True, output=b"int target_function(char* input) { /* function body */ }"
-        )
+            success=True,
+            output=b"int target_function(char* input) { /* function body */ }",
+        ),
     }
 
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--runintegration", action="store_true", default=False, help="run integration tests"
+        "--runintegration",
+        action="store_true",
+        default=False,
+        help="run integration tests",
     )
 
 

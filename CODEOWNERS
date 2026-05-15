@@ -1,0 +1,8 @@
+* @ret2libc @hbrodin @michaelbrownuc
+seed-gen @reytchison
+fuzzer @reytchison
+fuzzer_runner @reytchison 
+program-model @evandowning 
+patcher @ret2libc
+orchestrator @hbrodin
+deployments @ret2libc @hbrodin

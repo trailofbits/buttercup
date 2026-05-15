@@ -5,27 +5,29 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from dataclasses import dataclass, field
-from pathlib import Path
-from itertools import groupby
-from typing import ClassVar, Optional
-import rapidfuzz
 import uuid
+from dataclasses import dataclass, field
+from itertools import groupby
+from pathlib import Path
+from typing import ClassVar
+
+import rapidfuzz
 from buttercup.common.challenge_task import ChallengeTask, ChallengeTaskError
-from buttercup.program_model.api.tree_sitter import CodeTS
+from buttercup.common.project_yaml import Language, ProjectYaml
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
 from buttercup.program_model.api.fuzzy_imports_resolver import (
-    FuzzyJavaImportsResolver,
     FuzzyCImportsResolver,
+    FuzzyJavaImportsResolver,
 )
+from buttercup.program_model.api.tree_sitter import CodeTS
 from buttercup.program_model.utils.common import (
     Function,
     TypeDefinition,
     TypeUsageInfo,
 )
-from buttercup.common.project_yaml import ProjectYaml, Language
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
 
@@ -130,9 +132,7 @@ class CodeQuery:
 
     challenge: ChallengeTask
     ts: CodeTS = field(init=False)
-    imports_resolver: Optional[FuzzyCImportsResolver | FuzzyJavaImportsResolver] = (
-        field(init=False)
-    )
+    imports_resolver: FuzzyCImportsResolver | FuzzyJavaImportsResolver | None = field(init=False)
 
     CSCOPE_FILES: ClassVar[str] = "cscope.files"
     CSCOPE_OUT: ClassVar[str] = "cscope.out"
@@ -144,7 +144,7 @@ class CodeQuery:
         self._verify_requirements()
         self.ts = CodeTS(self.challenge)
         language = self._get_project_language()
-        if language == Language.C:
+        if language in [Language.C, Language.CPP]:
             self.imports_resolver = FuzzyCImportsResolver(self._get_container_src_dir())
         elif language == Language.JAVA:
             self.imports_resolver = FuzzyJavaImportsResolver(self.challenge, self)
@@ -156,9 +156,7 @@ class CodeQuery:
             return
 
         if self.challenge.local_task_dir is None:
-            raise ValueError(
-                "Challenge Task is read-only, cannot perform this operation"
-            )
+            raise ValueError("Challenge Task is read-only, cannot perform this operation")
 
         self._create_codequery_db()
         logger.debug("CodeQuery DB created successfully.")
@@ -180,9 +178,7 @@ class CodeQuery:
             raise RuntimeError("No code query package")
 
     def _get_project_language(self) -> Language:
-        project_yaml = ProjectYaml(
-            self.challenge, self.challenge.task_meta.project_name
-        )
+        project_yaml = ProjectYaml(self.challenge, self.challenge.task_meta.project_name)
         return project_yaml.unified_language
 
     def _is_already_indexed(self) -> bool:
@@ -232,10 +228,8 @@ class CodeQuery:
         self._copy_src_from_container()
 
         with self._get_container_src_dir().joinpath(self.CSCOPE_FILES).open("w") as f:
-            project_yaml = ProjectYaml(
-                self.challenge, self.challenge.task_meta.project_name
-            )
-            if project_yaml.unified_language == Language.C:
+            project_yaml = ProjectYaml(self.challenge, self.challenge.task_meta.project_name)
+            if project_yaml.unified_language in [Language.C, Language.CPP]:
                 extensions = C_CPP_EXTENSIONS
             elif project_yaml.unified_language == Language.JAVA:
                 extensions = JAVA_EXTENSIONS
@@ -250,6 +244,7 @@ class CodeQuery:
         try:
             subprocess.run(
                 ["cscope", "-bkq"],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=200,
@@ -263,6 +258,7 @@ class CodeQuery:
         try:
             subprocess.run(
                 ["ctags", "--fields=+i", "-n", "-L", self.CSCOPE_FILES],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=300,
@@ -285,6 +281,7 @@ class CodeQuery:
                     self.TAGS,
                     "-p",
                 ],
+                check=False,
                 cwd=self._get_container_src_dir(),
                 capture_output=True,
                 timeout=2700,
@@ -332,9 +329,7 @@ class CodeQuery:
             for function in functions
         ]
 
-    def _rebase_types_file_paths(
-        self, types: list[TypeDefinition]
-    ) -> list[TypeDefinition]:
+    def _rebase_types_file_paths(self, types: list[TypeDefinition]) -> list[TypeDefinition]:
         """Rebase the file paths of the types to the challenge task container structure."""
         return [
             TypeDefinition(
@@ -347,9 +342,7 @@ class CodeQuery:
             for td in types
         ]
 
-    def _rebase_type_usages_file_paths(
-        self, type_usages: list[TypeUsageInfo]
-    ) -> list[TypeUsageInfo]:
+    def _rebase_type_usages_file_paths(self, type_usages: list[TypeUsageInfo]) -> list[TypeUsageInfo]:
         """Rebase the file paths of the types to the challenge task container structure."""
         return [
             TypeUsageInfo(
@@ -362,21 +355,11 @@ class CodeQuery:
 
     def _get_all_functions(self) -> list[CQSearchResult]:
         """Get all functions in the codebase."""
-        return [
-            f
-            for f in self._run_cqsearch(
-                "-s", self.CODEQUERY_DB, "-p", "2", "-t", "*", "-u"
-            )
-        ]
+        return [f for f in self._run_cqsearch("-s", self.CODEQUERY_DB, "-p", "2", "-t", "*", "-u")]
 
     def _get_all_types(self) -> list[CQSearchResult]:
         """Get all symbols in the codebase."""
-        return [
-            t
-            for t in self._run_cqsearch(
-                "-s", self.CODEQUERY_DB, "-p", "1", "-t", "*", "-u"
-            )
-        ]
+        return [t for t in self._run_cqsearch("-s", self.CODEQUERY_DB, "-p", "1", "-t", "*", "-u")]
 
     def get_functions(
         self,
@@ -401,7 +384,8 @@ class CodeQuery:
                 file_path,
             )
 
-        # FIXME(Evan): Sometimes cscope doesn't identify a function (option 2). They can be found by looking for symbols (option 1).
+        # FIXME(Evan): Sometimes cscope doesn't identify a function (option 2).
+        # They can be found by looking for symbols (option 1).
         results: list[CQSearchResult] = []
         flags = ["1", "2"]
         for flag in flags:
@@ -443,14 +427,13 @@ class CodeQuery:
                 [
                     (f, rapidfuzz.fuzz.ratio(function_name, f.value))
                     for f in self._get_all_functions()
-                    if f.value
-                    and rapidfuzz.fuzz.ratio(function_name, f.value) > fuzzy_threshold
+                    if f.value and rapidfuzz.fuzz.ratio(function_name, f.value) > fuzzy_threshold
                 ],
                 key=lambda x: x[1],
                 reverse=True,
             )
-            fuzzy_matches = [f for f, _ in fuzzy_matches]
-            results.extend(fuzzy_matches)
+            fuzzy_matches_extracted: list[CQSearchResult] = [f for f, _ in fuzzy_matches]
+            results.extend(fuzzy_matches_extracted)
 
         res: set[Function] = set()
         results_by_file = groupby(results, key=lambda x: x.file)
@@ -465,7 +448,7 @@ class CodeQuery:
                 continue
 
             for function in functions_found:
-                f = self.ts.get_function(function, file)
+                f = self.ts.get_function(function, Path(file) if isinstance(file, str) else file)  # type: ignore[call-arg]
                 if not f:
                     continue
                 if line_number:
@@ -479,11 +462,7 @@ class CodeQuery:
                     # NOTE(boyan): We check whether the supplied line to look up for the function
                     # is contained within at least one of the function bodies found by
                     # tree-sitter
-                    if any(
-                        True
-                        for start_line, end_line in lines
-                        if start_line <= line_number <= end_line
-                    ):
+                    if any(True for start_line, end_line in lines if start_line <= line_number <= end_line):
                         res.add(f)
                 else:
                     res.add(f)
@@ -498,15 +477,11 @@ class CodeQuery:
 
         # Sort in same order as results
         results_value = [r.value for r in results]
-        res_sorted: list[Function] = sorted(
-            res, key=lambda x: results_value.index(x.name)
-        )
+        res_sorted: list[Function] = sorted(res, key=lambda x: results_value.index(x.name))
 
         return self._rebase_functions_file_paths(res_sorted)
 
-    def _filter_callees(
-        self, caller_function: Function, callees: list[Function]
-    ) -> list[Function]:
+    def _filter_callees(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         # If no resolver available, don't filter anything
         if not self.imports_resolver:
             return callees
@@ -518,7 +493,8 @@ class CodeQuery:
         file_path: Path | None = None,
     ) -> list[Function]:
         """Get the callers of a function. File paths are based on the challenge
-        task container structure (e.g. /src)."""
+        task container structure (e.g. /src).
+        """
         if isinstance(function, str):
             function_name = function
         elif isinstance(function, Function):
@@ -585,8 +561,8 @@ class CodeQuery:
         line_number: int | None = None,
     ) -> list[Function]:
         """Get the callees of a function. File paths are based on the challenge
-        task container structure (e.g. /src)."""
-
+        task container structure (e.g. /src).
+        """
         functions: list[Function] = []
         if isinstance(function, str):
             function_name = function
@@ -653,9 +629,7 @@ class CodeQuery:
         # Create a dictionary of file path(s) and line ranges to filter callees by.
         callee_filter: dict[Path, list[tuple[int, int]]] = {}
         for function in functions:
-            callee_filter[function.file_path] = [
-                (b.start_line, b.end_line) for b in function.bodies
-            ]
+            callee_filter[function.file_path] = [(b.start_line, b.end_line) for b in function.bodies]
 
         callees: set[Function] = set()
         for result in results:
@@ -669,10 +643,7 @@ class CodeQuery:
                 continue
 
             # If the callee is called at a line number we're looking for.
-            if not any(
-                line_range[0] <= result.line <= line_range[1]
-                for line_range in callee_filter[rebased_path]
-            ):
+            if not any(line_range[0] <= result.line <= line_range[1] for line_range in callee_filter[rebased_path]):
                 continue
 
             # Now find the function definition of the callee
@@ -761,9 +732,7 @@ class CodeQuery:
                         "crs.action.code.file": str(file_path) if file_path else "",
                         "crs.action.code.fuzzy": fuzzy if fuzzy else False,
                         "crs.action.code.type_name": type_name,
-                        "crs.action.code.function_name": function_name
-                        if function_name
-                        else "",
+                        "crs.action.code.function_name": function_name if function_name else "",
                     },
                 )
                 results.extend(self._run_cqsearch(*cqsearch_args))
@@ -776,14 +745,13 @@ class CodeQuery:
                 [
                     (t, rapidfuzz.fuzz.ratio(type_name, t.value))
                     for t in self._get_all_types()
-                    if t.value
-                    and rapidfuzz.fuzz.ratio(type_name, t.value) > fuzzy_threshold
+                    if t.value and rapidfuzz.fuzz.ratio(type_name, t.value) > fuzzy_threshold
                 ],
                 key=lambda x: x[1],
                 reverse=True,
             )
-            fuzzy_matches = [t for t, _ in fuzzy_matches]
-            results.extend(fuzzy_matches)
+            fuzzy_matches_extracted: list[CQSearchResult] = [t for t, _ in fuzzy_matches]
+            results.extend(fuzzy_matches_extracted)
 
         res: set[TypeDefinition] = set()
         results_by_file = groupby(results, key=lambda x: x.file)
@@ -808,18 +776,14 @@ class CodeQuery:
 
             if function_name:
                 # Get the function definition to find its scope
-                function = self.ts.get_function(function_name, file)
+                function = self.ts.get_function(function_name, Path(file) if isinstance(file, str) else file)  # type: ignore[call-arg]
                 if function:
                     # Filter type definitions to only include those within the function's scope
                     filtered_typedefs = {}
                     for name, typedef in typedefs.items():
                         # Check if the type definition is within the function's scope
                         for body in function.bodies:
-                            if (
-                                body.start_line
-                                <= typedef.definition_line
-                                <= body.end_line
-                            ):
+                            if body.start_line <= typedef.definition_line <= body.end_line:
                                 filtered_typedefs[name] = typedef
                                 break
                     typedefs = filtered_typedefs
@@ -837,16 +801,15 @@ class CodeQuery:
 
         # Sort in same order as results
         results_value = [r.value for r in results]
-        res_sorted: list[TypeDefinition] = sorted(
-            res, key=lambda x: results_value.index(x.name)
-        )
+        res_sorted: list[TypeDefinition] = sorted(res, key=lambda x: results_value.index(x.name))
 
         # Rebase the file paths
         return self._rebase_types_file_paths(res_sorted)
 
     def get_type_calls(self, type_definition: TypeDefinition) -> list[TypeUsageInfo]:
         """Get the calls to a type definition. File paths are based on the challenge
-        task container structure (e.g. /src)."""
+        task container structure (e.g. /src).
+        """
         results: list[CQSearchResult] = []
         flags = ["1", "8"]
         for flag in flags:
@@ -882,7 +845,7 @@ class CodeQuery:
                     name=type_definition.name,
                     file_path=result.file,
                     line_number=result.line,
-                )
+                ),
             )
 
         return self._rebase_type_usages_file_paths(list(calls))
@@ -899,6 +862,7 @@ class CodeQueryPersistent(CodeQuery):
     """
 
     work_dir: Path
+    tasks_storage: Path | None = None
 
     def __post_init__(self) -> None:
         """Post init the persistent codequery db"""
@@ -909,15 +873,18 @@ class CodeQueryPersistent(CodeQuery):
         except ChallengeTaskError:
             # This is the case where the cqdb is not yet created
             logger.debug("Creating new CodeQueryPersistent DB in %s", cqdb_path)
-            with self.challenge.get_rw_copy(self.work_dir) as persistent_challenge:
+            if self.tasks_storage is not None:
+                clean_task = self.challenge.get_clean_task(self.tasks_storage)
+            else:
+                clean_task = self.challenge
+            with clean_task.get_rw_copy(self.work_dir) as persistent_challenge:
+                persistent_challenge.apply_patch_diff()
                 self.challenge = persistent_challenge
                 super().__post_init__()
 
                 try:
                     persistent_challenge.commit(".cqdb")
-                    logger.debug(
-                        f"Uploading cqdb {persistent_challenge.local_task_dir} to remote storage"
-                    )
+                    logger.debug(f"Uploading cqdb {persistent_challenge.local_task_dir} to remote storage")
                 except Exception as e:
                     logger.exception("Failed to commit the cqdb: %s", e)
                     raise e

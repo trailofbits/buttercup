@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +13,7 @@ class StatusChecker:
 
         Args:
             check_interval: How often to check statuses in seconds
+
         """
         self.last_check = 0.0
         self.check_interval = check_interval
@@ -33,11 +34,12 @@ class StatusChecker:
 
         Returns:
             bool: True if the check was executed, False otherwise
+
         """
         if not self.should_check():
             return False
         try:
             return check_fn()
         except Exception as e:
-            logger.error(f"Failed to check statuses: {str(e)}")
+            logger.error(f"Failed to check statuses: {e!s}")
             return False

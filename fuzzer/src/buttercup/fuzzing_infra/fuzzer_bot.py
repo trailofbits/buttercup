@@ -1,26 +1,30 @@
-from buttercup.fuzzing_infra.runner import Runner, Conf, FuzzConfiguration
-from buttercup.common.datastructures.msg_pb2 import BuildType, WeightedHarness, Crash
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
-from buttercup.common.queues import QueueFactory, QueueNames
-from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.common import stack_parsing
-from buttercup.common.stack_parsing import CrashSet
-from buttercup.common.logger import setup_package_logger
-from buttercup.common.utils import setup_periodic_zombie_reaper
-from redis import Redis
-from clusterfuzz.fuzz import engine
-from buttercup.common.default_task_loop import TaskLoop
-from typing import List
-import random
-from buttercup.common.datastructures.msg_pb2 import BuildOutput
 import logging
+import random
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTask
-from buttercup.fuzzing_infra.settings import FuzzerBotSettings
-from buttercup.common.telemetry import init_telemetry, CRSActionCategory, set_crs_attributes
+from buttercup.common.corpus import Corpus, CrashDir
+from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, Crash, WeightedHarness
+from buttercup.common.default_task_loop import TaskLoop
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.node_local import scratch_dir
+from buttercup.common.queues import QueueFactory, QueueNames
+from buttercup.common.stack_parsing import CrashSet
+from buttercup.common.telemetry import CRSActionCategory, init_telemetry, set_crs_attributes
+from buttercup.common.types import FuzzConfiguration
+from buttercup.common.utils import setup_periodic_zombie_reaper
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
-from buttercup.common.node_local import scratch_dir
-from pathlib import Path
+from redis import Redis
+
+from buttercup.fuzzing_infra.runner_proxy import Conf, RunnerProxy
+from buttercup.fuzzing_infra.settings import FuzzerBotSettings
+
+if TYPE_CHECKING:
+    from clusterfuzz.fuzz import engine  # type: ignore[unresolved-import]
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +39,9 @@ class FuzzerBot(TaskLoop):
         crs_scratch_dir: str,
         crash_dir_count_limit: int | None,
         max_pov_size: int,
+        runner_path: Path,
     ):
-        self.runner = Runner(Conf(timeout_seconds))
+        self.runner = RunnerProxy(Conf(timeout_seconds, runner_path))
         self.output_q = QueueFactory(redis).create(QueueNames.CRASH)
         self.python = python
         self.crs_scratch_dir = crs_scratch_dir
@@ -44,10 +49,10 @@ class FuzzerBot(TaskLoop):
         self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> List[BuildTypeHint]:
+    def required_builds(self) -> list[BuildTypeHint]:  # type: ignore[invalid-method-override]
         return [BuildType.FUZZER]
 
-    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, BuildOutput]):
+    def run_task(self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]) -> None:  # type: ignore[invalid-method-override]
         with scratch_dir() as td:
             logger.info(f"Running fuzzer for {task.harness_name} | {task.package_name} | {task.task_id}")
 
@@ -61,6 +66,7 @@ class FuzzerBot(TaskLoop):
                 corp = Corpus(self.crs_scratch_dir, task.task_id, task.harness_name)
 
                 build_dir = local_tsk.get_build_dir()
+                assert build_dir is not None, "build_dir is required for fuzzing"
                 fuzz_conf = FuzzConfiguration(
                     corp.path,
                     str(build_dir / task.harness_name),
@@ -86,7 +92,10 @@ class FuzzerBot(TaskLoop):
 
                     crash_set = CrashSet(self.redis)
                     crash_dir = CrashDir(
-                        self.crs_scratch_dir, task.task_id, task.harness_name, count_limit=self.crash_dir_count_limit
+                        self.crs_scratch_dir,
+                        task.task_id,
+                        task.harness_name,
+                        count_limit=self.crash_dir_count_limit,
                     )
                     for crash_ in result.crashes:
                         crash: engine.Crash = crash_
@@ -111,7 +120,7 @@ class FuzzerBot(TaskLoop):
                             crash.stacktrace,
                         ):
                             logger.info(
-                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set"
+                                f"Crash {crash.input_path}|{crash.reproduce_args}|{crash.crash_time} already in set",
                             )
                             logger.debug(f"Crash stacktrace: {crash.stacktrace}")
                             continue
@@ -130,14 +139,15 @@ class FuzzerBot(TaskLoop):
                     logger.info(f"Fuzzer finished for {build.engine} | {build.sanitizer} | {task.harness_name}")
 
 
-def main():
-    args = FuzzerBotSettings()
+def main() -> None:
+    args = FuzzerBotSettings()  # type: ignore[missing-argument]
     setup_package_logger("fuzzer-bot", __name__, args.log_level, args.log_max_line_length)
     init_telemetry("fuzzer")
 
     setup_periodic_zombie_reaper()
 
     logger.info(f"Starting fuzzer (crs_scratch_dir: {args.crs_scratch_dir})")
+    logger.debug("Args: %s", args)
 
     seconds_sleep = args.timer // 1000
     fuzzer = FuzzerBot(
@@ -148,6 +158,7 @@ def main():
         args.crs_scratch_dir,
         crash_dir_count_limit=(args.crash_dir_count_limit if args.crash_dir_count_limit > 0 else None),
         max_pov_size=args.max_pov_size,
+        runner_path=args.runner_path,
     )
     fuzzer.run()
 

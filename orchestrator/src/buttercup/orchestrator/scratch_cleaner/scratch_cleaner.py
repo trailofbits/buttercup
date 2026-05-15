@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
-from pathlib import Path
 import shutil
-from redis import Redis
+from dataclasses import dataclass, field
+from pathlib import Path
+
 from buttercup.common.task_registry import TaskRegistry
 from buttercup.common.utils import serve_loop
+from redis import Redis
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,11 @@
 import argparse
-from redis import Redis
-from buttercup.common.queues import QueueFactory, QueueNames
+
 from buttercup.common.datastructures.msg_pb2 import BuildRequest, BuildType
+from buttercup.common.queues import QueueFactory, QueueNames
+from redis import Redis
 
 
-def main():
+def main() -> None:
     prsr = argparse.ArgumentParser("stimulate build bot manually")
     prsr.add_argument("--target_package", required=True)
     prsr.add_argument("--ossfuzz", required=True)
@@ -21,8 +22,8 @@ def main():
     req = BuildRequest(
         engine=args.engine,
         sanitizer=args.sanitizer,
-        ossfuzz=args.ossfuzz,
-        source_path=args.source_path,
+        ossfuzz=args.ossfuzz,  # type: ignore[unknown-argument]  # stale proto field
+        source_path=args.source_path,  # type: ignore[unknown-argument]  # stale proto field
         task_id=args.task_id,
         build_type=args.build_type,
     )
@@ -30,8 +31,8 @@ def main():
     coverage_req = BuildRequest(
         engine=args.engine,
         sanitizer="coverage",
-        ossfuzz=args.ossfuzz,
-        source_path=args.source_path,
+        ossfuzz=args.ossfuzz,  # type: ignore[unknown-argument]  # stale proto field
+        source_path=args.source_path,  # type: ignore[unknown-argument]  # stale proto field
         task_id=args.task_id,
         build_type=BuildType.COVERAGE,
     )

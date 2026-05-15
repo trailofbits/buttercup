@@ -17,6 +17,9 @@ make lint                                   # Format, lint, and type-check all c
 
 # Example: lint the patcher component
 make lint-component COMPONENT=patcher
+
+# Regenerate protobuf files (MUST run from common venv for correct grpcio-tools)
+cd common && uv run ../protoc.sh
 ```
 
 ### Testing
@@ -126,6 +129,12 @@ cd <component> && uv lock --upgrade
 - Mock external dependencies (Redis, LLM APIs, file system)
 - Integration tests use Docker containers
 - Test data stored in `<component>/tests/data/`
+- **Redis-dependent tests**: Several components (common, orchestrator, patcher, fuzzer, seed-gen) have tests that require a running Redis instance. Do not skip these tests. Start a temporary Redis container before running tests:
+  ```bash
+  docker run -d --name redis-temp -p 6379:6379 redis:latest
+  # Run tests...
+  docker stop redis-temp && docker rm redis-temp
+  ```
 
 ### Code Quality
 
@@ -133,6 +142,14 @@ cd <component> && uv lock --upgrade
 - `mypy` for static type checking
 - Line length: 120 characters
 - Pydantic models for data validation
+
+### Code Navigation
+
+- Use `get_symbols_overview` before reading full files to understand structure
+- Use `find_symbol` to locate classes/functions across components
+- Use `find_referencing_symbols` to trace message flow between services
+- Use `search_for_pattern` for non-code files (YAML, proto, configs)
+- Prefer symbol-based edits (`replace_symbol_body`, `insert_after_symbol`) over line-based edits
 
 ## Deployment Architecture
 

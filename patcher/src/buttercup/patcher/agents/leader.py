@@ -5,22 +5,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import openai
-from opentelemetry import trace
+from buttercup.common.llm import get_langfuse_callbacks
+from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
+from opentelemetry import trace
+from redis import Redis
 
+from buttercup.patcher.agents.common import PatcherAgentBase, PatcherAgentName, PatcherAgentState
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.telemetry import set_crs_attributes, CRSActionCategory
-from buttercup.patcher.agents.common import PatcherAgentState, PatcherAgentName, PatcherAgentBase
+from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
+from buttercup.patcher.agents.input_processing import InputProcessingAgent
 from buttercup.patcher.agents.qe import QEAgent
+from buttercup.patcher.agents.reflection import ReflectionAgent
 from buttercup.patcher.agents.rootcause import RootCauseAgent
 from buttercup.patcher.agents.swe import SWEAgent
-from buttercup.patcher.agents.context_retriever import ContextRetrieverAgent
-from buttercup.patcher.agents.reflection import ReflectionAgent
-from buttercup.patcher.agents.input_processing import InputProcessingAgent
 from buttercup.patcher.utils import PatchOutput
-from buttercup.common.llm import get_langfuse_callbacks
-from redis import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -35,25 +35,34 @@ class PatcherLeaderAgent(PatcherAgentBase):
     work_dir: Path
     tasks_storage: Path
     model_name: str | None = None
+    find_tests: bool = True
 
-    def _init_patch_team(self) -> StateGraph[PatcherAgentState, PatcherAgentState, PatcherAgentState]:
+    def _init_patch_team(self) -> StateGraph[PatcherAgentState, PatcherConfig, PatcherAgentState, PatcherAgentState]:
         rootcause_agent = RootCauseAgent(self.challenge, self.input, chain_call=self.chain_call)
         swe_agent = SWEAgent(self.challenge, self.input, chain_call=self.chain_call)
         qe_agent = QEAgent(self.challenge, self.input, chain_call=self.chain_call)
         context_retriever_agent = ContextRetrieverAgent(
-            self.challenge, self.input, chain_call=self.chain_call, redis=self.redis
+            self.challenge,
+            self.input,
+            chain_call=self.chain_call,
+            redis=self.redis,
+            find_tests=self.find_tests,
         )
         reflection_agent = ReflectionAgent(self.challenge, self.input, chain_call=self.chain_call)
         input_processing_agent = InputProcessingAgent(self.challenge, self.input, chain_call=self.chain_call)
-        self.model_name = swe_agent.default_llm.model_name
+        self.model_name = swe_agent.default_llm.model_name  # type: ignore[unresolved-attribute]
 
         workflow = StateGraph(
-            PatcherAgentState, PatcherConfig, input_schema=PatcherAgentState, output_schema=PatcherAgentState
+            PatcherAgentState,
+            PatcherConfig,
+            input_schema=PatcherAgentState,
+            output_schema=PatcherAgentState,
         )
         workflow.add_node(PatcherAgentName.FIND_TESTS.value, context_retriever_agent.find_tests_node)
         workflow.add_node(PatcherAgentName.INPUT_PROCESSING.value, input_processing_agent.process_input)
         workflow.add_node(
-            PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value, context_retriever_agent.get_initial_context
+            PatcherAgentName.INITIAL_CODE_SNIPPET_REQUESTS.value,
+            context_retriever_agent.get_initial_context,
         )
         workflow.add_node(PatcherAgentName.ROOT_CAUSE_ANALYSIS.value, rootcause_agent.analyze_vulnerability)
         workflow.add_node(PatcherAgentName.PATCH_STRATEGY.value, swe_agent.select_patch_strategy)
@@ -62,8 +71,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
         workflow.add_node(PatcherAgentName.RUN_POV.value, qe_agent.run_pov_node)
         workflow.add_node(PatcherAgentName.RUN_TESTS.value, qe_agent.run_tests_node)
         workflow.add_node(PatcherAgentName.REFLECTION.value, reflection_agent.reflect_on_patch)
-        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)  # type: ignore[call-overload]
-        workflow.add_node(PatcherAgentName.PATCH_VALIDATION.value, qe_agent.validate_patch_node)
+        workflow.add_node(PatcherAgentName.CONTEXT_RETRIEVER.value, context_retriever_agent.retrieve_context)
 
         workflow.set_entry_point(PatcherAgentName.INPUT_PROCESSING.value)
         return workflow
@@ -86,7 +94,7 @@ class PatcherLeaderAgent(PatcherAgentBase):
                     "work_dir": self.work_dir,
                     "tasks_storage": self.tasks_storage,
                 },
-            )
+            ),
         )
 
         state = PatcherAgentState(messages=[], context=self.input)

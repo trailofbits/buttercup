@@ -1,17 +1,23 @@
 # Store the node local path for subsequent use
-from contextlib import contextmanager
+import errno
 import logging
 import os
-from pathlib import Path
 import shutil
 import tarfile
-from tempfile import NamedTemporaryFile
 import tempfile
-from typing import Any, Iterator, TypeAlias
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any, TypeAlias
 
 logger = logging.getLogger(__name__)
 
 node_local_path = os.getenv("NODE_DATA_DIR")
+
+# Optional tmpfs path for corpus storage
+# When set, the fuzzing corpus will be stored on this tmpfs mount for improved performance
+corpus_tmpfs_path = os.getenv("CORPUS_TMPFS_PATH")
 
 
 NodeLocalPath: TypeAlias = Path
@@ -21,6 +27,18 @@ RemotePath: TypeAlias = Path
 def _get_root_path() -> NodeLocalPath:
     assert node_local_path is not None, "NODE_DATA_DIR environment variable is not defined"
     return NodeLocalPath(node_local_path)
+
+
+def get_corpus_tmpfs_path() -> Path | None:
+    """Return the tmpfs path for corpus storage if configured, otherwise None."""
+    if corpus_tmpfs_path:
+        return Path(corpus_tmpfs_path)
+    return None
+
+
+def is_corpus_tmpfs_enabled() -> bool:
+    """Check if tmpfs corpus storage is enabled."""
+    return corpus_tmpfs_path is not None
 
 
 class TmpDir:
@@ -47,7 +65,10 @@ def temp_dir(root_path: Path) -> Iterator[TmpDir]:
 
 
 def rename_atomically(src: Path, dst: Path) -> Path | None:
-    """Rename a file atomically"""
+    """Rename a file atomically.
+
+    Falls back to copy+delete for cross-filesystem operations.
+    """
     src = Path(src)
     dst = Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -56,11 +77,48 @@ def rename_atomically(src: Path, dst: Path) -> Path | None:
     except OSError as e:
         # If the path already exists, it means another pod already downloaded it
         # we can just ignore this error and return None to signify that the path already exists
-        if e.errno == 39:
+        if e.errno == errno.ENOTEMPTY:  # 39 = Directory not empty
             logger.debug(f"Local path {dst} already exists for {src}")
             return None
+        # Handle cross-filesystem rename (errno 18 = EXDEV = Invalid cross-device link)
+        if e.errno == errno.EXDEV:
+            logger.debug(f"Cross-filesystem rename from {src} to {dst}, using copy+delete")
+            return _copy_and_delete(src, dst)
         raise e
     return dst
+
+
+def _copy_and_delete(src: Path, dst: Path) -> Path | None:
+    """Copy a file/directory and delete the source. Used for cross-filesystem operations.
+
+    Note: Unlike os.rename, this intentionally returns None if dst already exists
+    rather than overwriting. This supports the "first pod wins" pattern used by
+    callers in distributed scenarios where concurrent pods may race to create the same file.
+    """
+    try:
+        if src.is_dir():
+            # For directories, use copytree
+            if dst.exists():
+                logger.debug(f"Destination {dst} already exists, skipping copy")
+                shutil.rmtree(src, ignore_errors=True)
+                return None
+            shutil.copytree(src, dst)
+            shutil.rmtree(src, ignore_errors=True)
+        else:
+            # For files, use copy2 to preserve metadata
+            if dst.exists():
+                logger.debug(f"Destination {dst} already exists, skipping copy")
+                try:
+                    os.unlink(src)
+                except OSError:
+                    pass
+                return None
+            shutil.copy2(src, dst)
+            os.unlink(src)
+        return dst
+    except Exception as e:
+        logger.error(f"Failed to copy {src} to {dst}: {e}")
+        raise
 
 
 def remote_path(local_path: NodeLocalPath) -> RemotePath:
@@ -89,7 +147,7 @@ def scratch_path() -> NodeLocalPath:
     return scratch_dir
 
 
-def scratch_dir() -> Any:
+def scratch_dir() -> AbstractContextManager[TmpDir]:
     """Return a temporary directory in the scratch directory"""
     return temp_dir(scratch_path())
 
@@ -187,6 +245,7 @@ def dir_to_remote_archive(local_path: NodeLocalPath) -> RemotePath:
 def lopen(local_path: NodeLocalPath, mode: str) -> Any:
     """Open a file in the node local storage
 
-    If it doesn't exist, it will be downloaded from the remote storage"""
+    If it doesn't exist, it will be downloaded from the remote storage
+    """
     make_locally_available(local_path)
     return open(local_path, mode)

@@ -1,0 +1,172 @@
+# Config for a 16 CPU (32 thread), 128 GB machine without scaling LLM usage.
+# To use, update the following values in deployment/env:
+# export BUTTERCUP_K8S_VALUES_TEMPLATE="k8s/values-upstream-minikube-16cpu-128gb.template"
+# export MINIKUBE_CPU=30
+# export MINIKUBE_MEMORY_GB=120
+# export MINIKUBE_DISK_GB=160
+# export MINIKUBE_SHM_SIZE_GB=60
+global:
+  environment: "minikube"
+  orchestratorImage:
+    repository: localhost/orchestrator
+    tag: "latest"
+    pullPolicy: Never
+  fuzzerImage:
+    repository: localhost/fuzzer
+    tag: "latest"
+    pullPolicy: Never
+  seedGenImage:
+    repository: localhost/seed-gen
+    tag: "latest"
+    pullPolicy: Never
+  patcherImage:
+    repository: localhost/patcher
+    tag: "latest"
+    pullPolicy: Never
+  programModelImage:
+    repository: localhost/program-model
+    tag: "latest"
+    pullPolicy: Never
+
+  langfuse:
+    enabled: ${LANGFUSE_ENABLED}
+    host: "${LANGFUSE_HOST}"
+    publicKey: "${LANGFUSE_PUBLIC_KEY}"
+    secretKey: "${LANGFUSE_SECRET_KEY}"
+
+  signoz:
+    deployed: ${DEPLOY_SIGNOZ}
+
+  volumes:
+    corpusTmpfs:
+      enabled: true
+
+  crs:
+    api_key_id: ${CRS_KEY_ID}
+    api_key_token: ${CRS_KEY_TOKEN}
+    api_key_token_hash: "${CRS_KEY_TOKEN_HASH}"
+    api_url: "${CRS_URL}"
+    hostname: "${CRS_API_HOSTNAME}"
+    competition_api_key_id: ${COMPETITION_API_KEY_ID}
+    competition_api_key_token: ${COMPETITION_API_KEY_TOKEN}
+    competition_api_url: "ui"
+
+  otel:
+    endpoint: "${OTEL_ENDPOINT}"
+    token: "${OTEL_TOKEN}"
+    protocol: "${OTEL_PROTOCOL}"
+
+redis:
+  master:
+    persistence:
+      enabled: false
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 4Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+build-bot:
+  replicaCount: 3
+
+litellm:
+  masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
+  azure:
+    apiBase: "${AZURE_API_BASE}"
+    apiKey: "${AZURE_API_KEY}"
+  openai:
+    apiKey: "${OPENAI_API_KEY}"
+  anthropic:
+    apiKey: "${ANTHROPIC_API_KEY}"
+  gemini:
+    apiKey: "${GEMINI_API_KEY}"
+
+ui:
+  enabled: true
+
+competition-api:
+  enabled: false
+
+image-preloader:
+  baseImages:
+    - gcr.io/oss-fuzz/base-runner
+    - gcr.io/oss-fuzz/base-builder
+    - gcr.io/oss-fuzz/base-image
+    - gcr.io/oss-fuzz/base-clang
+    - gcr.io/oss-fuzz/base-runner-debug
+    - gcr.io/oss-fuzz-base/base-builder-jvm
+    - gcr.io/oss-fuzz-base/base-builder-ruby
+    - gcr.io/oss-fuzz-base/base-builder-go
+    - gcr.io/oss-fuzz-base/base-builder-python
+    - gcr.io/oss-fuzz-base/base-builder-rust
+  versions:
+    - latest
+
+signoz:
+  enabled: ${DEPLOY_SIGNOZ}
+
+dind-daemon:
+  enabled: true
+  resources:
+    limits:
+      cpu: 8000m
+      memory: 16Gi
+    requests:
+      cpu: 1000m
+      memory: 4Gi
+
+coverage-bot:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 16Gi
+    requests:
+      cpu: 250m
+      memory: 2Gi
+
+fuzzer-bot:
+  enabled: true
+  replicaCount: 8
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+seed-gen:
+  enabled: true
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+merger-bot:
+  enabled: true
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+pov-reproducer:
+  enabled: true
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi

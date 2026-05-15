@@ -37,25 +37,30 @@ class ProcessCommand(BaseModel):
     harness_name: Annotated[str, Field(description="Harness name")]
     package_name: Annotated[str, Field(description="Package name")]
     task_type: Annotated[
-        str, Field(description="Task type (seed-init, seed-explore, vuln-discovery)")
+        str,
+        Field(description="Task type (seed-init, seed-explore, vuln-discovery)"),
     ]
     target_function: Annotated[
-        str | None, Field(default=None, description="Target function for seed-explore")
+        str | None,
+        Field(default=None, description="Target function for seed-explore"),
     ]
     target_function_paths: Annotated[
-        list[Path] | None, Field(default=None, description="Target function paths for seed-explore")
+        list[Path] | None,
+        Field(default=None, description="Target function paths for seed-explore"),
     ]
     output_dir: Annotated[Path, Field(description="Output directory for generated seeds")]
 
     build_output: Annotated[
-        dict | None, Field(default=None, description="Build output for vuln-discovery task")
+        dict | None,
+        Field(default=None, description="Build output for vuln-discovery task"),
     ]
 
 
 class Settings(BaseSettings):
     log_level: Annotated[str, Field(default="info", description="Log level")]
     log_max_line_length: Annotated[
-        int | None, Field(default=None, description="Log max line length")
+        int | None,
+        Field(default=None, description="Log max line length"),
     ]
     wdir: Annotated[Path, Field(description="Working directory")]
 

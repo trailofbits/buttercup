@@ -1,18 +1,22 @@
 [project]
 name = "fuzzing-infra"
 version = "0.1.0"
-description = ""
-authors = [{ name = "Trail of Bits", email = "opensource@trailofbits" }]
-requires-python = ">=3.10,<3.13"
+description = "Automated vulnerability discovery and fuzzing infrastructure"
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
+license = "AGPL-3.0-only"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "protobuf (>=3.20, <=3.20.3)",
-    "redis (>=5.2.1,<6.0.0)",
-    "clusterfuzz==2.6.0",
-    "common",
-    "pydantic-settings>=2.7.1",
-    "beautifulsoup4>=4.13.3",
-    "lxml>=5.3.1",
+    "common[full]",
+    "redis ~=5.2.1",
+    "pydantic-settings ~=2.10.1",
+    "beautifulsoup4 ~=4.13.3",
+    "lxml~=6.1.0",
+    "cxxfilt>=0.3.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
 
 [project.scripts]
 buttercup-fuzzer-builder = "buttercup.fuzzing_infra.builder_bot:main"
@@ -34,28 +38,39 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "ruff>=0.9.2", "mypy>=1.15.0"]
+dev = [
+    # Testing tools
+    "pytest~=9.0.3",
+    "pytest-cov ~=6.0.0",
+    # Linting and type checking
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
+    # Type stubs
+    "types-redis ~=4.6.0",
+    "hypothesis>=6.148.7",
+]
 
 [tool.ruff]
 line-length = 120
+target-version = "py312"
 
-[tool.mypy]
-plugins = ["pydantic.mypy"]
-mypy_path = "src"
-packages = "buttercup"
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-show_error_codes = true
-sqlite_cache = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
-exclude = []
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "COM812", "ISC001",  # Formatter conflicts
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
+
+[tool.ty.rules]
+# Start permissive, tighten over time
+unresolved-import = "warn"
+unresolved-attribute = "warn"

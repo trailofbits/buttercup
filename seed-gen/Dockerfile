@@ -1,17 +1,20 @@
 ARG BASE_IMAGE=ubuntu:24.04
 
+# hadolint ignore=DL3006
 FROM $BASE_IMAGE AS python_base
 ARG PYTHON_VERSION=3.12
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y python$PYTHON_VERSION python$PYTHON_VERSION-dev
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       python$PYTHON_VERSION python$PYTHON_VERSION-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM python_base AS runtime-base
 RUN apt-get update \
-    && apt-get install -y curl ripgrep codequery
-RUN curl -fsSL https://get.docker.com | sh
+    && apt-get install -y --no-install-recommends ca-certificates curl ripgrep codequery \
+    && rm -rf /var/lib/apt/lists/*
+RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh --version 29.0
 RUN curl -fsSLO https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm
-
-RUN rm -rf /var/lib/apt/lists/*
 
 FROM python_base AS builder
 
@@ -24,6 +27,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
@@ -34,21 +38,28 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=seed-gen/pyproject.toml,target=seed-gen/pyproject.toml \
     cd seed-gen && uv sync --frozen --no-install-project --no-editable
 
-ADD common /app/common
-ADD program-model /app/program-model
-ADD seed-gen /app/seed-gen
+COPY common /app/common
+COPY program-model /app/program-model
+COPY seed-gen /app/seed-gen
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd seed-gen && uv sync --frozen --no-editable
 
 FROM runtime-base AS cscope-builder
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf gcc make bison flex libncurses-dev
-COPY external/aixcc-cscope /cscope
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       autoconf automake gcc make bison flex libncurses-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY external/buttercup-cscope /cscope
+# hadolint ignore=DL3003
 RUN cd /cscope && autoreconf -i -s && ./configure && make && make install
 
 FROM runtime-base AS runtime
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync libncurses-dev git
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+       rsync libncurses-dev git \
+    && rm -rf /var/lib/apt/lists/*
 ENV PYTHON_WASM_BUILD_PATH="/python-3.12.0.wasm"
 COPY --from=cscope-builder /usr/local/bin/cscope /usr/local/bin/cscope
 COPY --from=builder /app/seed-gen/.venv /app/seed-gen/.venv

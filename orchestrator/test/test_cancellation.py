@@ -1,13 +1,13 @@
 import time
 from unittest.mock import Mock, patch
+
 import pytest
+from buttercup.common.datastructures.msg_pb2 import Task, TaskDelete
+from buttercup.common.queues import ReliableQueue, RQItem
+from buttercup.common.task_registry import TaskRegistry
 from redis import Redis
 
-from buttercup.common.datastructures.msg_pb2 import TaskDelete
-from buttercup.common.queues import ReliableQueue, RQItem
 from buttercup.orchestrator.scheduler.cancellation import Cancellation
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.datastructures.msg_pb2 import Task
 
 
 @pytest.fixture

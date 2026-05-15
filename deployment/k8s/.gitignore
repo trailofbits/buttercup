@@ -1,3 +1,8 @@
+charts/dind-daemon-*.tgz
+charts/pov-reproducer-*.tgz
+charts/registry-cache-*.tgz
+charts/scratch-cleaner-*.tgz
+charts/ui-*.tgz
 charts/build-bot-*.tgz
 charts/competition-api-*.tgz
 charts/coverage-bot-*.tgz

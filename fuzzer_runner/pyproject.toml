@@ -1,0 +1,72 @@
+[project]
+name = "fuzzing-runner"
+version = "0.1.0"
+description = "libfuzzer-based fuzzer runner"
+authors = [{ name = "Trail of Bits", email = "opensource@trailofbits.com" }]
+license = "AGPL-3.0-only"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "common",
+    "clusterfuzz ==2.6.0",
+    "pydantic ~=2.11.7",
+    "setuptools",  # Required for pkg_resources used by google-cloud-ndb (clusterfuzz dep)
+]
+
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
+
+[project.scripts]
+buttercup-fuzzer-runner = "buttercup.fuzzer_runner.runner:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/buttercup"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# Must match OSS-Fuzz protobuf version for compatibility
+# See: https://github.com/google/oss-fuzz/blob/master/infra/base-images/base-builder/Dockerfile
+constraint-dependencies = ["protobuf==3.20.3"]
+
+[tool.uv.sources]
+common = { path = "../common", editable = true }
+
+[dependency-groups]
+dev = [
+    # Testing tools
+    "pytest~=9.0.3",
+    "pytest-cov ~=6.0.0",
+    "httpx ~=0.27.0",  # For FastAPI testing
+    # Linting and type checking
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
+    # Type stubs
+    "types-redis ~=4.6.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = [
+    "COM812", "ISC001",  # Formatter conflicts
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
+
+[tool.ty.rules]
+unresolved-import = "error"
+unresolved-attribute = "error"

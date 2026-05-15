@@ -55,15 +55,26 @@ body {
 
 .card {
     background: white;
-    padding: 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     text-align: center;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
 .card:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card.failed-tasks {
+    border-left: 4px solid #f44336;
+    background: linear-gradient(135deg, #fff 0%, #ffebee 100%);
+}
+
+.card.failed-tasks:hover {
+    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
 }
 
 .card h3 {
@@ -148,13 +159,22 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #eee;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 .section-header h2 {
+    margin: 0;
     color: #333;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
+}
+
+.section-description {
+    margin: 0.5rem 0 0 0;
+    color: #666;
+    font-size: 0.9rem;
+    font-style: italic;
 }
 
 .filter-controls select {
@@ -215,29 +235,177 @@ body {
     gap: 0.5rem;
 }
 
+/* Task status badges */
 .status-badge {
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.75rem;
     border-radius: 12px;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .status-active {
-    background-color: #e3f2fd;
-    color: #1976d2;
-}
-
-.status-completed {
-    background-color: #e8f5e8;
-    color: #2e7d32;
+    background-color: #4caf50;
+    color: white;
 }
 
 .status-expired {
-    background-color: #fce4ec;
-    color: #c2185b;
+    background-color: #ff9800;
+    color: white;
 }
 
+.status-failed {
+    background-color: #f44336;
+    color: white;
+}
+
+/* CRS status indicators */
+.crs-error-info,
+.crs-success-info,
+.crs-pending-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.crs-error-info {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.crs-success-info {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.crs-pending-info {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc02;
+}
+
+.crs-error-icon,
+.crs-success-icon,
+.crs-pending-icon {
+    font-size: 1rem;
+}
+
+/* Failed task styling */
+.task-failed {
+    border-left: 4px solid #f44336;
+    background-color: #ffebee;
+}
+
+.task-failed:hover {
+    background-color: #ffcdd2;
+}
+
+/* CRS error details */
+.crs-error-details {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #fff3e0;
+    border: 1px solid #ffcc02;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #e65100;
+}
+
+.crs-error-details strong {
+    color: #bf360c;
+}
+
+/* Notification system */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    color: white;
+    font-weight: 500;
+    z-index: 2000;
+    animation: slideIn 0.3s ease;
+    max-width: 400px;
+    word-wrap: break-word;
+}
+
+.notification-success { 
+    background-color: #4caf50; 
+}
+
+.notification-error { 
+    background-color: #f44336; 
+}
+
+.notification-warning { 
+    background-color: #ff9800; 
+}
+
+.notification-info { 
+    background-color: #2196f3; 
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* API error banner */
+.api-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: #f44336;
+    color: white;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.api-error-banner .error-icon {
+    font-size: 1.2rem;
+}
+
+/* Error message styling for backend errors */
+.error-message {
+    color: #D8000C !important;
+    background-color: #FFBABA !important;
+    border: 1px solid #D8000C !important;
+    padding: 10px !important;
+    margin: 10px 0 !important;
+    border-radius: 5px !important;
+    display: flex !important;
+    align-items: center !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    box-shadow: 0 2px 8px rgba(216, 0, 12, 0.15) !important;
+}
+
+.error-message::before {
+    content: '⚠' !important;
+    font-size: 20px !important;
+    margin-right: 10px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Make dashboard stats clickable */
 .task-stats {
     display: flex;
     gap: 1rem;
@@ -287,6 +455,15 @@ body {
 
 .btn-success:hover {
     background-color: #218838;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
 }
 
 /* Modal styles */
@@ -483,14 +660,20 @@ form {
 /* No data states */
 .no-data {
     text-align: center;
-    padding: 2rem;
+    padding: 3rem 2rem;
     color: #666;
 }
 
 .no-data-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
-    opacity: 0.3;
+    opacity: 0.6;
+}
+
+.no-data-subtitle {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #888;
 }
 
 /* Artifacts container */
@@ -556,6 +739,159 @@ form {
     background: #5a6bd8;
 }
 
+.artifact-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 200px;
+}
+
+/* Force button styles with maximum specificity */
+.artifact-actions .approve-button,
+button.approve-button {
+    padding: 0.5rem 1rem !important;
+    background-color: #10b981 !important;
+    background: #10b981 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
+}
+
+.artifact-actions .approve-button:hover,
+button.approve-button:hover {
+    background-color: #059669 !important;
+    background: #059669 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.artifact-actions .reject-button,
+button.reject-button {
+    padding: 0.5rem 1rem !important;
+    background-color: #ef4444 !important;
+    background: #ef4444 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
+}
+
+.artifact-actions .reject-button:hover,
+button.reject-button:hover {
+    background-color: #dc2626 !important;
+    background: #dc2626 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-badge.status-accepted {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.status-passed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.status-failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Additional button improvements */
+.artifact-actions .approve-button:active,
+button.approve-button:active,
+.artifact-actions .reject-button:active,
+button.reject-button:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.artifact-actions .approve-button:focus,
+button.approve-button:focus,
+.artifact-actions .reject-button:focus,
+button.reject-button:focus {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+}
+
+/* Additional specificity for any potential conflicts */
+.artifact-list-item .artifact-actions .approve-button,
+.artifact-list-item .artifact-actions .reject-button {
+    background-image: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Global button reset to prevent browser defaults */
+button.approve-button,
+button.reject-button {
+    margin: 0 !important;
+    padding: 0.5rem 1rem !important;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    font: inherit !important;
+    line-height: normal !important;
+    overflow: visible !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Then apply our specific styles */
+button.approve-button {
+    background-color: #10b981 !important;
+    background: #10b981 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+}
+
+button.reject-button {
+    background-color: #ef4444 !important;
+    background: #ef4444 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    min-width: 80px !important;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .nav-container {
@@ -611,13 +947,17 @@ form {
     overflow-y: auto;
 }
 
-/* Make dashboard stats clickable */
-.status-card {
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* Form note style */
+.form-note {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #1565c0;
 }
 
-.status-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+.form-note strong {
+    color: #0d47a1;
 }

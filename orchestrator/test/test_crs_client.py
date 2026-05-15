@@ -1,15 +1,16 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 import requests
 
-from buttercup.orchestrator.ui.competition_api.services import CRSClient
 from buttercup.orchestrator.ui.competition_api.models.crs_types import (
-    Task,
-    TaskDetail,
     SourceDetail,
     SourceType,
+    Task,
+    TaskDetail,
     TaskType,
 )
+from buttercup.orchestrator.ui.competition_api.services import CRSClient
 
 
 class TestCRSClient:
@@ -41,7 +42,7 @@ class TestCRSClient:
                     project_name="test-project",
                     source=[SourceDetail(sha256="a" * 64, type=SourceType.repo, url="/files/test-repo.tar.gz")],
                     type=TaskType.full,
-                )
+                ),
             ],
         )
 
@@ -55,12 +56,12 @@ class TestCRSClient:
 
         result = crs_client.submit_task(sample_task)
 
-        assert result is True
+        assert result.success is True
 
         # Verify request was made correctly
         mock_post.assert_called_once_with(
             "http://test-crs:8080/v1/task/",
-            json=sample_task.dict(),
+            json=sample_task.model_dump(),
             auth=("test_user", "test_pass"),
             headers={"Content-Type": "application/json"},
             timeout=30,
@@ -76,12 +77,12 @@ class TestCRSClient:
 
         result = crs_client_no_auth.submit_task(sample_task)
 
-        assert result is True
+        assert result.success is True
 
         # Verify request was made without auth
         mock_post.assert_called_once_with(
             "http://test-crs:8080/v1/task/",
-            json=sample_task.dict(),
+            json=sample_task.model_dump(),
             auth=None,
             headers={"Content-Type": "application/json"},
             timeout=30,
@@ -98,7 +99,7 @@ class TestCRSClient:
 
         result = crs_client.submit_task(sample_task)
 
-        assert result is False
+        assert result.success is False
 
     @patch("requests.post")
     def test_submit_task_exception(self, mock_post, crs_client, sample_task):
@@ -108,7 +109,7 @@ class TestCRSClient:
 
         result = crs_client.submit_task(sample_task)
 
-        assert result is False
+        assert result.success is False
 
     @patch("requests.get")
     def test_ping_success_ready(self, mock_get, crs_client):

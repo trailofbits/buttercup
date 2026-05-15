@@ -3,6 +3,7 @@
 ## Setup Commands
 
 ### Local Development
+
 ```bash
 # Automated setup
 ./scripts/setup-local.sh
@@ -14,6 +15,7 @@ cd deployment && make up
 ```
 
 ### Production AKS
+
 ```bash
 # Automated setup
 ./scripts/setup-azure.sh
@@ -27,6 +29,7 @@ cd deployment && make up
 ## Common Commands
 
 ### Kubernetes Management
+
 ```bash
 # View all resources
 kubectl get pods -A
@@ -40,8 +43,10 @@ kubectl get services -n crs
 # Port forwarding
 kubectl port-forward -n crs service/buttercup-competition-api 31323:1323
 
-# View logs
+# View logs (alternative to SigNoz UI)
+kubectl get pods -n crs
 kubectl logs -n crs <pod-name>
+kubectl logs -n crs <pod-name> -f  # Follow logs in real-time
 kubectl logs -n crs -l app=scheduler --tail=-1 --prefix
 
 # Debug pods
@@ -49,6 +54,7 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ```
 
 ### Testing
+
 ```bash
 # Send test task
 ./orchestrator/scripts/task_crs.sh
@@ -61,6 +67,7 @@ kubectl exec -it -n crs <pod-name> -- /bin/bash
 ```
 
 ### Development
+
 ```bash
 # Lint Python code
 make lint
@@ -72,6 +79,7 @@ docker-compose --profile fuzzer-test up
 ```
 
 ### Minikube
+
 ```bash
 # Start/stop
 minikube start --driver=docker
@@ -84,6 +92,7 @@ minikube dashboard
 ```
 
 ### Azure AKS
+
 ```bash
 # Get credentials
 az aks get-credentials --name <cluster-name> --resource-group <resource-group>
@@ -103,6 +112,7 @@ az aks show --name <cluster-name> --resource-group <resource-group>
 ### Common Issues
 
 #### Minikube Issues
+
 ```bash
 # Reset minikube
 minikube delete
@@ -114,6 +124,7 @@ kubectl cluster-info
 ```
 
 #### Docker Issues
+
 ```bash
 # Permission issues
 sudo usermod -aG docker $USER
@@ -125,6 +136,7 @@ sudo systemctl start docker
 ```
 
 #### Helm Issues
+
 ```bash
 # Update repositories
 helm repo update
@@ -135,6 +147,7 @@ helm lint deployment/k8s/
 ```
 
 #### Azure Issues
+
 ```bash
 # Authentication
 az login --tenant <your-tenant-here>
@@ -145,6 +158,7 @@ az ad sp list --display-name "ButtercupCRS*"
 ```
 
 #### Kubernetes Issues
+
 ```bash
 # Check cluster connectivity
 kubectl cluster-info
@@ -161,16 +175,19 @@ kubectl get events -n crs --sort-by='.lastTimestamp'
 ### Log Analysis
 
 #### Check Patch Submission
+
 ```bash
 kubectl logs -n crs -l app=scheduler --tail=-1 --prefix | grep "WAIT_PATCH_PASS -> SUBMIT_BUNDLE"
 ```
 
 #### Check Competition API
+
 ```bash
 kubectl logs -n crs -l app=competition-api --tail=-1 --prefix
 ```
 
 #### Check Fuzzer
+
 ```bash
 kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
 ```
@@ -178,16 +195,19 @@ kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
 ## File Locations
 
 ### Configuration
+
 - `deployment/env` - Main configuration file
 - `deployment/env.template` - Configuration template
 - `deployment/k8s/values-*.template` - Kubernetes value templates
 
 ### Scripts
+
 - `scripts/setup-local.sh` - Local development setup
 - `scripts/setup-azure.sh` - Production AKS setup
 - `orchestrator/scripts/` - Testing and task scripts
 
 ### Documentation
+
 - `README.md` - Main documentation
 - `deployment/README.md` - Detailed deployment guide
 
@@ -196,4 +216,4 @@ kubectl logs -n crs -l app=fuzzer --tail=-1 --prefix
 - Check logs: `kubectl logs -n crs <pod-name>`
 - View events: `kubectl get events -n crs`
 - Debug pods: `kubectl exec -it -n crs <pod-name> -- /bin/bash`
-- Monitor resources: `kubectl top pods -A` 
+- Monitor resources: `kubectl top pods -A`

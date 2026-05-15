@@ -1,14 +1,14 @@
 import re
-from pathlib import Path
-from typing import Set, Dict, Optional, List
-from buttercup.program_model.utils.common import Function, TypeDefinition
 from collections import defaultdict
+from pathlib import Path
+
 from buttercup.common.challenge_task import ChallengeTask
+
+from buttercup.program_model.utils.common import Function, TypeDefinition
 
 
 class FuzzyCImportsResolver:
-    """
-    A resolver for C imports in a source code folder.
+    """A resolver for C imports in a source code folder.
     This class can analyze #include statements in files and build dependency trees.
 
     WARNING: The class resolves imports using very naive file parsing and is best effort, it is not
@@ -17,19 +17,19 @@ class FuzzyCImportsResolver:
     """
 
     def __init__(self, root_dir: Path):
-        """
-        Initialize the resolver with a root source code folder.
+        """Initialize the resolver with a root source code folder.
 
         Args:
             root_dir: The absolute path to the root folder containing the source code
+
         """
         # The source code directory to find imports in. This is typically the task src dir
         self.root_dir = root_dir
         # Cache of file imports to avoid re-parsing files
-        self.direct_imports_cache: Dict[Path, Set[Path]] = {}
-        self.all_imports_cache: Dict[Path, Set[Path]] = {}
+        self.direct_imports_cache: dict[Path, set[Path]] = {}
+        self.all_imports_cache: dict[Path, set[Path]] = {}
         # Internal variable used while resolving imports
-        self._tmp_imports: Set[Path] = set()
+        self._tmp_imports: set[Path] = set()
 
     def _normalize_path(self, path: Path | str) -> Path:
         """Normalize a path into an absolute path"""
@@ -48,11 +48,8 @@ class FuzzyCImportsResolver:
             path = (self.root_dir / path).resolve()
         return path
 
-    def _find_file_in_codebase(
-        self, import_name: str, origin_file: Path
-    ) -> Optional[Path]:
-        """
-        Find the actual file path for an imported file name.
+    def _find_file_in_codebase(self, import_name: str, origin_file: Path) -> Path | None:
+        """Find the actual file path for an imported file name.
         This method handles different include styles:
         - System includes like <stdio.h> (ignored as external)
         - Relative includes like "utils/helper.h"
@@ -64,6 +61,7 @@ class FuzzyCImportsResolver:
 
         Returns:
             The absolute path to the imported file or None if not found
+
         """
         # Ignore system includes (enclosed in <>)
         if import_name.startswith("<") and import_name.endswith(">"):
@@ -81,9 +79,8 @@ class FuzzyCImportsResolver:
 
         return None
 
-    def get_direct_imports(self, file_path: Path) -> Set[Path]:
-        """
-        Parse a file for import statements and try to resolve them
+    def get_direct_imports(self, file_path: Path) -> set[Path]:
+        """Parse a file for import statements and try to resolve them
         to actual files present in the codebase.
 
         Args:
@@ -92,6 +89,7 @@ class FuzzyCImportsResolver:
         Returns:
             A list of paths to the imported files if they have been successfully
             found in the code directory
+
         """
         file_path = self._normalize_path(file_path)
 
@@ -120,9 +118,7 @@ class FuzzyCImportsResolver:
                 import_files_candidates = [import_name, import_name + ".in"]
 
                 for file_candidate in import_files_candidates:
-                    resolved_path = self._find_file_in_codebase(
-                        file_candidate, file_path
-                    )
+                    resolved_path = self._find_file_in_codebase(file_candidate, file_path)
                     if resolved_path:
                         imports.add(resolved_path)
                         break
@@ -134,11 +130,8 @@ class FuzzyCImportsResolver:
             print(f"Error parsing {file_path}: {e}")
             return set()
 
-    def get_all_imports(
-        self, file_path: Path, depth: Optional[int] = None
-    ) -> Set[Path]:
-        """
-        Recursively get all files imported by a given file.
+    def get_all_imports(self, file_path: Path, depth: int | None = None) -> set[Path]:
+        """Recursively get all files imported by a given file.
 
         Args:
             file: The path to the file (relative to root or absolute)
@@ -146,6 +139,7 @@ class FuzzyCImportsResolver:
 
         Returns:
             A list of absolute paths to all imported files
+
         """
         file_path = self._normalize_path(file_path)
         if file_path in self.all_imports_cache:
@@ -156,16 +150,14 @@ class FuzzyCImportsResolver:
         self.all_imports_cache[file_path] = self._tmp_imports
         return self._tmp_imports
 
-    def _get_all_imports_recursive(
-        self, file_path: Path, depth: Optional[int], current_depth: int = 0
-    ) -> None:
-        """
-        Recursive helper for get_all_imports.
+    def _get_all_imports_recursive(self, file_path: Path, depth: int | None, current_depth: int = 0) -> None:
+        """Recursive helper for get_all_imports.
 
         Args:
             file_path: The absolute path to the file
             depth: Maximum depth to traverse, None for unlimited
             current_depth: Current recursion depth
+
         """
         # Check if we've reached the maximum depth
         if depth is not None and current_depth >= depth:
@@ -188,13 +180,12 @@ class FuzzyCImportsResolver:
 
     def is_file_imported_by(self, imported_file_path: Path, file_path: Path) -> bool:
         """Return True if imported_file_path is imported by file_path (either directly or indirectly through
-        nested imports)"""
+        nested imports)
+        """
         all_imports = self.get_all_imports(self._normalize_path(file_path))
         return self._normalize_path(imported_file_path) in all_imports
 
-    def filter_callees(
-        self, caller_function: Function, callees: list[Function]
-    ) -> list[Function]:
+    def filter_callees(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         """This filters callees found for a given function. This function is used to deduplicate
         callees when several are found with identical names. This happens because Codequery does a
         syntactic search only and can't resolve which function is actually imported and called
@@ -202,7 +193,6 @@ class FuzzyCImportsResolver:
 
         This function is best effort, it takes in a list of callees and returns a list of callees.
         """
-
         # Group callees by function name. Duplicate callees with the same
         # name end-up in the same group
         callee_groups = defaultdict(list)
@@ -235,9 +225,7 @@ class FuzzyCImportsResolver:
                     ]
                     # For each potential declaration file, see whether it is imported by the caller
                     for decl_file in possible_decl_files:
-                        if self.is_file_imported_by(
-                            decl_file, caller_function.file_path
-                        ):
+                        if self.is_file_imported_by(decl_file, caller_function.file_path):
                             res.append(callee)
                             added = True
                             break
@@ -273,8 +261,7 @@ class FuzzyCImportsResolver:
 
 
 class FuzzyJavaImportsResolver:
-    """
-    A resolver for Java imports in a source code folder.
+    """A resolver for Java imports in a source code folder.
     This class can analyze import statements in files and lookup class defs to
     find out the actual methods that are called in a given caller file or function.
     It it used to deduplicate code search results for called functions and callee
@@ -290,28 +277,22 @@ class FuzzyJavaImportsResolver:
         # Path where the challenge source is mounted in the ossfuzz repo
         # according to docker file
         if challenge:
-            self.container_code_path = Path(
-                str(challenge.workdir_from_dockerfile())[1:]
-            )
+            self.container_code_path = Path(str(challenge.workdir_from_dockerfile())[1:])
             # Path where the challenge source is on the local machine
-            self.local_code_path = (
-                challenge.task_dir / "container_src_dir" / "src" / challenge.focus
-            )
+            self.local_code_path = challenge.task_dir / "container_src_dir" / "src" / challenge.focus
         self.codequery = codequery
 
     def get_package_from_file(self, file_path: Path) -> str | None:
         """Get the package name from a file path"""
         # Parse lines to find one that starts with "package"
-        with open(self._normalize_path(file_path), "r") as f:
-            for line in f.readlines():
+        with open(self._normalize_path(file_path)) as f:
+            for line in f:
                 if line.startswith("package"):
                     return line.split(" ")[1].strip()
         return None
 
     def get_dotexpr_type(self, dotexpr: str, file_path: Path) -> TypeDefinition | None:
-        """
-        Get the type of a dot expression.
-        """
+        """Get the type of a dot expression."""
         # If the dotexpr has no dots, see if it is an imported class
         if "." not in dotexpr:
             # Get imports from the caller file
@@ -335,48 +316,39 @@ class FuzzyJavaImportsResolver:
             # Get path of file from where the import is made
             # TODO(boyan): make sure we can assume files end with .java here
             # First transform import statement to corresponding file in the code base
-            imported_file = (
-                "../" * (file_package.count(".") + 1) + imp.replace(".", "/") + ".java"
-            )
+            imported_file = "../" * (file_package.count(".") + 1) + imp.replace(".", "/") + ".java"
             imported_file = (file_path.parent / imported_file).resolve()
             # Then try to get type from that file and return it
             return self.get_type_from_file(imported_file, dotexpr)
 
         # If the dotexpr has dots, iteratively get the type of the prefix
-        else:
-            prefix, suffix, expr_type = self.split_rightmost_dotexpr(dotexpr)
-            prefix_type = self.get_dotexpr_type(prefix, file_path)
-            if prefix_type is None:
+        prefix, suffix, expr_type = self.split_rightmost_dotexpr(dotexpr)
+        prefix_type = self.get_dotexpr_type(prefix, file_path)
+        if prefix_type is None:
+            return None
+        # Parse the type definition to find the field/method type
+        if expr_type == "field":
+            field_type_name = self.get_field_type_name(prefix_type, suffix)
+            if field_type_name is None:
                 return None
-            # Parse the type definition to find the field/method type
-            if expr_type == "field":
-                field_type_name = self.get_field_type_name(prefix_type, suffix)
-                if field_type_name is None:
-                    return None
-                # Then get the actual type definition. Do do this we resolve the
-                # type of the field within the file where the prefix type is defined.
-                # E.G for Foo.a if we now type name of field a is Bar then we
-                # look for the type Bar that is imported in /path/to/Foo.java
-                res = self.get_dotexpr_type(field_type_name, prefix_type.file_path)
-                return res
-            elif expr_type == "method":
-                # TODO(boyan): resolve class methods, here we assume it's a method
-                method_return_type_name = self.get_method_return_type_name(
-                    prefix_type, suffix
-                )
-                if method_return_type_name is None:
-                    return None
-                res = self.get_dotexpr_type(
-                    method_return_type_name, prefix_type.file_path
-                )
-                return res
-            else:
-                # Should not happen
+            # Then get the actual type definition. Do do this we resolve the
+            # type of the field within the file where the prefix type is defined.
+            # E.G for Foo.a if we now type name of field a is Bar then we
+            # look for the type Bar that is imported in /path/to/Foo.java
+            res = self.get_dotexpr_type(field_type_name, prefix_type.file_path)
+            return res
+        if expr_type == "method":
+            # TODO(boyan): resolve class methods, here we assume it's a method
+            method_return_type_name = self.get_method_return_type_name(prefix_type, suffix)
+            if method_return_type_name is None:
                 return None
+            res = self.get_dotexpr_type(method_return_type_name, prefix_type.file_path)
+            return res
+        # Should not happen
+        return None
 
     def split_rightmost_dotexpr(self, expr: str) -> tuple[str, str, str | None]:
-        """
-        Splits a dot expression into two parts:
+        """Splits a dot expression into two parts:
         1. The rest of the left side of the expression unmodified
         2. The rightmost toplevel field or method name after the last dot
 
@@ -386,6 +358,7 @@ class FuzzyJavaImportsResolver:
         Returns:
             A tuple of (left_part, right_part, type), e.g. ("a.b(c)", "d", <type>)
             where type is either "field", "method", or None
+
         """
         if not expr:
             return "", "", None
@@ -417,30 +390,19 @@ class FuzzyJavaImportsResolver:
         return left_part, right_part, t
 
     def get_field_type_name(self, t: TypeDefinition, field_name: str) -> str | None:
-        """
-        Parse the type definition to find the field type name
-        """
+        """Parse the type definition to find the field type name"""
         type_body = t.definition.encode("utf-8")
         type_name = self.codequery.ts.get_field_type_name(type_body, field_name)
-        return type_name  # type: ignore[no-any-return]
+        return type_name
 
-    def get_method_return_type_name(
-        self, t: TypeDefinition, method_name: str
-    ) -> str | None:
-        """
-        Parse the type definition to find the method return type name
-        """
+    def get_method_return_type_name(self, t: TypeDefinition, method_name: str) -> str | None:
+        """Parse the type definition to find the method return type name"""
         type_body = t.definition.encode("utf-8")
-        type_name = self.codequery.ts.get_method_return_type_name(
-            type_body, method_name
-        )
-        return type_name  # type: ignore[no-any-return]
+        type_name = self.codequery.ts.get_method_return_type_name(type_body, method_name)
+        return type_name
 
-    def get_type_from_file(
-        self, file_path: Path, type_name: str
-    ) -> TypeDefinition | None:
-        """
-        Get the type definition given a type name and a file path
+    def get_type_from_file(self, file_path: Path, type_name: str) -> TypeDefinition | None:
+        """Get the type definition given a type name and a file path
         file_path must a container path (e.g. /src/log4j-core/...)
         """
         types = self.codequery.get_types(
@@ -450,11 +412,9 @@ class FuzzyJavaImportsResolver:
         if not types:
             return None
         # Return first type found
-        return types[0]  # type: ignore[no-any-return]
+        return types[0]
 
-    def filter_callees(
-        self, caller_function: Function, callees: List[Function]
-    ) -> List[Function]:
+    def filter_callees(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         callee_groups = defaultdict(list)
         for callee in callees:
             callee_groups[callee.name].append(callee)
@@ -472,17 +432,12 @@ class FuzzyJavaImportsResolver:
                 # Get call "prefixes". If a method is called with a.b.c.d() the prefix
                 # is a.b.c. We use this to determine which class or file the d() method
                 # belongs to
-                prefixes = self.try_extract_call_expr_prefix(
-                    caller_function, callee_name
-                )
+                prefixes = self.try_extract_call_expr_prefix(caller_function, callee_name)
                 if not prefixes:
                     continue
 
                 # Get all types for prefixes found
-                prefixes_types = [
-                    self.get_dotexpr_type(prefix, caller_function.file_path)
-                    for prefix in prefixes
-                ]
+                prefixes_types = [self.get_dotexpr_type(prefix, caller_function.file_path) for prefix in prefixes]
                 # Filter out None types (couldn't find the type)
                 prefixes_types = [t for t in prefixes_types if t is not None]
                 if not prefixes_types:
@@ -507,9 +462,7 @@ class FuzzyJavaImportsResolver:
 
         return res
 
-    def filter_callees2(
-        self, caller_function: Function, callees: List[Function]
-    ) -> List[Function]:
+    def filter_callees2(self, caller_function: Function, callees: list[Function]) -> list[Function]:
         callee_groups = defaultdict(list)
         for callee in callees:
             callee_groups[callee.name].append(callee)
@@ -524,15 +477,11 @@ class FuzzyJavaImportsResolver:
                 # Multiple callees with same name, check which ones are actually imported
                 # Do only once per name...
                 # Get imports from the caller file
-                imports = self.parse_imports_in_file(
-                    self._normalize_path(caller_function.file_path)
-                )
+                imports = self.parse_imports_in_file(self._normalize_path(caller_function.file_path))
                 # Get call "prefixes". If a method is called with a.b.c.d() the prefix
                 # is a.b.c. We use this to determine which class or file the d() method
                 # belongs to
-                prefixes = self.try_extract_call_expr_prefix(
-                    caller_function, callee_name
-                )
+                prefixes = self.try_extract_call_expr_prefix(caller_function, callee_name)
                 if not prefixes or not imports:
                     continue
                 # Keep only imports that match prefixes for that function name
@@ -541,11 +490,7 @@ class FuzzyJavaImportsResolver:
 
                 # TODO(boyan): need to refactor this when we support recursively
                 # exploring the prefixes with multiple dots
-                imports = [
-                    imp
-                    for imp in imports
-                    if any(pref for pref in prefixes if imp.endswith(f".{pref}"))
-                ]
+                imports = [imp for imp in imports if any(pref for pref in prefixes if imp.endswith(f".{pref}"))]
 
                 # At this point we have only imports that match with the prefix of a called
                 # function with name callee_name in the caller body, we now proceed to add any callee
@@ -553,13 +498,8 @@ class FuzzyJavaImportsResolver:
                 for imp in imports:
                     # TODO(boyan): make sure we can assume files end with .java here
                     # First transform import statement to corresponding file in the code base
-                    imported_file = (
-                        "../" * (imp.count(".") + 1) + imp.replace(".", "/") + ".java"
-                    )
-                    imported_file = (
-                        self._normalize_path(caller_function.file_path.parent)
-                        / imported_file
-                    )
+                    imported_file = "../" * (imp.count(".") + 1) + imp.replace(".", "/") + ".java"
+                    imported_file = self._normalize_path(caller_function.file_path.parent) / imported_file
                     imported_file = imported_file.resolve()
                     for callee in group:
                         added = False
@@ -583,11 +523,8 @@ class FuzzyJavaImportsResolver:
                     res += group
         return res
 
-    def try_extract_call_expr_prefix(
-        self, caller: Function, callee_name: str
-    ) -> list[str]:
-        """
-        Try to extract all call prefixes of a function called in the caller body.
+    def try_extract_call_expr_prefix(self, caller: Function, callee_name: str) -> list[str]:
+        """Try to extract all call prefixes of a function called in the caller body.
         If the caller is:
         public void foo() {
             a.a.b(c.d.e());
@@ -613,11 +550,12 @@ class FuzzyJavaImportsResolver:
     def parse_imports_in_file(self, file_path: Path) -> list[str]:
         """Parse import statements in file and return the list of
         imported strings. E.g for 'import a.b.c;', the function returns
-        ['a.b.c']"""
+        ['a.b.c']
+        """
         import_pattern = r"import\s+([\w.]+);"
         res = []
-        with open(file_path, "r") as f:
-            for line in f.readlines():
+        with open(file_path) as f:
+            for line in f:
                 # Find all matches in the code
                 matches = re.findall(import_pattern, line)
                 res += matches

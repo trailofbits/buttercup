@@ -5,7 +5,7 @@ metadata:
   namespace: kube-system
 data:
   tailscale.server: |
-    tail7e9b4c.ts.net:53 {
+    ${TAILSCALE_DOMAIN}:53 {
         forward . ${TS_DNS_IP}
         cache 30
     }

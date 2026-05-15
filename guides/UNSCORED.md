@@ -9,7 +9,7 @@ A list of vulnerabilities to find and patch is in this [spreadsheet](https://doc
 
 ## Setup
 
-* Set up minikube locally on your machine (see [README.md](README.md)).
+* Set up minikube locally on your machine (see [README.md](../README.md)).
 
 * `cd deployment && make up`
 

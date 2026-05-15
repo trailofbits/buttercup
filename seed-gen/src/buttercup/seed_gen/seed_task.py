@@ -11,12 +11,10 @@ class SeedBaseTask(Task):
     @abstractmethod
     def _generate_seeds(self, state: BaseTaskState) -> Command:
         """Generate seeds"""
-        pass
 
     @abstractmethod
     def _get_context(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     def _build_workflow(self, task_state_cls: type[BaseTaskState]) -> StateGraph:
         """Build the workflow"""

@@ -1,8 +1,8 @@
-from pydantic_settings import BaseSettings, CliPositionalArg, CliSubCommand, CliImplicitFlag, SettingsConfigDict
-from pydantic import BaseModel
-from typing import Annotated
-from pydantic import Field
 from pathlib import Path
+from typing import Annotated
+
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, CliImplicitFlag, CliPositionalArg, CliSubCommand, SettingsConfigDict
 
 
 class ServeCommand(BaseModel):
@@ -19,6 +19,7 @@ class ProcessCommand(BaseModel):
     sanitizer: CliPositionalArg[str] = Field(description="Sanitizer")
     crash_input_path: CliPositionalArg[str] = Field(description="Crash Input Path")
     stacktrace_path: CliPositionalArg[str] = Field(description="Stacktrace Path")
+    find_tests: CliImplicitFlag[bool] = Field(default=True, description="Enable the find tests step")
 
 
 class ProcessMsgCommand(BaseModel):

@@ -1,36 +1,43 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, Any, Callable, TypeVar, cast
-from os import PathLike
-from functools import wraps, cached_property
+
 import contextlib
 import logging
-import shlex
 import os
-from contextlib import contextmanager
-import tempfile
-import shutil
-import uuid
-import subprocess
 import re
+import shlex
+import shutil
+import subprocess
+import tempfile
+import uuid
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from functools import cached_property, wraps
+from os import PathLike
+from pathlib import Path
+from typing import Any, TypeVar, cast
+
+from packaging.version import Version
+
+from buttercup.common import node_local
+from buttercup.common.constants import ARCHITECTURE
+from buttercup.common.stack_parsing import get_crash_token
 from buttercup.common.task_meta import TaskMeta
 from buttercup.common.utils import copyanything, get_diffs
-from buttercup.common.stack_parsing import get_crash_token
-from typing import Iterator
-import buttercup.common.node_local as node_local
-from buttercup.common.constants import ARCHITECTURE
-from packaging.version import Version
 
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
 def create_tmp_dir(
-    challenge: ChallengeTask, work_dir: Path | None, delete: bool = True, prefix: str | None = None
+    challenge: ChallengeTask,
+    work_dir: Path | None,
+    delete: bool = True,
+    prefix: str | None = None,
 ) -> Iterator[Path]:
     """Create a temporary directory inside a working dir and either keep or
-    delete it after use."""
+    delete it after use.
+    """
     if work_dir:
         work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -59,8 +66,6 @@ def create_tmp_dir(
 
 class ChallengeTaskError(Exception):
     """Base class for Challenge Task errors."""
-
-    pass
 
 
 FAILURE_ERR_RESULT = 201
@@ -104,7 +109,7 @@ class ReproduceResult:
         """Determine if the fuzzer at least ran"""
         return bool(
             (self.command_result.output and b"INFO: Seed: " in self.command_result.output)
-            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error)
+            or (self.command_result.error and b"INFO: Seed: " in self.command_result.error),
         )
 
     # This is intended to encapsulate heuristics for determining if a run caused a crash
@@ -189,7 +194,8 @@ class ChallengeTask:
     def _local_ro_dir(self, path: PathLike[str] | str) -> Path:
         """Return the local path to the read-only task directory.
 
-        If the path doesn't exist, it will be downloaded from the remote storage"""
+        If the path doesn't exist, it will be downloaded from the remote storage
+        """
         lp = Path(path)
         if not lp.exists():
             try:
@@ -226,12 +232,15 @@ class ChallengeTask:
         return self._find_first_dir(self.OSS_FUZZ_DIR)
 
     def _task_dir_compose_path(
-        self, subpath_method: Callable[[], Path | None], raise_on_none: bool = False
+        self,
+        subpath_method: Callable[[], Path | None],
+        raise_on_none: bool = False,
     ) -> Path | None:
         subpath = subpath_method()
         if subpath is None:
             if raise_on_none:
-                raise ChallengeTaskError(f"Path not found: {subpath_method.__name__}")
+                method_name = getattr(subpath_method, "__name__", repr(subpath_method))
+                raise ChallengeTaskError(f"Path not found: {method_name}")
             return None
         return self.task_dir / subpath
 
@@ -260,10 +269,11 @@ class ChallengeTask:
         except Exception as e:
             raise ChallengeTaskError(f"Python executable couldn't be run: {self.python_path}") from e
 
-    def _workdir_from_lines(self, lines: list[str], default: Path = Path("/src")) -> Path:
+    @staticmethod
+    def _workdir_from_lines(lines: list[str], default: Path = Path("/src")) -> Path:
         """Gets the WORKDIR from the given lines."""
         for line in reversed(lines):  # reversed to get last WORKDIR.
-            match = re.match(self.WORKDIR_REGEX, line)
+            match = re.match(ChallengeTask.WORKDIR_REGEX, line)
             if match:
                 workdir = match.group(1)
                 workdir = workdir.replace("$SRC", "/src")
@@ -322,7 +332,7 @@ class ChallengeTask:
                 raise ChallengeTaskError("Challenge Task is read-only, cannot perform this operation")
             return func(self, *args, **kwargs)
 
-        return cast(F, wrapper)
+        return cast("F", wrapper)
 
     def _add_optional_arg(self, cmd: list[str], flag: str, arg: Any | None) -> None:
         if arg is not None:
@@ -364,49 +374,52 @@ class ChallengeTask:
         return current_line
 
     def _run_cmd(
-        self, cmd: list[str], cwd: Path | None = None, log: bool = True, env_helper: Dict[str, str] | None = None
+        self,
+        cmd: list[str],
+        cwd: Path | None = None,
+        log: bool = True,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         try:
             if env_helper:
                 logger.debug("Env helper: %s", env_helper)
                 env_helper = {**os.environ, **env_helper}
             logger.debug(f"Running command (cwd={cwd}): {' '.join(cmd)}")
-            process = subprocess.Popen(  # noqa: S603
+            with subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 cwd=cwd,
                 env=env_helper,
-            )
+            ) as process:
+                # Poll process for new output until finished
+                stdout = b""
+                stderr = b""
+                current_output_line = b""
+                current_error_line = b""
+                while True:
+                    stdout_line = process.stdout.readline() if process.stdout else b""
+                    stderr_line = process.stderr.readline() if process.stderr else b""
+                    if stdout_line:
+                        current_output_line = self._log_output_line(current_output_line, stdout_line, log)
+                        stdout += stdout_line
 
-            # Poll process for new output until finished
-            stdout = b""
-            stderr = b""
-            current_output_line = b""
-            current_error_line = b""
-            while True:
-                stdout_line = process.stdout.readline() if process.stdout else b""
-                stderr_line = process.stderr.readline() if process.stderr else b""
-                if stdout_line:
-                    current_output_line = self._log_output_line(current_output_line, stdout_line, log)
-                    stdout += stdout_line
+                    if stderr_line:
+                        current_error_line = self._log_output_line(current_error_line, stderr_line, log)
+                        stderr += stderr_line
 
-                if stderr_line:
-                    current_error_line = self._log_output_line(current_error_line, stderr_line, log)
-                    stderr += stderr_line
+                    # Break if process has finished and we've read all output
+                    if not stdout_line and not stderr_line and process.poll() is not None:
+                        break
 
-                # Break if process has finished and we've read all output
-                if not stdout_line and not stderr_line and process.poll() is not None:
-                    break
+                returncode = process.wait()
 
-            returncode = process.wait()
-
-            return CommandResult(
-                success=returncode == 0,
-                returncode=returncode,
-                error=stderr,
-                output=stdout,
-            )
+                return CommandResult(
+                    success=returncode == 0,
+                    returncode=returncode,
+                    error=stderr,
+                    output=stdout,
+                )
         except subprocess.CalledProcessError as e:
             logger.error(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
             return CommandResult(
@@ -419,7 +432,7 @@ class ChallengeTask:
             logger.exception(f"Command failed (cwd={cwd}): {' '.join(cmd)}")
             return CommandResult(success=False, returncode=None, error=str(e).encode(), output=None)
 
-    def _run_helper_cmd(self, cmd: list[str], env_helper: Dict[str, str] | None = None) -> CommandResult:
+    def _run_helper_cmd(self, cmd: list[str], env_helper: dict[str, str] | None = None) -> CommandResult:
         oss_fuzz_subpath = self.get_oss_fuzz_subpath()
         if oss_fuzz_subpath is None:
             raise ChallengeTaskError("OSS-Fuzz path not found")
@@ -432,7 +445,7 @@ class ChallengeTask:
         try:
             result = self._run_helper_cmd(grep_cmd)
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {str(e)}")
+            logger.exception(f"[task {self.task_dir}] Error grep'ing for base-runner version: {e!s}")
             return None
         if not result.success:
             return None
@@ -448,11 +461,15 @@ class ChallengeTask:
             base_runner_str = m.group(1).strip(":v")
             return Version(base_runner_str)
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {str(e)}")
+            logger.exception(f"[task {self.task_dir}] Error parsing base-runner version: {e!s}")
             return None
 
     @cached_property
     def oss_fuzz_container_org(self) -> str:
+        # Check environment variable first
+        if env_org := os.environ.get("OSS_FUZZ_CONTAINER_ORG"):
+            return env_org
+
         # Read the helper_path file and grep for the BASE_RUNNER_IMAGE line.
         result = "gcr.io/oss-fuzz"
         try:
@@ -465,7 +482,7 @@ class ChallengeTask:
                             if image.startswith("gcr.io/oss-fuzz"):
                                 logger.info(f"Using oss-fuzz container org: {result}")
                                 break
-                            elif image.startswith("ghcr.io/aixcc-finals"):
+                            if image.startswith("ghcr.io/aixcc-finals"):
                                 result = "aixcc-afc"
                                 logger.info(f"Using aixcc-afc container org: {result}")
                                 break
@@ -478,8 +495,7 @@ class ChallengeTask:
         return f"{self.oss_fuzz_container_org}/{self.project_name}"
 
     def container_src_dir(self) -> str:
-        """
-        Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
+        """Name of the src directory in the container (e.g. /src/FreeRDP -> FreeRDP).
         This assumes that the src directory is the same as the workdir.
         """
         return self.workdir_from_dockerfile().parts[-1]
@@ -493,7 +509,8 @@ class ChallengeTask:
         always_build_image: bool = False,
     ) -> CommandResult:
         """Execute a command inside a docker container. If not specified, the
-        docker container is the oss-fuzz one."""
+        docker container is the oss-fuzz one.
+        """
         return self.exec_docker_cmd_rw(cmd, mount_dirs, container_image, always_build_image=always_build_image)
 
     def exec_docker_cmd_rw(
@@ -564,8 +581,8 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
-        env_helper: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Building fuzzers for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s | use_source_dir=%s",
@@ -610,8 +627,8 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
-        env: Dict[str, str] | None = None,
-        env_helper: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
+        env_helper: dict[str, str] | None = None,
     ) -> CommandResult:
         check_build_res = self.check_build(architecture=architecture, engine=engine, sanitizer=sanitizer, env=env)
         if check_build_res.success:
@@ -639,7 +656,7 @@ class ChallengeTask:
         engine: str | None = None,
         sanitizer: str | None = None,
         pull_latest_base_image: bool = True,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         env_helper = {
             "OSS_FUZZ_SAVE_CONTAINERS_NAME": container_name,
@@ -662,7 +679,7 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Checking build for project %s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
@@ -691,10 +708,11 @@ class ChallengeTask:
         fuzzer_args: list[str] | None = None,
         *,
         architecture: str | None = ARCHITECTURE,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> ReproduceResult:
         logger.info(
-            "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | fuzzer_args=%s | architecture=%s | env=%s",
+            "Reproducing POV for project %s | fuzzer_name=%s | crash_path=%s | "
+            "fuzzer_args=%s | architecture=%s | env=%s",
             self.project_name,
             fuzzer_name,
             crash_path,
@@ -739,10 +757,11 @@ class ChallengeTask:
         architecture: str | None = ARCHITECTURE,
         engine: str | None = None,
         sanitizer: str | None = None,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
-            "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
+            "Running fuzzer for project %s | harness_name=%s | fuzzer_args=%s | "
+            "corpus_dir=%s | architecture=%s | engine=%s | sanitizer=%s | env=%s",
             self.project_name,
             harness_name,
             fuzzer_args,
@@ -774,7 +793,7 @@ class ChallengeTask:
         harness_name: str,
         corpus_dir: str,
         architecture: str | None = ARCHITECTURE,
-        env: Dict[str, str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> CommandResult:
         logger.info(
             "Running coverage for project %s | harness_name=%s | corpus_dir=%s | architecture=%s | env=%s",
@@ -835,17 +854,129 @@ class ChallengeTask:
 
             return True
         except FileNotFoundError as e:
-            logger.error(f"[task {self.task_dir}] File not found: {str(e)}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {str(e)}") from e
+            logger.error(f"[task {self.task_dir}] File not found: {e!s}")
+            raise ChallengeTaskError(f"[task {self.task_dir}] File not found: {e!s}") from e
         except subprocess.CalledProcessError as e:
-            logger.error(f"[task {self.task_dir}] Error applying diff: {str(e)}")
+            logger.error(f"[task {self.task_dir}] Error applying diff: {e!s}")
             logger.debug(f"[task {self.task_dir}] Error returncode: {e.returncode}")
             logger.debug(f"[task {self.task_dir}] Error stdout: {e.stdout}")
             logger.debug(f"[task {self.task_dir}] Error stderr: {e.stderr}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
         except Exception as e:
-            logger.exception(f"[task {self.task_dir}] Error applying diff: {str(e)}")
-            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {str(e)}") from e
+            logger.exception(f"[task {self.task_dir}] Error applying diff: {e!s}")
+            raise ChallengeTaskError(f"[task {self.task_dir}] Error applying diff: {e!s}") from e
+
+    def _hack_oss_fuzz_aarch64_dockerfile(self, task: ChallengeTask) -> None:
+        # We find the oss-fuzz/projects/<project>/Dockerfile and make sure the
+        # base image has `:manifest-arm64v8` tag
+        dockerfile_path = task.get_oss_fuzz_path() / "projects" / task.project_name / "Dockerfile"
+        if not dockerfile_path.exists():
+            return
+
+        dockerfile_content = dockerfile_path.read_text()
+
+        # Regex to match FROM gcr.io/oss-fuzz-base/base-builder* [optional tag] [optional as builder]
+        # Only patch base-builder variants, not base-clang or others that may not have manifest-arm64v8 tag
+        def _replace_from(match: re.Match) -> str:
+            image = match.group(1)
+            as_clause = match.group(2) or ""
+            # Always ensure tag is :manifest-arm64v8 regardless if there was a tag before
+            return f"FROM {image}:manifest-arm64v8{as_clause}"
+
+        # This regex matches FROM lines with base-builder images only
+        pattern = r"^FROM\s+(gcr\.io/oss-fuzz-base/base-builder(?:[^\s:]*)?)(?::[^\s]+)?(\s+as\s+\w+)?\s*$"
+        new_content = re.sub(pattern, _replace_from, dockerfile_content, flags=re.MULTILINE)
+
+        if new_content != dockerfile_content:
+            dockerfile_path.write_text(new_content)
+            logger.info("Patched oss-fuzz %s/Dockerfile to use the :manifest-arm64v8 tag", task.project_name)
+
+    def _hack_oss_fuzz_runner(self, task: ChallengeTask, architecture: str) -> None:
+        """Patch OSS-Fuzz helper.py with architecture-specific and common fixes.
+
+        Common patches (all architectures):
+        - reproduce_impl: Pass architecture as keyword arg instead of err_result
+        - Debug mode: Insert -debug before tag, not after
+        - Tag handling: Check for existing tag before appending
+
+        ARM64-specific patches:
+        - Add :manifest-arm64v8 tags to image_name and BASE_RUNNER_IMAGE
+        """
+        helper_path = task.get_oss_fuzz_path() / "infra" / "helper.py"
+        if not helper_path.exists():
+            return
+
+        content = helper_path.read_text()
+        replaced = False
+
+        # Common patches for all architectures
+
+        def _replace_debug_append(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            indent = match.group(1)
+            return f"{indent}image = image.replace(':', '-debug:', 1) if ':' in image else image + '-debug'"
+
+        pattern_debug_append = r"^(\s+)image\s*\+=\s*['\"]-debug['\"]\s*$"
+        content = re.sub(pattern_debug_append, _replace_debug_append, content, flags=re.MULTILINE)
+
+        def _replace_get_base_runner_return(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            indent = match.group(1)
+            return f"{indent}return image if ':' in image else f'{{image}}:{{tag}}'"
+
+        pattern_get_base_runner = r"^(\s+)return f(['\"])\{image\}:\{tag\}\2\s*$"
+        content = re.sub(pattern_get_base_runner, _replace_get_base_runner_return, content, flags=re.MULTILINE)
+
+        def _replace_reproduce_run_function(match: re.Match) -> str:
+            nonlocal replaced
+            replaced = True
+            indent = match.group(1)
+            return f"{indent}return run_function(run_args, architecture=architecture)"
+
+        pattern_reproduce_run = r"^(\s+)return run_function\(run_args,\s*err_result\)\s*$"
+        content = re.sub(pattern_reproduce_run, _replace_reproduce_run_function, content, flags=re.MULTILINE)
+
+        # ARM64-specific patches
+        if architecture == "aarch64":
+
+            def _replace_image_name(match: re.Match) -> str:
+                nonlocal replaced
+                replaced = True
+                original = match.group(0)
+                if "base-runner-debug" in original:
+                    return f"{match.group(1)}image_name = 'base-runner-debug:manifest-arm64v8'"
+                else:
+                    return f"{match.group(1)}image_name = 'base-runner:manifest-arm64v8'"
+
+            pattern_img = r"(\s*)image_name\s*=\s*['\"]base-runner(?:-debug)?['\"]"
+            content = re.sub(pattern_img, _replace_image_name, content, flags=re.MULTILINE)
+
+            def _replace_base_runner_image(match: re.Match) -> str:
+                nonlocal replaced
+                replaced = True
+                prefix = match.group(1)
+                image = match.group(2)
+                suffix = match.group(3) or ""
+                if ":manifest-arm64v8" not in image:
+                    if ":" in image:
+                        image = image.rsplit(":", 1)[0]
+                    image = image + ":manifest-arm64v8"
+                return f"{prefix}BASE_RUNNER_IMAGE = '{image}'{suffix}"
+
+            pattern_base_img = (
+                r"(^\s*)BASE_RUNNER_IMAGE\s*=\s*['\"](gcr\.io/oss-fuzz-base/base-runner(?:[^\s'\"]*)?)['\"](\s*)"
+            )
+            content = re.sub(pattern_base_img, _replace_base_runner_image, content, flags=re.MULTILINE)
+
+        if replaced:
+            helper_path.write_text(content)
+            logger.info("Patched oss-fuzz helper.py for %s", architecture)
+
+    def _hack_oss_fuzz_aarch64(self, task: ChallengeTask) -> None:
+        self._hack_oss_fuzz_aarch64_dockerfile(task)
+        self._hack_oss_fuzz_runner(task, "aarch64")
 
     @contextmanager
     def get_rw_copy(self, work_dir: PathLike | None, delete: bool = True) -> Iterator[ChallengeTask]:
@@ -855,6 +986,7 @@ class ChallengeTask:
         Example:
             with task.get_rw_copy(work_dir) as local_task:
                 local_task.build_fuzzers()
+
         """
         work_dir = Path(work_dir) if work_dir else Path(node_local.scratch_path())
         work_dir = work_dir / self.task_meta.task_id
@@ -871,6 +1003,13 @@ class ChallengeTask:
                 python_path=self.python_path,
                 local_task_dir=tmp_dir,
             )
+            # HACK: Apply OSS-Fuzz patches
+            # For aarch64: Dockerfile + helper.py with :manifest-arm64v8 tags + common fixes
+            # For other arches: helper.py with common fixes only
+            if ARCHITECTURE == "aarch64":
+                self._hack_oss_fuzz_aarch64(copied_task)
+            else:
+                self._hack_oss_fuzz_runner(copied_task, ARCHITECTURE)
 
             try:
                 yield copied_task
@@ -902,7 +1041,7 @@ class ChallengeTask:
                     raise ChallengeTaskError("Failed to commit task") from e
 
                 logger.error(
-                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix..."
+                    f"Failed to commit task {self.local_task_dir} to {new_name}. Retrying with a random suffix...",
                 )
                 suffix = None
 
@@ -911,7 +1050,8 @@ class ChallengeTask:
     @read_write_decorator
     def restore(self) -> None:
         """Restore the task from the original read-only task directory (if
-        different from the local task directory)."""
+        different from the local task directory).
+        """
         if self.read_only_task_dir == self.local_task_dir:
             raise ChallengeTaskError("Task cannot be restored, it doesn't have a local task directory")
 

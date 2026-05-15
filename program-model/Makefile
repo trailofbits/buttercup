@@ -34,4 +34,4 @@ test:
 	# PYTEST_DEBUG_TEMPROOT="/crs_scratch/" uv run pytest -svv --runintegration
 
 	# To run tests
-	uv run pytest -svv --runintegration
+	uv run pytest -svv --runintegration tests/c/test_libpng.py

@@ -8,15 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, ClassVar
 
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts.chat import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig
-from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
-from langgraph.types import Command
-from opentelemetry import trace
-from pydantic import Field
-
 from buttercup.common import stack_parsing
 from buttercup.common.challenge_task import ChallengeTaskError
 from buttercup.common.corpus import CrashDir
@@ -28,6 +19,15 @@ from buttercup.common.reproduce_multiple import ReproduceMultiple, ReproduceResu
 from buttercup.common.sarif_store import SARIFBroadcastDetail
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.common.telemetry import CRSActionCategory, set_crs_attributes
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts.chat import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
+from langgraph.types import Command
+from opentelemetry import trace
+from pydantic import Field
+
 from buttercup.seed_gen.prompt.vuln_discovery import (
     C_CWE_LIST,
     COMMON_CWE_LIST,
@@ -62,11 +62,12 @@ class PoVAttempt:
 class VulnBaseState(BaseTaskState):
     analysis: str = Field(description="The analysis of the vulnerability", default="")
     sarifs: list[SARIFBroadcastDetail] = Field(
-        description="SARIF broadcasts for the task", default_factory=list
+        description="SARIF broadcasts for the task",
+        default_factory=list,
     )
     valid_pov_count: int = Field(description="The number of valid PoVs found", default=0)
     current_dir: Path = Field(
-        description="Directory to store most recent seeds before they are tested"
+        description="Directory to store most recent seeds before they are tested",
     )
     pov_iteration: int = Field(description="Count of pov write iterations", default=0)
     pov_attempts: Annotated[list[PoVAttempt], operator.add] = Field(default_factory=list)
@@ -109,12 +110,10 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _gather_context(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     @abstractmethod
     def _analyze_bug(self, state: BaseTaskState) -> Command:
         """Get context"""
-        pass
 
     def _analyze_bug_base(
         self,
@@ -128,7 +127,7 @@ class VulnBaseTask(Task):
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | StrOutputParser()
         analysis = chain.invoke(prompt_vars)
@@ -137,7 +136,6 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _write_pov(self, state: BaseTaskState) -> Command:
         """Write PoV functions for the vulnerability"""
-        pass
 
     def _write_pov_base(
         self,
@@ -150,7 +148,7 @@ class VulnBaseTask(Task):
             [
                 ("system", system_prompt),
                 ("human", user_prompt),
-            ]
+            ],
         )
         chain = prompt | self.llm | extract_code
         pov_funcs = chain.invoke(prompt_vars)
@@ -176,7 +174,8 @@ class VulnBaseTask(Task):
             shutil.move(pov, final_path)
             try:
                 for build, result in self.reproduce_multiple.get_crashes(
-                    final_path, self.harness_name
+                    final_path,
+                    self.harness_name,
                 ):
                     logger.info(
                         "Valid PoV found: (task_id: %s | package_name: %s | harness_name: %s | sanitizer: %s | delta_mode: %s | iter: %s)",  # noqa: E501
@@ -200,7 +199,7 @@ class VulnBaseTask(Task):
                 "analysis": "",
                 "generated_functions": "",
                 "pov_iteration": state.pov_iteration + 1,
-            }
+            },
         )
 
     def submit_valid_pov(
@@ -228,8 +227,11 @@ class VulnBaseTask(Task):
             return
 
         stacktrace = result.stacktrace()
+        if stacktrace is None:
+            logger.warning("No stacktrace available for crash, skipping submission")
+            return
         ctoken = stack_parsing.get_crash_token(stacktrace)
-        dst = self.crash_submit.crash_dir.copy_file(pov, ctoken, build.sanitizer)
+        dst = self.crash_submit.crash_dir.copy_file(str(pov), ctoken, build.sanitizer)
         if self.crash_submit.crash_set.add(
             self.package_name,
             self.harness_name,
@@ -257,13 +259,12 @@ class VulnBaseTask(Task):
             ctoken,
         )
 
-        crash = Crash(
-            target=build,
-            harness_name=self.harness_name,
-            crash_input_path=dst,
-            stacktrace=stacktrace,
-            crash_token=ctoken,
-        )
+        crash = Crash()
+        crash.target.CopyFrom(build)
+        crash.harness_name = self.harness_name
+        crash.crash_input_path = dst
+        crash.stacktrace = stacktrace
+        crash.crash_token = ctoken
         self.crash_submit.crash_queue.push(crash)
 
         logger.debug("PoV stdout: %s", result.command_result.output)
@@ -278,8 +279,8 @@ class VulnBaseTask(Task):
         workflow.add_node("tools", tool_node)
         workflow.add_node("analyze_bug", self._analyze_bug)
         workflow.add_node("write_pov", self._write_pov)
-        workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)  # type: ignore[call-overload]
-        workflow.add_node("test_povs", self._test_povs)  # type: ignore[call-overload]
+        workflow.add_node("execute_python_funcs", self._exec_python_funcs_current)
+        workflow.add_node("test_povs", self._test_povs)
 
         workflow.set_entry_point("gather_context")
         workflow.add_edge("gather_context", "tools")
@@ -313,7 +314,6 @@ class VulnBaseTask(Task):
     @abstractmethod
     def _init_state(self, out_dir: Path, current_dir: Path) -> BaseTaskState:
         """Set up State"""
-        pass
 
     def do_task(self, out_dir: Path, current_dir: Path) -> None:
         """Do vuln-discovery task"""
@@ -328,7 +328,7 @@ class VulnBaseTask(Task):
                     tags=["vuln-discovery"],
                     callbacks=llm_callbacks,
                     recursion_limit=self.recursion_limit(),
-                )
+                ),
             )
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("seed_gen_vuln_discovery") as span:
@@ -341,11 +341,13 @@ class VulnBaseTask(Task):
                         "gen_ai.request.model": self.llm.model_name,  # type: ignore[attr-defined]
                     },
                 )
-                chain.invoke(state)  # type: ignore[arg-type]
+                chain.invoke(state)
 
         except Exception as err:
             logger.exception(
-                "Failed vuln-discovery for challenge %s: %s", self.package_name, str(err)
+                "Failed vuln-discovery for challenge %s: %s",
+                self.package_name,
+                str(err),
             )
 
     def sample_sarifs(self) -> list[SARIFBroadcastDetail]:
@@ -359,23 +361,19 @@ class VulnBaseTask(Task):
         """Get PoV examples for the task"""
         if self.project_yaml.unified_language == Language.JAVA:
             return VULN_JAVA_POV_EXAMPLES
-        else:
-            return VULN_C_POV_EXAMPLES
+        return VULN_C_POV_EXAMPLES
 
     def get_vuln_files(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return ".java"
-        else:
-            return ".c, .h, .cpp, or .hpp"
+        return ".c, .h, .cpp, or .hpp"
 
     def get_fuzzer_name(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return "jazzer"
-        else:
-            return "libfuzzer"
+        return "libfuzzer"
 
     def get_cwe_list(self) -> str:
         if self.project_yaml.unified_language == Language.JAVA:
             return JAVA_CWE_LIST + "\n" + COMMON_CWE_LIST
-        else:
-            return C_CWE_LIST + "\n" + COMMON_CWE_LIST
+        return C_CWE_LIST + "\n" + COMMON_CWE_LIST

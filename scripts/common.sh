@@ -65,11 +65,28 @@ install_docker() {
     if ! command_exists docker; then
         curl -fsSL https://get.docker.com | sh
         print_status "Adding user to Docker group (sudo required)..."
-        sudo usermod -aG docker $USER
+        sudo usermod -aG docker "$USER"
         print_success "Docker installed successfully"
         print_warning "You need to log out and back in for Docker group changes to take effect"
     else
         print_success "Docker is already installed"
+    fi
+    
+    # Install buildx plugin (required for deploy target)
+    print_status "Installing Docker buildx plugin..."
+    sudo apt install -y docker-buildx-plugin
+    print_success "Docker buildx plugin installed"
+}
+
+install_uv() {
+    print_status "Installing uv..."
+    if ! command_exists uv; then
+        curl -fsSL https://astral.sh/uv/install.sh | sh
+        print_status "Sourcing uv environment..."
+        source "$HOME/.local/bin/env"
+        print_success "uv installed successfully"
+    else
+        print_success "uv is already installed"
     fi
 }
 
@@ -126,6 +143,29 @@ install_git_lfs() {
     fi
 }
 
+install_azcli() {
+    print_status "Installing Azure CLI..."
+    if ! command_exists az; then
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        print_success "Azure CLI installed successfully"
+    else
+        print_success "Azure CLI is already installed"
+    fi
+}
+
+install_terraform() {
+    print_status "Installing Terraform..."
+    if ! command_exists terraform; then
+        sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
+        wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+        sudo apt update
+        sudo apt-get install terraform
+        print_success "Terraform installed successfully"
+    else
+        print_success "Terraform is already installed"
+    fi
+}
 
 # Function to check Docker
 check_docker() {
@@ -184,7 +224,8 @@ check_azure_cli() {
     print_status "Checking Azure CLI..."
     if command_exists az; then
         if az account show >/dev/null 2>&1; then
-            local subscription=$(az account show --query name -o tsv)
+            local subscription
+            subscription=$(az account show --query name -o tsv)
             print_success "Azure CLI is logged in (subscription: $subscription)"
         else
             print_warning "Azure CLI is installed but not logged in"
@@ -217,7 +258,7 @@ setup_config_file() {
     else
         print_warning "Configuration file already exists"
         if [ "$overwrite_existing" = "true" ]; then
-            read -p "Do you want to overwrite it? (y/n): " -n 1 -r
+            read -r -p "Do you want to overwrite it? (y/N): " -n 1
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 cp deployment/env.template deployment/env
@@ -258,7 +299,7 @@ prompt_for_update() {
     local is_secret="${5:-false}"
     
     if [ -n "$current_value" ] && [ "$current_value" != "$default_value" ]; then
-        echo -n "$display_name is already configured. Set a new value? (y/N): "
+        printf "%s is already configured. Set a new value? (y/N): " "$display_name"
         read -r response
         if [[ "$response" =~ ^[Yy]$ ]]; then
             return 0  # Proceed with update
@@ -277,12 +318,12 @@ read_and_set_config() {
     local prompt_text="$3"
     local is_secret="${4:-false}"
     local value
-    
+
     if [ "$is_secret" = true ]; then
-        read -s -p "$prompt_text" value
+        read -rs -p "$prompt_text" value
         echo
     else
-        read -p "$prompt_text" value
+        read -r -p "$prompt_text" value
     fi
     
     # Only update if value is not empty
@@ -294,9 +335,9 @@ read_and_set_config() {
 
 # Helper function for GHCR configuration
 configure_ghcr_optional() {
-    read -p "Enter your GitHub username (press Enter to skip): " ghcr_username
+    read -r -p "Enter your GitHub username (press Enter to skip): " ghcr_username
     if [ -n "$ghcr_username" ]; then
-        read -s -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
+        read -rs -p "Enter your GitHub Personal Access Token (PAT): " ghcr_pat
         echo
         
         # Compute GHCR_AUTH
@@ -312,9 +353,9 @@ configure_ghcr_optional() {
 
 # Helper function for Docker Hub configuration
 configure_docker_hub() {
-    read -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
+    read -r -p "Enter your Docker Hub username (optional, press Enter to skip): " docker_username
     if [ -n "$docker_username" ]; then
-        read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+        read -rs -p "Enter your Docker Hub Personal Access Token: " docker_pat
         echo
         
         # Set Docker credentials (handles both commented and uncommented lines)
@@ -371,16 +412,21 @@ configure_simple_api_key() {
     local prompt_text="$2"
     local is_secret="${3:-true}"
     local value
-    
+
     if [ "$is_secret" = true ]; then
-        read -s -p "$prompt_text" value
+        read -rs -p "$prompt_text" value
         echo
     else
-        read -p "$prompt_text" value
+        read -r -p "$prompt_text" value
     fi
     
     if [ -n "$value" ]; then
-        portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        # Check if the export line exists anywhere in the file; if not, append it, else update it
+        if grep -q "export $var_name=" deployment/env; then
+            portable_sed "s|.*export $var_name=.*|export $var_name=\"$value\"|" deployment/env
+        else
+            echo "export $var_name=\"$value\"" >> deployment/env
+        fi
         return 0
     else
         # Clear the key if skipped (set to empty string)
@@ -393,9 +439,9 @@ configure_simple_api_key() {
 # Wrapper functions for specific configurations
 
 configure_docker_hub_optional() {
-    read -p "Enter your Docker Hub username (press Enter to skip): " docker_username
+    read -r -p "Enter your Docker Hub username (press Enter to skip): " docker_username
     if [ -n "$docker_username" ]; then
-        read -s -p "Enter your Docker Hub Personal Access Token: " docker_pat
+        read -rs -p "Enter your Docker Hub Personal Access Token: " docker_pat
         echo
         
         # Set Docker credentials
@@ -411,10 +457,10 @@ configure_docker_hub_optional() {
 }
 
 configure_otel_wrapper() {
-    read -p "Enter OTEL endpoint URL (press Enter to skip): " otel_endpoint
+    read -r -p "Enter OTEL endpoint URL (press Enter to skip): " otel_endpoint
     if [ -n "$otel_endpoint" ]; then
-        read -p "Enter OTEL protocol (http/grpc): " otel_protocol
-        read -s -p "Enter OTEL token (optional, press Enter to skip): " otel_token
+        read -r -p "Enter OTEL protocol (http/grpc): " otel_protocol
+        read -rs -p "Enter OTEL token (including Basic or Bearer, optional, press Enter to skip): " otel_token
         echo
         
         # Update the env file
@@ -435,10 +481,10 @@ configure_otel_wrapper() {
 }
 
 configure_langfuse_wrapper() {
-    read -p "Enter LangFuse host URL (press Enter to skip): " langfuse_host
+    read -r -p "Enter LangFuse host URL (press Enter to skip): " langfuse_host
     if [ -n "$langfuse_host" ]; then
-        read -p "Enter LangFuse public key: " langfuse_public_key
-        read -s -p "Enter LangFuse secret key: " langfuse_secret_key
+        read -r -p "Enter LangFuse public key: " langfuse_public_key
+        read -rs -p "Enter LangFuse secret key: " langfuse_secret_key
         echo
         
         # Update the env file
@@ -457,6 +503,18 @@ configure_langfuse_wrapper() {
     fi
 }
 
+configure_llm_budget_wrapper() {
+    read -r -p "Enter LLM budget (press Enter for \$100 default): " budget_value
+    if [ -n "$budget_value" ]; then
+        # Set the budget value
+        portable_sed "s|.*export LITELLM_MAX_BUDGET=.*|export LITELLM_MAX_BUDGET=\"$budget_value\"|" deployment/env
+    else
+        # Use default value
+        portable_sed "s|.*export LITELLM_MAX_BUDGET=.*|export LITELLM_MAX_BUDGET=\"100\"|" deployment/env
+    fi
+    return 0
+}
+
 # Function to configure required API keys for local development
 configure_local_api_keys() {
     print_status "Configuring required API keys for local development..."
@@ -470,24 +528,35 @@ configure_local_api_keys() {
     print_linebreak
     print_status "OpenAI API Key (Optional): Powers AI-driven vulnerability analysis and patch generation."
     print_status "The patcher component performs best with OpenAI models (GPT-4o/GPT-4o-mini)."
+    print_status "Generate your API key at: https://platform.openai.com/settings/organization/api-keys"
     configure_service "OPENAI_API_KEY" "OpenAI API key" "$OPENAI_API_KEY" "<your-openai-api-key>" false
     
     # Anthropic API Key (Optional)
     print_linebreak
     print_status "Anthropic API Key (Optional): Powers AI-driven fuzzing seed generation."
-    print_status "The seed generation component performs best with Anthropic models (Claude 3.5/4 Sonnet)."
+    print_status "The seed generation component performs best with Anthropic models (Claude 4.5/4 Sonnet)."
+    print_status "Generate your API key at: https://console.anthropic.com/settings/keys"
     configure_service "ANTHROPIC_API_KEY" "Anthropic API key" "$ANTHROPIC_API_KEY" "<your-anthropic-api-key>" false
     
+    # Anthropic API Key (Optional)
+    print_linebreak
+    print_status "Google Gemini API Key (Optional): Fallback model."
+    print_status "Use this model as a fallback if other models are not configured or not available."
+    print_status "Generate your API key at: https://aistudio.google.com/apikey"
+    configure_service "GEMINI_API_KEY" "Gemini API key" "$GEMINI_API_KEY" "<your-gemini-api-key>" false
+
     # GitHub Personal Access Token (Optional)
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
     print_status "Only needed if Buttercup will access private repositories or packages."
+    # shellcheck disable=SC2153  # GHCR_AUTH is an external env var, not a misspelling of ghcr_auth
     configure_service "GHCR_AUTH" "GitHub authentication" "$GHCR_AUTH" "<your-ghcr-base64-auth>" false "configure_ghcr_optional"
     
     # Docker Hub credentials (optional)
     print_linebreak
     print_status "Docker Hub Credentials (Optional): Gives higher rate limits when pulling public base images."
     print_status "Recommended for reliable builds, but not strictly required for operation."
+    # shellcheck disable=SC2153  # DOCKER_USERNAME is an external env var, not a misspelling
     configure_service "DOCKER_USERNAME" "Docker Hub credentials" "$DOCKER_USERNAME" "<your-docker-username>" false "configure_docker_hub_optional"
     
     # Validate that at least one LLM API key is configured
@@ -506,9 +575,15 @@ configure_local_api_keys() {
     else
         anthropic_configured=true
     fi
+
+    if [ -z "$GEMINI_API_KEY" ] || [ "$GEMINI_API_KEY" = "<your-gemini-api-key>" ]; then
+        gemini_configured=false
+    else
+        gemini_configured=true
+    fi
     
-    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ]; then
-        print_error "At least one LLM API key (OpenAI or Anthropic) must be configured."
+    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ] && [ "$gemini_configured" = false ]; then
+        print_error "At least one LLM API key (OpenAI, Anthropic, or Gemini) must be configured."
         print_error "Rerun the setup and set at least one LLM API key."
         return 1
     fi
@@ -516,22 +591,90 @@ configure_local_api_keys() {
     print_success "API keys configured successfully"
 }
 
+generate_litellm_master_key() {
+    # If LITELLM_MASTER_KEY is already configured, skip key generation
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    if [ "${LITELLM_MASTER_KEY:-}" != "" ] && [ "$LITELLM_MASTER_KEY" != "d5179c62ae1c7366e3ee09775d0993d5" ]; then
+        print_status "LITELLM_MASTER_KEY is already configured, skipping LiteLLM master key generation."
+        return 0
+    fi
+
+    print_linebreak
+    print_status "Configuring LiteLLM master key..."
+    local litellm_master_key
+    litellm_master_key=$(openssl rand -hex 16)
+    portable_sed "s|.*export LITELLM_MASTER_KEY=.*|export LITELLM_MASTER_KEY=\"$litellm_master_key\"|" deployment/env
+    print_success "LiteLLM master key configured successfully"
+}
+
+generate_crs_key_id_token() {
+    # If CRS_KEY_ID is already configured, skip key generation
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+    if [ "${CRS_KEY_ID:-}" != "" ] && [ "$CRS_KEY_ID" != "515cc8a0-3019-4c9f-8c1c-72d0b54ae561" ]; then
+        print_status "CRS_KEY_ID/TOKEN/TOKEN_HASH are already configured, skipping CRS keys generation."
+        return 0
+    fi
+
+    print_linebreak
+    print_status "Configuring CRS key ID/token..."
+    local auth_tool_output
+    local crs_key_id
+    local crs_key_token
+    local crs_key_token_hash
+    auth_tool_output=$(pushd orchestrator && uv run python3 ./src/buttercup/orchestrator/task_server/auth_tool.py --env)
+    crs_key_id=$(echo "$auth_tool_output" | grep "BUTTERCUP_TASK_SERVER_API_KEY_ID" | cut -d'=' -f2-)
+    crs_key_token=$(echo "$auth_tool_output" | grep "^API_TOKEN" | cut -d'=' -f2-)
+    crs_key_token_hash=$(echo "$auth_tool_output" | grep "^BUTTERCUP_TASK_SERVER_API_TOKEN_HASH" | cut -d'=' -f2-)
+
+    portable_sed "s|.*export CRS_KEY_ID=.*|export CRS_KEY_ID=\"$crs_key_id\"|" deployment/env
+    portable_sed "s|.*export CRS_KEY_TOKEN=.*|export CRS_KEY_TOKEN=\"$crs_key_token\"|" deployment/env
+    portable_sed "s|.*export CRS_KEY_TOKEN_HASH=.*|export CRS_KEY_TOKEN_HASH='$crs_key_token_hash'|" deployment/env
+    print_success "CRS key ID/token configured successfully"
+}
+
+configure_llm_budget() {
+    print_linebreak
+    print_status "Configuring LLM Budget..."
+
+    # Source the env file to check current values
+    if [ -f "deployment/env" ]; then
+        source deployment/env
+    fi
+
+    print_status "LLM Budget: Maximum budget for LiteLLM."
+    print_status "Set LLM budget across all components. Budget is per-deployment."
+
+    configure_service "LITELLM_MAX_BUDGET" "LiteLLM max budget" "$LITELLM_MAX_BUDGET" "100" false "configure_llm_budget_wrapper"
+}
 
 
-# Function to configure OTEL telemetry
+# Function to configure OTEL telemetry (simplified for local deployment)
 configure_otel() {
     print_linebreak
-    print_status "Configuring OpenTelemetry telemetry (optional)..."
+    print_status "Configuring SigNoz for local observability..."
     
     # Source the env file to check current values
     if [ -f "deployment/env" ]; then
         source deployment/env
     fi
     
-    print_status "OpenTelemetry: Optional distributed tracing and metrics collection."
+    print_status "SigNoz: Local observability platform for distributed tracing and metrics."
     print_status "Provides detailed performance monitoring and system observability for debugging."
-    
-    configure_service "OTEL" "OpenTelemetry configuration" "$OTEL_ENDPOINT" "<your-otel-endpoint>" false "configure_otel_wrapper"
+
+    # Check if already configured and user wants to keep it
+    if [ "$DEPLOY_SIGNOZ" = "true" ]; then
+        if ! prompt_for_update "DEPLOY_SIGNOZ" "SigNoz deployment" "local" "" false; then
+            return 0  # User chose to keep existing value, exit early
+        fi
+    fi
+
+    # Enable local SigNoz deployment by default for quickstart
+    portable_sed "s|.*export DEPLOY_SIGNOZ=.*|export DEPLOY_SIGNOZ=true|" deployment/env
+    print_success "Local SigNoz deployment enabled for observability"
 }
 
 # Function to check configuration file
@@ -590,6 +733,7 @@ check_aks_config() {
     local api_vars=(
         "OPENAI_API_KEY"
         "ANTHROPIC_API_KEY"
+        "GEMINI_API_KEY"
         "GHCR_AUTH"
         "CRS_KEY_ID"
         "CRS_KEY_TOKEN"
@@ -636,8 +780,10 @@ check_aks_config() {
         done
     fi
     
-    # Check optional OTEL configuration
-    if [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
+    # Check optional SigNoz/OTEL configuration
+    if [ "$DEPLOY_SIGNOZ" = "true" ]; then
+        print_status "SigNoz local deployment is enabled"
+    elif [ -n "$OTEL_ENDPOINT" ] && [ "$OTEL_ENDPOINT" != "" ]; then
         if [ -z "$OTEL_PROTOCOL" ] || [ "$OTEL_PROTOCOL" = "<your-*>" ]; then
             print_error "OTEL_PROTOCOL is not set when OTEL_ENDPOINT is configured"
             errors=$((errors + 1))
@@ -649,5 +795,124 @@ check_aks_config() {
     else
         print_error "AKS configuration has $errors error(s)"
         return $errors
+    fi
+}
+
+# Function to check if Homebrew exists
+check_brew() {
+    if ! command_exists brew; then
+        print_error "Homebrew (brew) is not installed!"
+        print_error "Please install Homebrew first: https://brew.sh/"
+        exit 1
+    fi
+}
+
+# Register Homebrew cli-plugins dir so Docker discovers plugins like
+# buildx. Prefers patching ~/.docker/config.json via jq; falls back
+# to a per-plugin symlink when jq is not installed.
+ensure_docker_cli_plugins_dir() {
+    local plugins_dir="/opt/homebrew/lib/docker/cli-plugins"
+    local config_file="$HOME/.docker/config.json"
+
+    if command_exists jq; then
+        mkdir -p "$(dirname "$config_file")"
+        if [ ! -f "$config_file" ]; then
+            echo '{}' > "$config_file"
+        fi
+        # Idempotent: appends only if the path isn't already listed
+        local tmp="${config_file}.tmp"
+        jq --arg d "$plugins_dir" \
+            '.cliPluginsExtraDirs = ((.cliPluginsExtraDirs // []) | if index($d) then . else . + [$d] end)' \
+            "$config_file" > "$tmp" && mv "$tmp" "$config_file"
+    else
+        print_warning "jq not found — falling back to symlink for docker-buildx"
+        mkdir -p ~/.docker/cli-plugins
+        ln -sfn "$(brew --prefix docker-buildx)/lib/docker/cli-plugins/docker-buildx" \
+            ~/.docker/cli-plugins/docker-buildx
+    fi
+}
+
+install_docker_mac() {
+    if command_exists docker; then
+        print_success "Docker is already installed"
+    else
+        print_status "Installing Docker..."
+        brew install --cask docker
+    fi
+
+    # Ensure docker-buildx is available (bundled with Docker Desktop,
+    # but must be installed separately for Colima users)
+    if ! docker buildx version >/dev/null 2>&1; then
+        print_status "Installing docker-buildx plugin..."
+        brew install docker-buildx
+        # Register Homebrew cli-plugins dir so Docker discovers buildx
+        ensure_docker_cli_plugins_dir
+        print_success "docker-buildx installed"
+    else
+        print_success "docker-buildx is available"
+    fi
+}
+
+install_uv_mac() {
+    if command_exists uv; then
+        print_success "uv is already installed"
+    else
+        print_status "Installing uv..."
+        brew install uv
+    fi
+}
+
+install_helm_mac() {
+    if command_exists helm; then
+        print_success "Helm is already installed"
+    else
+        print_status "Installing Helm..."
+        brew install helm
+    fi
+}
+
+install_kubectl_mac() {
+    if command_exists kubectl; then
+        print_success "kubectl is already installed"
+    else
+        print_status "Installing kubectl..."
+        brew install kubectl
+    fi
+}
+
+install_minikube_mac() {
+    if command_exists minikube; then
+        print_success "Minikube is already installed"
+    else
+        print_status "Installing Minikube..."
+        brew install minikube
+    fi
+}
+
+install_git_lfs_mac() {
+    if command_exists git-lfs; then
+        print_success "Git LFS is already installed"
+    else
+        print_status "Installing Git LFS..."
+        brew install git-lfs
+    fi
+}
+
+install_azcli_mac() {
+    if command_exists az; then
+        print_success "az is already installed"
+    else
+        print_status "Installing az..."
+        brew install azure-cli
+    fi
+}
+
+install_terraform_mac() {
+    if command_exists terraform; then
+        print_success "Terraform is already installed"
+    else
+        print_status "Installing Terraform..."
+        brew tap hashicorp/tap
+        brew install hashicorp/tap/terraform
     fi
 }

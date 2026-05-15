@@ -1,28 +1,32 @@
+import argparse
+import os
+import time
+
+from buttercup.common.clusterfuzz_utils import get_fuzz_targets
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.maps import BuildMap, HarnessWeights
 from buttercup.common.queues import (
-    ReliableQueue,
-    RQItem,
+    GroupNames,
     QueueFactory,
     QueueNames,
-    GroupNames,
+    ReliableQueue,
 )
-from buttercup.common.maps import HarnessWeights, BuildMap
-
-import argparse
 from redis import Redis
-from buttercup.common.datastructures.msg_pb2 import BuildType, BuildOutput, WeightedHarness
-import time
-from buttercup.common.clusterfuzz_utils import get_fuzz_targets
-import os
-from buttercup.common.logger import setup_package_logger
 
 logger = setup_package_logger("fuzzer-orchestrator", __name__)
 DEFAULT_WEIGHT = 1.0
 
 
-def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: BuildMap, sleep_time_seconds: int):
+def loop(
+    output_queue: ReliableQueue,
+    target_list: HarnessWeights,
+    build_map: BuildMap,
+    sleep_time_seconds: int,
+) -> None:
     while True:
         time.sleep(sleep_time_seconds)
-        output: RQItem = output_queue.pop()
+        output = output_queue.pop()
         if output is not None:
             deser_output: BuildOutput = output.deserialized
             build_dir = os.path.join(
@@ -45,12 +49,12 @@ def loop(output_queue: ReliableQueue, target_list: HarnessWeights, build_map: Bu
                         harness_name=os.path.basename(tgt),
                         package_name=deser_output.package_name,
                         task_id=deser_output.task_id,
-                    )
+                    ),
                 )
             output_queue.ack_item(output.item_id)
 
 
-def main():
+def main() -> None:
     prsr = argparse.ArgumentParser("Fuzzing orchestrator")
     prsr.add_argument("--redis_url", default="redis://127.0.0.1:6379")
     prsr.add_argument("--timer", default=1000, type=int)

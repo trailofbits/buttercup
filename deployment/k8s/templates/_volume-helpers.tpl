@@ -14,6 +14,12 @@ Define reusable volume specifications for our persistent volumes
     claimName: {{ .Release.Name }}-tasks-storage
 {{- end -}}
 
+{{- define "buttercup.volumes.ui_db" -}}
+- name: ui-db-storage
+  persistentVolumeClaim:
+    claimName: {{ .Release.Name }}-ui-db
+{{- end -}}
+
 {{/* 
 Define reusable volume mount specifications for our persistent volumes
 */}}
@@ -26,4 +32,9 @@ Define reusable volume mount specifications for our persistent volumes
 {{- define "buttercup.volumeMounts.tasks" -}}
 - name: tasks-storage
   mountPath: {{ include "buttercup.dirs.tasks_storage" . }}
+{{- end -}}
+
+{{- define "buttercup.volumeMounts.ui_db" -}}
+- name: ui-db-storage
+  mountPath: {{ include "buttercup.dirs.ui_db_storage" . }}
 {{- end -}}

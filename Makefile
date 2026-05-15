@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy deploy-local deploy-azure test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
+.PHONY: help setup-local setup-azure validate deploy test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
 
 # Default target
 help:
@@ -13,13 +13,12 @@ help:
 	@echo ""
 	@echo "Deployment:"
 	@echo "  deploy            - Deploy to current environment (local or azure)"
-	@echo "  deploy-local      - Deploy to local Minikube environment"
-	@echo "  deploy-azure      - Deploy to production AKS environment"
 	@echo ""
 	@echo "Status:"
 	@echo "  status              - Check the status of the deployment"
 	@echo "  crs-instance-id     - Get the CRS instance ID"
 	@echo "  download-artifacts  - Download submitted artifacts from the CRS"
+	@echo "  signoz-ui           - Open the SigNoz UI"
 	@echo ""
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
@@ -47,16 +46,6 @@ setup-azure:
 validate:
 	@echo "Validating setup..."
 	./scripts/validate-setup.sh
-
-# Deployment targets
-deploy:
-	@echo "Deploying to current environment..."
-	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
-		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	make wait-crs
 
 wait-crs:
 	@echo "Waiting for CRS deployment to be ready..."
@@ -96,33 +85,30 @@ crs-instance-id:
 	fi
 	echo "CRS instance ID: $$(kubectl get configmap -n $${BUTTERCUP_NAMESPACE:-crs} crs-instance-id -o jsonpath='{.data.crs-instance-id}')"
 
-deploy-local:
-	@echo "Deploying to local Minikube environment..."
+deploy:
+	@echo "Deploying environment..."
 	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-local' first."; \
+		echo "Error: Configuration file not found. Run 'make setup-local' or `make setup-azure` first."; \
 		exit 1; \
 	fi
-	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
+	@if [ ! -f external/buttercup-cscope/configure.ac ]; then \
 		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
 		exit 1; \
+	fi
+	@echo "Deployment configuration:"
+	@grep 'CLUSTER_TYPE=' deployment/env || echo "CLUSTER_TYPE not set"
+	@grep 'K8S_VALUES_TEMPLATE' deployment/env || echo "K8S_VALUES_TEMPLATE not set"
+	@if [ "$${FORCE:-false}" != "true" ]; then \
+		echo "Are you sure you want to deploy with these settings? Type 'yes' to continue:"; \
+		read ans; \
+		ans_lc=$$(echo "$$ans" | tr '[:upper:]' '[:lower:]'); \
+		if [ "$$ans_lc" != "yes" ] && [ "$$ans_lc" != "y" ]; then \
+			echo "Aborted by user."; \
+			exit 1; \
+		fi; \
 	fi
 	cd deployment && make up
 	make crs-instance-id
-	make wait-crs
-
-deploy-azure:
-	@echo "Deploying to production AKS environment..."
-	@if [ ! -f deployment/env ]; then \
-		echo "Error: Configuration file not found. Run 'make setup-azure' first."; \
-		exit 1; \
-	fi
-	@if [ ! -f external/aixcc-cscope/configure.ac ]; then \
-		echo "Error: The git submodules have not been initialized. Run 'git submodule update --init --recursive' first."; \
-		exit 1; \
-	fi
-	cd deployment && make up
-	crs_instance_id=$$(make crs-instance-id)
-	echo "CRS instance ID: $$crs_instance_id"
 	make wait-crs
 
 status:
@@ -147,11 +133,11 @@ send-integration-task:
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
-	@sleep 3
-	./orchestrator/scripts/task_integration_test.sh
-	pkill -f "kubectl port-forward" || true
-	exit 0
+	@kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 & \
+	PORT_FORWARD_PID=$$!; \
+	sleep 3; \
+	./orchestrator/scripts/task_integration_test.sh; \
+	kill $$PORT_FORWARD_PID 2>/dev/null || true
 
 send-libpng-task:
 	@echo "Running libpng task..."
@@ -159,11 +145,11 @@ send-libpng-task:
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
-	@sleep 3
-	./orchestrator/scripts/task_crs.sh
-	pkill -f "kubectl port-forward" || true
-	exit 0
+	@kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 & \
+	PORT_FORWARD_PID=$$!; \
+	sleep 3; \
+	./orchestrator/scripts/task_crs.sh; \
+	kill $$PORT_FORWARD_PID 2>/dev/null || true
 
 submit-project:
 	@echo "Starting interactive custom challenge submission..."
@@ -179,26 +165,24 @@ submit-project:
 # Development targets
 lint:
 	@echo "Linting all Python code..."
-	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+	@set -e; for component in common orchestrator fuzzer fuzzer_runner program-model seed-gen patcher; do \
 		make --no-print-directory lint-component COMPONENT=$$component; \
 	done
 
-# Note: common, patcher, orchestrator, program-model, seed-gen run mypy
+# Note: all components run ty type checking
 lint-component:
 	@if [ -z "$(COMPONENT)" ]; then \
 		echo "Error: COMPONENT not specified. Usage: make lint-component COMPONENT=<component>"; \
-		echo "Available components: common, fuzzer, orchestrator, patcher, program-model, seed-gen"; \
+		echo "Available components: common, fuzzer, fuzzer_runner, orchestrator, patcher, program-model, seed-gen"; \
 		exit 1; \
 	fi
 	@echo "Linting $(COMPONENT)..."
 	@cd $(COMPONENT) && uv sync -q --all-extras && uv run ruff format --check && uv run ruff check
-	@if [ "$(COMPONENT)" = "common" ] || [ "$(COMPONENT)" = "patcher" ] || [ "$(COMPONENT)" = "orchestrator" ] || [ "$(COMPONENT)" = "program-model" ] || [ "$(COMPONENT)" = "seed-gen" ]; then \
-		cd $(COMPONENT) && uv run mypy; \
-	fi
+	@cd $(COMPONENT) && uv run ty check src/
 
 reformat:
 	@echo "Reformatting all Python code..."
-	@for component in common orchestrator fuzzer program-model seed-gen patcher; do \
+	@for component in common orchestrator fuzzer fuzzer_runner program-model seed-gen patcher; do \
 		make --no-print-directory reformat-component COMPONENT=$$component; \
 	done
 
@@ -216,6 +200,10 @@ undeploy:
 	@echo "Cleaning up deployment..."
 	cd deployment && make down
 
+undeploy-k8s:
+	@echo "Cleaning up kubernetes resources..."
+	cd deployment && make down-k8s
+
 clean-local:
 	@echo "Cleaning up local environment..."
 	minikube delete || true
@@ -223,20 +211,30 @@ clean-local:
 
 # Additional targets migrated from justfile
 install-cscope:
-	cd external/aixcc-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
+	cd external/buttercup-cscope/ && autoreconf -i -s && ./configure && make && sudo make install
 
-web-ui:
-	@echo "Opening web UI..."
+signoz-ui:
+	@echo "Opening SigNoz UI..."
+	@echo ""
+	@echo "NOTE: If you plan to redeploy and access SigNoz, clear your browser cookies for http://localhost:33301 to avoid login issues."
+	@echo ""
 	@if ! kubectl get namespace $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
 		echo "Error: CRS namespace not found. Deploy first with 'make deploy'."; \
 		exit 1; \
 	fi
-	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-ui 31323:1323 &
+	@if ! kubectl get service/buttercup-signoz-frontend -n $${BUTTERCUP_NAMESPACE:-crs} >/dev/null 2>&1; then \
+		echo "Error: SigNoz is not deployed. Set DEPLOY_SIGNOZ=true in deployment/env and redeploy."; \
+		exit 1; \
+	fi
+	kubectl port-forward -n $${BUTTERCUP_NAMESPACE:-crs} service/buttercup-signoz-frontend 33301:3301 &
 	@sleep 3
 	@if command -v xdg-open >/dev/null 2>&1; then \
-		xdg-open http://localhost:31323; \
+		xdg-open http://localhost:33301; \
 	elif command -v open >/dev/null 2>&1; then \
-		open http://localhost:31323; \
+		open http://localhost:33301; \
 	else \
-		echo "Please open http://localhost:31323 in your browser."; \
+		echo "Please open http://localhost:33301 in your browser."; \
 	fi
+
+web-ui:
+	@./scripts/web_ui.sh

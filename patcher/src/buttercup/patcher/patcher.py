@@ -1,22 +1,25 @@
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from functools import reduce
+from pathlib import Path
+from typing import Any
+
+from buttercup.common import node_local
+from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability, Patch
-from buttercup.patcher.utils import PatchInput, PatchOutput, PatchInputPoV
-import buttercup.common.node_local as node_local
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue, RQItem
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.utils import serve_loop
+from langchain_community.cache import SQLiteCache
+from langchain_core.globals import set_llm_cache
 from langchain_core.runnables import Runnable, RunnableConfig
 from redis import Redis
-from typing import Callable, Any
-from buttercup.common.queues import ReliableQueue, QueueFactory, QueueNames, GroupNames, RQItem
-from buttercup.common.challenge_task import ChallengeTask
+
 from buttercup.patcher.agents.leader import PatcherLeaderAgent
-from langchain_core.globals import set_llm_cache
-from langchain_community.cache import SQLiteCache
-from buttercup.common.utils import serve_loop
-from buttercup.common.task_registry import TaskRegistry
-import logging
+from buttercup.patcher.utils import PatchInput, PatchInputPoV, PatchOutput
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ class Patcher:
     redis: Redis | None = None
     sleep_time: float = 1
     dev_mode: bool = False
+    find_tests: bool = True
 
     vulnerability_queue: ReliableQueue[ConfirmedVulnerability] | None = field(init=False, default=None)
     patches_queue: ReliableQueue[Patch] | None = field(init=False, default=None)
@@ -75,6 +79,7 @@ class Patcher:
             chain_call=self._chain_call,
             work_dir=self.scratch_dir,
             tasks_storage=self.task_storage_dir,
+            find_tests=self.find_tests,
         )
         patch = patcher_agent.run_patch_task()
         if patch is None:
@@ -104,7 +109,7 @@ class Patcher:
         povs = [
             PatchInputPoV(
                 challenge_task_dir=Path(crash.crash.target.task_dir),
-                pov=node_local.make_locally_available(crash.crash.crash_input_path),
+                pov=node_local.make_locally_available(Path(crash.crash.crash_input_path)),
                 pov_token=crash.crash.crash_token,
                 sanitizer=crash.crash.target.sanitizer,
                 engine=crash.crash.target.engine,
@@ -156,15 +161,15 @@ class Patcher:
                 self.patches_queue.push(patch_msg)
                 self.vulnerability_queue.ack_item(rq_item.item_id)
                 logger.info(
-                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}"
+                    f"Successfully generated patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}",  # noqa: E501
                 )
             else:
                 logger.error(
-                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}"
+                    f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}",
                 )
         except Exception as e:
             logger.exception(
-                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}: {e}"
+                f"Failed to generate patch for vulnerability {patch_input.task_id}/{patch_input.internal_patch_id}: {e}",  # noqa: E501
             )
 
     @_check_redis

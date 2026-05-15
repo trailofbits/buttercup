@@ -27,6 +27,9 @@ global:
     publicKey: "${LANGFUSE_PUBLIC_KEY}"
     secretKey: "${LANGFUSE_SECRET_KEY}"
 
+  signoz:
+    deployed: ${DEPLOY_SIGNOZ}
+
   crs:
     api_key_id: ${CRS_KEY_ID}
     api_key_token: ${CRS_KEY_TOKEN}
@@ -48,10 +51,11 @@ redis:
       enabled: false
 
 build-bot:
-  replicaCount: 1
+  replicaCount: 3
 
 litellm:
   masterKey: "${LITELLM_MASTER_KEY}"
+  maxBudget: "${LITELLM_MAX_BUDGET}"
   azure:
     apiBase: "${AZURE_API_BASE}"
     apiKey: "${AZURE_API_KEY}"
@@ -59,6 +63,8 @@ litellm:
     apiKey: "${OPENAI_API_KEY}"
   anthropic:
     apiKey: "${ANTHROPIC_API_KEY}"
+  gemini:
+    apiKey: "${GEMINI_API_KEY}"
 
 ui:
   enabled: true
@@ -80,3 +86,6 @@ image-preloader:
     - gcr.io/oss-fuzz-base/base-builder-rust
   versions:
     - latest
+
+signoz:
+  enabled: ${DEPLOY_SIGNOZ}

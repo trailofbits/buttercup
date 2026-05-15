@@ -9,6 +9,7 @@
      - Microsoft.Compute
      - Microsoft.Storage
      - Microsoft.Network
+     - Microsoft.ContainerService
 
 2. Verify and adjust Azure quotas:
    - Total Regional vCPUs: ~2000

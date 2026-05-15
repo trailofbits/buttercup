@@ -11,6 +11,7 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=common/uv.lock,target=common/uv.lock \
     --mount=type=bind,source=common/pyproject.toml,target=common/pyproject.toml \
@@ -18,9 +19,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=orchestrator/pyproject.toml,target=orchestrator/pyproject.toml \
     cd orchestrator && uv sync --frozen --no-install-project --no-editable
 
-ADD common /app/common
-ADD orchestrator /app/orchestrator
+COPY common /app/common
+COPY orchestrator /app/orchestrator
 
+# hadolint ignore=DL3003
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd orchestrator && uv sync --frozen --no-editable
 
@@ -28,10 +30,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_BASE} AS runtime
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y git curl && \
+    apt-get install -y --no-install-recommends ca-certificates git git-lfs curl && \
+    git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://get.docker.com | sh
+RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh --version 29.0
 
 COPY --from=builder --chown=app:app /app/orchestrator/.venv /app/orchestrator/.venv
 WORKDIR /app/orchestrator

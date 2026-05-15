@@ -1,22 +1,22 @@
 import logging
-import requests
 import tarfile
-from dataclasses import dataclass, field
-import uuid
 import tempfile
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+
+import requests
+from buttercup.common import node_local
+from buttercup.common.datastructures.msg_pb2 import SourceDetail, Task, TaskDownload, TaskReady
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames, ReliableQueue
+from buttercup.common.task_meta import TaskMeta
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.utils import serve_loop
+from redis import Redis
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from buttercup.common.queues import QueueFactory, ReliableQueue, QueueNames, GroupNames
-from buttercup.common.datastructures.msg_pb2 import Task, SourceDetail, TaskDownload, TaskReady
 from buttercup.orchestrator.utils import response_stream_to_file
-from buttercup.common.task_meta import TaskMeta
-from redis import Redis
-from buttercup.common.task_registry import TaskRegistry
-from buttercup.common.utils import serve_loop
-import buttercup.common.node_local as node_local
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class Downloader:
         """Creates and returns the directory path for a task"""
         return self.download_dir / task_id
 
-    def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Optional[Path]:
+    def download_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail) -> Path | None:
         """Downloads a source file and verifies its SHA256"""
         try:
             filepath = tmp_task_dir / str(uuid.uuid4())
@@ -78,18 +78,17 @@ class Downloader:
             logger.info(f"[task {task_id}] Successfully downloaded source type {source.source_type} to {filepath}")
             return filepath
         except Exception as e:
-            logger.error(f"Failed to download {source.url}: {str(e)}")
+            logger.error(f"Failed to download {source.url}: {e!s}")
             return None
 
     def _get_source_type_dir(self, source_type: SourceDetail.SourceType) -> str:
         if source_type == SourceDetail.SourceType.SOURCE_TYPE_REPO:
             return "src"
-        elif source_type == SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING:
+        if source_type == SourceDetail.SourceType.SOURCE_TYPE_FUZZ_TOOLING:
             return "fuzz-tooling"
-        elif source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
+        if source_type == SourceDetail.SourceType.SOURCE_TYPE_DIFF:
             return "diff"
-        else:
-            raise ValueError(f"Unknown source type: {source_type}")
+        raise ValueError(f"Unknown source type: {source_type}")
 
     def extract_source(self, task_id: str, tmp_task_dir: Path, source: SourceDetail, source_file: Path) -> bool:
         """Uncompress a source file and returns the name of the main directory it contains"""
@@ -117,15 +116,15 @@ class Downloader:
 
                 # Extract all members directly into tmp_task_dir
                 for member in tar.getmembers():
-                    tar.extract(member, path=destination)
+                    tar.extract(member, path=destination, filter="data")
 
             logger.info(f"[task {task_id}] Successfully extracted {source_file}")
             return True
         except Exception as e:
-            logger.error(f"[task {task_id}] Failed to extract {source_file}: {str(e)}")
+            logger.error(f"[task {task_id}] Failed to extract {source_file}: {e!s}")
             return False
 
-    def _download_and_extract_sources(self, task_id: str, tmp_task_dir: Path, sources: list) -> bool:
+    def _download_and_extract_sources(self, task_id: str, tmp_task_dir: Path, sources: list[SourceDetail]) -> bool:
         """Download and extract all sources for a task"""
         for source in sources:
             # Create temporary directory for download
@@ -153,15 +152,15 @@ class Downloader:
             # need to change the Task while downloading/extracting it.
             if "Directory not empty" in str(e):
                 logger.warning(
-                    f"Directory {final_task_dir} already exists, another process downloaded the task first, ignore it..."
+                    f"Directory {final_task_dir} already exists, "
+                    "another process downloaded the task first, ignore it...",
                 )
                 return True
-            else:
-                logger.exception(f"Failed to move task directory: {str(e)}")
-                return False
+            logger.exception(f"Failed to move task directory: {e!s}")
+            return False
         except Exception as e:
             # Re-raise any other errors
-            logger.exception(f"Failed to move task directory: {str(e)}")
+            logger.exception(f"Failed to move task directory: {e!s}")
             return False
 
     def process_task(self, task: Task) -> bool:
@@ -180,7 +179,7 @@ class Downloader:
         # Create a local temporary directory for the download, rename to the proper name and upload
         # the dir as a .tgz file to the remote storage
         with node_local.scratch_dir() as temp_dir:
-            if not self._do_download(temp_dir, task):
+            if not self._do_download(temp_dir.path, task):
                 return False
 
             renamed_dir = node_local.rename_atomically(temp_dir.path, download_path)
@@ -195,7 +194,7 @@ class Downloader:
         logger.info(f"[task {task.task_id}] Using temporary directory {tmp_task_dir}")
 
         # Download and extract all sources
-        success = self._download_and_extract_sources(task.task_id, tmp_task_dir_path, task.sources)
+        success = self._download_and_extract_sources(task.task_id, tmp_task_dir_path, list(task.sources))
         if not success:
             logger.error(f"Failed to download and extract sources for task {task.task_id}")
             return False
@@ -248,6 +247,9 @@ class Downloader:
         return self
 
     def __exit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
     ) -> None:
         self.cleanup()

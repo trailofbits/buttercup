@@ -1,15 +1,16 @@
 """Macros testing"""
 
 import pytest
-
 from buttercup.common.challenge_task import ChallengeTask
+
 from buttercup.program_model.codequery import CodeQuery
+
 from .common import (
-    common_test_get_functions,
-    common_test_get_type_definitions,
     TestFunctionInfo,
     TestTypeDefinitionInfo,
     TypeDefinitionType,
+    common_test_get_functions,
+    common_test_get_type_definitions,
 )
 
 
@@ -28,7 +29,7 @@ from .common import (
 #else
    return png_create_read_struct_2(user_png_ver, error_ptr, error_fn,
         warn_fn, NULL, NULL, NULL);
-"""
+""",
                 ],
             ),
         ),
@@ -37,9 +38,7 @@ from .common import (
             "/src/libpng/png.c",
             TestFunctionInfo(
                 num_bodies=1,
-                body_excerpts=[
-                    """info_ptr = png_voidcast(png_inforp, png_malloc_base(png_ptr,"""
-                ],
+                body_excerpts=["""info_ptr = png_voidcast(png_inforp, png_malloc_base(png_ptr,"""],
             ),
         ),
     ],
@@ -53,9 +52,7 @@ def test_libpng_get_functions(
     function_info,
 ):
     """Test that we can get functions in challenge task code"""
-    common_test_get_functions(
-        libpng_oss_fuzz_cq, function_name, file_path, function_info
-    )
+    common_test_get_functions(libpng_oss_fuzz_cq, function_name, file_path, function_info)
 
 
 @pytest.mark.parametrize(

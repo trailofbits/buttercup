@@ -1,22 +1,24 @@
-import buttercup.patcher.cli_load_dotenv  # noqa: F401
-from buttercup.patcher.config import Settings, ServeCommand, ProcessCommand, ProcessMsgCommand
-from buttercup.patcher.patcher import Patcher
-from pydantic_settings import get_subcommand
-from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability
-from google.protobuf.text_format import Parse
-from buttercup.common.logger import setup_package_logger
 import logging
-from redis import Redis
-from buttercup.patcher.utils import PatchInput, PatchInputPoV
 from pathlib import Path
-from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
+
+from buttercup.common.datastructures.msg_pb2 import ConfirmedVulnerability
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
 from buttercup.common.telemetry import init_telemetry
+from google.protobuf.text_format import Parse
+from pydantic_settings import get_subcommand
+from redis import Redis
+
+import buttercup.patcher.cli_load_dotenv  # noqa: F401
+from buttercup.patcher.config import ProcessCommand, ProcessMsgCommand, ServeCommand, Settings
+from buttercup.patcher.patcher import Patcher
+from buttercup.patcher.utils import PatchInput, PatchInputPoV
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    settings = Settings()
+    settings = Settings()  # type: ignore[missing-argument]
     command = get_subcommand(settings)
     setup_package_logger("patcher", __name__, settings.log_level, settings.log_max_line_length)
 
@@ -24,7 +26,7 @@ def main() -> None:
     logger.debug("Settings: %s", settings)
     init_telemetry("patcher")
     if isinstance(command, ServeCommand):
-        logger.info("Serving...")  # type: ignore[unreachable]
+        logger.info("Serving...")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
@@ -35,7 +37,7 @@ def main() -> None:
         )
         patcher.serve()
     elif isinstance(command, ProcessCommand):
-        logger.info("Processing task")  # type: ignore[unreachable]
+        logger.info("Processing task")
         patch_input = PatchInput(
             task_id=command.task_id,
             internal_patch_id=command.internal_patch_id,
@@ -45,21 +47,23 @@ def main() -> None:
                     harness_name=command.harness_name,
                     engine=command.engine,
                     sanitizer=command.sanitizer,
-                    pov=Path(command.crash_input_path).read_bytes(),
-                    sanitizer_output=Path(command.stacktrace_path).read_bytes(),
-                )
+                    pov=Path(command.crash_input_path),
+                    pov_token=f"token-{Path(command.crash_input_path).name}",
+                    sanitizer_output=Path(command.stacktrace_path).read_text(),
+                ),
             ],
         )
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,
             scratch_dir=settings.scratch_dir,
             dev_mode=settings.dev_mode,
+            find_tests=command.find_tests,
         )
         patch = patcher.process_patch_input(patch_input)
         if patch is not None:
             print(patch)
     elif isinstance(command, ProcessMsgCommand):
-        logger.info("Processing message")  # type: ignore[unreachable]
+        logger.info("Processing message")
         redis = Redis.from_url(command.redis_url, decode_responses=False)
         patcher = Patcher(
             task_storage_dir=settings.task_storage_dir,

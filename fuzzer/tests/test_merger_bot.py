@@ -1,11 +1,13 @@
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+from buttercup.common.constants import ADDRESS_SANITIZER
+from buttercup.common.datastructures.msg_pb2 import BuildOutput, WeightedHarness
+from buttercup.common.sets import FailedToAcquireLock
 from redis import Redis
 
-from buttercup.fuzzing_infra.corpus_merger import MergerBot, BaseCorpus, PartitionedCorpus
-from buttercup.common.datastructures.msg_pb2 import WeightedHarness, BuildOutput
-from buttercup.common.sets import FailedToAcquireLock
-from buttercup.common.constants import ADDRESS_SANITIZER
+from buttercup.fuzzing_infra.corpus_merger import BaseCorpus, MergerBot, PartitionedCorpus
 
 
 class TestMergerBot(unittest.TestCase):
@@ -23,10 +25,15 @@ class TestMergerBot(unittest.TestCase):
         self.max_local_files = 500
 
         # Create the MergerBot instance with mocked runner
-        with patch("buttercup.fuzzing_infra.corpus_merger.Runner") as runner_class_mock:
+        with patch("buttercup.fuzzing_infra.corpus_merger.RunnerProxy") as runner_class_mock:
             runner_class_mock.return_value = self.runner_mock
             self.merger_bot = MergerBot(
-                self.redis_mock, self.timeout_seconds, self.python, self.crs_scratch_dir, self.max_local_files
+                self.redis_mock,
+                self.timeout_seconds,
+                self.python,
+                self.crs_scratch_dir,
+                "/path/to/runner",
+                self.max_local_files,
             )
 
     @patch("buttercup.fuzzing_infra.corpus_merger.Corpus")
@@ -59,7 +66,10 @@ class TestMergerBot(unittest.TestCase):
         # Verify behavior
         corpus_instance.hash_new_corpus.assert_called_once()
         base_corpus_mock.assert_called_once_with(
-            corpus_instance, scratch_dir_mock().__enter__(), scratch_dir_mock().__enter__(), self.max_local_files
+            corpus_instance,
+            scratch_dir_mock().__enter__(),
+            scratch_dir_mock().__enter__(),
+            self.max_local_files,
         )
         base_corpus_instance.partition_corpus.assert_called_once()
 
@@ -71,7 +81,11 @@ class TestMergerBot(unittest.TestCase):
     @patch("buttercup.fuzzing_infra.corpus_merger.node_local.scratch_dir")
     @patch("buttercup.fuzzing_infra.corpus_merger.BaseCorpus")
     def test_run_task_failed_to_acquire_lock(
-        self, base_corpus_mock, scratch_dir_mock, lock_class_mock, corpus_class_mock
+        self,
+        base_corpus_mock,
+        scratch_dir_mock,
+        lock_class_mock,
+        corpus_class_mock,
     ):
         # Setup mocks
         corpus_instance = corpus_class_mock.return_value
@@ -163,7 +177,10 @@ class TestMergerBot(unittest.TestCase):
         # Verify behavior
         corpus_instance.hash_new_corpus.assert_called_once()
         base_corpus_mock.assert_called_once_with(
-            corpus_instance, scratch_dir_mock().__enter__(), scratch_dir_mock().__enter__(), self.max_local_files
+            corpus_instance,
+            scratch_dir_mock().__enter__(),
+            scratch_dir_mock().__enter__(),
+            self.max_local_files,
         )
         base_corpus_instance.partition_corpus.assert_called_once()
 
@@ -183,7 +200,7 @@ class TestMergerBot(unittest.TestCase):
         This test is no longer applicable as the _rehash_files method no longer exists.
         The file hashing functionality is now handled by the Corpus.hash_corpus method.
         """
-        pass  # Skipping test as functionality has been moved to Corpus class
+        # Skipping test as functionality has been moved to Corpus class
 
 
 class TestBaseCorpus(unittest.TestCase):
@@ -195,8 +212,8 @@ class TestBaseCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.basename to extract filename
         basename_mock.side_effect = lambda path: path.split("/")[-1]
@@ -207,14 +224,13 @@ class TestBaseCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif args[0] == local_dir:
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif args[0] == remote_dir:
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
-            else:
-                return "/".join(args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -255,7 +271,8 @@ class TestBaseCorpus(unittest.TestCase):
 
                 # Check that local_only_files and remote_files sets contain the right filenames
                 self.assertEqual(
-                    kwargs.get("local_only_files"), {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+                    kwargs.get("local_only_files"),
+                    {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
                 )
                 self.assertEqual(
                     kwargs.get("remote_files"),
@@ -278,14 +295,20 @@ class TestPartitionedCorpus(unittest.TestCase):
     @patch("os.path.exists")
     @patch("random.shuffle")
     def test_initialization_with_file_limit(
-        self, shuffle_mock, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
+        self,
+        shuffle_mock,
+        path_exists_mock,
+        path_join_mock,
+        shutil_copy_mock,
+        scratch_dir_mock,
+        corpus_mock,
     ):
         """Test that files are shuffled and limited to max_local_files."""
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -294,12 +317,11 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif args[0] == local_dir:
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif args[0] == remote_dir:
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
-            else:
-                return "/".join(args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -344,8 +366,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -356,14 +378,13 @@ class TestPartitionedCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif args[0] == local_dir:
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif args[0] == remote_dir:
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
-            else:
-                return "/".join(args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -417,14 +438,19 @@ class TestPartitionedCorpus(unittest.TestCase):
     @patch("os.path.join")
     @patch("os.path.exists")
     def test_initialization_local_file_missing(
-        self, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
+        self,
+        path_exists_mock,
+        path_join_mock,
+        shutil_copy_mock,
+        scratch_dir_mock,
+        corpus_mock,
     ):
         """Test that local files that cannot be copied are removed from local_only_files."""
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -433,12 +459,11 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif args[0] == local_dir:
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif args[0] == remote_dir:
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
-            else:
-                return "/".join(args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -471,7 +496,8 @@ class TestPartitionedCorpus(unittest.TestCase):
 
         # Verify the missing file was removed from local_only_files
         self.assertEqual(
-            partitioned_corpus.local_only_files, {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+            partitioned_corpus.local_only_files,
+            {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
         )
 
         # The remote files should remain unchanged
@@ -483,15 +509,22 @@ class TestPartitionedCorpus(unittest.TestCase):
     @patch("os.path.join")
     @patch("os.path.exists")
     def test_initialization_remote_file_missing(
-        self, path_exists_mock, path_join_mock, shutil_copy_mock, scratch_dir_mock, corpus_mock
+        self,
+        path_exists_mock,
+        path_join_mock,
+        shutil_copy_mock,
+        scratch_dir_mock,
+        corpus_mock,
     ):
-        """Test that when a file is missing from corpus.path but available in corpus.remote_path, it's copied from remote."""
+        """Test that when a file is missing from corpus.path but available in corpus.remote_path,
+        it's copied from remote.
+        """
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
         corpus_instance.remote_path = "/remote/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock os.path.exists to always return True
         path_exists_mock.return_value = True
@@ -500,27 +533,27 @@ class TestPartitionedCorpus(unittest.TestCase):
         def mock_path_join(*args):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
-            elif args[0] == "/remote/path":
+            if args[0] == "/remote/path":
                 return f"/remote/path/{args[1]}"
-            elif args[0] == local_dir:
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
-            elif args[0] == remote_dir:
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
-            else:
-                return "/".join(args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
         # Mock shutil.copy to fail for the first call to a specific file, then succeed for the second call
 
         def mock_copy(src, dst):
-            # For a specific file in remote_files, fail on first attempt (corpus.path) but succeed on second (corpus.remote_path)
+            # For a specific file in remote_files, fail on first attempt (corpus.path) but succeed on
+            # second (corpus.remote_path)
             if "missing_remote" in src:
                 if "/corpus/path/" in src:
                     raise FileNotFoundError(f"File not found in local corpus: {src}")
                 # Second call with corpus.remote_path should succeed
-                return None
-            return None
+                return
+            return
 
         shutil_copy_mock.side_effect = mock_copy
 
@@ -587,8 +620,8 @@ class TestPartitionedCorpus(unittest.TestCase):
         # Setup mocks
         corpus_instance = corpus_mock.return_value
         corpus_instance.path = "/corpus/path"
-        local_dir = MagicMock()
-        remote_dir = MagicMock()
+        local_dir = Path("/tmp/local_dir")
+        remote_dir = Path("/tmp/remote_dir")
 
         # Mock FinalCorpus to return a known instance
         final_corpus_instance = MagicMock()
@@ -603,14 +636,13 @@ class TestPartitionedCorpus(unittest.TestCase):
             if args[0] == "/corpus/path":
                 return f"/corpus/path/{args[1]}"
             # For local_dir joins
-            elif args[0] == local_dir:
+            if str(args[0]) == "/tmp/local_dir":
                 return f"/tmp/local_dir/{args[1]}"
             # For remote_dir joins
-            elif args[0] == remote_dir:
+            if str(args[0]) == "/tmp/remote_dir":
                 return f"/tmp/remote_dir/{args[1]}"
             # Default
-            else:
-                return "/".join(args)
+            return "/".join(str(arg) for arg in args)
 
         path_join_mock.side_effect = mock_path_join
 
@@ -652,7 +684,7 @@ class TestPartitionedCorpus(unittest.TestCase):
         final_corpus = partitioned_corpus.to_final()
 
         # Verify corpus was hashed
-        corpus_instance.hash_corpus.assert_called_once_with(remote_dir)
+        corpus_instance.hash_corpus.assert_called_once_with("/tmp/remote_dir")
 
         # Verify FinalCorpus was created with the right parameters
         expected_push_remotely = {"c123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
@@ -677,6 +709,8 @@ class TestFinalCorpus(unittest.TestCase):
         # Test data
         push_remotely = {"file1", "file2"}
         delete_locally = {"file3", "file4"}
+        # Save expected files before the call (set is cleared during push_remotely())
+        expected_files = list(push_remotely)
 
         # Create FinalCorpus instance
         final_corpus = FinalCorpus(corpus_instance, push_remotely, delete_locally)
@@ -685,7 +719,9 @@ class TestFinalCorpus(unittest.TestCase):
         result = final_corpus.push_remotely()
 
         # Test that corpus.sync_specific_files_to_remote was called with the right files
-        corpus_instance.sync_specific_files_to_remote.assert_called_once_with(push_remotely)
+        # The code converts the set to a list before calling sync_specific_files_to_remote
+        actual_call_args = corpus_instance.sync_specific_files_to_remote.call_args[0][0]
+        self.assertEqual(sorted(actual_call_args), sorted(expected_files))
 
         # Verify result
         self.assertEqual(result, 2)  # Should return the number of files pushed

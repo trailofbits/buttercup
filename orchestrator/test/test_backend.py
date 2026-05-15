@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, Mock, patch
+
 from buttercup.orchestrator.task_server.backend import get_status_tasks_state
 from buttercup.orchestrator.task_server.models.types import StatusTasksState
 

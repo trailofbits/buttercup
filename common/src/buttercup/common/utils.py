@@ -1,12 +1,13 @@
-import shutil
 import errno
 import logging
 import os
-from typing import Any, Callable
-from pathlib import Path
-from os import PathLike
-import time
+import shutil
 import threading
+import time
+from collections.abc import Callable
+from os import PathLike
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,9 @@ def copyanything(src: PathLike, dst: PathLike, **kwargs: Any) -> None:
     """
     src, dst = Path(src), Path(dst)
     try:
-        shutil.copytree(src, dst, dirs_exist_ok=True, **kwargs)
+        shutil.copytree(src, dst, dirs_exist_ok=True, ignore_dangling_symlinks=True, **kwargs)
+    except shutil.Error:
+        logger.exception(f"Some errors occurred while copying {src} to {dst}, continuing anyway...")
     except OSError as exc:  # python >2.5
         if exc.errno in (errno.ENOTDIR, errno.EINVAL):
             shutil.copy(src, dst)

@@ -1,0 +1,101 @@
+# Pre-commit hooks for Buttercup CRS
+# See https://pre-commit.com for more information
+
+repos:
+  # Standard file fixes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: 'deployment/k8s/.*\.(yaml|yml)$'
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: '(\.proto$|test/data/|tests/data/)'
+      - id: check-toml
+      - id: check-json
+      - id: debug-statements
+
+  # Ruff - Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.0
+    hooks:
+      # Run the formatter first
+      - id: ruff-format
+        types_or: [python, pyi]
+
+      # Then run the linter with auto-fix
+      - id: ruff
+        types_or: [python, pyi]
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # ShellCheck - Shell script linting (all .sh files)
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # shfmt - Shell script formatting (all .sh files)
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        args: [-i, '4', -ci]
+
+  # actionlint - GitHub Actions workflow linting
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.10
+    hooks:
+      - id: actionlint
+
+  # zizmor - GitHub Actions security analysis
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v1.22.0
+    hooks:
+      - id: zizmor
+        args: [--min-severity=low, --min-confidence=medium]
+
+  # hadolint - Dockerfile linting
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.14.0
+    hooks:
+      - id: hadolint
+        args: [--failure-threshold, warning]
+
+  # ty - Astral type checking (local hook)
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type checking
+        entry: >-
+          bash -c 'for dir in common orchestrator fuzzer fuzzer_runner patcher program-model seed-gen; do
+          if [[ "$1" == "$dir/"* ]]; then cd "$dir" && uvx ty check src/; exit $?; fi; done' --
+        language: system
+        types: [python]
+        files: ^(common|orchestrator|fuzzer|fuzzer_runner|patcher|program-model|seed-gen)/src/
+        pass_filenames: true
+
+# Global exclusions for files that should never be checked
+exclude: |
+  (?x)^(
+    external/.*|
+    .*\.pb\.py|
+    .*_pb2\.py|
+    .*_pb2_grpc\.py|
+    .*/\.venv/.*|
+    .*/\.mypy_cache/.*|
+    .*/\.ruff_cache/.*|
+    .*/\.pytest_cache/.*|
+    __pycache__/.*|
+    .*\.egg-info/.*
+  )$
+
+# Configuration
+fail_fast: false
+ci:
+  autofix_prs: true
+  autoupdate_schedule: weekly

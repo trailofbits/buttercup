@@ -1,15 +1,16 @@
+import functools
+import logging
 import os
 from enum import Enum
 from typing import Any
-import requests
-import functools
-from langchain_core.language_models import BaseChatModel
-from langchain_openai.chat_models import ChatOpenAI
-from langfuse.callback import CallbackHandler
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain_core.runnables import ConfigurableField
 
-import logging
+import requests
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import ConfigurableField, Runnable
+from langchain_openai.chat_models import ChatOpenAI
+from langfuse.langchain import CallbackHandler
+from pydantic import SecretStr
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,12 @@ class ButtercupLLM(Enum):
     OPENAI_GPT_4_1_NANO = "openai-gpt-4.1-nano"
     OPENAI_GPT_4_1_MINI = "openai-gpt-4.1-mini"
     OPENAI_GPT_4_1 = "openai-gpt-4.1"
-    CLAUDE_3_5_SONNET = "claude-3.5-sonnet"
     CLAUDE_3_7_SONNET = "claude-3.7-sonnet"
     CLAUDE_4_SONNET = "claude-4-sonnet"
+    CLAUDE_4_5_SONNET = "claude-4.5-sonnet"
+    GEMINI_PRO = "gemini-pro"
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GEMINI_2_5_FLASH_EXP = "gemini-2.5-flash-exp"
 
 
 @functools.cache
@@ -43,7 +47,7 @@ def is_langfuse_available() -> bool:
         return False
     try:
         response = requests.post(f"{langfuse_host}/api/public/ingestion", timeout=2)
-        return bool(response.status_code == 401)  # expect that we aren't authenticated
+        return response.status_code == 401  # expect that we aren't authenticated
     except requests.RequestException:
         return False
 
@@ -62,9 +66,11 @@ def langfuse_auth_check() -> bool:
 
     try:
         response = requests.post(
-            f"{langfuse_host}/api/public/ingestion", timeout=2, auth=(langfuse_public_key, langfuse_secret_key)
+            f"{langfuse_host}/api/public/ingestion",
+            timeout=2,
+            auth=(langfuse_public_key, langfuse_secret_key),
         )
-        return bool(response.status_code == 400)  # expect that we authenticate, but the request is invalid
+        return response.status_code == 400  # expect that we authenticate, but the request is invalid
     except requests.RequestException:
         return False
 
@@ -74,11 +80,7 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     """Get Langchain callbacks for monitoring LLM calls with LangFuse, if available."""
     if is_langfuse_available():
         try:
-            langfuse_handler = CallbackHandler(
-                public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-                secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-                host=os.getenv("LANGFUSE_HOST"),
-            )
+            langfuse_handler = CallbackHandler()
             if langfuse_auth_check():
                 logger.info("Tracing with LangFuse enabled")
                 return [langfuse_handler]
@@ -92,31 +94,41 @@ def get_langfuse_callbacks() -> list[BaseCallbackHandler]:
     return []
 
 
-def create_default_llm(**kwargs: Any) -> BaseChatModel:
+def create_default_llm(**kwargs: Any) -> Runnable:
     """Create an LLM object with the default configuration."""
+    fallback_models = kwargs.pop("fallback_models", [])
+    fallback_models = [create_default_llm(**{**kwargs, "model_name": m.value}) for m in fallback_models]
     return create_llm(
         model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
         temperature=kwargs.pop("temperature", 0.1),
         timeout=420.0,
         max_retries=3,
         **kwargs,
-    )
+    ).with_fallbacks(fallback_models)
 
 
-def create_default_llm_with_temperature(**kwargs: Any) -> BaseChatModel:
+def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
     """Create an LLM object with the default configuration and temperature."""
-    return create_llm(  # type: ignore
-        model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
-        temperature=kwargs.pop("temperature", 0.1),
-        timeout=420.0,
-        max_retries=3,
-        **kwargs,
-    ).configurable_fields(
-        temperature=ConfigurableField(
-            id="llm_temperature",
-            name="LLM temperature",
-            description="The temperature for the LLM model",
-        ),
+    fallback_models = kwargs.pop("fallback_models", [])
+    fallback_models = [
+        create_default_llm_with_temperature(**{**kwargs, "model_name": m.value}) for m in fallback_models
+    ]
+    return (
+        create_llm(
+            model_name=kwargs.pop("model_name", ButtercupLLM.OPENAI_GPT_4_1.value),
+            temperature=kwargs.pop("temperature", 0.1),
+            timeout=420.0,
+            max_retries=3,
+            **kwargs,
+        )
+        .configurable_fields(
+            temperature=ConfigurableField(
+                id="llm_temperature",
+                name="LLM temperature",
+                description="The temperature for the LLM model",
+            ),
+        )
+        .with_fallbacks(fallback_models)
     )
 
 
@@ -124,6 +136,6 @@ def create_llm(**kwargs: Any) -> BaseChatModel:
     """Create an LLM object with the given configuration."""
     return ChatOpenAI(
         openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
-        openai_api_key=os.environ["BUTTERCUP_LITELLM_KEY"],
+        openai_api_key=SecretStr(os.environ["BUTTERCUP_LITELLM_KEY"]),
         **kwargs,
     )

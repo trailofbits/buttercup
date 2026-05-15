@@ -1,36 +1,41 @@
 """Reflection LLM agent, handling the reflection on the patch (e.g. why the
-patch is not working, what can be done to fix it, etc.)"""
+patch is not working, what can be done to fix it, etc.)
+"""
 
 from __future__ import annotations
 
 import logging
-from itertools import groupby
-from pydantic import BaseModel, Field
-from langchain_core.output_parsers import StrOutputParser
-from buttercup.patcher.utils import decode_bytes
 from dataclasses import dataclass, field
-from langgraph.constants import END
-from langgraph.types import Command
+from itertools import groupby
 from typing import Literal
+
+from buttercup.common.llm import ButtercupLLM, create_default_llm
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+)
 from langchain_core.runnables import (
     Runnable,
     RunnableConfig,
 )
+from langgraph.constants import END
+from langgraph.types import Command
+from pydantic import BaseModel, Field
+
 from buttercup.patcher.agents.common import (
-    PatcherAgentState,
-    PatcherAgentName,
-    PatcherAgentBase,
-    PatchStatus,
-    PatchAttempt,
     CodeSnippetRequest,
     PatchAnalysis,
+    PatchAttempt,
+    PatcherAgentBase,
+    PatcherAgentName,
+    PatcherAgentState,
+    PatchStatus,
     PatchStrategy,
 )
 from buttercup.patcher.agents.config import PatcherConfig
-from buttercup.common.llm import ButtercupLLM, create_default_llm
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-)
+from buttercup.patcher.utils import decode_bytes
+
+# ruff: noqa: E501
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +248,7 @@ PROMPT = ChatPromptTemplate.from_messages(
         ("system", SYSTEM_MSG),
         ("user", REFLECTION_PROMPT),
         ("ai", "<analysis_breakdown>"),
-    ]
+    ],
 )
 
 CREATION_FAILED_FAILURE_DATA = """The patch generation component could not generate a \
@@ -360,7 +365,7 @@ CODE_SNIPPET_SUMMARY_TMPL = """<code_snippet>
 class ReflectionResult(BaseModel):
     """Reflection result"""
 
-    failure_reason: str | None = Field(description="Specific reason the patch failed")
+    failure_reason: str | None = Field(None, description="Specific reason the patch failed")
     failure_category: (
         Literal[
             "incomplete_fix",
@@ -377,7 +382,8 @@ class ReflectionResult(BaseModel):
     )
     pattern_identified: str | None = Field(description="Any pattern seen across multiple failures", default=None)
     next_component: PatcherAgentName = Field(
-        description="One of available components", default=PatcherAgentName.ROOT_CAUSE_ANALYSIS
+        description="One of available components",
+        default=PatcherAgentName.ROOT_CAUSE_ANALYSIS,
     )
     component_guidance: str | None = Field(
         description="Specific guidance for the selected component. This should be a concrete suggestion for the next step. Be specific and detailed.",
@@ -392,7 +398,8 @@ class ReflectionResult(BaseModel):
 @dataclass
 class ReflectionAgent(PatcherAgentBase):
     """Reflection LLM agent, handling the reflection on the patch (e.g. why the
-    patch is not working, what can be done to fix it, etc.)"""
+    patch is not working, what can be done to fix it, etc.)
+    """
 
     llm: Runnable = field(init=False)
 
@@ -400,9 +407,7 @@ class ReflectionAgent(PatcherAgentBase):
         """Initialize a few fields"""
         default_llm = create_default_llm(model_name=ButtercupLLM.OPENAI_GPT_4_1.value)
         fallback_llms: list[Runnable] = []
-        for fb_model in [
-            ButtercupLLM.CLAUDE_3_7_SONNET,
-        ]:
+        for fb_model in [ButtercupLLM.CLAUDE_4_5_SONNET, ButtercupLLM.GEMINI_PRO]:
             fallback_llms.append(create_default_llm(model_name=fb_model.value))
 
         self.llm = default_llm.with_fallbacks(fallback_llms)
@@ -462,7 +467,7 @@ class ReflectionAgent(PatcherAgentBase):
         result = result[start:end].strip()
 
         # Extract each field
-        def extract_field(field: str) -> str | list[str] | None:
+        def extract_field(field: str) -> str | None:
             start_tag = f"<{field}>"
             end_tag = f"</{field}>"
             start = result.find(start_tag) + len(start_tag)
@@ -474,12 +479,12 @@ class ReflectionAgent(PatcherAgentBase):
                 return None
             return content
 
-        return ReflectionResult(
+        return ReflectionResult(  # ty doesn't understand field coercion
             failure_reason=extract_field("failure_reason"),
-            failure_category=extract_field("failure_category"),
+            failure_category=extract_field("failure_category"),  # type: ignore[invalid-argument-type]
             pattern_identified=extract_field("pattern_identified"),
-            partial_success=extract_field("partial_success"),
-            next_component=extract_field("next_component"),
+            partial_success=extract_field("partial_success"),  # type: ignore[invalid-argument-type]
+            next_component=extract_field("next_component"),  # type: ignore[invalid-argument-type]
             component_guidance=extract_field("component_guidance"),
         )
 
@@ -504,28 +509,30 @@ class ReflectionAgent(PatcherAgentBase):
     def _get_failure_data(self, state: PatcherAgentState, patch_attempt: PatchAttempt) -> str:
         if patch_attempt.status == PatchStatus.CREATION_FAILED:
             return CREATION_FAILED_FAILURE_DATA
-        elif patch_attempt.status == PatchStatus.DUPLICATED:
+        if patch_attempt.status == PatchStatus.DUPLICATED:
             return DUPLICATED_FAILURE_DATA
-        elif patch_attempt.status == PatchStatus.APPLY_FAILED:
+        if patch_attempt.status == PatchStatus.APPLY_FAILED:
             return APPLY_FAILED_FAILURE_DATA
-        elif patch_attempt.status == PatchStatus.BUILD_FAILED:
+        if patch_attempt.status == PatchStatus.BUILD_FAILED:
             return self._get_build_failure_data(patch_attempt)
-        elif patch_attempt.status == PatchStatus.POV_FAILED:
+        if patch_attempt.status == PatchStatus.POV_FAILED:
             return self._get_pov_failure_data(patch_attempt)
-        elif patch_attempt.status == PatchStatus.TESTS_FAILED:
+        if patch_attempt.status == PatchStatus.TESTS_FAILED:
             return self._get_tests_failure_data(patch_attempt)
-        elif patch_attempt.status == PatchStatus.VALIDATION_FAILED:
+        if patch_attempt.status == PatchStatus.VALIDATION_FAILED:
             return VALIDATION_FAILED_FAILURE_DATA
-        else:
-            logger.warning(
-                "[%s / %s] Patch is pending, we should not be here, let's move back to root cause analysis",
-                state.context.task_id,
-                state.context.internal_patch_id,
-            )
-            return "Unknown failure"
+        logger.warning(
+            "[%s / %s] Patch is pending, we should not be here, let's move back to root cause analysis",
+            state.context.task_id,
+            state.context.internal_patch_id,
+        )
+        return "Unknown failure"
 
     def _get_extra_information(
-        self, state: PatcherAgentState, configuration: PatcherConfig, last_group_status: tuple[PatchStatus, int] | None
+        self,
+        state: PatcherAgentState,
+        configuration: PatcherConfig,
+        last_group_status: tuple[PatchStatus, int] | None,
     ) -> str:
         """Get extra information about the failure."""
         if last_group_status is None or last_group_status[1] < configuration.max_last_failure_retries:
@@ -550,7 +557,10 @@ class ReflectionAgent(PatcherAgentBase):
                 return ""
 
     def _analyze_failure(
-        self, state: PatcherAgentState, configuration: PatcherConfig, patch_attempt: PatchAttempt
+        self,
+        state: PatcherAgentState,
+        configuration: PatcherConfig,
+        patch_attempt: PatchAttempt,
     ) -> Command:
         """Analyze the failure of the patch."""
         if patch_attempt.status == PatchStatus.SUCCESS:
@@ -631,16 +641,16 @@ class ReflectionAgent(PatcherAgentBase):
                                 patch_strategy=attempt.strategy,
                             )
                             for attempt in state.patch_attempts[:-1]
-                        ]
+                        ],
                     ),
                     "AVAILABLE_COMPONENTS": "\n".join(
                         [
                             AVAILABLE_COMPONENT_TMPL.format(name=component_name, description=component_description)
                             for component_name, component_description in self.components
-                        ]
+                        ],
                     ),
                     "EXTRA_INFORMATION": extra_information,
-                }
+                },
             )
         except Exception as e:
             logger.error(
@@ -669,20 +679,19 @@ class ReflectionAgent(PatcherAgentBase):
                     "relevant_code_snippets": state.relevant_code_snippets,
                     "code_snippet_requests": [
                         CodeSnippetRequest(
-                            request=result.component_guidance,
-                        )
+                            request=result.component_guidance or "",
+                        ),
                     ],
                 },
                 goto=PatcherAgentName.CONTEXT_RETRIEVER.value,
             )
-        else:
-            return Command(
-                update={
-                    "patch_attempts": patch_attempt,
-                    "execution_info": execution_info,
-                },
-                goto=result.next_component.value,
-            )
+        return Command(
+            update={
+                "patch_attempts": patch_attempt,
+                "execution_info": execution_info,
+            },
+            goto=result.next_component.value,
+        )
 
     def _root_cause_analysis_failed(self, state: PatcherAgentState, configuration: PatcherConfig) -> Command:
         """Root cause analysis failed, reflect on the failure."""

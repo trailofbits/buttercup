@@ -47,6 +47,8 @@ global:
     host: "https://cloud.langfuse.com"
     publicKey: "pk-lf-..."  # Replace with your actual public key
     secretKey: "sk-lf-..."  # Replace with your actual secret key
+  signoz:
+    deployed: false
   crs:
     api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
     api_key_token: VGuAC8axfOnFXKBB7irpNDOKcDjOlnyB
@@ -79,6 +81,15 @@ global:
       hostPath: /node_data_storage
       type: DirectoryOrCreate
       mountPath: /node_data
+    # Optional tmpfs volume for fuzzing corpus storage (per-node, shared across pods)
+    # When enabled, corpus data is stored in RAM for improved I/O performance
+    corpusTmpfs:
+      enabled: false
+      # /dev/shm is tmpfs by default on Linux - no host setup required
+      hostPath: /dev/shm/buttercup-corpus
+      type: DirectoryOrCreate
+      # Mount path inside containers
+      mountPath: /corpus_tmpfs
 
 # Volume configurations
 volumes:
@@ -95,6 +106,12 @@ volumes:
     storageClass: ""  # Empty string will use cluster default
     size: "10Gi"
     accessMode: ReadWriteMany
+  ui_db:
+    enabled: true
+    # When using AKS, specify the appropriate storage class for ReadWriteMany support
+    storageClass: ""  # Empty string will use cluster default
+    size: "1Gi"
+    accessMode: ReadWriteOnce
 
 
 # Dind daemon chart configuration
@@ -110,6 +127,9 @@ dind-daemon:
 
 # Service-specific configurations
 redis:
+  image:
+    repository: bitnamisecure/redis
+    tag: latest
   auth:
     enabled: false  # Disable authentication for simplicity
   architecture: standalone  # Use single instance instead of cluster
@@ -147,7 +167,7 @@ task-server:
 
 task-downloader:
   enabled: true
-  
+
 scheduler:
   enabled: true
 
@@ -202,23 +222,24 @@ scratch-cleaner:
 litellm-helm:
   # Override the name to ensure it matches our references
   nameOverride: "litellm"
-  
+
   # Number of workers for the LiteLLM service
   replicaCount: 1
-  
+
   # Set the service port
   service:
     port: 4000
-  
+
   # Image pull secrets for all containers (main, init, and PostgreSQL)
   imagePullSecrets:
     - name: ghcr-auth
     - name: docker-auth
-  
+
   # Configure the built-in PostgreSQL with our desired settings
   postgresql:
     enabled: true
     image:
+      repository: bitnamilegacy/postgresql
       tag: "17.2.0"
     auth:
       username: litellm_user
@@ -236,24 +257,19 @@ litellm-helm:
           memory: 256Mi
     readReplicas:
       replicaCount: 0
-  
+
   # Configure database connection properly
   db:
     deployStandalone: true
     endpoint: "buttercup-litellm-postgresql"
     database: "litellm"
     url: "postgresql://litellm_user:litellm_password11@buttercup-litellm-postgresql:5432/litellm"
-  
-  # Environment variables - only keep DATABASE_URL as backup
-  envVars:
-    DATABASE_URL: "postgresql://litellm_user:litellm_password11@buttercup-litellm-postgresql:5432/litellm"
-    # API keys are now provided through Kubernetes secrets
-  
+
   # Use environment secrets for API keys
   # For subcharts, we need to use a static name that will be templated at the parent level
   environmentSecrets:
     - "buttercup-litellm-api-secrets"
-  
+
   # Direct inclusion of the litellm_config.yaml content
   proxy_config:
     model_list:
@@ -347,13 +363,6 @@ litellm-helm:
           tpm: 150000000
           rpm: 30000
 
-      - model_name: claude-3.5-sonnet
-        litellm_params:
-          model: anthropic/claude-3-5-sonnet-20241022
-          api_key: os.environ/ANTHROPIC_API_KEY
-          tpm: 600000
-          rpm: 6250
-
       - model_name: claude-3.7-sonnet
         litellm_params:
           model: anthropic/claude-3-7-sonnet-20250219
@@ -367,6 +376,34 @@ litellm-helm:
           api_key: os.environ/ANTHROPIC_API_KEY
           tpm: 1775000
 
+      - model_name: claude-4.5-sonnet
+        litellm_params:
+          model: anthropic/claude-sonnet-4-5-20250929
+          api_key: os.environ/ANTHROPIC_API_KEY
+          tpm: 1775000
+
+      - model_name: gemini-pro	
+        litellm_params:
+          model: gemini/gemini-pro
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 2000000
+          rpm: 150
+
+      - model_name: gemini-2.5-flash-exp
+        litellm_params:
+          model: gemini/gemini-2.5-flash-exp
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 4000000
+          rpm: 2000
+
+      - model_name: gemini-2.5-flash
+        litellm_params:
+          model: gemini/gemini-2.5-flash
+          api_key: os.environ/GEMINI_API_KEY
+          tpm: 4000000
+          rpm: 2000
+
+
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
       database_url: "postgresql://litellm_user:litellm_password11@buttercup-postgresql:5432/litellm"
@@ -375,3 +412,10 @@ litellm-helm:
 
 restartPolicy: Always
 
+# SigNoz observability platform
+signoz:
+  enabled: false
+  clickhouse:
+    zookeeper:
+      image:
+        repository: bitnamilegacy/zookeeper

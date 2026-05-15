@@ -5,10 +5,10 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.request
-import sys
 from typing import Any, Optional, TextIO
 
 SECONDS = 1
@@ -19,6 +19,20 @@ FULL_SET_DURATION = 24 * HOURS
 DELTA_SET_DURATION = 8 * HOURS
 
 CHALLENGE_MAP = {
+    # OSS-Fuzz only mode examples (no challenge_repo_url needed)
+    "upstream_libpng": {
+        "fuzz_tooling_url": "https://github.com/google/oss-fuzz.git",
+        "fuzz_tooling_ref": "master",
+        "fuzz_tooling_project_name": "libpng",
+        "duration": FULL_SET_DURATION,
+    },
+    "upstream_libxml2": {
+        "fuzz_tooling_url": "https://github.com/google/oss-fuzz.git",
+        "fuzz_tooling_ref": "master",
+        "fuzz_tooling_project_name": "libxml2",
+        "duration": FULL_SET_DURATION,
+    },
+    # Standard challenges with project repo
     "cc_full_01": {
         "challenge_repo_url": "https://github.com/tob-challenges/afc-commons-compress.git",
         "challenge_repo_head_ref": "challenges/cc-full-01",
@@ -321,11 +335,10 @@ CHALLENGE_MAP = {
 
 def print_request(req: urllib.request.Request, file: TextIO = sys.stderr) -> None:
     """Print a request object."""
-
     print(f"{req.get_method()} {req.full_url}", file=file)
 
     headers = dict(req.headers)
-    max_key_len = max(len(k) for k in headers.keys()) if headers else 0
+    max_key_len = max(len(k) for k in headers) if headers else 0
     for key, value in headers.items():
         print(f"{key.ljust(max_key_len)}: {value}", file=file)
 
@@ -354,6 +367,9 @@ def submit_task(task_name: str, **kwargs: Any) -> None:
 
     for key, value in kwargs.items():
         task_data[key] = value
+
+    # Remove None values to let server use defaults
+    task_data = {k: v for k, v in task_data.items() if v is not None}
 
     try:
         url = "http://localhost:31323/webhook/trigger_task"
@@ -748,6 +764,11 @@ def main() -> None:
     """Main function."""
     epilog_text = """
 name = The name of the challenge to run:
+
+OSS-Fuzz only mode (source extracted from container):
+  upstream_libpng | upstream_libxml2
+
+Standard challenges (with project repo):
   cc_full_01 | cc_delta_02 | cc_delta_03
   cu_full_01 | cu_delta_01
   db_full_01

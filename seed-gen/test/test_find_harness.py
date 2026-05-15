@@ -7,13 +7,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from redis import Redis
-
-import buttercup.seed_gen.find_harness
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.maps import FunctionCoverage
 from buttercup.common.task_meta import TaskMeta
 from buttercup.program_model.codequery import CONTAINER_SRC_DIR, CodeQuery
+from redis import Redis
+
+import buttercup.seed_gen.find_harness
 from buttercup.seed_gen.find_harness import (
     find_jazzer_harnesses,
     find_libfuzzer_harnesses,
@@ -254,9 +254,7 @@ def test_find_harnesses_in_oss_fuzz_project(codequery: CodeQuery):
 def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
     """Test getting harness source candidates for C++ project."""
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,9 +286,7 @@ def test_get_harness_source_candidates_cpp(codequery: CodeQuery):
 def test_get_harness_source_cpp(codequery: CodeQuery):
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
     source_path.joinpath("src").mkdir(parents=True, exist_ok=True)
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -374,9 +370,7 @@ def test_get_harness_source_cpp_with_coverage_map(codequery: CodeQuery):
 def test_get_harness_source_candidates_java(codequery: CodeQuery):
     """Test getting harness source candidates for Java project."""
     source_path = codequery.challenge.task_dir / CONTAINER_SRC_DIR
-    project_yaml_path = (
-        codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
-    )
+    project_yaml_path = codequery.challenge.task_dir / "fuzz-tooling/my-oss-fuzz/projects/my-project/project.yaml"
 
     source_path.mkdir(parents=True, exist_ok=True)
     project_yaml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -618,9 +612,10 @@ def curl_oss_fuzz_ct() -> Iterator[ChallengeTask]:
 
 @pytest.fixture(scope="module")
 def curl_oss_fuzz_cq(curl_oss_fuzz_ct: ChallengeTask) -> Iterator[CodeQuery]:
-    yield CodeQuery(challenge=curl_oss_fuzz_ct)
+    return CodeQuery(challenge=curl_oss_fuzz_ct)
 
 
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     harnesses = find_libfuzzer_harnesses(curl_oss_fuzz_cq)
@@ -637,6 +632,7 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     assert "driver.c" in {h.name for h in harnesses}
 
 
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "harness_name,expected_first_match",
@@ -663,12 +659,15 @@ def test_find_harness_in_curl(curl_oss_fuzz_cq: CodeQuery):
     ],
 )
 def test_get_harness_source_candidates_curl(
-    curl_oss_fuzz_cq: CodeQuery, harness_name: str, expected_first_match: str
+    curl_oss_fuzz_cq: CodeQuery,
+    harness_name: str,
+    expected_first_match: str,
 ):
     harnesses = get_harness_source_candidates(curl_oss_fuzz_cq, harness_name)
     assert expected_first_match == harnesses[0].name
 
 
+@pytest.mark.skip(reason="Target not currently publicly available")
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "harness_name,expected_harness_source_path,coverage_map_function_paths",
@@ -770,7 +769,7 @@ def test_get_harness_source(
             FunctionCoverage(
                 function_name="random_name",
                 function_paths=coverage_map_function_paths,
-            )
+            ),
         ]
         coverage_map.return_value = coverage_map_mock
 

@@ -2,7 +2,6 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +19,11 @@ class FunctionBody:
     end_line: int
     """End line of the function in the file (1-based)."""
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Two function bodies are equal if they have the same body and start and end lines."""
         if not isinstance(other, FunctionBody):
             return NotImplemented
-        return (
-            self.body == other.body
-            and self.start_line == other.start_line
-            and self.end_line == other.end_line
-        )
+        return self.body == other.body and self.start_line == other.start_line and self.end_line == other.end_line
 
     def __hash__(self) -> int:
         """Hash based on body and start and end lines."""
@@ -40,7 +35,8 @@ class Function:
     """Class to store function information. This class collects all the bodies
     of a function in a single file. There might be multiple bodies for a single
     function if the function is defined in multiple places in the file (e.g.
-    under #ifdef or overloaded methods)."""
+    under #ifdef or overloaded methods).
+    """
 
     name: str
     """Name of the function."""
@@ -51,7 +47,7 @@ class Function:
     bodies: list[FunctionBody] = field(default_factory=list)
     """List of function bodies."""
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Two functions are equal if they have the same name and file path."""
         if not isinstance(other, Function):
             return NotImplemented
@@ -78,6 +74,7 @@ class Function:
         for b1, b2 in zip(
             sorted(self.bodies, key=lambda x: x.start_line),
             sorted(other.bodies, key=lambda x: x.start_line),
+            strict=False,
         ):
             # If any body differs, functions don't have the same source
             if b1.body != b2.body:
@@ -85,7 +82,6 @@ class Function:
         return True
 
 
-@dataclass
 class TypeDefinitionType(str, Enum):
     """Enum to store type definition type."""
 
@@ -117,8 +113,10 @@ class TypeDefinition:
     file_path: Path
     """Path to the file containing the type definition."""
 
-    def __eq__(self, other: Any) -> bool:
-        """Two type definitions are equal if they have the same name, type, definition, definition line, and file path."""
+    def __eq__(self, other: object) -> bool:
+        """Two type definitions are equal if they have the same
+        name, type, definition, definition line, and file path.
+        """
         if not isinstance(other, TypeDefinition):
             return NotImplemented
         return (
@@ -138,7 +136,7 @@ class TypeDefinition:
                 self.definition,
                 self.definition_line,
                 self.file_path,
-            )
+            ),
         )
 
 
@@ -155,15 +153,11 @@ class TypeUsageInfo:
     line_number: int
     """Line number of the type usage (1-based)."""
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Two type usages are equal if they have the same name, file path, and line number."""
         if not isinstance(other, TypeUsageInfo):
             return NotImplemented
-        return (
-            self.name == other.name
-            and self.file_path == other.file_path
-            and self.line_number == other.line_number
-        )
+        return self.name == other.name and self.file_path == other.file_path and self.line_number == other.line_number
 
     def __hash__(self) -> int:
         """Hash based on name, file path, and line number."""

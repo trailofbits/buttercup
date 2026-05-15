@@ -4,11 +4,8 @@ import random
 import tempfile
 from pathlib import Path
 
-from redis import Redis
-
 from buttercup.common.challenge_task import ChallengeTask
 from buttercup.common.corpus import Corpus, CrashDir
-from buttercup.common.datastructures.aliases import BuildType as BuildTypeHint
 from buttercup.common.datastructures.msg_pb2 import BuildOutput, BuildType, WeightedHarness
 from buttercup.common.default_task_loop import TaskLoop
 from buttercup.common.project_yaml import ProjectYaml
@@ -17,6 +14,8 @@ from buttercup.common.reproduce_multiple import ReproduceMultiple
 from buttercup.common.sarif_store import SARIFStore
 from buttercup.common.stack_parsing import CrashSet
 from buttercup.program_model.codequery import CodeQueryPersistent
+from redis import Redis
+
 from buttercup.seed_gen.function_selector import FunctionSelector
 from buttercup.seed_gen.seed_explore import SeedExploreTask
 from buttercup.seed_gen.seed_init import SeedInitTask
@@ -45,7 +44,7 @@ class SeedGenBot(TaskLoop):
         self,
         redis: Redis,
         timer_seconds: int,
-        wdir: str,
+        wdir: Path,
         max_corpus_seed_size: int,
         max_pov_size: int,
         crash_dir_count_limit: int | None = None,
@@ -62,7 +61,7 @@ class SeedGenBot(TaskLoop):
         self.max_pov_size = max_pov_size
         super().__init__(redis, timer_seconds)
 
-    def required_builds(self) -> list[BuildTypeHint]:
+    def required_builds(self) -> list[BuildType]:
         return [BuildType.FUZZER]
 
     def sample_task(self, task: WeightedHarness, is_delta: bool) -> str:
@@ -76,10 +75,14 @@ class SeedGenBot(TaskLoop):
 
         Returns:
             The selected task name
+
         """
         # Check if seed-init has been run enough times
         seed_init_count = self.task_counter.get_count(
-            task.harness_name, task.package_name, task.task_id, TaskName.SEED_INIT.value
+            task.harness_name,
+            task.package_name,
+            task.task_id,
+            TaskName.SEED_INIT.value,
         )
 
         if seed_init_count < self.MIN_SEED_INIT_RUNS:
@@ -88,12 +91,15 @@ class SeedGenBot(TaskLoop):
 
         # Check if vuln-discovery has been run enough times
         vuln_discovery_count = self.task_counter.get_count(
-            task.harness_name, task.package_name, task.task_id, TaskName.VULN_DISCOVERY.value
+            task.harness_name,
+            task.package_name,
+            task.task_id,
+            TaskName.VULN_DISCOVERY.value,
         )
 
         if vuln_discovery_count < self.MIN_VULN_DISCOVERY_RUNS:
             logger.info(
-                f"vuln-discovery has only been run {vuln_discovery_count} times, forcing task"
+                f"vuln-discovery has only been run {vuln_discovery_count} times, forcing task",
             )
             return TaskName.VULN_DISCOVERY.value
 
@@ -111,12 +117,14 @@ class SeedGenBot(TaskLoop):
                 (TaskName.SEED_EXPLORE.value, self.TASK_SEED_EXPLORE_PROB_FULL),
             ]
 
-        tasks, weights = zip(*task_distribution)
+        tasks, weights = zip(*task_distribution, strict=False)
         result = random.choices(tasks, weights=weights, k=1)
         return str(result[0]) if result else ""
 
     def run_task(
-        self, task: WeightedHarness, builds: dict[BuildTypeHint, list[BuildOutput]]
+        self,
+        task: WeightedHarness,
+        builds: dict[BuildType, list[BuildOutput]],
     ) -> None:
         build_dir = Path(builds[BuildType.FUZZER][0].task_dir)
         ro_challenge_task = ChallengeTask(read_only_task_dir=build_dir)
@@ -125,10 +133,10 @@ class SeedGenBot(TaskLoop):
 
         with (
             tempfile.TemporaryDirectory(dir=self.wdir / task_id, prefix="seedgen-") as temp_dir_str,
-            ro_challenge_task.get_rw_copy(work_dir=temp_dir_str) as challenge_task,
+            ro_challenge_task.get_rw_copy(work_dir=Path(temp_dir_str)) as challenge_task,
         ):
             logger.info(
-                f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}"
+                f"Running seed-gen for {task.harness_name} | {task.package_name} | {task.task_id}",
             )
             temp_dir = Path(temp_dir_str)
             logger.debug(f"Temp dir: {temp_dir}")
@@ -139,13 +147,13 @@ class SeedGenBot(TaskLoop):
 
             logger.info("Initializing codequery")
             try:
-                codequery = CodeQueryPersistent(challenge_task, work_dir=Path(self.wdir))
+                codequery = CodeQueryPersistent(challenge_task, work_dir=self.wdir)
             except Exception as e:
                 logger.exception(f"Failed to initialize codequery: {e}.")
                 return
 
             corp = Corpus(
-                self.wdir,
+                self.wdir.as_posix(),
                 task.task_id,
                 task.harness_name,
                 copy_corpus_max_size=self.max_corpus_seed_size,
@@ -160,7 +168,10 @@ class SeedGenBot(TaskLoop):
 
             # Increment the counter for this task run
             self.task_counter.increment(
-                task.harness_name, task.package_name, task.task_id, task_choice
+                task.harness_name,
+                task.package_name,
+                task.task_id,
+                task_choice,
             )
 
             if task_choice == TaskName.SEED_INIT.value:
@@ -182,7 +193,7 @@ class SeedGenBot(TaskLoop):
                     crash_queue=self.crash_queue,
                     crash_set=self.crash_set,
                     crash_dir=CrashDir(
-                        self.wdir,
+                        self.wdir.as_posix(),
                         task.task_id,
                         task.harness_name,
                         count_limit=self.crash_dir_count_limit,
@@ -239,8 +250,8 @@ class SeedGenBot(TaskLoop):
             else:
                 raise ValueError(f"Unexpected task: {task_choice}")
 
-            copied_files = corp.copy_corpus(out_dir)
+            copied_files = corp.copy_corpus(str(out_dir))
             logger.info("Copied %d files to corpus %s", len(copied_files), corp.corpus_dir)
             logger.info(
-                f"Seed-gen finished for {task.harness_name} | {task.package_name} | {task.task_id}"
+                f"Seed-gen finished for {task.harness_name} | {task.package_name} | {task.task_id}",
             )

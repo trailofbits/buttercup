@@ -28,6 +28,7 @@ else
 fi
 if [ "$TAILSCALE_ENABLED" = "true" ]; then
 	envsubst <k8s/base/tailscale-operator/operator.template >k8s/base/tailscale-operator/operator.yaml
+	envsubst <k8s/base/tailscale-connections/proxies.template >k8s/base/tailscale-connections/proxies.yaml
 fi
 if [ "$(echo "$LANGFUSE_ENABLED" | tr '[:upper:]' '[:lower:]')" = "true" ]; then
 	LANGFUSE_ENABLED="true"
@@ -37,6 +38,7 @@ fi
 
 BUTTERCUP_NAMESPACE=${BUTTERCUP_NAMESPACE:-crs}
 DEPLOY_CLUSTER=${DEPLOY_CLUSTER:-true}
+DEPLOY_SIGNOZ=${DEPLOY_SIGNOZ:-false}
 CLUSTER_TYPE=${CLUSTER_TYPE:-minikube}
 
 if [ "$DEPLOY_CLUSTER" = "true" ] && [ "$CLUSTER_TYPE" = "aks" ]; then
@@ -87,12 +89,32 @@ up() {
 				;;
 			*)
 				echo -e "${BLU}Deploying minikube cluster${NC}"
-				minikube status | grep -q "kubelet: Running" || minikube start --force --extra-config=kubeadm.skip-phases=preflight --cpus=8 --memory=32g --disk-size=80g --driver=docker --kubernetes-version=stable
+				# Minikube defaults
+				MINIKUBE_CPU="${MINIKUBE_CPU:-6}"
+				MINIKUBE_MEMORY_GB="${MINIKUBE_MEMORY_GB:-10}"
+				MINIKUBE_DISK_GB="${MINIKUBE_DISK_GB:-80}"
+
+				echo -e "${BLU}Using Minikube configuration: CPU=${MINIKUBE_CPU}, Memory=${MINIKUBE_MEMORY_GB}GB, Disk=${MINIKUBE_DISK_GB}GB${NC}"
+				minikube status | grep -q "kubelet: Running" || minikube start \
+					--force \
+					--extra-config=kubeadm.skip-phases=preflight \
+					--cpus="${MINIKUBE_CPU}" \
+					--memory="${MINIKUBE_MEMORY_GB}g" \
+					--disk-size="${MINIKUBE_DISK_GB}g" \
+					--driver=docker \
+					--kubernetes-version=stable
 				echo -e "${GRN}Minikube cluster status:${NC}"
 				minikube status
 
+				# Resize /dev/shm inside minikube for corpus tmpfs storage.
+				# Minikube docker driver defaults to 64MB, which is too small for fuzzing corpus data
+				if [ -n "${MINIKUBE_SHM_SIZE_GB:-}" ]; then
+					echo -e "${BLU}Resizing minikube /dev/shm to ${MINIKUBE_SHM_SIZE_GB}G${NC}"
+					docker exec minikube mount -o remount,size="${MINIKUBE_SHM_SIZE_GB}G" /dev/shm
+				fi
+
 				echo -e "${BLU}Building local docker images${NC}"
-				eval $(minikube docker-env)
+				eval "$(minikube docker-env --shell bash)"
 
 				# Authenticate with GitHub Container Registry for Docker builds
 				if [ -n "$GHCR_AUTH" ]; then
@@ -114,15 +136,25 @@ up() {
 				fi
 
 				if [ -n "$FUZZER_BASE_IMAGE" ]; then
+					# Check for aarch64 and append :manifest-arm64v8 to base image if needed
+					if { [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; } && [ "$FUZZER_BASE_IMAGE" = "gcr.io/oss-fuzz-base/base-runner" ]; then
+						FUZZER_BASE_IMAGE="${FUZZER_BASE_IMAGE}:manifest-arm64v8"
+					fi
+
 					FUZZER_BUILD_ARGS="--build-arg BASE_IMAGE=$FUZZER_BASE_IMAGE"
 				else
 					FUZZER_BUILD_ARGS=""
 				fi
 
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $ORCHESTRATOR_BUILD_ARGS -f "$SCRIPT_DIR"/../orchestrator/Dockerfile -t localhost/orchestrator:latest "$SCRIPT_DIR"/..
-				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/dockerfiles/runner_image.Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
+				docker build $FUZZER_BUILD_ARGS -f "$SCRIPT_DIR"/../fuzzer/Dockerfile -t localhost/fuzzer:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $SEED_GEN_BUILD_ARGS -f "$SCRIPT_DIR"/../seed-gen/Dockerfile -t localhost/seed-gen:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $PATCHER_BUILD_ARGS -f "$SCRIPT_DIR"/../patcher/Dockerfile -t localhost/patcher:latest "$SCRIPT_DIR"/..
+				# shellcheck disable=SC2086 # Intentionally unquoted for word splitting
 				docker build $PROGRAM_MODEL_BUILD_ARGS -f "$SCRIPT_DIR"/../program-model/Dockerfile -t localhost/program-model:latest "$SCRIPT_DIR"/..
 				;;
 		esac
@@ -141,7 +173,7 @@ up() {
 		--from-literal=scantron_github_pat="$SCANTRON_GITHUB_PAT" || echo -e "${GRN}ghcr secret already exists${NC}"
 
 	echo -e "${BLU}Creating CRS_INSTANCE_ID${NC}"
-	CRS_INSTANCE_ID=$(echo $RANDOM | md5sum | head -c 20)
+	CRS_INSTANCE_ID=$(echo "$RANDOM" | md5sum | head -c 20)
 	kubectl create configmap crs-instance-id \
 		--namespace "$BUTTERCUP_NAMESPACE" \
 		--from-literal=crs-instance-id="$CRS_INSTANCE_ID" || echo -e "${GRN}crs-instance-id configmap already exists${NC}"
@@ -202,7 +234,7 @@ fi
 	if [ "$TAILSCALE_ENABLED" = "true" ]; then
 		kubectl apply -k k8s/base/tailscale-connections/
 		echo -e "${BLU}Waiting for ingress hostname DNS registration${NC}"
-		timeout 5m bash -c "until kubectl get ingress -n "$BUTTERCUP_NAMESPACE" buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' | grep -q '.'; do sleep 1; done" || echo -e "${BLU}Error: Ingress hostname failed to be to set within 5 minutes${NC}"
+		timeout 5m bash -c 'until kubectl get ingress -n '"$BUTTERCUP_NAMESPACE"' buttercup-task-server -o jsonpath='"'"'{.status.loadBalancer.ingress[0].hostname}'"'"' | grep -q "."; do sleep 1; done' || echo -e "${BLU}Error: Ingress hostname failed to be to set within 5 minutes${NC}"
 		INGRESS_HOSTNAME=$(kubectl get ingress -n "$BUTTERCUP_NAMESPACE" buttercup-task-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 		echo -e "${GRN}Your ingress DNS hostname is $INGRESS_HOSTNAME${NC}"
 	fi
@@ -247,13 +279,20 @@ down-k8s() {
 		esac
 	fi
 	echo -e "${BLU}Deleting Kubernetes resource${NC}"
+	set -x
 	kubectl delete -k k8s/base/tailscale-connections/
 	helm uninstall --wait --namespace "$BUTTERCUP_NAMESPACE" buttercup
+	# Remove finalizers from clickhouse installation as stated in https://signoz.io/docs/operate/kubernetes/#uninstall-signoz
+	# Without this, the namespace would not be deleted
+	kubectl -n "$BUTTERCUP_NAMESPACE" patch clickhouseinstallations.clickhouse.altinity.com/buttercup-clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge
 	kubectl delete -k k8s/base/tailscale-coredns/
 	kubectl delete -k k8s/base/tailscale-dns/
 	kubectl delete -k k8s/base/tailscale-operator/
 	kubectl delete secret ghcr --namespace "$BUTTERCUP_NAMESPACE"
 	kubectl delete namespace "$BUTTERCUP_NAMESPACE"
+	set +x
+	echo -e "${GRN}Cleanup complete.${NC}"
+	echo -e "${BLU}Note: If you plan to redeploy and access SigNoz, clear your browser cookies for http://localhost:33301 to avoid login issues.${NC}"
 	set -e
 }
 

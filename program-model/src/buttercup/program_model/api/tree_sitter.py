@@ -1,20 +1,24 @@
 """TreeSitter based code querying module"""
 
 import logging
+import re
 from dataclasses import dataclass
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
+from typing import Any
+
 from buttercup.common.challenge_task import ChallengeTask
+from buttercup.common.project_yaml import Language, ProjectYaml
+from tree_sitter_language_pack import get_language, get_parser
+
 from buttercup.program_model.utils.common import (
     Function,
     FunctionBody,
     TypeDefinition,
     TypeDefinitionType,
 )
-from tree_sitter_language_pack import get_language, get_parser
-from buttercup.common.project_yaml import ProjectYaml, Language
-import re
-from typing import Any
+
+# ruff: noqa: W291
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +68,29 @@ QUERY_STR_C = """
 # 3. Captures the macro call with @macro.call
 # 4. Captures the function body (compound_statement) with @function.body
 # 5. Captures the entire function definition with @function.definition
+
+QUERY_STR_CPP = """
+(function_definition
+  declarator: [
+      (_declarator (function_declarator declarator: (identifier) @function.name))
+      (function_declarator declarator: (identifier) @function.name)
+      (function_declarator (field_identifier) @function.name)
+      (function_declarator (qualified_identifier (identifier) @function.name))
+  ]
+  body: (compound_statement) @function.body
+) @function.definition
+"""
+# This query matches C++ function definitions:
+# 1. Matches function_definition nodes (both free functions and class/struct methods)
+# 2. Looks for declarators that can be either:
+#    - A nested _declarator with function_declarator and identifier (for complex declarations)
+#    - A direct function_declarator with identifier (for simple declarations)
+#    - A direct function_declarator with field_identifier (for class/struct methods)
+#    - A direct function_declarator with qualified_identifier (for qualified function names like Class::method)
+# 3. Captures the function name with @function.name
+# 4. Captures the function body (compound_statement) with @function.body
+# 5. Captures the entire function definition with @function.definition
+
 
 QUERY_STR_JAVA = """
 (method_declaration
@@ -137,6 +164,62 @@ QUERY_STR_TYPES_C = """
 #    - name captured with @type.name
 #    - value captured with @type.value
 # 6. preproc_function_def - Matches preprocessor function definitions with:
+#    - name captured with @type.name
+#    - value captured with @type.value
+
+QUERY_STR_TYPES_CPP = """
+(
+[
+  (class_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list)) @type.definition
+
+  (struct_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list)) @type.definition
+
+  (union_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list)) @type.definition
+
+  (enum_specifier
+    name: (type_identifier) @type.name
+    body: (enumerator_list)) @type.definition
+
+  (type_definition
+    type: (type_specifier) @type.original_type
+    declarator: (_) @type.name) @type.definition
+
+  (preproc_def
+    (identifier) @type.name
+    (preproc_arg)? @type.value) @type.definition
+
+  (preproc_function_def
+    (identifier) @type.name
+    (preproc_arg)? @type.value) @type.definition
+]
+)
+"""
+# This query matches C++ type definitions:
+# 1. class_specifier - Matches class definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 2. struct_specifier - Matches struct definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 3. union_specifier - Matches union definitions with:
+#    - name captured with @type.name
+#    - body containing field declarations
+# 4. enum_specifier - Matches enum definitions with:
+#    - name captured with @type.name
+#    - body containing enumerator list
+# 5. type_definition - Matches typedef statements with:
+#    - original type captured with @type.original_type
+#    - new type name captured with @type.name
+# 6. preproc_def - Matches preprocessor type definitions with:
+#    - name captured with @type.name
+#    - value captured with @type.value
+# 7. preproc_function_def - Matches preprocessor function definitions with:
 #    - name captured with @type.name
 #    - value captured with @type.value
 
@@ -228,14 +311,18 @@ class CodeTS:
 
     def __post_init__(self) -> None:
         """Initialize the CodeTS object."""
-        self.project_yaml = ProjectYaml(
-            self.challenge_task, self.challenge_task.task_meta.project_name
-        )
+        self.project_yaml = ProjectYaml(self.challenge_task, self.challenge_task.task_meta.project_name)
         if self.project_yaml.unified_language == Language.C:
             self.parser = get_parser("c")
             self.language = get_language("c")
             query_str = QUERY_STR_C
             types_query_str = QUERY_STR_TYPES_C
+            query_class_members = None
+        elif self.project_yaml.unified_language == Language.CPP:
+            self.parser = get_parser("cpp")
+            self.language = get_language("cpp")
+            query_str = QUERY_STR_CPP
+            types_query_str = QUERY_STR_TYPES_CPP
             query_class_members = None
         elif self.project_yaml.unified_language == Language.JAVA:
             self.parser = get_parser("java")
@@ -252,42 +339,30 @@ class CodeTS:
         try:
             self.query = self.language.query(query_str)
             self.query_types = self.language.query(types_query_str)
-            self.query_class_members = (
-                self.language.query(query_class_members)
-                if query_class_members
-                else None
-            )
+            self.query_class_members = self.language.query(query_class_members) if query_class_members else None
         except Exception:
             raise ValueError("Query string is invalid")
 
         self.preprocess_keywords = ["ifdef", "ifndef", "if", "else", "elif", "endif"]
-        self.preprocess_regex = [
-            r"^#\s*{kw}\s*".format(kw=kw) for kw in self.preprocess_keywords
-        ]
+        self.preprocess_regex = [rf"^#\s*{kw}\s*" for kw in self.preprocess_keywords]
 
     def get_functions(self, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a file and return a dictionary of function names/body"""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
-        return self.get_functions_in_code(code, file_path)
+        return self.get_functions_in_code(code, file_path)  # type: ignore[call-arg]
 
     def _get_code_no_preproc(self, code: bytes) -> bytes:
         """Remove preprocessor directives from the code"""
         return (b"\n").join(
             [
-                x
-                if not any(
-                    re.match(pattern, x.decode()) for pattern in self.preprocess_regex
-                )
-                else b"/" * len(x)
+                x if not any(re.match(pattern, x.decode()) for pattern in self.preprocess_regex) else b"/" * len(x)
                 for x in code.splitlines()
-            ]
+            ],
         )
 
-    def get_functions_in_code(
-        self, code: bytes, file_path: Path
-    ) -> dict[str, Function]:
+    def get_functions_in_code(self, code: bytes, file_path: Path) -> dict[str, Function]:
         """Parse the functions in a piece of code and return a dictionary of function names/body"""
-        if self.project_yaml.unified_language == Language.C:
+        if self.project_yaml.unified_language in [Language.C, Language.CPP]:
             code_no_preproc = self._get_code_no_preproc(code)
             tree = self.parser.parse(code_no_preproc)
         else:
@@ -314,16 +389,11 @@ class CodeTS:
             function_name = code[name_node.start_byte : name_node.end_byte]
             function_definition = definition_node
             start_body = function_definition
-            if (
-                start_body.prev_named_sibling
-                and start_body.prev_named_sibling.type == "comment"
-            ):
+            if start_body.prev_named_sibling and start_body.prev_named_sibling.type == "comment":
                 start_body = start_body.prev_named_sibling
 
             function_body_start = start_body.start_byte
-            while function_body_start > 0 and code[function_body_start - 1] != ord(
-                "\n"
-            ):
+            while function_body_start > 0 and code[function_body_start - 1] != ord("\n"):
                 function_body_start -= 1
 
             function_body_end = function_definition.end_byte
@@ -331,9 +401,7 @@ class CodeTS:
                 function_body_end = body_node.end_byte
 
             # find the end of the line for the function body
-            while function_body_end < len(code) and code[function_body_end] != ord(
-                "\n"
-            ):
+            while function_body_end < len(code) and code[function_body_end] != ord("\n"):
                 function_body_end += 1
 
             # Convert start and end points to 1-based line numbers.
@@ -370,12 +438,15 @@ class CodeTS:
         return functions.get(function_name)
 
     def parse_types_in_code(
-        self, file_path: Path, typename: str | None = None, fuzzy: bool | None = False
+        self,
+        file_path: Path,
+        typename: str | None = None,
+        fuzzy: bool | None = False,
     ) -> dict[str, TypeDefinition]:
         """Parse the definition of a type in a piece of code."""
         code = self.challenge_task.task_dir.joinpath(file_path).read_bytes()
 
-        if self.project_yaml.unified_language == Language.C:
+        if self.project_yaml.unified_language in [Language.C, Language.CPP]:
             code_no_preproc = self._get_code_no_preproc(code)
             tree = self.parser.parse(code_no_preproc)
         else:
@@ -438,14 +509,14 @@ class CodeTS:
                 type_def_type = TypeDefinitionType.PREPROC_TYPE
             elif definition_node.type == "preproc_function_def":
                 type_def_type = TypeDefinitionType.PREPROC_FUNCTION
-            elif definition_node.type == "class_declaration":
-                type_def_type = TypeDefinitionType.CLASS
-            elif definition_node.type == "interface_declaration":
+            elif (
+                definition_node.type == "class_declaration"
+                or definition_node.type == "interface_declaration"
+                or definition_node.type == "class_specifier"
+            ):
                 type_def_type = TypeDefinitionType.CLASS
             else:
-                logger.debug(
-                    f"Unknown type definition node type: {definition_node.type}"
-                )
+                logger.debug(f"Unknown type definition node type: {definition_node.type}")
                 continue  # Skip this define as it doesn't look like a type
 
             res[name] = TypeDefinition(
@@ -462,14 +533,14 @@ class CodeTS:
         return res
 
     def find_node_and_ancestors(self, code: bytes, target_name: str) -> None:
-        """
-        Used for debugging.
+        """Used for debugging.
 
         Recursively walk the tree to find a node and print its ancestors.
 
         Args:
             code: The code to parse
             target_name: The name of the node to find
+
         """
         tree = self.parser.parse(code)
         root_node = tree.root_node
@@ -496,9 +567,7 @@ class CodeTS:
                     # Print grandparent's siblings
                     siblings = grandparent.parent.children
                     for sibling in siblings:
-                        logger.debug(
-                            "Sibling    : %s - %s", sibling.type, sibling.text.decode()
-                        )
+                        logger.debug("Sibling    : %s - %s", sibling.type, sibling.text.decode())
                         # Print sibling's children
                         for child in sibling.children:
                             logger.debug(
@@ -539,12 +608,8 @@ class CodeTS:
 
         walk(root_node)
 
-    def get_field_type_name(
-        self, type_definition: bytes, field_name: str
-    ) -> str | None:
-        """
-        Get the type of a field of a type definition
-        """
+    def get_field_type_name(self, type_definition: bytes, field_name: str) -> str | None:
+        """Get the type of a field of a type definition"""
         if self.query_class_members is None:
             return None
         self.parser.parse(type_definition)
@@ -561,12 +626,8 @@ class CodeTS:
                 continue
         return None
 
-    def get_method_return_type_name(
-        self, type_definition: bytes, method_name: str
-    ) -> str | None:
-        """
-        Get the return type of a method of a type definition
-        """
+    def get_method_return_type_name(self, type_definition: bytes, method_name: str) -> str | None:
+        """Get the return type of a method of a type definition"""
         if self.query_class_members is None:
             return None
         self.parser.parse(type_definition)

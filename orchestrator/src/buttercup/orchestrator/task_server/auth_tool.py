@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-CLI tool for generating API keys and tokens for the CRS Task Server.
+"""CLI tool for generating API keys and tokens for the CRS Task Server.
 
 This tool generates UUID-based key IDs and secure tokens that can be used for authentication
 with the CRS Task Server. The tokens are hashed using Argon2id for secure storage.
@@ -11,13 +10,11 @@ import secrets
 import string
 import sys
 import uuid
-from typing import Tuple
 
 from argon2 import PasswordHasher, Type
 from rich import print as rprint
 from rich.console import Console
 from rich.table import Table
-
 
 # Create password hasher with Argon2id settings matching the server configuration
 ph = PasswordHasher(
@@ -35,35 +32,35 @@ TOKEN_LENGTH = 32
 
 
 def generate_token(length: int = TOKEN_LENGTH) -> str:
-    """
-    Generate a secure random token.
+    """Generate a secure random token.
 
     Args:
         length: Length of the token to generate
 
     Returns:
         A secure random token string
+
     """
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def generate_key_id() -> str:
-    """
-    Generate a UUID-based key ID.
+    """Generate a UUID-based key ID.
 
     Returns:
         A UUID string to be used as key ID
+
     """
     return str(uuid.uuid4())
 
 
-def generate_api_key() -> Tuple[str, str, str]:
-    """
-    Generate a complete API key (key ID and token) with hash.
+def generate_api_key() -> tuple[str, str, str]:
+    """Generate a complete API key (key ID and token) with hash.
 
     Returns:
         Tuple containing (key_id, token, token_hash)
+
     """
     key_id = generate_key_id()
     token = generate_token()
@@ -73,8 +70,7 @@ def generate_api_key() -> Tuple[str, str, str]:
 
 
 def format_for_env(key_id: str, token_hash: str) -> str:
-    """
-    Format a key ID and token hash for use in the CRS_API_TOKENS environment variable.
+    """Format a key ID and token hash for use in the CRS_API_TOKENS environment variable.
 
     Args:
         key_id: The key ID
@@ -82,29 +78,40 @@ def format_for_env(key_id: str, token_hash: str) -> str:
 
     Returns:
         A formatted string for the environment variable
+
     """
     return f"{key_id}:{token_hash}"
 
 
 def print_api_key_info(key_id: str, token: str, token_hash: str, env_format: bool = False) -> None:
-    """
-    Print API key information in a readable format.
+    """Print API key information in a readable format.
 
     Args:
         key_id: The key ID
         token: The plaintext token
         token_hash: The hashed token
         env_format: Whether to print in environment variable format
+
     """
     console = Console()
 
     if env_format:
-        rprint("[bold]Environment Variables:[/bold]")
-        rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_KEY_ID[/yellow]={key_id}")
-        rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_TOKEN_HASH[/yellow]={token_hash}")
-        rprint("\n[bold]Client Authentication:[/bold]")
-        rprint(f"[green]API_KEY_ID[/green]={key_id}")
-        rprint(f"[green]API_TOKEN[/green]={token}")
+        # Use Rich formatting only when outputting to a TTY; plain text when piped
+        # Rich's rprint() can truncate output when not connected to a TTY
+        if sys.stdout.isatty():
+            rprint("[bold]Environment Variables:[/bold]")
+            rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_KEY_ID[/yellow]={key_id}")
+            rprint(f"[yellow]BUTTERCUP_TASK_SERVER_API_TOKEN_HASH[/yellow]={token_hash}")
+            rprint("\n[bold]Client Authentication:[/bold]")
+            rprint(f"[green]API_KEY_ID[/green]={key_id}")
+            rprint(f"[green]API_TOKEN[/green]={token}")
+        else:
+            print("Environment Variables:")
+            print(f"BUTTERCUP_TASK_SERVER_API_KEY_ID={key_id}")
+            print(f"BUTTERCUP_TASK_SERVER_API_TOKEN_HASH={token_hash}")
+            print("\nClient Authentication:")
+            print(f"API_KEY_ID={key_id}")
+            print(f"API_TOKEN={token}")
     else:
         table = Table(title="API Key Information")
         table.add_column("Field", style="cyan")
@@ -120,11 +127,11 @@ def print_api_key_info(key_id: str, token: str, token_hash: str, env_format: boo
 
 
 def main() -> int:
-    """
-    Main entry point for the CLI tool.
+    """Main entry point for the CLI tool.
 
     Returns:
         Exit code (0 for success, non-zero for error)
+
     """
     parser = argparse.ArgumentParser(description="Generate API keys and tokens for the CRS Task Server")
     parser.add_argument("--env", action="store_true", help="Format output as environment variables")

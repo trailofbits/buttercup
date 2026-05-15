@@ -6,16 +6,16 @@ readme = "README.md"
 authors = [
     { name = "Trail of Bits", email = "opensource@trailofbits.com" },
 ]
+license = "AGPL-3.0-only"
 dependencies = [
-    "redis ~= 5.2.1",
-    "common",
-    "wasmtime ~= 29.0.0",
+    "common[full]",
+    "redis ~=5.2.1",
+    "wasmtime ~=29.0.0",
     "program-model",
-    "numpy ~= 2.2.3",
-    "rapidfuzz ~= 3.12.2",
-    "langgraph ~= 0.5.2",
-    "langchain ~= 0.3.20",
-    "python-dotenv>=1.0.1",
+    "numpy ~=2.2.3",
+    "rapidfuzz ~=3.12.2",
+    "langgraph ~=1.0.10",
+    "python-dotenv~=1.2.2",
 ]
 requires-python = ">=3.12,<3.13"
 
@@ -30,14 +30,24 @@ packages = ["src/buttercup"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "mypy ~= 1.15.0",
-    "pytest ~= 8.3.4",
-    "ruff ~= 0.6.2",
-    "tqdm ~= 4.67.1",
-    "types-redis",
+    # Testing tools
+    "pytest ~=9.0.3",
+    "pytest-cov ~=6.0.0",
+    "pytest-asyncio ~=1.3.0",
+    # Linting and type checking
+    "ruff ~=0.14.0",
+    "ty",  # Astral type checker (replaces mypy)
+    # Type stubs
+    "types-redis ~=4.6.0",
+    # Additional tools
+    "tqdm ~=4.67.1",
 ]
+
+[project.urls]
+Repository = "https://github.com/trailofbits/buttercup"
+Issues = "https://github.com/trailofbits/buttercup/issues"
 
 [project.scripts]
 "seed-gen" = "buttercup.seed_gen._cli:main"
@@ -46,48 +56,36 @@ dev = [
 # don't attempt code coverage for the CLI entrypoints
 omit = ["src/seed_gen/_cli.py"]
 
-[tool.mypy]
-plugins = ["pydantic.mypy"]
-mypy_path = "src"
-packages = "buttercup"
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-show_error_codes = true
-sqlite_cache = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = true
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Explicitly include src directory
+include = ["src"]
+
+[tool.ty.rules]
+unresolved-import = "error"
+unresolved-attribute = "error"
 
 [tool.ruff]
-line-length = 100
-include = ["src/**/*.py", "test/**/*.py", "eval/**/*.py"]
+line-length = 120
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]
-# D203 and D213 are incompatible with D211 and D212 respectively.
-# COM812 and ISC001 can cause conflicts when using ruff as a formatter.
-# See https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules.
-ignore = ["D203", "D213", "COM812", "ISC001"]
+ignore = [
+    "COM812", "ISC001",  # Formatter conflicts
+]
 
 [tool.ruff.lint.per-file-ignores]
-"src/seed_gen/_cli.py" = [
-    "T201", # allow `print` in cli module
-]
-"test/**/*.py" = [
-    "D",    # no docstrings in tests
-    "S101", # asserts are expected in tests
-]
+"src/seed_gen/_cli.py" = ["T201"]  # Allow print in CLI modules
+"test/**/*.py" = ["S101", "D"]  # Allow asserts, no docstrings in tests
 [tool.interrogate]
 # don't enforce documentation coverage for packaging, testing, the virtual
 # environment, or the CLI (which is documented separately).
 exclude = ["env", "test", "src/seed_gen/_cli.py"]
 ignore-semiprivate = true
 fail-under = 100
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

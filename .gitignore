@@ -14,6 +14,7 @@ errored.tfstate
 deployment/k8s/values-*.yaml
 deployment/k8s/base/tailscale-coredns/coredns-custom.yaml
 deployment/k8s/base/tailscale-operator/operator.yaml
+deployment/k8s/base/tailscale-connections/proxies.yaml
 
 ## Python
 __pycache__/
@@ -41,6 +42,14 @@ dist/
 pdm.lock
 .langchain.db
 
+# Mypy type checking cache
+.mypy_cache/
+**/.mypy_cache/
+
+# Hypothesis property-based testing cache
+.hypothesis/
+**/.hypothesis/
+
 *.bak
 *.orig
 
@@ -50,3 +59,10 @@ common/common/datastructures/fuzzer_msg*
 crs_scratch/*
 tasks_storage/*
 node_data_storage/*
+
+# Serena runtime files (keep .serena/project.yml tracked)
+.serena/memories/
+.serena/*.log
+
+# WASM runtimes (downloaded for seed-gen sandbox tests)
+.wasm/

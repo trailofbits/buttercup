@@ -1,23 +1,18 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
+from pathlib import Path
 from typing import Annotated
 
-
-class Config:
-    cli_parse_args = True
-    nested_model_default_partial_update = True
-    env_nested_delimiter = "__"
-    extra = "allow"
-    env_prefix = "BUTTERCUP_FUZZER_"
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ButtercupBaseSettings(BaseSettings):
-    class Config:
-        cli_parse_args = True
-        nested_model_default_partial_update = True
-        env_nested_delimiter = "__"
-        extra = "allow"
-        env_prefix = "BUTTERCUP_FUZZER_"
+    model_config = SettingsConfigDict(
+        cli_parse_args=True,
+        nested_model_default_partial_update=True,
+        env_nested_delimiter="__",
+        extra="allow",
+        env_prefix="BUTTERCUP_FUZZER_",
+    )
 
 
 class BuilderSettings(ButtercupBaseSettings):
@@ -43,6 +38,7 @@ class FuzzerBotSettings(WorkerSettings):
     crash_dir_count_limit: Annotated[int, Field(default=0)]
     max_local_files: Annotated[int, Field(default=500)]
     max_pov_size: Annotated[int, Field(default=2 * 1024 * 1024)]  # 2 MiB
+    runner_path: Path
 
 
 class CoverageBotSettings(WorkerSettings, BuilderSettings):

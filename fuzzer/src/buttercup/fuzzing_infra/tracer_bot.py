@@ -1,17 +1,18 @@
+import logging
+import os
+from pathlib import Path
+
+from buttercup.common import node_local, stack_parsing
+from buttercup.common.datastructures.msg_pb2 import TracedCrash
+from buttercup.common.logger import setup_package_logger
+from buttercup.common.queues import GroupNames, QueueFactory, QueueNames
+from buttercup.common.task_registry import TaskRegistry
+from buttercup.common.telemetry import init_telemetry
+from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
+from redis import Redis
+
 from buttercup.fuzzing_infra.settings import TracerSettings
 from buttercup.fuzzing_infra.tracer_runner import TracerRunner
-from buttercup.common.logger import setup_package_logger
-import os
-import logging
-from redis import Redis
-from buttercup.common.queues import QueueFactory, QueueNames, GroupNames
-from buttercup.common.datastructures.msg_pb2 import TracedCrash
-from buttercup.common.task_registry import TaskRegistry
-from pathlib import Path
-from buttercup.common import stack_parsing
-from buttercup.common.utils import serve_loop, setup_periodic_zombie_reaper
-import buttercup.common.node_local as node_local
-from buttercup.common.telemetry import init_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class TracerBot:
             logger.warning(f"No tracer info found for {item.deserialized.target.task_id}")
             return True
 
-        if tinfo.is_valid:
+        if tinfo.is_valid and tinfo.stacktrace is not None:
             logger.info(f"Valid tracer info found for {item.deserialized.target.task_id}")
             prsed = stack_parsing.parse_stacktrace(tinfo.stacktrace)
             output = prsed.crash_stacktrace
@@ -68,19 +69,19 @@ class TracerBot:
                 TracedCrash(
                     crash=item.deserialized,
                     tracer_stacktrace=ntrace,
-                )
+                ),
             )
 
         logger.info(f"Acknowledging tracer request for {item.deserialized.target.task_id}")
         self.queue.ack_item(item.item_id)
         return True
 
-    def run(self):
+    def run(self) -> None:
         serve_loop(self.serve_item, self.seconds_sleep)
 
 
-def main():
-    args = TracerSettings()
+def main() -> None:
+    args = TracerSettings()  # type: ignore[missing-argument]
 
     setup_package_logger("tracer-bot", __name__, "DEBUG", None)
     init_telemetry("tracer-bot")

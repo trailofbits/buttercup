@@ -1,19 +1,20 @@
-import pytest
-from typing import Generator
-from uuid import uuid4
 import time
-from fastapi.testclient import TestClient
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
+import pytest
 from fastapi.encoders import jsonable_encoder
+from fastapi.testclient import TestClient
+
+from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
 from buttercup.orchestrator.task_server.models.types import (
-    Task,
-    TaskDetail,
     SourceDetail,
     SourceType,
+    Task,
+    TaskDetail,
     TaskType,
 )
-from buttercup.orchestrator.competition_api_client.models.types_ping_response import TypesPingResponse
-
 
 # Patch at module level before any other imports
 monkeypatch = pytest.MonkeyPatch()
@@ -41,8 +42,8 @@ class TestSettings:
 settings = TestSettings()
 monkeypatch.setattr("buttercup.orchestrator.task_server.dependencies.get_settings", lambda: settings)
 
+from buttercup.orchestrator.task_server.dependencies import get_delete_task_queue, get_task_queue  # noqa: E402
 from buttercup.orchestrator.task_server.server import app  # noqa: E402
-from buttercup.orchestrator.task_server.dependencies import get_task_queue, get_delete_task_queue  # noqa: E402
 
 # Create mock queue and override FastAPI dependency
 mock_tasks_queue = MagicMock()
@@ -103,7 +104,7 @@ def test_post_task_unauthorized(client: TestClient) -> None:
                 source=[SourceDetail(sha256="test_sha256", type=SourceType.SourceTypeRepo, url="test_url")],
                 task_id=str(uuid4()),
                 type=TaskType.TaskTypeFull,
-            )
+            ),
         ],
     )
     response = client.post("/v1/task/", json=jsonable_encoder(task))
@@ -137,7 +138,7 @@ def test_post_task_authorized(client: TestClient) -> None:
                 ],
                 task_id=str(uuid4()),
                 type=TaskType.TaskTypeFull,
-            )
+            ),
         ],
     )
     response = client.post("/v1/task/", json=jsonable_encoder(task), auth=(settings.api_key_id, settings.api_token))

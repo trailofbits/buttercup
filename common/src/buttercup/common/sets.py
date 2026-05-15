@@ -1,12 +1,12 @@
-from typing import Iterator
+import json
+import random
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
+from functools import lru_cache
+
+from bson.json_util import CANONICAL_JSON_OPTIONS, dumps
 from redis import Redis
 from redis.exceptions import ResponseError
-from bson.json_util import dumps, CANONICAL_JSON_OPTIONS
-from contextlib import contextmanager
-import random
-import json
-from functools import lru_cache
-from typing import Generator
 
 # Import POVReproduceRequest for the refactored PoVReproduceStatus
 from buttercup.common.datastructures.msg_pb2 import POVReproduceRequest, POVReproduceResponse
@@ -64,7 +64,7 @@ class RedisLock:
     @contextmanager
     def acquire(self) -> Generator[None, None, None]:
         if not self.redis.set(self.key, "1", ex=self.lock_timeout_seconds, nx=True):
-            raise FailedToAcquireLock()
+            raise FailedToAcquireLock
         try:
             yield
         finally:
@@ -116,6 +116,7 @@ class PoVReproduceStatus:
 
         Returns:
             False if mitigated (didn't crash), True if non-mitigated (did crash), None if not in final states
+
         """
         pipeline = self.redis.pipeline()
         pipeline.sismember(POV_REPRODUCE_MITIGATED_SET_NAME, key)
@@ -124,10 +125,9 @@ class PoVReproduceStatus:
 
         if result[0]:
             return False  # Mitigated - didn't crash
-        elif result[1]:
+        if result[1]:
             return True  # Non-mitigated - did crash
-        else:
-            return None  # Not in final states
+        return None  # Not in final states
 
     def _make_key(self, request: POVReproduceRequest) -> str:
         """Create a unique key from a POVReproduceRequest by serializing it to string."""
@@ -144,6 +144,7 @@ class PoVReproduceStatus:
 
         Returns:
             None if pending, POVReproduceResponse if completed
+
         """
         key = self._make_key(request)
 
@@ -161,13 +162,13 @@ class PoVReproduceStatus:
 
         if result[0]:
             return None  # Pending
-        elif result[1]:
+        if result[1]:
             return POVReproduceResponse(request=request, did_crash=False)  # Completed and mitigated
-        elif result[2]:
+        if result[2]:
             return POVReproduceResponse(request=request, did_crash=True)  # Completed and not mitigated
-        else:  # First time, schedule it for testing
-            self.redis.sadd(POV_REPRODUCE_PENDING_SET_NAME, key)
-            return None
+        # First time, schedule it for testing
+        self.redis.sadd(POV_REPRODUCE_PENDING_SET_NAME, key)
+        return None
 
     def mark_mitigated(self, request: POVReproduceRequest) -> bool:
         """Mark a POV reproduction as mitigated (patch successfully prevented the crash).
@@ -177,6 +178,7 @@ class PoVReproduceStatus:
 
         Returns:
             True if the item was moved from pending to mitigated, False if item wasn't pending.
+
         """
         key = self._make_key(request)
         moved_count = self.redis.smove(POV_REPRODUCE_PENDING_SET_NAME, POV_REPRODUCE_MITIGATED_SET_NAME, key)
@@ -190,6 +192,7 @@ class PoVReproduceStatus:
 
         Returns:
             True if the item was moved from pending to non-mitigated, False if item wasn't pending.
+
         """
         key = self._make_key(request)
         moved_count = self.redis.smove(POV_REPRODUCE_PENDING_SET_NAME, POV_REPRODUCE_NON_MITIGATED_SET_NAME, key)
@@ -203,6 +206,7 @@ class PoVReproduceStatus:
 
         Returns:
             True if the item was moved from pending to expired, False if item wasn't pending.
+
         """
         # NOTE: This function isn't strictly needed. We could just have keys expire after a certain time.
         # However, this allows us to track which items have expired.
@@ -215,6 +219,7 @@ class PoVReproduceStatus:
 
         Returns:
             POVReproduceRequest if one is available, None otherwise
+
         """
         pending_set = self.redis.smembers(POV_REPRODUCE_PENDING_SET_NAME)
         if len(pending_set) == 0:
