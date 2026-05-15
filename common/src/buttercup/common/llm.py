@@ -133,9 +133,17 @@ def create_default_llm_with_temperature(**kwargs: Any) -> Runnable:
 
 
 def create_llm(**kwargs: Any) -> BaseChatModel:
-    """Create an LLM object with the given configuration."""
+    """Create an LLM object with the given configuration.
+
+    Prefer ``LITELLM_API_KEY`` (the per-deployment budgeted virtual key created
+    by litellm-user-keys-setup / the k8s key Job) over ``BUTTERCUP_LITELLM_KEY``.
+    ``BUTTERCUP_LITELLM_KEY`` is the litellm *master* key, which bypasses all
+    budget/rate enforcement, so using it directly makes ``LITELLM_MAX_BUDGET``
+    ineffective. Fall back to it only when no budgeted key is provided.
+    """
+    api_key = os.environ.get("LITELLM_API_KEY") or os.environ["BUTTERCUP_LITELLM_KEY"]
     return ChatOpenAI(
         openai_api_base=os.environ["BUTTERCUP_LITELLM_HOSTNAME"],
-        openai_api_key=SecretStr(os.environ["BUTTERCUP_LITELLM_KEY"]),
+        openai_api_key=SecretStr(api_key),
         **kwargs,
     )
