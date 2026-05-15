@@ -1,0 +1,54 @@
+# Overlay for compose.yaml that pulls the prebuilt component images from GHCR
+# instead of building them locally. It only overrides the services that have a
+# `build:` block, resetting it and pointing at the published image.
+#
+# Usage (from dev/docker-compose):
+#   docker compose -f compose.yaml -f compose.prebuilt.yaml up -d
+#
+# Override the image tag (defaults to "main"):
+#   BUTTERCUP_IMAGE_TAG=<branch-or-tag> docker compose -f compose.yaml -f compose.prebuilt.yaml up -d
+
+services:
+  program-model:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-program-model:${BUTTERCUP_IMAGE_TAG:-main}
+
+  coverage-bot:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-fuzzer:${BUTTERCUP_IMAGE_TAG:-main}
+
+  build-bot:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-fuzzer:${BUTTERCUP_IMAGE_TAG:-main}
+
+  tracer-bot:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-fuzzer:${BUTTERCUP_IMAGE_TAG:-main}
+
+  fuzzer-bot:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-fuzzer:${BUTTERCUP_IMAGE_TAG:-main}
+
+  task-downloader:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-orchestrator:${BUTTERCUP_IMAGE_TAG:-main}
+
+  task-server:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-orchestrator:${BUTTERCUP_IMAGE_TAG:-main}
+
+  scheduler:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-orchestrator:${BUTTERCUP_IMAGE_TAG:-main}
+
+  seed-gen:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-seed-gen:${BUTTERCUP_IMAGE_TAG:-main}
+
+  patcher:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-patcher:${BUTTERCUP_IMAGE_TAG:-main}
+
+  buttercup-ui:
+    build: !reset null
+    image: ghcr.io/trailofbits/buttercup/buttercup-orchestrator:${BUTTERCUP_IMAGE_TAG:-main}
