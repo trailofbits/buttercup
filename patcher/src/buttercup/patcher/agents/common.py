@@ -434,8 +434,8 @@ def _create_understand_code_snippet_chain() -> Runnable:
     return (
         UNDERSTAND_CODE_SNIPPET_PROMPT
         | create_default_llm_with_temperature(
-            model_name=ButtercupLLM.OPENAI_GPT_4_1.value,
-            fallback_models=[ButtercupLLM.CLAUDE_4_5_SONNET, ButtercupLLM.GEMINI_PRO],
+            model_name=ButtercupLLM.OPENAI_GPT_5_5.value,
+            fallback_models=[ButtercupLLM.CLAUDE_4_6_SONNET, ButtercupLLM.GEMINI_PRO],
         )
         | StrOutputParser()
     )
