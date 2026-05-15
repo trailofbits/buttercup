@@ -155,8 +155,29 @@ if [[ "$provider_keys_set" -eq 0 ]]; then
     exit 1
 fi
 
-# If keys are missing, leave them at the placeholder so litellm still loads the
-# config (some models will fail at request time, others will succeed).
+# Read a value already present in the existing .env. Used so that variables
+# not provided via the environment (e.g. LANGFUSE_*) are preserved across runs
+# instead of being clobbered with empty/placeholder values, since this script
+# regenerates .env from scratch on every run.
+prev_env() {
+    [[ -f "$ENV_FILE" ]] || return 0
+    sed -n "s/^$1=//p" "$ENV_FILE" | head -n1
+}
+
+# 1) Prefer the environment; 2) fall back to whatever is already in .env.
+: "${ANTHROPIC_API_KEY:=$(prev_env ANTHROPIC_API_KEY)}"
+: "${OPENAI_API_KEY:=$(prev_env OPENAI_API_KEY)}"
+: "${GEMINI_API_KEY:=$(prev_env GEMINI_API_KEY)}"
+: "${AZURE_API_BASE:=$(prev_env AZURE_API_BASE)}"
+: "${AZURE_API_KEY:=$(prev_env AZURE_API_KEY)}"
+: "${BUTTERCUP_LITELLM_KEY:=$(prev_env BUTTERCUP_LITELLM_KEY)}"
+: "${LANGFUSE_HOST:=$(prev_env LANGFUSE_HOST)}"
+: "${LANGFUSE_PUBLIC_KEY:=$(prev_env LANGFUSE_PUBLIC_KEY)}"
+: "${LANGFUSE_SECRET_KEY:=$(prev_env LANGFUSE_SECRET_KEY)}"
+
+# 3) Final placeholders if still unset after both env and .env. Keys left at
+# the placeholder so litellm still loads its config (some models will fail at
+# request time, others will succeed). LANGFUSE_* stay empty (telemetry off).
 : "${ANTHROPIC_API_KEY:=<INSERT_KEY>}"
 : "${OPENAI_API_KEY:=<INSERT_KEY>}"
 : "${GEMINI_API_KEY:=<INSERT_KEY>}"
