@@ -1,14 +1,16 @@
 ---
 description: Run a Docker-only end-to-end smoke test of Buttercup against example-libpng with a low LLM budget, and monitor the pipeline.
-argument-hint: "[--budget N] [--task-duration SEC] [--keep-up] [--no-build] [--skip-wait] [--sarif]"
+argument-hint: "[--budget N] [--task-duration SEC] [--image-tag TAG] [--keep-up] [--no-pull] [--skip-wait] [--sarif]"
 allowed-tools: Bash(./scripts/e2e.sh:*), Bash(make e2e*), Bash(docker compose:*), Bash(cd dev/docker-compose && docker compose:*), Read
 ---
 
 # /e2e — Docker-only end-to-end Buttercup run (example-libpng)
 
-This command exercises the full Buttercup pipeline on the [example-libpng](https://github.com/tob-challenges/example-libpng) challenge **using Docker only — no Kubernetes/minikube**. It uses the `dev/docker-compose/` stack and a low LiteLLM budget (default **$3**), so an accidental run is cheap.
+This command exercises the full Buttercup pipeline on the [example-libpng](https://github.com/tob-challenges/example-libpng) challenge **using Docker only — no Kubernetes/minikube**. It uses the `dev/docker-compose/` stack with the **`compose.prebuilt.yaml` overlay** — every component runs from its prebuilt GHCR image (`ghcr.io/trailofbits/buttercup/*`, tag `main` by default), so **nothing is built locally**. A low LiteLLM budget (default **$3**) keeps an accidental run cheap.
 
-> **Host requirement:** x86_64. The fuzzer / patcher / seed-gen images build on `gcr.io/oss-fuzz-base/base-runner`, which is amd64-only. On aarch64 the build will fail with `exec format error` unless you install `qemu-user-static` + `binfmt` and set `DOCKER_DEFAULT_PLATFORM=linux/amd64` (and even then everything runs ~10× slower under emulation).
+> **Image tag:** defaults to `main`. Override with `--image-tag <branch-or-tag>` or `BUTTERCUP_IMAGE_TAG=...` to test a specific build. Private images require `docker login ghcr.io` first.
+>
+> **Host requirement:** x86_64. The prebuilt fuzzer / patcher / seed-gen images are based on `gcr.io/oss-fuzz-base/base-runner`, which is amd64-only. On aarch64 they only run under `qemu-user-static` + `binfmt` with `DOCKER_DEFAULT_PLATFORM=linux/amd64` (and ~10× slower).
 
 Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails `docker compose logs` instead of `kubectl logs`.
 
@@ -16,7 +18,7 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
 
 1. Checks for `docker`, `docker compose`, `curl`, and at least one LLM provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`) in your env.
 2. Writes `dev/docker-compose/.env` with the provider keys and `LITELLM_MAX_BUDGET=$BUDGET` (default `3`).
-3. Builds and starts every service in `dev/docker-compose/compose.yaml` (redis, dind, litellm, task-server, task-downloader, scheduler, program-model, build-bot, fuzzer-bot, coverage-bot, tracer-bot, seed-gen, patcher, buttercup-ui).
+3. Pulls the prebuilt component images (`docker compose -f compose.yaml -f compose.prebuilt.yaml pull`, skippable with `--no-pull`) and starts every service (redis, dind, litellm, task-server, task-downloader, scheduler, program-model, build-bot, fuzzer-bot, coverage-bot, tracer-bot, seed-gen, patcher, buttercup-ui). No local image build.
 4. POSTs the canned libpng `trigger_task` payload to `http://localhost:31323/webhook/trigger_task`.
 5. Waits, in order, for these scheduler/seed-gen log markers (timeout configurable per phase):
    - `Processing build output for type FUZZER` — fuzzer build done

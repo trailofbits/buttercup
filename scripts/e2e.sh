@@ -2,6 +2,10 @@
 # scripts/e2e.sh — Run the full Buttercup pipeline against example-libpng using
 # the dev docker-compose stack (no Kubernetes required).
 #
+# Uses the prebuilt component images published to GHCR (via the
+# compose.prebuilt.yaml overlay) instead of building them locally, so a run
+# does not depend on a working local image build.
+#
 # This mirrors the milestones checked by .github/workflows/system-integration.yml
 # but reads docker-compose logs instead of `kubectl logs`.
 
@@ -27,7 +31,10 @@ PATCH_TIMEOUT="${E2E_PATCH_TIMEOUT:-1800}"
 BUNDLE_TIMEOUT="${E2E_BUNDLE_TIMEOUT:-300}"
 SEED_GEN_TIMEOUT="${E2E_SEED_GEN_TIMEOUT:-1800}"
 
-DO_BUILD=1
+# Prebuilt GHCR images instead of local builds (compose.prebuilt.yaml overlay).
+IMAGE_TAG="${BUTTERCUP_IMAGE_TAG:-main}"
+
+DO_PULL=1
 DO_TEARDOWN=1
 SKIP_WAIT=0
 TASK_JSON=""    # if set, used instead of the canned libpng payload
@@ -66,7 +73,9 @@ Options:
   --budget DOLLARS          LiteLLM per-user max budget (default: $BUDGET)
   --task-duration SECONDS   How long the CRS should fuzz (default: $TASK_DURATION)
   --task-json FILE          Custom trigger_task payload (default: example-libpng)
-  --no-build                Skip 'docker compose build' (use existing images)
+  --image-tag TAG           Prebuilt GHCR image tag to run (default: $IMAGE_TAG)
+  --no-pull                 Skip 'docker compose pull' (use already-pulled images)
+  --no-build                Deprecated alias for --no-pull (no local build happens)
   --keep-up                 Don't tear the stack down on exit (for debugging)
   --skip-wait               Bring the stack up and submit the task, but don't
                             block waiting on milestones (returns immediately)
@@ -84,6 +93,7 @@ Required environment (at least one provider key, plus litellm master key):
   BUTTERCUP_LITELLM_KEY  (optional, defaults to sk-1234 for local runs)
 
 Optional:
+  BUTTERCUP_IMAGE_TAG  Prebuilt GHCR image tag (default: main; same as --image-tag)
   LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
 
 The script writes ${ENV_FILE} from the values above each run.
@@ -99,7 +109,9 @@ while [[ $# -gt 0 ]]; do
         --budget)            BUDGET="$2"; shift 2 ;;
         --task-duration)     TASK_DURATION="$2"; shift 2 ;;
         --task-json)         TASK_JSON="$(cat "$2")"; shift 2 ;;
-        --no-build)          DO_BUILD=0; shift ;;
+        --image-tag)         IMAGE_TAG="$2"; shift 2 ;;
+        --no-pull)           DO_PULL=0; shift ;;
+        --no-build)          DO_PULL=0; shift ;;   # deprecated alias
         --keep-up)           DO_TEARDOWN=0; shift ;;
         --skip-wait)         SKIP_WAIT=1; shift ;;
         --sarif)             SARIF_RUN=1; shift ;;
@@ -179,8 +191,12 @@ log "Writing ${ENV_FILE} (LITELLM_MAX_BUDGET=\$${BUDGET})"
 ###############################################################################
 
 # Always run compose from the compose dir so relative includes resolve.
+# The compose.prebuilt.yaml overlay swaps every locally-built service for its
+# prebuilt GHCR image, so nothing is built locally.
 dc() {
-    (cd "$COMPOSE_DIR" && docker compose "$@")
+    (cd "$COMPOSE_DIR" \
+        && BUTTERCUP_IMAGE_TAG="$IMAGE_TAG" \
+           docker compose -f compose.yaml -f compose.prebuilt.yaml "$@")
 }
 
 teardown() {
@@ -188,7 +204,7 @@ teardown() {
         log "Tearing the stack down (docker compose down -v)"
         dc down -v --remove-orphans || true
     else
-        warn "Leaving the stack up (--keep-up). Tear down with: cd ${COMPOSE_DIR} && docker compose down -v"
+        warn "Leaving the stack up (--keep-up). Tear down with: cd ${COMPOSE_DIR} && docker compose -f compose.yaml -f compose.prebuilt.yaml down -v"
     fi
 }
 
@@ -206,13 +222,13 @@ trap on_exit EXIT INT TERM
 # Bring the stack up
 ###############################################################################
 
-if [[ "$DO_BUILD" -eq 1 ]]; then
-    log "Building docker compose images (this can take a while the first time)"
-    if ! dc build; then
-        err "docker compose build failed. On non-x86_64 hosts this usually means an"
-        err "image (e.g. fuzzer/Dockerfile -> gcr.io/oss-fuzz-base/base-runner) is amd64-only."
-        err "Inspect the build output above; retry on an x86_64 host, or install"
-        err "qemu-user-static + binfmt and re-run with DOCKER_DEFAULT_PLATFORM=linux/amd64."
+if [[ "$DO_PULL" -eq 1 ]]; then
+    log "Pulling prebuilt component images from GHCR (tag: ${IMAGE_TAG})"
+    if ! dc pull; then
+        err "docker compose pull failed for tag '${IMAGE_TAG}'."
+        err "Check that the tag exists at ghcr.io/trailofbits/buttercup/* and that"
+        err "you can reach GHCR (private images need 'docker login ghcr.io')."
+        err "Override with --image-tag <branch-or-tag> or BUTTERCUP_IMAGE_TAG=..."
         exit 1
     fi
 fi
