@@ -347,12 +347,12 @@ class SWEAgent(PatcherAgentBase):
             "max_tokens": 20000,
         }
         self.default_llm = create_default_llm_with_temperature(
-            model_name=ButtercupLLM.OPENAI_GPT_4_1.value,
+            model_name=ButtercupLLM.OPENAI_GPT_5_5.value,
             **kwargs,
         )
         fallback_llms: list[Runnable] = []
         for fb_model in [
-            ButtercupLLM.CLAUDE_4_5_SONNET,
+            ButtercupLLM.CLAUDE_4_6_SONNET,
             ButtercupLLM.GEMINI_PRO,
         ]:
             fallback_llms.append(create_default_llm_with_temperature(model_name=fb_model.value, **kwargs))

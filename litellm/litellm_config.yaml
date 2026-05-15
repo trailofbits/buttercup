@@ -93,6 +93,9 @@ model_list:
     litellm_params:
       model: openai/gpt-5.4-mini
       api_key: os.environ/OPENAI_API_KEY
+      # GPT-5.x reasoning models only accept temperature=1; this pinned litellm
+      # (1.57.8) doesn't know these new names, so drop temperature explicitly.
+      additional_drop_params: ["temperature"]
       tpm: 150000000
       rpm: 30000
 
@@ -100,6 +103,7 @@ model_list:
     litellm_params:
       model: openai/gpt-5.4
       api_key: os.environ/OPENAI_API_KEY
+      additional_drop_params: ["temperature"]
       tpm: 30000000
       rpm: 10000
 
@@ -107,6 +111,7 @@ model_list:
     litellm_params:
       model: openai/gpt-5.5
       api_key: os.environ/OPENAI_API_KEY
+      additional_drop_params: ["temperature"]
       tpm: 30000000
       rpm: 10000
 
@@ -176,3 +181,9 @@ model_list:
 
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY
+
+litellm_settings:
+  # GPT-5.x reasoning models only accept the default temperature (1) and reject
+  # the temperature=0.1/0.3 the codebase sends. drop_params makes litellm strip
+  # unsupported params instead of returning HTTP 400.
+  drop_params: true
