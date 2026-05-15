@@ -357,30 +357,45 @@ capture_line() {
 declare -a SUMMARY=()
 record() { SUMMARY+=("$1"); }
 
-wait_for scheduler \
+if wait_for scheduler \
     "Processing build output for type FUZZER" \
-    "$BUILD_TIMEOUT" "fuzzer build processed" \
-    && record "fuzzer-build: ok" || record "fuzzer-build: TIMEOUT"
+    "$BUILD_TIMEOUT" "fuzzer build processed"; then
+    record "fuzzer-build: ok"
+else
+    record "fuzzer-build: TIMEOUT"
+fi
 
-wait_for scheduler \
+if wait_for scheduler \
     "POV submission response: pov_id=" \
-    "$VULN_TIMEOUT" "vulnerability (POV) submitted" \
-    && record "pov-submit: ok" || record "pov-submit: TIMEOUT"
+    "$VULN_TIMEOUT" "vulnerability (POV) submitted"; then
+    record "pov-submit: ok"
+else
+    record "pov-submit: TIMEOUT"
+fi
 
-wait_for scheduler \
+if wait_for scheduler \
     "Updated POV status. New status PASSED" \
-    "$VULN_TIMEOUT" "POV accepted by competition API" \
-    && record "pov-passed: ok" || record "pov-passed: TIMEOUT"
+    "$VULN_TIMEOUT" "POV accepted by competition API"; then
+    record "pov-passed: ok"
+else
+    record "pov-passed: TIMEOUT"
+fi
 
-wait_for seed-gen \
+if wait_for seed-gen \
     "Copied [1-9][0-9]* files to corpus" \
-    "$SEED_GEN_TIMEOUT" "seed-gen produced seeds" \
-    && record "seed-gen: ok" || record "seed-gen: TIMEOUT"
+    "$SEED_GEN_TIMEOUT" "seed-gen produced seeds"; then
+    record "seed-gen: ok"
+else
+    record "seed-gen: TIMEOUT"
+fi
 
-wait_for scheduler \
+if wait_for scheduler \
     "Appending patch for task" \
-    "$PATCH_TIMEOUT" "patch generated" \
-    && record "patch-generated: ok" || record "patch-generated: TIMEOUT"
+    "$PATCH_TIMEOUT" "patch generated"; then
+    record "patch-generated: ok"
+else
+    record "patch-generated: TIMEOUT"
+fi
 
 # Approve the patch (the local UI requires explicit approval, unlike scored
 # rounds where it is automatic).
@@ -391,9 +406,13 @@ if [[ -n "$PATCH_LINE" ]]; then
     TASK_ID=$(printf '%s' "$PATCH_LINE" | sed -n 's/.*\[\([^]]*\)\].*/\1/p' | sed 's/^[^:]*://')
     if [[ -n "$PATCH_ID" && -n "$TASK_ID" ]]; then
         log "Approving patch ${C_DIM}task=${TASK_ID} patch=${PATCH_ID}${C_RST}"
-        curl -fsS -X POST \
+        if curl -fsS -X POST \
             "http://127.0.0.1:31323/v1/task/${TASK_ID}/patch/${PATCH_ID}/approve" \
-            >/dev/null && record "patch-approve: ok" || record "patch-approve: HTTP fail"
+            >/dev/null; then
+            record "patch-approve: ok"
+        else
+            record "patch-approve: HTTP fail"
+        fi
     else
         warn "Could not extract patch/task ids from: $PATCH_LINE"
         record "patch-approve: skipped (parse fail)"
@@ -403,15 +422,21 @@ else
     record "patch-approve: skipped (no patch line)"
 fi
 
-wait_for scheduler \
+if wait_for scheduler \
     "Patch passed" \
-    "$PATCH_TIMEOUT" "patch accepted by competition API" \
-    && record "patch-passed: ok" || record "patch-passed: TIMEOUT"
+    "$PATCH_TIMEOUT" "patch accepted by competition API"; then
+    record "patch-passed: ok"
+else
+    record "patch-passed: TIMEOUT"
+fi
 
-wait_for scheduler \
+if wait_for scheduler \
     "Bundle submission response: bundle_id=" \
-    "$BUNDLE_TIMEOUT" "bundle submitted" \
-    && record "bundle-submit: ok" || record "bundle-submit: TIMEOUT"
+    "$BUNDLE_TIMEOUT" "bundle submitted"; then
+    record "bundle-submit: ok"
+else
+    record "bundle-submit: TIMEOUT"
+fi
 
 if [[ "$SARIF_RUN" -eq 1 ]]; then
     SARIF_TASK_ID="${TASK_ID:-}"
@@ -428,10 +453,13 @@ if [[ "$SARIF_RUN" -eq 1 ]]; then
         else
             record "sarif-send: HTTP fail"
         fi
-        wait_for scheduler \
+        if wait_for scheduler \
             "Matching SARIF submission response" \
-            "$BUNDLE_TIMEOUT" "SARIF accepted" \
-            && record "sarif-passed: ok" || record "sarif-passed: TIMEOUT"
+            "$BUNDLE_TIMEOUT" "SARIF accepted"; then
+            record "sarif-passed: ok"
+        else
+            record "sarif-passed: TIMEOUT"
+        fi
     else
         record "sarif: skipped (no task id)"
     fi
