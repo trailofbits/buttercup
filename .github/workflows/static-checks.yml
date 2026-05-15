@@ -40,6 +40,9 @@ jobs:
           python3 -c "
           import yaml
           from pathlib import Path
+          # Docker Compose merge tags are valid in compose files but unknown to safe_load
+          for _t in ('!reset', '!override'):
+              yaml.SafeLoader.add_constructor(_t, lambda loader, node: None)
           for f in Path('.').rglob('*.yaml'):
               if 'deployment/k8s' not in str(f):
                   list(yaml.safe_load_all(f.read_text()))
