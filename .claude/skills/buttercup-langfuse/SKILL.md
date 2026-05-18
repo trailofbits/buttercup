@@ -16,7 +16,7 @@ Tracing is always optional at runtime: if the env vars are unset or the host is 
 - Defined in `common/src/buttercup/common/llm.py`
 - `@functools.cache`d — cheap to call repeatedly, but the auth/connectivity probe runs only once per process
 - Returns `[]` when Langfuse is disabled, misconfigured, or unreachable
-- Internally: checks `LANGFUSE_HOST`, then `langfuse_auth_check()` against `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY`, then constructs `langfuse.langchain.CallbackHandler()`
+- Internally: runs `is_langfuse_available()` (checks `LANGFUSE_HOST`, then HTTP-probes `/api/public/ingestion`), constructs `langfuse.langchain.CallbackHandler()`, then verifies credentials via `langfuse_auth_check()`
 
 Do **not** instantiate `CallbackHandler` directly or read the env vars yourself. Always go through `get_langfuse_callbacks()`.
 
@@ -88,7 +88,7 @@ Where they're set:
   - Injected into pods via the `buttercup.env.langfuse` helper in `deployment/k8s/templates/common-env.yaml`
   - A new component's Deployment template must include that helper to get traces
 
-Python dependency: `langfuse ~=4.0.1`, declared in `common/pyproject.toml`. Provided transitively to anything that depends on `common` — do not pin it independently in another component.
+Python dependency: `langfuse ~=4.0.1`, declared under `[project.optional-dependencies] full` in `common/pyproject.toml`. Provided via the `[full]` extra of `common`. Components that emit traces depend on `common[full]` (as patcher and seed-gen already do). Don't pin `langfuse` independently — re-use the extra.
 
 ## Debugging "I don't see traces"
 
@@ -103,7 +103,7 @@ Walk the chain top-to-bottom; the first failing step short-circuits everything d
 
 ## What NOT to do
 
-- Don't add a new `langfuse` direct dependency in a sibling component's `pyproject.toml` — it's already provided via `common`.
+- Don't add a new `langfuse` direct dependency in a sibling component's `pyproject.toml` — depend on `common[full]` instead (as patcher and seed-gen do) to pull it in via the extra.
 - Don't gate code paths on `is_langfuse_available()` — the empty-callback-list pattern already makes Langfuse a no-op when disabled.
 - Don't pass the callback list into individual `llm.invoke()` calls when there's a parent chain — attach at the highest reasonable scope (the compiled workflow) so child runs nest correctly in the Langfuse UI.
 - Don't conflate Langfuse with OpenTelemetry. They coexist: Langfuse for LLM trace nesting/prompt inspection, OTel (`buttercup.common.telemetry`) for system-level spans. `seed_explore.py` shows both wrapped around the same `chain.invoke(...)`.
