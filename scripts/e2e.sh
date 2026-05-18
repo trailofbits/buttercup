@@ -329,8 +329,15 @@ wait_for() {
 
     while [[ $(date +%s) -lt $deadline ]]; do
         # --no-color so the grep matches plain text; --tail=all replays history.
-        if dc logs --no-color --no-log-prefix --tail=all "$service" 2>/dev/null \
-            | grep -m1 -E "$pattern" >/dev/null; then
+        # NOTE: capture into a var with `|| true` instead of `if cmd | grep`.
+        # Under `set -o pipefail`, `grep -m1` exits on the first match and the
+        # upstream `docker compose logs` then dies with SIGPIPE (rc 141), which
+        # would make the whole pipeline "fail" and the milestone never register
+        # for high-volume services whose match is early in the stream.
+        local match
+        match="$(dc logs --no-color --no-log-prefix --tail=all "$service" 2>/dev/null \
+            | grep -m1 -E "$pattern" || true)"
+        if [[ -n "$match" ]]; then
             ok "Reached: ${label}"
             return 0
         fi
