@@ -73,17 +73,41 @@ install_docker() {
     fi
     
     # Install buildx plugin (required for deploy target)
-    print_status "Installing Docker buildx plugin..."
-    sudo apt install -y docker-buildx-plugin
-    print_success "Docker buildx plugin installed"
+    if docker buildx version >/dev/null 2>&1; then
+        print_success "Docker buildx plugin is already installed"
+    else
+        print_status "Installing Docker buildx plugin..."
+        # Package name differs by source: Docker's official apt repo ships
+        # `docker-buildx-plugin`, while Ubuntu's repos ship `docker-buildx`.
+        if apt-cache show docker-buildx-plugin >/dev/null 2>&1; then
+            sudo apt install -y docker-buildx-plugin
+        else
+            sudo apt install -y docker-buildx
+        fi
+        print_success "Docker buildx plugin installed"
+    fi
 }
 
 install_uv() {
     print_status "Installing uv..."
     if ! command_exists uv; then
         curl -fsSL https://astral.sh/uv/install.sh | sh
-        print_status "Sourcing uv environment..."
-        source "$HOME/.local/bin/env"
+        print_status "Loading uv into PATH..."
+        # Newer uv installers drop a helper at $HOME/.local/bin/env; older
+        # ones do not. Source it when present and always ensure the install
+        # dir is on PATH so the freshly-installed binary is reachable.
+        if [ -f "$HOME/.local/bin/env" ]; then
+            # shellcheck disable=SC1091
+            source "$HOME/.local/bin/env"
+        fi
+        case ":$PATH:" in
+            *":$HOME/.local/bin:"*) ;;
+            *) export PATH="$HOME/.local/bin:$PATH" ;;
+        esac
+        if ! command_exists uv; then
+            print_error "uv install completed but 'uv' is not on PATH"
+            return 1
+        fi
         print_success "uv installed successfully"
     else
         print_success "uv is already installed"

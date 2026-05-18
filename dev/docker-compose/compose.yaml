@@ -312,7 +312,7 @@ services:
       dockerfile: ./orchestrator/Dockerfile
     command: ["buttercup-ui"]
     ports:
-      - "127.0.0.1:31323:1323"
+      - "127.0.0.1:31323:31323"
     env_file:
       - env.dev.compose
       - .env
