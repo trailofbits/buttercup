@@ -2,10 +2,9 @@ ARG BASE_IMAGE=ubuntu:24.04
 
 # hadolint ignore=DL3006
 FROM $BASE_IMAGE AS base
+# Ubuntu 24.04 (noble) ships python3.12 in the default archive, so the
+# deadsnakes PPA / software-properties-common is unnecessary here.
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-    && apt-get install -y --no-install-recommends software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates python3.12 curl \
     && rm -rf /var/lib/apt/lists/*
 RUN for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do DEBIAN_FRONTEND=noninteractive apt-get remove $pkg; done || true
