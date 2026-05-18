@@ -35,6 +35,7 @@ BUTTERCUP_IMAGE_TAG=<branch-or-tag> docker compose -f compose.yaml -f compose.pr
 - `env.template` - Template for environment variables (copy to `.env` and customize)
 - `env.dev.compose` - Development-specific environment configuration
 - `compose.yaml` - Main compose file with all services
+- `compose.prebuilt.yaml` - Overlay that pulls prebuilt GHCR images instead of building locally
 
 ## Notes
 
