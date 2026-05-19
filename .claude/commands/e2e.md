@@ -22,13 +22,13 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
 4. POSTs the canned libpng `trigger_task` payload to `http://localhost:31323/webhook/trigger_task`.
 5. Waits, in order, for these scheduler/seed-gen log markers:
    - `Processing build output for type FUZZER` — fuzzer build done
-   - `POV submission response: pov_id=` — vulnerability found and POV submitted
+   - `pov_id=` — vulnerability found and POV submitted
    - `Updated POV status. New status PASSED` — POV accepted by competition API
    - `Copied N files to corpus` — seed-gen produced seeds
    - `Appending patch for task` — patch generated
    - approves the patch via `POST /v1/task/<task_id>/patch/<patch_id>/approve`
    - `Patch passed` — patch accepted
-   - `Bundle submission response: bundle_id=` — bundle submitted
+   - `bundle_id=` — bundle submitted
 6. Prints a colored summary and tears the stack down with `docker compose down -v`.
 
 ## Run it

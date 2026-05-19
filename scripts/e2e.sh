@@ -339,8 +339,11 @@ else
     record "fuzzer-build: TIMEOUT"
 fi
 
+# NOTE: match the structured summary line (`[i:task] pov_id=<id> ...`,
+# logger.info), NOT the "POV submission response:" debug line whose payload is
+# an API object repr that never contains a literal `pov_id=`.
 if wait_for scheduler \
-    "POV submission response: pov_id=" \
+    "pov_id=" \
     "$MILESTONE_TIMEOUT" "vulnerability (POV) submitted"; then
     record "pov-submit: ok"
 else
@@ -404,8 +407,10 @@ else
     record "patch-passed: TIMEOUT"
 fi
 
+# NOTE: same as POV above — match the structured summary `bundle_id=<id>`
+# (logger.info), not the "Bundle submission response:" debug object repr.
 if wait_for scheduler \
-    "Bundle submission response: bundle_id=" \
+    "bundle_id=" \
     "$BUNDLE_TIMEOUT" "bundle submitted"; then
     record "bundle-submit: ok"
 else
