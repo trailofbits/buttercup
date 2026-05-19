@@ -1,6 +1,6 @@
 ---
 description: Run a Docker-only end-to-end smoke test of Buttercup against example-libpng with a low LLM budget, and monitor the pipeline.
-argument-hint: "[--budget N] [--task-duration SEC] [--image-tag TAG] [--keep-up] [--no-pull] [--skip-wait] [--sarif]"
+argument-hint: "[--budget N] [--task-duration SEC] [--image-tag TAG] [--no-pull]"
 allowed-tools: Bash(./scripts/e2e.sh:*), Bash(make e2e*), Bash(docker compose:*), Bash(cd dev/docker-compose && docker compose:*), Read
 ---
 
@@ -16,11 +16,11 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
 
 ## What it does
 
-1. Checks for `docker`, `docker compose`, `curl`, and at least one LLM provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`) in your env.
+1. Checks for `docker`, `docker compose`, `curl`, and at least one LLM provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`) in your env (or already saved in `dev/docker-compose/.env`).
 2. Writes `dev/docker-compose/.env` with the provider keys and `LITELLM_MAX_BUDGET=$BUDGET` (default `3`).
 3. Pulls the prebuilt component images (`docker compose -f compose.yaml -f compose.prebuilt.yaml pull`, skippable with `--no-pull`) and starts every service (redis, dind, litellm, task-server, task-downloader, scheduler, program-model, build-bot, fuzzer-bot, coverage-bot, tracer-bot, seed-gen, patcher, buttercup-ui). No local image build.
 4. POSTs the canned libpng `trigger_task` payload to `http://localhost:31323/webhook/trigger_task`.
-5. Waits, in order, for these scheduler/seed-gen log markers (timeout configurable per phase):
+5. Waits, in order, for these scheduler/seed-gen log markers:
    - `Processing build output for type FUZZER` — fuzzer build done
    - `POV submission response: pov_id=` — vulnerability found and POV submitted
    - `Updated POV status. New status PASSED` — POV accepted by competition API
@@ -29,8 +29,7 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
    - approves the patch via `POST /v1/task/<task_id>/patch/<patch_id>/approve`
    - `Patch passed` — patch accepted
    - `Bundle submission response: bundle_id=` — bundle submitted
-6. With `--sarif`, also sends a SARIF broadcast and waits for `Matching SARIF submission response`.
-7. Prints a colored summary and tears the stack down with `docker compose down -v` (unless `--keep-up`).
+6. Prints a colored summary and tears the stack down with `docker compose down -v`.
 
 ## Run it
 
@@ -41,12 +40,11 @@ The driver is `scripts/e2e.sh`. The `Makefile` exposes `make e2e`.
 make e2e
 
 # Pass flags through the Makefile
-make e2e E2E_ARGS="--budget 5 --keep-up"
+make e2e E2E_ARGS="--budget 5 --no-pull"
 
 # Or call the script directly
 ./scripts/e2e.sh --budget 3 --task-duration 1800
-./scripts/e2e.sh --skip-wait --keep-up   # just bring the stack up + submit task
-./scripts/e2e.sh --sarif                 # also exercise the SARIF flow
+./scripts/e2e.sh --image-tag my-branch --no-pull   # run already-present images
 ```
 
 The script writes/overwrites `dev/docker-compose/.env` on each run.
@@ -77,7 +75,7 @@ The web UI is at `http://localhost:31323` (no port-forward needed — it's publi
 cd dev/docker-compose && docker compose down -v --remove-orphans
 ```
 
-`scripts/e2e.sh` does this automatically on exit unless you pass `--keep-up`.
+`scripts/e2e.sh` does this automatically on exit.
 
 ## When you invoke /e2e
 
@@ -88,4 +86,4 @@ When the user runs `/e2e`, default behavior:
 3. If the run fails on a milestone, fetch the last ~50 lines of the relevant service:
    - `cd dev/docker-compose && docker compose logs --tail=50 <service>`
 4. If the user asks to keep digging, expand the watch with `docker compose logs -f <service>` until the user is satisfied.
-5. On success, summarize the milestones reached and remind the user the stack is already torn down (or still up, if `--keep-up`).
+5. On success, summarize the milestones reached and remind the user the stack is already torn down.

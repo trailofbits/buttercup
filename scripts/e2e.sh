@@ -25,20 +25,19 @@ ENV_FILE="${COMPOSE_DIR}/.env"
 # Defaults — overridable via flags or environment.
 BUDGET="${LITELLM_MAX_BUDGET:-3}"
 TASK_DURATION="${E2E_TASK_DURATION:-1800}"
-BUILD_TIMEOUT="${E2E_BUILD_TIMEOUT:-1800}"      # seconds  (fuzzer build)
-VULN_TIMEOUT="${E2E_VULN_TIMEOUT:-1800}"
-PATCH_TIMEOUT="${E2E_PATCH_TIMEOUT:-1800}"
-BUNDLE_TIMEOUT="${E2E_BUNDLE_TIMEOUT:-300}"
-SEED_GEN_TIMEOUT="${E2E_SEED_GEN_TIMEOUT:-1800}"
 
 # Prebuilt GHCR images instead of local builds (compose.prebuilt.yaml overlay).
 IMAGE_TAG="${BUTTERCUP_IMAGE_TAG:-main}"
 
 DO_PULL=1
-DO_TEARDOWN=1
-SKIP_WAIT=0
-TASK_JSON=""    # if set, used instead of the canned libpng payload
-SARIF_RUN=0
+
+# Internal milestone timeouts (seconds). Bundle submission is quick; the rest
+# (build, vuln, seed-gen, patch) can each take a while on a low-budget run.
+MILESTONE_TIMEOUT=1800
+BUNDLE_TIMEOUT=300
+
+# Temp file for the trigger_task HTTP response; cleaned up on exit.
+TASK_RESP=""
 
 ###############################################################################
 # Logging
@@ -72,20 +71,8 @@ milestones tracked by .github/workflows/system-integration.yml.
 Options:
   --budget DOLLARS          LiteLLM per-user max budget (default: $BUDGET)
   --task-duration SECONDS   How long the CRS should fuzz (default: $TASK_DURATION)
-  --task-json FILE          Custom trigger_task payload (default: example-libpng)
   --image-tag TAG           Prebuilt GHCR image tag to run (default: $IMAGE_TAG)
   --no-pull                 Skip 'docker compose pull' (use already-pulled images)
-  --no-build                Deprecated alias for --no-pull (no local build happens)
-  --keep-up                 Don't tear the stack down on exit (for debugging)
-  --skip-wait               Bring the stack up and submit the task, but don't
-                            block waiting on milestones (returns immediately)
-  --sarif                   Also submit a SARIF broadcast after the patch
-                            passes and wait for the matching SARIF response
-  --build-timeout SEC       Override fuzzer-build milestone timeout (default $BUILD_TIMEOUT)
-  --vuln-timeout SEC        Override vuln milestone timeout (default $VULN_TIMEOUT)
-  --patch-timeout SEC       Override patch milestone timeout (default $PATCH_TIMEOUT)
-  --bundle-timeout SEC      Override bundle milestone timeout (default $BUNDLE_TIMEOUT)
-  --seed-gen-timeout SEC    Override seed-gen milestone timeout (default $SEED_GEN_TIMEOUT)
   -h, --help                Print this help
 
 Required environment (at least one provider key, plus litellm master key):
@@ -108,18 +95,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --budget)            BUDGET="$2"; shift 2 ;;
         --task-duration)     TASK_DURATION="$2"; shift 2 ;;
-        --task-json)         TASK_JSON="$(cat "$2")"; shift 2 ;;
         --image-tag)         IMAGE_TAG="$2"; shift 2 ;;
         --no-pull)           DO_PULL=0; shift ;;
-        --no-build)          DO_PULL=0; shift ;;   # deprecated alias
-        --keep-up)           DO_TEARDOWN=0; shift ;;
-        --skip-wait)         SKIP_WAIT=1; shift ;;
-        --sarif)             SARIF_RUN=1; shift ;;
-        --build-timeout)     BUILD_TIMEOUT="$2"; shift 2 ;;
-        --vuln-timeout)      VULN_TIMEOUT="$2"; shift 2 ;;
-        --patch-timeout)     PATCH_TIMEOUT="$2"; shift 2 ;;
-        --bundle-timeout)    BUNDLE_TIMEOUT="$2"; shift 2 ;;
-        --seed-gen-timeout)  SEED_GEN_TIMEOUT="$2"; shift 2 ;;
         -h|--help)           usage; exit 0 ;;
         *) err "Unknown argument: $1"; usage; exit 2 ;;
     esac
@@ -142,19 +119,6 @@ if ! command -v curl >/dev/null 2>&1; then
     exit 1
 fi
 
-provider_keys_set=0
-for v in ANTHROPIC_API_KEY OPENAI_API_KEY GEMINI_API_KEY; do
-    val="${!v:-}"
-    if [[ -n "$val" && "$val" != "<INSERT_KEY>" ]]; then
-        provider_keys_set=1
-    fi
-done
-if [[ "$provider_keys_set" -eq 0 ]]; then
-    err "No LLM provider key found in env. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY."
-    err "Tip: 'export ANTHROPIC_API_KEY=...; scripts/e2e.sh' or add to ${ENV_FILE} first."
-    exit 1
-fi
-
 # Read a value already present in the existing .env. Used so that variables
 # not provided via the environment (e.g. LANGFUSE_*) are preserved across runs
 # instead of being clobbered with empty/placeholder values, since this script
@@ -174,6 +138,21 @@ prev_env() {
 : "${LANGFUSE_HOST:=$(prev_env LANGFUSE_HOST)}"
 : "${LANGFUSE_PUBLIC_KEY:=$(prev_env LANGFUSE_PUBLIC_KEY)}"
 : "${LANGFUSE_SECRET_KEY:=$(prev_env LANGFUSE_SECRET_KEY)}"
+
+# Require at least one usable provider key. Checked *after* the .env fallback
+# above so a key saved to .env on a prior run still counts.
+provider_keys_set=0
+for v in ANTHROPIC_API_KEY OPENAI_API_KEY GEMINI_API_KEY; do
+    val="${!v:-}"
+    if [[ -n "$val" && "$val" != "<INSERT_KEY>" ]]; then
+        provider_keys_set=1
+    fi
+done
+if [[ "$provider_keys_set" -eq 0 ]]; then
+    err "No LLM provider key found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY."
+    err "Tip: 'export ANTHROPIC_API_KEY=...; scripts/e2e.sh' or add it to ${ENV_FILE} first."
+    exit 1
+fi
 
 # 3) Final placeholders if still unset after both env and .env. Keys left at
 # the placeholder so litellm still loads its config (some models will fail at
@@ -220,18 +199,11 @@ dc() {
            docker compose -f compose.yaml -f compose.prebuilt.yaml "$@")
 }
 
-teardown() {
-    if [[ "$DO_TEARDOWN" -eq 1 ]]; then
-        log "Tearing the stack down (docker compose down -v)"
-        dc down -v --remove-orphans || true
-    else
-        warn "Leaving the stack up (--keep-up). Tear down with: cd ${COMPOSE_DIR} && docker compose -f compose.yaml -f compose.prebuilt.yaml down -v"
-    fi
-}
-
 on_exit() {
     rc=$?
-    teardown
+    [[ -n "$TASK_RESP" ]] && rm -f "$TASK_RESP"
+    log "Tearing the stack down (docker compose down -v)"
+    dc down -v --remove-orphans || true
     if [[ $rc -ne 0 ]]; then
         err "e2e run finished with exit code $rc"
     fi
@@ -280,8 +252,7 @@ ok "buttercup-ui is up."
 # Submit the task
 ###############################################################################
 
-if [[ -z "$TASK_JSON" ]]; then
-    TASK_JSON=$(cat <<EOF
+TASK_JSON=$(cat <<EOF
 {
     "challenge_repo_url": "https://github.com/tob-challenges/example-libpng",
     "challenge_repo_base_ref": "5bf8da2d7953974e5dfbd778429c3affd461f51a",
@@ -293,26 +264,19 @@ if [[ -z "$TASK_JSON" ]]; then
 }
 EOF
 )
-fi
 
 log "Submitting task to buttercup-ui /webhook/trigger_task"
-http_code=$(curl -s -o /tmp/e2e_task_resp.$$ -w '%{http_code}' \
+TASK_RESP="$(mktemp)"
+http_code=$(curl -s -o "$TASK_RESP" -w '%{http_code}' \
     -X POST 'http://127.0.0.1:31323/webhook/trigger_task' \
     -H 'Content-Type: application/json' \
     -d "$TASK_JSON")
-resp_body=$(cat /tmp/e2e_task_resp.$$ || true)
-rm -f /tmp/e2e_task_resp.$$
+resp_body=$(cat "$TASK_RESP" || true)
 if [[ "$http_code" != "200" && "$http_code" != "201" ]]; then
     err "trigger_task returned HTTP $http_code: $resp_body"
     exit 1
 fi
 ok "Task accepted (HTTP $http_code). ${C_DIM}${resp_body}${C_RST}"
-
-if [[ "$SKIP_WAIT" -eq 1 ]]; then
-    ok "--skip-wait set; not waiting on milestones."
-    DO_TEARDOWN=0
-    exit 0
-fi
 
 ###############################################################################
 # Milestone waiters
@@ -366,7 +330,7 @@ record() { SUMMARY+=("$1"); }
 
 if wait_for scheduler \
     "Processing build output for type FUZZER" \
-    "$BUILD_TIMEOUT" "fuzzer build processed"; then
+    "$MILESTONE_TIMEOUT" "fuzzer build processed"; then
     record "fuzzer-build: ok"
 else
     record "fuzzer-build: TIMEOUT"
@@ -374,7 +338,7 @@ fi
 
 if wait_for scheduler \
     "POV submission response: pov_id=" \
-    "$VULN_TIMEOUT" "vulnerability (POV) submitted"; then
+    "$MILESTONE_TIMEOUT" "vulnerability (POV) submitted"; then
     record "pov-submit: ok"
 else
     record "pov-submit: TIMEOUT"
@@ -382,7 +346,7 @@ fi
 
 if wait_for scheduler \
     "Updated POV status. New status PASSED" \
-    "$VULN_TIMEOUT" "POV accepted by competition API"; then
+    "$MILESTONE_TIMEOUT" "POV accepted by competition API"; then
     record "pov-passed: ok"
 else
     record "pov-passed: TIMEOUT"
@@ -390,7 +354,7 @@ fi
 
 if wait_for seed-gen \
     "Copied [1-9][0-9]* files to corpus" \
-    "$SEED_GEN_TIMEOUT" "seed-gen produced seeds"; then
+    "$MILESTONE_TIMEOUT" "seed-gen produced seeds"; then
     record "seed-gen: ok"
 else
     record "seed-gen: TIMEOUT"
@@ -398,7 +362,7 @@ fi
 
 if wait_for scheduler \
     "Appending patch for task" \
-    "$PATCH_TIMEOUT" "patch generated"; then
+    "$MILESTONE_TIMEOUT" "patch generated"; then
     record "patch-generated: ok"
 else
     record "patch-generated: TIMEOUT"
@@ -431,7 +395,7 @@ fi
 
 if wait_for scheduler \
     "Patch passed" \
-    "$PATCH_TIMEOUT" "patch accepted by competition API"; then
+    "$MILESTONE_TIMEOUT" "patch accepted by competition API"; then
     record "patch-passed: ok"
 else
     record "patch-passed: TIMEOUT"
@@ -443,33 +407,6 @@ if wait_for scheduler \
     record "bundle-submit: ok"
 else
     record "bundle-submit: TIMEOUT"
-fi
-
-if [[ "$SARIF_RUN" -eq 1 ]]; then
-    SARIF_TASK_ID="${TASK_ID:-}"
-    if [[ -z "$SARIF_TASK_ID" ]]; then
-        SARIF_TASK_ID=$(dc logs --no-color --no-log-prefix --tail=all scheduler \
-            | grep "Submitting bundle for harness" | head -n1 \
-            | grep -o "\[[^]]*\]" | head -n1 \
-            | tr -d '[]' | awk -F: '{print $NF}')
-    fi
-    if [[ -n "$SARIF_TASK_ID" ]]; then
-        log "Sending SARIF broadcast for task ${SARIF_TASK_ID}"
-        if "${REPO_ROOT}/orchestrator/scripts/send_sarif.sh" "$SARIF_TASK_ID" >/dev/null 2>&1; then
-            record "sarif-send: ok"
-        else
-            record "sarif-send: HTTP fail"
-        fi
-        if wait_for scheduler \
-            "Matching SARIF submission response" \
-            "$BUNDLE_TIMEOUT" "SARIF accepted"; then
-            record "sarif-passed: ok"
-        else
-            record "sarif-passed: TIMEOUT"
-        fi
-    else
-        record "sarif: skipped (no task id)"
-    fi
 fi
 
 ###############################################################################

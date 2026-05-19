@@ -152,7 +152,7 @@ send-libpng-task:
 	kill $$PORT_FORWARD_PID 2>/dev/null || true
 
 # Docker-only end-to-end run against example-libpng. No Kubernetes required.
-# Pass extra flags via E2E_ARGS, e.g.:  make e2e E2E_ARGS="--keep-up --budget 5"
+# Pass extra flags via E2E_ARGS, e.g.:  make e2e E2E_ARGS="--budget 5 --no-pull"
 e2e:
 	@./scripts/e2e.sh $(E2E_ARGS)
 
