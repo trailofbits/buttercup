@@ -23,8 +23,17 @@ COMPOSE_DIR="${REPO_ROOT}/dev/docker-compose"
 ENV_FILE="${COMPOSE_DIR}/.env"
 
 # Defaults — overridable via flags or environment.
-BUDGET="${LITELLM_MAX_BUDGET:-3}"
-TASK_DURATION="${E2E_TASK_DURATION:-1800}"
+#
+# BUDGET: a full run through patch generation costs ~$10 of LLM spend; $3 is
+# exhausted during/just after POV, so anything past seed-gen would always time
+# out. Default to 10 so the whole pipeline (incl. patch+bundle) is reachable.
+#
+# TASK_DURATION: the CRS discards a task's work once its deadline passes. On
+# normal hardware build->POV->seed-gen->patch exceeds 30 min, so an 1800s task
+# expires mid-patch ("task expired/cancelled? Will discard") and never reaches
+# patch/bundle. Default to 7200 (2h) so the task outlives the pipeline.
+BUDGET="${LITELLM_MAX_BUDGET:-10}"
+TASK_DURATION="${E2E_TASK_DURATION:-7200}"
 
 # Prebuilt GHCR images instead of local builds (compose.prebuilt.yaml overlay).
 IMAGE_TAG="${BUTTERCUP_IMAGE_TAG:-main}"
@@ -324,6 +333,33 @@ capture_line() {
         | grep -E "$pattern" | head -n1 || true
 }
 
+# wait_capture SERVICE PATTERN TIMEOUT_SEC LABEL
+#
+# Like capture_line, but polls until the pattern appears or TIMEOUT_SEC
+# elapses, echoing the first matching line on stdout (empty on timeout).
+# Progress goes to stderr so stdout stays just the captured line.
+#
+# Needed because `competition_patch_id=` is logged by the scheduler only
+# *after* it builds, verifies and submits the patch — minutes after the
+# "Appending patch for task" milestone. A one-shot capture right after that
+# milestone always races and loses, so approval would always be skipped.
+wait_capture() {
+    local service="$1" pattern="$2" timeout="$3" label="$4"
+    local deadline=$(( $(date +%s) + timeout ))
+    log "Waiting to capture: ${label}  ${C_DIM}(service=${service}, timeout=${timeout}s)${C_RST}" >&2
+    while [[ $(date +%s) -lt $deadline ]]; do
+        local match
+        match="$(dc logs --no-color --no-log-prefix --tail=all "$service" 2>/dev/null \
+            | grep -m1 -E "$pattern" || true)"
+        if [[ -n "$match" ]]; then
+            printf '%s\n' "$match"
+            return 0
+        fi
+        sleep 15
+    done
+    return 1
+}
+
 ###############################################################################
 # Walk through the pipeline
 ###############################################################################
@@ -375,8 +411,11 @@ else
 fi
 
 # Approve the patch (the local UI requires explicit approval, unlike scored
-# rounds where it is automatic).
-PATCH_LINE="$(capture_line scheduler 'competition_patch_id=')"
+# rounds where it is automatic). competition_patch_id= only appears once the
+# scheduler has built+verified+submitted the patch, well after the patch was
+# generated, so poll for it rather than capturing once (which always races).
+PATCH_LINE="$(wait_capture scheduler 'competition_patch_id=[0-9a-fA-F-]' \
+    "$MILESTONE_TIMEOUT" "competition_patch_id (for approval)" || true)"
 if [[ -n "$PATCH_LINE" ]]; then
     PATCH_ID=$(printf '%s' "$PATCH_LINE" | sed -n 's/.*competition_patch_id=\([^ ]*\).*/\1/p')
     # Task id is inside the first [...] block, after the last ':'.

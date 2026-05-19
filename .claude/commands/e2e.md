@@ -6,7 +6,7 @@ allowed-tools: Bash(./scripts/e2e.sh:*), Bash(make e2e*), Bash(docker compose:*)
 
 # /e2e — Docker-only end-to-end Buttercup run (example-libpng)
 
-This command exercises the full Buttercup pipeline on the [example-libpng](https://github.com/tob-challenges/example-libpng) challenge **using Docker only — no Kubernetes/minikube**. It uses the `dev/docker-compose/` stack with the **`compose.prebuilt.yaml` overlay** — every component runs from its prebuilt GHCR image (`ghcr.io/trailofbits/buttercup/*`, tag `main` by default), so **nothing is built locally**. A low LiteLLM budget (default **$3**) keeps an accidental run cheap.
+This command exercises the full Buttercup pipeline on the [example-libpng](https://github.com/tob-challenges/example-libpng) challenge **using Docker only — no Kubernetes/minikube**. It uses the `dev/docker-compose/` stack with the **`compose.prebuilt.yaml` overlay** — every component runs from its prebuilt GHCR image (`ghcr.io/trailofbits/buttercup/*`, tag `main` by default), so **nothing is built locally**. A LiteLLM budget cap (default **$10**) bounds the spend — a full run through patch generation costs roughly that; a lower cap stops the pipeline before patch/bundle, so `--budget 3` only exercises up to seed-gen.
 
 > **Image tag:** defaults to `main`. Override with `--image-tag <branch-or-tag>` or `BUTTERCUP_IMAGE_TAG=...` to test a specific build. Private images require `docker login ghcr.io` first.
 >
@@ -17,7 +17,7 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
 ## What it does
 
 1. Checks for `docker`, `docker compose`, `curl`, and at least one LLM provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`) in your env (or already saved in `dev/docker-compose/.env`).
-2. Writes `dev/docker-compose/.env` with the provider keys and `LITELLM_MAX_BUDGET=$BUDGET` (default `3`).
+2. Writes `dev/docker-compose/.env` with the provider keys and `LITELLM_MAX_BUDGET=$BUDGET` (default `10`). The submitted task's `duration` defaults to `7200`s (2h) — the CRS discards a task's work once its deadline passes, and the full pipeline can exceed 30 min, so a short duration would expire mid-patch.
 3. Pulls the prebuilt component images (`docker compose -f compose.yaml -f compose.prebuilt.yaml pull`, skippable with `--no-pull`) and starts every service (redis, dind, litellm, task-server, task-downloader, scheduler, program-model, build-bot, fuzzer-bot, coverage-bot, tracer-bot, seed-gen, patcher, buttercup-ui). No local image build.
 4. POSTs the canned libpng `trigger_task` payload to `http://localhost:31323/webhook/trigger_task`.
 5. Waits, in order, for these scheduler/seed-gen log markers:
@@ -26,7 +26,7 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
    - `Updated POV status. New status PASSED` — POV accepted by competition API
    - `Copied N files to corpus` — seed-gen produced seeds
    - `Appending patch for task` — patch generated
-   - approves the patch via `POST /v1/task/<task_id>/patch/<patch_id>/approve`
+   - polls for the `competition_patch_id=` summary line (logged only after the scheduler builds, verifies and submits the patch — minutes after the patch is generated), then approves via `POST /v1/task/<task_id>/patch/<patch_id>/approve`
    - `Patch passed` — patch accepted
    - `bundle_id=` — bundle submitted
 6. Prints a colored summary and tears the stack down with `docker compose down -v`.
@@ -36,15 +36,16 @@ Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails 
 The driver is `scripts/e2e.sh`. The `Makefile` exposes `make e2e`.
 
 ```bash
-# Plain run with the $3 budget default
+# Plain run with the $10 budget / 7200s task-duration defaults
 make e2e
 
 # Pass flags through the Makefile
-make e2e E2E_ARGS="--budget 5 --no-pull"
+make e2e E2E_ARGS="--budget 15 --no-pull"
 
 # Or call the script directly
-./scripts/e2e.sh --budget 3 --task-duration 1800
+./scripts/e2e.sh --budget 10 --task-duration 7200
 ./scripts/e2e.sh --image-tag my-branch --no-pull   # run already-present images
+./scripts/e2e.sh --budget 3                         # cheap: only reaches ~seed-gen
 ```
 
 The script writes/overwrites `dev/docker-compose/.env` on each run.
