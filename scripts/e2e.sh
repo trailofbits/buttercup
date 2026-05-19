@@ -120,8 +120,8 @@ fi
 
 # Read a value already present in the existing .env. Used so that variables
 # not provided via the environment (e.g. LANGFUSE_*) are preserved across runs
-# instead of being clobbered with empty/placeholder values, since this script
-# regenerates .env from scratch on every run.
+# instead of being clobbered, since this script regenerates .env from scratch
+# on every run.
 prev_env() {
     [[ -f "$ENV_FILE" ]] || return 0
     sed -n "s/^$1=//p" "$ENV_FILE" | head -n1
@@ -154,7 +154,9 @@ fi
 
 # 3) Final placeholders if still unset after both env and .env. Keys left at
 # the placeholder so litellm still loads its config (some models will fail at
-# request time, others will succeed). LANGFUSE_* stay empty (telemetry off).
+# request time, others will succeed). LANGFUSE_* are intentionally left unset
+# here: empty lines are NOT written to .env below, so a run without them set
+# never clobbers LANGFUSE_* the user previously had in .env.
 : "${ANTHROPIC_API_KEY:=<INSERT_KEY>}"
 : "${OPENAI_API_KEY:=<INSERT_KEY>}"
 : "${GEMINI_API_KEY:=<INSERT_KEY>}"
@@ -179,9 +181,12 @@ log "Writing ${ENV_FILE} (LITELLM_MAX_BUDGET=\$${BUDGET})"
     echo "AZURE_API_BASE=${AZURE_API_BASE}"
     echo "AZURE_API_KEY=${AZURE_API_KEY}"
     echo "LITELLM_MAX_BUDGET=${BUDGET}"
-    echo "LANGFUSE_HOST=${LANGFUSE_HOST}"
-    echo "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}"
-    echo "LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}"
+    # Only emit LANGFUSE_* when we actually have a value, so a run without
+    # them set leaves no empty LANGFUSE_HOST= behind to disable telemetry.
+    [[ -n "$LANGFUSE_HOST" ]]       && echo "LANGFUSE_HOST=${LANGFUSE_HOST}"
+    [[ -n "$LANGFUSE_PUBLIC_KEY" ]] && echo "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}"
+    [[ -n "$LANGFUSE_SECRET_KEY" ]] && echo "LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}"
+    true
 } > "$ENV_FILE"
 
 ###############################################################################
