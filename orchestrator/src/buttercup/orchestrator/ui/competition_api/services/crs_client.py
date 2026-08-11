@@ -229,6 +229,44 @@ class CRSClient:
             logger.error(f"Error submitting task to CRS: {e}")
             return CRSResponse(success=False, status_code=0, response_text=str(e), error_details={"exception": str(e)})
 
+    def cancel_task(self, task_id: str) -> CRSResponse:
+        """Cancel a task by sending a DELETE request to the CRS.
+
+        Args:
+            task_id: UUID of the task to cancel
+
+        Returns:
+            CRSResponse object with detailed status and error information
+
+        """
+        url = f"{self.crs_base_url}/v1/task/{task_id}/"
+
+        auth = None
+        if self.username and self.password:
+            auth = (self.username, self.password)
+
+        try:
+            logger.info(f"Cancelling task {task_id} via CRS at {url}")
+
+            response = requests.delete(
+                url,
+                auth=auth,
+                timeout=30,
+            )
+
+            crs_response = CRSResponse.from_response(response)
+            crs_response.log_detailed_response(logger, f"Task cancellation for {task_id}")
+            return crs_response
+
+        except Exception as e:
+            logger.error(f"Error cancelling task via CRS: {e}")
+            return CRSResponse(
+                success=False,
+                status_code=0,
+                response_text=str(e),
+                error_details={"exception": str(e)},
+            )
+
     def submit_sarif_broadcast(self, broadcast: SARIFBroadcast) -> CRSResponse:
         """Submit a SARIF Broadcast to the CRS via POST /v1/sarif/ endpoint"""
         url = f"{self.crs_base_url}/v1/sarif/"

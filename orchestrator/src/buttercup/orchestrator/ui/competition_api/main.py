@@ -768,6 +768,28 @@ def get_dashboard_task(task_id: str, database_manager: DatabaseManager = Depends
         return task_to_task_info(task)
 
 
+@app.delete(
+    "/v1/dashboard/tasks/{task_id}",
+    response_model=Message,
+    tags=["dashboard"],
+)
+def cancel_dashboard_task(
+    task_id: str,
+    crs_client: CRSClient = Depends(get_crs_client),
+) -> Message | Error:
+    """Cancel a task by forwarding a DELETE request to the task server."""
+    logger.info(f"Dashboard: cancelling task {task_id}")
+    response = crs_client.cancel_task(task_id)
+    if response.success:
+        return Message(
+            message=f"Task {task_id} cancellation requested",
+            color="success",
+        )
+    error_msg = response.get_user_friendly_error_message()
+    logger.error(f"Failed to cancel task {task_id}: {error_msg}")
+    return Error(message=f"Failed to cancel task: {error_msg}")
+
+
 @app.get("/v1/dashboard/tasks/{task_id}/crs-status", tags=["dashboard"])
 def get_task_crs_status(task_id: str, database_manager: DatabaseManager = Depends(get_database_manager)) -> dict:
     """Get detailed CRS submission status and error information for a specific task"""
