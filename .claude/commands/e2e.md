@@ -1,0 +1,90 @@
+---
+description: Run a Docker-only end-to-end smoke test of Buttercup against example-libpng with a low LLM budget, and monitor the pipeline.
+argument-hint: "[--budget N] [--task-duration SEC] [--image-tag TAG] [--no-pull]"
+allowed-tools: Bash(./scripts/e2e.sh:*), Bash(make e2e*), Bash(docker compose:*), Bash(cd dev/docker-compose && docker compose:*), Read
+---
+
+# /e2e — Docker-only end-to-end Buttercup run (example-libpng)
+
+This command exercises the full Buttercup pipeline on the [example-libpng](https://github.com/tob-challenges/example-libpng) challenge **using Docker only — no Kubernetes/minikube**. It uses the `dev/docker-compose/` stack with the **`compose.prebuilt.yaml` overlay** — every component runs from its prebuilt GHCR image (`ghcr.io/trailofbits/buttercup/*`, tag `main` by default), so **nothing is built locally**. A LiteLLM budget cap (default **$10**) bounds the spend — a full run through patch generation costs roughly that; a lower cap stops the pipeline before patch/bundle, so `--budget 3` only exercises up to seed-gen.
+
+> **Image tag:** defaults to `main`. Override with `--image-tag <branch-or-tag>` or `BUTTERCUP_IMAGE_TAG=...` to test a specific build. Private images require `docker login ghcr.io` first.
+>
+> **Host requirement:** x86_64. The prebuilt fuzzer / patcher / seed-gen images are based on `gcr.io/oss-fuzz-base/base-runner`, which is amd64-only. On aarch64 they only run under `qemu-user-static` + `binfmt` with `DOCKER_DEFAULT_PLATFORM=linux/amd64` (and ~10× slower).
+
+Mirrors the milestones in `.github/workflows/system-integration.yml`, but tails `docker compose logs` instead of `kubectl logs`.
+
+## What it does
+
+1. Checks for `docker`, `docker compose`, `curl`, and at least one LLM provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`) in your env (or already saved in `dev/docker-compose/.env`).
+2. Writes `dev/docker-compose/.env` with the provider keys and `LITELLM_MAX_BUDGET=$BUDGET` (default `10`). The submitted task's `duration` defaults to `7200`s (2h) — the CRS discards a task's work once its deadline passes, and the full pipeline can exceed 30 min, so a short duration would expire mid-patch.
+3. Pulls the prebuilt component images (`docker compose -f compose.yaml -f compose.prebuilt.yaml pull`, skippable with `--no-pull`) and starts every service (redis, dind, litellm, task-server, task-downloader, scheduler, program-model, build-bot, fuzzer-bot, coverage-bot, tracer-bot, seed-gen, patcher, buttercup-ui). No local image build.
+4. POSTs the canned libpng `trigger_task` payload to `http://localhost:31323/webhook/trigger_task`.
+5. Waits, in order, for these scheduler/seed-gen log markers:
+   - `Processing build output for type FUZZER` — fuzzer build done
+   - `pov_id=` — vulnerability found and POV submitted
+   - `Updated POV status. New status PASSED` — POV accepted by competition API
+   - `Copied N files to corpus` — seed-gen produced seeds
+   - `Appending patch for task` — patch generated
+   - polls for the `competition_patch_id=` summary line (logged only after the scheduler builds, verifies and submits the patch — minutes after the patch is generated), then approves via `POST /v1/task/<task_id>/patch/<patch_id>/approve`
+   - `Patch passed` — patch accepted
+   - `bundle_id=` — bundle submitted
+6. Prints a colored summary and tears the stack down with `docker compose down -v`.
+
+## Run it
+
+The driver is `scripts/e2e.sh`. The `Makefile` exposes `make e2e`.
+
+```bash
+# Plain run with the $10 budget / 7200s task-duration defaults
+make e2e
+
+# Pass flags through the Makefile
+make e2e E2E_ARGS="--budget 15 --no-pull"
+
+# Or call the script directly
+./scripts/e2e.sh --budget 10 --task-duration 7200
+./scripts/e2e.sh --image-tag my-branch --no-pull   # run already-present images
+./scripts/e2e.sh --budget 3                         # cheap: only reaches ~seed-gen
+```
+
+The script writes/overwrites `dev/docker-compose/.env` on each run.
+
+## Monitoring while it's running
+
+The script already streams milestone progress to its own stdout. For finer-grained visibility while it runs:
+
+```bash
+# All services, follow
+cd dev/docker-compose && docker compose logs -f
+
+# Just the scheduler (most milestones live here)
+cd dev/docker-compose && docker compose logs -f scheduler
+
+# Patcher, seed-gen, fuzzer-bot, program-model
+cd dev/docker-compose && docker compose logs -f patcher seed-gen fuzzer-bot program-model
+
+# LiteLLM spend tracking
+cd dev/docker-compose && docker compose logs -f litellm | grep -i 'spend\|budget'
+```
+
+The web UI is at `http://localhost:31323` (no port-forward needed — it's published on the host).
+
+## Tearing down
+
+```bash
+cd dev/docker-compose && docker compose down -v --remove-orphans
+```
+
+`scripts/e2e.sh` does this automatically on exit.
+
+## When you invoke /e2e
+
+When the user runs `/e2e`, default behavior:
+
+1. Run `./scripts/e2e.sh $ARGUMENTS` (forwarding any flags the user passed).
+2. While it runs, surface key transitions to the user. The script's own output already prints `[e2e] Reached: …` for each milestone — relay those as they arrive.
+3. If the run fails on a milestone, fetch the last ~50 lines of the relevant service:
+   - `cd dev/docker-compose && docker compose logs --tail=50 <service>`
+4. If the user asks to keep digging, expand the watch with `docker compose logs -f <service>` until the user is satisfied.
+5. On success, summarize the milestones reached and remind the user the stack is already torn down.
