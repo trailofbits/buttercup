@@ -448,6 +448,19 @@ litellm-helm:
           tpm: 4000000
           rpm: 2000
 
+      - model_name: abliterated-model
+        litellm_params:
+          model: abliteration/abliterated-model
+          api_key: os.environ/ABLIT_KEY
+          tpm: 2000000
+          rpm: 150
+
+      - model_name: abliterated-model-large
+        litellm_params:
+          model: abliteration/abliterated-model-large
+          api_key: os.environ/ABLIT_KEY
+          tpm: 2000000
+          rpm: 150
 
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY
