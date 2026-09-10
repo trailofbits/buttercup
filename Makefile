@@ -1,6 +1,6 @@
 # Makefile for Trail of Bits AIxCC Finals CRS
 
-.PHONY: help setup-local setup-azure validate deploy test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task
+.PHONY: help setup-local setup-azure validate deploy test undeploy install-cscope lint lint-component clean-local wait-crs check-crs crs-instance-id status send-integration-task e2e
 
 # Default target
 help:
@@ -23,6 +23,7 @@ help:
 	@echo "Testing:"
 	@echo "  send-integration-task  - Run integration-test task"
 	@echo "  send-libpng-task  - Run libpng task"
+	@echo "  e2e                   - Docker-only end-to-end smoke test against example-libpng (low LLM budget)"
 	@echo ""
 	@echo "Development:"
 	@echo "  install-cscope    - Install cscope tool"
@@ -149,6 +150,11 @@ send-libpng-task:
 	sleep 3; \
 	./orchestrator/scripts/task_crs.sh; \
 	kill $$PORT_FORWARD_PID 2>/dev/null || true
+
+# Docker-only end-to-end run against example-libpng. No Kubernetes required.
+# Pass extra flags via E2E_ARGS, e.g.:  make e2e E2E_ARGS="--budget 5 --no-pull"
+e2e:
+	@./scripts/e2e.sh $(E2E_ARGS)
 
 # Development targets
 lint:
