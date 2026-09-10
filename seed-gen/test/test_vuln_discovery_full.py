@@ -36,7 +36,7 @@ def vuln_discovery_full_task(
             project_yaml=mock_project_yaml,
             redis=mock_redis,
             reproduce_multiple=mock_reproduce_multiple,
-            sarifs=[],
+            findings=[],
             crash_submit=mock_crash_submit,
         )
 
