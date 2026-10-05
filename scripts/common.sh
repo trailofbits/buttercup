@@ -569,6 +569,12 @@ configure_local_api_keys() {
     print_status "Generate your API key at: https://aistudio.google.com/apikey"
     configure_service "GEMINI_API_KEY" "Gemini API key" "$GEMINI_API_KEY" "<your-gemini-api-key>" false
 
+    # Abliteration API Key (Optional)
+    print_linebreak
+    print_status "Abliteration API Key (Optional): Powers the abliterated-model and abliterated-model-large models."
+    print_status "Generate your API key at: https://abliteration.ai"
+    configure_service "ABLIT_KEY" "Abliteration API key" "$ABLIT_KEY" "<your-abliteration-api-key>" false
+
     # GitHub Personal Access Token (Optional)
     print_linebreak
     print_status "GitHub Personal Access Token (Optional): Access to private GitHub resources."
@@ -605,9 +611,15 @@ configure_local_api_keys() {
     else
         gemini_configured=true
     fi
-    
-    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ] && [ "$gemini_configured" = false ]; then
-        print_error "At least one LLM API key (OpenAI, Anthropic, or Gemini) must be configured."
+
+    if [ -z "$ABLIT_KEY" ] || [ "$ABLIT_KEY" = "<your-abliteration-api-key>" ]; then
+        abliteration_configured=false
+    else
+        abliteration_configured=true
+    fi
+
+    if [ "$openai_configured" = false ] && [ "$anthropic_configured" = false ] && [ "$gemini_configured" = false ] && [ "$abliteration_configured" = false ]; then
+        print_error "At least one LLM API key (OpenAI, Anthropic, Gemini, or Abliteration) must be configured."
         print_error "Rerun the setup and set at least one LLM API key."
         return 1
     fi

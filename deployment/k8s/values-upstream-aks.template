@@ -92,6 +92,8 @@ litellm:
     apiKey: "${ANTHROPIC_API_KEY}"
   gemini:
     apiKey: "${GEMINI_API_KEY}"
+  abliteration:
+    apiKey: "${ABLIT_KEY}"
 
 litellm-helm:
   resources:

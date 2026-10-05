@@ -45,6 +45,8 @@ This is controlled via the `global.environment` setting in the values.yaml or va
        apiKey: "your-anthropic-api-key"
      gemini:
        apiKey: "your-google-gemini-key"
+     abliteration:
+       apiKey: "your-abliteration-api-key"
 
    crs:
       api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
@@ -80,6 +82,7 @@ This secret contains API keys for LLM providers:
 - **OPENAI_API_KEY**: OpenAI API key
 - **ANTHROPIC_API_KEY**: Anthropic API key
 - **GEMINI_API_KEY**: Google Gemini API key
+- **ABLIT_KEY**: Abliteration API key
 
 These are populated from the `values-override.yaml` file.
 
