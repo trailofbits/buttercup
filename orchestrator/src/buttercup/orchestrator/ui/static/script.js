@@ -29,7 +29,19 @@ const elements = {
     closeDetailModal: document.getElementById('close-detail-modal'),
     taskForm: document.getElementById('task-form'),
     fillExampleBtn: document.getElementById('fill-example-btn'),
+    loadJsonBtn: document.getElementById('load-json-btn'),
+    loadJsonInput: document.getElementById('load-json-input'),
     cancelBtn: document.getElementById('cancel-btn'),
+    submitSarifBtn: document.getElementById('submit-sarif-btn'),
+    sarifModal: document.getElementById('sarif-modal'),
+    sarifModalContent: document.querySelector('#sarif-modal .modal-content'),
+    closeSarifModal: document.getElementById('close-sarif-modal'),
+    sarifForm: document.getElementById('sarif-form'),
+    sarifTaskSelect: document.getElementById('sarif-task-select'),
+    sarifFileInput: document.getElementById('sarif-file-input'),
+    sarifPreview: document.getElementById('sarif-preview'),
+    sarifPreviewContent: document.getElementById('sarif-preview-content'),
+    cancelSarifBtn: document.getElementById('cancel-sarif-btn'),
     tasksContainer: document.getElementById('tasks-container'),
     povsContainer: document.getElementById('povs-container'),
     patchesContainer: document.getElementById('patches-container'),
@@ -85,6 +97,28 @@ function setupEventListeners() {
     } else {
         console.error('fillExampleBtn element not found');
     }
+
+    if (elements.loadJsonBtn && elements.loadJsonInput) {
+        elements.loadJsonBtn.addEventListener('click', () => {
+            elements.loadJsonInput.click();
+        });
+        elements.loadJsonInput.addEventListener('change', handleJsonFileLoad);
+    }
+
+    elements.submitSarifBtn.addEventListener('click', () => {
+        openSarifModal();
+    });
+
+    elements.closeSarifModal.addEventListener('click', () => {
+        elements.sarifModal.style.display = 'none';
+    });
+
+    elements.cancelSarifBtn.addEventListener('click', () => {
+        elements.sarifModal.style.display = 'none';
+    });
+
+    elements.sarifFileInput.addEventListener('change', handleSarifFilePreview);
+    elements.sarifForm.addEventListener('submit', handleSarifSubmission);
     
     elements.refreshBtn.addEventListener('click', loadDashboard);
     
@@ -129,19 +163,24 @@ function setupEventListeners() {
     let mousePressedOutside = false;
     
     window.addEventListener('mousedown', (event) => {
-        // Check if mouse was pressed outside both modal contents
-        if (!elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
-            mousePressedOutside = true;
-        } else {
-            mousePressedOutside = false;
-        }
+        // Check if mouse was pressed outside all modal contents
+        const insideAnyModal =
+            elements.taskModalContent.contains(event.target) ||
+            elements.detailModalContent.contains(event.target) ||
+            elements.sarifModalContent.contains(event.target);
+        mousePressedOutside = !insideAnyModal;
     });
 
     window.addEventListener('mouseup', (event) => {
         // Only close if mouse was pressed outside and released outside
-        if (mousePressedOutside && !elements.taskModalContent.contains(event.target) && !elements.detailModalContent.contains(event.target)) {
+        const insideAnyModal =
+            elements.taskModalContent.contains(event.target) ||
+            elements.detailModalContent.contains(event.target) ||
+            elements.sarifModalContent.contains(event.target);
+        if (mousePressedOutside && !insideAnyModal) {
             elements.taskModal.style.display = 'none';
             elements.detailModal.style.display = 'none';
+            elements.sarifModal.style.display = 'none';
         }
     });
 }
@@ -514,6 +553,11 @@ function renderTasks() {
             </div>
             <div class="task-status">
                 <span class="status-badge status-${task.status}">${task.status}</span>
+                ${task.status === 'active' ? `
+                    <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); cancelTask('${task.task_id}')">
+                        Cancel
+                    </button>
+                ` : ''}
             </div>
             <div class="task-stats">
                 <div class="stat-item">
@@ -591,6 +635,60 @@ function fillExampleValues() {
         console.error('Error in fillExampleValues:', error);
         showNotification('Error filling example values: ' + error.message, 'error');
     }
+}
+
+function handleJsonFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            // Map JSON keys to form field IDs
+            const fieldMap = {
+                'name': 'task-name',
+                'challenge_repo_url': 'challenge-repo-url',
+                'challenge_repo_head_ref': 'challenge-repo-head-ref',
+                'challenge_repo_base_ref': 'challenge-repo-base-ref',
+                'fuzz_tooling_url': 'fuzz-tooling-url',
+                'fuzz_tooling_ref': 'fuzz-tooling-ref',
+                'fuzz_tooling_project_name': 'fuzz-tooling-project-name',
+                'duration': 'duration',
+            };
+
+            for (const [jsonKey, fieldId] of Object.entries(fieldMap)) {
+                if (data[jsonKey] !== undefined && data[jsonKey] !== null) {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = data[jsonKey];
+                    }
+                }
+            }
+
+            if (data.harnesses_included !== undefined) {
+                const checkbox = document.getElementById('harnesses-included');
+                if (checkbox) {
+                    checkbox.checked = !!data.harnesses_included;
+                }
+            }
+
+            showNotification(
+                `Loaded challenge from ${file.name}`,
+                'success',
+            );
+        } catch (err) {
+            showNotification(
+                `Failed to parse JSON file: ${err.message}`,
+                'error',
+            );
+        }
+    };
+    reader.readAsText(file);
+
+    // Reset so the same file can be loaded again
+    event.target.value = '';
 }
 
 async function handleTaskSubmission(event) {
@@ -731,6 +829,17 @@ function renderTaskDetail(task) {
                 </div>
             </div>
             
+            ${task.status === 'active' ? `
+            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <button class="btn btn-primary" onclick="openSarifModal('${task.task_id}')">
+                    Submit SARIF
+                </button>
+                <button class="btn btn-danger" onclick="cancelTask('${task.task_id}')">
+                    Cancel Task
+                </button>
+            </div>
+            ` : ''}
+
             ${renderArtifacts('PoVs (Vulnerabilities)', task.povs || [], 'pov')}
             ${renderArtifacts('Patches', task.patches || [], 'patch')}
             ${renderArtifacts('Bundles', task.bundles || [], 'bundle')}
@@ -832,6 +941,168 @@ function renderArtifact(artifact, type) {
             ${content}
         </div>
     `;
+}
+
+// Cancel task
+async function cancelTask(taskId) {
+    if (!confirm('Are you sure you want to cancel this task?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/v1/dashboard/tasks/${taskId}`, {
+            method: 'DELETE',
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showNotification(
+                result.message || 'Task cancellation requested',
+                null,
+                result.color,
+            );
+            loadDashboard();
+        } else {
+            const errorMessage = result.message || 'Failed to cancel task';
+            showNotification(`Error: ${errorMessage}`, 'error');
+        }
+    } catch (error) {
+        console.error('Cancel task error:', error);
+        showNotification('Error cancelling task', 'error');
+    }
+}
+
+// Open SARIF modal, optionally pre-selecting a task
+function openSarifModal(preselectedTaskId) {
+    // Populate the task dropdown with active tasks
+    const activeTaskList = tasks.filter(t => t.status === 'active');
+    elements.sarifTaskSelect.innerHTML =
+        '<option value="">Select a task...</option>';
+    activeTaskList.forEach(t => {
+        const label = t.name || t.project_name;
+        const opt = document.createElement('option');
+        opt.value = t.task_id;
+        opt.textContent = `${label} (${t.task_id.substring(0, 8)}...)`;
+        elements.sarifTaskSelect.appendChild(opt);
+    });
+
+    if (preselectedTaskId) {
+        elements.sarifTaskSelect.value = preselectedTaskId;
+    }
+
+    // Reset file input and preview
+    elements.sarifFileInput.value = '';
+    elements.sarifPreview.style.display = 'none';
+    elements.sarifPreviewContent.textContent = '';
+
+    elements.sarifModal.style.display = 'block';
+}
+
+// Preview SARIF file contents when selected
+function handleSarifFilePreview(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        elements.sarifPreview.style.display = 'none';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            const runsCount = (parsed.runs || []).length;
+            const resultsCount = (parsed.runs || []).reduce(
+                (sum, run) => sum + (run.results || []).length,
+                0,
+            );
+            const version = parsed.version || 'unknown';
+            const preview =
+                `SARIF version: ${version}\n` +
+                `Runs: ${runsCount}\n` +
+                `Results: ${resultsCount}\n\n` +
+                JSON.stringify(parsed, null, 2).substring(0, 500);
+            elements.sarifPreviewContent.textContent =
+                preview.length >= 500 ? preview + '\n...' : preview;
+            elements.sarifPreview.style.display = 'block';
+        } catch (err) {
+            elements.sarifPreviewContent.textContent =
+                'Invalid JSON: ' + err.message;
+            elements.sarifPreview.style.display = 'block';
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Handle SARIF form submission
+async function handleSarifSubmission(event) {
+    event.preventDefault();
+
+    const taskId = elements.sarifTaskSelect.value;
+    if (!taskId) {
+        showNotification('Please select a task', 'error');
+        return;
+    }
+
+    const file = elements.sarifFileInput.files[0];
+    if (!file) {
+        showNotification('Please select a SARIF file', 'error');
+        return;
+    }
+
+    const submitBtn = elements.sarifForm.querySelector(
+        'button[type="submit"]',
+    );
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+
+    try {
+        const text = await file.text();
+        const sarif = JSON.parse(text);
+
+        const response = await fetch(`${API_BASE}/webhook/sarif`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_id: taskId, sarif: sarif }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            if (
+                result.message &&
+                result.message.includes('failed')
+            ) {
+                showNotification(result.message, null, result.color);
+            } else {
+                showNotification(
+                    result.message || 'SARIF submitted successfully!',
+                    'success',
+                );
+            }
+            elements.sarifModal.style.display = 'none';
+        } else {
+            const errorMessage =
+                result.message ||
+                result.detail ||
+                'Failed to submit SARIF';
+            showNotification(`Error: ${errorMessage}`, 'error');
+        }
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            showNotification(
+                'Invalid SARIF file: not valid JSON',
+                'error',
+            );
+        } else {
+            console.error('Error submitting SARIF:', error);
+            showNotification('Network error occurred', 'error');
+        }
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
 }
 
 // Approve patch
