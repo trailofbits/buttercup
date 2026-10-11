@@ -186,7 +186,7 @@ class SeedGenBot(TaskLoop):
                 seed_init.do_task(out_dir)
             elif task_choice == TaskName.VULN_DISCOVERY.value:
                 sarif_store = SARIFStore(self.redis)
-                sarifs = sarif_store.get_by_task_id(challenge_task.task_meta.task_id)
+                findings = sarif_store.get_findings_by_task_id(challenge_task.task_meta.task_id)
                 fbuilds = builds[BuildType.FUZZER]
                 reproduce_multiple = ReproduceMultiple(temp_dir, fbuilds)
                 crash_submit = CrashSubmit(
@@ -210,7 +210,7 @@ class SeedGenBot(TaskLoop):
                             project_yaml,
                             self.redis,
                             mult,
-                            sarifs,
+                            findings,
                             crash_submit=crash_submit,
                         )
                     else:
@@ -222,7 +222,7 @@ class SeedGenBot(TaskLoop):
                             project_yaml,
                             self.redis,
                             mult,
-                            sarifs,
+                            findings,
                             crash_submit=crash_submit,
                         )
                     vuln_discovery.do_task(out_dir, current_dir)
