@@ -174,5 +174,43 @@ model_list:
       tpm: 4000000
       rpm: 2000
 
+  # OrcaRouter: an OpenAI-compatible gateway that routes many providers behind
+  # one endpoint. It is registered with its own name and its own credential
+  # (ORCAROUTER_API_KEY); it deliberately does not reuse OPENAI_API_KEY or the
+  # OPENAI base URL, and it is not a generic custom-endpoint escape hatch.
+  # orcacyber-zero is the recommended default for authorized security work; it
+  # requires business verification on the OrcaRouter side to be unlocked.
+  - model_name: orcarouter-orcacyber-zero
+    litellm_params:
+      model: openai/orcacyber-zero
+      api_base: https://api.orcarouter.ai/v1
+      api_key: os.environ/ORCAROUTER_API_KEY
+      tpm: 2000000
+      rpm: 2000
+
+  - model_name: orcarouter-auto
+    litellm_params:
+      model: openai/orcarouter/auto
+      api_base: https://api.orcarouter.ai/v1
+      api_key: os.environ/ORCAROUTER_API_KEY
+      tpm: 2000000
+      rpm: 2000
+
+  - model_name: orcarouter-deepseek-v4-pro
+    litellm_params:
+      model: openai/deepseek/deepseek-v4-pro
+      api_base: https://api.orcarouter.ai/v1
+      api_key: os.environ/ORCAROUTER_API_KEY
+      tpm: 2000000
+      rpm: 2000
+
+  - model_name: orcarouter-deepseek-v4-flash
+    litellm_params:
+      model: openai/deepseek/deepseek-v4-flash
+      api_base: https://api.orcarouter.ai/v1
+      api_key: os.environ/ORCAROUTER_API_KEY
+      tpm: 2000000
+      rpm: 2000
+
 general_settings:
   master_key: os.environ/BUTTERCUP_LITELLM_KEY

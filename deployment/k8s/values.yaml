@@ -448,6 +448,40 @@ litellm-helm:
           tpm: 4000000
           rpm: 2000
 
+      # OrcaRouter: an OpenAI-compatible gateway with its own credential
+      # (ORCAROUTER_API_KEY) and its own base URL. Not derived from OpenAI.
+      - model_name: orcarouter-orcacyber-zero
+        litellm_params:
+          model: openai/orcacyber-zero
+          api_base: https://api.orcarouter.ai/v1
+          api_key: os.environ/ORCAROUTER_API_KEY
+          tpm: 2000000
+          rpm: 2000
+
+      - model_name: orcarouter-auto
+        litellm_params:
+          model: openai/orcarouter/auto
+          api_base: https://api.orcarouter.ai/v1
+          api_key: os.environ/ORCAROUTER_API_KEY
+          tpm: 2000000
+          rpm: 2000
+
+      - model_name: orcarouter-deepseek-v4-pro
+        litellm_params:
+          model: openai/deepseek/deepseek-v4-pro
+          api_base: https://api.orcarouter.ai/v1
+          api_key: os.environ/ORCAROUTER_API_KEY
+          tpm: 2000000
+          rpm: 2000
+
+      - model_name: orcarouter-deepseek-v4-flash
+        litellm_params:
+          model: openai/deepseek/deepseek-v4-flash
+          api_base: https://api.orcarouter.ai/v1
+          api_key: os.environ/ORCAROUTER_API_KEY
+          tpm: 2000000
+          rpm: 2000
+
 
     general_settings:
       master_key: os.environ/BUTTERCUP_LITELLM_KEY

@@ -39,7 +39,11 @@ from buttercup.orchestrator.ui.competition_api.models.types import (
     SARIFSubmissionResponse,
     SubmissionStatus,
 )
-from buttercup.orchestrator.ui.competition_api.services import ChallengeService, CRSClient
+from buttercup.orchestrator.ui.competition_api.services import (
+    ChallengeService,
+    CRSClient,
+    OrcaRouterProviderService,
+)
 from buttercup.orchestrator.ui.config import Settings
 from buttercup.orchestrator.ui.database import POV, Bundle, DatabaseManager, Patch, Task
 
@@ -310,6 +314,11 @@ def get_crs_client() -> CRSClient:
     """Get CRS client instance."""
     settings = get_settings()
     return CRSClient(settings.crs_base_url, settings.crs_key_id, settings.crs_key_token)
+
+
+def get_orcarouter_service() -> OrcaRouterProviderService:
+    """Get the OrcaRouter provider view used by the dashboard."""
+    return OrcaRouterProviderService()
 
 
 # Mount static files
@@ -680,6 +689,40 @@ def get_dashboard_config() -> dict:
     return {
         "crs_instance_id": crs_instance_id,
     }
+
+
+# OrcaRouter provider endpoints
+@app.get("/v1/providers/orcarouter", tags=["providers"])
+def get_orcarouter_provider(
+    capability: str = "chat",
+    service: OrcaRouterProviderService = Depends(get_orcarouter_service),
+) -> dict:
+    """Describe the configured OrcaRouter provider and its selectable models.
+
+    The API key stays in the server process: only its location and a masked
+    form are returned.
+    """
+    try:
+        return service.provider_payload(capability)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/providers/orcarouter/models", tags=["providers"])
+def get_orcarouter_models(
+    capability: str = "chat",
+    service: OrcaRouterProviderService = Depends(get_orcarouter_service),
+) -> dict:
+    """Return the models the dashboard may offer for one capability.
+
+    The list comes from the authoritative chat catalog, filtered so an entry
+    the OpenAI-compatible client cannot speak (or, for multimodal, one without
+    declared image input) is never offered.
+    """
+    try:
+        return service.models_payload(capability)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/dashboard/tasks", response_model=list[TaskInfo], tags=["dashboard"])

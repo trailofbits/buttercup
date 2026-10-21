@@ -67,8 +67,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     setupEventListeners();
+    setupOrcaRouterProvider();
     loadDashboard();
-    
+
     // Set up auto-refresh every 5 seconds
     setInterval(loadDashboard, 5000);
 });
@@ -144,6 +145,231 @@ function setupEventListeners() {
             elements.detailModal.style.display = 'none';
         }
     });
+}
+
+// OrcaRouter provider panel. The key never reaches the browser: the endpoint
+// returns its location plus a masked form, and the model menu is built from the
+// live catalog the server fetched.
+const orcaRouter = {
+    panel: null,
+    trigger: null,
+    value: null,
+    label: null,
+    listbox: null,
+    status: null,
+    authStatus: null,
+    refreshBtn: null,
+    chips: [],
+    models: [],
+    capability: 'chat',
+    loaded: false,
+    open: false,
+    refresh: null
+};
+
+function setupOrcaRouterProvider() {
+    orcaRouter.panel = document.getElementById('provider-panel');
+    if (!orcaRouter.panel) {
+        return;
+    }
+    orcaRouter.trigger = document.getElementById('orcarouter-model-trigger');
+    orcaRouter.value = document.getElementById('orcarouter-model-value');
+    orcaRouter.label = document.getElementById('orcarouter-model-label');
+    orcaRouter.listbox = document.getElementById('orcarouter-model-listbox');
+    orcaRouter.status = document.getElementById('orcarouter-catalog-status');
+    orcaRouter.authStatus = document.getElementById('orcarouter-auth-status');
+    orcaRouter.refreshBtn = document.getElementById('orcarouter-refresh-btn');
+    orcaRouter.chips = Array.from(document.querySelectorAll('#orcarouter-capabilities .capability-badge'));
+
+    const refresh = () => loadOrcaRouterProvider();
+    orcaRouter.refresh = refresh;
+    orcaRouter.refreshBtn.addEventListener('click', refresh);
+    orcaRouter.trigger.addEventListener('click', toggleOrcaRouterMenu);
+    orcaRouter.chips.forEach((chip) => {
+        chip.addEventListener('click', () => selectOrcaRouterCapability(chip.dataset.capability));
+    });
+
+    document.addEventListener('click', (event) => {
+        if (orcaRouter.open && !orcaRouter.panel.contains(event.target)) {
+            closeOrcaRouterMenu();
+        }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && orcaRouter.open) {
+            closeOrcaRouterMenu();
+            orcaRouter.trigger.focus();
+        }
+    });
+
+    refresh();
+}
+
+function selectOrcaRouterCapability(capability) {
+    if (!capability || capability === orcaRouter.capability) {
+        return;
+    }
+    orcaRouter.capability = capability;
+    orcaRouter.chips.forEach((chip) => {
+        const active = chip.dataset.capability === capability;
+        chip.classList.toggle('is-active', active);
+        chip.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    orcaRouter.label.textContent = capability === 'multimodal' ? 'Multimodal model' : 'Text model';
+    closeOrcaRouterMenu();
+    loadOrcaRouterProvider();
+}
+
+async function loadOrcaRouterProvider() {
+    const capability = orcaRouter.capability;
+    orcaRouter.refreshBtn.innerHTML = '<span class="spinner"></span>';
+    orcaRouter.status.textContent = 'Loading model catalog…';
+    try {
+        const response = await fetch(
+            `${API_BASE}/v1/providers/orcarouter?capability=${capability}&t=${Date.now()}`
+        );
+        if (!response.ok) {
+            throw new Error(`provider endpoint returned ${response.status}`);
+        }
+        renderOrcaRouterProvider(await response.json());
+    } catch (error) {
+        orcaRouter.models = [];
+        orcaRouter.loaded = false;
+        orcaRouter.trigger.disabled = true;
+        orcaRouter.value.textContent = 'Models unavailable';
+        orcaRouter.status.textContent = `Could not load the OrcaRouter catalog: ${error.message}`;
+        orcaRouter.status.classList.add('provider-status-error');
+    } finally {
+        orcaRouter.refreshBtn.innerHTML = 'Refresh models';
+    }
+}
+
+function renderOrcaRouterProvider(provider) {
+    const auth = provider.authentication || {};
+    orcaRouter.capability = provider.capability || orcaRouter.capability;
+    orcaRouter.panel.dataset.capability = orcaRouter.capability;
+    orcaRouter.listbox.dataset.capability = orcaRouter.capability;
+
+    document.getElementById('orcarouter-auth-method').textContent = auth.method || '-';
+    document.getElementById('orcarouter-key-env').textContent = auth.key_env || '-';
+    document.getElementById('orcarouter-api-base').textContent = provider.api_base || '-';
+
+    const maskedKey = document.getElementById('orcarouter-key-masked');
+    maskedKey.textContent = auth.configured ? (auth.masked_key || '•'.repeat(8)) : 'not configured';
+    maskedKey.classList.toggle('masked-secret-empty', !auth.configured);
+    maskedKey.dataset.secretConfigured = auth.configured ? 'true' : 'false';
+
+    orcaRouter.authStatus.classList.remove('provider-status-error');
+    if (auth.configured) {
+        orcaRouter.authStatus.textContent =
+            `${provider.provider} key loaded from ${auth.key_env} (${auth.header}).`;
+    } else {
+        orcaRouter.authStatus.textContent =
+            `No ${auth.key_env} in the server environment, so OrcaRouter models are unavailable.`;
+        orcaRouter.authStatus.classList.add('provider-status-error');
+    }
+
+    const capabilities = provider.capabilities || [];
+    capabilities.forEach((capability) => {
+        const chip = document.querySelector(`#orcarouter-capabilities [data-capability="${capability.name}"]`);
+        if (chip) {
+            chip.textContent = `${capability.name}: ${capability.count}`;
+            chip.title = capability.description || '';
+            chip.dataset.count = String(capability.count);
+            // A capability with no selectable model is still shown, but a click
+            // on it cannot open a model menu that does not exist.
+            chip.disabled = capability.count === 0;
+            const active = capability.name === orcaRouter.capability;
+            chip.classList.toggle('is-active', active);
+            chip.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+    });
+    orcaRouter.label.textContent = orcaRouter.capability === 'multimodal' ? 'Multimodal model' : 'Text model';
+
+    orcaRouter.models = (provider.models || []).map((model) => ({
+        id: model.id,
+        multimodal: Boolean(model.multimodal),
+        source: model.source || provider.source
+    }));
+    orcaRouter.loaded = orcaRouter.models.length > 0;
+
+    renderOrcaRouterMenu();
+    orcaRouter.status.classList.remove('provider-status-error');
+    if (!orcaRouter.loaded) {
+        orcaRouter.trigger.disabled = true;
+        orcaRouter.value.textContent = 'No models available';
+        orcaRouter.status.textContent =
+            'The catalog offered no model this CRS can call. Check the gateway configuration.';
+        orcaRouter.status.classList.add('provider-status-error');
+        return;
+    }
+
+    orcaRouter.trigger.disabled = false;
+    orcaRouter.value.textContent = orcaRouter.models[0].id;
+    orcaRouter.trigger.dataset.selectedModel = orcaRouter.models[0].id;
+    const source = provider.source === 'catalog' ? 'live catalog' : 'verified seed';
+    orcaRouter.status.textContent =
+        `${orcaRouter.models.length} models from ${source} (${provider.catalog_url}).`
+        + (provider.error ? ` Fallback reason: ${provider.error}` : '');
+    if (provider.source !== 'catalog') {
+        orcaRouter.status.classList.add('provider-status-warning');
+    } else {
+        orcaRouter.status.classList.remove('provider-status-warning');
+    }
+}
+
+function renderOrcaRouterMenu() {
+    orcaRouter.listbox.innerHTML = '';
+    orcaRouter.models.forEach((model, index) => {
+        const option = document.createElement('li');
+        option.className = 'select-option';
+        option.setAttribute('role', 'option');
+        option.id = `orcarouter-model-option-${index}`;
+        option.dataset.modelId = model.id;
+        option.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+        option.innerHTML = `<span class="select-option-id"></span>`
+            + (model.multimodal ? '<span class="select-option-tag">image input</span>' : '');
+        option.querySelector('.select-option-id').textContent = model.id;
+        option.addEventListener('click', () => selectOrcaRouterModel(model.id, index));
+        orcaRouter.listbox.appendChild(option);
+    });
+}
+
+function selectOrcaRouterModel(modelId, index) {
+    orcaRouter.value.textContent = modelId;
+    orcaRouter.trigger.dataset.selectedModel = modelId;
+    orcaRouter.listbox.querySelectorAll('.select-option').forEach((option, optionIndex) => {
+        option.setAttribute('aria-selected', optionIndex === index ? 'true' : 'false');
+    });
+    closeOrcaRouterMenu();
+}
+
+function toggleOrcaRouterMenu() {
+    if (orcaRouter.open) {
+        closeOrcaRouterMenu();
+    } else {
+        openOrcaRouterMenu();
+    }
+}
+
+function openOrcaRouterMenu() {
+    if (!orcaRouter.loaded || orcaRouter.trigger.disabled) {
+        return;
+    }
+    orcaRouter.listbox.hidden = false;
+    orcaRouter.open = true;
+    orcaRouter.trigger.setAttribute('aria-expanded', 'true');
+    orcaRouter.panel.classList.add('provider-menu-open');
+    const selected = orcaRouter.listbox.querySelector('[aria-selected="true"]');
+    if (selected) {
+        selected.focus();
+    }
+}
+
+function closeOrcaRouterMenu() {
+    orcaRouter.listbox.hidden = true;
+    orcaRouter.open = false;
+    orcaRouter.trigger.setAttribute('aria-expanded', 'false');
+    orcaRouter.panel.classList.remove('provider-menu-open');
 }
 
 // Tab switching
@@ -1139,4 +1365,3 @@ function createHexdumpPreview(data, maxBytes = 128) {
     
     return result;
 }
-
