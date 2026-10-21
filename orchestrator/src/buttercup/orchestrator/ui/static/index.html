@@ -47,6 +47,68 @@
             </div>
         </section>
 
+        <!-- Provider Configuration -->
+        <section class="provider-panel" id="provider-panel" data-provider="orcarouter">
+            <div class="section-header">
+                <div>
+                    <h2>OrcaRouter Provider</h2>
+                    <p class="section-description">
+                        OpenAI-compatible gateway used by Buttercup alongside LiteLLM.
+                        Models come from the live catalog and are filtered to the
+                        endpoint dialects this CRS can call.
+                    </p>
+                </div>
+                <button id="orcarouter-refresh-btn" class="btn btn-secondary" type="button">Refresh models</button>
+            </div>
+            <div class="provider-grid">
+                <div class="provider-card" id="orcarouter-auth-card">
+                    <h3>Authentication</h3>
+                    <div class="provider-field">
+                        <span class="provider-label">Method</span>
+                        <span class="provider-value" id="orcarouter-auth-method">-</span>
+                    </div>
+                    <div class="provider-field">
+                        <span class="provider-label">API key</span>
+                        <span class="provider-value masked-secret" id="orcarouter-key-masked">-</span>
+                    </div>
+                    <div class="provider-field">
+                        <span class="provider-label">Environment variable</span>
+                        <code class="provider-value" id="orcarouter-key-env">-</code>
+                    </div>
+                    <div class="provider-field">
+                        <span class="provider-label">Inference base URL</span>
+                        <code class="provider-value" id="orcarouter-api-base">-</code>
+                    </div>
+                    <p class="provider-status" id="orcarouter-auth-status">Loading provider status…</p>
+                </div>
+                <div class="provider-card" id="orcarouter-models-card">
+                    <h3>Model selection</h3>
+                    <div class="capability-badges" id="orcarouter-capabilities" role="group"
+                         aria-label="Model capability filter">
+                        <button type="button" class="capability-badge is-active" data-capability="chat"
+                                aria-pressed="true">chat: -</button>
+                        <button type="button" class="capability-badge" data-capability="multimodal"
+                                aria-pressed="false">multimodal: -</button>
+                    </div>
+                    <div class="provider-field provider-field-stacked">
+                        <span class="provider-label" id="orcarouter-model-label">Text model</span>
+                        <div class="select-wrapper" id="orcarouter-model-select-trigger">
+                            <button type="button" id="orcarouter-model-trigger" class="provider-select"
+                                    aria-haspopup="listbox" aria-expanded="false"
+                                    aria-labelledby="orcarouter-model-label orcarouter-model-value"
+                                    disabled>
+                                <span id="orcarouter-model-value">Loading models…</span>
+                                <span class="select-caret" aria-hidden="true">▾</span>
+                            </button>
+                            <ul id="orcarouter-model-listbox" class="select-menu" role="listbox"
+                                aria-labelledby="orcarouter-model-label" hidden></ul>
+                        </div>
+                    </div>
+                    <p class="provider-status" id="orcarouter-catalog-status">Loading model catalog…</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Navigation Tabs -->
         <nav class="tab-navigation">
             <button class="tab-button active" data-tab="tasks">Tasks</button>

@@ -45,6 +45,10 @@ This is controlled via the `global.environment` setting in the values.yaml or va
        apiKey: "your-anthropic-api-key"
      gemini:
        apiKey: "your-google-gemini-key"
+     # OrcaRouter: OpenAI-compatible gateway, configured independently of the
+     # providers above. Leave the key empty to keep the orcarouter-* models off.
+     orcarouter:
+       apiKey: "your-orcarouter-api-key"
 
    crs:
       api_key_id: 515cc8a0-3019-4c9f-8c1c-72d0b54ae561
@@ -80,6 +84,8 @@ This secret contains API keys for LLM providers:
 - **OPENAI_API_KEY**: OpenAI API key
 - **ANTHROPIC_API_KEY**: Anthropic API key
 - **GEMINI_API_KEY**: Google Gemini API key
+- **ORCAROUTER_API_KEY**: OrcaRouter API key (`sk-orca-…`), managed at
+  https://www.orcarouter.ai. Only needed for the `orcarouter-*` models.
 
 These are populated from the `values-override.yaml` file.
 

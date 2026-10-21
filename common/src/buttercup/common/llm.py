@@ -43,6 +43,12 @@ class ButtercupLLM(Enum):
     GEMINI_PRO = "gemini-pro"
     GEMINI_2_5_FLASH = "gemini-2.5-flash"
     GEMINI_2_5_FLASH_EXP = "gemini-2.5-flash-exp"
+    # OrcaRouter: one OpenAI-compatible gateway, configured independently of every
+    # other provider in litellm/litellm_config.yaml.
+    ORCAROUTER_ORCACYBER_ZERO = "orcarouter-orcacyber-zero"
+    ORCAROUTER_AUTO = "orcarouter-auto"
+    ORCAROUTER_DEEPSEEK_V4_PRO = "orcarouter-deepseek-v4-pro"
+    ORCAROUTER_DEEPSEEK_V4_FLASH = "orcarouter-deepseek-v4-flash"
 
 
 @functools.cache
